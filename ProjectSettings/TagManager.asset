@@ -6,6 +6,7 @@ TagManager:
   tags:
   - Bullet
   - RoomCamera
+  - ExitPoint
   layers:
   - Default
   - TransparentFX
@@ -13,12 +14,12 @@ TagManager:
   - Ground
   - Water
   - UI
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
+  - Walls
+  - Booth
+  - Customer
+  - Events
+  - 'Interactable '
+  - ClickMask
   - 
   - 
   - 
