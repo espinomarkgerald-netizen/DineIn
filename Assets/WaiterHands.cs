@@ -1,0 +1,203 @@
+using UnityEngine;
+
+public class WaiterHands : MonoBehaviour
+{
+    public static WaiterHands Instance { get; private set; }
+
+    [Header("Holding")]
+    public CustomerGroup holdingTicketFor;
+    public CustomerGroup holdingBillFor;
+    public FoodTray holdingTray;
+    public CustomerGroup holdingMoneyFor;
+    public int holdingMoneyAmount;
+
+    [Header("Hold Points")]
+    [SerializeField] private Transform trayHoldPoint;
+    [SerializeField] private Transform billHoldPoint;
+
+    [Header("Held Visuals")]
+    [SerializeField] private GameObject billHeldVisualPrefab;
+    [SerializeField] private Transform moneyHoldPoint;
+    [SerializeField] private GameObject moneyHeldVisualPrefab;
+
+    private GameObject moneyHeldVisualInstance;
+    private MoneyPickup heldMoneyPickup;
+
+    private GameObject billHeldVisualInstance;
+    private BillPaper heldBillPaper;
+
+    private void Awake()
+    {
+        Debug.Log($"[WaiterHands] Awake on {name} id={GetInstanceID()}");
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
+        Instance = this;
+
+        holdingTray = null;
+        holdingTicketFor = null;
+        holdingBillFor = null;
+        heldBillPaper = null;
+    }
+
+    public bool HasTicket => holdingTicketFor != null;
+    public bool HasBill => holdingBillFor != null;
+    public bool HasTray => holdingTray != null;
+
+    public bool HasMoney => holdingMoneyFor != null;
+    public Transform MoneyHoldPoint => moneyHoldPoint != null ? moneyHoldPoint : transform;
+
+    public Transform TrayHoldPoint => trayHoldPoint != null ? trayHoldPoint : transform;
+    public Transform BillHoldPoint => billHoldPoint != null ? billHoldPoint : transform;
+
+    public void ClearTicket() => holdingTicketFor = null;
+
+    public void ClearBill()
+    {
+        holdingBillFor = null;
+
+        if (heldBillPaper != null)
+        {
+            Destroy(heldBillPaper.gameObject);
+            heldBillPaper = null;
+        }
+
+        if (billHeldVisualInstance != null)
+        {
+            Destroy(billHeldVisualInstance);
+            billHeldVisualInstance = null;
+        }
+    }
+
+    public void ClearTray() => holdingTray = null;
+
+    public void PickupBill(CustomerGroup group)
+    {
+        if (group == null) return;
+        if (HasBill) return;
+
+        holdingBillFor = group;
+        RefreshBillHeldVisual();
+    }
+
+    public void PickupBillPaper(BillPaper paper)
+    {
+        if (paper == null) { Debug.LogWarning("[WaiterHands] PickupBillPaper: paper null"); return; }
+        if (heldBillPaper != null) { Debug.LogWarning("[WaiterHands] PickupBillPaper: already holding bill paper"); return; }
+
+        Transform parent = BillHoldPoint;
+        if (parent == null)
+        {
+            Debug.LogError("[WaiterHands] BillHoldPoint is NULL (assign it on WaiterHands).");
+            return;
+        }
+
+        holdingBillFor = paper.TargetGroup;
+        heldBillPaper = paper;
+
+        Debug.Log($"[WaiterHands] Picking bill #{paper.orderNumber}. Parent={parent.name} (path: {GetPath(parent)})");
+
+        paper.transform.SetParent(parent, false);
+        paper.transform.localPosition = Vector3.zero;
+        paper.transform.localRotation = Quaternion.identity;
+
+        var col = paper.GetComponentInChildren<Collider>(true);
+        if (col != null) col.enabled = false;
+
+        Debug.Log($"[WaiterHands] Bill now child of hand? {paper.transform.IsChildOf(parent)} worldPos={paper.transform.position}");
+
+        RefreshBillHeldVisual();
+    }
+
+    private string GetPath(Transform t)
+    {
+        if (t == null) return "null";
+        string path = t.name;
+        while (t.parent != null)
+        {
+            t = t.parent;
+            path = t.name + "/" + path;
+        }
+        return path;
+    }
+
+    private void RefreshBillHeldVisual()
+    {
+        if (billHeldVisualInstance != null)
+        {
+            Destroy(billHeldVisualInstance);
+            billHeldVisualInstance = null;
+        }
+
+        if (billHeldVisualPrefab == null) return;
+
+        Transform parent = BillHoldPoint;
+        billHeldVisualInstance = Instantiate(billHeldVisualPrefab, parent);
+        billHeldVisualInstance.transform.localPosition = Vector3.zero;
+        billHeldVisualInstance.transform.localRotation = Quaternion.identity;
+    }
+
+    public bool TryDeliverTrayTo(CustomerGroup group, bool destroyTrayObject = true)
+    {
+        if (group == null || holdingTray == null) return false;
+        if (!holdingTray.Matches(group)) return false;
+
+        if (group.assignedBooth != null)
+            group.assignedBooth.ClearMenuBook();
+
+        var deliveredTray = holdingTray;
+        holdingTray = null;
+
+        if (destroyTrayObject && deliveredTray != null)
+            Destroy(deliveredTray.gameObject);
+
+        return true;
+    }
+
+    public void PickupMoney(MoneyPickup money)
+    {
+        if (money == null) return;
+        if (HasMoney) return;
+
+        holdingMoneyFor = money.TargetGroup;
+        holdingMoneyAmount = money.Amount;
+        heldMoneyPickup = money;
+
+        Transform parent = MoneyHoldPoint;
+        money.transform.SetParent(parent, false);
+        money.transform.localPosition = Vector3.zero;
+        money.transform.localRotation = Quaternion.identity;
+
+        var col = money.GetComponentInChildren<Collider>(true);
+        if (col != null) col.enabled = false;
+
+        if (moneyHeldVisualInstance != null) Destroy(moneyHeldVisualInstance);
+        if (moneyHeldVisualPrefab != null)
+        {
+            moneyHeldVisualInstance = Instantiate(moneyHeldVisualPrefab, parent);
+            moneyHeldVisualInstance.transform.localPosition = Vector3.zero;
+            moneyHeldVisualInstance.transform.localRotation = Quaternion.identity;
+        }
+    }
+
+    public void ClearMoney()
+    {
+        holdingMoneyFor = null;
+        holdingMoneyAmount = 0;
+
+        if (heldMoneyPickup != null)
+        {
+            Destroy(heldMoneyPickup.gameObject);
+            heldMoneyPickup = null;
+        }
+
+        if (moneyHeldVisualInstance != null)
+        {
+            Destroy(moneyHeldVisualInstance);
+            moneyHeldVisualInstance = null;
+        }
+    }
+}

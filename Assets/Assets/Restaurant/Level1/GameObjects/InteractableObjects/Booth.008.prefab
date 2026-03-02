@@ -84,6 +84,37 @@ SphereCollider:
   serializedVersion: 3
   m_Radius: 2
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!1 &1995116907262667488
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 5693246615320672451}
+  m_Layer: 0
+  m_Name: TableFoodSpawn
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &5693246615320672451
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1995116907262667488}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0.0059, y: 0.0122, z: 0.00843}
+  m_LocalScale: {x: 0.0033333332, y: 0.0033333332, z: 0.0033333332}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 2357183371082360675}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &3304245938155698355
 GameObject:
   m_ObjectHideFlags: 0
@@ -130,6 +161,8 @@ GameObject:
   - component: {fileID: 1414530160320430229}
   - component: {fileID: 1891441916108277462}
   - component: {fileID: 2182869922023859796}
+  - component: {fileID: 8633200025045802991}
+  - component: {fileID: 7430720077721120227}
   m_Layer: 7
   m_Name: Booth.008
   m_TagString: Untagged
@@ -159,6 +192,8 @@ Transform:
   - {fileID: 2177773158648656085}
   - {fileID: 1277311702441228976}
   - {fileID: 2621870334577708099}
+  - {fileID: 5693246615320672451}
+  - {fileID: 638286215285416471}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: -90, y: 0, z: 90}
 --- !u!33 &3707043367313073877
@@ -267,6 +302,7 @@ MonoBehaviour:
   parentMenuToSpawnPoint: 1
   tableNumberAnchor: {fileID: 2621870334577708099}
   menuInstance: {fileID: 0}
+  currentGroup: {fileID: 0}
 --- !u!114 &1891441916108277462
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -298,6 +334,35 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   standPoint: {fileID: 2177773158648656085}
+--- !u!114 &8633200025045802991
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4057343320147768237}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c1e9e4fe4792c60459a10ec0a5fb730b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  tableFoodSpawn: {fileID: 5693246615320672451}
+  destroyTrayOnDeliver: 0
+--- !u!114 &7430720077721120227
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4057343320147768237}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9413506bfc33101438bf6bcdf16e333f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  moneySpawnPoint: {fileID: 638286215285416471}
+  moneyPrefab: {fileID: 3692771060958817622, guid: 6cacf6b5f47400f4796683d009a0070b, type: 3}
+  onlyOneMoneyAtATime: 1
 --- !u!1 &5706498805622246357
 GameObject:
   m_ObjectHideFlags: 0
@@ -416,7 +481,7 @@ Transform:
   m_GameObject: {fileID: 7427807045103885085}
   serializedVersion: 2
   m_LocalRotation: {x: 0.5, y: -0.5, z: -0.5, w: 0.5}
-  m_LocalPosition: {x: 0.0272, y: 0.0238, z: -0.0009}
+  m_LocalPosition: {x: 0.0122, y: 0.0003, z: -0.0009}
   m_LocalScale: {x: 0.0033333332, y: 0.0033333332, z: 0.0033333332}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -449,6 +514,37 @@ Transform:
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: -0.0158, y: 0.0075, z: 0.0124}
   m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 2357183371082360675}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &8608034048839281516
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 638286215285416471}
+  m_Layer: 0
+  m_Name: MoneySpawnPoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &638286215285416471
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8608034048839281516}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0.0024, y: 0.0149, z: 0.00843}
+  m_LocalScale: {x: 0.0033333332, y: 0.0033333332, z: 0.0033333332}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 2357183371082360675}

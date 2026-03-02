@@ -3,47 +3,38 @@ using UnityEngine;
 
 public class Booth : MonoBehaviour
 {
-    [Header("Where the group walks to before seating")]
+    [Header("Approach / Seating")]
     public Transform approachPoint;
-
-    [Header("Seat anchors (size up to 4)")]
     public List<Transform> seats = new List<Transform>(4);
 
     [Header("Facing")]
-    [Tooltip("Empty object placed at the CENTER of the table. Customers will face this.")]
     public Transform tableLookTarget;
-
-    [Tooltip("If customers face wrong direction, set to 180 / 90 / -90.")]
     public float seatYawOffset = 0f;
 
-    // =========================
-    // NEW: Table Props (Feature 1)
-    // =========================
     [Header("Table Props - Menu Book")]
-    [Tooltip("Prefab to spawn on the table once the group is seated.")]
     public GameObject menuBookPrefab;
-
-    [Tooltip("Where the menu book should spawn (create an empty child on the tabletop).")]
     public Transform menuSpawnPoint;
-
-    [Tooltip("If true, menu spawns as a child of menuSpawnPoint (recommended).")]
     public bool parentMenuToSpawnPoint = true;
 
-    [Header("Table Props - Future Hooks (optional)")]
-    [Tooltip("Where to spawn a table/order number UI later.")]
+    [Header("Table Props - Other")]
     public Transform tableNumberAnchor;
 
-    // Runtime refs (so we can clean up)
+    [Header("Runtime")]
     [SerializeField] private GameObject menuInstance;
+    [SerializeField] private CustomerGroup currentGroup;
 
-    // ---- Availability / Seating ----
+    public CustomerGroup CurrentGroup => currentGroup;
+
+    public void SetCurrentGroup(CustomerGroup g) => currentGroup = g;
+    public void ClearCurrentGroup() => currentGroup = null;
 
     public bool IsAvailableFor(int groupSize)
     {
+        if (HasTrayOnTable()) return false;
+
         if (approachPoint == null) return false;
         if (seats == null || seats.Count < groupSize) return false;
 
-        // Simple rule for now: booth must be fully empty
         for (int i = 0; i < seats.Count; i++)
         {
             if (seats[i] == null) continue;
@@ -62,58 +53,33 @@ public class Booth : MonoBehaviour
 
     public Quaternion GetSeatedRotation(Vector3 seatPos)
     {
-        Vector3 dir;
-
-        if (tableLookTarget != null)
-            dir = tableLookTarget.position - seatPos;
-        else
-            dir = transform.forward;
-
+        Vector3 dir = (tableLookTarget != null) ? (tableLookTarget.position - seatPos) : transform.forward;
         dir.y = 0f;
+
         if (dir.sqrMagnitude < 0.0001f) dir = Vector3.forward;
 
         return Quaternion.LookRotation(dir.normalized, Vector3.up) * Quaternion.Euler(0f, seatYawOffset, 0f);
     }
 
-    // =========================
-    // NEW: Menu Book API
-    // Call this when the group is fully seated (CustomerGroup.OnGroupSeated)
-    // =========================
-
-    /// <summary>
-    /// Spawns the menu book on this booth (safe to call multiple times).
-    /// </summary>
     public void SpawnMenuBook()
     {
-        if (menuInstance != null) return; // already spawned
+        if (menuSpawnPoint == null || menuBookPrefab == null) return;
 
-        if (menuBookPrefab == null)
-        {
-            Debug.LogWarning($"{name}: MenuBookPrefab is missing.");
-            return;
-        }
+        if (menuInstance == null)
+            menuInstance = FindExistingMenu();
 
-        if (menuSpawnPoint == null)
-        {
-            Debug.LogWarning($"{name}: MenuSpawnPoint is missing (create an empty child on the tabletop).");
-            return;
-        }
+        if (menuInstance != null) return;
 
-        if (parentMenuToSpawnPoint)
-        {
-            menuInstance = Instantiate(menuBookPrefab, menuSpawnPoint.position, menuSpawnPoint.rotation, menuSpawnPoint);
-        }
-        else
-        {
-            menuInstance = Instantiate(menuBookPrefab, menuSpawnPoint.position, menuSpawnPoint.rotation);
-        }
+        menuInstance = parentMenuToSpawnPoint
+            ? Instantiate(menuBookPrefab, menuSpawnPoint.position, menuSpawnPoint.rotation, menuSpawnPoint)
+            : Instantiate(menuBookPrefab, menuSpawnPoint.position, menuSpawnPoint.rotation);
     }
 
-    /// <summary>
-    /// Removes the menu book (call when customers leave / booth is cleared).
-    /// </summary>
     public void ClearMenuBook()
     {
+        if (menuInstance == null)
+            menuInstance = FindExistingMenu();
+
         if (menuInstance != null)
         {
             Destroy(menuInstance);
@@ -121,12 +87,82 @@ public class Booth : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Clears all booth props (menu now, more later like number UI).
-    /// </summary>
+    private GameObject FindExistingMenu()
+    {
+        if (menuSpawnPoint == null) return null;
+
+        if (menuSpawnPoint.childCount > 0)
+        {
+            for (int i = 0; i < menuSpawnPoint.childCount; i++)
+            {
+                var child = menuSpawnPoint.GetChild(i);
+                if (child == null) continue;
+
+                if (menuBookPrefab != null && child.name.StartsWith(menuBookPrefab.name))
+                    return child.gameObject;
+            }
+
+            return menuSpawnPoint.GetChild(0).gameObject;
+        }
+
+        return null;
+    }
+
     public void ClearBoothProps()
     {
         ClearMenuBook();
-        // Later: ClearTableNumberUI(); ClearBillPaper(); etc.
+    }
+
+    // OLD hook (kept so nothing breaks if you still call it somewhere)
+    public void ArmTrayCleaningForCurrentGroup()
+    {
+        ArmTrayCleaningForGroup(currentGroup);
+    }
+
+    // NEW: pass group so tray can enforce "only clean after leaving"
+    public void ArmTrayCleaningForGroup(CustomerGroup group)
+    {
+        var drop = FindTableFoodSpawn();
+        if (drop == null) return;
+
+        var tray = drop.GetComponentInChildren<FoodTray>(true);
+        if (tray == null) return;
+
+        var holdClean = tray.GetComponent<TrayHoldToClean>();
+        if (holdClean != null)
+        {
+            holdClean.Arm(this, group);
+            return;
+        }
+
+        var legacy = tray.GetComponent<TrayCleanable>();
+        if (legacy != null)
+        {
+            legacy.ArmForCleaning(this);
+            return;
+        }
+    }
+
+    public void OnTableCleaned()
+    {
+        // Hook for booth state/UI if needed later
+    }
+
+    private Transform FindTableFoodSpawn()
+    {
+        foreach (var t in GetComponentsInChildren<Transform>(true))
+        {
+            if (t.name == "TableFoodSpawn")
+                return t;
+        }
+        return null;
+    }
+
+    private bool HasTrayOnTable()
+    {
+        var drop = FindTableFoodSpawn();
+        if (drop == null) return false;
+
+        return drop.GetComponentInChildren<FoodTray>(true) != null;
     }
 }

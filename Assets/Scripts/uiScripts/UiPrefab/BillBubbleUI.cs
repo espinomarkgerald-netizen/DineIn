@@ -1,12 +1,39 @@
 using UnityEngine;
-using UnityEngine.UI;
 
 public class BillBubbleUI : MonoBehaviour
 {
-    public Image icon;
+    [SerializeField] private bool oneRequestOnly = true;
 
-    public void SetIcon(Sprite sprite)
+    private CustomerGroup group;
+    private bool requested;
+
+    public void Init(CustomerGroup g)
     {
-        if (icon != null) icon.sprite = sprite;
+        group = g;
+        requested = false;
+    }
+
+    public void OnClickBillBubble()
+    {
+        if (group == null) return;
+
+        var hands = WaiterHands.Instance;
+
+        // Deliver bill if holding it
+        if (hands != null && hands.HasBill && hands.holdingBillFor == group)
+        {
+            hands.ClearBill();
+            group.ReceiveBillFromWaiter();
+
+            // Remove bubble after successful delivery
+            Destroy(gameObject);
+            return;
+        }
+
+        // Request bill from cashier
+        if (oneRequestOnly && requested) return;
+
+        group.RequestBillFromCashier();
+        requested = true;
     }
 }

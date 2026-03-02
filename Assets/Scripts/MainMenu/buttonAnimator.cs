@@ -50,9 +50,18 @@ public class ButtonBounceAnimator : MonoBehaviour
 
             button.onClick.AddListener(() =>
             {
-                StartCoroutine(Bounce(rect, button));
+                TryStartBounce(rect, button);
             });
         }
+    }
+
+    void TryStartBounce(RectTransform rect, Button button)
+    {
+        // If this object is disabled/inactive, Unity can't run coroutines here
+        if (!isActiveAndEnabled || gameObject == null || !gameObject.activeInHierarchy)
+            return;
+
+        StartCoroutine(Bounce(rect, button));
     }
 
     void AddEvent(GameObject obj, EventTriggerType type, System.Action action)

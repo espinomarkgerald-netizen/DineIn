@@ -1,10 +1,10 @@
-using TMPro; // Required for TextMeshPro
+using TMPro; 
 using UnityEngine;
 
 public class FPSDisplay : MonoBehaviour
 {
     [Header("UI Settings")]
-    // CHANGED: Use TextMeshProUGUI for Canvas/UI text
+    
     public TextMeshProUGUI fpsText; 
     
     [Header("Configuration")]
@@ -18,7 +18,7 @@ public class FPSDisplay : MonoBehaviour
     {
         if (fpsText == null)
         {
-            // Try to find it automatically if you forgot to drag it
+            
             fpsText = GetComponent<TextMeshProUGUI>();
 
             if (fpsText == null)

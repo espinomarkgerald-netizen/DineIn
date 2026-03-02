@@ -209,6 +209,10 @@ public class CustomerGroup : MonoBehaviour
             StopCoroutine(seatingRoutine);
 
         seatingRoutine = StartCoroutine(SeatMembersFlow());
+
+        assignedBooth.SetCurrentGroup(this);
+
+        
     }
 
     private IEnumerator SeatMembersFlow()
@@ -406,6 +410,10 @@ public class CustomerGroup : MonoBehaviour
         ClearOrderBubble();
         SpawnTableNumber();
 
+        // Spawn ticket UI for waiter to deliver to cashier
+        if (OrderFlowManager.Instance != null)
+            OrderFlowManager.Instance.SpawnTicket(this);
+
         Debug.Log($"{name}: Order taken! #{currentOrderNumber} Food={chosenFood} Drink={chosenDrink}");
     }
 
@@ -471,6 +479,8 @@ public class CustomerGroup : MonoBehaviour
         }
 
         CleanupSeatsAndBoothOnly();
+        if (assignedBooth != null)
+            assignedBooth.ClearCurrentGroup();
 
         if (!showAngryBubble)
             ClearAngryBubble();
@@ -682,4 +692,73 @@ public class CustomerGroup : MonoBehaviour
 
         return count > 0 ? sum / count : transform.position;
     }
+
+    private void SpawnBillBubble()
+    {
+        if (billBubblePrefab == null) return;
+        ResolveCanvas();
+        if (gameplayCanvas == null) return;
+
+        ClearBillBubble();
+
+        billBubbleInstance = Instantiate(billBubblePrefab, gameplayCanvas.transform);
+
+        var follow = billBubbleInstance.GetComponentInChildren<UIFollowWorldPoint>(true);
+        if (follow != null)
+            follow.Init(groupUiAnchor, bubbleOffset, GetFollowCam());
+
+        var ui = billBubbleInstance.GetComponentInChildren<BillBubbleUI>(true);
+        if (ui != null)
+            ui.Init(this);
+    }
+
+    public void ReceiveFoodFromWaiter()
+    {
+        if (state != GroupState.OrderTaken) return;
+
+        if (assignedBooth != null)
+            assignedBooth.ClearMenuBook();
+
+        state = GroupState.Eating;
+        StartCoroutine(EatThenNeedBill());
+    }
+
+    public void ReceiveBillFromWaiter()
+    {
+        if (state != GroupState.NeedsBill) return;
+
+        ClearBillBubble();
+
+        if (assignedBooth == null) return;
+
+        var spawner = assignedBooth.GetComponent<BoothMoneySpawner>();
+        if (spawner == null) return;
+
+        int amount = 100;
+
+        var cashier = FindFirstObjectByType<CashierBoothInteractable>();
+        if (cashier != null)
+            amount = cashier.GenerateSaleAmount();
+
+        spawner.SpawnMoney(this, amount, spawner.MoneySpawnPoint);
+    }
+
+    public void RequestBillFromCashier()
+    {
+        if (state != GroupState.NeedsBill) return;
+        if (BillManager.Instance == null) return;
+
+        BillManager.Instance.RequestBill(this);
+    }
+
+    private IEnumerator EatThenNeedBill()
+    {
+        float eat = UnityEngine.Random.Range(minEatSeconds, maxEatSeconds);
+        yield return new WaitForSeconds(eat);
+
+        state = GroupState.NeedsBill;
+
+        SpawnBillBubble();
+    }
+    
 }

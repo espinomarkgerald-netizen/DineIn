@@ -16,8 +16,13 @@ public class OrderChecklistUI : MonoBehaviour
     public Toggle iceTeaToggle;
 
     [Header("Buttons")]
+    [Tooltip("This button will act as SEND TO CASHIER (it will: Take Order -> Send to Cashier -> Close).")]
     public Button confirmButton;
     public Button exitButton;
+
+    [Header("Cashier (REQUIRED for Send)")]
+    [Tooltip("Drag your CashierBoothInteractable from the scene here.")]
+    public CashierBoothInteractable cashier;
 
     [Header("Optional: block clicks behind notepad")]
     public GameObject inputBlockerPanel;
@@ -29,18 +34,46 @@ public class OrderChecklistUI : MonoBehaviour
 
     private void Awake()
     {
+        // Safe singleton
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
         Instance = this;
 
-        if (confirmButton != null) confirmButton.onClick.AddListener(Confirm);
-        if (exitButton != null) exitButton.onClick.AddListener(Close);
+        // Avoid stacking listeners if this object persists across scene loads or gets re-enabled
+        if (confirmButton != null)
+        {
+            confirmButton.onClick.RemoveListener(ConfirmAndSendToCashier);
+            confirmButton.onClick.AddListener(ConfirmAndSendToCashier);
+        }
+
+        if (exitButton != null)
+        {
+            exitButton.onClick.RemoveListener(Close);
+            exitButton.onClick.AddListener(Close);
+        }
 
         if (inputBlockerPanel != null) inputBlockerPanel.SetActive(false);
 
+        // Start hidden
         gameObject.SetActive(false);
     }
 
     public void Open(CustomerGroup group)
     {
+        if (WaiterHands.Instance != null && WaiterHands.Instance.HasTray)
+        {
+            Debug.Log("[OrderChecklistUI] Can't take orders while holding a tray.");
+            return;
+        }
+
+        if (group == null) return;
+
+        currentGroup = group;
+        currentGroup.SetOrderPause(true);
+        
         if (group == null) return;
 
         currentGroup = group;
@@ -64,13 +97,23 @@ public class OrderChecklistUI : MonoBehaviour
         gameObject.SetActive(true);
     }
 
-    public void Confirm()
+    // CONFIRM BUTTON BEHAVIOR:
+    // 1) Validate 1 food + 1 drink
+    // 2) TakeOrderFromWaiter() (assigns order number, table number, etc.)
+    // 3) Send to cashier (works on mobile because it's a UI button)
+    // 4) Close notepad
+    public void ConfirmAndSendToCashier()
     {
         if (currentGroup == null) { Close(); return; }
 
         // Must pick exactly 1 food + 1 drink
-        int foodCount = (chickenToggle.isOn ? 1 : 0) + (friesToggle.isOn ? 1 : 0) + (burgerToggle.isOn ? 1 : 0);
-        int drinkCount = (cokeToggle.isOn ? 1 : 0) + (pineappleToggle.isOn ? 1 : 0) + (iceTeaToggle.isOn ? 1 : 0);
+        int foodCount = (chickenToggle != null && chickenToggle.isOn ? 1 : 0)
+                      + (friesToggle != null && friesToggle.isOn ? 1 : 0)
+                      + (burgerToggle != null && burgerToggle.isOn ? 1 : 0);
+
+        int drinkCount = (cokeToggle != null && cokeToggle.isOn ? 1 : 0)
+                       + (pineappleToggle != null && pineappleToggle.isOn ? 1 : 0)
+                       + (iceTeaToggle != null && iceTeaToggle.isOn ? 1 : 0);
 
         if (foodCount != 1 || drinkCount != 1)
         {
@@ -78,8 +121,30 @@ public class OrderChecklistUI : MonoBehaviour
             return;
         }
 
+        // 1) Take the order (your existing logic)
         currentGroup.TakeOrderFromWaiter();
+
+        // 2) Send to cashier immediately (no tapping required)
+        TrySendToCashier(currentGroup);
+
+        // 3) Close notepad
         Close();
+    }
+
+    private void TrySendToCashier(CustomerGroup group)
+    {
+        if (group == null) return;
+
+        if (cashier == null)
+            cashier = FindFirstObjectByType<CashierBoothInteractable>();
+
+        if (cashier == null)
+        {
+            Debug.LogWarning("[OrderChecklistUI] No CashierBoothInteractable found.");
+            return;
+        }
+
+        cashier.ProcessTicket(group);
     }
 
     public void Close()
@@ -102,7 +167,7 @@ public class OrderChecklistUI : MonoBehaviour
         if (burgerToggle != null) burgerToggle.isOn = value;
 
         if (cokeToggle != null) cokeToggle.isOn = value;
-        if (pineappleToggle != null) pineappleToggle.isOn = value; // ✅ fixed (was a common typo)
+        if (pineappleToggle != null) pineappleToggle.isOn = value;
         if (iceTeaToggle != null) iceTeaToggle.isOn = value;
     }
 
@@ -113,7 +178,7 @@ public class OrderChecklistUI : MonoBehaviour
         if (burgerToggle != null) burgerToggle.interactable = interactable;
 
         if (cokeToggle != null) cokeToggle.interactable = interactable;
-        if (pineappleToggle != null) pineappleToggle.interactable = interactable; // ✅ fixed
+        if (pineappleToggle != null) pineappleToggle.interactable = interactable;
         if (iceTeaToggle != null) iceTeaToggle.interactable = interactable;
     }
 

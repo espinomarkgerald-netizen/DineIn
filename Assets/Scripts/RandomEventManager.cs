@@ -15,16 +15,13 @@ public class RandomEventManager : MonoBehaviour
     [SerializeField] private bool randomizeYaw = true;
     [SerializeField] private Vector2 yawRange = new Vector2(0f, 360f);
 
-    [Tooltip("Random uniform scale multiplier applied on top of prefab scale.")]
     [SerializeField] private bool randomizeUniformScale = true;
     [SerializeField] private Vector2 uniformScaleRange = new Vector2(0.85f, 1.25f);
 
-    [Tooltip("Optional: randomize XZ stretch (good for puddles). Ignored if Randomize Uniform Scale is off.")]
     [SerializeField] private bool randomizeXZStretch = false;
     [SerializeField] private Vector2 xScaleRange = new Vector2(0.8f, 1.3f);
     [SerializeField] private Vector2 zScaleRange = new Vector2(0.8f, 1.3f);
 
-    [Tooltip("Keeps Y scale at 1 so it doesn't get thicker/thinner (recommended for flat puddles).")]
     [SerializeField] private bool lockYScaleToOne = true;
 
     [Header("Click/Hold")]
@@ -34,6 +31,9 @@ public class RandomEventManager : MonoBehaviour
 
     [Header("UI")]
     [SerializeField] private HoldToCleanUI holdUi;
+
+    [Header("Block Cleaning When Clicking These")]
+    [SerializeField] private LayerMask blockCleaningMask; // set to Food layer
 
     private readonly List<CleanableEvent> activeEvents = new();
     private CleanableEvent currentHoldTarget;
@@ -55,7 +55,6 @@ public class RandomEventManager : MonoBehaviour
 
     void Update()
     {
-        // Spawn loop
         activeEvents.RemoveAll(e => e == null);
 
         if (eventPrefabs.Count > 0 && spawnPoints.Count > 0)
@@ -67,14 +66,12 @@ public class RandomEventManager : MonoBehaviour
             }
         }
 
-        // UI block: don't START a new hold if pointer over UI
         if (EventSystem.current != null && IsPointerOverUI() && !isHolding)
             return;
 
         if (cam == null) cam = Camera.main;
         if (cam == null) return;
 
-        // Start hold
         if (PressedThisFrame())
         {
             var target = RaycastEventUnderPointer();
@@ -86,7 +83,6 @@ public class RandomEventManager : MonoBehaviour
             }
         }
 
-        // Continue hold
         if (isHolding)
         {
             if (ReleasedThisFrame() || currentHoldTarget == null)
@@ -125,10 +121,22 @@ public class RandomEventManager : MonoBehaviour
         Vector2 screenPos = GetPointerScreenPosition();
         Ray ray = cam.ScreenPointToRay(screenPos);
 
-        if (Physics.Raycast(ray, out RaycastHit hit, maxRayDistance, eventLayerMask, QueryTriggerInteraction.Collide))
-            return hit.collider.GetComponentInParent<CleanableEvent>();
+        
+        if (Physics.Raycast(ray, out _, maxRayDistance, blockCleaningMask, QueryTriggerInteraction.Collide))
+            return null;
 
-        return null;
+        // Only raycast on Events layer for puddles
+        if (!Physics.Raycast(ray, out RaycastHit hit, maxRayDistance, eventLayerMask, QueryTriggerInteraction.Collide))
+            return null;
+
+        var ce = hit.collider.GetComponentInParent<CleanableEvent>();
+        if (ce == null) return null;
+
+        // Only allow cleaning for events spawned by this manager
+        if (!activeEvents.Contains(ce))
+            return null;
+
+        return ce;
     }
 
     void SpawnRandomEvent()
@@ -138,7 +146,6 @@ public class RandomEventManager : MonoBehaviour
 
         var spawned = Instantiate(prefab, point.position, point.rotation);
 
-        // ===== Variation =====
         ApplySpawnVariation(spawned.transform, point);
 
         activeEvents.Add(spawned);
@@ -146,14 +153,12 @@ public class RandomEventManager : MonoBehaviour
 
     void ApplySpawnVariation(Transform spawned, Transform spawnPoint)
     {
-        // Rotation: random yaw (spins around Y / up axis)
         if (randomizeYaw)
         {
             float yaw = Random.Range(yawRange.x, yawRange.y);
             spawned.rotation = Quaternion.AngleAxis(yaw, Vector3.up) * spawnPoint.rotation;
         }
 
-        // Scale: multiply prefab scale so you keep its original proportions
         Vector3 baseScale = spawned.localScale;
 
         if (randomizeUniformScale)
@@ -175,7 +180,6 @@ public class RandomEventManager : MonoBehaviour
         }
     }
 
-    // Input helpers
     bool PressedThisFrame()
     {
         if (Input.touchCount > 0) return Input.GetTouch(0).phase == TouchPhase.Began;

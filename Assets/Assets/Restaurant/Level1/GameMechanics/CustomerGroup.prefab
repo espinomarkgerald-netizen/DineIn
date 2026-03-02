@@ -160,6 +160,7 @@ GameObject:
   m_Component:
   - component: {fileID: 61523501666495725}
   - component: {fileID: 5685048958830651254}
+  - component: {fileID: -4980108588594427370}
   m_Layer: 0
   m_Name: CustomerGroup
   m_TagString: Untagged
@@ -227,3 +228,15 @@ MonoBehaviour:
   chosenFood: 0
   chosenDrink: 0
   currentOrderNumber: -1
+--- !u!114 &-4980108588594427370
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7159145075819185033}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8411ab47ad2028f4c8148310dc91ef95, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 

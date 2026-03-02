@@ -175,7 +175,7 @@ Transform:
   m_GameObject: {fileID: 1437011415601713743}
   serializedVersion: 2
   m_LocalRotation: {x: 0.5, y: 0.5, z: 0.5, w: 0.5}
-  m_LocalPosition: {x: 0.0005, y: 0.0294, z: 0.0003}
+  m_LocalPosition: {x: 0.0002, y: 0.0206, z: 0.0003}
   m_LocalScale: {x: 0.0033333332, y: 0.0033333332, z: 0.0033333332}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -227,6 +227,8 @@ GameObject:
   - component: {fileID: 1132522026155506242}
   - component: {fileID: 1491356618952411549}
   - component: {fileID: 875635477977684078}
+  - component: {fileID: -7614298736845582753}
+  - component: {fileID: 6211868471658995573}
   m_Layer: 7
   m_Name: Long Table
   m_TagString: Untagged
@@ -254,6 +256,8 @@ Transform:
   - {fileID: 1590873842338549105}
   - {fileID: 9184384604280714977}
   - {fileID: 5232717982082929752}
+  - {fileID: 5468835672611121349}
+  - {fileID: 6830308105950920880}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: -90, y: 0, z: -90}
 --- !u!33 &5575813297132777719
@@ -354,6 +358,7 @@ MonoBehaviour:
   parentMenuToSpawnPoint: 1
   tableNumberAnchor: {fileID: 5232717982082929752}
   menuInstance: {fileID: 0}
+  currentGroup: {fileID: 0}
 --- !u!114 &1491356618952411549
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -385,6 +390,97 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   standPoint: {fileID: 1590873842338549105}
+--- !u!114 &-7614298736845582753
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5033952426681832222}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c1e9e4fe4792c60459a10ec0a5fb730b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  tableFoodSpawn: {fileID: 5468835672611121349}
+  destroyTrayOnDeliver: 0
+--- !u!114 &6211868471658995573
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5033952426681832222}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9413506bfc33101438bf6bcdf16e333f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  moneySpawnPoint: {fileID: 6830308105950920880}
+  moneyPrefab: {fileID: 3692771060958817622, guid: 6cacf6b5f47400f4796683d009a0070b, type: 3}
+  onlyOneMoneyAtATime: 1
+--- !u!1 &6251352755642209566
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 5468835672611121349}
+  m_Layer: 0
+  m_Name: TableFoodSpawn
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &5468835672611121349
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6251352755642209566}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0.7071068, y: 0, z: 0, w: 0.7071068}
+  m_LocalPosition: {x: -0.01328, y: 0.00712, z: 0.0085}
+  m_LocalScale: {x: 0.0033333332, y: 0.0033333332, z: 0.0033333332}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 6684562536468137154}
+  m_LocalEulerAnglesHint: {x: -90, y: 0, z: 0}
+--- !u!1 &6956830470617432907
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 6830308105950920880}
+  m_Layer: 0
+  m_Name: MoneySpawnPoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &6830308105950920880
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6956830470617432907}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0.7071068, y: 0, z: 0, w: 0.7071068}
+  m_LocalPosition: {x: -0.00711, y: 0.00712, z: 0.0085}
+  m_LocalScale: {x: 0.0033333332, y: 0.0033333332, z: 0.0033333332}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 6684562536468137154}
+  m_LocalEulerAnglesHint: {x: -90, y: 0, z: 0}
 --- !u!1 &7262428871676220694
 GameObject:
   m_ObjectHideFlags: 0

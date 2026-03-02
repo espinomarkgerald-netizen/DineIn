@@ -19,6 +19,11 @@ public class WaiterAssignController : MonoBehaviour
 
     private void Update()
     {
+        // ✅ NEW: don't run seating/assignment input while carrying a tray
+        // (prevents "Booth not available" when you're trying to deliver food)
+        if (WaiterHands.Instance != null && WaiterHands.Instance.HasTray)
+            return;
+
         // Mobile
         if (Input.touchCount > 0)
         {

@@ -46,6 +46,7 @@ GameObject:
   - component: {fileID: 7230906028464967880}
   - component: {fileID: 1919117534783050574}
   - component: {fileID: 4714698065138958945}
+  - component: {fileID: -2166864019467264393}
   m_Layer: 7
   m_Name: Stool
   m_TagString: Untagged
@@ -164,6 +165,12 @@ MonoBehaviour:
   - {fileID: 5759585413309974180}
   tableLookTarget: {fileID: 3097673248712869414}
   seatYawOffset: 0
+  menuBookPrefab: {fileID: 0}
+  menuSpawnPoint: {fileID: 0}
+  parentMenuToSpawnPoint: 1
+  tableNumberAnchor: {fileID: 0}
+  menuInstance: {fileID: 0}
+  currentGroup: {fileID: 0}
 --- !u!114 &1919117534783050574
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -195,6 +202,22 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   standPoint: {fileID: 5722500990681958284}
+--- !u!208 &-2166864019467264393
+NavMeshObstacle:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5899024861044550427}
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Shape: 1
+  m_Extents: {x: 0.002, y: 0.002, z: 0.004}
+  m_MoveThreshold: 0.1
+  m_Carve: 0
+  m_CarveOnlyStationary: 1
+  m_Center: {x: -0.0050000004, y: 0.0050000004, z: 0.004}
+  m_TimeToStationary: 0.5
 --- !u!1 &6031716558506516285
 GameObject:
   m_ObjectHideFlags: 0

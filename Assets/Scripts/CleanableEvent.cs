@@ -1,18 +1,20 @@
+using System;
 using UnityEngine;
 
 public class CleanableEvent : MonoBehaviour
 {
-    [Header("Cleaning")]
-    [Tooltip("Hold duration required to clean this spill.")]
-    public float holdToCleanSeconds = 1f;
+    [Header("Clean Settings")]
+    public float holdToCleanSeconds = 2f;
 
-    [Tooltip("Optional: play when cleaned.")]
-    public AudioClip cleanSfx;
-
+    [Header("Feedback")]
     [Tooltip("Optional: VFX prefab to spawn when cleaned.")]
     public GameObject cleanVfxPrefab;
 
+    [SerializeField] private AudioClip cleanSfx;
+
     public bool IsCleaned { get; private set; }
+
+    public event Action<CleanableEvent> OnCleaned;
 
     public void Clean()
     {
@@ -25,6 +27,7 @@ public class CleanableEvent : MonoBehaviour
         if (cleanSfx != null)
             AudioSource.PlayClipAtPoint(cleanSfx, transform.position);
 
+        OnCleaned?.Invoke(this);
         Destroy(gameObject);
     }
 }
