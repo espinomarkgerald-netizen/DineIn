@@ -56,7 +56,7 @@ public class FoodTray : MonoBehaviour
         if (spawnedDrink != null) Destroy(spawnedDrink);
 
         GameObject foodPrefab = null;
-        switch (targetGroup.chosenFood)
+        switch (targetGroup.confirmedFood)
         {
             case CustomerGroup.FoodType.Chicken: foodPrefab = chickenPrefab; break;
             case CustomerGroup.FoodType.Fries: foodPrefab = friesPrefab; break;
@@ -64,7 +64,7 @@ public class FoodTray : MonoBehaviour
         }
 
         GameObject drinkPrefab = null;
-        switch (targetGroup.chosenDrink)
+        switch (targetGroup.confirmedDrink)
         {
             case CustomerGroup.DrinkType.Coke: drinkPrefab = cokePrefab; break;
             case CustomerGroup.DrinkType.Pineapple: drinkPrefab = pineapplePrefab; break;

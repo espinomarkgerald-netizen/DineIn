@@ -34,7 +34,6 @@ public class OrderChecklistUI : MonoBehaviour
 
     private void Awake()
     {
-        // Safe singleton
         if (Instance != null && Instance != this)
         {
             Destroy(gameObject);
@@ -42,7 +41,6 @@ public class OrderChecklistUI : MonoBehaviour
         }
         Instance = this;
 
-        // Avoid stacking listeners if this object persists across scene loads or gets re-enabled
         if (confirmButton != null)
         {
             confirmButton.onClick.RemoveListener(ConfirmAndSendToCashier);
@@ -57,7 +55,6 @@ public class OrderChecklistUI : MonoBehaviour
 
         if (inputBlockerPanel != null) inputBlockerPanel.SetActive(false);
 
-        // Start hidden
         gameObject.SetActive(false);
     }
 
@@ -73,40 +70,23 @@ public class OrderChecklistUI : MonoBehaviour
 
         currentGroup = group;
         currentGroup.SetOrderPause(true);
-        
-        if (group == null) return;
 
-        currentGroup = group;
-        currentGroup.SetOrderPause(true);
-
-        // waiter checks manually -> start blank
         SetAll(false);
-
-        // ensure toggles are interactable
         SetTogglesInteractable(true);
 
-        // bring to top
         transform.SetAsLastSibling();
 
-        // block input behind
         if (inputBlockerPanel != null) inputBlockerPanel.SetActive(true);
 
-        // hide other ui if set
         SetOtherUIHidden(true);
 
         gameObject.SetActive(true);
     }
 
-    // CONFIRM BUTTON BEHAVIOR:
-    // 1) Validate 1 food + 1 drink
-    // 2) TakeOrderFromWaiter() (assigns order number, table number, etc.)
-    // 3) Send to cashier (works on mobile because it's a UI button)
-    // 4) Close notepad
     public void ConfirmAndSendToCashier()
     {
         if (currentGroup == null) { Close(); return; }
 
-        // Must pick exactly 1 food + 1 drink
         int foodCount = (chickenToggle != null && chickenToggle.isOn ? 1 : 0)
                       + (friesToggle != null && friesToggle.isOn ? 1 : 0)
                       + (burgerToggle != null && burgerToggle.isOn ? 1 : 0);
@@ -121,14 +101,41 @@ public class OrderChecklistUI : MonoBehaviour
             return;
         }
 
-        // 1) Take the order (your existing logic)
-        currentGroup.TakeOrderFromWaiter();
+        if (!TryGetSelectedFood(out var food) || !TryGetSelectedDrink(out var drink))
+        {
+            Debug.Log("Missing food/drink selection.");
+            return;
+        }
 
-        // 2) Send to cashier immediately (no tapping required)
+        // IMPORTANT: CustomerGroup must have:
+        // public void TakeOrderFromWaiter(FoodType food, DrinkType drink)
+        currentGroup.TakeOrderFromWaiter(food, drink);
+
         TrySendToCashier(currentGroup);
 
-        // 3) Close notepad
         Close();
+    }
+
+    private bool TryGetSelectedFood(out CustomerGroup.FoodType food)
+    {
+        food = default;
+
+        if (chickenToggle != null && chickenToggle.isOn) { food = CustomerGroup.FoodType.Chicken; return true; }
+        if (friesToggle != null && friesToggle.isOn) { food = CustomerGroup.FoodType.Fries; return true; }
+        if (burgerToggle != null && burgerToggle.isOn) { food = CustomerGroup.FoodType.Burger; return true; }
+
+        return false;
+    }
+
+    private bool TryGetSelectedDrink(out CustomerGroup.DrinkType drink)
+    {
+        drink = default;
+
+        if (cokeToggle != null && cokeToggle.isOn) { drink = CustomerGroup.DrinkType.Coke; return true; }
+        if (pineappleToggle != null && pineappleToggle.isOn) { drink = CustomerGroup.DrinkType.Pineapple; return true; }
+        if (iceTeaToggle != null && iceTeaToggle.isOn) { drink = CustomerGroup.DrinkType.IceTea; return true; }
+
+        return false;
     }
 
     private void TrySendToCashier(CustomerGroup group)

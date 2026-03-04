@@ -47,12 +47,13 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
             return;
         }
 
+        // Money flow
         if (WaiterHands.Instance.HasMoney)
         {
             var g = WaiterHands.Instance.holdingMoneyFor;
             int amt = WaiterHands.Instance.holdingMoneyAmount;
 
-            WaiterHands.Instance.ClearMoney();   // ← THIS MUST EXIST
+            WaiterHands.Instance.ClearMoney();
 
             if (g != null)
                 g.PayAndLeave();

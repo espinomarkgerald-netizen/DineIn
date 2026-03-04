@@ -37,6 +37,13 @@ public class CustomerGroup : MonoBehaviour
     [Tooltip("When timeLeft <= this, the order bubble starts shaking (panic warning).")]
     public float shakeBeforeAngrySeconds = 1.5f;
 
+    [Header("Payment UI")]
+    [SerializeField] private GameObject moneyBubblePrefab;
+    [SerializeField] private float moneyBubbleOffsetY = 2.2f;
+
+    private GameObject moneyBubbleInstance;
+    private int pendingPaymentAmount;
+
     [HideInInspector] public Booth assignedBooth;
 
     public event Action<CustomerGroup> OnGroupAssignedToBooth;
@@ -87,6 +94,12 @@ public class CustomerGroup : MonoBehaviour
     // Order data
     public FoodType chosenFood;
     public DrinkType chosenDrink;
+
+    // confirmed order (what kitchen MUST use)
+    public FoodType confirmedFood;
+    public DrinkType confirmedDrink;
+
+    private bool hasConfirmedOrder = false;
 
     // Seating
     private bool hasBeenAssigned = false;
@@ -282,13 +295,17 @@ public class CustomerGroup : MonoBehaviour
 
         GenerateRandomOrder();
 
-        // ✅ Always try to spawn bubble and log why if it fails
+     
         SpawnOrderBubble();
 
         state = GroupState.ReadyToOrder;
 
         float patience = UnityEngine.Random.Range(minOrderPatience, maxOrderPatience);
         float timeLeft = patience;
+
+        OrderBubbleUI bubbleUI = null;
+        if (orderBubbleInstance != null)
+            bubbleUI = orderBubbleInstance.GetComponentInChildren<OrderBubbleUI>(true);
 
         UIShake shaker = null;
         if (orderBubbleInstance != null)
@@ -299,8 +316,15 @@ public class CustomerGroup : MonoBehaviour
         while (state == GroupState.ReadyToOrder)
         {
             if (!isOrderPaused)
+            {
                 timeLeft -= Time.deltaTime;
 
+                if (bubbleUI != null)
+                {
+                    float normalized = Mathf.Clamp01(timeLeft / patience);
+                    bubbleUI.SetPatience(normalized);
+                }
+            }
             if (!startedShake && timeLeft <= shakeBeforeAngrySeconds)
             {
                 startedShake = true;
@@ -318,10 +342,19 @@ public class CustomerGroup : MonoBehaviour
         }
     }
 
+
     private void GenerateRandomOrder()
     {
+        hasConfirmedOrder = false;
+        
         chosenFood = (FoodType)UnityEngine.Random.Range(0, Enum.GetValues(typeof(FoodType)).Length);
         chosenDrink = (DrinkType)UnityEngine.Random.Range(0, Enum.GetValues(typeof(DrinkType)).Length);
+
+        if (!hasConfirmedOrder)
+        {
+            confirmedFood = chosenFood;
+            confirmedDrink = chosenDrink;
+        }
     }
 
     private Sprite GetFoodSprite()
@@ -389,9 +422,13 @@ public class CustomerGroup : MonoBehaviour
     }
 
     // Called by OrderChecklistUI Confirm
-    public void TakeOrderFromWaiter()
+
+    public void TakeOrderFromWaiter(FoodType food, DrinkType drink)
     {
         if (state != GroupState.ReadyToOrder) return;
+
+        // lock the final order from notepad
+        ConfirmOrder(food, drink);
 
         // Stop shake if shaking
         if (orderBubbleInstance != null)
@@ -410,11 +447,17 @@ public class CustomerGroup : MonoBehaviour
         ClearOrderBubble();
         SpawnTableNumber();
 
-        // Spawn ticket UI for waiter to deliver to cashier
         if (OrderFlowManager.Instance != null)
             OrderFlowManager.Instance.SpawnTicket(this);
 
-        Debug.Log($"{name}: Order taken! #{currentOrderNumber} Food={chosenFood} Drink={chosenDrink}");
+        Debug.Log($"{name}: Order taken! #{currentOrderNumber} Food={confirmedFood} Drink={confirmedDrink}");
+    }
+
+    public void ConfirmOrder(FoodType food, DrinkType drink)
+    {
+        confirmedFood = food;
+        confirmedDrink = drink;
+        hasConfirmedOrder = true;
     }
 
     private void SpawnTableNumber()
@@ -629,6 +672,7 @@ public class CustomerGroup : MonoBehaviour
         ClearBillBubble();
         ClearAngryBubble();
         ClearTableNumber();
+        ClearMoneyBubble();
 
         if (assignedBooth != null)
             assignedBooth.ClearBoothProps();
@@ -729,18 +773,7 @@ public class CustomerGroup : MonoBehaviour
 
         ClearBillBubble();
 
-        if (assignedBooth == null) return;
-
-        var spawner = assignedBooth.GetComponent<BoothMoneySpawner>();
-        if (spawner == null) return;
-
-        int amount = 100;
-
-        var cashier = FindFirstObjectByType<CashierBoothInteractable>();
-        if (cashier != null)
-            amount = cashier.GenerateSaleAmount();
-
-        spawner.SpawnMoney(this, amount, spawner.MoneySpawnPoint);
+        StartCoroutine(SpawnMoneyBubbleAfterDelay());
     }
 
     public void RequestBillFromCashier()
@@ -751,6 +784,46 @@ public class CustomerGroup : MonoBehaviour
         BillManager.Instance.RequestBill(this);
     }
 
+    private IEnumerator SpawnMoneyBubbleAfterDelay()
+    {
+        yield return new WaitForSeconds(0.6f);
+
+        if (state != GroupState.NeedsBill) yield break;
+        if (moneyBubblePrefab == null) yield break;
+        if (assignedBooth == null) yield break;
+
+        int amount = 100;
+        var cashier = FindFirstObjectByType<CashierBoothInteractable>();
+        if (cashier != null) amount = cashier.GenerateSaleAmount();
+
+        pendingPaymentAmount = amount;
+
+        var spawner = assignedBooth.GetComponent<BoothMoneySpawner>();
+        if (spawner == null) yield break;
+
+        var money = spawner.SpawnMoney(this, amount, null);
+        if (money == null) yield break;
+
+        ResolveCanvas();
+        if (gameplayCanvas == null) yield break;
+
+        ClearMoneyBubble();
+
+        moneyBubbleInstance = Instantiate(moneyBubblePrefab, gameplayCanvas.transform);
+
+        var follow = moneyBubbleInstance.GetComponentInChildren<UIFollowWorldPoint>(true);
+        if (follow != null)
+        {
+            Vector3 offset = bubbleOffset;
+            offset.y = moneyBubbleOffsetY;
+
+            follow.Init(groupUiAnchor, offset, GetFollowCam());
+        }
+
+        var ui = moneyBubbleInstance.GetComponentInChildren<MoneyBubbleUI>(true);
+        if (ui != null)
+            ui.Init(amount, money);
+    }
     private IEnumerator EatThenNeedBill()
     {
         float eat = UnityEngine.Random.Range(minEatSeconds, maxEatSeconds);
@@ -759,6 +832,15 @@ public class CustomerGroup : MonoBehaviour
         state = GroupState.NeedsBill;
 
         SpawnBillBubble();
+    }
+
+    private void ClearMoneyBubble()
+    {
+        if (moneyBubbleInstance != null)
+        {
+            Destroy(moneyBubbleInstance);
+            moneyBubbleInstance = null;
+        }
     }
     
 }

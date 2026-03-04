@@ -202,6 +202,8 @@ MonoBehaviour:
   isSelected: 0
   selectionVisual: {fileID: 212460738703290197}
   shakeBeforeAngrySeconds: 3
+  moneyBubblePrefab: {fileID: 2633997611543956007, guid: d14073bac6095154ca7092512c02fc30, type: 3}
+  moneyBubbleOffsetY: 2.2
   assignedBooth: {fileID: 0}
   orderBubblePrefab: {fileID: 7532560820528851561, guid: 3d429d2ce0f1abc4aa4e7b8da818eb0f, type: 3}
   billBubblePrefab: {fileID: 5445306718687094200, guid: eb1f8e8975e27194bbcdc7a2079d358e, type: 3}
@@ -211,10 +213,10 @@ MonoBehaviour:
   tableNumberOffset: {x: 0, y: 1.6, z: 0}
   minOrderDelay: 2
   maxOrderDelay: 5
-  minOrderPatience: 6
-  maxOrderPatience: 10
-  minEatSeconds: 5
-  maxEatSeconds: 7
+  minOrderPatience: 10
+  maxOrderPatience: 15
+  minEatSeconds: 10
+  maxEatSeconds: 15
   billIcon: {fileID: 0}
   angryIcon: {fileID: 0}
   chickenSprite: {fileID: 21300000, guid: 4ed7908845179e9418d50c4ee1c492df, type: 3}
@@ -227,6 +229,8 @@ MonoBehaviour:
   exitFormationSpacing: 0.8
   chosenFood: 0
   chosenDrink: 0
+  confirmedFood: 0
+  confirmedDrink: 0
   currentOrderNumber: -1
 --- !u!114 &-4980108588594427370
 MonoBehaviour:

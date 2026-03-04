@@ -7,9 +7,21 @@ public class OrderBubbleUI : MonoBehaviour
     public Image foodImage;
     public Image drinkImage;
 
+    [Header("Patience")]
+    [SerializeField] private Slider patienceSlider;
+
+    [Header("Colors")]
+    [SerializeField] private Color greenColor = Color.green;
+    [SerializeField] private Color yellowColor = Color.yellow;
+    [SerializeField] private Color redColor = Color.red;
+
     private CustomerGroup group;
 
-    public void Init(CustomerGroup g) => group = g;
+    public void Init(CustomerGroup g)
+    {
+        group = g;
+        SetPatience(1f);
+    }
 
     public void SetOrder(Sprite foodSprite, Sprite drinkSprite)
     {
@@ -17,14 +29,30 @@ public class OrderBubbleUI : MonoBehaviour
         if (drinkImage != null) drinkImage.sprite = drinkSprite;
     }
 
-    // Hook this to Button.OnClick on the bubble
+    public void SetPatience(float normalized)
+    {
+        if (patienceSlider == null) return;
+
+        patienceSlider.value = normalized;
+
+        var fill = patienceSlider.fillRect.GetComponent<Image>();
+        if (fill == null) return;
+
+        if (normalized > 0.6f)
+            fill.color = greenColor;
+        else if (normalized > 0.3f)
+            fill.color = yellowColor;
+        else
+            fill.color = redColor;
+    }
+
     public void OnClickBubble()
     {
         if (group == null) return;
 
         if (OrderChecklistUI.Instance == null)
         {
-            Debug.LogError("[OrderBubbleUI] OrderChecklistUI.Instance is NULL (Notepad not in scene or Awake not run).");
+            Debug.LogError("[OrderBubbleUI] OrderChecklistUI.Instance NULL");
             return;
         }
 

@@ -12,6 +12,14 @@ public class KitchenManager : MonoBehaviour
     public float cookSeconds = 5f;
 
     private readonly HashSet<int> cookingOrders = new HashSet<int>();
+    private TrayPickupQueue pickupQueue;
+
+    private void Awake()
+    {
+        pickupQueue = GetComponent<TrayPickupQueue>();
+        if (pickupQueue == null)
+            pickupQueue = gameObject.AddComponent<TrayPickupQueue>();
+    }
 
     public void ProcessOrder(CustomerGroup group)
     {
@@ -32,41 +40,30 @@ public class KitchenManager : MonoBehaviour
     {
         yield return new WaitForSeconds(cookSeconds);
 
-        if (group == null)
+        try
+        {
+            if (group == null) yield break;
+
+            if (group.currentOrderNumber != orderNo || group.state != CustomerGroup.GroupState.OrderTaken)
+                yield break;
+
+            if (traySpawnPoints == null || traySpawnPoints.Length == 0) yield break;
+            if (foodTrayPrefab == null) yield break;
+
+            Transform freeSlot = GetFirstFreeSlot();
+            if (freeSlot == null) yield break;
+
+            var tray = Instantiate(foodTrayPrefab, freeSlot.position, freeSlot.rotation, freeSlot);
+            tray.Init(group);
+
+            var it = tray.GetComponent<FoodTrayInteractable>();
+            if (it != null)
+                it.SetDeliveryPickable(pickupQueue);
+        }
+        finally
         {
             cookingOrders.Remove(orderNo);
-            yield break;
         }
-
-        if (group.currentOrderNumber != orderNo || group.state != CustomerGroup.GroupState.OrderTaken)
-        {
-            cookingOrders.Remove(orderNo);
-            yield break;
-        }
-
-        if (traySpawnPoints == null || traySpawnPoints.Length == 0)
-        {
-            cookingOrders.Remove(orderNo);
-            yield break;
-        }
-
-        if (foodTrayPrefab == null)
-        {
-            cookingOrders.Remove(orderNo);
-            yield break;
-        }
-
-        Transform freeSlot = GetFirstFreeSlot();
-        if (freeSlot == null)
-        {
-            cookingOrders.Remove(orderNo);
-            yield break;
-        }
-
-        var tray = Instantiate(foodTrayPrefab, freeSlot.position, freeSlot.rotation, freeSlot);
-        tray.Init(group);
-
-        cookingOrders.Remove(orderNo);
     }
 
     private Transform GetFirstFreeSlot()

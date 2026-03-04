@@ -17,7 +17,7 @@ public class PlayerMovement : MonoBehaviour
     [Header("Arrival / Stop")]
     [SerializeField] private float arriveSlack = 0.08f;
     [SerializeField] private float stopVelocityThreshold = 0.06f;
-    [SerializeField] private float withinSlackConfirmTime = 0.08f; // needs to be inside slack for a short time
+    [SerializeField] private float withinSlackConfirmTime = 0.08f;
 
     [Header("Click / Raycast")]
     [SerializeField] private float rayDistance = 300f;
@@ -28,6 +28,7 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private float navMeshSnapRadius = 2.0f;
     [SerializeField] private float reachableSearchMaxRadius = 2.5f;
     [SerializeField] private float reachableSearchStep = 0.35f;
+    [SerializeField] private int reachableSamplesPerRing = 18;
 
     [Header("NavMesh Safety Snap")]
     [SerializeField] private float keepOnNavmeshCheckEvery = 0.25f;
@@ -36,6 +37,10 @@ public class PlayerMovement : MonoBehaviour
     [Header("Home / Idle Spot")]
     [SerializeField] private Transform homePoint;
     [SerializeField] private float homeArriveSlack = 0.10f;
+
+    [Header("Auto Return Home (Idle)")]
+    [SerializeField] private bool returnHomeWhenIdle = true;
+    [SerializeField] private float returnHomeIdleSeconds = 1.25f;
 
     [Header("Animation")]
     [SerializeField] private Animator animator;
@@ -61,13 +66,18 @@ public class PlayerMovement : MonoBehaviour
     private IInteractable currentTarget;
     private Transform currentStandPoint;
 
-    private Vector3 currentDestination;     // navmesh destination we actually set
-    private Vector3 desiredStandWorldPoint; // raw target point (standpoint) for distance fallback
+    private Vector3 currentDestination;
+    private Vector3 desiredStandWorldPoint;
 
     private float snapTimer;
 
     private float withinSlackTimer;
     private bool interactFired;
+
+    private float lastCommandTime;
+    private float idleTimer;
+
+    private Coroutine returnRoutine;
 
     public void SetCamera(Camera cam) => activeCam = cam;
 
@@ -92,6 +102,9 @@ public class PlayerMovement : MonoBehaviour
     {
         if (activeCam == null) activeCam = Camera.main;
 
+        lastCommandTime = Time.time;
+        idleTimer = 0f;
+
         if (homePoint != null)
             GoHomeImmediate();
         else
@@ -113,6 +126,7 @@ public class PlayerMovement : MonoBehaviour
         }
 
         TickArrivals();
+        TickIdleReturnHome();
         UpdateAnimationAndFacing();
     }
 
@@ -152,8 +166,22 @@ public class PlayerMovement : MonoBehaviour
         }
     }
 
+    private void RegisterCommand()
+    {
+        lastCommandTime = Time.time;
+        idleTimer = 0f;
+
+        if (returnRoutine != null)
+        {
+            StopCoroutine(returnRoutine);
+            returnRoutine = null;
+        }
+    }
+
     private void TryClickInteractable(Vector2 screenPos)
     {
+        RegisterCommand();
+
         Ray ray = activeCam.ScreenPointToRay(screenPos);
         RaycastHit[] hits = Physics.RaycastAll(ray, rayDistance, clickMask, QueryTriggerInteraction.Collide);
         if (hits == null || hits.Length == 0) return;
@@ -237,6 +265,8 @@ public class PlayerMovement : MonoBehaviour
 
     private void MoveToInteractable(IInteractable interactable, Transform standPoint, Vector3 desiredWorldPoint)
     {
+        RegisterCommand();
+
         currentTarget = interactable;
         currentStandPoint = standPoint;
 
@@ -263,14 +293,11 @@ public class PlayerMovement : MonoBehaviour
 
         agent.ResetPath();
         agent.SetDestination(currentDestination);
-
-        // Debug.Log($"[Mover] Heading to: {interactable.GetType().Name} at {currentDestination}");
     }
 
     private void TickArrivals()
     {
         if (state != State.MovingToTarget && state != State.ReturningHome) return;
-
         if (agent.pathPending) return;
 
         float slack = agent.stoppingDistance + arriveSlack;
@@ -300,7 +327,7 @@ public class PlayerMovement : MonoBehaviour
         withinSlackTimer += Time.deltaTime;
 
         float v = agent.velocity.magnitude;
-        bool slowEnough = v <= (stopVelocityThreshold * 3f);
+        bool slowEnough = v <= (stopVelocityThreshold * 2.25f);
 
         if (withinSlackTimer < withinSlackConfirmTime && !slowEnough)
             return;
@@ -316,14 +343,14 @@ public class PlayerMovement : MonoBehaviour
 
         if (state == State.MovingToTarget)
         {
-            state = State.DoingJob;
-            interactFired = true;
-
-            var capturedTarget = currentTarget;
-            capturedTarget?.Interact(this);
-
-            if (capturedTarget != null)
+            if (currentTarget != null)
             {
+                state = State.DoingJob;
+                interactFired = true;
+
+                var capturedTarget = currentTarget;
+                capturedTarget.Interact(this);
+
                 if (capturedTarget.AutoReturnHome)
                 {
                     FinishCurrentJob();
@@ -350,20 +377,54 @@ public class PlayerMovement : MonoBehaviour
     {
         agent.isStopped = true;
         agent.ResetPath();
-        agent.velocity = Vector3.zero;
     }
 
     public void FinishCurrentJob()
     {
         currentTarget = null;
         currentStandPoint = null;
-        StartCoroutine(ReturnHomeDelayed());
+
+        if (returnRoutine != null)
+        {
+            StopCoroutine(returnRoutine);
+            returnRoutine = null;
+        }
+
+        returnRoutine = StartCoroutine(ReturnHomeDelayed());
     }
 
     private System.Collections.IEnumerator ReturnHomeDelayed()
     {
+        float startedAt = Time.time;
         yield return new WaitForSeconds(returnHomeDelay);
+
+        if (Time.time - lastCommandTime < (Time.time - startedAt) + 0.0001f)
+            yield break;
+
         ReturnHome();
+    }
+
+    private void TickIdleReturnHome()
+    {
+        if (!returnHomeWhenIdle) return;
+        if (homePoint == null) return;
+        if (state == State.DoingJob) return;
+        if (state == State.ReturningHome) return;
+
+        float homeDist = Vector3.Distance(transform.position, homePoint.position);
+        if (homeDist <= (agent.stoppingDistance + homeArriveSlack + 0.05f))
+        {
+            idleTimer = 0f;
+            return;
+        }
+
+        if (state == State.MovingToTarget) return;
+
+        idleTimer += Time.deltaTime;
+        if (idleTimer >= returnHomeIdleSeconds)
+        {
+            ReturnHome();
+        }
     }
 
     public void ReturnHome()
@@ -373,6 +434,8 @@ public class PlayerMovement : MonoBehaviour
             state = State.IdleAtHome;
             return;
         }
+
+        RegisterCommand();
 
         currentTarget = null;
         currentStandPoint = null;
@@ -442,17 +505,29 @@ public class PlayerMovement : MonoBehaviour
 
         Vector3 origin = firstHit.position;
 
+        Vector3 forward = transform.forward;
+        forward.y = 0f;
+        if (forward.sqrMagnitude < 0.001f) forward = Vector3.forward;
+        forward.Normalize();
+
         for (float r = reachableSearchStep; r <= reachableSearchMaxRadius; r += reachableSearchStep)
         {
-            if (TryPickRingPoint(origin, r, out Vector3 candidate))
+            float step = 360f / Mathf.Max(6, reachableSamplesPerRing);
+            float startAngle = Random.Range(0f, 360f);
+
+            for (int i = 0; i < reachableSamplesPerRing; i++)
             {
-                if (NavMesh.SamplePosition(candidate, out NavMeshHit hit, reachableSearchStep + 0.05f, NavMesh.AllAreas))
+                float a = startAngle + step * i;
+                Vector3 dir = Quaternion.Euler(0f, a, 0f) * forward;
+                Vector3 candidate = origin + dir * r;
+
+                if (!NavMesh.SamplePosition(candidate, out NavMeshHit hit, reachableSearchStep + 0.08f, NavMesh.AllAreas))
+                    continue;
+
+                if (IsPathCompleteTo(hit.position))
                 {
-                    if (IsPathCompleteTo(hit.position))
-                    {
-                        result = hit.position;
-                        return true;
-                    }
+                    result = hit.position;
+                    return true;
                 }
             }
         }
@@ -465,31 +540,6 @@ public class PlayerMovement : MonoBehaviour
         NavMeshPath path = new NavMeshPath();
         if (!agent.CalculatePath(dest, path)) return false;
         return path.status == NavMeshPathStatus.PathComplete;
-    }
-
-    private bool TryPickRingPoint(Vector3 center, float radius, out Vector3 point)
-    {
-        point = center;
-
-        Vector3 forward = transform.forward;
-        forward.y = 0f;
-        if (forward.sqrMagnitude < 0.001f) forward = Vector3.forward;
-        forward.Normalize();
-
-        int samples = 10;
-        float step = 360f / samples;
-
-        for (int i = 0; i < samples; i++)
-        {
-            float a = step * i;
-            Vector3 dir = Quaternion.Euler(0f, a, 0f) * forward;
-            Vector3 p = center + dir * radius;
-
-            point = p;
-            return true;
-        }
-
-        return false;
     }
 
     private void KeepAgentSnappedToNavmesh()
@@ -505,13 +555,16 @@ public class PlayerMovement : MonoBehaviour
         if (dist >= warpBackIfOffBy)
         {
             agent.Warp(hit.position);
-            ForceStopAgent();
 
             if (state == State.MovingToTarget || state == State.ReturningHome)
             {
                 agent.isStopped = false;
                 agent.ResetPath();
                 agent.SetDestination(currentDestination);
+            }
+            else
+            {
+                ForceStopAgent();
             }
         }
     }
@@ -521,10 +574,15 @@ public class PlayerMovement : MonoBehaviour
         Vector3 v = agent.velocity;
         v.y = 0f;
 
-        float targetSpeed = v.magnitude;
+        bool arrived = false;
+        if (!agent.pathPending)
+        {
+            if (!agent.hasPath) arrived = true;
+            else if (agent.remainingDistance <= agent.stoppingDistance + 0.03f) arrived = true;
+        }
 
-        if (agent.isStopped || !agent.hasPath || (!agent.pathPending && agent.remainingDistance <= agent.stoppingDistance + 0.03f))
-            targetSpeed = 0f;
+        float rawSpeed = v.magnitude;
+        float targetSpeed = (arrived || agent.isStopped || rawSpeed <= stopVelocityThreshold) ? 0f : rawSpeed;
 
         smoothedSpeed = Mathf.Lerp(smoothedSpeed, targetSpeed, Time.deltaTime * animLerpSpeed);
 
@@ -532,11 +590,11 @@ public class PlayerMovement : MonoBehaviour
         {
             animator.SetFloat(speedParam, smoothedSpeed);
 
-            bool isCarrying = (WaiterHands.Instance != null && WaiterHands.Instance.HasTray);
+            bool isCarrying = (WaiterHands.Instance != null && (WaiterHands.Instance.HasTray || WaiterHands.Instance.HasBill));
             animator.SetBool(carryingBoolParam, isCarrying);
         }
 
-        if (rotateToMovement && v.sqrMagnitude > 0.0004f)
+        if (rotateToMovement && v.sqrMagnitude > 0.0006f)
         {
             Quaternion targetRot = Quaternion.LookRotation(v.normalized, Vector3.up);
             transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, Time.deltaTime * rotationSpeed);
@@ -551,5 +609,17 @@ public class PlayerMovement : MonoBehaviour
             return EventSystem.current.IsPointerOverGameObject();
 
         return EventSystem.current.IsPointerOverGameObject(fingerId);
+    }
+
+    public void UI_MoveTo(IInteractable target)
+    {
+        if (target == null) return;
+
+        RegisterCommand();
+
+        Transform stand = target.StandPoint;
+        Vector3 worldPos = (stand != null) ? stand.position : transform.position;
+
+        MoveToInteractable(target, stand, worldPos);
     }
 }
