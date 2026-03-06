@@ -8,13 +8,17 @@ public class TrayPickupQueue : MonoBehaviour
     public void Register(FoodTrayInteractable tray)
     {
         if (tray == null) return;
-        if (!trays.Contains(tray)) trays.Add(tray);
+
+        if (!trays.Contains(tray))
+            trays.Add(tray);
+
         Refresh();
     }
 
     public void Unregister(FoodTrayInteractable tray)
     {
         if (tray == null) return;
+
         trays.Remove(tray);
         Refresh();
     }
@@ -23,6 +27,7 @@ public class TrayPickupQueue : MonoBehaviour
     {
         if (tray == null) return false;
         if (trays.Count == 0) return false;
+
         return trays[0] == tray;
     }
 

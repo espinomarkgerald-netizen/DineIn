@@ -39,17 +39,26 @@ public class WaiterHands : MonoBehaviour
 
         holdingTray = null;
         holdingTicketFor = null;
+
         holdingBillFor = null;
         heldBillPaper = null;
+
+        holdingMoneyFor = null;
+        holdingMoneyAmount = 0;
+        heldMoneyPickup = null;
+
+        if (billHeldVisualInstance != null) { Destroy(billHeldVisualInstance); billHeldVisualInstance = null; }
+        if (moneyHeldVisualInstance != null) { Destroy(moneyHeldVisualInstance); moneyHeldVisualInstance = null; }
     }
 
     public bool HasTicket => holdingTicketFor != null;
     public bool HasBill => holdingBillFor != null;
     public bool HasTray => holdingTray != null;
 
-    public bool HasMoney => holdingMoneyFor != null;
-    public Transform MoneyHoldPoint => moneyHoldPoint != null ? moneyHoldPoint : transform;
+    // IMPORTANT FIX: don't treat "moneyFor set but amount=0" as holding money.
+    public bool HasMoney => holdingMoneyFor != null && holdingMoneyAmount > 0;
 
+    public Transform MoneyHoldPoint => moneyHoldPoint != null ? moneyHoldPoint : transform;
     public Transform TrayHoldPoint => trayHoldPoint != null ? trayHoldPoint : transform;
     public Transform BillHoldPoint => billHoldPoint != null ? billHoldPoint : transform;
 
@@ -72,7 +81,43 @@ public class WaiterHands : MonoBehaviour
         }
     }
 
-    public void ClearTray() => holdingTray = null;
+    public void ClearTray()
+    {
+        holdingTray = null;
+    }
+
+    public bool PickupTray(FoodTray tray)
+    {
+        if (tray == null) return false;
+        if (HasTray) return false;
+
+        Transform parent = TrayHoldPoint;
+        if (parent == null)
+        {
+            Debug.LogError("[WaiterHands] TrayHoldPoint is NULL (assign it on WaiterHands).");
+            return false;
+        }
+
+        holdingTray = tray;
+
+        tray.transform.SetParent(parent, false);
+        tray.transform.localPosition = Vector3.zero;
+        tray.transform.localRotation = Quaternion.identity;
+
+        var col = tray.GetComponentInChildren<Collider>(true);
+        if (col != null) col.enabled = false;
+
+        return true;
+    }
+
+    public void DisposeTray(bool destroyObject = true)
+    {
+        var tray = holdingTray;
+        holdingTray = null;
+
+        if (destroyObject && tray != null)
+            Destroy(tray.gameObject);
+    }
 
     public void PickupBill(CustomerGroup group)
     {
@@ -160,10 +205,21 @@ public class WaiterHands : MonoBehaviour
     public void PickupMoney(MoneyPickup money)
     {
         if (money == null) return;
+
+        // If you're "stuck" with moneyFor but amount=0, allow overwrite by clearing first.
+        if (holdingMoneyFor != null && holdingMoneyAmount <= 0)
+            ClearMoney();
+
         if (HasMoney) return;
 
-        holdingMoneyFor = money.TargetGroup;
-        holdingMoneyAmount = money.Amount;
+        var tg = money.TargetGroup;
+        var amt = money.Amount;
+
+        if (tg == null) return;
+        if (amt <= 0) return;
+
+        holdingMoneyFor = tg;
+        holdingMoneyAmount = amt;
         heldMoneyPickup = money;
 
         Transform parent = MoneyHoldPoint;

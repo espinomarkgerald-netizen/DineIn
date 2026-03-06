@@ -18,9 +18,6 @@ public class SinkInteractable : MonoBehaviour, IInteractable
         if (hands == null) return;
         if (!hands.HasTray) return;
 
-        var tray = hands.holdingTray;
-        if (tray != null) Destroy(tray.gameObject);
-
-        hands.holdingTray = null;
+        hands.DisposeTray(true);  
     }
 }

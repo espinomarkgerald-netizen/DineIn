@@ -19,18 +19,31 @@ public class BillBubbleUI : MonoBehaviour
 
         var hands = WaiterHands.Instance;
 
-        // Deliver bill if holding it
+        // If already holding THIS group's bill -> deliver it
         if (hands != null && hands.HasBill && hands.holdingBillFor == group)
         {
             hands.ClearBill();
             group.ReceiveBillFromWaiter();
-
-            // Remove bubble after successful delivery
             Destroy(gameObject);
             return;
         }
 
-        // Request bill from cashier
+        // If holding some other bill, don't do anything
+        if (hands != null && hands.HasBill) return;
+
+        // If bill already printed, go pick it up (same method as tray UI)
+        var bm = BillManager.Instance;
+        if (bm != null)
+        {
+            var existing = bm.FindBillForGroup(group);
+            if (existing != null)
+            {
+                existing.UI_Pickup();
+                return;
+            }
+        }
+
+        // Otherwise request print
         if (oneRequestOnly && requested) return;
 
         group.RequestBillFromCashier();

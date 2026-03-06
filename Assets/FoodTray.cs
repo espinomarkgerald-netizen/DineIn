@@ -40,17 +40,8 @@ public class FoodTray : MonoBehaviour
     {
         if (targetGroup == null) return;
 
-        if (foodAnchor == null)
-        {
-            Debug.LogError("[FoodTray] FoodAnchor not assigned.");
-            return;
-        }
-
-        if (drinkAnchor == null)
-        {
-            Debug.LogError("[FoodTray] DrinkAnchor not assigned.");
-            return;
-        }
+        if (foodAnchor == null) { Debug.LogError("[FoodTray] FoodAnchor not assigned."); return; }
+        if (drinkAnchor == null) { Debug.LogError("[FoodTray] DrinkAnchor not assigned."); return; }
 
         if (spawnedFood != null) Destroy(spawnedFood);
         if (spawnedDrink != null) Destroy(spawnedDrink);
@@ -76,14 +67,12 @@ public class FoodTray : MonoBehaviour
             spawnedFood = Instantiate(foodPrefab, foodAnchor);
             ResetLocal(spawnedFood.transform);
         }
-        else Debug.LogWarning("[FoodTray] Missing food prefab reference.");
 
         if (drinkPrefab != null)
         {
             spawnedDrink = Instantiate(drinkPrefab, drinkAnchor);
             ResetLocal(spawnedDrink.transform);
         }
-        else Debug.LogWarning("[FoodTray] Missing drink prefab reference.");
     }
 
     private static void ResetLocal(Transform t)
@@ -97,4 +86,6 @@ public class FoodTray : MonoBehaviour
     {
         return group != null && group.currentOrderNumber == orderNumber;
     }
+
+    public CustomerGroup TargetGroup => targetGroup;
 }

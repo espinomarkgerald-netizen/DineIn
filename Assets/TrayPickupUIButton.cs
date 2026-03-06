@@ -8,13 +8,20 @@ public class TrayPickupUIButton : MonoBehaviour
 
     private void Awake()
     {
-        if (button == null) button = GetComponent<Button>();
-        if (button != null) button.onClick.AddListener(OnClick);
+        if (button == null)
+            button = GetComponent<Button>();
+
+        if (button == null)
+            button = GetComponentInChildren<Button>(true);
+
+        if (button != null)
+            button.onClick.AddListener(OnClick);
     }
 
     private void OnDestroy()
     {
-        if (button != null) button.onClick.RemoveListener(OnClick);
+        if (button != null)
+            button.onClick.RemoveListener(OnClick);
     }
 
     public void SetTray(FoodTrayInteractable t)

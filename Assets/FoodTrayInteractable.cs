@@ -9,7 +9,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable
     [SerializeField] private FoodTray tray;
     [SerializeField] private Transform pickupPoint;
 
-    [Header("UI (Screen Canvas)")]
+    [Header("UI")]
     [SerializeField] private GameObject pickupUiPrefab;
     [SerializeField] private Transform uiAnchor;
 
@@ -21,6 +21,8 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable
     private TrayPickupQueue queueOwner;
     private TrayMode mode = TrayMode.None;
 
+    private bool watchForCleanup;
+
     public Transform StandPoint => pickupPoint != null ? pickupPoint : transform;
     public bool AutoReturnHome => false;
 
@@ -31,9 +33,22 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable
         HideUI();
     }
 
-    private void OnDisable()
+    private void Update()
     {
-        HideUI();
+        if (!watchForCleanup) return;
+        if (mode != TrayMode.None) return;
+        if (tray == null) return;
+
+        var group = tray.TargetGroup;
+        if (group == null) return;
+
+        
+        if (group.state == CustomerGroup.GroupState.Leaving ||
+            group.state == CustomerGroup.GroupState.AngryLeft)
+        {
+            watchForCleanup = false;
+            SetCleanupPickable(true);
+        }
     }
 
     private void OnDestroy()
@@ -42,7 +57,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable
         HideUI();
     }
 
-    // --------- DELIVERY (kitchen) ----------
+    // ---------- DELIVERY ----------
     public void SetDeliveryPickable(TrayPickupQueue queue)
     {
         mode = TrayMode.Delivery;
@@ -51,10 +66,24 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable
         if (queueOwner != null)
             queueOwner.Register(this);
 
+        watchForCleanup = true;
         RefreshUI();
     }
 
-    // --------- CLEANUP (after eating) ----------
+
+    public void NotifyDeliveredToTable()
+    {
+      
+        if (tray != null && tray.TargetGroup != null)
+            watchForCleanup = true;
+
+       
+        mode = TrayMode.None;
+        queueOwner = null;
+        HideUI();
+    }
+
+    // ---------- CLEANUP ----------
     public void SetCleanupPickable(bool value)
     {
         if (queueOwner != null) queueOwner.Unregister(this);
@@ -64,10 +93,8 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable
         RefreshUI();
     }
 
-    // Called by TrayPickupQueue
     public void SetQueuePickable(bool allowed)
     {
-        // queue tells which tray is allowed; UI updates based on IsNext()
         RefreshUI();
     }
 
@@ -90,31 +117,23 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable
 
         bool wasCleanup = (mode == TrayMode.Cleanup);
 
-        var hands = WaiterHands.Instance;
-        var hand = hands.TrayHoldPoint;
-        if (hand == null) return;
+        if (WaiterHands.Instance == null) return;
 
-        hands.holdingTray = tray;
+      
+        if (!WaiterHands.Instance.PickupTray(tray))
+            return;
 
-        tray.transform.SetParent(hand, false);
-        tray.transform.localPosition = Vector3.zero;
-        tray.transform.localRotation = Quaternion.identity;
-
-        // advance FIFO if this was delivery from kitchen
         if (mode == TrayMode.Delivery && queueOwner != null)
             queueOwner.OnPicked(this);
 
-        // stop being interactable + remove UI
         mode = TrayMode.None;
         queueOwner = null;
+
         HideUI();
 
-        // cleanup flow: after pickup go to sink
         if (wasCleanup && autoGoSinkOnCleanupPickup && sink != null)
             mover.UI_MoveTo(sink);
     }
-
-    // UI button calls this
     public void UI_RequestPickup()
     {
         if (!CanInteract()) return;
@@ -125,7 +144,6 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable
         mover.UI_MoveTo(this);
     }
 
-    // optional: clicking tray mesh should behave like pressing the UI
     private void OnMouseDown()
     {
         UI_RequestPickup();
@@ -153,15 +171,15 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable
         if (pickupUiPrefab == null || uiAnchor == null) return;
         if (uiInstance != null) return;
 
+        // pick a clickable canvas (screen space + raycaster)
         Canvas canvas = null;
-
         var canvases = FindObjectsByType<Canvas>(FindObjectsSortMode.None);
         for (int i = 0; i < canvases.Length; i++)
         {
             var c = canvases[i];
             if (!c.isActiveAndEnabled) continue;
 
-            var ray = c.GetComponent<UnityEngine.UI.GraphicRaycaster>();
+            var ray = c.GetComponent<GraphicRaycaster>();
             if (ray == null || !ray.enabled) continue;
 
             if (c.renderMode == RenderMode.ScreenSpaceOverlay || c.renderMode == RenderMode.ScreenSpaceCamera)
@@ -170,13 +188,13 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable
                 break;
             }
         }
+        if (canvas == null) return;
 
-        if (canvas == null) return;
-        if (canvas == null) return;
+        if (canvas.renderMode == RenderMode.ScreenSpaceCamera && canvas.worldCamera == null)
+            canvas.worldCamera = Camera.main;
 
         uiInstance = Instantiate(pickupUiPrefab, canvas.transform);
 
-        // follow anchor
         var follow = uiInstance.GetComponentInChildren<UIFollowWorldPoint>(true);
         if (follow != null)
             follow.Init(uiAnchor, Vector3.zero, Camera.main);

@@ -30,9 +30,7 @@ public class BillManager : MonoBehaviour
         if (billPaperPrefab == null) return;
         if (billSpawnPoints == null || billSpawnPoints.Count == 0) return;
 
-        // If a bill for this group already exists in the spawn area, don't queue another.
         if (HasExistingBillForGroup(group)) return;
-
         if (queued.Contains(group)) return;
 
         queued.Add(group);
@@ -54,8 +52,6 @@ public class BillManager : MonoBehaviour
             yield return new WaitForSeconds(printSeconds);
 
             if (group == null) continue;
-
-            // If it got printed while waiting (edge case), skip.
             if (HasExistingBillForGroup(group)) continue;
 
             Transform spawn = GetFreeSpawnPoint();
@@ -66,13 +62,11 @@ public class BillManager : MonoBehaviour
 
             var go = Instantiate(billPaperPrefab, spawn.position, spawn.rotation, parent);
 
-            // BillPaper might be on a child, so grab it reliably.
             var bill = go.GetComponentInChildren<BillPaper>(true);
             if (bill != null)
             {
                 bill.Init(group);
 
-                // Ensure collider is enabled on spawn (held bills disable collider).
                 var col = bill.GetComponentInChildren<Collider>(true);
                 if (col != null) col.enabled = true;
             }
@@ -88,7 +82,6 @@ public class BillManager : MonoBehaviour
             var sp = billSpawnPoints[i];
             if (sp == null) continue;
 
-            // Consider it "occupied" only if it currently contains a BillPaper.
             if (!SpawnPointHasBill(sp))
                 return sp;
         }
@@ -105,7 +98,6 @@ public class BillManager : MonoBehaviour
     {
         if (group == null) return false;
 
-        // Check billsRoot first if provided (fast and accurate).
         if (billsRoot != null)
         {
             var bills = billsRoot.GetComponentsInChildren<BillPaper>(true);
@@ -118,7 +110,6 @@ public class BillManager : MonoBehaviour
             return false;
         }
 
-        // Otherwise scan spawn points.
         for (int i = 0; i < billSpawnPoints.Count; i++)
         {
             var sp = billSpawnPoints[i];
@@ -134,5 +125,38 @@ public class BillManager : MonoBehaviour
         }
 
         return false;
+    }
+
+    public BillPaper FindBillForGroup(CustomerGroup group)
+    {
+        if (group == null) return null;
+
+        if (billsRoot != null)
+        {
+            var bills = billsRoot.GetComponentsInChildren<BillPaper>(true);
+            for (int i = 0; i < bills.Length; i++)
+            {
+                var b = bills[i];
+                if (b != null && b.Matches(group))
+                    return b;
+            }
+            return null;
+        }
+
+        for (int i = 0; i < billSpawnPoints.Count; i++)
+        {
+            var sp = billSpawnPoints[i];
+            if (sp == null) continue;
+
+            var bills = sp.GetComponentsInChildren<BillPaper>(true);
+            for (int k = 0; k < bills.Length; k++)
+            {
+                var b = bills[k];
+                if (b != null && b.Matches(group))
+                    return b;
+            }
+        }
+
+        return null;
     }
 }
