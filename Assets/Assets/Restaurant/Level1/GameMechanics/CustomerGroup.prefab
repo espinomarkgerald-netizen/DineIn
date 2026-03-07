@@ -204,7 +204,6 @@ MonoBehaviour:
   shakeBeforeAngrySeconds: 3
   moneyBubblePrefab: {fileID: 2633997611543956007, guid: d14073bac6095154ca7092512c02fc30, type: 3}
   moneyBubbleOffsetY: 2.2
-  assignedBooth: {fileID: 0}
   orderBubblePrefab: {fileID: 7532560820528851561, guid: 3d429d2ce0f1abc4aa4e7b8da818eb0f, type: 3}
   billBubblePrefab: {fileID: 5445306718687094200, guid: eb1f8e8975e27194bbcdc7a2079d358e, type: 3}
   angryBubblePrefab: {fileID: 533823614297680958, guid: fb2349d29d0da754e842e6396e62d072, type: 3}
@@ -227,6 +226,7 @@ MonoBehaviour:
   iceTeaSprite: {fileID: 21300000, guid: 9746789dafebbb841a6edd396858d4b4, type: 3}
   exitPoint: {fileID: 0}
   exitFormationSpacing: 0.8
+  assignedBooth: {fileID: 0}
   chosenFood: 0
   chosenDrink: 0
   confirmedFood: 0

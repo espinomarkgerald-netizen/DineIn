@@ -9,9 +9,9 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
     [SerializeField] private Transform standPoint;
 
     [Header("Bill Pickup")]
-    [SerializeField] private Transform billSearchRoot; // optional: BillsRoot
+    [SerializeField] private Transform billSearchRoot;
     [SerializeField] private float billPickupRadius = 2f;
-    [SerializeField] private bool usePlanarDistance = true; // ignores Y differences
+    [SerializeField] private bool usePlanarDistance = true;
 
     [Header("Bill Settings")]
     public int saleAmountMin = 50;
@@ -22,65 +22,81 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
     [SerializeField] private bool requestBillIfNonePrinted = true;
     [SerializeField] private bool preferBillForNearestNeedsBill = true;
 
-    public Transform StandPoint => standPoint;
+    public Transform StandPoint => standPoint != null ? standPoint : transform;
     public bool AutoReturnHome => true;
 
     private void Awake()
     {
-        if (kitchen == null) kitchen = FindFirstObjectByType<KitchenManager>();
+        if (kitchen == null)
+            kitchen = FindFirstObjectByType<KitchenManager>();
     }
 
-    public bool CanInteract() => true;
+    public bool CanInteract()
+    {
+        var hands = WaiterHands.Instance;
+        if (hands == null) return false;
+
+        if (hands.HasTicket) return true;
+        if (hands.HasMoney) return true;
+        if (!hands.HasBill) return true;
+
+        return false;
+    }
 
     public void Interact(PlayerMovement player)
     {
-        if (WaiterHands.Instance == null) return;
+        var hands = WaiterHands.Instance;
+        if (hands == null) return;
 
         // Ticket flow
-        if (WaiterHands.Instance.HasTicket)
+        if (hands.HasTicket)
         {
-            var g = WaiterHands.Instance.holdingTicketFor;
-            if (g == null) return;
+            var group = hands.holdingTicketFor;
+            if (group == null) return;
 
-            WaiterHands.Instance.ClearTicket();
-            if (kitchen != null) kitchen.ProcessOrder(g);
+            hands.ClearTicket();
+
+            if (kitchen != null)
+                kitchen.ProcessOrder(group);
+
             return;
         }
 
         // Money flow
-        if (WaiterHands.Instance.HasMoney)
+        if (hands.HasMoney)
         {
-            var g = WaiterHands.Instance.holdingMoneyFor;
-            int amt = WaiterHands.Instance.holdingMoneyAmount;
+            var group = hands.holdingMoneyFor;
+            int amount = hands.holdingMoneyAmount;
 
-            WaiterHands.Instance.ClearMoney();
+            Debug.Log($"[Cashier] Received payment {amount} for {(group != null ? group.name : "NULL")}");
 
-            if (g != null)
-                g.PayAndLeave();
+            hands.ClearMoney();
+
+            if (group != null)
+                group.PayAndLeave();
 
             return;
         }
 
         // Bill pickup flow
-        if (!WaiterHands.Instance.HasBill)
+        if (!hands.HasBill)
         {
             if (TryPickupClosestBillPaper())
                 return;
-        }
 
-        var target = CustomerGroupFinder.FindClosestNeedsBill(transform.position, maxDistance: findNeedsBillDistance);
-        if (target != null)
-        {
+            var target = CustomerGroupFinder.FindClosestNeedsBill(transform.position, findNeedsBillDistance);
+            if (target == null) return;
+
             if (requestBillIfNonePrinted && BillManager.Instance != null)
                 BillManager.Instance.RequestBill(target);
 
-            if (!WaiterHands.Instance.HasBill)
+            if (preferBillForNearestNeedsBill)
             {
-                if (preferBillForNearestNeedsBill)
-                    TryPickupBillForGroup(target);
-                else
-                    TryPickupClosestBillPaper();
+                if (TryPickupBillForGroup(target))
+                    return;
             }
+
+            TryPickupClosestBillPaper();
         }
     }
 
@@ -88,8 +104,7 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
     {
         get
         {
-            var p = (standPoint != null) ? standPoint.position : transform.position;
-            return p;
+            return StandPoint.position;
         }
     }
 
@@ -117,6 +132,9 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
 
     private bool TryPickupClosestBillPaper()
     {
+        var hands = WaiterHands.Instance;
+        if (hands == null || hands.HasBill) return false;
+
         var bills = GetAllBills();
         if (bills == null || bills.Length == 0)
         {
@@ -129,38 +147,40 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
 
         for (int i = 0; i < bills.Length; i++)
         {
-            var b = bills[i];
-            if (b == null) continue;
+            var bill = bills[i];
+            if (bill == null) continue;
+            if (!bill.gameObject.activeInHierarchy) continue;
+            if (!bill.CanInteract()) continue;
 
-            if (!b.gameObject.activeInHierarchy) continue;
-            if (!b.CanInteract()) continue;
+            float dist = DistToPickupCenter(bill.transform.position);
+            if (dist > billPickupRadius) continue;
 
-            float d = DistToPickupCenter(b.transform.position);
-            if (d > billPickupRadius) continue;
-
-            if (d < bestDist)
+            if (dist < bestDist)
             {
-                bestDist = d;
-                best = b;
+                bestDist = dist;
+                best = bill;
             }
         }
 
         if (best == null)
         {
-            Debug.Log($"[Cashier] No bill within radius {billPickupRadius} of pickup center. (Check radius / BillsRoot / spawn positions)");
+            Debug.Log($"[Cashier] No bill within radius {billPickupRadius} of pickup center.");
             return false;
         }
 
         bool ok = best.TryPickup();
+
         Debug.Log(ok
             ? $"[Cashier] Picked up bill (dist {bestDist:0.00})."
-            : "[Cashier] Found bill but TryPickup() failed (targetGroup null or already holding bill).");
+            : "[Cashier] Found bill but TryPickup failed.");
 
         return ok;
     }
 
     private bool TryPickupBillForGroup(CustomerGroup target)
     {
+        var hands = WaiterHands.Instance;
+        if (hands == null || hands.HasBill) return false;
         if (target == null) return false;
 
         var bills = GetAllBills();
@@ -171,22 +191,23 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
 
         for (int i = 0; i < bills.Length; i++)
         {
-            var b = bills[i];
-            if (b == null) continue;
-            if (!b.Matches(target)) continue;
-            if (!b.CanInteract()) continue;
+            var bill = bills[i];
+            if (bill == null) continue;
+            if (!bill.Matches(target)) continue;
+            if (!bill.CanInteract()) continue;
 
-            float d = DistToPickupCenter(b.transform.position);
-            if (d > billPickupRadius) continue;
+            float dist = DistToPickupCenter(bill.transform.position);
+            if (dist > billPickupRadius) continue;
 
-            if (d < bestDist)
+            if (dist < bestDist)
             {
-                bestDist = d;
-                best = b;
+                bestDist = dist;
+                best = bill;
             }
         }
 
         if (best == null) return false;
+
         return best.TryPickup();
     }
 
@@ -198,5 +219,8 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
         kitchen.ProcessOrder(group);
     }
 
-    public int GenerateSaleAmount() => Random.Range(saleAmountMin, saleAmountMax + 1);
+    public int GenerateSaleAmount()
+    {
+        return Random.Range(saleAmountMin, saleAmountMax + 1);
+    }
 }

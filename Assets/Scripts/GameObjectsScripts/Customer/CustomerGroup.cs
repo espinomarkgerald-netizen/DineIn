@@ -34,36 +34,26 @@ public class CustomerGroup : MonoBehaviour
     public GameObject selectionVisual;
 
     [Header("Order Bubble Warning")]
-    [Tooltip("When timeLeft <= this, the order bubble starts shaking (panic warning).")]
+    [Tooltip("When timeLeft <= this, the order bubble starts shaking.")]
     public float shakeBeforeAngrySeconds = 1.5f;
 
     [Header("Payment UI")]
     [SerializeField] private GameObject moneyBubblePrefab;
     [SerializeField] private float moneyBubbleOffsetY = 2.2f;
 
-    private GameObject moneyBubbleInstance;
-    private int pendingPaymentAmount;
-
-    [HideInInspector] public Booth assignedBooth;
-
-    public event Action<CustomerGroup> OnGroupAssignedToBooth;
-    public event Action<CustomerGroup> OnGroupSeated;
-
-    [Header("UI Prefabs (Screen Space under Canvas_Gameplay)")]
+    [Header("UI Prefabs")]
     public GameObject orderBubblePrefab;
     public GameObject billBubblePrefab;
     public GameObject angryBubblePrefab;
     public GameObject tableNumberPrefab;
 
-    [Header("UI Offsets (world units)")]
+    [Header("UI Offsets")]
     public Vector3 bubbleOffset = new Vector3(0, 2.2f, 0);
     public Vector3 tableNumberOffset = new Vector3(0, 1.6f, 0);
 
     [Header("Order Timing")]
     public float minOrderDelay = 2f;
     public float maxOrderDelay = 5f;
-
-    [Tooltip("If player doesn't take order in this time, they get angry and leave.")]
     public float minOrderPatience = 5f;
     public float maxOrderPatience = 8f;
 
@@ -71,42 +61,43 @@ public class CustomerGroup : MonoBehaviour
     public float minEatSeconds = 3f;
     public float maxEatSeconds = 5f;
 
-    [Header("Sprites (optional)")]
+    [Header("Sprites")]
     public Sprite billIcon;
     public Sprite angryIcon;
-
-    [Header("Food Sprites")]
     public Sprite chickenSprite;
     public Sprite friesSprite;
     public Sprite burgerSprite;
-
-    [Header("Drink Sprites")]
     public Sprite cokeSprite;
     public Sprite pineappleSprite;
     public Sprite iceTeaSprite;
 
     [Header("Leaving / Exit")]
     public Transform exitPoint;
-
-    [Tooltip("Spacing between members while walking to exit.")]
     public float exitFormationSpacing = 0.8f;
 
-    // Order data
+    [HideInInspector] public Booth assignedBooth;
+
+    public event Action<CustomerGroup> OnGroupAssignedToBooth;
+    public event Action<CustomerGroup> OnGroupSeated;
+
     public FoodType chosenFood;
     public DrinkType chosenDrink;
-
-    // confirmed order (what kitchen MUST use)
     public FoodType confirmedFood;
     public DrinkType confirmedDrink;
 
-    private bool hasConfirmedOrder = false;
+    public int currentOrderNumber = -1;
+    public int Size => members.Count;
 
-    // Seating
-    private bool hasBeenAssigned = false;
+    private bool hasConfirmedOrder;
+    private bool hasBeenAssigned;
+    private bool cleanupDone;
+    private bool boothSeatsCleared;
+    private bool leavingRoutineStarted;
+    private bool isOrderPaused;
+
     private readonly HashSet<CustomerAgent> seatedMembers = new HashSet<CustomerAgent>();
     private Coroutine seatingRoutine;
 
-    // UI runtime refs
     private Canvas gameplayCanvas;
     private Transform groupUiAnchor;
 
@@ -114,16 +105,10 @@ public class CustomerGroup : MonoBehaviour
     private GameObject billBubbleInstance;
     private GameObject angryBubbleInstance;
     private GameObject tableNumberInstance;
+    private GameObject moneyBubbleInstance;
 
-    public int currentOrderNumber = -1;
-    public int Size => members.Count;
+    private int pendingPaymentAmount;
 
-    private bool cleanupDone = false;
-    private bool boothSeatsCleared = false;
-    private bool leavingRoutineStarted = false;
-
-    // ✅ PAUSE FLAG (for notepad open)
-    private bool isOrderPaused = false;
     public void SetOrderPause(bool paused) => isOrderPaused = paused;
 
     private void Awake()
@@ -138,28 +123,29 @@ public class CustomerGroup : MonoBehaviour
         CleanupOnLeave();
     }
 
-    // =========================
-    // Essentials
-    // =========================
+    private void LateUpdate()
+    {
+        if (groupUiAnchor != null)
+            groupUiAnchor.position = GetMembersCenterWorld();
+    }
+
     private void ResolveCanvas()
     {
         if (gameplayCanvas != null) return;
 
         gameplayCanvas = UIRoot.GameplayCanvasOrNull();
 
-        // fallback (in case UIRoot isn't set up)
         if (gameplayCanvas == null)
             gameplayCanvas = FindFirstObjectByType<Canvas>(FindObjectsInactive.Include);
 
         if (gameplayCanvas == null)
-            Debug.LogError("[CustomerGroup] No Canvas found. Bubble UI cannot spawn.");
+            Debug.LogError("[CustomerGroup] No Canvas found.");
     }
 
     private Camera GetFollowCam()
     {
         var cam = UIRoot.GameplayCameraOrNull();
-        if (cam != null) return cam;
-        return Camera.main;
+        return cam != null ? cam : Camera.main;
     }
 
     private void ResolveExitPoint()
@@ -171,28 +157,30 @@ public class CustomerGroup : MonoBehaviour
 
         GameObject tagged = null;
         try { tagged = GameObject.FindGameObjectWithTag("ExitPoint"); } catch { }
-        if (tagged != null) { exitPoint = tagged.transform; return; }
+        if (tagged != null)
+        {
+            exitPoint = tagged.transform;
+            return;
+        }
 
         GameObject named = GameObject.Find("ExitPoint");
-        if (named != null) { exitPoint = named.transform; return; }
+        if (named != null)
+        {
+            exitPoint = named.transform;
+            return;
+        }
 
-        Debug.LogWarning("No ExitPoint found. Add ExitManager in scene and assign exitPoint (recommended).");
+        Debug.LogWarning("No ExitPoint found.");
     }
 
     private void BuildGroupUIAnchor()
     {
         if (groupUiAnchor != null) return;
 
-        GameObject a = new GameObject("GroupUIAnchor");
-        groupUiAnchor = a.transform;
+        GameObject anchor = new GameObject("GroupUIAnchor");
+        groupUiAnchor = anchor.transform;
         groupUiAnchor.SetParent(transform, false);
         groupUiAnchor.position = GetMembersCenterWorld();
-    }
-
-    private void LateUpdate()
-    {
-        if (groupUiAnchor != null)
-            groupUiAnchor.position = GetMembersCenterWorld();
     }
 
     public void SetSelected(bool selected)
@@ -202,17 +190,12 @@ public class CustomerGroup : MonoBehaviour
             selectionVisual.SetActive(selected);
     }
 
-    // =========================
-    // Seating
-    // =========================
     public void AssignToBooth(Booth booth)
     {
-        if (booth == null) return;
-        if (hasBeenAssigned) return;
+        if (booth == null || hasBeenAssigned) return;
 
         hasBeenAssigned = true;
         assignedBooth = booth;
-
         seatedMembers.Clear();
         state = GroupState.WalkingToBooth;
 
@@ -224,8 +207,6 @@ public class CustomerGroup : MonoBehaviour
         seatingRoutine = StartCoroutine(SeatMembersFlow());
 
         assignedBooth.SetCurrentGroup(this);
-
-        
     }
 
     private IEnumerator SeatMembersFlow()
@@ -237,35 +218,31 @@ public class CustomerGroup : MonoBehaviour
 
         for (int i = 0; i < members.Count; i++)
         {
-            var m = members[i];
-            if (m == null) continue;
+            var member = members[i];
+            if (member == null) continue;
 
             Transform seat = assignedBooth.GetSeat(i);
             if (seat == null) continue;
 
             seatTargets[i] = seat.position;
-            m.WalkTo(seatTargets[i]);
+            member.WalkTo(seatTargets[i]);
         }
 
         while (seatedMembers.Count < members.Count)
         {
             for (int i = 0; i < members.Count; i++)
             {
-                var m = members[i];
-                if (m == null) continue;
-                if (seatedMembers.Contains(m)) continue;
+                var member = members[i];
+                if (member == null || seatedMembers.Contains(member)) continue;
 
                 Transform seat = assignedBooth.GetSeat(i);
                 if (seat == null) continue;
 
-                if (m.HasArrived(seatTargets[i]))
+                if (member.HasArrived(seatTargets[i]) && SeatAnchor.TryOccupy(seat, member.gameObject))
                 {
-                    if (SeatAnchor.TryOccupy(seat, m.gameObject))
-                    {
-                        Quaternion rot = assignedBooth.GetSeatedRotation(seat.position);
-                        m.SnapToSeat(seat.position, rot);
-                        seatedMembers.Add(m);
-                    }
+                    Quaternion rot = assignedBooth.GetSeatedRotation(seat.position);
+                    member.SnapToSeat(seat.position, rot);
+                    seatedMembers.Add(member);
                 }
             }
 
@@ -283,9 +260,6 @@ public class CustomerGroup : MonoBehaviour
         StartCoroutine(ReadyToOrderFlow());
     }
 
-    // =========================
-    // Ready To Order
-    // =========================
     private IEnumerator ReadyToOrderFlow()
     {
         state = GroupState.WaitingToOrder;
@@ -294,8 +268,6 @@ public class CustomerGroup : MonoBehaviour
         yield return new WaitForSeconds(delay);
 
         GenerateRandomOrder();
-
-     
         SpawnOrderBubble();
 
         state = GroupState.ReadyToOrder;
@@ -303,13 +275,13 @@ public class CustomerGroup : MonoBehaviour
         float patience = UnityEngine.Random.Range(minOrderPatience, maxOrderPatience);
         float timeLeft = patience;
 
-        OrderBubbleUI bubbleUI = null;
-        if (orderBubbleInstance != null)
-            bubbleUI = orderBubbleInstance.GetComponentInChildren<OrderBubbleUI>(true);
+        OrderBubbleUI bubbleUI = orderBubbleInstance != null
+            ? orderBubbleInstance.GetComponentInChildren<OrderBubbleUI>(true)
+            : null;
 
-        UIShake shaker = null;
-        if (orderBubbleInstance != null)
-            shaker = orderBubbleInstance.GetComponentInChildren<UIShake>(true);
+        UIShake shaker = orderBubbleInstance != null
+            ? orderBubbleInstance.GetComponentInChildren<UIShake>(true)
+            : null;
 
         bool startedShake = false;
 
@@ -320,11 +292,9 @@ public class CustomerGroup : MonoBehaviour
                 timeLeft -= Time.deltaTime;
 
                 if (bubbleUI != null)
-                {
-                    float normalized = Mathf.Clamp01(timeLeft / patience);
-                    bubbleUI.SetPatience(normalized);
-                }
+                    bubbleUI.SetPatience(Mathf.Clamp01(timeLeft / patience));
             }
+
             if (!startedShake && timeLeft <= shakeBeforeAngrySeconds)
             {
                 startedShake = true;
@@ -342,19 +312,15 @@ public class CustomerGroup : MonoBehaviour
         }
     }
 
-
     private void GenerateRandomOrder()
     {
         hasConfirmedOrder = false;
-        
+
         chosenFood = (FoodType)UnityEngine.Random.Range(0, Enum.GetValues(typeof(FoodType)).Length);
         chosenDrink = (DrinkType)UnityEngine.Random.Range(0, Enum.GetValues(typeof(DrinkType)).Length);
 
-        if (!hasConfirmedOrder)
-        {
-            confirmedFood = chosenFood;
-            confirmedDrink = chosenDrink;
-        }
+        confirmedFood = chosenFood;
+        confirmedDrink = chosenDrink;
     }
 
     private Sprite GetFoodSprite()
@@ -364,8 +330,8 @@ public class CustomerGroup : MonoBehaviour
             case FoodType.Chicken: return chickenSprite;
             case FoodType.Fries: return friesSprite;
             case FoodType.Burger: return burgerSprite;
+            default: return null;
         }
-        return null;
     }
 
     private Sprite GetDrinkSprite()
@@ -375,39 +341,23 @@ public class CustomerGroup : MonoBehaviour
             case DrinkType.Coke: return cokeSprite;
             case DrinkType.Pineapple: return pineappleSprite;
             case DrinkType.IceTea: return iceTeaSprite;
+            default: return null;
         }
-        return null;
     }
 
     private void SpawnOrderBubble()
     {
-        if (orderBubblePrefab == null)
-        {
-            Debug.LogError("[CustomerGroup] orderBubblePrefab is NULL. Assign it on the CustomerGroup prefab.");
-            return;
-        }
-
+        if (orderBubblePrefab == null) return;
         ResolveCanvas();
-        if (gameplayCanvas == null)
-        {
-            Debug.LogError("[CustomerGroup] gameplayCanvas is NULL. Bubble cannot spawn.");
-            return;
-        }
+        if (gameplayCanvas == null) return;
 
         ClearOrderBubble();
 
         orderBubbleInstance = Instantiate(orderBubblePrefab, gameplayCanvas.transform);
-        if (orderBubbleInstance == null)
-        {
-            Debug.LogError("[CustomerGroup] Instantiate(orderBubblePrefab) failed.");
-            return;
-        }
 
         var follow = orderBubbleInstance.GetComponentInChildren<UIFollowWorldPoint>(true);
         if (follow != null)
             follow.Init(groupUiAnchor, bubbleOffset, GetFollowCam());
-        else
-            Debug.LogWarning("[CustomerGroup] UIFollowWorldPoint missing on bubble prefab.");
 
         var ui = orderBubbleInstance.GetComponentInChildren<OrderBubbleUI>(true);
         if (ui != null)
@@ -415,33 +365,24 @@ public class CustomerGroup : MonoBehaviour
             ui.SetOrder(GetFoodSprite(), GetDrinkSprite());
             ui.Init(this);
         }
-        else
-        {
-            Debug.LogWarning("[CustomerGroup] OrderBubbleUI missing on bubble prefab.");
-        }
     }
-
-    // Called by OrderChecklistUI Confirm
 
     public void TakeOrderFromWaiter(FoodType food, DrinkType drink)
     {
         if (state != GroupState.ReadyToOrder) return;
 
-        // lock the final order from notepad
         ConfirmOrder(food, drink);
 
-        // Stop shake if shaking
         if (orderBubbleInstance != null)
         {
-            var sh = orderBubbleInstance.GetComponentInChildren<UIShake>(true);
-            if (sh != null) sh.StopShake(true);
+            var shaker = orderBubbleInstance.GetComponentInChildren<UIShake>(true);
+            if (shaker != null) shaker.StopShake(true);
         }
 
-        int orderNum = (OrderNumberManager.Instance != null)
+        currentOrderNumber = OrderNumberManager.Instance != null
             ? OrderNumberManager.Instance.GetNextOrderNumber()
             : UnityEngine.Random.Range(100, 999);
 
-        currentOrderNumber = orderNum;
         state = GroupState.OrderTaken;
 
         ClearOrderBubble();
@@ -466,11 +407,11 @@ public class CustomerGroup : MonoBehaviour
         ResolveCanvas();
         if (gameplayCanvas == null) return;
 
-        if (tableNumberInstance != null) Destroy(tableNumberInstance);
+        ClearTableNumber();
 
         tableNumberInstance = Instantiate(tableNumberPrefab, gameplayCanvas.transform);
 
-        Transform anchor = (assignedBooth != null && assignedBooth.tableNumberAnchor != null)
+        Transform anchor = assignedBooth != null && assignedBooth.tableNumberAnchor != null
             ? assignedBooth.tableNumberAnchor
             : groupUiAnchor;
 
@@ -483,15 +424,91 @@ public class CustomerGroup : MonoBehaviour
             num.SetNumber(currentOrderNumber);
     }
 
-    // =========================
-    // Leaving
-    // =========================
+    public void ReceiveFoodFromWaiter()
+    {
+        if (state != GroupState.OrderTaken) return;
+
+        if (assignedBooth != null)
+            assignedBooth.ClearMenuBook();
+
+        ClearTableNumber();
+
+        state = GroupState.Eating;
+        StartCoroutine(EatThenNeedBill());
+    }
+
+    public void ReceiveBillFromWaiter()
+    {
+        if (state != GroupState.NeedsBill) return;
+
+        ClearBillBubble();
+        StartCoroutine(SpawnMoneyBubbleAfterDelay());
+    }
+
+    public void RequestBillFromCashier()
+    {
+        if (state != GroupState.NeedsBill) return;
+        if (BillManager.Instance == null) return;
+
+        BillManager.Instance.RequestBill(this);
+    }
+
+    private IEnumerator EatThenNeedBill()
+    {
+        float eat = UnityEngine.Random.Range(minEatSeconds, maxEatSeconds);
+        yield return new WaitForSeconds(eat);
+
+        state = GroupState.NeedsBill;
+        SpawnBillBubble();
+    }
+
+    private IEnumerator SpawnMoneyBubbleAfterDelay()
+    {
+        yield return new WaitForSeconds(0.6f);
+
+        if (state != GroupState.NeedsBill) yield break;
+        if (moneyBubblePrefab == null) yield break;
+        if (assignedBooth == null) yield break;
+
+        int amount = 100;
+        var cashier = FindFirstObjectByType<CashierBoothInteractable>();
+        if (cashier != null)
+            amount = cashier.GenerateSaleAmount();
+
+        pendingPaymentAmount = amount;
+
+        var spawner = assignedBooth.GetComponent<BoothMoneySpawner>();
+        if (spawner == null) yield break;
+
+        var money = spawner.SpawnMoney(this, amount, null);
+        if (money == null) yield break;
+
+        ResolveCanvas();
+        if (gameplayCanvas == null) yield break;
+
+        ClearMoneyBubble();
+
+        moneyBubbleInstance = Instantiate(moneyBubblePrefab, gameplayCanvas.transform);
+
+        var follow = moneyBubbleInstance.GetComponentInChildren<UIFollowWorldPoint>(true);
+        if (follow != null)
+        {
+            Vector3 offset = bubbleOffset;
+            offset.y = moneyBubbleOffsetY;
+            follow.Init(groupUiAnchor, offset, GetFollowCam());
+        }
+
+        var ui = moneyBubbleInstance.GetComponentInChildren<MoneyBubbleUI>(true);
+        if (ui != null)
+            ui.Init(amount, money);
+    }
+
     public void PayAndLeave()
     {
         if (state != GroupState.NeedsBill) return;
 
         state = GroupState.Leaving;
-        StartLeaving(showAngryBubble: false);
+        StartLeaving(false);
     }
 
     private void BecomeAngryAndLeave()
@@ -503,7 +520,7 @@ public class CustomerGroup : MonoBehaviour
         ClearTableNumber();
 
         SpawnAngryBubble();
-        StartLeaving(showAngryBubble: true);
+        StartLeaving(true);
     }
 
     private void StartLeaving(bool showAngryBubble)
@@ -515,13 +532,13 @@ public class CustomerGroup : MonoBehaviour
 
         if (exitPoint == null)
         {
-            Debug.LogWarning("ExitPoint missing. Despawning.");
             CleanupOnLeave();
             Destroy(gameObject);
             return;
         }
 
         CleanupSeatsAndBoothOnly();
+
         if (assignedBooth != null)
             assignedBooth.ClearCurrentGroup();
 
@@ -548,16 +565,15 @@ public class CustomerGroup : MonoBehaviour
             yield break;
         }
 
-        // Teleport to approach
         for (int i = 0; i < members.Count; i++)
         {
-            var m = members[i];
-            if (m == null) continue;
+            var member = members[i];
+            if (member == null) continue;
 
-            m.Unseat();
+            member.Unseat();
 
-            if (m.Agent != null) m.Agent.Warp(approach.position);
-            else m.transform.position = approach.position;
+            if (member.Agent != null) member.Agent.Warp(approach.position);
+            else member.transform.position = approach.position;
         }
 
         yield return null;
@@ -568,7 +584,7 @@ public class CustomerGroup : MonoBehaviour
         if (NavMesh.SamplePosition(baseExit, out hit, 3f, NavMesh.AllAreas))
             baseExit = hit.position;
 
-        Vector3 forward = (baseExit - approach.position);
+        Vector3 forward = baseExit - approach.position;
         forward.y = 0f;
         if (forward.sqrMagnitude < 0.0001f) forward = Vector3.forward;
         forward.Normalize();
@@ -579,8 +595,8 @@ public class CustomerGroup : MonoBehaviour
 
         for (int i = 0; i < members.Count; i++)
         {
-            var m = members[i];
-            if (m == null) continue;
+            var member = members[i];
+            if (member == null) continue;
 
             Vector3 offset = Vector3.zero;
             if (i == 1) offset = right * 0.6f;
@@ -592,7 +608,7 @@ public class CustomerGroup : MonoBehaviour
             if (NavMesh.SamplePosition(targets[i], out hit, 2f, NavMesh.AllAreas))
                 targets[i] = hit.position;
 
-            m.WalkTo(targets[i]);
+            member.WalkTo(targets[i]);
         }
 
         float timeout = 12f;
@@ -604,18 +620,17 @@ public class CustomerGroup : MonoBehaviour
 
             for (int i = 0; i < members.Count; i++)
             {
-                var m = members[i];
-                if (m == null) continue;
+                var member = members[i];
+                if (member == null) continue;
 
-                if (!m.HasArrived(targets[i]))
+                if (!member.HasArrived(targets[i]))
                 {
                     allArrived = false;
                     break;
                 }
             }
 
-            if (allArrived)
-                break;
+            if (allArrived) break;
 
             t += Time.deltaTime;
             yield return null;
@@ -623,6 +638,25 @@ public class CustomerGroup : MonoBehaviour
 
         CleanupOnLeave();
         Destroy(gameObject);
+    }
+
+    private void SpawnBillBubble()
+    {
+        if (billBubblePrefab == null) return;
+        ResolveCanvas();
+        if (gameplayCanvas == null) return;
+
+        ClearBillBubble();
+
+        billBubbleInstance = Instantiate(billBubblePrefab, gameplayCanvas.transform);
+
+        var follow = billBubbleInstance.GetComponentInChildren<UIFollowWorldPoint>(true);
+        if (follow != null)
+            follow.Init(groupUiAnchor, bubbleOffset, GetFollowCam());
+
+        var ui = billBubbleInstance.GetComponentInChildren<BillBubbleUI>(true);
+        if (ui != null)
+            ui.Init(this);
     }
 
     private void SpawnAngryBubble()
@@ -644,9 +678,6 @@ public class CustomerGroup : MonoBehaviour
             ui.SetIcon(angryIcon);
     }
 
-    // =========================
-    // Cleanup
-    // =========================
     private void CleanupSeatsAndBoothOnly()
     {
         if (boothSeatsCleared) return;
@@ -654,9 +685,9 @@ public class CustomerGroup : MonoBehaviour
 
         for (int i = 0; i < members.Count; i++)
         {
-            var m = members[i];
-            if (m == null) continue;
-            SeatAnchor.VacateAllFor(m.gameObject);
+            var member = members[i];
+            if (member == null) continue;
+            SeatAnchor.VacateAllFor(member.gameObject);
         }
 
         if (assignedBooth != null)
@@ -679,46 +710,45 @@ public class CustomerGroup : MonoBehaviour
 
         for (int i = 0; i < members.Count; i++)
         {
-            var m = members[i];
-            if (m == null) continue;
-            SeatAnchor.VacateAllFor(m.gameObject);
+            var member = members[i];
+            if (member == null) continue;
+            SeatAnchor.VacateAllFor(member.gameObject);
         }
     }
 
     public void ClearOrderBubble()
     {
-        if (orderBubbleInstance != null)
-        {
-            Destroy(orderBubbleInstance);
-            orderBubbleInstance = null;
-        }
+        if (orderBubbleInstance == null) return;
+        Destroy(orderBubbleInstance);
+        orderBubbleInstance = null;
     }
 
     public void ClearBillBubble()
     {
-        if (billBubbleInstance != null)
-        {
-            Destroy(billBubbleInstance);
-            billBubbleInstance = null;
-        }
+        if (billBubbleInstance == null) return;
+        Destroy(billBubbleInstance);
+        billBubbleInstance = null;
     }
 
     public void ClearAngryBubble()
     {
-        if (angryBubbleInstance != null)
-        {
-            Destroy(angryBubbleInstance);
-            angryBubbleInstance = null;
-        }
+        if (angryBubbleInstance == null) return;
+        Destroy(angryBubbleInstance);
+        angryBubbleInstance = null;
     }
 
     public void ClearTableNumber()
     {
-        if (tableNumberInstance != null)
-        {
-            Destroy(tableNumberInstance);
-            tableNumberInstance = null;
-        }
+        if (tableNumberInstance == null) return;
+        Destroy(tableNumberInstance);
+        tableNumberInstance = null;
+    }
+
+    private void ClearMoneyBubble()
+    {
+        if (moneyBubbleInstance == null) return;
+        Destroy(moneyBubbleInstance);
+        moneyBubbleInstance = null;
     }
 
     private Vector3 GetMembersCenterWorld()
@@ -728,119 +758,13 @@ public class CustomerGroup : MonoBehaviour
 
         for (int i = 0; i < members.Count; i++)
         {
-            var m = members[i];
-            if (m == null) continue;
-            sum += m.transform.position;
+            var member = members[i];
+            if (member == null) continue;
+
+            sum += member.transform.position;
             count++;
         }
 
         return count > 0 ? sum / count : transform.position;
     }
-
-    private void SpawnBillBubble()
-    {
-        if (billBubblePrefab == null) return;
-        ResolveCanvas();
-        if (gameplayCanvas == null) return;
-
-        ClearBillBubble();
-
-        billBubbleInstance = Instantiate(billBubblePrefab, gameplayCanvas.transform);
-
-        var follow = billBubbleInstance.GetComponentInChildren<UIFollowWorldPoint>(true);
-        if (follow != null)
-            follow.Init(groupUiAnchor, bubbleOffset, GetFollowCam());
-
-        var ui = billBubbleInstance.GetComponentInChildren<BillBubbleUI>(true);
-        if (ui != null)
-            ui.Init(this);
-    }
-
-    public void ReceiveFoodFromWaiter()
-    {
-        if (state != GroupState.OrderTaken) return;
-
-        if (assignedBooth != null)
-            assignedBooth.ClearMenuBook();
-
-        state = GroupState.Eating;
-        StartCoroutine(EatThenNeedBill());
-    }
-
-    public void ReceiveBillFromWaiter()
-    {
-        if (state != GroupState.NeedsBill) return;
-
-        ClearBillBubble();
-
-        StartCoroutine(SpawnMoneyBubbleAfterDelay());
-    }
-
-    public void RequestBillFromCashier()
-    {
-        if (state != GroupState.NeedsBill) return;
-        if (BillManager.Instance == null) return;
-
-        BillManager.Instance.RequestBill(this);
-    }
-
-    private IEnumerator SpawnMoneyBubbleAfterDelay()
-    {
-        yield return new WaitForSeconds(0.6f);
-
-        if (state != GroupState.NeedsBill) yield break;
-        if (moneyBubblePrefab == null) yield break;
-        if (assignedBooth == null) yield break;
-
-        int amount = 100;
-        var cashier = FindFirstObjectByType<CashierBoothInteractable>();
-        if (cashier != null) amount = cashier.GenerateSaleAmount();
-
-        pendingPaymentAmount = amount;
-
-        var spawner = assignedBooth.GetComponent<BoothMoneySpawner>();
-        if (spawner == null) yield break;
-
-        var money = spawner.SpawnMoney(this, amount, null);
-        if (money == null) yield break;
-
-        ResolveCanvas();
-        if (gameplayCanvas == null) yield break;
-
-        ClearMoneyBubble();
-
-        moneyBubbleInstance = Instantiate(moneyBubblePrefab, gameplayCanvas.transform);
-
-        var follow = moneyBubbleInstance.GetComponentInChildren<UIFollowWorldPoint>(true);
-        if (follow != null)
-        {
-            Vector3 offset = bubbleOffset;
-            offset.y = moneyBubbleOffsetY;
-
-            follow.Init(groupUiAnchor, offset, GetFollowCam());
-        }
-
-        var ui = moneyBubbleInstance.GetComponentInChildren<MoneyBubbleUI>(true);
-        if (ui != null)
-            ui.Init(amount, money);
-    }
-    private IEnumerator EatThenNeedBill()
-    {
-        float eat = UnityEngine.Random.Range(minEatSeconds, maxEatSeconds);
-        yield return new WaitForSeconds(eat);
-
-        state = GroupState.NeedsBill;
-
-        SpawnBillBubble();
-    }
-
-    private void ClearMoneyBubble()
-    {
-        if (moneyBubbleInstance != null)
-        {
-            Destroy(moneyBubbleInstance);
-            moneyBubbleInstance = null;
-        }
-    }
-    
 }

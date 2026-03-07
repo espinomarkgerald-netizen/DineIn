@@ -1,8 +1,11 @@
+using System;
 using UnityEngine;
 
 public class WaiterHands : MonoBehaviour
 {
     public static WaiterHands Instance { get; private set; }
+
+    public static event Action OnHandsStateChanged;
 
     [Header("Holding")]
     public CustomerGroup holdingTicketFor;
@@ -26,9 +29,19 @@ public class WaiterHands : MonoBehaviour
     private GameObject billHeldVisualInstance;
     private BillPaper heldBillPaper;
 
+    public bool HasTicket => holdingTicketFor != null;
+    public bool HasBill => holdingBillFor != null;
+    public bool HasTray => holdingTray != null;
+    public bool HasMoney => holdingMoneyFor != null && holdingMoneyAmount > 0;
+
+    public Transform MoneyHoldPoint => moneyHoldPoint != null ? moneyHoldPoint : transform;
+    public Transform TrayHoldPoint => trayHoldPoint != null ? trayHoldPoint : transform;
+    public Transform BillHoldPoint => billHoldPoint != null ? billHoldPoint : transform;
+
     private void Awake()
     {
         Debug.Log($"[WaiterHands] Awake on {name} id={GetInstanceID()}");
+
         if (Instance != null && Instance != this)
         {
             Destroy(gameObject);
@@ -39,30 +52,43 @@ public class WaiterHands : MonoBehaviour
 
         holdingTray = null;
         holdingTicketFor = null;
-
         holdingBillFor = null;
         heldBillPaper = null;
-
         holdingMoneyFor = null;
         holdingMoneyAmount = 0;
         heldMoneyPickup = null;
 
-        if (billHeldVisualInstance != null) { Destroy(billHeldVisualInstance); billHeldVisualInstance = null; }
-        if (moneyHeldVisualInstance != null) { Destroy(moneyHeldVisualInstance); moneyHeldVisualInstance = null; }
+        if (billHeldVisualInstance != null)
+        {
+            Destroy(billHeldVisualInstance);
+            billHeldVisualInstance = null;
+        }
+
+        if (moneyHeldVisualInstance != null)
+        {
+            Destroy(moneyHeldVisualInstance);
+            moneyHeldVisualInstance = null;
+        }
+
+        NotifyHandsChanged();
     }
 
-    public bool HasTicket => holdingTicketFor != null;
-    public bool HasBill => holdingBillFor != null;
-    public bool HasTray => holdingTray != null;
+    private void OnDestroy()
+    {
+        if (Instance == this)
+            Instance = null;
+    }
 
-    // IMPORTANT FIX: don't treat "moneyFor set but amount=0" as holding money.
-    public bool HasMoney => holdingMoneyFor != null && holdingMoneyAmount > 0;
+    private void NotifyHandsChanged()
+    {
+        OnHandsStateChanged?.Invoke();
+    }
 
-    public Transform MoneyHoldPoint => moneyHoldPoint != null ? moneyHoldPoint : transform;
-    public Transform TrayHoldPoint => trayHoldPoint != null ? trayHoldPoint : transform;
-    public Transform BillHoldPoint => billHoldPoint != null ? billHoldPoint : transform;
-
-    public void ClearTicket() => holdingTicketFor = null;
+    public void ClearTicket()
+    {
+        holdingTicketFor = null;
+        NotifyHandsChanged();
+    }
 
     public void ClearBill()
     {
@@ -79,11 +105,14 @@ public class WaiterHands : MonoBehaviour
             Destroy(billHeldVisualInstance);
             billHeldVisualInstance = null;
         }
+
+        NotifyHandsChanged();
     }
 
     public void ClearTray()
     {
         holdingTray = null;
+        NotifyHandsChanged();
     }
 
     public bool PickupTray(FoodTray tray)
@@ -94,7 +123,7 @@ public class WaiterHands : MonoBehaviour
         Transform parent = TrayHoldPoint;
         if (parent == null)
         {
-            Debug.LogError("[WaiterHands] TrayHoldPoint is NULL (assign it on WaiterHands).");
+            Debug.LogError("[WaiterHands] TrayHoldPoint is NULL.");
             return false;
         }
 
@@ -107,6 +136,7 @@ public class WaiterHands : MonoBehaviour
         var col = tray.GetComponentInChildren<Collider>(true);
         if (col != null) col.enabled = false;
 
+        NotifyHandsChanged();
         return true;
     }
 
@@ -117,6 +147,8 @@ public class WaiterHands : MonoBehaviour
 
         if (destroyObject && tray != null)
             Destroy(tray.gameObject);
+
+        NotifyHandsChanged();
     }
 
     public void PickupBill(CustomerGroup group)
@@ -126,17 +158,27 @@ public class WaiterHands : MonoBehaviour
 
         holdingBillFor = group;
         RefreshBillHeldVisual();
+        NotifyHandsChanged();
     }
 
     public void PickupBillPaper(BillPaper paper)
     {
-        if (paper == null) { Debug.LogWarning("[WaiterHands] PickupBillPaper: paper null"); return; }
-        if (heldBillPaper != null) { Debug.LogWarning("[WaiterHands] PickupBillPaper: already holding bill paper"); return; }
+        if (paper == null)
+        {
+            Debug.LogWarning("[WaiterHands] PickupBillPaper: paper null");
+            return;
+        }
+
+        if (heldBillPaper != null)
+        {
+            Debug.LogWarning("[WaiterHands] PickupBillPaper: already holding bill paper");
+            return;
+        }
 
         Transform parent = BillHoldPoint;
         if (parent == null)
         {
-            Debug.LogError("[WaiterHands] BillHoldPoint is NULL (assign it on WaiterHands).");
+            Debug.LogError("[WaiterHands] BillHoldPoint is NULL.");
             return;
         }
 
@@ -155,17 +197,20 @@ public class WaiterHands : MonoBehaviour
         Debug.Log($"[WaiterHands] Bill now child of hand? {paper.transform.IsChildOf(parent)} worldPos={paper.transform.position}");
 
         RefreshBillHeldVisual();
+        NotifyHandsChanged();
     }
 
     private string GetPath(Transform t)
     {
         if (t == null) return "null";
+
         string path = t.name;
         while (t.parent != null)
         {
             t = t.parent;
             path = t.name + "/" + path;
         }
+
         return path;
     }
 
@@ -199,6 +244,7 @@ public class WaiterHands : MonoBehaviour
         if (destroyTrayObject && deliveredTray != null)
             Destroy(deliveredTray.gameObject);
 
+        NotifyHandsChanged();
         return true;
     }
 
@@ -206,7 +252,6 @@ public class WaiterHands : MonoBehaviour
     {
         if (money == null) return;
 
-        // If you're "stuck" with moneyFor but amount=0, allow overwrite by clearing first.
         if (holdingMoneyFor != null && holdingMoneyAmount <= 0)
             ClearMoney();
 
@@ -230,13 +275,20 @@ public class WaiterHands : MonoBehaviour
         var col = money.GetComponentInChildren<Collider>(true);
         if (col != null) col.enabled = false;
 
-        if (moneyHeldVisualInstance != null) Destroy(moneyHeldVisualInstance);
+        if (moneyHeldVisualInstance != null)
+        {
+            Destroy(moneyHeldVisualInstance);
+            moneyHeldVisualInstance = null;
+        }
+
         if (moneyHeldVisualPrefab != null)
         {
             moneyHeldVisualInstance = Instantiate(moneyHeldVisualPrefab, parent);
             moneyHeldVisualInstance.transform.localPosition = Vector3.zero;
             moneyHeldVisualInstance.transform.localRotation = Quaternion.identity;
         }
+
+        NotifyHandsChanged();
     }
 
     public void ClearMoney()
@@ -255,5 +307,7 @@ public class WaiterHands : MonoBehaviour
             Destroy(moneyHeldVisualInstance);
             moneyHeldVisualInstance = null;
         }
+
+        NotifyHandsChanged();
     }
 }

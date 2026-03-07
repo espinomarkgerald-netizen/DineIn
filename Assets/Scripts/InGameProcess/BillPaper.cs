@@ -13,19 +13,18 @@ public class BillPaper : MonoBehaviour, IInteractable
     [SerializeField] private bool disableColliderWhileHeld = true;
 
     [Header("Pickup UI (Tray-style)")]
-    [SerializeField] private Transform uiAnchor;            // ButtonAnchor
-    [SerializeField] private GameObject pickupUiPrefab;     // BillPickUpUI prefab
+    [SerializeField] private Transform uiAnchor;
+    [SerializeField] private GameObject pickupUiPrefab;
     [SerializeField] private Vector3 uiOffset = new Vector3(0f, 0.35f, 0f);
     [SerializeField] private bool spawnPickupUiOnInit = true;
 
     [Header("Canvas (Optional)")]
-    [SerializeField] private Canvas gameplayCanvas;         // drag your real gameplay canvas here (recommended)
+    [SerializeField] private Canvas gameplayCanvas;
 
     [Header("Debug")]
     [SerializeField] private bool debugLogs = false;
 
     private Collider cachedCol;
-
     private GameObject pickupUiInstance;
 
     public Transform StandPoint => standPoint != null ? standPoint : transform;
@@ -132,7 +131,6 @@ public class BillPaper : MonoBehaviour, IInteractable
 
         if (debugLogs) Debug.Log($"[BillPaper] Spawned pickup UI under canvas: {canvas.name}", this);
 
-        // Follow anchor (same pattern as tray)
         var follow = pickupUiInstance.GetComponentInChildren<UIFollowWorldPoint>(true);
         if (follow != null)
         {
@@ -144,7 +142,6 @@ public class BillPaper : MonoBehaviour, IInteractable
             if (debugLogs) Debug.LogWarning("[BillPaper] UIFollowWorldPoint missing on pickupUiPrefab", this);
         }
 
-        // Assign THIS bill to the button (no prefab scene references)
         var pickBtn = pickupUiInstance.GetComponentInChildren<BillPaperPickupButton>(true);
         if (pickBtn != null)
         {
@@ -161,7 +158,6 @@ public class BillPaper : MonoBehaviour, IInteractable
     {
         if (gameplayCanvas != null) return gameplayCanvas;
 
-        // Prefer an enabled ScreenSpace canvas (what you use for trays/bubbles)
         var canvases = FindObjectsByType<Canvas>(FindObjectsSortMode.None);
         for (int i = 0; i < canvases.Length; i++)
         {
@@ -173,7 +169,6 @@ public class BillPaper : MonoBehaviour, IInteractable
                 return c;
         }
 
-        // fallback: any enabled canvas
         for (int i = 0; i < canvases.Length; i++)
         {
             var c = canvases[i];

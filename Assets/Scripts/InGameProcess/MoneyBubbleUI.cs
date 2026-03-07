@@ -8,11 +8,14 @@ public class MoneyBubbleUI : MonoBehaviour
     [SerializeField] private TMP_Text amountText;
 
     private MoneyPickup money;
+    private PlayerMovement player;
 
     private void Awake()
     {
         if (button == null)
             button = GetComponentInChildren<Button>(true);
+
+        player = FindFirstObjectByType<PlayerMovement>();
     }
 
     public void Init(int amount, MoneyPickup m)
@@ -32,8 +35,10 @@ public class MoneyBubbleUI : MonoBehaviour
     private void OnClickCollect()
     {
         if (money == null) return;
+        if (player == null) return;
 
-        money.TryPickup();
-        Destroy(gameObject); 
+        player.UI_MoveTo(money);
+
+        Destroy(gameObject);
     }
 }

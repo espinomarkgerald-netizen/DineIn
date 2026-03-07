@@ -28,22 +28,10 @@ public class BillBubbleUI : MonoBehaviour
             return;
         }
 
-        // If holding some other bill, don't do anything
+        // If holding another group's bill, do nothing
         if (hands != null && hands.HasBill) return;
 
-        // If bill already printed, go pick it up (same method as tray UI)
-        var bm = BillManager.Instance;
-        if (bm != null)
-        {
-            var existing = bm.FindBillForGroup(group);
-            if (existing != null)
-            {
-                existing.UI_Pickup();
-                return;
-            }
-        }
-
-        // Otherwise request print
+        // This bubble's main job is to request the bill for this exact group
         if (oneRequestOnly && requested) return;
 
         group.RequestBillFromCashier();

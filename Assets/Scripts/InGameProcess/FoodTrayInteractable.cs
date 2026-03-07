@@ -20,7 +20,6 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable
     private GameObject uiInstance;
     private TrayPickupQueue queueOwner;
     private TrayMode mode = TrayMode.None;
-
     private bool watchForCleanup;
 
     public Transform StandPoint => pickupPoint != null ? pickupPoint : transform;
@@ -42,7 +41,6 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable
         var group = tray.TargetGroup;
         if (group == null) return;
 
-        
         if (group.state == CustomerGroup.GroupState.Leaving ||
             group.state == CustomerGroup.GroupState.AngryLeft)
         {
@@ -57,7 +55,6 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable
         HideUI();
     }
 
-    // ---------- DELIVERY ----------
     public void SetDeliveryPickable(TrayPickupQueue queue)
     {
         mode = TrayMode.Delivery;
@@ -70,20 +67,16 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable
         RefreshUI();
     }
 
-
     public void NotifyDeliveredToTable()
     {
-      
         if (tray != null && tray.TargetGroup != null)
             watchForCleanup = true;
 
-       
         mode = TrayMode.None;
         queueOwner = null;
         HideUI();
     }
 
-    // ---------- CLEANUP ----------
     public void SetCleanupPickable(bool value)
     {
         if (queueOwner != null) queueOwner.Unregister(this);
@@ -119,7 +112,6 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable
 
         if (WaiterHands.Instance == null) return;
 
-      
         if (!WaiterHands.Instance.PickupTray(tray))
             return;
 
@@ -134,6 +126,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable
         if (wasCleanup && autoGoSinkOnCleanupPickup && sink != null)
             mover.UI_MoveTo(sink);
     }
+
     public void UI_RequestPickup()
     {
         if (!CanInteract()) return;
@@ -171,7 +164,6 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable
         if (pickupUiPrefab == null || uiAnchor == null) return;
         if (uiInstance != null) return;
 
-        // pick a clickable canvas (screen space + raycaster)
         Canvas canvas = null;
         var canvases = FindObjectsByType<Canvas>(FindObjectsSortMode.None);
         for (int i = 0; i < canvases.Length; i++)
@@ -201,7 +193,9 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable
 
         var btn = uiInstance.GetComponentInChildren<TrayPickupUIButton>(true);
         if (btn != null)
+        {
             btn.SetTray(this);
+        }
         else
         {
             var b = uiInstance.GetComponentInChildren<Button>(true);
@@ -217,6 +211,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable
     {
         if (uiInstance != null)
             Destroy(uiInstance);
+
         uiInstance = null;
     }
 }

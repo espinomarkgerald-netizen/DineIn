@@ -196,6 +196,7 @@ Transform:
   - {fileID: 2621870334577708099}
   - {fileID: 5693246615320672451}
   - {fileID: 638286215285416471}
+  - {fileID: 637077427148389536}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: -90, y: 0, z: 90}
 --- !u!33 &3707043367313073877
@@ -393,10 +394,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   puddlePrefab: {fileID: -2201053468391724076, guid: c6ad55251ac3e6c4ba6504a18cb8c5a1, type: 3}
   spawnPoints:
-  - {fileID: 638286215285416471}
-  spawnChance: 1
-  spawnDelayMin: 0
-  spawnDelayMax: 0
+  - {fileID: 637077427148389536}
+  spawnChance: 0.25
+  spawnDelayMin: 1
+  spawnDelayMax: 3
   randomYawRange: {x: 0, y: 360}
   uniformScaleRange: {x: 0.5, y: 0.9}
   nonUniformJitter: 0.1
@@ -465,6 +466,37 @@ Transform:
   m_Children: []
   m_Father: {fileID: 2357183371082360675}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 140}
+--- !u!1 &5828447810977439421
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 637077427148389536}
+  m_Layer: 0
+  m_Name: SpillSpawn
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &637077427148389536
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5828447810977439421}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0.5, y: -0.5, z: -0.5, w: 0.5}
+  m_LocalPosition: {x: -0.0163, y: 0.015000001, z: 0.0059416993}
+  m_LocalScale: {x: 0.0033333332, y: 0.0033333332, z: 0.0033333332}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 2357183371082360675}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &6205729689005688737
 GameObject:
   m_ObjectHideFlags: 0
