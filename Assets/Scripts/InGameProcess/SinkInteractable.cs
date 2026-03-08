@@ -9,15 +9,24 @@ public class SinkInteractable : MonoBehaviour, IInteractable
 
     public bool CanInteract()
     {
-        return WaiterHands.Instance != null && WaiterHands.Instance.HasTray;
+        bool waiterHasTray = WaiterHands.Instance != null && WaiterHands.Instance.HasTray;
+        bool busserHasTray = BusserHands.Instance != null && BusserHands.Instance.HasTray;
+
+        return waiterHasTray || busserHasTray;
     }
 
     public void Interact(PlayerMovement player)
     {
-        var hands = WaiterHands.Instance;
-        if (hands == null) return;
-        if (!hands.HasTray) return;
+        if (WaiterHands.Instance != null && WaiterHands.Instance.HasTray)
+        {
+            WaiterHands.Instance.DisposeTray(true);
+            return;
+        }
 
-        hands.DisposeTray(true);  
+        if (BusserHands.Instance != null && BusserHands.Instance.HasTray)
+        {
+            BusserHands.Instance.DisposeTray(true);
+            return;
+        }
     }
 }

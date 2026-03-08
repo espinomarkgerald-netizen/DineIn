@@ -78,9 +78,9 @@ GameObject:
   - component: {fileID: 7914627012103984153}
   - component: {fileID: 8978199326392250398}
   - component: {fileID: 6516940709334081479}
-  - component: {fileID: 4126909156316970805}
   - component: {fileID: 5029140075095888723}
   - component: {fileID: 8082018714116315787}
+  - component: {fileID: 5008797311992574761}
   m_Layer: 0
   m_Name: Host
   m_TagString: Player
@@ -191,7 +191,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 919144996699085120}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8421325c1f3e2a4d85d204fbc750eab, type: 3}
   m_Name: 
@@ -281,27 +281,6 @@ MonoBehaviour:
   moveParticles: {fileID: 865359924359245370}
   moveThreshold: 0.02
   stopDelay: 0.1
---- !u!114 &4126909156316970805
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 919144996699085120}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6d224b337989a994c9b4075dd3ee132d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  customerLayer:
-    serializedVersion: 2
-    m_Bits: 256
-  boothLayer:
-    serializedVersion: 2
-    m_Bits: 128
-  maxRayDistance: 200
-  waiterAgent: {fileID: 8070971244042401024}
-  ignoreWhenPointerOverUI: 1
 --- !u!114 &5029140075095888723
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -328,6 +307,28 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   indicatorVisual: {fileID: 5484305702230887848}
+--- !u!114 &5008797311992574761
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 919144996699085120}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 65df646ffe064204da62873d485dd457, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  allowedRole: 0
+  customerLayer:
+    serializedVersion: 2
+    m_Bits: 256
+  boothLayer:
+    serializedVersion: 2
+    m_Bits: 128
+  maxRayDistance: 200
+  agent: {fileID: 8070971244042401024}
+  ignoreWhenPointerOverUI: 1
 --- !u!1 &3737895554958171891
 GameObject:
   m_ObjectHideFlags: 0

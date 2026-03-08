@@ -246,7 +246,6 @@ GameObject:
   - component: {fileID: 6878865275720148860}
   - component: {fileID: 5849408357348792023}
   - component: {fileID: 4573736814612793266}
-  - component: {fileID: 5234957640025667217}
   - component: {fileID: 5191422511525481426}
   - component: {fileID: 1747657279380967557}
   m_Layer: 0
@@ -449,27 +448,6 @@ MonoBehaviour:
   moveParticles: {fileID: 5484755329240213710}
   moveThreshold: 0.02
   stopDelay: 0.1
---- !u!114 &5234957640025667217
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2190761554666364859}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6d224b337989a994c9b4075dd3ee132d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  customerLayer:
-    serializedVersion: 2
-    m_Bits: 256
-  boothLayer:
-    serializedVersion: 2
-    m_Bits: 128
-  maxRayDistance: 200
-  waiterAgent: {fileID: 7971325576878899523}
-  ignoreWhenPointerOverUI: 1
 --- !u!114 &5191422511525481426
 MonoBehaviour:
   m_ObjectHideFlags: 0

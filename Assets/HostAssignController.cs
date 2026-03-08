@@ -2,15 +2,15 @@ using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.EventSystems;
 
-public class WaiterAssignController : MonoBehaviour
+public class HostAssignController : MonoBehaviour
 {
     [Header("Raycast")]
     public LayerMask customerLayer;
     public LayerMask boothLayer;
     public float maxRayDistance = 200f;
 
-    [Header("Waiter Movement")]
-    public NavMeshAgent waiterAgent;
+    [Header("Host Movement")]
+    public NavMeshAgent hostAgent;
 
     [Header("Input")]
     public bool ignoreWhenPointerOverUI = true;
@@ -19,38 +19,39 @@ public class WaiterAssignController : MonoBehaviour
 
     private void Update()
     {
-        
-        if (RoleManager.Instance == null || !RoleManager.Instance.IsActiveRole(gameObject))
-            return;
-        if (WaiterHands.Instance != null && WaiterHands.Instance.HasTray)
+        if (RoleManager.Instance == null)
             return;
 
-        // Mobile
-        if (Input.touchCount > 0)
-        {
-            Touch t = Input.GetTouch(0);
-            if (t.phase == TouchPhase.Began)
-            {
-                if (ignoreWhenPointerOverUI && IsPointerOverUI_Touch(t.fingerId))
-                    return;
-
-                HandleTap(t.position);
-            }
+        if (!RoleManager.Instance.IsActiveRole(gameObject))
             return;
-        }
 
-        // PC / Editor
         if (Input.GetMouseButtonDown(0))
         {
-            if (ignoreWhenPointerOverUI && IsPointerOverUI_Mouse())
+            Debug.Log("[HostAssign] MouseDown detected");
+
+            bool overUi = ignoreWhenPointerOverUI && IsPointerOverUI_Mouse();
+            Debug.Log("[HostAssign] Pointer over UI = " + overUi);
+
+            if (overUi)
                 return;
 
             HandleTap(Input.mousePosition);
         }
     }
 
+    private bool IsCurrentRoleHost()
+    {
+        var staffRole = GetComponent<StaffRole>();
+        if (staffRole == null) return false;
+        if (staffRole.role != StaffRole.Role.Host) return false;
+
+        return enabled;
+    }
+
     private void HandleTap(Vector2 screenPos)
     {
+        Debug.Log("[HostAssign] HandleTap called");
+
         Camera cam = Camera.main;
         if (cam == null)
         {
@@ -66,13 +67,12 @@ public class WaiterAssignController : MonoBehaviour
 
         System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
 
-        // 1) Customer priority
         foreach (var hit in hits)
         {
             if (((1 << hit.collider.gameObject.layer) & customerLayer) != 0)
             {
                 var group = hit.collider.GetComponentInParent<CustomerGroup>();
-                if (group != null)
+                if (group != null && CanSelectGroup(group))
                 {
                     SelectGroup(group);
                     return;
@@ -80,7 +80,6 @@ public class WaiterAssignController : MonoBehaviour
             }
         }
 
-        // 2) Booth (only if group selected)
         if (selectedGroup != null)
         {
             foreach (var hit in hits)
@@ -98,14 +97,25 @@ public class WaiterAssignController : MonoBehaviour
         }
     }
 
+    private bool CanSelectGroup(CustomerGroup group)
+    {
+        if (group == null) return false;
+
+        Debug.Log("[Host] Group state = " + group.state);
+
+        return group.state == CustomerGroup.GroupState.Waiting;
+    }
+
     private void SelectGroup(CustomerGroup group)
     {
+        
         if (selectedGroup != null)
             selectedGroup.SetSelected(false);
 
         selectedGroup = group;
         selectedGroup.SetSelected(true);
-        Debug.Log($"Selected group: {group.name}");
+
+        Debug.Log($"[Host] Selected group: {group.name}");
     }
 
     private void AssignGroupToBooth(CustomerGroup group, Booth booth)
@@ -114,38 +124,29 @@ public class WaiterAssignController : MonoBehaviour
 
         if (!booth.IsAvailableFor(group.Size))
         {
-            Debug.Log("Booth not available.");
+            Debug.Log("[Host] Booth not available.");
             return;
         }
 
-        // Move waiter to booth approach point (optional)
-        if (waiterAgent != null && booth.approachPoint != null)
-            waiterAgent.SetDestination(booth.approachPoint.position);
+        if (hostAgent != null && booth.approachPoint != null)
+            hostAgent.SetDestination(booth.approachPoint.position);
 
-        // IMPORTANT: Hook the seated event BEFORE calling AssignToBooth,
-        // so we never miss the event.
         void HandleSeated(CustomerGroup g)
         {
-            // Only respond to THIS group (safety)
             if (g != group) return;
-
-            // Unsubscribe immediately to prevent repeats/leaks
             group.OnGroupSeated -= HandleSeated;
 
-            // Spawn the menu book on the assigned booth
             if (booth != null)
                 booth.SpawnMenuBook();
 
-            Debug.Log($"Menu spawned for {group.name} at {booth.name}");
+            Debug.Log($"[Host] Menu spawned for {group.name} at {booth.name}");
         }
 
-        group.OnGroupSeated -= HandleSeated; // safety (avoid double sub)
+        group.OnGroupSeated -= HandleSeated;
         group.OnGroupSeated += HandleSeated;
 
-        // Now assign them
         group.AssignToBooth(booth);
 
-        // Clear selection
         group.SetSelected(false);
         selectedGroup = null;
     }
@@ -161,4 +162,5 @@ public class WaiterAssignController : MonoBehaviour
         return EventSystem.current != null &&
                EventSystem.current.IsPointerOverGameObject(fingerId);
     }
+    
 }

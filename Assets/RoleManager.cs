@@ -91,7 +91,7 @@ public class RoleManager : MonoBehaviour
 
         activeRole = nextRole;
 
-        if (cameraController != null && nextCameraAnchor != null)
+        if (cameraController != null)
             cameraController.PanToTarget(nextRole.transform);
     }
 
@@ -111,5 +111,34 @@ public class RoleManager : MonoBehaviour
         var indicator = obj.GetComponent<RoleIndicator>();
         if (indicator != null)
             indicator.SetSelected(value);
+    }
+
+    public bool IsActiveRole(GameObject obj)
+    {
+        return activeRole == obj;
+    }
+
+    public string ActiveRoleName()
+    {
+        return activeRole != null ? activeRole.name : "NULL";
+    }
+
+    public StaffRole.Role ActiveRoleType()
+    {
+        if (activeRole == null) return StaffRole.Role.Waiter;
+
+        var sr = activeRole.GetComponent<StaffRole>();
+        return sr != null ? sr.role : StaffRole.Role.Waiter;
+    }
+
+    public bool IsActiveRoleType(StaffRole.Role role)
+    {
+        return ActiveRoleType() == role;
+    }
+
+    public PlayerMovement GetActivePlayerMovement()
+    {
+        if (activeRole == null) return null;
+        return activeRole.GetComponent<PlayerMovement>();
     }
 }

@@ -50,6 +50,13 @@ public class OrderBubbleUI : MonoBehaviour
     {
         if (group == null) return;
 
+        if (RoleManager.Instance == null) return;
+        if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Waiter))
+        {
+            Debug.Log("[OrderBubbleUI] Only waiter can open the notepad.");
+            return;
+        }
+
         if (OrderChecklistUI.Instance == null)
         {
             Debug.LogError("[OrderBubbleUI] OrderChecklistUI.Instance NULL");
