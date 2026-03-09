@@ -232,10 +232,10 @@ MeshRenderer:
   m_RendererPriority: 0
   m_Materials:
   - {fileID: 667168355063902804, guid: bac6246097e8bfa4d9fbb1785e272b74, type: 3}
-  - {fileID: 1432594464388952545, guid: bac6246097e8bfa4d9fbb1785e272b74, type: 3}
+  - {fileID: 2100000, guid: 033133fa6eb9f6c4ca0e73d58c0d0033, type: 2}
   - {fileID: 5419059307234137517, guid: bac6246097e8bfa4d9fbb1785e272b74, type: 3}
   - {fileID: 9062981560078725670, guid: bac6246097e8bfa4d9fbb1785e272b74, type: 3}
-  - {fileID: 4231367505894338293, guid: bac6246097e8bfa4d9fbb1785e272b74, type: 3}
+  - {fileID: 2100000, guid: 033133fa6eb9f6c4ca0e73d58c0d0033, type: 2}
   - {fileID: -4335200424907183665, guid: bac6246097e8bfa4d9fbb1785e272b74, type: 3}
   - {fileID: -5644914170963325845, guid: bac6246097e8bfa4d9fbb1785e272b74, type: 3}
   - {fileID: 905635558433025894, guid: bac6246097e8bfa4d9fbb1785e272b74, type: 3}
