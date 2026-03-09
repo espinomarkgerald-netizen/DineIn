@@ -6,14 +6,10 @@ public class BillPaperPickupButton : MonoBehaviour
     [SerializeField] private Button button;
     [SerializeField] private BillPaper bill;
 
-    private PlayerMovement player;
-
     private void Awake()
     {
         if (button == null)
             button = GetComponent<Button>();
-
-        player = FindFirstObjectByType<PlayerMovement>();
 
         if (button != null)
         {
@@ -30,10 +26,14 @@ public class BillPaperPickupButton : MonoBehaviour
     private void Click()
     {
         if (bill == null) return;
-        if (player == null) return;
+        if (RoleManager.Instance == null) return;
+        if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Waiter)) return;
 
         var hands = WaiterHands.Instance;
         if (hands != null && hands.HasBill) return;
+
+        var player = RoleManager.Instance.GetActivePlayerMovement();
+        if (player == null) return;
 
         player.UI_MoveTo(bill);
     }

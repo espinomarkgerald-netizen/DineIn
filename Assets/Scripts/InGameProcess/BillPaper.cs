@@ -21,11 +21,15 @@ public class BillPaper : MonoBehaviour, IInteractable
     [Header("Canvas (Optional)")]
     [SerializeField] private Canvas gameplayCanvas;
 
+    [Header("Auto")]
+    [SerializeField] private AutoInteractRadius autoRadius;
+
     [Header("Debug")]
     [SerializeField] private bool debugLogs = false;
 
     private Collider cachedCol;
     private GameObject pickupUiInstance;
+    private bool pickupRequested;
 
     public Transform StandPoint => standPoint != null ? standPoint : transform;
     public bool AutoReturnHome => autoReturnHome;
@@ -33,11 +37,28 @@ public class BillPaper : MonoBehaviour, IInteractable
     private void Awake()
     {
         cachedCol = GetComponentInChildren<Collider>(true);
+        if (autoRadius == null) autoRadius = GetComponent<AutoInteractRadius>();
 
         if (uiAnchor == null)
         {
             var t = transform.Find("ButtonAnchor");
             if (t != null) uiAnchor = t;
+        }
+    }
+
+    private void Update()
+    {
+        if (pickupRequested)
+        {
+            ClearPickupUI();
+            return;
+        }
+
+        if (autoRadius != null && autoRadius.IsActiveRoleInRange(StaffRole.Role.Waiter))
+        {
+            var mover = RoleManager.Instance != null ? RoleManager.Instance.GetActivePlayerMovement() : null;
+            if (mover != null && CanInteract())
+                Interact(mover);
         }
     }
 
@@ -57,7 +78,10 @@ public class BillPaper : MonoBehaviour, IInteractable
     public bool CanInteract()
     {
         if (targetGroup == null) return false;
+        if (RoleManager.Instance == null) return false;
+        if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Waiter)) return false;
         if (WaiterHands.Instance == null) return false;
+
         return !WaiterHands.Instance.HasBill;
     }
 
@@ -69,10 +93,13 @@ public class BillPaper : MonoBehaviour, IInteractable
     public void UI_Pickup()
     {
         if (!CanInteract()) return;
+        if (RoleManager.Instance == null) return;
 
-        var mover = FindFirstObjectByType<PlayerMovement>();
+        var mover = RoleManager.Instance.GetActivePlayerMovement();
         if (mover == null) return;
 
+        pickupRequested = true;
+        ClearPickupUI();
         mover.UI_MoveTo(this);
     }
 
@@ -89,6 +116,7 @@ public class BillPaper : MonoBehaviour, IInteractable
         if (disableColliderWhileHeld && cachedCol != null)
             cachedCol.enabled = false;
 
+        pickupRequested = false;
         ClearPickupUI();
         return true;
     }
@@ -103,6 +131,9 @@ public class BillPaper : MonoBehaviour, IInteractable
 
     private void SpawnPickupUI()
     {
+        if (pickupRequested) return;
+        if (!CanInteract()) return;
+
         if (pickupUiPrefab == null)
         {
             if (debugLogs) Debug.LogWarning("[BillPaper] pickupUiPrefab is NULL", this);
@@ -111,7 +142,7 @@ public class BillPaper : MonoBehaviour, IInteractable
 
         if (uiAnchor == null)
         {
-            if (debugLogs) Debug.LogWarning("[BillPaper] uiAnchor is NULL (ButtonAnchor not found/assigned)", this);
+            if (debugLogs) Debug.LogWarning("[BillPaper] uiAnchor is NULL", this);
             return;
         }
 
@@ -129,29 +160,13 @@ public class BillPaper : MonoBehaviour, IInteractable
         pickupUiInstance.transform.localScale = Vector3.one;
         pickupUiInstance.SetActive(true);
 
-        if (debugLogs) Debug.Log($"[BillPaper] Spawned pickup UI under canvas: {canvas.name}", this);
-
         var follow = pickupUiInstance.GetComponentInChildren<UIFollowWorldPoint>(true);
         if (follow != null)
-        {
             follow.Init(uiAnchor, uiOffset, Camera.main);
-            if (debugLogs) Debug.Log("[BillPaper] UIFollowWorldPoint.Init() called", this);
-        }
-        else
-        {
-            if (debugLogs) Debug.LogWarning("[BillPaper] UIFollowWorldPoint missing on pickupUiPrefab", this);
-        }
 
         var pickBtn = pickupUiInstance.GetComponentInChildren<BillPaperPickupButton>(true);
         if (pickBtn != null)
-        {
             pickBtn.SetBill(this);
-            if (debugLogs) Debug.Log("[BillPaper] Assigned bill to BillPaperPickupButton", this);
-        }
-        else
-        {
-            if (debugLogs) Debug.LogWarning("[BillPaper] BillPaperPickupButton missing on pickupUiPrefab", this);
-        }
     }
 
     private Canvas ResolveGameplayCanvas()
@@ -162,17 +177,9 @@ public class BillPaper : MonoBehaviour, IInteractable
         for (int i = 0; i < canvases.Length; i++)
         {
             var c = canvases[i];
-            if (c == null) continue;
-            if (!c.isActiveAndEnabled) continue;
+            if (c == null || !c.isActiveAndEnabled) continue;
 
             if (c.renderMode == RenderMode.ScreenSpaceOverlay || c.renderMode == RenderMode.ScreenSpaceCamera)
-                return c;
-        }
-
-        for (int i = 0; i < canvases.Length; i++)
-        {
-            var c = canvases[i];
-            if (c != null && c.isActiveAndEnabled)
                 return c;
         }
 
@@ -187,13 +194,6 @@ public class BillPaper : MonoBehaviour, IInteractable
         pickupUiInstance = null;
     }
 
-    private void OnDisable()
-    {
-        ClearPickupUI();
-    }
-
-    private void OnDestroy()
-    {
-        ClearPickupUI();
-    }
+    private void OnDisable() => ClearPickupUI();
+    private void OnDestroy() => ClearPickupUI();
 }

@@ -527,4 +527,6 @@ public class PlayerMovement : MonoBehaviour
     {
         return state == State.IdleAtHome;
     }
+
+    
 }

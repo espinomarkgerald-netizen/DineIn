@@ -148,6 +148,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable
         var mover = RoleManager.Instance.GetActivePlayerMovement();
         if (mover == null) return;
 
+        pickupRequested = true;
         HideUI();
         mover.UI_MoveTo(this);
     }

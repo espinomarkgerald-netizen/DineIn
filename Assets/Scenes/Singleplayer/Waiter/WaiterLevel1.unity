@@ -1189,7 +1189,7 @@ PrefabInstance:
       objectReference: {fileID: 1815280793}
     - target: {fileID: 9216089232059409214, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 7.5
+      value: 8.9
       objectReference: {fileID: 0}
     - target: {fileID: 9216089232059409214, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
       propertyPath: m_LocalPosition.y
@@ -1197,7 +1197,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 9216089232059409214, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 17.6
+      value: 16.5
       objectReference: {fileID: 0}
     - target: {fileID: 9216089232059409214, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
       propertyPath: m_LocalRotation.w
@@ -9328,6 +9328,8 @@ MonoBehaviour:
   findNeedsBillDistance: 8
   requestBillIfNonePrinted: 1
   preferBillForNearestNeedsBill: 1
+  autoPayRadius: 1.5
+  debugAutoPay: 1
 --- !u!1 &2004022616
 GameObject:
   m_ObjectHideFlags: 0
@@ -10086,6 +10088,7 @@ GameObject:
   - component: {fileID: 1994637629}
   - component: {fileID: 919132148087140868}
   - component: {fileID: 919132148087140869}
+  - component: {fileID: 919132148087140870}
   m_Layer: 7
   m_Name: Cash Register Open
   m_TagString: Untagged
@@ -10130,6 +10133,19 @@ MonoBehaviour:
   detectRadius: 2
   useXZOnly: 1
   cooldown: 0.2
+--- !u!114 &919132148087140870
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 919132148087140867}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 62f9cd431eb8cdd4997435e505131acd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  radius: 2
 --- !u!1 &924570999948423602
 GameObject:
   m_ObjectHideFlags: 0

@@ -45,6 +45,7 @@ GameObject:
   - component: {fileID: 4675838856334990028}
   - component: {fileID: 4729912562990798703}
   - component: {fileID: 6361949517478868824}
+  - component: {fileID: 2020754531203673856}
   m_Layer: 10
   m_Name: Bill
   m_TagString: Untagged
@@ -165,6 +166,7 @@ MonoBehaviour:
   uiOffset: {x: 0, y: 0.35, z: 0}
   spawnPickupUiOnInit: 1
   gameplayCanvas: {fileID: 0}
+  autoRadius: {fileID: 0}
   debugLogs: 0
 --- !u!114 &6361949517478868824
 MonoBehaviour:
@@ -184,6 +186,19 @@ MonoBehaviour:
   precomputeOutline: 0
   bakeKeys: []
   bakeValues: []
+--- !u!114 &2020754531203673856
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7176886065242486638}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 62f9cd431eb8cdd4997435e505131acd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  radius: 1.5
 --- !u!1 &9031802193617177068
 GameObject:
   m_ObjectHideFlags: 0

@@ -165,6 +165,7 @@ GameObject:
   - component: {fileID: 7430720077721120227}
   - component: {fileID: 6731810108698746532}
   - component: {fileID: 2727119634130195196}
+  - component: {fileID: -7813286630582532809}
   m_Layer: 7
   m_Name: Booth.008
   m_TagString: Untagged
@@ -404,6 +405,19 @@ MonoBehaviour:
   oneAtATime: 1
   clearWhenNoOneSitting: 0
   occupiedCheckRadius: 0.25
+--- !u!114 &-7813286630582532809
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4057343320147768237}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 62f9cd431eb8cdd4997435e505131acd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  radius: 1.5
 --- !u!1 &5706498805622246357
 GameObject:
   m_ObjectHideFlags: 0

@@ -29,15 +29,18 @@ public class MoneyPickup : MonoBehaviour, IInteractable
         targetGroup = group;
         amount = moneyAmount;
         standPoint = useStandPoint;
-        if (cachedCol != null) cachedCol.enabled = true;
+
+        if (cachedCol != null)
+            cachedCol.enabled = true;
     }
 
     public bool CanInteract()
     {
-        Debug.Log($"[Money] CanInteract tg={(targetGroup!=null)} hands={(WaiterHands.Instance!=null)} hasMoney={(WaiterHands.Instance!=null && WaiterHands.Instance.HasMoney)}");
-        
+        if (RoleManager.Instance == null) return false;
+        if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Waiter)) return false;
         if (targetGroup == null) return false;
         if (WaiterHands.Instance == null) return false;
+
         return !WaiterHands.Instance.HasMoney;
     }
 

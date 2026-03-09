@@ -22,6 +22,10 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
     [SerializeField] private bool requestBillIfNonePrinted = true;
     [SerializeField] private bool preferBillForNearestNeedsBill = true;
 
+    [Header("Auto Payment")]
+    [SerializeField] private float autoPayRadius = 1.5f;
+    [SerializeField] private bool debugAutoPay = true;
+
     public Transform StandPoint => standPoint != null ? standPoint : transform;
     public bool AutoReturnHome => true;
 
@@ -29,6 +33,11 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
     {
         if (kitchen == null)
             kitchen = FindFirstObjectByType<KitchenManager>();
+    }
+
+    private void Update()
+    {
+        TryAutoProcessMoney();
     }
 
     public bool CanInteract()
@@ -48,7 +57,6 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
         var hands = WaiterHands.Instance;
         if (hands == null) return;
 
-        // Ticket flow
         if (hands.HasTicket)
         {
             var group = hands.holdingTicketFor;
@@ -62,23 +70,12 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
             return;
         }
 
-        // Money flow
         if (hands.HasMoney)
         {
-            var group = hands.holdingMoneyFor;
-            int amount = hands.holdingMoneyAmount;
-
-            Debug.Log($"[Cashier] Received payment {amount} for {(group != null ? group.name : "NULL")}");
-
-            hands.ClearMoney();
-
-            if (group != null)
-                group.PayAndLeave();
-
+            ProcessMoney(hands);
             return;
         }
 
-        // Bill pickup flow
         if (!hands.HasBill)
         {
             if (TryPickupClosestBillPaper())
@@ -100,12 +97,56 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
         }
     }
 
+    private void TryAutoProcessMoney()
+    {
+        if (RoleManager.Instance == null) return;
+        if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Waiter)) return;
+
+        var mover = RoleManager.Instance.GetActivePlayerMovement();
+        if (mover == null) return;
+
+        var hands = WaiterHands.Instance;
+        if (hands == null) return;
+        if (!hands.HasMoney) return;
+
+        Vector3 a = mover.transform.position;
+        Vector3 b = StandPoint.position;
+
+        if (usePlanarDistance)
+        {
+            a.y = 0f;
+            b.y = 0f;
+        }
+
+        float dist = Vector3.Distance(a, b);
+
+        if (debugAutoPay)
+            Debug.Log($"[Cashier AutoPay] dist={dist:0.00} radius={autoPayRadius:0.00} hasMoney={hands.HasMoney} mover={mover.name}");
+
+        if (dist > autoPayRadius) return;
+
+        ProcessMoney(hands);
+    }
+
+    private void ProcessMoney(WaiterHands hands)
+    {
+        if (hands == null) return;
+        if (!hands.HasMoney) return;
+
+        var group = hands.holdingMoneyFor;
+        int amount = hands.holdingMoneyAmount;
+
+        Debug.Log($"[Cashier] Received payment {amount} for {(group != null ? group.name : "NULL")}");
+
+        hands.ClearMoney();
+
+        if (group != null)
+            group.PayAndLeave();
+    }
+
     private Vector3 PickupCenter
     {
-        get
-        {
-            return StandPoint.position;
-        }
+        get { return StandPoint.position; }
     }
 
     private float DistToPickupCenter(Vector3 billPos)
