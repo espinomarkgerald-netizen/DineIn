@@ -379,8 +379,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3e40c75fd70142f4ca1a36f4c038fdd5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  booth: {fileID: 0}
-  standPointOverride: {fileID: 0}
+  booth: {fileID: 1414530160320430229}
+  standPointOverride: {fileID: 2177773158648656085}
 --- !u!114 &2727119634130195196
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -567,7 +567,7 @@ Transform:
   m_GameObject: {fileID: 7427807045103885085}
   serializedVersion: 2
   m_LocalRotation: {x: 0.5, y: -0.5, z: -0.5, w: 0.5}
-  m_LocalPosition: {x: 0.0081, y: 0.0153, z: -0.0009}
+  m_LocalPosition: {x: -0.0271, y: 0.0153, z: -0.0009}
   m_LocalScale: {x: 0.0033333332, y: 0.0033333332, z: 0.0033333332}
   m_ConstrainProportionsScale: 0
   m_Children: []

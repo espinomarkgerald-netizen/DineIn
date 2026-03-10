@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.UI;
 
 public class RoleManager : MonoBehaviour
 {
@@ -10,8 +11,17 @@ public class RoleManager : MonoBehaviour
     public GameObject cashier;
     public GameObject busser;
 
+    [Header("Default Role")]
+    [SerializeField] private GameObject defaultRole;
+
     [Header("UI")]
     [SerializeField] private RoleSwitchWarningUI warningUI;
+
+    [Header("Role Buttons")]
+    [SerializeField] private Button hostButton;
+    [SerializeField] private Button waiterButton;
+    [SerializeField] private Button cashierButton;
+    [SerializeField] private Button busserButton;
 
     [Header("Camera Anchors")]
     [SerializeField] private Transform hostCameraAnchor;
@@ -26,21 +36,37 @@ public class RoleManager : MonoBehaviour
     {
         Instance = this;
         cameraController = GetComponent<RoleCameraController>();
+
+        InitializeDefaultRole();
     }
 
     private void Start()
     {
-        activeRole = waiter;
+        RefreshButtonVisuals();
+
+        if (cameraController != null && activeRole != null)
+            cameraController.PanToTarget(activeRole.transform);
+    }
+
+    private void InitializeDefaultRole()
+    {
+        if (defaultRole == null)
+            defaultRole = waiter != null ? waiter : host;
 
         SetMovementEnabled(host, false);
-        SetMovementEnabled(waiter, true);
+        SetMovementEnabled(waiter, false);
         SetMovementEnabled(cashier, false);
         SetMovementEnabled(busser, false);
 
         SetIndicator(host, false);
-        SetIndicator(waiter, true);
+        SetIndicator(waiter, false);
         SetIndicator(cashier, false);
         SetIndicator(busser, false);
+
+        activeRole = defaultRole;
+
+        SetMovementEnabled(activeRole, true);
+        SetIndicator(activeRole, true);
     }
 
     public void SwitchToHost()
@@ -86,13 +112,38 @@ public class RoleManager : MonoBehaviour
         SetIndicator(cashier, false);
         SetIndicator(busser, false);
 
-        SetMovementEnabled(nextRole, true);
-        SetIndicator(nextRole, true);
-
         activeRole = nextRole;
 
+        SetMovementEnabled(activeRole, true);
+        SetIndicator(activeRole, true);
+
+        RefreshButtonVisuals();
+
         if (cameraController != null)
-            cameraController.PanToTarget(nextRole.transform);
+            cameraController.PanToTarget(activeRole.transform);
+    }
+
+    private void RefreshButtonVisuals()
+    {
+        ApplyButtonVisual(hostButton, activeRole == host);
+        ApplyButtonVisual(waiterButton, activeRole == waiter);
+        ApplyButtonVisual(cashierButton, activeRole == cashier);
+        ApplyButtonVisual(busserButton, activeRole == busser);
+    }
+
+    private void ApplyButtonVisual(Button button, bool selected)
+    {
+        if (button == null || button.image == null) return;
+
+        if (selected)
+        {
+            var selectedSprite = button.spriteState.selectedSprite;
+            button.image.overrideSprite = selectedSprite != null ? selectedSprite : null;
+        }
+        else
+        {
+            button.image.overrideSprite = null;
+        }
     }
 
     private void SetMovementEnabled(GameObject obj, bool value)

@@ -9589,7 +9589,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   buttons:
   - button: {fileID: 880506932}
-    sceneName: WaiterLevel1
+    sceneName: Lobby
     action: 0
   forceLoadSingleToMakeActive: 1
 --- !u!4 &526405688
@@ -31263,7 +31263,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5416389097075475406, guid: bd9f98820ff75af49b7cafd8f3a52e3b, type: 3}
       propertyPath: sceneViewId
-      value: 2
+      value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 5561453652643867382, guid: bd9f98820ff75af49b7cafd8f3a52e3b, type: 3}
       propertyPath: cameraGameObject

@@ -993,7 +993,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6403599859377120230, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
       propertyPath: sceneViewId
-      value: 4
+      value: 8
       objectReference: {fileID: 0}
     - target: {fileID: 7914627012103984153, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
       propertyPath: homePoint
@@ -2388,7 +2388,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7416339107325409356, guid: 3bf3a3c7725d3924fa743579b9cacdfc, type: 3}
       propertyPath: sceneViewId
-      value: 1
+      value: 7
       objectReference: {fileID: 0}
     - target: {fileID: 9105747433823410986, guid: 3bf3a3c7725d3924fa743579b9cacdfc, type: 3}
       propertyPath: homePoint
@@ -6202,7 +6202,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 9221084057954882074, guid: 4197fbd1f0695d84baa432f964adbbca, type: 3}
       propertyPath: sceneViewId
-      value: 3
+      value: 6
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -9976,6 +9976,18 @@ PrefabInstance:
     - target: {fileID: 7786304761264882042, guid: 1d8e78fe572212b44b5527759aecbaf4, type: 3}
       propertyPath: m_Name
       value: Sink
+      objectReference: {fileID: 0}
+    - target: {fileID: 9160519362298223039, guid: 1d8e78fe572212b44b5527759aecbaf4, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 100
+      objectReference: {fileID: 0}
+    - target: {fileID: 9160519362298223039, guid: 1d8e78fe572212b44b5527759aecbaf4, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 100
+      objectReference: {fileID: 0}
+    - target: {fileID: 9160519362298223039, guid: 1d8e78fe572212b44b5527759aecbaf4, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 100
       objectReference: {fileID: 0}
     - target: {fileID: 9160519362298223039, guid: 1d8e78fe572212b44b5527759aecbaf4, type: 3}
       propertyPath: m_LocalPosition.x
