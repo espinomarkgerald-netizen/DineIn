@@ -36,7 +36,6 @@ public class RoleManager : MonoBehaviour
     {
         Instance = this;
         cameraController = GetComponent<RoleCameraController>();
-
         InitializeDefaultRole();
     }
 
@@ -53,20 +52,30 @@ public class RoleManager : MonoBehaviour
         if (defaultRole == null)
             defaultRole = waiter != null ? waiter : host;
 
-        SetMovementEnabled(host, false);
-        SetMovementEnabled(waiter, false);
-        SetMovementEnabled(cashier, false);
-        SetMovementEnabled(busser, false);
-
-        SetIndicator(host, false);
-        SetIndicator(waiter, false);
-        SetIndicator(cashier, false);
-        SetIndicator(busser, false);
+        InitializeRole(host, false);
+        InitializeRole(waiter, false);
+        InitializeRole(cashier, false);
+        InitializeRole(busser, false);
 
         activeRole = defaultRole;
 
-        SetMovementEnabled(activeRole, true);
+        SetPlayerControlled(activeRole, true);
         SetIndicator(activeRole, true);
+    }
+
+    private void InitializeRole(GameObject obj, bool playerControlled)
+    {
+        if (obj == null) return;
+
+        var move = obj.GetComponent<PlayerMovement>();
+        if (move != null)
+        {
+            move.enabled = true;
+            move.SetPlayerControlled(playerControlled);
+            move.CancelAutoFinish();
+        }
+
+        SetIndicator(obj, playerControlled);
     }
 
     public void SwitchToHost()
@@ -95,17 +104,15 @@ public class RoleManager : MonoBehaviour
         if (activeRole == nextRole) return;
 
         var currentMove = activeRole != null ? activeRole.GetComponent<PlayerMovement>() : null;
-        if (currentMove != null && !currentMove.CanSwitchRole())
-        {
-            if (warningUI != null)
-                warningUI.ShowWarning();
-            return;
-        }
+        var nextMove = nextRole.GetComponent<PlayerMovement>();
 
-        SetMovementEnabled(host, false);
-        SetMovementEnabled(waiter, false);
-        SetMovementEnabled(cashier, false);
-        SetMovementEnabled(busser, false);
+        if (nextMove == null) return;
+
+        if (currentMove != null)
+        {
+            currentMove.SetPlayerControlled(false);
+            currentMove.BeginAutoFinish();
+        }
 
         SetIndicator(host, false);
         SetIndicator(waiter, false);
@@ -114,7 +121,9 @@ public class RoleManager : MonoBehaviour
 
         activeRole = nextRole;
 
-        SetMovementEnabled(activeRole, true);
+        nextMove.CancelAutoFinish();
+        nextMove.SetPlayerControlled(true);
+
         SetIndicator(activeRole, true);
 
         RefreshButtonVisuals();
@@ -146,13 +155,13 @@ public class RoleManager : MonoBehaviour
         }
     }
 
-    private void SetMovementEnabled(GameObject obj, bool value)
+    private void SetPlayerControlled(GameObject obj, bool value)
     {
         if (obj == null) return;
 
         var move = obj.GetComponent<PlayerMovement>();
         if (move != null)
-            move.enabled = value;
+            move.SetPlayerControlled(value);
     }
 
     private void SetIndicator(GameObject obj, bool value)

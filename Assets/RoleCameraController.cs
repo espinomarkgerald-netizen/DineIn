@@ -3,15 +3,21 @@ using UnityEngine;
 
 public class RoleCameraController : MonoBehaviour
 {
-    [SerializeField] private Camera targetCamera;
+    [SerializeField] private MainCameraController mainCameraController;
     [SerializeField] private float moveDuration = 0.35f;
     [SerializeField] private Vector3 framingOffset;
 
     private Coroutine moveRoutine;
 
+    private void Awake()
+    {
+        if (mainCameraController == null)
+            mainCameraController = FindFirstObjectByType<MainCameraController>();
+    }
+
     public void PanToTarget(Transform target)
     {
-        if (targetCamera == null || target == null) return;
+        if (mainCameraController == null || target == null) return;
 
         if (moveRoutine != null)
             StopCoroutine(moveRoutine);
@@ -21,11 +27,7 @@ public class RoleCameraController : MonoBehaviour
 
     private IEnumerator PanRoutine(Transform target)
     {
-        Transform cam = targetCamera.transform;
-
-        Vector3 startPos = cam.position;
-        Quaternion fixedRot = cam.rotation;
-
+        Vector3 startPos = mainCameraController.transform.position;
         Vector3 endPos = new Vector3(
             target.position.x + framingOffset.x,
             startPos.y + framingOffset.y,
@@ -40,14 +42,13 @@ public class RoleCameraController : MonoBehaviour
             float k = Mathf.Clamp01(t / moveDuration);
             k = k * k * (3f - 2f * k);
 
-            cam.position = Vector3.Lerp(startPos, endPos, k);
-            cam.rotation = fixedRot;
+            Vector3 pos = Vector3.Lerp(startPos, endPos, k);
+            mainCameraController.SetRigTargetPosition(pos, true);
 
             yield return null;
         }
 
-        cam.position = endPos;
-        cam.rotation = fixedRot;
+        mainCameraController.SetRigTargetPosition(endPos, true);
         moveRoutine = null;
     }
 }

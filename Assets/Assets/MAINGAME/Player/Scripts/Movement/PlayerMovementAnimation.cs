@@ -2,9 +2,6 @@ using UnityEngine;
 
 public class PlayerMovementAnimation
 {
-    private const string IDLE = "idle";
-    private const string RUNNING = "running";
-
     private readonly PlayerMovement owner;
 
     public PlayerMovementAnimation(PlayerMovement owner)
@@ -14,14 +11,16 @@ public class PlayerMovementAnimation
 
     public void Tick()
     {
+        if (owner == null || owner.Agent == null) return;
+
         FaceMovement();
-        UpdateCarryParams();
-        SetNormalAnimation();
+        UpdateAnimator();
     }
 
     private void FaceMovement()
     {
         if (!owner.RotateToMovement) return;
+        if (owner.Agent.isStopped) return;
 
         Vector3 velocity = owner.Agent.velocity;
         velocity.y = 0f;
@@ -36,35 +35,31 @@ public class PlayerMovementAnimation
         );
     }
 
-    private void UpdateCarryParams()
+    private void UpdateAnimator()
     {
         if (owner.Animator == null) return;
 
         Vector3 velocity = owner.Agent.velocity;
         velocity.y = 0f;
 
-        float speed = velocity.magnitude;
-        bool isMoving = speed > 0.1f;
-        bool isCarrying = WaiterHands.Instance != null &&
-                          (WaiterHands.Instance.HasTray || WaiterHands.Instance.HasBill);
+        bool isActuallyMoving = !owner.Agent.isStopped && velocity.sqrMagnitude > 0.01f;
+        float speed = isActuallyMoving ? velocity.magnitude : 0f;
 
         owner.Animator.SetFloat("Speed", speed);
-        owner.Animator.SetBool("IsMoving", isMoving);
-        owner.Animator.SetBool("IsCarrying", isCarrying);
+        owner.Animator.SetBool("IsMoving", isActuallyMoving);
+
+        bool isCarrying = GetIsCarryingForThisOwner();
+        owner.Animator.SetBool(owner.CarryingBoolParam, isCarrying);
     }
 
-    private void SetNormalAnimation()
+    private bool GetIsCarryingForThisOwner()
     {
-        if (owner.Animator == null) return;
+        var hands = WaiterHands.Instance;
+        if (hands == null) return false;
 
-        bool isCarrying = WaiterHands.Instance != null &&
-                          (WaiterHands.Instance.HasTray || WaiterHands.Instance.HasBill);
+        if (!owner.IsActiveControlledRole())
+            return false;
 
-        if (isCarrying) return;
-
-        if (owner.Agent.velocity.sqrMagnitude <= 0.01f)
-            owner.Animator.Play(IDLE);
-        else
-            owner.Animator.Play(RUNNING);
+        return hands.HasTray || hands.HasBill || hands.HasMoney;
     }
 }

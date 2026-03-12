@@ -35,6 +35,11 @@ public class Booth : MonoBehaviour
         if (approachPoint == null) return false;
         if (seats == null || seats.Count < groupSize) return false;
 
+        // IMPORTANT:
+        // If a group is already assigned OR currently seated here,
+        // this booth is not available even if seats are not occupied yet.
+        if (currentGroup != null) return false;
+
         for (int i = 0; i < seats.Count; i++)
         {
             if (seats[i] == null) continue;
@@ -113,13 +118,11 @@ public class Booth : MonoBehaviour
         ClearMenuBook();
     }
 
-    // OLD hook (kept so nothing breaks if you still call it somewhere)
     public void ArmTrayCleaningForCurrentGroup()
     {
         ArmTrayCleaningForGroup(currentGroup);
     }
 
-    // NEW: pass group so tray can enforce "only clean after leaving"
     public void ArmTrayCleaningForGroup(CustomerGroup group)
     {
         var drop = FindTableFoodSpawn();
@@ -145,7 +148,6 @@ public class Booth : MonoBehaviour
 
     public void OnTableCleaned()
     {
-        // Hook for booth state/UI if needed later
     }
 
     private Transform FindTableFoodSpawn()

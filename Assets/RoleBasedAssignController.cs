@@ -16,6 +16,9 @@ public class RoleBasedAssignController : MonoBehaviour
     [Header("Input")]
     public bool ignoreWhenPointerOverUI = true;
 
+    [Header("UI")]
+    [SerializeField] private WarningSlideUI warningUI;
+
     private CustomerGroup selectedGroup;
     private StaffRole staffRole;
 
@@ -39,7 +42,6 @@ public class RoleBasedAssignController : MonoBehaviour
                 return;
         }
 
-        // Mobile
         if (Input.touchCount > 0)
         {
             Touch t = Input.GetTouch(0);
@@ -53,7 +55,6 @@ public class RoleBasedAssignController : MonoBehaviour
             return;
         }
 
-        // PC / Editor
         if (Input.GetMouseButtonDown(0))
         {
             if (ignoreWhenPointerOverUI && IsPointerOverUI_Mouse())
@@ -96,12 +97,8 @@ public class RoleBasedAssignController : MonoBehaviour
         }
     }
 
-    // =========================
-    // HOST
-    // =========================
     private void HandleHostTap(RaycastHit[] hits)
     {
-        // 1) Customer priority
         foreach (var hit in hits)
         {
             if (((1 << hit.collider.gameObject.layer) & customerLayer) != 0)
@@ -115,7 +112,6 @@ public class RoleBasedAssignController : MonoBehaviour
             }
         }
 
-        // 2) Booth (only if group selected)
         if (selectedGroup != null)
         {
             foreach (var hit in hits)
@@ -141,25 +137,16 @@ public class RoleBasedAssignController : MonoBehaviour
                group.state == CustomerGroup.GroupState.WalkingToLobby;
     }
 
-    // =========================
-    // WAITER
-    // =========================
     private void HandleWaiterTap(RaycastHit[] hits)
     {
         Debug.Log("[Waiter] waiter branch next");
     }
 
-    // =========================
-    // BUSSER
-    // =========================
     private void HandleBusserTap(RaycastHit[] hits)
     {
         Debug.Log("[Busser] busser branch next");
     }
 
-    // =========================
-    // SHARED SELECTION / ASSIGN
-    // =========================
     private void SelectGroup(CustomerGroup group)
     {
         if (selectedGroup != null)
@@ -174,9 +161,22 @@ public class RoleBasedAssignController : MonoBehaviour
     {
         if (group == null || booth == null) return;
 
+        if (booth.CurrentGroup != null)
+        {
+            ShowWarning("Table is occupied");
+            return;
+        }
+
+        if (booth.seats == null || booth.seats.Count < group.Size)
+        {
+            int seatCount = booth.seats != null ? booth.seats.Count : 0;
+            ShowWarning($"You can't assign a group of {group.Size} to a table with {seatCount} seats");
+            return;
+        }
+
         if (!booth.IsAvailableFor(group.Size))
         {
-            Debug.Log("Booth not available.");
+            ShowWarning("Table is not available");
             return;
         }
 
@@ -202,6 +202,14 @@ public class RoleBasedAssignController : MonoBehaviour
 
         group.SetSelected(false);
         selectedGroup = null;
+    }
+
+    private void ShowWarning(string message)
+    {
+        if (warningUI != null)
+            warningUI.Show(message);
+        else
+            Debug.LogWarning(message);
     }
 
     private bool IsPointerOverUI_Mouse()

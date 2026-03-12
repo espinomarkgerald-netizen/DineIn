@@ -61,6 +61,9 @@ public class PlayerMovement : MonoBehaviour
     public float RotationSpeed => rotationSpeed;
     public string CarryingBoolParam => carryingBoolParam;
 
+    private bool isPlayerControlled;
+    private bool autoFinishTask;
+
     private Vector2 lastPointerScreenPos;
 
     public void SetCamera(Camera cam) => activeCam = cam;
@@ -94,7 +97,7 @@ public class PlayerMovement : MonoBehaviour
     {
         if (activeCam == null) return;
 
-        if (state != State.DoingJob)
+        if (isPlayerControlled && state != State.DoingJob)
         {
             if (Input.touchSupported && Application.isMobilePlatform)
                 HandleTouchInput();
@@ -119,6 +122,7 @@ public class PlayerMovement : MonoBehaviour
             float dist = Vector2.Distance(pressStartPos, (Vector2)Input.mousePosition);
             if (dist > tapThreshold) return;
 
+            lastPointerScreenPos = Input.mousePosition;
             TryClickInteractable(Input.mousePosition);
         }
     }
@@ -139,6 +143,7 @@ public class PlayerMovement : MonoBehaviour
             float dist = Vector2.Distance(pressStartPos, t.position);
             if (dist > tapThreshold) return;
 
+            lastPointerScreenPos = t.position;
             TryClickInteractable(t.position);
         }
     }
@@ -254,13 +259,13 @@ public class PlayerMovement : MonoBehaviour
             }
         }
 
-        FoundTarget:
-            if (bestTarget == null) return;
+    FoundTarget:
+        if (bestTarget == null) return;
 
-            Transform stand = bestTarget.StandPoint;
-            Vector3 worldPos = stand != null ? stand.position : bestHit.point;
+        Transform stand = bestTarget.StandPoint;
+        Vector3 worldPos = stand != null ? stand.position : bestHit.point;
 
-            MoveToInteractable(bestTarget, stand, worldPos);
+        MoveToInteractable(bestTarget, stand, worldPos);
     }
 
     private void MoveToInteractable(IInteractable target, Transform standPoint, Vector3 worldPos)
@@ -309,7 +314,12 @@ public class PlayerMovement : MonoBehaviour
 
         if (state == State.ReturningHome)
         {
+            ForceStopAgent();
             state = State.IdleAtHome;
+
+            if (autoFinishTask)
+                autoFinishTask = false;
+
             return;
         }
 
@@ -318,7 +328,12 @@ public class PlayerMovement : MonoBehaviour
 
         if (currentTarget == null)
         {
+            ForceStopAgent();
             state = State.IdleAtHome;
+
+            if (autoFinishTask)
+                autoFinishTask = false;
+
             return;
         }
 
@@ -336,7 +351,11 @@ public class PlayerMovement : MonoBehaviour
         {
             currentTarget = null;
             currentStandPoint = null;
+            ForceStopAgent();
             state = State.IdleAtHome;
+
+            if (autoFinishTask)
+                autoFinishTask = false;
         }
     }
 
@@ -390,6 +409,8 @@ public class PlayerMovement : MonoBehaviour
         if (homePoint == null)
         {
             state = State.IdleAtHome;
+            if (autoFinishTask)
+                autoFinishTask = false;
             return;
         }
 
@@ -462,8 +483,17 @@ public class PlayerMovement : MonoBehaviour
 
     private void ForceStopAgent()
     {
+        if (agent == null) return;
+
         agent.isStopped = true;
         agent.ResetPath();
+        agent.velocity = Vector3.zero;
+
+        if (animator != null)
+        {
+            animator.SetFloat("Speed", 0f);
+            animator.SetBool("IsMoving", false);
+        }
     }
 
     private bool IsPointerOverUI(int fingerId)
@@ -488,6 +518,7 @@ public class PlayerMovement : MonoBehaviour
 
     private void HandleHandsStateChanged()
     {
+        if (!isPlayerControlled) return;
         TryRefreshInteractableNow();
     }
 
@@ -507,12 +538,13 @@ public class PlayerMovement : MonoBehaviour
             agent.velocity = Vector3.zero;
         }
 
+        currentTarget = null;
+        currentStandPoint = null;
+        interactFired = false;
         state = State.IdleAtHome;
 
         if (animator != null)
-        {
-            animator.Play("idle");
-        }
+            animator.Play("idle", 0, 0f);
     }
 
     public void ResumeAfterRoleSwitch()
@@ -525,8 +557,31 @@ public class PlayerMovement : MonoBehaviour
 
     public bool CanSwitchRole()
     {
-        return state == State.IdleAtHome;
+        return true;
     }
 
-    
+    public void SetPlayerControlled(bool value)
+    {
+        isPlayerControlled = value;
+    }
+
+    public void BeginAutoFinish()
+    {
+        autoFinishTask = true;
+    }
+
+    public void CancelAutoFinish()
+    {
+        autoFinishTask = false;
+    }
+
+    public bool IsPlayerControlled()
+    {
+        return isPlayerControlled;
+    }
+
+    public bool IsActiveControlledRole()
+    {
+        return isPlayerControlled;
+    }
 }
