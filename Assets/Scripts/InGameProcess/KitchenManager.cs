@@ -11,6 +11,9 @@ public class KitchenManager : MonoBehaviour
     [Header("Timing")]
     public float cookSeconds = 5f;
 
+    [Header("Queueing")]
+    [SerializeField] private float waitForFreeSlotCheckInterval = 0.25f;
+
     private readonly HashSet<int> cookingOrders = new HashSet<int>();
     private TrayPickupQueue pickupQueue;
 
@@ -42,16 +45,24 @@ public class KitchenManager : MonoBehaviour
 
         try
         {
-            if (group == null) yield break;
-
-            if (group.currentOrderNumber != orderNo || group.state != CustomerGroup.GroupState.OrderTaken)
+            if (!IsOrderStillValid(group, orderNo))
                 yield break;
 
             if (traySpawnPoints == null || traySpawnPoints.Length == 0) yield break;
             if (foodTrayPrefab == null) yield break;
 
-            Transform freeSlot = GetFirstFreeSlot();
-            if (freeSlot == null) yield break;
+            Transform freeSlot = null;
+
+            while (freeSlot == null)
+            {
+                if (!IsOrderStillValid(group, orderNo))
+                    yield break;
+
+                freeSlot = GetFirstFreeSlot();
+
+                if (freeSlot == null)
+                    yield return new WaitForSeconds(waitForFreeSlotCheckInterval);
+            }
 
             var tray = Instantiate(foodTrayPrefab, freeSlot.position, freeSlot.rotation, freeSlot);
             tray.Init(group);
@@ -64,6 +75,14 @@ public class KitchenManager : MonoBehaviour
         {
             cookingOrders.Remove(orderNo);
         }
+    }
+
+    private bool IsOrderStillValid(CustomerGroup group, int orderNo)
+    {
+        if (group == null) return false;
+        if (group.currentOrderNumber != orderNo) return false;
+        if (group.state != CustomerGroup.GroupState.OrderTaken) return false;
+        return true;
     }
 
     private Transform GetFirstFreeSlot()

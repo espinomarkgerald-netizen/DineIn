@@ -35,9 +35,6 @@ public class Booth : MonoBehaviour
         if (approachPoint == null) return false;
         if (seats == null || seats.Count < groupSize) return false;
 
-        // IMPORTANT:
-        // If a group is already assigned OR currently seated here,
-        // this booth is not available even if seats are not occupied yet.
         if (currentGroup != null) return false;
 
         for (int i = 0; i < seats.Count; i++)
