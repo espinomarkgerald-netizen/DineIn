@@ -1,28 +1,21 @@
 using UnityEngine;
 using UnityEngine.AI;
+using UnityEngine.InputSystem;
 
 [RequireComponent(typeof(NavMeshAgent))]
 public class SimplePlayerMovement : MonoBehaviour
 {
-    [Header("References")]
-    [SerializeField] private Animator animator;
     private NavMeshAgent agent;
-    private Camera cam;
-
-    [Header("Animation")]
+    [SerializeField] private Animator animator;
     [SerializeField] private string speedParam = "Speed";
 
-    [Header("Facing")]
-    [SerializeField] private bool rotateToMovement = true;
-    [SerializeField] private float rotationSpeed = 12f;
+    private Camera cam;
 
     void Awake()
     {
         agent = GetComponent<NavMeshAgent>();
-
         if (animator == null)
             animator = GetComponentInChildren<Animator>();
-
         agent.updateRotation = false;
     }
 
@@ -40,43 +33,46 @@ public class SimplePlayerMovement : MonoBehaviour
 
     void HandleInput()
     {
-        if (!Input.GetMouseButtonDown(0))
-            return;
-
-        Ray ray = cam.ScreenPointToRay(Input.mousePosition);
-
-        if (Physics.Raycast(ray, out RaycastHit hit))
+        // Mouse
+        if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
         {
-            agent.isStopped = false;
-            agent.SetDestination(hit.point);
+            Ray ray = cam.ScreenPointToRay(Mouse.current.position.ReadValue());
+            if (Physics.Raycast(ray, out RaycastHit hit))
+                MoveToTarget(hit.point);
+        }
+
+        // Touch
+        if (Touchscreen.current != null && Touchscreen.current.primaryTouch.press.wasPressedThisFrame)
+        {
+            Vector2 touchPos = Touchscreen.current.primaryTouch.position.ReadValue();
+            Ray ray = cam.ScreenPointToRay(touchPos);
+            if (Physics.Raycast(ray, out RaycastHit hit))
+                MoveToTarget(hit.point);
         }
     }
 
     void UpdateAnimator()
     {
-        if (animator == null)
-            return;
-
-        float speed = agent.velocity.magnitude;
-        animator.SetFloat(speedParam, speed);
+        if (animator == null) return;
+        animator.SetFloat(speedParam, agent.velocity.magnitude);
     }
 
     void HandleRotation()
     {
-        if (!rotateToMovement)
-            return;
-
         Vector3 vel = agent.velocity;
         vel.y = 0f;
-
-        if (vel.sqrMagnitude < 0.01f)
-            return;
-
+        if (vel.sqrMagnitude < 0.01f) return;
         Quaternion targetRot = Quaternion.LookRotation(vel);
-        transform.rotation = Quaternion.Slerp(
-            transform.rotation,
-            targetRot,
-            rotationSpeed * Time.deltaTime
-        );
+        transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, 12f * Time.deltaTime);
+    }
+
+    // <--- Make sure this is inside the same class --->
+    public void MoveToTarget(Vector3 targetPosition)
+    {
+        if (agent != null)
+        {
+            agent.isStopped = false;
+            agent.SetDestination(targetPosition);
+        }
     }
 }

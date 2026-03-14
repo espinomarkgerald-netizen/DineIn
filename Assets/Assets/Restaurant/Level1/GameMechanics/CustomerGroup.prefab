@@ -212,10 +212,10 @@ MonoBehaviour:
   tableNumberOffset: {x: 0, y: 1.6, z: 0}
   minOrderDelay: 2
   maxOrderDelay: 5
-  minOrderPatience: 10
-  maxOrderPatience: 15
-  minEatSeconds: 8
-  maxEatSeconds: 12
+  minOrderPatience: 30
+  maxOrderPatience: 60
+  minEatSeconds: 40
+  maxEatSeconds: 50
   billIcon: {fileID: 0}
   angryIcon: {fileID: 0}
   chickenSprite: {fileID: 21300000, guid: 4ed7908845179e9418d50c4ee1c492df, type: 3}
