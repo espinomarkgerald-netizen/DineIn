@@ -218,9 +218,9 @@ MonoBehaviour:
   maxEatSeconds: 12
   billIcon: {fileID: 0}
   angryIcon: {fileID: 0}
-  chickenSprite: {fileID: 21300000, guid: 4ed7908845179e9418d50c4ee1c492df, type: 3}
-  friesSprite: {fileID: 21300000, guid: 86ddbf764e5b7984eb3dcb7ea9e514fd, type: 3}
-  burgerSprite: {fileID: 21300000, guid: 0a9fb58554f06fe4fbaf9b785e8d4a44, type: 3}
+  chickenSprite: {fileID: 21300000, guid: 0d0d4d6827467064f9e13d7c7fd1f5ea, type: 3}
+  friesSprite: {fileID: 21300000, guid: 8e78f254a43696f4b9db23ccbb32431a, type: 3}
+  burgerSprite: {fileID: 21300000, guid: 5118c0b71dec6e646ac53ea95bac0524, type: 3}
   cokeSprite: {fileID: 21300000, guid: 85cf06d21ea9d7b4d9eb81f3472adce4, type: 3}
   pineappleSprite: {fileID: 21300000, guid: a128577fa7c156c4a90b4d0537692668, type: 3}
   iceTeaSprite: {fileID: 21300000, guid: 9746789dafebbb841a6edd396858d4b4, type: 3}

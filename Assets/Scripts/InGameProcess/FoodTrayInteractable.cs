@@ -113,7 +113,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable
 
     public void Interact(PlayerMovement mover)
     {
-        if (!CanInteract()) return;
+        if (!CanInteractWithWarning()) return;
 
         bool wasCleanup = (mode == TrayMode.Cleanup);
 
@@ -142,7 +142,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable
 
     public void UI_RequestPickup()
     {
-        if (!CanInteract()) return;
+        if (!CanInteractWithWarning()) return;
         if (RoleManager.Instance == null) return;
 
         var mover = RoleManager.Instance.GetActivePlayerMovement();
@@ -155,8 +155,61 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable
 
     private void OnMouseDown()
     {
-        if (!CanInteract()) return;
         UI_RequestPickup();
+    }
+
+    private bool CanInteractWithWarning()
+    {
+        if (mode == TrayMode.None) return false;
+        if (tray == null) return false;
+        if (RoleManager.Instance == null) return false;
+
+        if (mode == TrayMode.Delivery)
+        {
+            if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Waiter))
+            {
+                ShowWarning("Only the waiter can deliver food.");
+                return false;
+            }
+
+            if (WaiterHands.Instance == null) return false;
+
+            if (WaiterHands.Instance.HasBill)
+            {
+                ShowWarning("You are already carrying a bill.");
+                return false;
+            }
+
+            if (WaiterHands.Instance.HasTray)
+            {
+                ShowWarning("You are already carrying a tray.");
+                return false;
+            }
+
+            if (queueOwner != null && !queueOwner.IsNext(this))
+            {
+                ShowWarning("Pick up the next ready tray first.");
+                return false;
+            }
+        }
+        else if (mode == TrayMode.Cleanup)
+        {
+            if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Busser))
+            {
+                ShowWarning("Only the busser can clean used trays.");
+                return false;
+            }
+
+            if (BusserHands.Instance == null) return false;
+
+            if (BusserHands.Instance.HasTray)
+            {
+                ShowWarning("You are already carrying a tray.");
+                return false;
+            }
+        }
+
+        return CanInteract();
     }
 
     private void CheckCleanupState()
@@ -281,5 +334,10 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable
             Destroy(uiInstance);
 
         uiInstance = null;
+    }
+
+    private void ShowWarning(string message)
+    {
+        WarningSlideUI.Instance?.Show(message);
     }
 }

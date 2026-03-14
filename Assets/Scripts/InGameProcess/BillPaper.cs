@@ -92,7 +92,7 @@ public class BillPaper : MonoBehaviour, IInteractable
 
     public void UI_Pickup()
     {
-        if (!CanInteract()) return;
+        if (!CanPickupWithWarning()) return;
         if (RoleManager.Instance == null) return;
 
         var mover = RoleManager.Instance.GetActivePlayerMovement();
@@ -105,7 +105,7 @@ public class BillPaper : MonoBehaviour, IInteractable
 
     public bool TryPickup()
     {
-        if (!CanInteract()) return false;
+        if (!CanPickupWithWarning()) return false;
 
         var hands = WaiterHands.Instance;
         if (hands == null) return false;
@@ -127,6 +127,35 @@ public class BillPaper : MonoBehaviour, IInteractable
             && targetGroup != null
             && targetGroup == group
             && group.currentOrderNumber == orderNumber;
+    }
+
+    private bool CanPickupWithWarning()
+    {
+        if (targetGroup == null) return false;
+        if (RoleManager.Instance == null) return false;
+
+        if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Waiter))
+        {
+            ShowWarning("Only the waiter can pick up bills.");
+            return false;
+        }
+
+        if (WaiterHands.Instance == null) return false;
+
+        if (WaiterHands.Instance.HasBill)
+        {
+            int tableNo = WaiterHands.Instance.holdingBillFor != null
+                ? WaiterHands.Instance.holdingBillFor.currentOrderNumber
+                : -1;
+
+            ShowWarning(tableNo >= 0
+                ? $"You are already holding the bill for table {tableNo}."
+                : "You are already holding a bill.");
+
+            return false;
+        }
+
+        return true;
     }
 
     private void SpawnPickupUI()
@@ -192,6 +221,11 @@ public class BillPaper : MonoBehaviour, IInteractable
             Destroy(pickupUiInstance);
 
         pickupUiInstance = null;
+    }
+
+    private void ShowWarning(string message)
+    {
+        WarningSlideUI.Instance?.Show(message);
     }
 
     private void OnDisable() => ClearPickupUI();

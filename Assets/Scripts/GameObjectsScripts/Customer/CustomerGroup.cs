@@ -470,10 +470,8 @@ public class CustomerGroup : MonoBehaviour
         if (moneyBubblePrefab == null) yield break;
         if (assignedBooth == null) yield break;
 
-        int amount = 100;
-        var cashier = FindFirstObjectByType<CashierBoothInteractable>();
-        if (cashier != null)
-            amount = cashier.GenerateSaleAmount();
+        int total = GetOrderTotal();
+        int amount = GetCustomerPaymentAmount(total);
 
         pendingPaymentAmount = amount;
 
@@ -501,6 +499,52 @@ public class CustomerGroup : MonoBehaviour
         var ui = moneyBubbleInstance.GetComponentInChildren<MoneyBubbleUI>(true);
         if (ui != null)
             ui.Init(amount, money);
+    }
+
+    private int GetOrderTotal()
+    {
+        return GetFoodPrice(confirmedFood) + GetDrinkPrice(confirmedDrink);
+    }
+
+    private int GetFoodPrice(FoodType food)
+    {
+        switch (food)
+        {
+            case FoodType.Chicken: return 99;
+            case FoodType.Fries: return 79;
+            case FoodType.Burger: return 79;
+            default: return 0;
+        }
+    }
+
+    private int GetDrinkPrice(DrinkType drink)
+    {
+        switch (drink)
+        {
+            case DrinkType.Coke: return 39;
+            case DrinkType.Pineapple: return 39;
+            case DrinkType.IceTea: return 39;
+            default: return 0;
+        }
+    }
+
+    private int GetCustomerPaymentAmount(int total)
+    {
+        int[] validAmounts = { 1, 5, 10, 20, 50, 100, 200, 500, 1000 };
+
+        for (int i = 0; i < validAmounts.Length; i++)
+        {
+            if (validAmounts[i] == total)
+                return total;
+        }
+
+        for (int i = 0; i < validAmounts.Length; i++)
+        {
+            if (validAmounts[i] > total)
+                return validAmounts[i];
+        }
+
+        return total;
     }
 
     public void PayAndLeave()

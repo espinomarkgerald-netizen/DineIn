@@ -232,8 +232,14 @@ public class WaiterHands : MonoBehaviour
 
     public bool TryDeliverTrayTo(CustomerGroup group, bool destroyTrayObject = true)
     {
-        if (group == null || holdingTray == null) return false;
-        if (!holdingTray.Matches(group)) return false;
+        if (group == null || holdingTray == null)
+            return false;
+
+        if (!holdingTray.Matches(group))
+        {
+            WarningSlideUI.Instance?.Show($"This order is for table {holdingTray.orderNumber}.");
+            return false;
+        }
 
         if (group.assignedBooth != null)
             group.assignedBooth.ClearMenuBook();

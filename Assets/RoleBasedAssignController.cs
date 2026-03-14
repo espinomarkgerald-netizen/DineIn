@@ -139,12 +139,34 @@ public class RoleBasedAssignController : MonoBehaviour
 
     private void HandleWaiterTap(RaycastHit[] hits)
     {
-        Debug.Log("[Waiter] waiter branch next");
+        var group = GetTappedAssignableGroup(hits);
+        if (group != null)
+            ShowWarning("Only the host can assign customers to a table.");
     }
 
     private void HandleBusserTap(RaycastHit[] hits)
     {
-        Debug.Log("[Busser] busser branch next");
+        var group = GetTappedAssignableGroup(hits);
+        if (group != null)
+            ShowWarning("Only the host can assign customers to a table.");
+    }
+
+    private CustomerGroup GetTappedAssignableGroup(RaycastHit[] hits)
+    {
+        for (int i = 0; i < hits.Length; i++)
+        {
+            var hit = hits[i];
+            if (((1 << hit.collider.gameObject.layer) & customerLayer) == 0)
+                continue;
+
+            var group = hit.collider.GetComponentInParent<CustomerGroup>();
+            if (group == null) continue;
+            if (!CanHostSelectGroup(group)) continue;
+
+            return group;
+        }
+
+        return null;
     }
 
     private void SelectGroup(CustomerGroup group)
@@ -208,6 +230,8 @@ public class RoleBasedAssignController : MonoBehaviour
     {
         if (warningUI != null)
             warningUI.Show(message);
+        else if (WarningSlideUI.Instance != null)
+            WarningSlideUI.Instance.Show(message);
         else
             Debug.LogWarning(message);
     }
