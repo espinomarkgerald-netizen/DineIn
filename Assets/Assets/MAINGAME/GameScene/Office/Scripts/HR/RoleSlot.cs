@@ -10,9 +10,18 @@ public class RoleSlot : MonoBehaviour
 
     public void AssignEmployee(EmployeeData employee)
     {
+        if (assignedEmployee != null)
+        {
+            assignedEmployee.assigned = false;
+            assignedEmployee.assignedRole = "";
+        }
+
         assignedEmployee = employee;
+
         employee.assigned = true;
         employee.assignedRole = roleName;
+
+        slotText.text = employee.employeeName;
 
         if(slotText != null)
             slotText.text = employee.employeeName;

@@ -7,9 +7,13 @@ public class EmployeeGenerator : MonoBehaviour
 
     string[] names =
     {
-        "Maria","Kelvin","James","Josh","Nina",
+        "Maria","Kelvin","Josh","Nina",
         "Sam","Leo","Kyle","Mark","Michael",
-        "Ron", "Doyle"
+        "Ron", "Doyle","Johnvic","Mary","Grace",
+        "Paul", "Kenneth", "Bandoc", "Fumi", "Riley",
+        "Neo", "Tom", "Hasang", "Tachu", "Floribel", "Ferrer",
+        "Montefaro", "Miguel", "Byron", "Darnell", "Noel",
+        "Christian", "Joseph", "Namuag"
     };
 
     public int employeesPerDay = 12;

@@ -13,6 +13,8 @@ public class UIManager : MonoBehaviour
 
     [Header("Settings Panel")]
     [SerializeField] GameObject settingsPanel;
+    [SerializeField] GameObject audioSettings;
+    [SerializeField] GameObject videoSettings;
 
     private GameObject currentActiveUI;
 
@@ -80,5 +82,31 @@ public class UIManager : MonoBehaviour
 
         settingsPanel.SetActive(false);
         staticUI.SetActive(true);
+    }
+
+    public void OpenAudioSettings()
+    {
+        HideSettingsSubPanels();
+        settingsPanel.SetActive(false);
+        audioSettings.SetActive(true);
+    }
+
+    public void SettingsBackButton()
+    {
+        HideSettingsSubPanels();
+        settingsPanel.SetActive(true);
+    }
+    void HideSettingsSubPanels()
+    {
+        if (audioSettings != null) audioSettings.SetActive(false);
+        if (videoSettings != null) videoSettings.SetActive(false);
+    }
+    public void SettingsToggle()
+    {
+        if (settingsPanel == null) return;
+
+        staticUI.SetActive(false);
+        HideSettingsSubPanels();
+        settingsPanel.SetActive(!settingsPanel.activeSelf);
     }
 }

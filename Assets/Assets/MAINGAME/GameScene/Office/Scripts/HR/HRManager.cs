@@ -2,6 +2,7 @@ using UnityEngine;
 
 public class HRManager : MonoBehaviour
 {
+    public RoleSlot[] allSlots;
     public EmployeeGenerator generator;
 
     public EmployeeCard[] cards;
@@ -24,13 +25,29 @@ public class HRManager : MonoBehaviour
         selectedEmployee = employee;
     }
 
-    public void AssignEmployee(RoleSlot slot)
+    public void AssignEmployee(RoleSlot targetSlot)
     {
-        if(selectedEmployee == null || slot == null) return;
-        if(selectedEmployee.assigned) return;
+        if (selectedEmployee == null) return;
 
-        slot.AssignEmployee(selectedEmployee);
+    // Remove employee from any slot they are currently in
+    foreach (RoleSlot s in allSlots)
+    {
+        if (s.assignedEmployee == selectedEmployee)
+        {
+            s.RemoveEmployee();
+        }
+    }
 
-        selectedEmployee = null;
+    // If the target slot already has someone, free them
+    if (targetSlot.assignedEmployee != null)
+    {
+        targetSlot.assignedEmployee.assigned = false;
+        targetSlot.assignedEmployee.assignedRole = "";
+    }
+
+    // Assign employee to the new slot
+    targetSlot.AssignEmployee(selectedEmployee);
+
+    selectedEmployee = null;
     }
 }
