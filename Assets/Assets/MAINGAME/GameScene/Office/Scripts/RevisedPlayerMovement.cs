@@ -1,10 +1,12 @@
 using UnityEngine;
 using UnityEngine.AI;
+using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 
 [RequireComponent(typeof(NavMeshAgent))]
 public class SimplePlayerMovement : MonoBehaviour
 {
+    private System.Action OnArrivalCallback;
     private NavMeshAgent agent;
     [SerializeField] private Animator animator;
     [SerializeField] private string speedParam = "Speed";
@@ -29,10 +31,38 @@ public class SimplePlayerMovement : MonoBehaviour
         HandleInput();
         UpdateAnimator();
         HandleRotation();
+        CheckArrival();
+    }
+    void CheckArrival()
+    {
+        if (agent.pathPending) return;
+
+        // Only trigger when the agent actually reached destination and stopped
+        if (agent.remainingDistance <= agent.stoppingDistance)
+        {
+            if (!agent.hasPath || agent.velocity.sqrMagnitude == 0f)
+            {
+                agent.ResetPath();
+
+                OnArrivalCallback?.Invoke();
+                OnArrivalCallback = null;
+            }
+        }
     }
 
     void HandleInput()
     {
+        if (EventSystem.current != null)
+        {
+        #if UNITY_ANDROID || UNITY_IOS
+        if (Input.touchCount > 0 && EventSystem.current.IsPointerOverGameObject(Input.GetTouch(0).fingerId))
+            return; // skip movement if touching UI
+        #endif
+
+        if (EventSystem.current.IsPointerOverGameObject()) 
+            return; // skip movement if clicking UI on desktop
+        }
+        
         // Mouse
         if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
         {
@@ -74,5 +104,13 @@ public class SimplePlayerMovement : MonoBehaviour
             agent.isStopped = false;
             agent.SetDestination(targetPosition);
         }
+    }
+    public void MoveToTargetAndShowUI(Transform target, GameObject uiToShow)
+    {
+        MoveToTarget(target.position); // existing movement function
+        OnArrivalCallback = () =>
+        {
+        UIManager.Instance.ShowActiveUI(uiToShow);
+        };
     }
 }

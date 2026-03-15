@@ -2,26 +2,35 @@ using UnityEngine;
 
 public class HRManager : MonoBehaviour
 {
+    public EmployeeGenerator generator;
+
+    public EmployeeCard[] cards;
+
     public EmployeeData selectedEmployee;
 
-    // Called when player taps an employee card
+    void Start()
+    {
+        generator.GenerateEmployees();
+
+        for(int i = 0; i < cards.Length; i++)
+        {
+            cards[i].Setup(generator.employees[i]);
+            Debug.Log("Assigning employee to card " + i);
+        }
+    }
+
     public void SelectEmployee(EmployeeData employee)
     {
         selectedEmployee = employee;
-        Debug.Log("Selected: " + employee.employeeName);
     }
 
-    // Called when player taps a slot
-    public void AssignSelectedToSlot(RoleSlot slot)
+    public void AssignEmployee(RoleSlot slot)
     {
-        if(selectedEmployee == null) return;
-        if(selectedEmployee.assigned)
-        {
-            Debug.Log(selectedEmployee.employeeName + " is already assigned!");
-            return;
-        }
+        if(selectedEmployee == null || slot == null) return;
+        if(selectedEmployee.assigned) return;
 
         slot.AssignEmployee(selectedEmployee);
-        selectedEmployee = null; // reset selection
+
+        selectedEmployee = null;
     }
 }

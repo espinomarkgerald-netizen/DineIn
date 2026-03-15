@@ -1,3 +1,4 @@
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -5,7 +6,7 @@ public class RoleSlot : MonoBehaviour
 {
     public string roleName;          // Host, Waiter, etc.
     public EmployeeData assignedEmployee;
-    public Text slotText;            // UI Text to show employee name
+    public TMP_Text slotText;            // UI Text to show employee name
 
     public void AssignEmployee(EmployeeData employee)
     {
