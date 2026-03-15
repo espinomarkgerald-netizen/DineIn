@@ -52,30 +52,28 @@ public class SimplePlayerMovement : MonoBehaviour
 
     void HandleInput()
     {
-        if (EventSystem.current != null)
-        {
-        #if UNITY_ANDROID || UNITY_IOS
-        if (Input.touchCount > 0 && EventSystem.current.IsPointerOverGameObject(Input.GetTouch(0).fingerId))
-            return; // skip movement if touching UI
-        #endif
-
-        if (EventSystem.current.IsPointerOverGameObject()) 
-            return; // skip movement if clicking UI on desktop
-        }
-        
-        // Mouse
+        // Mouse input
         if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
         {
+            if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
+                return;
+
             Ray ray = cam.ScreenPointToRay(Mouse.current.position.ReadValue());
             if (Physics.Raycast(ray, out RaycastHit hit))
                 MoveToTarget(hit.point);
         }
 
-        // Touch
+        // Touch input
         if (Touchscreen.current != null && Touchscreen.current.primaryTouch.press.wasPressedThisFrame)
         {
+            int fingerId = Touchscreen.current.primaryTouch.touchId.ReadValue();
+
+            if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject(fingerId))
+                return;
+
             Vector2 touchPos = Touchscreen.current.primaryTouch.position.ReadValue();
             Ray ray = cam.ScreenPointToRay(touchPos);
+
             if (Physics.Raycast(ray, out RaycastHit hit))
                 MoveToTarget(hit.point);
         }
