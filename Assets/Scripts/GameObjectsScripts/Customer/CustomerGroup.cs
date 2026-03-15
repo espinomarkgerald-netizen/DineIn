@@ -25,6 +25,14 @@ public class CustomerGroup : MonoBehaviour
     public enum FoodType { Chicken, Fries, Burger }
     public enum DrinkType { Coke, Pineapple, IceTea }
 
+    public enum FinalResult
+    {
+        None,
+        Happy,
+        Neutral,
+        Angry
+    }
+
     [Header("Runtime")]
     public GroupState state = GroupState.Spawning;
     public List<CustomerAgent> members = new List<CustomerAgent>();
@@ -94,6 +102,9 @@ public class CustomerGroup : MonoBehaviour
     private bool boothSeatsCleared;
     private bool leavingRoutineStarted;
     private bool isOrderPaused;
+
+    private bool finalResultReported;
+    private FinalResult finalResult = FinalResult.None;
 
     private readonly HashSet<CustomerAgent> seatedMembers = new HashSet<CustomerAgent>();
     private Coroutine seatingRoutine;
@@ -253,6 +264,7 @@ public class CustomerGroup : MonoBehaviour
         SetSelected(false);
 
         OnGroupSeated?.Invoke(this);
+        GameDayManager.Instance?.RegisterGroupSeated();
 
         if (assignedBooth != null)
             assignedBooth.SpawnMenuBook();
@@ -388,10 +400,10 @@ public class CustomerGroup : MonoBehaviour
         ClearOrderBubble();
         SpawnTableNumber();
 
+        GameDayManager.Instance?.RegisterOrderTaken();
+
         if (OrderFlowManager.Instance != null)
             OrderFlowManager.Instance.SpawnTicket(this);
-
-        Debug.Log($"{name}: Order taken! #{currentOrderNumber} Food={confirmedFood} Drink={confirmedDrink}");
     }
 
     public void ConfirmOrder(FoodType food, DrinkType drink)
@@ -434,6 +446,9 @@ public class CustomerGroup : MonoBehaviour
         ClearTableNumber();
 
         state = GroupState.Eating;
+
+        GameDayManager.Instance?.RegisterFoodDelivered();
+
         StartCoroutine(EatThenNeedBill());
     }
 
@@ -442,6 +457,7 @@ public class CustomerGroup : MonoBehaviour
         if (state != GroupState.NeedsBill) return;
 
         ClearBillBubble();
+        GameDayManager.Instance?.RegisterBillDelivered();
         StartCoroutine(SpawnMoneyBubbleAfterDelay());
     }
 
@@ -521,10 +537,12 @@ public class CustomerGroup : MonoBehaviour
     {
         switch (drink)
         {
-            case DrinkType.Coke: return 39;
-            case DrinkType.Pineapple: return 39;
-            case DrinkType.IceTea: return 39;
-            default: return 0;
+            case DrinkType.Coke:
+            case DrinkType.Pineapple:
+            case DrinkType.IceTea:
+                return 39;
+            default:
+                return 0;
         }
     }
 
@@ -551,12 +569,16 @@ public class CustomerGroup : MonoBehaviour
     {
         if (state != GroupState.NeedsBill) return;
 
+        ReportFinalResult(FinalResult.Happy);
+
         state = GroupState.Leaving;
         StartLeaving(false);
     }
 
     private void BecomeAngryAndLeave()
     {
+        ReportFinalResult(FinalResult.Angry);
+
         state = GroupState.AngryLeft;
 
         ClearOrderBubble();
@@ -720,6 +742,30 @@ public class CustomerGroup : MonoBehaviour
         var ui = angryBubbleInstance.GetComponentInChildren<AngryBubbleUI>(true);
         if (ui != null && angryIcon != null)
             ui.SetIcon(angryIcon);
+    }
+
+    private void ReportFinalResult(FinalResult result)
+    {
+        if (finalResultReported)
+            return;
+
+        finalResultReported = true;
+        finalResult = result;
+
+        switch (result)
+        {
+            case FinalResult.Happy:
+                GameDayManager.Instance?.RegisterHappyCustomer();
+                break;
+
+            case FinalResult.Neutral:
+                GameDayManager.Instance?.RegisterNeutralCustomer();
+                break;
+
+            case FinalResult.Angry:
+                GameDayManager.Instance?.RegisterAngryCustomer();
+                break;
+        }
     }
 
     private void CleanupSeatsAndBoothOnly()

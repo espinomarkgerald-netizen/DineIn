@@ -23,6 +23,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable
 
     public Transform StandPoint => pickupPoint != null ? pickupPoint : transform;
     public bool AutoReturnHome => false;
+
     private bool pickupRequested;
 
     private void Awake()
@@ -54,6 +55,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable
         if (queueOwner != null)
             queueOwner.Register(this);
 
+        pickupRequested = false;
         RefreshUI();
     }
 
@@ -61,6 +63,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable
     {
         mode = TrayMode.None;
         queueOwner = null;
+        pickupRequested = false;
         HideUI();
     }
 
@@ -73,6 +76,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable
 
         queueOwner = null;
         mode = value ? TrayMode.Cleanup : TrayMode.None;
+        pickupRequested = false;
 
         RefreshUI();
     }
@@ -113,22 +117,44 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable
 
     public void Interact(PlayerMovement mover)
     {
-        if (!CanInteractWithWarning()) return;
+        if (!CanInteractWithWarning())
+        {
+            pickupRequested = false;
+            return;
+        }
 
         bool wasCleanup = (mode == TrayMode.Cleanup);
 
         if (mode == TrayMode.Delivery)
         {
-            if (WaiterHands.Instance == null) return;
-            if (!WaiterHands.Instance.PickupTray(tray)) return;
+            if (WaiterHands.Instance == null)
+            {
+                pickupRequested = false;
+                return;
+            }
+
+            if (!WaiterHands.Instance.PickupTray(tray))
+            {
+                pickupRequested = false;
+                return;
+            }
 
             if (queueOwner != null)
                 queueOwner.OnPicked(this);
         }
         else if (mode == TrayMode.Cleanup)
         {
-            if (BusserHands.Instance == null) return;
-            if (!BusserHands.Instance.PickupTray(tray)) return;
+            if (BusserHands.Instance == null)
+            {
+                pickupRequested = false;
+                return;
+            }
+
+            if (!BusserHands.Instance.PickupTray(tray))
+            {
+                pickupRequested = false;
+                return;
+            }
         }
 
         pickupRequested = false;
@@ -136,8 +162,11 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable
         queueOwner = null;
         HideUI();
 
-        if (wasCleanup && autoGoSinkOnCleanupPickup && sink != null)
+        if (wasCleanup && autoGoSinkOnCleanupPickup && sink != null && mover != null)
+        {
+            mover.LockTask(sink);
             mover.UI_MoveTo(sink);
+        }
     }
 
     public void UI_RequestPickup()
@@ -150,6 +179,8 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable
 
         pickupRequested = true;
         HideUI();
+
+        mover.LockTask(this);
         mover.UI_MoveTo(this);
     }
 

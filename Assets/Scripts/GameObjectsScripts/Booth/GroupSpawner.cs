@@ -13,6 +13,7 @@ public class GroupSpawner : MonoBehaviour
     public LobbyLineManager lobbyLine;
 
     [Header("Spawn Settings")]
+    public bool autoSpawn = false;
     public float spawnInterval = 8f;
     public int minGroupSize = 1;
     public int maxGroupSize = 4;
@@ -21,6 +22,9 @@ public class GroupSpawner : MonoBehaviour
 
     private void Update()
     {
+        if (!autoSpawn)
+            return;
+
         timer += Time.deltaTime;
         if (timer >= spawnInterval)
         {
@@ -29,12 +33,12 @@ public class GroupSpawner : MonoBehaviour
         }
     }
 
-    public void SpawnGroup()
+    public CustomerGroup SpawnGroup()
     {
         if (groupPrefab == null || customerPrefab == null || spawnPoint == null || lobbyLine == null)
         {
             Debug.LogWarning("Spawner missing references.");
-            return;
+            return null;
         }
 
         int size = Random.Range(minGroupSize, maxGroupSize + 1);
@@ -50,10 +54,9 @@ public class GroupSpawner : MonoBehaviour
             group.members.Add(cust);
         }
 
-        // ✅ Put them into the 4-slot line
         lobbyLine.TryJoinLine(group);
-
-        // Optional: set their state (if you still use it)
         group.state = CustomerGroup.GroupState.WalkingToLobby;
+
+        return group;
     }
 }

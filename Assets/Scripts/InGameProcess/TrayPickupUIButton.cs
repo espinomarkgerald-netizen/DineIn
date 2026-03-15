@@ -15,7 +15,10 @@ public class TrayPickupUIButton : MonoBehaviour
             button = GetComponentInChildren<Button>(true);
 
         if (button != null)
+        {
+            button.onClick.RemoveListener(OnClick);
             button.onClick.AddListener(OnClick);
+        }
     }
 
     private void OnDestroy()
