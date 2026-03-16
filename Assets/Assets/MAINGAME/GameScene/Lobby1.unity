@@ -20757,6 +20757,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d6a4fddc7d314354b8da0a2b619d52c9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  gameplaySceneName: Lobby1
   roleManagerObject: {fileID: 1385933976}
   restaurantManagerObject: {fileID: 1354791273}
   customerSystemObject: {fileID: 597439884}
@@ -20773,7 +20774,7 @@ MonoBehaviour:
   billManager: {fileID: 960503511}
   days:
   - dayNumber: 1
-    dayLengthMinutes: 7
+    dayLengthMinutes: 1
     maxCustomersToSpawn: 12
     maxGroupsPerMinute: 2
     spawnIntervalMin: 6

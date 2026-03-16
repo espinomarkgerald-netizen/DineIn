@@ -41,8 +41,12 @@ public class GameDayManager : MonoBehaviour
     [Serializable]
     public class DaySettings
     {
+        [Tooltip("Auto-synced from array index. Element 0 = Day 1, Element 1 = Day 2, etc.")]
         public int dayNumber = 1;
+
+        [Tooltip("Length of the day in minutes. Use decimals like 0.2 for quick debugging.")]
         public float dayLengthMinutes = 8f;
+
         public int maxCustomersToSpawn = 12;
         public int maxGroupsPerMinute = 2;
         public float spawnIntervalMin = 6f;
@@ -54,6 +58,9 @@ public class GameDayManager : MonoBehaviour
 
     private const string SaveCurrentDayKey = "DineIn_CurrentDayIndex";
     private const string PendingDayKey = "DineIn_PendingDayIndex";
+
+    [Header("Scene")]
+    [SerializeField] private string gameplaySceneName = "Lobby1";
 
     [Header("Manager Objects")]
     [SerializeField] private GameObject roleManagerObject;
@@ -132,7 +139,7 @@ public class GameDayManager : MonoBehaviour
 
     public bool DayRunning => dayRunning;
     public int CurrentDayIndex => currentDayIndex;
-    public int CurrentDayNumber => GetCurrentSettings() != null ? GetCurrentSettings().dayNumber : 1;
+    public int CurrentDayNumber => ClampDayIndex(currentDayIndex) + 1;
     public float TimeRemaining => timeRemaining;
 
     private void Awake()
@@ -151,6 +158,8 @@ public class GameDayManager : MonoBehaviour
 
     private void Start()
     {
+        Debug.Log("[GameDayManager] Start");
+
         if (resultsPanel != null)
             resultsPanel.SetActive(false);
 
@@ -172,9 +181,12 @@ public class GameDayManager : MonoBehaviour
         RefreshUI();
 
         int pendingDayIndex = LoadPendingDayIndex();
+        Debug.Log("[GameDayManager] Pending day index = " + pendingDayIndex);
+
         if (pendingDayIndex >= 0)
         {
             ClearPendingDayIndex();
+            Debug.Log("[GameDayManager] Loading pending day intro for day index = " + pendingDayIndex);
             ShowDayIntro(ClampDayIndex(pendingDayIndex));
             return;
         }
@@ -182,6 +194,7 @@ public class GameDayManager : MonoBehaviour
         if (autoShowDayIntroOnPlay)
         {
             int savedDayIndex = LoadSavedCurrentDayIndex();
+            Debug.Log("[GameDayManager] Loading saved day intro for day index = " + savedDayIndex);
             ShowDayIntro(ClampDayIndex(savedDayIndex));
         }
     }
@@ -239,8 +252,7 @@ public class GameDayManager : MonoBehaviour
             if (days[i] == null)
                 days[i] = new DaySettings();
 
-            if (days[i].dayNumber <= 0)
-                days[i].dayNumber = i + 1;
+            days[i].dayNumber = i + 1;
 
             if (days[i].dayLengthMinutes <= 0f)
                 days[i].dayLengthMinutes = 8f;
@@ -281,13 +293,15 @@ public class GameDayManager : MonoBehaviour
             dayIntroPanel.SetActive(true);
 
         if (dayIntroTitleText != null)
-            dayIntroTitleText.text = "Day " + settings.dayNumber + "\nToday's Tasks";
+            dayIntroTitleText.text = "Day " + CurrentDayNumber + "\nToday's Tasks";
 
         if (dayIntroTasksText != null)
             dayIntroTasksText.text = BuildTaskListText(settings);
 
         SaveCurrentDayIndex(currentDayIndex);
         RefreshUI();
+
+        Debug.Log("[GameDayManager] ShowDayIntro -> currentDayIndex = " + currentDayIndex + " | dayNumber = " + CurrentDayNumber);
     }
 
     public void ConfirmStartCurrentDay()
@@ -339,6 +353,8 @@ public class GameDayManager : MonoBehaviour
         spawnRoutine = StartCoroutine(SpawnCustomersRoutine());
 
         RefreshUI();
+
+        Debug.Log("[GameDayManager] StartDay -> currentDayIndex = " + currentDayIndex + " | dayNumber = " + CurrentDayNumber + " | dayLengthMinutes = " + settings.dayLengthMinutes);
     }
 
     public void EndDay()
@@ -362,6 +378,7 @@ public class GameDayManager : MonoBehaviour
         {
             int nextDay = Mathf.Min(currentDayIndex + 1, days.Length - 1);
             SaveCurrentDayIndex(nextDay);
+            Debug.Log("[GameDayManager] Day passed. Saved next day index = " + nextDay);
         }
 
         ShowResults(stars);
@@ -398,8 +415,14 @@ public class GameDayManager : MonoBehaviour
 
     private void ReloadSceneForDay(int dayIndex)
     {
+        dayIndex = ClampDayIndex(dayIndex);
+
         SavePendingDayIndex(dayIndex);
-        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        SaveCurrentDayIndex(dayIndex);
+
+        Debug.Log("[GameDayManager] ReloadSceneForDay -> loading scene '" + gameplaySceneName + "' with day index = " + dayIndex);
+
+        SceneManager.LoadScene(gameplaySceneName, LoadSceneMode.Single);
     }
 
     private void ResetDayRuntime()
@@ -558,10 +581,7 @@ public class GameDayManager : MonoBehaviour
         DaySettings settings = GetCurrentSettings();
 
         if (dayText != null)
-        {
-            int shownDay = settings != null ? settings.dayNumber : 1;
-            dayText.text = "Day " + shownDay;
-        }
+            dayText.text = "Day " + CurrentDayNumber;
 
         if (timerText != null)
         {
