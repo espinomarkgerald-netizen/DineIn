@@ -23,6 +23,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable
 
     public Transform StandPoint => pickupPoint != null ? pickupPoint : transform;
     public bool AutoReturnHome => false;
+
     private bool pickupRequested;
 
     private void Awake()
@@ -54,6 +55,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable
         if (queueOwner != null)
             queueOwner.Register(this);
 
+        pickupRequested = false;
         RefreshUI();
     }
 
@@ -61,6 +63,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable
     {
         mode = TrayMode.None;
         queueOwner = null;
+        pickupRequested = false;
         HideUI();
     }
 
@@ -73,6 +76,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable
 
         queueOwner = null;
         mode = value ? TrayMode.Cleanup : TrayMode.None;
+        pickupRequested = false;
 
         RefreshUI();
     }
@@ -113,22 +117,44 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable
 
     public void Interact(PlayerMovement mover)
     {
-        if (!CanInteract()) return;
+        if (!CanInteractWithWarning())
+        {
+            pickupRequested = false;
+            return;
+        }
 
         bool wasCleanup = (mode == TrayMode.Cleanup);
 
         if (mode == TrayMode.Delivery)
         {
-            if (WaiterHands.Instance == null) return;
-            if (!WaiterHands.Instance.PickupTray(tray)) return;
+            if (WaiterHands.Instance == null)
+            {
+                pickupRequested = false;
+                return;
+            }
+
+            if (!WaiterHands.Instance.PickupTray(tray))
+            {
+                pickupRequested = false;
+                return;
+            }
 
             if (queueOwner != null)
                 queueOwner.OnPicked(this);
         }
         else if (mode == TrayMode.Cleanup)
         {
-            if (BusserHands.Instance == null) return;
-            if (!BusserHands.Instance.PickupTray(tray)) return;
+            if (BusserHands.Instance == null)
+            {
+                pickupRequested = false;
+                return;
+            }
+
+            if (!BusserHands.Instance.PickupTray(tray))
+            {
+                pickupRequested = false;
+                return;
+            }
         }
 
         pickupRequested = false;
@@ -136,13 +162,16 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable
         queueOwner = null;
         HideUI();
 
-        if (wasCleanup && autoGoSinkOnCleanupPickup && sink != null)
+        if (wasCleanup && autoGoSinkOnCleanupPickup && sink != null && mover != null)
+        {
+            mover.LockTask(sink);
             mover.UI_MoveTo(sink);
+        }
     }
 
     public void UI_RequestPickup()
     {
-        if (!CanInteract()) return;
+        if (!CanInteractWithWarning()) return;
         if (RoleManager.Instance == null) return;
 
         var mover = RoleManager.Instance.GetActivePlayerMovement();
@@ -150,13 +179,68 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable
 
         pickupRequested = true;
         HideUI();
+
+        mover.LockTask(this);
         mover.UI_MoveTo(this);
     }
 
     private void OnMouseDown()
     {
-        if (!CanInteract()) return;
         UI_RequestPickup();
+    }
+
+    private bool CanInteractWithWarning()
+    {
+        if (mode == TrayMode.None) return false;
+        if (tray == null) return false;
+        if (RoleManager.Instance == null) return false;
+
+        if (mode == TrayMode.Delivery)
+        {
+            if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Waiter))
+            {
+                ShowWarning("Only the waiter can deliver food.");
+                return false;
+            }
+
+            if (WaiterHands.Instance == null) return false;
+
+            if (WaiterHands.Instance.HasBill)
+            {
+                ShowWarning("You are already carrying a bill.");
+                return false;
+            }
+
+            if (WaiterHands.Instance.HasTray)
+            {
+                ShowWarning("You are already carrying a tray.");
+                return false;
+            }
+
+            if (queueOwner != null && !queueOwner.IsNext(this))
+            {
+                ShowWarning("Pick up the next ready tray first.");
+                return false;
+            }
+        }
+        else if (mode == TrayMode.Cleanup)
+        {
+            if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Busser))
+            {
+                ShowWarning("Only the busser can clean used trays.");
+                return false;
+            }
+
+            if (BusserHands.Instance == null) return false;
+
+            if (BusserHands.Instance.HasTray)
+            {
+                ShowWarning("You are already carrying a tray.");
+                return false;
+            }
+        }
+
+        return CanInteract();
     }
 
     private void CheckCleanupState()
@@ -281,5 +365,10 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable
             Destroy(uiInstance);
 
         uiInstance = null;
+    }
+
+    private void ShowWarning(string message)
+    {
+        WarningSlideUI.Instance?.Show(message);
     }
 }

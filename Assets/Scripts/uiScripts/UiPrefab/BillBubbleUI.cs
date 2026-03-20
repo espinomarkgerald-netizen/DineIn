@@ -17,7 +17,12 @@ public class BillBubbleUI : MonoBehaviour
     {
         if (group == null) return;
         if (RoleManager.Instance == null) return;
-        if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Waiter)) return;
+
+        if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Waiter))
+        {
+            ShowWarning("Only the waiter can handle bills.");
+            return;
+        }
 
         var hands = WaiterHands.Instance;
 
@@ -29,10 +34,29 @@ public class BillBubbleUI : MonoBehaviour
             return;
         }
 
-        if (hands != null && hands.HasBill) return;
-        if (oneRequestOnly && requested) return;
+        if (hands != null && hands.HasBill)
+        {
+            int tableNo = hands.holdingBillFor != null ? hands.holdingBillFor.currentOrderNumber : -1;
+
+            ShowWarning(tableNo >= 0
+                ? $"This bill is for table {tableNo}."
+                : "You are already holding a bill.");
+
+            return;
+        }
+
+        if (oneRequestOnly && requested)
+        {
+            ShowWarning("The bill was already requested.");
+            return;
+        }
 
         group.RequestBillFromCashier();
         requested = true;
+    }
+
+    private void ShowWarning(string message)
+    {
+        WarningSlideUI.Instance?.Show(message);
     }
 }

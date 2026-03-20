@@ -55,16 +55,23 @@ public class PlayerMovement : MonoBehaviour
 
     private PlayerMovementAnimation animationHelper;
 
+    private bool isPlayerControlled;
+    private bool autoFinishTask;
+    private Vector2 lastPointerScreenPos;
+
+    private bool taskLocked;
+    private IInteractable lockedTarget;
+
     public NavMeshAgent Agent => agent;
     public Animator Animator => animator;
     public bool RotateToMovement => rotateToMovement;
     public float RotationSpeed => rotationSpeed;
     public string CarryingBoolParam => carryingBoolParam;
 
-    private bool isPlayerControlled;
-    private bool autoFinishTask;
-
-    private Vector2 lastPointerScreenPos;
+    public bool IsTaskLocked => taskLocked;
+    public IInteractable LockedTarget => lockedTarget;
+    public State CurrentState => state;
+    public IInteractable CurrentTarget => currentTarget;
 
     public void SetCamera(Camera cam) => activeCam = cam;
 
@@ -150,6 +157,9 @@ public class PlayerMovement : MonoBehaviour
 
     private void TryClickInteractable(Vector2 screenPos)
     {
+        if (taskLocked)
+            return;
+
         RegisterCommand();
 
         Ray ray = activeCam.ScreenPointToRay(screenPos);
@@ -176,7 +186,6 @@ public class PlayerMovement : MonoBehaviour
                 var it = interactables[k];
                 if (it == null) continue;
 
-                // absolute cashier priority while holding money
                 if (isCarryingMoney && it is CashierBoothInteractable)
                 {
                     if (!it.CanInteract()) continue;
@@ -270,10 +279,10 @@ public class PlayerMovement : MonoBehaviour
 
     private void MoveToInteractable(IInteractable target, Transform standPoint, Vector3 worldPos)
     {
-        RegisterCommand();
+        if (target == null) return;
+        if (taskLocked && target != lockedTarget) return;
 
-        currentTarget = null;
-        currentStandPoint = null;
+        RegisterCommand();
 
         currentTarget = target;
         currentStandPoint = standPoint;
@@ -314,7 +323,6 @@ public class PlayerMovement : MonoBehaviour
 
         if (state == State.ReturningHome)
         {
-            ForceStopAgent();
             state = State.IdleAtHome;
 
             if (autoFinishTask)
@@ -328,7 +336,6 @@ public class PlayerMovement : MonoBehaviour
 
         if (currentTarget == null)
         {
-            ForceStopAgent();
             state = State.IdleAtHome;
 
             if (autoFinishTask)
@@ -349,6 +356,8 @@ public class PlayerMovement : MonoBehaviour
         }
         else
         {
+            UnlockTask();
+
             currentTarget = null;
             currentStandPoint = null;
             ForceStopAgent();
@@ -361,6 +370,8 @@ public class PlayerMovement : MonoBehaviour
 
     public void FinishCurrentJob()
     {
+        UnlockTask();
+
         currentTarget = null;
         currentStandPoint = null;
 
@@ -406,6 +417,8 @@ public class PlayerMovement : MonoBehaviour
 
     public void ReturnHome()
     {
+        UnlockTask();
+
         if (homePoint == null)
         {
             state = State.IdleAtHome;
@@ -430,6 +443,8 @@ public class PlayerMovement : MonoBehaviour
 
     public void GoHomeImmediate()
     {
+        UnlockTask();
+
         if (homePoint == null) return;
 
         agent.Warp(homePoint.position);
@@ -445,6 +460,7 @@ public class PlayerMovement : MonoBehaviour
     public void UI_MoveTo(IInteractable target)
     {
         if (target == null) return;
+        if (taskLocked && target != lockedTarget) return;
 
         RegisterCommand();
 
@@ -456,6 +472,9 @@ public class PlayerMovement : MonoBehaviour
 
     public void UI_MoveToPoint(Vector3 worldPoint)
     {
+        if (taskLocked)
+            return;
+
         RegisterCommand();
 
         currentTarget = null;
@@ -467,6 +486,30 @@ public class PlayerMovement : MonoBehaviour
         agent.isStopped = false;
         agent.ResetPath();
         agent.SetDestination(currentDestination);
+    }
+
+    public void LockTask(IInteractable target)
+    {
+        if (target == null) return;
+
+        taskLocked = true;
+        lockedTarget = target;
+    }
+
+    public void UnlockTask()
+    {
+        taskLocked = false;
+        lockedTarget = null;
+    }
+
+    public void CancelLockedTask()
+    {
+        UnlockTask();
+        currentTarget = null;
+        currentStandPoint = null;
+        interactFired = false;
+        ForceStopAgent();
+        state = State.IdleAtHome;
     }
 
     private void RegisterCommand()
@@ -519,6 +562,7 @@ public class PlayerMovement : MonoBehaviour
     private void HandleHandsStateChanged()
     {
         if (!isPlayerControlled) return;
+        if (taskLocked) return;
         TryRefreshInteractableNow();
     }
 
@@ -529,6 +573,8 @@ public class PlayerMovement : MonoBehaviour
 
     public void StopForRoleSwitch()
     {
+        UnlockTask();
+
         if (agent == null) agent = GetComponent<NavMeshAgent>();
 
         if (agent != null)
@@ -557,7 +603,7 @@ public class PlayerMovement : MonoBehaviour
 
     public bool CanSwitchRole()
     {
-        return true;
+        return !taskLocked;
     }
 
     public void SetPlayerControlled(bool value)

@@ -4,6 +4,8 @@ using UnityEngine;
 
 public class WarningSlideUI : MonoBehaviour
 {
+    public static WarningSlideUI Instance { get; private set; }
+
     [Header("References")]
     [SerializeField] private RectTransform panel;
     [SerializeField] private TMP_Text messageText;
@@ -20,6 +22,14 @@ public class WarningSlideUI : MonoBehaviour
 
     private void Awake()
     {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
+        Instance = this;
+
         if (panel == null)
             panel = transform as RectTransform;
 

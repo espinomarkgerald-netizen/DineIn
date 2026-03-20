@@ -13,19 +13,30 @@ public class CustomerAgent : MonoBehaviour
     [Header("Idle Facing")]
     [SerializeField] private float idleFaceTurnSpeed = 10f;
 
+    [Header("Animation")]
+    [SerializeField] private Animator animator;
+    [SerializeField] private string speedParam = "Speed";
+    [SerializeField] private string sittingParam = "IsSitting";
+    [SerializeField] private float animationDamp = 8f;
+
     private bool useIdleFacing;
     private Vector3 idleFacingForward = Vector3.forward;
+    private float currentAnimSpeed;
 
     private void Awake()
     {
         Agent = GetComponent<NavMeshAgent>();
         Agent.stoppingDistance = 0.15f;
         Agent.autoBraking = true;
+
+        if (animator == null)
+            animator = GetComponentInChildren<Animator>();
     }
 
     private void Update()
     {
-        // Idle facing for standing customers only
+        UpdateAnimation();
+
         if (!IsSeated && useIdleFacing && Agent != null)
         {
             if (!Agent.pathPending && Agent.velocity.sqrMagnitude < 0.01f)
@@ -46,26 +57,32 @@ public class CustomerAgent : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Moves the customer to a world position.
-    /// If seated, it will auto-unseat so leaving works.
-    /// </summary>
+    private void UpdateAnimation()
+    {
+        if (animator == null || Agent == null) return;
+
+        float targetSpeed = 0f;
+
+        if (!IsSeated && !Agent.pathPending)
+            targetSpeed = Agent.velocity.magnitude;
+
+        currentAnimSpeed = Mathf.Lerp(currentAnimSpeed, targetSpeed, Time.deltaTime * animationDamp);
+
+        animator.SetFloat(speedParam, currentAnimSpeed);
+        animator.SetBool(sittingParam, IsSeated);
+    }
+
     public void WalkTo(Vector3 worldPos)
     {
         if (Agent == null) return;
 
-        // ✅ Leaving support: if seated, stand up first
         if (IsSeated)
             Unseat();
 
         Agent.updatePosition = true;
         Agent.updateRotation = true;
-
         Agent.isStopped = false;
-
-        // ✅ Prevent "agent stuck" after SnapToSeat (agent/transform desync)
         Agent.Warp(transform.position);
-
         Agent.SetDestination(worldPos);
     }
 
@@ -96,10 +113,7 @@ public class CustomerAgent : MonoBehaviour
 
         Agent.ResetPath();
         Agent.isStopped = true;
-
-        // ✅ Critical: prevents later teleporting/jitter
         Agent.Warp(seatPos);
-
         Agent.updatePosition = false;
         Agent.updateRotation = false;
 
@@ -107,25 +121,22 @@ public class CustomerAgent : MonoBehaviour
 
         useIdleFacing = false;
         IsSeated = true;
+
+        if (animator != null)
+            animator.SetBool(sittingParam, true);
     }
 
-    /// <summary>
-    /// Re-enables navmesh movement after being seated.
-    /// Safe to call multiple times.
-    /// </summary>
     public void Unseat()
     {
         if (Agent == null) return;
 
         IsSeated = false;
-
-        // Enable agent updates again
         Agent.updatePosition = true;
         Agent.updateRotation = true;
-
-        // ✅ Resync agent to current transform before moving
         Agent.Warp(transform.position);
-
         Agent.isStopped = false;
+
+        if (animator != null)
+            animator.SetBool(sittingParam, false);
     }
 }

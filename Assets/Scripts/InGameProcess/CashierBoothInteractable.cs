@@ -37,7 +37,7 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
 
     private void Update()
     {
-        TryAutoProcessMoney();
+        TryAutoOpenRegister();
     }
 
     public bool CanInteract()
@@ -54,6 +54,14 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
 
     public void Interact(PlayerMovement player)
     {
+        if (RoleManager.Instance == null) return;
+
+        if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Waiter))
+        {
+            ShowWarning("Only the waiter can use this station.");
+            return;
+        }
+
         var hands = WaiterHands.Instance;
         if (hands == null) return;
 
@@ -72,7 +80,7 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
 
         if (hands.HasMoney)
         {
-            ProcessMoney(hands);
+            OpenRegisterForHeldMoney(hands);
             return;
         }
 
@@ -97,7 +105,7 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
         }
     }
 
-    private void TryAutoProcessMoney()
+    private void TryAutoOpenRegister()
     {
         if (RoleManager.Instance == null) return;
         if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Waiter)) return;
@@ -108,6 +116,9 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
         var hands = WaiterHands.Instance;
         if (hands == null) return;
         if (!hands.HasMoney) return;
+
+        if (CashierRegisterUI.Instance != null && CashierRegisterUI.Instance.IsOpen)
+            return;
 
         Vector3 a = mover.transform.position;
         Vector3 b = StandPoint.position;
@@ -121,27 +132,54 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
         float dist = Vector3.Distance(a, b);
 
         if (debugAutoPay)
-            Debug.Log($"[Cashier AutoPay] dist={dist:0.00} radius={autoPayRadius:0.00} hasMoney={hands.HasMoney} mover={mover.name}");
+            Debug.Log($"[Cashier AutoOpen] dist={dist:0.00} radius={autoPayRadius:0.00} hasMoney={hands.HasMoney} mover={mover.name}");
 
         if (dist > autoPayRadius) return;
 
-        ProcessMoney(hands);
+        OpenRegisterForHeldMoney(hands);
     }
 
-    private void ProcessMoney(WaiterHands hands)
+    private void OpenRegisterForHeldMoney(WaiterHands hands)
     {
         if (hands == null) return;
         if (!hands.HasMoney) return;
+        if (CashierRegisterUI.Instance == null) return;
 
         var group = hands.holdingMoneyFor;
-        int amount = hands.holdingMoneyAmount;
+        int receivedAmount = hands.holdingMoneyAmount;
+        int totalAmount = GetOrderTotal(group);
 
-        Debug.Log($"[Cashier] Received payment {amount} for {(group != null ? group.name : "NULL")}");
+        Debug.Log($"[Cashier] Open register | received={receivedAmount} total={totalAmount} group={(group != null ? group.name : "NULL")}");
 
-        hands.ClearMoney();
+        CashierRegisterUI.Instance.OpenForPayment(group, receivedAmount, totalAmount);
+    }
 
-        if (group != null)
-            group.PayAndLeave();
+    private int GetOrderTotal(CustomerGroup group)
+    {
+        if (group == null) return 0;
+        return GetFoodPrice(group.confirmedFood) + GetDrinkPrice(group.confirmedDrink);
+    }
+
+    private int GetFoodPrice(CustomerGroup.FoodType food)
+    {
+        switch (food)
+        {
+            case CustomerGroup.FoodType.Chicken: return 99;
+            case CustomerGroup.FoodType.Fries: return 79;
+            case CustomerGroup.FoodType.Burger: return 79;
+            default: return 0;
+        }
+    }
+
+    private int GetDrinkPrice(CustomerGroup.DrinkType drink)
+    {
+        switch (drink)
+        {
+            case CustomerGroup.DrinkType.Coke: return 39;
+            case CustomerGroup.DrinkType.Pineapple: return 39;
+            case CustomerGroup.DrinkType.IceTea: return 39;
+            default: return 0;
+        }
     }
 
     private Vector3 PickupCenter
@@ -263,5 +301,10 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
     public int GenerateSaleAmount()
     {
         return Random.Range(saleAmountMin, saleAmountMax + 1);
+    }
+
+    private void ShowWarning(string message)
+    {
+        WarningSlideUI.Instance?.Show(message);
     }
 }
