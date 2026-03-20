@@ -6,6 +6,10 @@ public class FoodTray : MonoBehaviour
     public int orderNumber;
     private CustomerGroup targetGroup;
 
+    [Header("Stored Order Data")]
+    [SerializeField] private CustomerGroup.FoodType deliveredFood;
+    [SerializeField] private CustomerGroup.DrinkType deliveredDrink;
+
     [Header("Anchors (required)")]
     [SerializeField] private Transform foodAnchor;
     [SerializeField] private Transform drinkAnchor;
@@ -25,41 +29,76 @@ public class FoodTray : MonoBehaviour
     private GameObject spawnedFood;
     private GameObject spawnedDrink;
 
+    public CustomerGroup TargetGroup => targetGroup;
+    public CustomerGroup.FoodType DeliveredFood => deliveredFood;
+    public CustomerGroup.DrinkType DeliveredDrink => deliveredDrink;
+
     public void Init(CustomerGroup group)
     {
         targetGroup = group;
-        orderNumber = (group != null) ? group.currentOrderNumber : -1;
+        orderNumber = group != null ? group.currentOrderNumber : -1;
 
-        if (numberUi == null) numberUi = GetComponentInChildren<TableNumberUI>(true);
-        if (numberUi != null) numberUi.SetNumber(orderNumber);
+        if (group != null)
+        {
+            deliveredFood = group.confirmedFood;
+            deliveredDrink = group.confirmedDrink;
+        }
+
+        if (numberUi == null)
+            numberUi = GetComponentInChildren<TableNumberUI>(true);
+
+        if (numberUi != null)
+            numberUi.SetNumber(orderNumber);
 
         SpawnOrderModels();
     }
 
     private void SpawnOrderModels()
     {
-        if (targetGroup == null) return;
+        if (foodAnchor == null)
+        {
+            Debug.LogError("[FoodTray] FoodAnchor not assigned.");
+            return;
+        }
 
-        if (foodAnchor == null) { Debug.LogError("[FoodTray] FoodAnchor not assigned."); return; }
-        if (drinkAnchor == null) { Debug.LogError("[FoodTray] DrinkAnchor not assigned."); return; }
+        if (drinkAnchor == null)
+        {
+            Debug.LogError("[FoodTray] DrinkAnchor not assigned.");
+            return;
+        }
 
-        if (spawnedFood != null) Destroy(spawnedFood);
-        if (spawnedDrink != null) Destroy(spawnedDrink);
+        if (spawnedFood != null)
+            Destroy(spawnedFood);
+
+        if (spawnedDrink != null)
+            Destroy(spawnedDrink);
 
         GameObject foodPrefab = null;
-        switch (targetGroup.confirmedFood)
+        switch (deliveredFood)
         {
-            case CustomerGroup.FoodType.Chicken: foodPrefab = chickenPrefab; break;
-            case CustomerGroup.FoodType.Fries: foodPrefab = friesPrefab; break;
-            case CustomerGroup.FoodType.Burger: foodPrefab = burgerPrefab; break;
+            case CustomerGroup.FoodType.Chicken:
+                foodPrefab = chickenPrefab;
+                break;
+            case CustomerGroup.FoodType.Fries:
+                foodPrefab = friesPrefab;
+                break;
+            case CustomerGroup.FoodType.Burger:
+                foodPrefab = burgerPrefab;
+                break;
         }
 
         GameObject drinkPrefab = null;
-        switch (targetGroup.confirmedDrink)
+        switch (deliveredDrink)
         {
-            case CustomerGroup.DrinkType.Coke: drinkPrefab = cokePrefab; break;
-            case CustomerGroup.DrinkType.Pineapple: drinkPrefab = pineapplePrefab; break;
-            case CustomerGroup.DrinkType.IceTea: drinkPrefab = iceTeaPrefab; break;
+            case CustomerGroup.DrinkType.Coke:
+                drinkPrefab = cokePrefab;
+                break;
+            case CustomerGroup.DrinkType.Pineapple:
+                drinkPrefab = pineapplePrefab;
+                break;
+            case CustomerGroup.DrinkType.IceTea:
+                drinkPrefab = iceTeaPrefab;
+                break;
         }
 
         if (foodPrefab != null)
@@ -75,6 +114,13 @@ public class FoodTray : MonoBehaviour
         }
     }
 
+    public void OverrideOrder(CustomerGroup.FoodType food, CustomerGroup.DrinkType drink)
+    {
+        deliveredFood = food;
+        deliveredDrink = drink;
+        SpawnOrderModels();
+    }
+
     private static void ResetLocal(Transform t)
     {
         t.localPosition = Vector3.zero;
@@ -86,6 +132,4 @@ public class FoodTray : MonoBehaviour
     {
         return group != null && group.currentOrderNumber == orderNumber;
     }
-
-    public CustomerGroup TargetGroup => targetGroup;
 }

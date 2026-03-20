@@ -184,16 +184,19 @@ public class CashierRegisterUI : MonoBehaviour
     private void Confirm()
     {
         if (!isOpen) return;
+        if (inputChangeAmount != expectedChange) return;
 
-        if (inputChangeAmount != expectedChange)
-            return;
+        var paidGroup = activeGroup;
 
         var hands = WaiterHands.Instance;
         if (hands != null)
             hands.ClearMoney();
 
-        if (activeGroup != null)
-            activeGroup.PayAndLeave();
+        if (paidGroup != null)
+        {
+            GameDayManager.Instance?.RegisterPaymentCompleted();
+            paidGroup.PayAndLeave();
+        }
 
         CloseRegister();
     }

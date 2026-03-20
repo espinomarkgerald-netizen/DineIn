@@ -307,4 +307,9 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
     {
         WarningSlideUI.Instance?.Show(message);
     }
+
+    public float GetInteractRadius()
+    {
+        return 0.35f;
+    }
 }

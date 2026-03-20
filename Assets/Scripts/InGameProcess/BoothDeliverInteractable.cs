@@ -17,7 +17,13 @@ public class BoothDeliverInteractable : MonoBehaviour, IInteractable
         if (tableFoodSpawn == null && booth != null)
         {
             foreach (var t in booth.GetComponentsInChildren<Transform>(true))
-                if (t.name == "TableFoodSpawn") { tableFoodSpawn = t; break; }
+            {
+                if (t.name == "TableFoodSpawn")
+                {
+                    tableFoodSpawn = t;
+                    break;
+                }
+            }
         }
     }
 
@@ -56,6 +62,9 @@ public class BoothDeliverInteractable : MonoBehaviour, IInteractable
         var group = booth.CurrentGroup;
         var tray = hands.holdingTray;
 
+        if (group == null || tray == null)
+            return;
+
         if (tableFoodSpawn == null)
         {
             Debug.LogWarning("[BoothDeliver] No TableFoodSpawn found.");
@@ -75,11 +84,20 @@ public class BoothDeliverInteractable : MonoBehaviour, IInteractable
             if (col != null) col.enabled = true;
         }
 
-        var trayInteractable = tray != null ? tray.GetComponent<FoodTrayInteractable>() : null;
+        var trayInteractable = tray.GetComponent<FoodTrayInteractable>();
         if (trayInteractable != null)
             trayInteractable.NotifyDeliveredToTable();
 
-        group.ReceiveFoodFromWaiter();
+        group.ReceiveFoodFromWaiter(
+            tray.DeliveredFood,
+            tray.DeliveredDrink
+        );
+
         Debug.Log($"[BoothDeliver] Delivered tray #{group.currentOrderNumber} to {booth.name}");
+    }
+
+    public float GetInteractRadius()
+    {
+        return 0.5f;
     }
 }

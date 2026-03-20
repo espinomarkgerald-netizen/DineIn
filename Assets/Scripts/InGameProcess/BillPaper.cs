@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public class BillPaper : MonoBehaviour, IInteractable
+public class BillPaper : MonoBehaviour, IInteractable, ICancelableTaskTarget
 {
     public int orderNumber;
 
@@ -23,9 +23,6 @@ public class BillPaper : MonoBehaviour, IInteractable
 
     [Header("Auto")]
     [SerializeField] private AutoInteractRadius autoRadius;
-
-    [Header("Debug")]
-    [SerializeField] private bool debugLogs = false;
 
     private Collider cachedCol;
     private GameObject pickupUiInstance;
@@ -163,24 +160,10 @@ public class BillPaper : MonoBehaviour, IInteractable
         if (pickupRequested) return;
         if (!CanInteract()) return;
 
-        if (pickupUiPrefab == null)
-        {
-            if (debugLogs) Debug.LogWarning("[BillPaper] pickupUiPrefab is NULL", this);
-            return;
-        }
-
-        if (uiAnchor == null)
-        {
-            if (debugLogs) Debug.LogWarning("[BillPaper] uiAnchor is NULL", this);
-            return;
-        }
+        if (pickupUiPrefab == null || uiAnchor == null) return;
 
         var canvas = ResolveGameplayCanvas();
-        if (canvas == null)
-        {
-            if (debugLogs) Debug.LogWarning("[BillPaper] gameplay canvas not found", this);
-            return;
-        }
+        if (canvas == null) return;
 
         ClearPickupUI();
 
@@ -226,6 +209,20 @@ public class BillPaper : MonoBehaviour, IInteractable
     private void ShowWarning(string message)
     {
         WarningSlideUI.Instance?.Show(message);
+    }
+
+    public float GetInteractRadius()
+    {
+        return 1.1f;
+    }
+
+    // 🔥 FIXED PART (important)
+    public void OnTaskCancelled()
+    {
+        pickupRequested = false;
+
+        if (pickupUiInstance == null && spawnPickupUiOnInit)
+            SpawnPickupUI();
     }
 
     private void OnDisable() => ClearPickupUI();

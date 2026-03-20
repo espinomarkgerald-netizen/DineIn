@@ -594,7 +594,7 @@ GameObject:
   - component: {fileID: 20910355365884180}
   m_Layer: 5
   m_Name: OrderAlertUI
-  m_TagString: Untagged
+  m_TagString: OrderBubble
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -726,6 +726,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   target: {fileID: 0}
   worldOffset: {x: 0, y: 3, z: 0}
+  screenOffset: {x: 0, y: 0}
+  stackStepY: 40
+  hideWhenGameplayUIBlocked: 1
 --- !u!114 &20910355365884180
 MonoBehaviour:
   m_ObjectHideFlags: 0

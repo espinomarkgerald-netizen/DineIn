@@ -42,6 +42,9 @@ public class CustomerDeliverInteractable : MonoBehaviour, IInteractable
         var tray = hands.holdingTray;
         var group = booth.CurrentGroup;
 
+        if (tray == null || group == null)
+            return;
+
         Transform drop = ResolveDropPoint();
         if (drop == null)
         {
@@ -68,7 +71,14 @@ public class CustomerDeliverInteractable : MonoBehaviour, IInteractable
         if (booth != null)
             booth.ClearMenuBook();
 
-        group.ReceiveFoodFromWaiter();
+        var trayInteractable = tray.GetComponent<FoodTrayInteractable>();
+        if (trayInteractable != null)
+            trayInteractable.NotifyDeliveredToTable();
+
+        group.ReceiveFoodFromWaiter(
+            tray.DeliveredFood,
+            tray.DeliveredDrink
+        );
 
         Debug.Log($"[Deliver] Placed tray #{group.currentOrderNumber} on {booth.name}/{drop.name}");
     }
@@ -92,10 +102,14 @@ public class CustomerDeliverInteractable : MonoBehaviour, IInteractable
 
     private Transform ResolveStandPoint()
     {
-        // Stand at a floor point, not the tabletop
         if (booth != null && booth.approachPoint != null)
             return booth.approachPoint;
 
         return transform;
+    }
+
+    public float GetInteractRadius()
+    {
+        return 0.5f;
     }
 }

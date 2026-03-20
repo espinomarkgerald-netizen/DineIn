@@ -21,6 +21,8 @@ public class PlayerMovement : MonoBehaviour
 
     [Header("Arrival")]
     [SerializeField] private float arriveDistance = 0.25f;
+    [SerializeField] private bool useInteractRadiusArrival = true;
+    [SerializeField] private float interactStopMultiplier = 0.85f;
 
     [Header("Home")]
     [SerializeField] private Transform homePoint;
@@ -62,6 +64,8 @@ public class PlayerMovement : MonoBehaviour
     private bool taskLocked;
     private IInteractable lockedTarget;
 
+    private float defaultStoppingDistance;
+
     public NavMeshAgent Agent => agent;
     public Animator Animator => animator;
     public bool RotateToMovement => rotateToMovement;
@@ -84,6 +88,7 @@ public class PlayerMovement : MonoBehaviour
 
         agent.updateRotation = false;
         agent.autoRepath = true;
+        defaultStoppingDistance = agent.stoppingDistance;
 
         animationHelper = new PlayerMovementAnimation(this);
     }
@@ -293,6 +298,10 @@ public class PlayerMovement : MonoBehaviour
         state = State.MovingToTarget;
         agent.isStopped = false;
         agent.ResetPath();
+
+        float targetRadius = Mathf.Max(0f, target.GetInteractRadius());
+        agent.stoppingDistance = Mathf.Max(defaultStoppingDistance, targetRadius * interactStopMultiplier);
+
         agent.SetDestination(currentDestination);
     }
 
@@ -300,6 +309,16 @@ public class PlayerMovement : MonoBehaviour
     {
         if (state != State.MovingToTarget && state != State.ReturningHome) return;
         if (agent.pathPending) return;
+
+        if (state == State.MovingToTarget && currentTarget != null && useInteractRadiusArrival)
+        {
+            float interactRadius = Mathf.Max(arriveDistance, currentTarget.GetInteractRadius());
+            if (GetPlanarDistanceToCurrentTarget() <= interactRadius)
+            {
+                HandleArrival();
+                return;
+            }
+        }
 
         float stopDist = Mathf.Max(agent.stoppingDistance, arriveDistance);
 
@@ -324,6 +343,7 @@ public class PlayerMovement : MonoBehaviour
         if (state == State.ReturningHome)
         {
             state = State.IdleAtHome;
+            agent.stoppingDistance = defaultStoppingDistance;
 
             if (autoFinishTask)
                 autoFinishTask = false;
@@ -337,6 +357,7 @@ public class PlayerMovement : MonoBehaviour
         if (currentTarget == null)
         {
             state = State.IdleAtHome;
+            agent.stoppingDistance = defaultStoppingDistance;
 
             if (autoFinishTask)
                 autoFinishTask = false;
@@ -361,6 +382,7 @@ public class PlayerMovement : MonoBehaviour
             currentTarget = null;
             currentStandPoint = null;
             ForceStopAgent();
+            agent.stoppingDistance = defaultStoppingDistance;
             state = State.IdleAtHome;
 
             if (autoFinishTask)
@@ -374,6 +396,7 @@ public class PlayerMovement : MonoBehaviour
 
         currentTarget = null;
         currentStandPoint = null;
+        agent.stoppingDistance = defaultStoppingDistance;
 
         if (returnRoutine != null)
         {
@@ -417,11 +440,13 @@ public class PlayerMovement : MonoBehaviour
 
     public void ReturnHome()
     {
+        NotifyTaskCancelled();
         UnlockTask();
 
         if (homePoint == null)
         {
             state = State.IdleAtHome;
+            agent.stoppingDistance = defaultStoppingDistance;
             if (autoFinishTask)
                 autoFinishTask = false;
             return;
@@ -438,11 +463,13 @@ public class PlayerMovement : MonoBehaviour
 
         agent.isStopped = false;
         agent.ResetPath();
+        agent.stoppingDistance = defaultStoppingDistance;
         agent.SetDestination(currentDestination);
     }
 
     public void GoHomeImmediate()
     {
+        NotifyTaskCancelled();
         UnlockTask();
 
         if (homePoint == null) return;
@@ -454,6 +481,7 @@ public class PlayerMovement : MonoBehaviour
         currentStandPoint = null;
         currentDestination = homePoint.position;
         interactFired = false;
+        agent.stoppingDistance = defaultStoppingDistance;
         state = State.IdleAtHome;
     }
 
@@ -475,6 +503,8 @@ public class PlayerMovement : MonoBehaviour
         if (taskLocked)
             return;
 
+        NotifyTaskCancelled();
+
         RegisterCommand();
 
         currentTarget = null;
@@ -485,6 +515,7 @@ public class PlayerMovement : MonoBehaviour
         state = State.MovingToTarget;
         agent.isStopped = false;
         agent.ResetPath();
+        agent.stoppingDistance = defaultStoppingDistance;
         agent.SetDestination(currentDestination);
     }
 
@@ -504,12 +535,23 @@ public class PlayerMovement : MonoBehaviour
 
     public void CancelLockedTask()
     {
+        NotifyTaskCancelled();
         UnlockTask();
         currentTarget = null;
         currentStandPoint = null;
         interactFired = false;
+        agent.stoppingDistance = defaultStoppingDistance;
         ForceStopAgent();
         state = State.IdleAtHome;
+    }
+
+    private void NotifyTaskCancelled()
+    {
+        if (currentTarget is ICancelableTaskTarget currentCancelable)
+            currentCancelable.OnTaskCancelled();
+
+        if (lockedTarget != null && lockedTarget != currentTarget && lockedTarget is ICancelableTaskTarget lockedCancelable)
+            lockedCancelable.OnTaskCancelled();
     }
 
     private void RegisterCommand()
@@ -537,6 +579,22 @@ public class PlayerMovement : MonoBehaviour
             animator.SetFloat("Speed", 0f);
             animator.SetBool("IsMoving", false);
         }
+    }
+
+    private float GetPlanarDistanceToCurrentTarget()
+    {
+        if (currentTarget == null)
+            return float.MaxValue;
+
+        Vector3 targetPos = currentStandPoint != null ? currentStandPoint.position : currentDestination;
+
+        Vector3 a = transform.position;
+        Vector3 b = targetPos;
+
+        a.y = 0f;
+        b.y = 0f;
+
+        return Vector3.Distance(a, b);
     }
 
     private bool IsPointerOverUI(int fingerId)
@@ -573,6 +631,7 @@ public class PlayerMovement : MonoBehaviour
 
     public void StopForRoleSwitch()
     {
+        NotifyTaskCancelled();
         UnlockTask();
 
         if (agent == null) agent = GetComponent<NavMeshAgent>();
@@ -582,6 +641,7 @@ public class PlayerMovement : MonoBehaviour
             agent.isStopped = true;
             agent.ResetPath();
             agent.velocity = Vector3.zero;
+            agent.stoppingDistance = defaultStoppingDistance;
         }
 
         currentTarget = null;

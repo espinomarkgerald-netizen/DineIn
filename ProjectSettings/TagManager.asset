@@ -8,6 +8,7 @@ TagManager:
   - RoomCamera
   - ExitPoint
   - TableCleanUI
+  - OrderBubble
   layers:
   - Default
   - TransparentFX

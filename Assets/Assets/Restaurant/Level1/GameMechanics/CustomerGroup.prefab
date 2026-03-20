@@ -206,8 +206,31 @@ MonoBehaviour:
   moneyBubbleOffsetY: 2.2
   orderBubblePrefab: {fileID: 7532560820528851561, guid: 3d429d2ce0f1abc4aa4e7b8da818eb0f, type: 3}
   billBubblePrefab: {fileID: 5445306718687094200, guid: eb1f8e8975e27194bbcdc7a2079d358e, type: 3}
-  angryBubblePrefab: {fileID: 533823614297680958, guid: fb2349d29d0da754e842e6396e62d072, type: 3}
   tableNumberPrefab: {fileID: 2127504583418334704, guid: 6e3d2958f76201c4ab1528b1911ff1ad, type: 3}
+  thoughtBubblePrefab: {fileID: 4091299561858918232, guid: cc3695162fe6b8642bdab0f86407034a, type: 3}
+  thoughtBubbleOffset: {x: 0, y: 2.8, z: 0}
+  thoughtBubbleDuration: 3
+  happyFaceSprite: {fileID: 21300000, guid: 0ea3c26a62dc47c4ca5c71969710d492, type: 3}
+  unhappyFaceSprite: {fileID: 21300000, guid: 2e2ecdea4ca406a498fc36aed7671763, type: 3}
+  angryFaceSprite: {fileID: 21300000, guid: 7f5e24f463ca8bc40aa0f872cb6e3a4b, type: 3}
+  happyComments:
+  - That was great!
+  - Nice service!
+  - Everything was perfect.
+  - We enjoyed it!
+  - We'll come back again.
+  unhappyComments:
+  - We've been waiting too long.
+  - No one took our order.
+  - Let's just leave.
+  - This is taking forever.
+  - We're done waiting.
+  angryComments:
+  - This isn't what we ordered!
+  - Wrong order!
+  - This service is terrible!
+  - That's not our food!
+  - Unbelievable.
   bubbleOffset: {x: 0, y: 2.2, z: 0}
   tableNumberOffset: {x: 0, y: 1.6, z: 0}
   minOrderDelay: 2
@@ -217,7 +240,6 @@ MonoBehaviour:
   minEatSeconds: 8
   maxEatSeconds: 12
   billIcon: {fileID: 0}
-  angryIcon: {fileID: 0}
   chickenSprite: {fileID: 21300000, guid: 0d0d4d6827467064f9e13d7c7fd1f5ea, type: 3}
   friesSprite: {fileID: 21300000, guid: 8e78f254a43696f4b9db23ccbb32431a, type: 3}
   burgerSprite: {fileID: 21300000, guid: 5118c0b71dec6e646ac53ea95bac0524, type: 3}

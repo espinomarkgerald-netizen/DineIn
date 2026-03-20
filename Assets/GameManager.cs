@@ -90,6 +90,13 @@ public class GameDayManager : MonoBehaviour
     [SerializeField] private TMP_Text timerText;
     [SerializeField] private Slider progressBar;
 
+    [Header("Fail Bars")]
+    [SerializeField] private Slider angryBar;
+    [SerializeField] private Slider neutralBar;
+    [SerializeField] private int angryFailLimit = 3;
+    [SerializeField] private int neutralFailLimit = 5;
+    [SerializeField] private float failBarSmoothSpeed = 8f;
+
     [Header("Day Intro UI")]
     [SerializeField] private GameObject dayIntroPanel;
     [SerializeField] private TMP_Text dayIntroTitleText;
@@ -136,6 +143,8 @@ public class GameDayManager : MonoBehaviour
 
     private bool passedCurrentDay;
     private int lastDayStars;
+    private float angryBarVisual;
+    private float neutralBarVisual;
 
     public bool DayRunning => dayRunning;
     public int CurrentDayIndex => currentDayIndex;
@@ -151,6 +160,9 @@ public class GameDayManager : MonoBehaviour
         }
 
         Instance = this;
+
+        if (resultsPanel != null)
+            resultsPanel.SetActive(false);
 
         ResolveManagerComponents();
         ValidateDays();
@@ -179,6 +191,7 @@ public class GameDayManager : MonoBehaviour
         }
 
         RefreshUI();
+        SetupFailBars(true);
 
         int pendingDayIndex = LoadPendingDayIndex();
         Debug.Log("[GameDayManager] Pending day index = " + pendingDayIndex);
@@ -201,6 +214,8 @@ public class GameDayManager : MonoBehaviour
 
     private void Update()
     {
+        UpdateFailBarsSmooth();
+
         if (!dayRunning)
             return;
 
@@ -216,6 +231,13 @@ public class GameDayManager : MonoBehaviour
         }
 
         RefreshUI();
+        UpdateFailBarsSmooth();
+
+        if (angryCustomers >= angryFailLimit || neutralCustomers >= neutralFailLimit)
+        {
+            EndDay();
+            return;
+        }
 
         if (timeRemaining <= 0f)
             EndDay();
@@ -274,6 +296,49 @@ public class GameDayManager : MonoBehaviour
         }
     }
 
+    private void SetupFailBars(bool snapToCurrent)
+    {
+        if (angryBar != null)
+        {
+            angryBar.minValue = 0f;
+            angryBar.maxValue = angryFailLimit;
+
+            if (snapToCurrent)
+                angryBarVisual = angryCustomers;
+
+            angryBar.value = angryBarVisual;
+        }
+
+        if (neutralBar != null)
+        {
+            neutralBar.minValue = 0f;
+            neutralBar.maxValue = neutralFailLimit;
+
+            if (snapToCurrent)
+                neutralBarVisual = neutralCustomers;
+
+            neutralBar.value = neutralBarVisual;
+        }
+    }
+
+    private void UpdateFailBarsSmooth()
+    {
+        angryBarVisual = Mathf.Lerp(angryBarVisual, angryCustomers, Time.deltaTime * failBarSmoothSpeed);
+        neutralBarVisual = Mathf.Lerp(neutralBarVisual, neutralCustomers, Time.deltaTime * failBarSmoothSpeed);
+
+        if (Mathf.Abs(angryBarVisual - angryCustomers) < 0.01f)
+            angryBarVisual = angryCustomers;
+
+        if (Mathf.Abs(neutralBarVisual - neutralCustomers) < 0.01f)
+            neutralBarVisual = neutralCustomers;
+
+        if (angryBar != null)
+            angryBar.value = angryBarVisual;
+
+        if (neutralBar != null)
+            neutralBar.value = neutralBarVisual;
+    }
+
     public void ShowDayIntro(int dayIndex)
     {
         if (days == null || days.Length == 0)
@@ -300,6 +365,7 @@ public class GameDayManager : MonoBehaviour
 
         SaveCurrentDayIndex(currentDayIndex);
         RefreshUI();
+        SetupFailBars(true);
 
         Debug.Log("[GameDayManager] ShowDayIntro -> currentDayIndex = " + currentDayIndex + " | dayNumber = " + CurrentDayNumber);
     }
@@ -353,6 +419,7 @@ public class GameDayManager : MonoBehaviour
         spawnRoutine = StartCoroutine(SpawnCustomersRoutine());
 
         RefreshUI();
+        SetupFailBars(true);
 
         Debug.Log("[GameDayManager] StartDay -> currentDayIndex = " + currentDayIndex + " | dayNumber = " + CurrentDayNumber + " | dayLengthMinutes = " + settings.dayLengthMinutes);
     }
@@ -435,6 +502,9 @@ public class GameDayManager : MonoBehaviour
         neutralCustomers = 0;
         angryCustomers = 0;
 
+        angryBarVisual = 0f;
+        neutralBarVisual = 0f;
+
         seatedGroupsDone = 0;
         ordersTakenDone = 0;
         ordersProcessedDone = 0;
@@ -457,6 +527,8 @@ public class GameDayManager : MonoBehaviour
                     taskProgress.Add(task.taskType, 0);
             }
         }
+
+        SetupFailBars(true);
     }
 
     private IEnumerator SpawnCustomersRoutine()
@@ -578,8 +650,6 @@ public class GameDayManager : MonoBehaviour
 
     private void RefreshUI()
     {
-        DaySettings settings = GetCurrentSettings();
-
         if (dayText != null)
             dayText.text = "Day " + CurrentDayNumber;
 
@@ -695,8 +765,8 @@ public class GameDayManager : MonoBehaviour
             }
 
             sb.AppendLine("Happy: " + happyCustomers);
-            sb.AppendLine("Neutral: " + neutralCustomers);
-            sb.AppendLine("Angry: " + angryCustomers);
+            sb.AppendLine("Unhappy: " + neutralCustomers + " / " + neutralFailLimit);
+            sb.AppendLine("Angry: " + angryCustomers + " / " + angryFailLimit);
 
             resultsSummaryText.text = sb.ToString();
         }
@@ -834,6 +904,9 @@ public class GameDayManager : MonoBehaviour
             return;
 
         neutralCustomers++;
+
+        if (neutralCustomers >= neutralFailLimit)
+            EndDay();
     }
 
     public void RegisterAngryCustomer()
@@ -842,6 +915,9 @@ public class GameDayManager : MonoBehaviour
             return;
 
         angryCustomers++;
+
+        if (angryCustomers >= angryFailLimit)
+            EndDay();
     }
 
     public int GetCurrentStarsPreview()

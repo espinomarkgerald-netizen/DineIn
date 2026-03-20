@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-public class FoodTrayInteractable : MonoBehaviour, IInteractable
+public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTaskTarget
 {
     public enum TrayMode { None, Delivery, Cleanup }
 
@@ -17,14 +17,16 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable
     [SerializeField] private SinkInteractable sink;
     [SerializeField] private bool autoGoSinkOnCleanupPickup = true;
 
+    [Header("Interact")]
+    [SerializeField] private float interactRadius = 1.2f;
+
     private GameObject uiInstance;
     private TrayPickupQueue queueOwner;
     private TrayMode mode = TrayMode.None;
+    private bool pickupRequested;
 
     public Transform StandPoint => pickupPoint != null ? pickupPoint : transform;
     public bool AutoReturnHome => false;
-
-    private bool pickupRequested;
 
     private void Awake()
     {
@@ -45,6 +47,17 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable
             queueOwner.Unregister(this);
 
         HideUI();
+    }
+
+    public float GetInteractRadius()
+    {
+        return interactRadius;
+    }
+
+    public void OnTaskCancelled()
+    {
+        pickupRequested = false;
+        RefreshUI();
     }
 
     public void SetDeliveryPickable(TrayPickupQueue queue)
@@ -69,8 +82,6 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable
 
     public void SetCleanupPickable(bool value)
     {
-        Debug.Log("[Tray] SetCleanupPickable called: " + value);
-
         if (queueOwner != null)
             queueOwner.Unregister(this);
 
@@ -120,6 +131,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable
         if (!CanInteractWithWarning())
         {
             pickupRequested = false;
+            RefreshUI();
             return;
         }
 
@@ -130,12 +142,14 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable
             if (WaiterHands.Instance == null)
             {
                 pickupRequested = false;
+                RefreshUI();
                 return;
             }
 
             if (!WaiterHands.Instance.PickupTray(tray))
             {
                 pickupRequested = false;
+                RefreshUI();
                 return;
             }
 
@@ -147,12 +161,14 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable
             if (BusserHands.Instance == null)
             {
                 pickupRequested = false;
+                RefreshUI();
                 return;
             }
 
             if (!BusserHands.Instance.PickupTray(tray))
             {
                 pickupRequested = false;
+                RefreshUI();
                 return;
             }
         }

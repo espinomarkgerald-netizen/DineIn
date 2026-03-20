@@ -1,8 +1,10 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.AI;
+using UnityEngine.UI;
 
 public class CustomerGroup : MonoBehaviour
 {
@@ -19,7 +21,8 @@ public class CustomerGroup : MonoBehaviour
         Eating,
         NeedsBill,
         Leaving,
-        AngryLeft
+        AngryLeft,
+        UnhappyLeft
     }
 
     public enum FoodType { Chicken, Fries, Burger }
@@ -52,8 +55,47 @@ public class CustomerGroup : MonoBehaviour
     [Header("UI Prefabs")]
     public GameObject orderBubblePrefab;
     public GameObject billBubblePrefab;
-    public GameObject angryBubblePrefab;
     public GameObject tableNumberPrefab;
+
+    [Header("Customer Thoughts")]
+    [SerializeField] private GameObject thoughtBubblePrefab;
+    [SerializeField] private Vector3 thoughtBubbleOffset = new Vector3(0f, 2.8f, 0f);
+    [SerializeField] private float thoughtBubbleDuration = 1.5f;
+
+    [Header("Mood Face Sprites")]
+    [SerializeField] private Sprite happyFaceSprite;
+    [SerializeField] private Sprite unhappyFaceSprite;
+    [SerializeField] private Sprite angryFaceSprite;
+
+    [Header("Happy Comments")]
+    [SerializeField] private string[] happyComments =
+    {
+        "That was great!",
+        "Nice service!",
+        "Everything was perfect.",
+        "We enjoyed it!",
+        "We'll come back again."
+    };
+
+    [Header("Unhappy Comments")]
+    [SerializeField] private string[] unhappyComments =
+    {
+        "We've been waiting too long.",
+        "No one took our order.",
+        "Let's just leave.",
+        "This is taking forever.",
+        "We're done waiting."
+    };
+
+    [Header("Angry Comments")]
+    [SerializeField] private string[] angryComments =
+    {
+        "This isn't what we ordered!",
+        "Wrong order!",
+        "This service is terrible!",
+        "That's not our food!",
+        "Unbelievable."
+    };
 
     [Header("UI Offsets")]
     public Vector3 bubbleOffset = new Vector3(0, 2.2f, 0);
@@ -71,7 +113,6 @@ public class CustomerGroup : MonoBehaviour
 
     [Header("Sprites")]
     public Sprite billIcon;
-    public Sprite angryIcon;
     public Sprite chickenSprite;
     public Sprite friesSprite;
     public Sprite burgerSprite;
@@ -82,6 +123,17 @@ public class CustomerGroup : MonoBehaviour
     [Header("Leaving / Exit")]
     public Transform exitPoint;
     public float exitFormationSpacing = 0.8f;
+
+    [Header("Remake")]
+    [SerializeField] private float remakeBubbleDelay = 1.2f;
+    [SerializeField] private int maxWrongDeliveriesBeforeLeave = 3;
+
+    private bool waitingForRemake;
+    private bool angryResultLocked;
+    private bool firstDeliveryCompleted;
+    private int wrongDeliveryCount;
+
+
 
     [HideInInspector] public Booth assignedBooth;
 
@@ -103,20 +155,24 @@ public class CustomerGroup : MonoBehaviour
     private bool leavingRoutineStarted;
     private bool isOrderPaused;
 
+    private bool receivedWrongOrder;
+    private bool shouldShowAngryThoughtOnLeave;
+
     private bool finalResultReported;
     private FinalResult finalResult = FinalResult.None;
 
     private readonly HashSet<CustomerAgent> seatedMembers = new HashSet<CustomerAgent>();
     private Coroutine seatingRoutine;
+    private Coroutine thoughtRoutine;
 
     private Canvas gameplayCanvas;
     private Transform groupUiAnchor;
 
     private GameObject orderBubbleInstance;
     private GameObject billBubbleInstance;
-    private GameObject angryBubbleInstance;
     private GameObject tableNumberInstance;
     private GameObject moneyBubbleInstance;
+    private GameObject thoughtBubbleInstance;
 
     private int pendingPaymentAmount;
 
@@ -138,6 +194,13 @@ public class CustomerGroup : MonoBehaviour
     {
         if (groupUiAnchor != null)
             groupUiAnchor.position = GetMembersCenterWorld();
+    }
+
+    private void SetState(GroupState newState)
+    {
+        if (state == newState) return;
+        state = newState;
+        Debug.Log($"[CustomerGroup] {name} -> {state}");
     }
 
     private void ResolveCanvas()
@@ -168,6 +231,7 @@ public class CustomerGroup : MonoBehaviour
 
         GameObject tagged = null;
         try { tagged = GameObject.FindGameObjectWithTag("ExitPoint"); } catch { }
+
         if (tagged != null)
         {
             exitPoint = tagged.transform;
@@ -208,7 +272,7 @@ public class CustomerGroup : MonoBehaviour
         hasBeenAssigned = true;
         assignedBooth = booth;
         seatedMembers.Clear();
-        state = GroupState.WalkingToBooth;
+        SetState(GroupState.WalkingToBooth);
 
         OnGroupAssignedToBooth?.Invoke(this);
 
@@ -260,7 +324,7 @@ public class CustomerGroup : MonoBehaviour
             yield return null;
         }
 
-        state = GroupState.Seated;
+        SetState(GroupState.Seated);
         SetSelected(false);
 
         OnGroupSeated?.Invoke(this);
@@ -274,15 +338,14 @@ public class CustomerGroup : MonoBehaviour
 
     private IEnumerator ReadyToOrderFlow()
     {
-        state = GroupState.WaitingToOrder;
+        SetState(GroupState.WaitingToOrder);
 
         float delay = UnityEngine.Random.Range(minOrderDelay, maxOrderDelay);
         yield return new WaitForSeconds(delay);
 
         GenerateRandomOrder();
+        SetState(GroupState.ReadyToOrder);
         SpawnOrderBubble();
-
-        state = GroupState.ReadyToOrder;
 
         float patience = UnityEngine.Random.Range(minOrderPatience, maxOrderPatience);
         float timeLeft = patience;
@@ -316,7 +379,7 @@ public class CustomerGroup : MonoBehaviour
             if (timeLeft <= 0f)
             {
                 if (shaker != null) shaker.StopShake(true);
-                BecomeAngryAndLeave();
+                BecomeUnhappyAndLeave();
                 yield break;
             }
 
@@ -327,6 +390,12 @@ public class CustomerGroup : MonoBehaviour
     private void GenerateRandomOrder()
     {
         hasConfirmedOrder = false;
+        receivedWrongOrder = false;
+        waitingForRemake = false;
+        angryResultLocked = false;
+        shouldShowAngryThoughtOnLeave = false;
+        firstDeliveryCompleted = false;
+        wrongDeliveryCount = 0;
 
         chosenFood = (FoodType)UnityEngine.Random.Range(0, Enum.GetValues(typeof(FoodType)).Length);
         chosenDrink = (DrinkType)UnityEngine.Random.Range(0, Enum.GetValues(typeof(DrinkType)).Length);
@@ -359,24 +428,72 @@ public class CustomerGroup : MonoBehaviour
 
     private void SpawnOrderBubble()
     {
-        if (orderBubblePrefab == null) return;
+        if (orderBubblePrefab == null)
+        {
+            Debug.LogWarning($"[CustomerGroup] orderBubblePrefab missing on {name}");
+            return;
+        }
+
         ResolveCanvas();
-        if (gameplayCanvas == null) return;
+        if (gameplayCanvas == null)
+        {
+            Debug.LogWarning($"[CustomerGroup] gameplayCanvas missing on {name}");
+            return;
+        }
 
         ClearOrderBubble();
 
         orderBubbleInstance = Instantiate(orderBubblePrefab, gameplayCanvas.transform);
+        orderBubbleInstance.name = $"{name}_OrderBubble";
+        orderBubbleInstance.SetActive(true);
+        orderBubbleInstance.transform.SetAsLastSibling();
+
+        RectTransform rootRect = orderBubbleInstance.GetComponent<RectTransform>();
+        if (rootRect != null)
+        {
+            rootRect.localScale = Vector3.one;
+            rootRect.anchoredPosition3D = Vector3.zero;
+        }
+
+        CanvasGroup[] canvasGroups = orderBubbleInstance.GetComponentsInChildren<CanvasGroup>(true);
+        for (int i = 0; i < canvasGroups.Length; i++)
+        {
+            canvasGroups[i].alpha = 1f;
+            canvasGroups[i].interactable = true;
+            canvasGroups[i].blocksRaycasts = true;
+        }
+
+        Image[] images = orderBubbleInstance.GetComponentsInChildren<Image>(true);
+        for (int i = 0; i < images.Length; i++)
+            images[i].enabled = true;
 
         var follow = orderBubbleInstance.GetComponentInChildren<UIFollowWorldPoint>(true);
         if (follow != null)
+        {
+            follow.enabled = true;
             follow.Init(groupUiAnchor, bubbleOffset, GetFollowCam());
+        }
+        else
+        {
+            Debug.LogWarning($"[CustomerGroup] UIFollowWorldPoint missing on order bubble prefab for {name}");
+        }
 
         var ui = orderBubbleInstance.GetComponentInChildren<OrderBubbleUI>(true);
         if (ui != null)
         {
-            ui.SetOrder(GetFoodSprite(), GetDrinkSprite());
+            ui.gameObject.SetActive(true);
             ui.Init(this);
+            ui.SetOrder(GetFoodSprite(), GetDrinkSprite());
+            ui.SetPatience(1f);
         }
+        else
+        {
+            Debug.LogWarning($"[CustomerGroup] OrderBubbleUI missing on order bubble prefab for {name}");
+        }
+
+        Canvas.ForceUpdateCanvases();
+
+        Debug.Log($"[CustomerGroup] Spawned order bubble for {name} | food={chosenFood} | drink={chosenDrink}");
     }
 
     public void TakeOrderFromWaiter(FoodType food, DrinkType drink)
@@ -391,19 +508,25 @@ public class CustomerGroup : MonoBehaviour
             if (shaker != null) shaker.StopShake(true);
         }
 
-        currentOrderNumber = OrderNumberManager.Instance != null
-            ? OrderNumberManager.Instance.GetNextOrderNumber()
-            : UnityEngine.Random.Range(100, 999);
+        if (currentOrderNumber < 0)
+        {
+            currentOrderNumber = OrderNumberManager.Instance != null
+                ? OrderNumberManager.Instance.GetNextOrderNumber()
+                : UnityEngine.Random.Range(100, 999);
+        }
 
-        state = GroupState.OrderTaken;
+        SetState(GroupState.OrderTaken);
 
         ClearOrderBubble();
         SpawnTableNumber();
 
-        GameDayManager.Instance?.RegisterOrderTaken();
+        if (!waitingForRemake)
+            GameDayManager.Instance?.RegisterOrderTaken();
 
         if (OrderFlowManager.Instance != null)
             OrderFlowManager.Instance.SpawnTicket(this);
+
+        waitingForRemake = false;
     }
 
     public void ConfirmOrder(FoodType food, DrinkType drink)
@@ -436,20 +559,113 @@ public class CustomerGroup : MonoBehaviour
             num.SetNumber(currentOrderNumber);
     }
 
-    public void ReceiveFoodFromWaiter()
+    private IEnumerator ShowRemakeOrderAfterDelay()
     {
-        if (state != GroupState.OrderTaken) return;
+        yield return new WaitForSeconds(remakeBubbleDelay);
+
+        if (state != GroupState.ReadyToOrder)
+            yield break;
+
+        SpawnOrderBubble();
+    }
+
+    public void ReceiveFoodFromWaiter(FoodType deliveredFood, DrinkType deliveredDrink)
+    {
+        if (state != GroupState.OrderTaken)
+            return;
+
+        bool correctFood = deliveredFood == chosenFood;
+        bool correctDrink = deliveredDrink == chosenDrink;
+        bool isCorrectOrder = correctFood && correctDrink;
 
         if (assignedBooth != null)
             assignedBooth.ClearMenuBook();
 
         ClearTableNumber();
 
-        state = GroupState.Eating;
+        firstDeliveryCompleted = true;
+
+        if (!isCorrectOrder)
+        {
+            receivedWrongOrder = true;
+            waitingForRemake = true;
+            shouldShowAngryThoughtOnLeave = true;
+            wrongDeliveryCount++;
+
+            if (!angryResultLocked)
+            {
+                angryResultLocked = true;
+                ReportFinalResult(FinalResult.Angry);
+            }
+
+            if (wrongDeliveryCount >= maxWrongDeliveriesBeforeLeave)
+            {
+                ShowThought(angryComments, angryFaceSprite);
+                SetState(GroupState.AngryLeft);
+
+                ClearOrderBubble();
+                ClearBillBubble();
+                ClearTableNumber();
+                ClearMoneyBubble();
+
+                StartLeaving(false);
+                return;
+            }
+
+            SetState(GroupState.ReadyToOrder);
+            ShowThought(angryComments, angryFaceSprite);
+
+            ClearOrderBubble();
+            StartCoroutine(ShowRemakeOrderAfterDelay());
+            return;
+        }
+
+        waitingForRemake = false;
+        SetState(GroupState.Eating);
 
         GameDayManager.Instance?.RegisterFoodDelivered();
-
         StartCoroutine(EatThenNeedBill());
+    }
+
+    public void ReceiveWrongFoodFromWaiter()
+    {
+        if (state != GroupState.OrderTaken && state != GroupState.Eating)
+            return;
+
+        receivedWrongOrder = true;
+        waitingForRemake = true;
+        shouldShowAngryThoughtOnLeave = true;
+        wrongDeliveryCount++;
+
+        if (!angryResultLocked)
+        {
+            angryResultLocked = true;
+            ReportFinalResult(FinalResult.Angry);
+        }
+
+        if (wrongDeliveryCount >= maxWrongDeliveriesBeforeLeave)
+        {
+            ShowThought(angryComments, angryFaceSprite);
+            SetState(GroupState.AngryLeft);
+
+            ClearOrderBubble();
+            ClearBillBubble();
+            ClearTableNumber();
+            ClearMoneyBubble();
+
+            StartLeaving(false);
+            return;
+        }
+
+        if (assignedBooth != null)
+            assignedBooth.ClearMenuBook();
+
+        ClearTableNumber();
+        SetState(GroupState.ReadyToOrder);
+        ShowThought(angryComments, angryFaceSprite);
+
+        ClearOrderBubble();
+        StartCoroutine(ShowRemakeOrderAfterDelay());
     }
 
     public void ReceiveBillFromWaiter()
@@ -474,7 +690,7 @@ public class CustomerGroup : MonoBehaviour
         float eat = UnityEngine.Random.Range(minEatSeconds, maxEatSeconds);
         yield return new WaitForSeconds(eat);
 
-        state = GroupState.NeedsBill;
+        SetState(GroupState.NeedsBill);
         SpawnBillBubble();
     }
 
@@ -519,7 +735,7 @@ public class CustomerGroup : MonoBehaviour
 
     private int GetOrderTotal()
     {
-        return GetFoodPrice(confirmedFood) + GetDrinkPrice(confirmedDrink);
+        return GetFoodPrice(chosenFood) + GetDrinkPrice(chosenDrink);
     }
 
     private int GetFoodPrice(FoodType food)
@@ -569,30 +785,47 @@ public class CustomerGroup : MonoBehaviour
     {
         if (state != GroupState.NeedsBill) return;
 
-        ReportFinalResult(FinalResult.Happy);
+        if (angryResultLocked || receivedWrongOrder)
+        {
+            ShowThought(angryComments, angryFaceSprite);
+        }
+        else
+        {
+            ReportFinalResult(FinalResult.Happy);
+            ShowThought(happyComments, happyFaceSprite);
+        }
 
-        state = GroupState.Leaving;
+        SetState(GroupState.Leaving);
         StartLeaving(false);
     }
 
-    private void BecomeAngryAndLeave()
+    public bool IsWaitingForRemake()
     {
-        ReportFinalResult(FinalResult.Angry);
+        return waitingForRemake;
+    }
 
-        state = GroupState.AngryLeft;
+    private void BecomeUnhappyAndLeave()
+    {
+        ReportFinalResult(FinalResult.Neutral);
+        ShowThought(unhappyComments, unhappyFaceSprite);
+
+        SetState(GroupState.UnhappyLeft);
 
         ClearOrderBubble();
         ClearBillBubble();
         ClearTableNumber();
+        ClearMoneyBubble();
 
-        SpawnAngryBubble();
-        StartLeaving(true);
+        StartLeaving(false);
     }
 
-    private void StartLeaving(bool showAngryBubble)
+    private void StartLeaving(bool unused)
     {
         if (leavingRoutineStarted) return;
         leavingRoutineStarted = true;
+
+        if (shouldShowAngryThoughtOnLeave && state == GroupState.Leaving)
+            ShowThought(angryComments, angryFaceSprite);
 
         ResolveExitPoint();
 
@@ -607,9 +840,6 @@ public class CustomerGroup : MonoBehaviour
 
         if (assignedBooth != null)
             assignedBooth.ClearCurrentGroup();
-
-        if (!showAngryBubble)
-            ClearAngryBubble();
 
         StartCoroutine(LeaveToExitFlow());
     }
@@ -725,23 +955,94 @@ public class CustomerGroup : MonoBehaviour
             ui.Init(this);
     }
 
-    private void SpawnAngryBubble()
+    private void ShowThought(string[] comments, Sprite faceSprite)
     {
-        if (angryBubblePrefab == null) return;
+        if (thoughtBubblePrefab == null) return;
         ResolveCanvas();
         if (gameplayCanvas == null) return;
 
-        ClearAngryBubble();
+        string message = GetRandomComment(comments);
+        if (string.IsNullOrWhiteSpace(message)) return;
 
-        angryBubbleInstance = Instantiate(angryBubblePrefab, gameplayCanvas.transform);
+        if (thoughtRoutine != null)
+            StopCoroutine(thoughtRoutine);
 
-        var follow = angryBubbleInstance.GetComponentInChildren<UIFollowWorldPoint>(true);
+        ClearThoughtBubble();
+
+        thoughtBubbleInstance = Instantiate(thoughtBubblePrefab, gameplayCanvas.transform);
+
+        var follow = thoughtBubbleInstance.GetComponentInChildren<UIFollowWorldPoint>(true);
         if (follow != null)
-            follow.Init(groupUiAnchor, bubbleOffset, GetFollowCam());
+            follow.Init(groupUiAnchor, thoughtBubbleOffset, GetFollowCam());
 
-        var ui = angryBubbleInstance.GetComponentInChildren<AngryBubbleUI>(true);
-        if (ui != null && angryIcon != null)
-            ui.SetIcon(angryIcon);
+        TMP_Text text = thoughtBubbleInstance.GetComponentInChildren<TMP_Text>(true);
+        if (text != null)
+            text.text = message;
+
+        Transform moodsHolder = FindChildRecursive(thoughtBubbleInstance.transform, "Moods");
+        if (moodsHolder != null)
+        {
+            Image moodImage = moodsHolder.GetComponent<Image>();
+
+            if (moodImage == null)
+                moodImage = moodsHolder.GetComponentInChildren<Image>(true);
+
+            if (moodImage != null)
+            {
+                moodImage.sprite = faceSprite;
+                moodImage.enabled = true;
+            }
+            else
+            {
+                Debug.LogWarning("[CustomerGroup] No Image found in Moods");
+            }
+        }
+        else
+        {
+            Debug.LogWarning("[CustomerGroup] Moods object not found in prefab");
+        }
+
+        thoughtRoutine = StartCoroutine(HideThoughtBubbleAfterDelay());
+    }
+
+    private IEnumerator HideThoughtBubbleAfterDelay()
+    {
+        yield return new WaitForSeconds(thoughtBubbleDuration);
+        ClearThoughtBubble();
+        thoughtRoutine = null;
+    }
+
+    private string GetRandomComment(string[] comments)
+    {
+        if (comments == null || comments.Length == 0)
+            return string.Empty;
+
+        List<string> valid = new List<string>();
+        for (int i = 0; i < comments.Length; i++)
+        {
+            if (!string.IsNullOrWhiteSpace(comments[i]))
+                valid.Add(comments[i]);
+        }
+
+        if (valid.Count == 0)
+            return string.Empty;
+
+        return valid[UnityEngine.Random.Range(0, valid.Count)];
+    }
+
+    private Transform FindChildRecursive(Transform root, string childName)
+    {
+        if (root == null) return null;
+        if (root.name == childName) return root;
+
+        for (int i = 0; i < root.childCount; i++)
+        {
+            Transform found = FindChildRecursive(root.GetChild(i), childName);
+            if (found != null)
+                return found;
+        }
+
+        return null;
     }
 
     private void ReportFinalResult(FinalResult result)
@@ -791,9 +1092,9 @@ public class CustomerGroup : MonoBehaviour
 
         ClearOrderBubble();
         ClearBillBubble();
-        ClearAngryBubble();
         ClearTableNumber();
         ClearMoneyBubble();
+        ClearThoughtBubble();
 
         if (assignedBooth != null)
             assignedBooth.ClearBoothProps();
@@ -820,13 +1121,6 @@ public class CustomerGroup : MonoBehaviour
         billBubbleInstance = null;
     }
 
-    public void ClearAngryBubble()
-    {
-        if (angryBubbleInstance == null) return;
-        Destroy(angryBubbleInstance);
-        angryBubbleInstance = null;
-    }
-
     public void ClearTableNumber()
     {
         if (tableNumberInstance == null) return;
@@ -839,6 +1133,13 @@ public class CustomerGroup : MonoBehaviour
         if (moneyBubbleInstance == null) return;
         Destroy(moneyBubbleInstance);
         moneyBubbleInstance = null;
+    }
+
+    private void ClearThoughtBubble()
+    {
+        if (thoughtBubbleInstance == null) return;
+        Destroy(thoughtBubbleInstance);
+        thoughtBubbleInstance = null;
     }
 
     private Vector3 GetMembersCenterWorld()
@@ -857,4 +1158,6 @@ public class CustomerGroup : MonoBehaviour
 
         return count > 0 ? sum / count : transform.position;
     }
+
+    
 }

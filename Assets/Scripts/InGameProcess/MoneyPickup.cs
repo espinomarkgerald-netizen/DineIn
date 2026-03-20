@@ -10,6 +10,7 @@ public class MoneyPickup : MonoBehaviour, IInteractable
     [SerializeField] private Transform standPoint;
     [SerializeField] private bool autoReturnHome = false;
     [SerializeField] private bool disableColliderWhileHeld = true;
+    [SerializeField] private float interactRadius = 1.15f;
 
     private Collider cachedCol;
 
@@ -32,6 +33,11 @@ public class MoneyPickup : MonoBehaviour, IInteractable
 
         if (cachedCol != null)
             cachedCol.enabled = true;
+    }
+
+    public float GetInteractRadius()
+    {
+        return interactRadius;
     }
 
     public bool CanInteract()
