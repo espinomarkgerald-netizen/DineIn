@@ -19,7 +19,7 @@ public class CustomerGroupClickable : MonoBehaviour
 
             var tray = WaiterHands.Instance.holdingTray;
             if (tray == null) return;
-
+    
             WaiterHands.Instance.ClearTray();
             Destroy(tray.gameObject);
 
@@ -28,7 +28,6 @@ public class CustomerGroupClickable : MonoBehaviour
                 tray.DeliveredDrink
             );
 
-            Debug.Log($"[Waiter] Delivered food for #{group.currentOrderNumber}");
             return;
         }
 

@@ -10,17 +10,12 @@ public class LobbyLineManager : MonoBehaviour
     public float sideSpacing = 0.6f;
     public float backSpacing = 0.6f;
 
-    // slot index -> group currently occupying that slot (waiting in line only)
     private CustomerGroup[] slots;
 
     private void Awake()
     {
         slots = new CustomerGroup[linePoints.Length];
     }
-
-    // ================================
-    // PUBLIC API
-    // ================================
 
     public bool TryJoinLine(CustomerGroup group)
     {
@@ -35,37 +30,27 @@ public class LobbyLineManager : MonoBehaviour
             return false;
         }
 
-        // track them in the line
         slots[slotIndex] = group;
 
-        // subscribe to events
         group.OnGroupAssignedToBooth -= HandleGroupAssignedToBooth;
         group.OnGroupAssignedToBooth += HandleGroupAssignedToBooth;
 
         group.OnGroupSeated -= HandleGroupSeated;
         group.OnGroupSeated += HandleGroupSeated;
 
-        // put them in position
         MoveGroupToSlot(group, slotIndex);
         return true;
     }
 
-    // ================================
-    // EVENT HANDLERS
-    // ================================
-
-    // Player assigned this group -> remove from the line tracking so it won't get moved to other line points
     private void HandleGroupAssignedToBooth(CustomerGroup group)
     {
         int idx = FindSlot(group);
         if (idx != -1)
             slots[idx] = null;
 
-        // IMPORTANT: compress the line to remove gaps
         RebuildLine();
     }
 
-    // A group finished seating -> they are no longer in line, compress remaining groups forward
     private void HandleGroupSeated(CustomerGroup group)
     {
         int idx = FindSlot(group);
@@ -78,15 +63,10 @@ public class LobbyLineManager : MonoBehaviour
         RebuildLine();
     }
 
-    // ================================
-    // CORE LOGIC
-    // ================================
-
     private void RebuildLine()
     {
         CleanupSlots();
 
-        // collect only valid "waiting-in-line" groups in order (front->back)
         List<CustomerGroup> waiting = new List<CustomerGroup>(slots.Length);
 
         for (int i = 0; i < slots.Length; i++)
@@ -94,7 +74,6 @@ public class LobbyLineManager : MonoBehaviour
             var g = slots[i];
             if (g == null) continue;
 
-            // If they are already going to booth or seated, they should not be in the lobby line.
             if (g.state == CustomerGroup.GroupState.WalkingToBooth ||
                 g.state == CustomerGroup.GroupState.Seated)
                 continue;
@@ -102,7 +81,6 @@ public class LobbyLineManager : MonoBehaviour
             waiting.Add(g);
         }
 
-        // clear all slots then repack from front
         for (int i = 0; i < slots.Length; i++)
             slots[i] = null;
 
@@ -124,14 +102,12 @@ public class LobbyLineManager : MonoBehaviour
                 continue;
             }
 
-            // destroyed object
             if (g.gameObject == null)
             {
                 slots[i] = null;
                 continue;
             }
 
-            // don't let assigned/seated groups occupy a line slot
             if (g.state == CustomerGroup.GroupState.WalkingToBooth ||
                 g.state == CustomerGroup.GroupState.Seated)
             {
@@ -140,7 +116,6 @@ public class LobbyLineManager : MonoBehaviour
         }
     }
 
-    // New groups join after the last currently occupied slot
     private int GetNextBackSlot()
     {
         for (int i = slots.Length - 1; i >= 0; i--)
@@ -202,5 +177,26 @@ public class LobbyLineManager : MonoBehaviour
         }
 
         group.transform.rotation = Quaternion.LookRotation(p.forward, Vector3.up);
+    }
+
+    public bool IsGroupInLine(CustomerGroup group)
+    {
+        if (group == null) return false;
+
+        for (int i = 0; i < slots.Length; i++)
+        {
+            if (slots[i] == group)
+                return true;
+        }
+
+        return false;
+    }
+
+    public bool IsFrontOfLine(CustomerGroup group)
+    {
+        if (group == null) return false;
+        if (slots == null || slots.Length == 0) return false;
+
+        return slots[0] == group;
     }
 }

@@ -29962,7 +29962,7 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 248912163}
   m_HandleRect: {fileID: 248912162}
   m_Direction: 0
-  m_Value: 0
+  m_Value: 0.00000012027029
   m_Size: 0.6770216
   m_NumberOfSteps: 0
   m_OnValueChanged:
@@ -31301,6 +31301,14 @@ PrefabInstance:
     - target: {fileID: 1227087482279948279, guid: bd9f98820ff75af49b7cafd8f3a52e3b, type: 3}
       propertyPath: m_Camera
       value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 1502157315784726028, guid: bd9f98820ff75af49b7cafd8f3a52e3b, type: 3}
+      propertyPath: m_Enabled
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1502157315784726028, guid: bd9f98820ff75af49b7cafd8f3a52e3b, type: 3}
+      propertyPath: m_ApplyRootMotion
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2567571774850542628, guid: bd9f98820ff75af49b7cafd8f3a52e3b, type: 3}
       propertyPath: m_Enabled

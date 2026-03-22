@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -11,8 +12,13 @@ public class CashierRegisterUI : MonoBehaviour
 
     [Header("Current Order")]
     [SerializeField] private TMP_Text tableNumberText;
+
+    [Header("Food")]
     [SerializeField] private Image foodImage;
+    [SerializeField] private Image foodImage2;
     [SerializeField] private TMP_Text foodPriceText;
+
+    [Header("Drink")]
     [SerializeField] private Image drinkImage;
     [SerializeField] private TMP_Text drinkPriceText;
 
@@ -169,6 +175,7 @@ public class CashierRegisterUI : MonoBehaviour
     private void AddChangeInput(int value)
     {
         if (!isOpen) return;
+
         inputChangeAmount += value;
         RefreshInputDisplay();
     }
@@ -203,26 +210,45 @@ public class CashierRegisterUI : MonoBehaviour
 
     private void RefreshOrderDisplay()
     {
-        if (activeGroup == null)
+        if (activeGroup == null || activeGroup.currentOrder == null)
         {
             SetText(tableNumberText, "-");
-            SetOrderImage(foodImage, null);
-            SetOrderImage(drinkImage, null);
-            SetText(foodPriceText, "0.00");
-            SetText(drinkPriceText, "0.00");
+            SetFoodDisplay(null, null, 0);
+            SetDrinkDisplay(null, 0);
             return;
         }
 
         SetText(tableNumberText, activeGroup.currentOrderNumber.ToString());
 
-        int foodPrice = GetFoodPrice(activeGroup.confirmedFood);
-        int drinkPrice = GetDrinkPrice(activeGroup.confirmedDrink);
+        List<string> contents = activeGroup.GetCurrentOrderContents();
 
-        SetOrderImage(foodImage, GetFoodSprite(activeGroup.confirmedFood));
-        SetOrderImage(drinkImage, GetDrinkSprite(activeGroup.confirmedDrink));
+        string firstFood = null;
+        string secondFood = null;
+        string drink = null;
 
-        SetText(foodPriceText, FormatMoney(foodPrice));
-        SetText(drinkPriceText, FormatMoney(drinkPrice));
+        for (int i = 0; i < contents.Count; i++)
+        {
+            string item = contents[i];
+
+            if (IsDrink(item))
+            {
+                if (string.IsNullOrEmpty(drink))
+                    drink = item;
+            }
+            else
+            {
+                if (string.IsNullOrEmpty(firstFood))
+                    firstFood = item;
+                else if (string.IsNullOrEmpty(secondFood))
+                    secondFood = item;
+            }
+        }
+
+        int sharedFoodPrice = activeGroup.currentOrder.unitPrice;
+        int drinkPrice = string.IsNullOrEmpty(drink) ? 0 : 39;
+
+        SetFoodDisplay(GetItemSprite(firstFood), GetItemSprite(secondFood), sharedFoodPrice);
+        SetDrinkDisplay(GetItemSprite(drink), drinkPrice);
     }
 
     private void RefreshTotalsDisplay()
@@ -249,11 +275,8 @@ public class CashierRegisterUI : MonoBehaviour
     private void ResetDisplay()
     {
         SetText(tableNumberText, "-");
-        SetOrderImage(foodImage, null);
-        SetOrderImage(drinkImage, null);
-
-        SetText(foodPriceText, "0.00");
-        SetText(drinkPriceText, "0.00");
+        SetFoodDisplay(null, null, 0);
+        SetDrinkDisplay(null, 0);
 
         SetText(receivedText, "0.00");
         SetText(totalText, "0.00");
@@ -264,18 +287,50 @@ public class CashierRegisterUI : MonoBehaviour
             cashierChangeText.color = normalInputColor;
     }
 
+    private void SetFoodDisplay(Sprite firstSprite, Sprite secondSprite, int sharedPrice)
+    {
+        if (foodImage != null)
+        {
+            foodImage.sprite = firstSprite;
+            foodImage.enabled = firstSprite != null;
+        }
+
+        if (foodImage2 != null)
+        {
+            foodImage2.sprite = secondSprite;
+            foodImage2.enabled = secondSprite != null;
+        }
+
+        if (foodPriceText != null)
+        {
+            if (firstSprite == null)
+                foodPriceText.text = "";
+            else
+                foodPriceText.text = FormatMoney(sharedPrice);
+        }
+    }
+
+    private void SetDrinkDisplay(Sprite sprite, int price)
+    {
+        if (drinkImage != null)
+        {
+            drinkImage.sprite = sprite;
+            drinkImage.enabled = sprite != null;
+        }
+
+        if (drinkPriceText != null)
+        {
+            if (sprite == null)
+                drinkPriceText.text = "";
+            else
+                drinkPriceText.text = FormatMoney(price);
+        }
+    }
+
     private void SetText(TMP_Text textComp, string value)
     {
         if (textComp != null)
             textComp.text = value;
-    }
-
-    private void SetOrderImage(Image img, Sprite sprite)
-    {
-        if (img == null) return;
-
-        img.sprite = sprite;
-        img.enabled = sprite != null;
     }
 
     private string FormatMoney(int value)
@@ -283,46 +338,21 @@ public class CashierRegisterUI : MonoBehaviour
         return value.ToString("0.00");
     }
 
-    private int GetFoodPrice(CustomerGroup.FoodType food)
+    private bool IsDrink(string itemName)
     {
-        switch (food)
-        {
-            case CustomerGroup.FoodType.Chicken: return 99;
-            case CustomerGroup.FoodType.Fries: return 79;
-            case CustomerGroup.FoodType.Burger: return 79;
-            default: return 0;
-        }
+        return itemName == "Coke" || itemName == "Pineapple" || itemName == "Ice Tea";
     }
 
-    private int GetDrinkPrice(CustomerGroup.DrinkType drink)
+    private Sprite GetItemSprite(string itemName)
     {
-        switch (drink)
+        switch (itemName)
         {
-            case CustomerGroup.DrinkType.Coke: return 39;
-            case CustomerGroup.DrinkType.Pineapple: return 39;
-            case CustomerGroup.DrinkType.IceTea: return 39;
-            default: return 0;
-        }
-    }
-
-    private Sprite GetFoodSprite(CustomerGroup.FoodType food)
-    {
-        switch (food)
-        {
-            case CustomerGroup.FoodType.Chicken: return chickenSprite;
-            case CustomerGroup.FoodType.Fries: return friesSprite;
-            case CustomerGroup.FoodType.Burger: return burgerSprite;
-            default: return null;
-        }
-    }
-
-    private Sprite GetDrinkSprite(CustomerGroup.DrinkType drink)
-    {
-        switch (drink)
-        {
-            case CustomerGroup.DrinkType.Coke: return cokeSprite;
-            case CustomerGroup.DrinkType.Pineapple: return pineappleSprite;
-            case CustomerGroup.DrinkType.IceTea: return icedTeaSprite;
+            case "Chicken": return chickenSprite;
+            case "Fries": return friesSprite;
+            case "Burger": return burgerSprite;
+            case "Coke": return cokeSprite;
+            case "Pineapple": return pineappleSprite;
+            case "Ice Tea": return icedTeaSprite;
             default: return null;
         }
     }

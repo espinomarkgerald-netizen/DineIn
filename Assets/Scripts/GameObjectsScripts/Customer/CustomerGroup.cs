@@ -36,6 +36,30 @@ public class CustomerGroup : MonoBehaviour
         Angry
     }
 
+    [Serializable]
+    public class SimpleOrder
+    {
+        public string name;
+        public int quantity = 1;
+        public int unitPrice;
+        public List<string> contents = new List<string>();
+
+        public int TotalPrice => unitPrice * Mathf.Max(1, quantity);
+
+        public string GetDisplayText()
+        {
+            return $"{quantity}x {name}";
+        }
+
+        public void Clear()
+        {
+            name = string.Empty;
+            quantity = 1;
+            unitPrice = 0;
+            contents.Clear();
+        }
+    }
+
     [Header("Runtime")]
     public GroupState state = GroupState.Spawning;
     public List<CustomerAgent> members = new List<CustomerAgent>();
@@ -111,7 +135,7 @@ public class CustomerGroup : MonoBehaviour
     public float minEatSeconds = 3f;
     public float maxEatSeconds = 5f;
 
-    [Header("Sprites")]
+    [Header("Legacy Sprites")]
     public Sprite billIcon;
     public Sprite chickenSprite;
     public Sprite friesSprite;
@@ -128,12 +152,16 @@ public class CustomerGroup : MonoBehaviour
     [SerializeField] private float remakeBubbleDelay = 1.2f;
     [SerializeField] private int maxWrongDeliveriesBeforeLeave = 3;
 
+    [Header("Simple Bundle Orders")]
+    public SimpleOrder currentOrder = new SimpleOrder();
+
+    [Header("Submitted Order")]
+    public SimpleOrder submittedOrder = new SimpleOrder();
+
     private bool waitingForRemake;
     private bool angryResultLocked;
     private bool firstDeliveryCompleted;
     private int wrongDeliveryCount;
-
-
 
     [HideInInspector] public Booth assignedBooth;
 
@@ -174,7 +202,12 @@ public class CustomerGroup : MonoBehaviour
     private GameObject moneyBubbleInstance;
     private GameObject thoughtBubbleInstance;
 
+    public bool HasBeenAssigned => hasBeenAssigned;
+    public Transform UIAnchor => groupUiAnchor;
+
     private int pendingPaymentAmount;
+
+    [HideInInspector] public bool hasBeenGreeted = false;
 
     public void SetOrderPause(bool paused) => isOrderPaused = paused;
 
@@ -183,6 +216,9 @@ public class CustomerGroup : MonoBehaviour
         ResolveCanvas();
         BuildGroupUIAnchor();
         ResolveExitPoint();
+
+        if (currentOrder == null)
+            currentOrder = new SimpleOrder();
     }
 
     private void OnDestroy()
@@ -344,6 +380,14 @@ public class CustomerGroup : MonoBehaviour
         yield return new WaitForSeconds(delay);
 
         GenerateRandomOrder();
+
+        if (currentOrderNumber < 0)
+        {
+            currentOrderNumber = OrderNumberManager.Instance != null
+                ? OrderNumberManager.Instance.GetNextOrderNumber()
+                : UnityEngine.Random.Range(100, 999);
+        }
+
         SetState(GroupState.ReadyToOrder);
         SpawnOrderBubble();
 
@@ -389,6 +433,17 @@ public class CustomerGroup : MonoBehaviour
 
     private void GenerateRandomOrder()
     {
+        ResetOrderFlags();
+
+        if (submittedOrder != null)
+            submittedOrder.Clear();
+
+        GenerateSimpleBundleOrder();
+        SyncLegacyOrderFieldsFromCurrentOrder();
+    }
+
+    private void ResetOrderFlags()
+    {
         hasConfirmedOrder = false;
         receivedWrongOrder = false;
         waitingForRemake = false;
@@ -396,34 +451,196 @@ public class CustomerGroup : MonoBehaviour
         shouldShowAngryThoughtOnLeave = false;
         firstDeliveryCompleted = false;
         wrongDeliveryCount = 0;
-
-        chosenFood = (FoodType)UnityEngine.Random.Range(0, Enum.GetValues(typeof(FoodType)).Length);
-        chosenDrink = (DrinkType)UnityEngine.Random.Range(0, Enum.GetValues(typeof(DrinkType)).Length);
-
-        confirmedFood = chosenFood;
-        confirmedDrink = chosenDrink;
     }
 
-    private Sprite GetFoodSprite()
+    private void GenerateSimpleBundleOrder()
     {
-        switch (chosenFood)
+        if (currentOrder == null)
+            currentOrder = new SimpleOrder();
+
+        currentOrder.Clear();
+
+        int random = UnityEngine.Random.Range(0, 6);
+
+        switch (random)
         {
-            case FoodType.Chicken: return chickenSprite;
-            case FoodType.Fries: return friesSprite;
-            case FoodType.Burger: return burgerSprite;
-            default: return null;
+            // Solo food
+            case 0:
+                currentOrder.name = "Chicken";
+                currentOrder.unitPrice = 299;
+                currentOrder.contents.Add("Chicken");
+                break;
+
+            case 1:
+                currentOrder.name = "Fries";
+                currentOrder.unitPrice = 79;
+                currentOrder.contents.Add("Fries");
+                break;
+
+            case 2:
+                currentOrder.name = "Burger";
+                currentOrder.unitPrice = 119;
+                currentOrder.contents.Add("Burger");
+                break;
+
+            // Bundle food
+            case 3:
+                currentOrder.name = "Chicken + Fries";
+                currentOrder.unitPrice = 375;
+                currentOrder.contents.Add("Chicken");
+                currentOrder.contents.Add("Fries");
+                break;
+
+            case 4:
+                currentOrder.name = "Chicken + Burger";
+                currentOrder.unitPrice = 415;
+                currentOrder.contents.Add("Chicken");
+                currentOrder.contents.Add("Burger");
+                break;
+
+            case 5:
+                currentOrder.name = "Burger + Fries";
+                currentOrder.unitPrice = 195;
+                currentOrder.contents.Add("Burger");
+                currentOrder.contents.Add("Fries");
+                break;
         }
+
+        // ALWAYS add a drink
+        currentOrder.contents.Add(GetRandomDrinkName());
+
+        currentOrder.quantity = 1;
     }
 
-    private Sprite GetDrinkSprite()
+    private string GetRandomDrinkName()
     {
-        switch (chosenDrink)
+        int r = UnityEngine.Random.Range(0, 3);
+
+        switch (r)
         {
-            case DrinkType.Coke: return cokeSprite;
-            case DrinkType.Pineapple: return pineappleSprite;
-            case DrinkType.IceTea: return iceTeaSprite;
-            default: return null;
+            case 0: return "Coke";
+            case 1: return "Pineapple";
+            case 2: return "Ice Tea";
         }
+
+        return "Coke";
+    }
+
+    private void SyncLegacyOrderFieldsFromCurrentOrder()
+    {
+        if (currentOrder == null || currentOrder.contents.Count == 0)
+        {
+            chosenFood = FoodType.Chicken;
+            chosenDrink = DrinkType.Coke;
+            confirmedFood = chosenFood;
+            confirmedDrink = chosenDrink;
+            return;
+        }
+
+        if (currentOrder.contents.Contains("Burger"))
+            chosenFood = FoodType.Burger;
+        else if (currentOrder.contents.Contains("Fries"))
+            chosenFood = FoodType.Fries;
+        else
+            chosenFood = FoodType.Chicken;
+
+        bool hasDrink = false;
+        chosenDrink = DrinkType.Coke;
+
+        foreach (var item in currentOrder.contents)
+        {
+            if (item == "Coke")
+            {
+                chosenDrink = DrinkType.Coke;
+                hasDrink = true;
+            }
+            else if (item == "Pineapple")
+            {
+                chosenDrink = DrinkType.Pineapple;
+                hasDrink = true;
+            }
+            else if (item == "Ice Tea")
+            {
+                chosenDrink = DrinkType.IceTea;
+                hasDrink = true;
+            }
+        }
+
+        if (!hasDrink)
+            chosenDrink = DrinkType.Coke;
+
+        hasConfirmedOrder = false;
+    }
+
+    public string GetCurrentOrderSummary()
+    {
+        if (currentOrder == null)
+            return "No Order";
+
+        string result = "";
+
+        for (int i = 0; i < currentOrder.contents.Count; i++)
+        {
+            result += currentOrder.contents[i];
+
+            if (i < currentOrder.contents.Count - 1)
+                result += ", ";
+        }
+
+        return result;
+    }
+
+    public List<string> GetCurrentOrderContents()
+    {
+        if (currentOrder == null)
+            return new List<string>();
+
+        return new List<string>(currentOrder.contents);
+    }
+
+    private bool CurrentOrderHasDrink()
+    {
+        if (currentOrder == null) return false;
+
+        for (int i = 0; i < currentOrder.contents.Count; i++)
+        {
+            string item = currentOrder.contents[i];
+            if (item == "Coke" || item == "Pineapple" || item == "Ice Tea")
+                return true;
+        }
+
+        return false;
+    }
+
+    private bool IsCorrectDeliveredOrder(FoodType deliveredFood, DrinkType deliveredDrink)
+    {
+        bool foodMatches = deliveredFood == chosenFood;
+        if (!foodMatches)
+            return false;
+
+        bool orderHasDrink = CurrentOrderHasDrink();
+        if (!orderHasDrink)
+            return true;
+
+        return deliveredDrink == chosenDrink;
+    }
+
+    private int GetOrderTotal()
+    {
+        if (currentOrder == null)
+            return 0;
+
+        int total = currentOrder.unitPrice * Mathf.Max(1, currentOrder.quantity);
+
+        for (int i = 0; i < currentOrder.contents.Count; i++)
+        {
+            string item = currentOrder.contents[i];
+
+            if (item == "Coke" || item == "Pineapple" || item == "Ice Tea")
+                total += 39 * Mathf.Max(1, currentOrder.quantity);
+        }
+
+        return total;
     }
 
     private void SpawnOrderBubble()
@@ -483,7 +700,7 @@ public class CustomerGroup : MonoBehaviour
         {
             ui.gameObject.SetActive(true);
             ui.Init(this);
-            ui.SetOrder(GetFoodSprite(), GetDrinkSprite());
+            ui.SetAlert();
             ui.SetPatience(1f);
         }
         else
@@ -493,7 +710,7 @@ public class CustomerGroup : MonoBehaviour
 
         Canvas.ForceUpdateCanvases();
 
-        Debug.Log($"[CustomerGroup] Spawned order bubble for {name} | food={chosenFood} | drink={chosenDrink}");
+        Debug.Log($"[CustomerGroup] Spawned order alert bubble for {name} | order={GetCurrentOrderSummary()}");
     }
 
     public void TakeOrderFromWaiter(FoodType food, DrinkType drink)
@@ -508,12 +725,6 @@ public class CustomerGroup : MonoBehaviour
             if (shaker != null) shaker.StopShake(true);
         }
 
-        if (currentOrderNumber < 0)
-        {
-            currentOrderNumber = OrderNumberManager.Instance != null
-                ? OrderNumberManager.Instance.GetNextOrderNumber()
-                : UnityEngine.Random.Range(100, 999);
-        }
 
         SetState(GroupState.OrderTaken);
 
@@ -536,6 +747,8 @@ public class CustomerGroup : MonoBehaviour
         hasConfirmedOrder = true;
     }
 
+    
+
     private void SpawnTableNumber()
     {
         if (tableNumberPrefab == null) return;
@@ -556,7 +769,10 @@ public class CustomerGroup : MonoBehaviour
 
         var num = tableNumberInstance.GetComponentInChildren<TableNumberUI>(true);
         if (num != null)
+        {
             num.SetNumber(currentOrderNumber);
+            num.SetBooth(assignedBooth);
+        }
     }
 
     private IEnumerator ShowRemakeOrderAfterDelay()
@@ -574,9 +790,7 @@ public class CustomerGroup : MonoBehaviour
         if (state != GroupState.OrderTaken)
             return;
 
-        bool correctFood = deliveredFood == chosenFood;
-        bool correctDrink = deliveredDrink == chosenDrink;
-        bool isCorrectOrder = correctFood && correctDrink;
+        bool isCorrectOrder = IsCorrectDeliveredOrder(deliveredFood, deliveredDrink);
 
         if (assignedBooth != null)
             assignedBooth.ClearMenuBook();
@@ -587,36 +801,7 @@ public class CustomerGroup : MonoBehaviour
 
         if (!isCorrectOrder)
         {
-            receivedWrongOrder = true;
-            waitingForRemake = true;
-            shouldShowAngryThoughtOnLeave = true;
-            wrongDeliveryCount++;
-
-            if (!angryResultLocked)
-            {
-                angryResultLocked = true;
-                ReportFinalResult(FinalResult.Angry);
-            }
-
-            if (wrongDeliveryCount >= maxWrongDeliveriesBeforeLeave)
-            {
-                ShowThought(angryComments, angryFaceSprite);
-                SetState(GroupState.AngryLeft);
-
-                ClearOrderBubble();
-                ClearBillBubble();
-                ClearTableNumber();
-                ClearMoneyBubble();
-
-                StartLeaving(false);
-                return;
-            }
-
-            SetState(GroupState.ReadyToOrder);
-            ShowThought(angryComments, angryFaceSprite);
-
-            ClearOrderBubble();
-            StartCoroutine(ShowRemakeOrderAfterDelay());
+            HandleWrongDelivery();
             return;
         }
 
@@ -632,6 +817,11 @@ public class CustomerGroup : MonoBehaviour
         if (state != GroupState.OrderTaken && state != GroupState.Eating)
             return;
 
+        HandleWrongDelivery();
+    }
+
+    private void HandleWrongDelivery()
+    {
         receivedWrongOrder = true;
         waitingForRemake = true;
         shouldShowAngryThoughtOnLeave = true;
@@ -731,35 +921,6 @@ public class CustomerGroup : MonoBehaviour
         var ui = moneyBubbleInstance.GetComponentInChildren<MoneyBubbleUI>(true);
         if (ui != null)
             ui.Init(amount, money);
-    }
-
-    private int GetOrderTotal()
-    {
-        return GetFoodPrice(chosenFood) + GetDrinkPrice(chosenDrink);
-    }
-
-    private int GetFoodPrice(FoodType food)
-    {
-        switch (food)
-        {
-            case FoodType.Chicken: return 99;
-            case FoodType.Fries: return 79;
-            case FoodType.Burger: return 79;
-            default: return 0;
-        }
-    }
-
-    private int GetDrinkPrice(DrinkType drink)
-    {
-        switch (drink)
-        {
-            case DrinkType.Coke:
-            case DrinkType.Pineapple:
-            case DrinkType.IceTea:
-                return 39;
-            default:
-                return 0;
-        }
     }
 
     private int GetCustomerPaymentAmount(int total)
@@ -1159,5 +1320,13 @@ public class CustomerGroup : MonoBehaviour
         return count > 0 ? sum / count : transform.position;
     }
 
-    
+    public bool CanBeGreeted()
+    {
+        return state == GroupState.Waiting || state == GroupState.WalkingToLobby;
+    }
+
+    public void MarkGreeted()
+    {
+        hasBeenGreeted = true;
+    }
 }

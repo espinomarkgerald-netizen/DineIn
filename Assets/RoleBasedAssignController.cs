@@ -21,11 +21,16 @@ public class RoleBasedAssignController : MonoBehaviour
 
     private CustomerGroup selectedGroup;
     private StaffRole staffRole;
+    private LobbyLineManager lineManager;
 
     private void Awake()
     {
         staffRole = GetComponent<StaffRole>();
-        if (agent == null) agent = GetComponent<NavMeshAgent>();
+
+        if (agent == null)
+            agent = GetComponent<NavMeshAgent>();
+
+        lineManager = FindFirstObjectByType<LobbyLineManager>();
     }
 
     private void Update()
@@ -84,7 +89,7 @@ public class RoleBasedAssignController : MonoBehaviour
         switch (staffRole.role)
         {
             case StaffRole.Role.Host:
-                HandleHostTap(hits);
+                HandleHostTap(hits, cam);
                 break;
 
             case StaffRole.Role.Waiter:
@@ -97,28 +102,39 @@ public class RoleBasedAssignController : MonoBehaviour
         }
     }
 
-    private void HandleHostTap(RaycastHit[] hits)
+    private void HandleHostTap(RaycastHit[] hits, Camera cam)
     {
-        foreach (var hit in hits)
+        for (int i = 0; i < hits.Length; i++)
         {
+            RaycastHit hit = hits[i];
+
             if (((1 << hit.collider.gameObject.layer) & customerLayer) != 0)
             {
-                var group = hit.collider.GetComponentInParent<CustomerGroup>();
-                if (group != null && CanHostSelectGroup(group))
-                {
-                    SelectGroup(group);
+                CustomerGroup group = hit.collider.GetComponentInParent<CustomerGroup>();
+                if (group == null)
+                    continue;
+
+                if (!CanHostSelectGroup(group))
                     return;
-                }
+
+                CustomerGreetBubbleSpawner.Instance?.Show(
+                    group,
+                    group.UIAnchor != null ? group.UIAnchor : group.transform,
+                    cam
+                );
+                return;
             }
         }
 
         if (selectedGroup != null)
         {
-            foreach (var hit in hits)
+            for (int i = 0; i < hits.Length; i++)
             {
+                RaycastHit hit = hits[i];
+
                 if (((1 << hit.collider.gameObject.layer) & boothLayer) != 0)
                 {
-                    var booth = hit.collider.GetComponentInParent<Booth>();
+                    Booth booth = hit.collider.GetComponentInParent<Booth>();
                     if (booth != null)
                     {
                         AssignGroupToBooth(selectedGroup, booth);
@@ -133,20 +149,34 @@ public class RoleBasedAssignController : MonoBehaviour
     {
         if (group == null) return false;
 
-        return group.state == CustomerGroup.GroupState.Waiting ||
-               group.state == CustomerGroup.GroupState.WalkingToLobby;
+        if (group.HasBeenAssigned)
+            return false;
+
+        if (lineManager == null)
+            return false;
+
+        if (!lineManager.IsGroupInLine(group))
+            return false;
+
+        if (!lineManager.IsFrontOfLine(group))
+        {
+            ShowWarning("Serve the first customer in line.");
+            return false;
+        }
+
+        return true;
     }
 
     private void HandleWaiterTap(RaycastHit[] hits)
     {
-        var group = GetTappedAssignableGroup(hits);
+        CustomerGroup group = GetTappedAssignableGroup(hits);
         if (group != null)
             ShowWarning("Only the host can assign customers to a table.");
     }
 
     private void HandleBusserTap(RaycastHit[] hits)
     {
-        var group = GetTappedAssignableGroup(hits);
+        CustomerGroup group = GetTappedAssignableGroup(hits);
         if (group != null)
             ShowWarning("Only the host can assign customers to a table.");
     }
@@ -155,11 +185,12 @@ public class RoleBasedAssignController : MonoBehaviour
     {
         for (int i = 0; i < hits.Length; i++)
         {
-            var hit = hits[i];
+            RaycastHit hit = hits[i];
+
             if (((1 << hit.collider.gameObject.layer) & customerLayer) == 0)
                 continue;
 
-            var group = hit.collider.GetComponentInParent<CustomerGroup>();
+            CustomerGroup group = hit.collider.GetComponentInParent<CustomerGroup>();
             if (group == null) continue;
             if (!CanHostSelectGroup(group)) continue;
 
@@ -176,7 +207,35 @@ public class RoleBasedAssignController : MonoBehaviour
 
         selectedGroup = group;
         selectedGroup.SetSelected(true);
+
+        CustomerGreetBubbleSpawner.Instance?.Hide();
+
         Debug.Log($"Selected group: {group.name}");
+    }
+
+    public void BeginAssignFromBubble(CustomerGroup group)
+    {
+        if (group == null) return;
+        if (RoleManager.Instance == null) return;
+        if (!RoleManager.Instance.IsActiveRole(gameObject)) return;
+        if (staffRole == null || staffRole.role != StaffRole.Role.Host) return;
+
+        if (BoothAssignArrowManager.Instance == null)
+        {
+            ShowWarning("No table indicator system found.");
+            return;
+        }
+
+        if (!BoothAssignArrowManager.Instance.HasValidBooth(group))
+        {
+            ShowWarning("No available tables for this group.");
+            return;
+        }
+
+        SelectGroup(group);
+        BoothAssignArrowManager.Instance.ShowValidBooths(group);
+
+        Debug.Log($"Ready to assign table for: {group.name}");
     }
 
     private void AssignGroupToBooth(CustomerGroup group, Booth booth)
@@ -213,8 +272,6 @@ public class RoleBasedAssignController : MonoBehaviour
 
             if (booth != null)
                 booth.SpawnMenuBook();
-
-            Debug.Log($"Menu spawned for {group.name} at {booth.name}");
         }
 
         group.OnGroupSeated -= HandleSeated;
@@ -224,6 +281,9 @@ public class RoleBasedAssignController : MonoBehaviour
 
         group.SetSelected(false);
         selectedGroup = null;
+
+        CustomerGreetBubbleSpawner.Instance?.Hide();
+        BoothAssignArrowManager.Instance?.HideAll();
     }
 
     private void ShowWarning(string message)

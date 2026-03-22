@@ -9,7 +9,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1577053174573099617}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: SelectionRing
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -41,7 +41,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 457206553465095890}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: OrderAnchor
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -57,7 +57,7 @@ Transform:
   m_GameObject: {fileID: 365736124058334126}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.98, z: 0}
+  m_LocalPosition: {x: 0, y: 1.386, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -73,7 +73,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1108191032689038939}
   - component: {fileID: 5783446330507790464}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Circle
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -161,7 +161,9 @@ GameObject:
   - component: {fileID: 61523501666495725}
   - component: {fileID: 5685048958830651254}
   - component: {fileID: -4980108588594427370}
-  m_Layer: 0
+  - component: {fileID: 6811034643799746791}
+  - component: {fileID: 5437476184709532955}
+  m_Layer: 8
   m_Name: CustomerGroup
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -248,12 +250,15 @@ MonoBehaviour:
   iceTeaSprite: {fileID: 21300000, guid: 9746789dafebbb841a6edd396858d4b4, type: 3}
   exitPoint: {fileID: 0}
   exitFormationSpacing: 0.8
+  remakeBubbleDelay: 1.2
+  maxWrongDeliveriesBeforeLeave: 3
   assignedBooth: {fileID: 0}
   chosenFood: 0
   chosenDrink: 0
   confirmedFood: 0
   confirmedDrink: 0
   currentOrderNumber: -1
+  hasBeenGreeted: 0
 --- !u!114 &-4980108588594427370
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -264,5 +269,35 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 8411ab47ad2028f4c8148310dc91ef95, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!114 &6811034643799746791
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7159145075819185033}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5fea29bb7c508c244a1f805a5fd3fc4d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  outlineMode: 0
+  outlineColor: {r: 1, g: 1, b: 1, a: 1}
+  outlineWidth: 2
+  precomputeOutline: 0
+  bakeKeys: []
+  bakeValues: []
+--- !u!114 &5437476184709532955
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7159145075819185033}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c7ad5cd7e63a35944a00dc796e5c327c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
