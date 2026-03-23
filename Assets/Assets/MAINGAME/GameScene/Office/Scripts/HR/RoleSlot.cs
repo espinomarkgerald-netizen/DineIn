@@ -5,32 +5,52 @@ using TMPro;
 public class RoleSlot : MonoBehaviour
 {
     public EmployeeRole roleType;
-    public List<EmployeeData> assignedEmployees = new List<EmployeeData>();
+    public EmployeeData assignedEmployee;
 
-    public TMP_Text[] employeeTexts;
-    public int maxEmployees = 3;
+    public TMP_Text employeeText;
 
     public bool AssignEmployee(EmployeeData employee)
     {
         if (employee.role != roleType) return false;
-        if (assignedEmployees.Count >= maxEmployees) return false;
-        if (employee.assigned) return false;
 
-        assignedEmployees.Add(employee);
+        // Remove from previous slot
+        if (employee.currentSlot != null)
+        {
+            employee.currentSlot.RemoveEmployee();
+        }
+
+        // Replace current employee if occupied
+        if (assignedEmployee != null)
+        {
+            assignedEmployee.assigned = false;
+            assignedEmployee.currentSlot = null;
+        }
+
+        assignedEmployee = employee;
         employee.assigned = true;
+        employee.currentSlot = this;
 
         UpdateUI();
         return true;
     }
 
+    public void RemoveEmployee()
+    {
+        if (assignedEmployee != null)
+        {
+            assignedEmployee.assigned = false;
+            assignedEmployee.currentSlot = null;
+            assignedEmployee = null;
+
+            UpdateUI();
+        }
+    }
+
     void UpdateUI()
     {
-        for (int i = 0; i < employeeTexts.Length; i++)
-        {
-            if (i < assignedEmployees.Count)
-                employeeTexts[i].text = assignedEmployees[i].employeeName;
-            else
-                employeeTexts[i].text = "";
-        }
+        if (assignedEmployee != null)
+            employeeText.text = assignedEmployee.employeeName;
+        else
+            employeeText.text = "Empty";
     }
 }

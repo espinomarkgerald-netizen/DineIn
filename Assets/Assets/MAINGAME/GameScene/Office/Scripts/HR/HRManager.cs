@@ -42,13 +42,21 @@ public class HRManager : MonoBehaviour
         selectedEmployee = employee;
     }
 
-    public void AssignEmployee(RoleSlot targetSlot)
+    public bool AssignEmployee(RoleSlot targetSlot)
     {
-        if (selectedEmployee == null) return;
+        if (selectedEmployee == null) return false;
+
+        if (selectedEmployee.role != targetSlot.roleType)
+        {
+            Debug.Log("Role mismatch");
+            return false;
+        }
 
         bool success = targetSlot.AssignEmployee(selectedEmployee);
 
         if (success)
             selectedEmployee = null;
+
+        return success;
     }
 }
