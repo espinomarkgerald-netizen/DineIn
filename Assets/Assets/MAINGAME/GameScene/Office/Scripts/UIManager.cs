@@ -10,11 +10,14 @@ public class UIManager : MonoBehaviour
 
     [Header("Active UI Panels")]
     [SerializeField] private List<GameObject> activeUIs;
+    [SerializeField] GameObject employeeBoard;
+    [SerializeField] GameObject restockShop;
 
     [Header("Settings Panel")]
     [SerializeField] GameObject settingsPanel;
     [SerializeField] GameObject audioSettings;
     [SerializeField] GameObject videoSettings;
+
 
     private GameObject currentActiveUI;
 
@@ -81,6 +84,8 @@ public class UIManager : MonoBehaviour
         if (settingsPanel == null) return;
 
         settingsPanel.SetActive(false);
+        restockShop.SetActive(false);
+        employeeBoard.SetActive(false);
         staticUI.SetActive(true);
     }
 
@@ -108,5 +113,17 @@ public class UIManager : MonoBehaviour
         staticUI.SetActive(false);
         HideSettingsSubPanels();
         settingsPanel.SetActive(!settingsPanel.activeSelf);
+    }
+
+    public void OpenEmployeeBoard()
+    {
+        employeeBoard.SetActive(true);
+        staticUI.SetActive(false);
+    }
+
+    public void OpenRestockShop()
+    {
+        restockShop.SetActive(true);
+        staticUI.SetActive(false);
     }
 }
