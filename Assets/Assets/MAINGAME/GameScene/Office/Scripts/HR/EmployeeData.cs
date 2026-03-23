@@ -1,21 +1,16 @@
-using UnityEngine;
-
-[System.Serializable]
 public class EmployeeData
 {
     public string employeeName;
-    public int cooking;
-    public int service;
+    public int stars; // 1–5
+    public EmployeeRole role;
 
     public bool assigned;
-    public string assignedRole;
 
-    public EmployeeData(string name, int cook, int serv)
+    public EmployeeData(string name, int starRating, EmployeeRole roleType)
     {
         employeeName = name;
-        cooking = cook;
-        service = serv;
+        stars = starRating;
+        role = roleType;
         assigned = false;
-        assignedRole = "";
     }
 }

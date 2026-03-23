@@ -1,22 +1,39 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 public class HRManager : MonoBehaviour
 {
     public RoleSlot[] allSlots;
     public EmployeeGenerator generator;
-
     public EmployeeCard[] cards;
-
     public EmployeeData selectedEmployee;
+    public RoleRowUI[] rows;
+
+    Dictionary<EmployeeRole, List<EmployeeData>> employeesByRole 
+        = new Dictionary<EmployeeRole, List<EmployeeData>>();
 
     void Start()
     {
+        Debug.Log($"HRManager Start() running, generator: {generator}, rows length: {rows.Length}");
         generator.GenerateEmployees();
 
-        for(int i = 0; i < cards.Length; i++)
+        // Initialize dictionary
+        foreach (EmployeeRole role in System.Enum.GetValues(typeof(EmployeeRole)))
         {
-            cards[i].Setup(generator.employees[i]);
-            Debug.Log("Assigning employee to card " + i);
+            employeesByRole[role] = new List<EmployeeData>();
+        }
+
+        // Group employees
+        foreach (var emp in generator.employees)
+        {
+            employeesByRole[emp.role].Add(emp);
+        }
+
+        // Populate UI
+        foreach (var row in rows)
+        {
+            var list = employeesByRole[row.roleType];
+            row.Populate(list, this);
         }
     }
 
@@ -29,25 +46,9 @@ public class HRManager : MonoBehaviour
     {
         if (selectedEmployee == null) return;
 
-    // Remove employee from any slot they are currently in
-    foreach (RoleSlot s in allSlots)
-    {
-        if (s.assignedEmployee == selectedEmployee)
-        {
-            s.RemoveEmployee();
-        }
-    }
+        bool success = targetSlot.AssignEmployee(selectedEmployee);
 
-    // If the target slot already has someone, free them
-    if (targetSlot.assignedEmployee != null)
-    {
-        targetSlot.assignedEmployee.assigned = false;
-        targetSlot.assignedEmployee.assignedRole = "";
-    }
-
-    // Assign employee to the new slot
-    targetSlot.AssignEmployee(selectedEmployee);
-
-    selectedEmployee = null;
+        if (success)
+            selectedEmployee = null;
     }
 }

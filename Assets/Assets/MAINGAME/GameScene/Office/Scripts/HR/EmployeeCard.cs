@@ -1,11 +1,14 @@
 using UnityEngine;
 using TMPro;
+using UnityEngine.UI;
 
 public class EmployeeCard : MonoBehaviour
 {
     public TMP_Text nameText;
-    public TMP_Text cookingText;
-    public TMP_Text serviceText;
+    public TMP_Text roleText;
+    public Image[] starImages; // 5 stars
+    public Sprite filledStar;
+    public Sprite emptyStar;
 
     public EmployeeData employee;
     public HRManager hrManager;
@@ -15,8 +18,12 @@ public class EmployeeCard : MonoBehaviour
         employee = data;
 
         nameText.text = data.employeeName;
-        cookingText.text = "Cook: " + data.cooking;
-        serviceText.text = "Service: " + data.service;
+        roleText.text = data.role.ToString();
+
+        for (int i = 0; i < starImages.Length; i++)
+        {
+            starImages[i].sprite = (i < data.stars) ? filledStar : emptyStar;
+        }
     }
 
     public void SelectCard()

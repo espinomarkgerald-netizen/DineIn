@@ -5,18 +5,15 @@ public class EmployeeGenerator : MonoBehaviour
 {
     public List<EmployeeData> employees = new List<EmployeeData>();
 
-    string[] names =
-    {
-        "Maria","Kelvin","Josh","Nina",
-        "Sam","Leo","Kyle","Mark","Michael",
-        "Ron", "Doyle","Johnvic","Mary","Grace",
-        "Paul", "Kenneth", "Bandoc", "Fumi", "Riley",
-        "Neo", "Tom", "Hasang", "Tachu", "Floribel", "Ferrer",
-        "Montefaro", "Miguel", "Byron", "Darnell", "Noel",
-        "Christian", "Joseph", "Namuag"
-    };
+    [SerializeField] private string[] names = { "Maria","Kelvin","Josh","Nina","Sam","Leo","Kyle","Mark","Michael",
+                                               "Ron","Doyle","Johnvic","Mary","Grace","Paul","Kenneth","Bandoc",
+                                               "Fumi","Riley","Neo","Tom","Hasang","Tachu","Floribel","Ferrer",
+                                               "Montefaro","Miguel","Byron","Darnell","Noel","Christian",
+                                               "Joseph","Namuag" };
 
-    public int employeesPerDay = 12;
+    [SerializeField] private int employeesPerRole = 4; // tweak per playtest
+    [SerializeField] private int minStars = 1;
+    [SerializeField] private int maxStars = 5;
 
     public void GenerateEmployees()
     {
@@ -24,24 +21,23 @@ public class EmployeeGenerator : MonoBehaviour
 
         List<string> usedNames = new List<string>();
 
-        for(int i = 0; i < employeesPerDay; i++)
+        foreach (EmployeeRole role in System.Enum.GetValues(typeof(EmployeeRole)))
         {
-            string name;
-
-            do
+            for (int i = 0; i < employeesPerRole; i++)
             {
-                name = names[Random.Range(0, names.Length)];
+                string name;
+                do
+                {
+                    name = names[Random.Range(0, names.Length)];
+                } while (usedNames.Contains(name));
+
+                usedNames.Add(name);
+
+                int stars = Random.Range(minStars, maxStars + 1);
+
+                EmployeeData newEmployee = new EmployeeData(name, stars, role);
+                employees.Add(newEmployee);
             }
-            while(usedNames.Contains(name));
-
-            usedNames.Add(name);
-
-            int cooking = Random.Range(1,11);
-            int service = Random.Range(1,11);
-
-            EmployeeData newEmployee = new EmployeeData(name, cooking, service);
-
-            employees.Add(newEmployee);
         }
     }
 }

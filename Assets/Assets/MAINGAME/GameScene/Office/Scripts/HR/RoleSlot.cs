@@ -1,42 +1,36 @@
-using TMPro;
+using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UI;
+using TMPro;
 
 public class RoleSlot : MonoBehaviour
 {
-    public string roleName;          // Host, Waiter, etc.
-    public EmployeeData assignedEmployee;
-    public TMP_Text slotText;            // UI Text to show employee name
+    public EmployeeRole roleType;
+    public List<EmployeeData> assignedEmployees = new List<EmployeeData>();
 
-    public void AssignEmployee(EmployeeData employee)
+    public TMP_Text[] employeeTexts;
+    public int maxEmployees = 3;
+
+    public bool AssignEmployee(EmployeeData employee)
     {
-        if (assignedEmployee != null)
-        {
-            assignedEmployee.assigned = false;
-            assignedEmployee.assignedRole = "";
-        }
+        if (employee.role != roleType) return false;
+        if (assignedEmployees.Count >= maxEmployees) return false;
+        if (employee.assigned) return false;
 
-        assignedEmployee = employee;
-
+        assignedEmployees.Add(employee);
         employee.assigned = true;
-        employee.assignedRole = roleName;
 
-        slotText.text = employee.employeeName;
-
-        if(slotText != null)
-            slotText.text = employee.employeeName;
+        UpdateUI();
+        return true;
     }
 
-    public void RemoveEmployee()
+    void UpdateUI()
     {
-        if(assignedEmployee != null)
+        for (int i = 0; i < employeeTexts.Length; i++)
         {
-            assignedEmployee.assigned = false;
-            assignedEmployee.assignedRole = "";
-            assignedEmployee = null;
-
-            if(slotText != null)
-                slotText.text = "";
+            if (i < assignedEmployees.Count)
+                employeeTexts[i].text = assignedEmployees[i].employeeName;
+            else
+                employeeTexts[i].text = "";
         }
     }
 }
