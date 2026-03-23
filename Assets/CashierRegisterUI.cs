@@ -67,6 +67,8 @@ public class CashierRegisterUI : MonoBehaviour
     private int expectedChange;
     private int inputChangeAmount;
 
+    [SerializeField] private TutorialHintTextUI tutorialHint;
+
     private CustomerGroup activeGroup;
     private bool isOpen;
 
@@ -158,6 +160,14 @@ public class CashierRegisterUI : MonoBehaviour
         RefreshTotalsDisplay();
         RefreshInputDisplay();
         Show();
+
+        if (TutorialManager.Instance != null)
+            TutorialManager.Instance.OnCashierOpened(activeGroup, expectedChange);
+
+        if (TutorialManager.Instance != null && tutorialHint != null)
+        {
+            tutorialHint.Show($"Give the exact change: {expectedChange:0.00}");
+        }
     }
 
     public void CloseRegister()
@@ -204,6 +214,9 @@ public class CashierRegisterUI : MonoBehaviour
             GameDayManager.Instance?.RegisterPaymentCompleted();
             paidGroup.PayAndLeave();
         }
+
+        if (TutorialManager.Instance != null)
+            TutorialManager.Instance.OnCashierConfirmed(paidGroup);
 
         CloseRegister();
     }

@@ -48,6 +48,8 @@ public class OrderChecklistUI : MonoBehaviour
     [SerializeField] private bool useTypewriter = true;
     [SerializeField] private float typeSpeed = 0.02f;
 
+    [SerializeField] private TutorialHintTextUI tutorialHint;
+
     private CustomerGroup group;
     private Coroutine typingRoutine;
 
@@ -95,6 +97,14 @@ public class OrderChecklistUI : MonoBehaviour
         ResetToggles();
         LoadRequestedOrder();
         RefreshRequestedOrderUI();
+
+        if (TutorialManager.Instance != null)
+            TutorialManager.Instance.OnNotepadOpened(g);
+
+        if (TutorialManager.Instance != null && tutorialHint != null)
+        {
+            tutorialHint.Show("Read the order above. Match the same food and drink below.");
+        }
     }
 
     public void Close()
@@ -286,6 +296,9 @@ public class OrderChecklistUI : MonoBehaviour
         KitchenManager kitchen = FindFirstObjectByType<KitchenManager>();
         if (kitchen != null)
             kitchen.ProcessOrder(group);
+
+        if (TutorialManager.Instance != null)
+            TutorialManager.Instance.OnOrderConfirmed(group);
 
         Close();
     }
