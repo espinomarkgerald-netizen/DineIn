@@ -98,10 +98,37 @@ public class CustomerGreetBubbleUI : MonoBehaviour
             if (speechAnchor != null)
                 anchor = speechAnchor.transform;
 
-            HostSpeechBubbleSpawner.Instance?.ShowForHost(anchor, Camera.main);
+            int count = 0;
+
+            if (group.members != null && group.members.Count > 0)
+                count = group.members.Count;
+            else
+                count = group.Size;
+
+            HostSpeechBubbleSpawner.Instance?.ShowForHostGroup(anchor, Camera.main, count);
             return;
         }
 
         Debug.LogWarning("No active host found for greeting bubble.");
+    }
+
+    private int GetGroupSize()
+    {
+        if (group == null) return 0;
+
+        if (group.members != null && group.members.Count > 0)
+            return group.members.Count;
+
+        return group.Size;
+    }
+
+    private string GetGreetingLabel()
+    {
+        int count = GetGroupSize();
+
+        if (count <= 0)
+            return "Greet Customer";
+
+        return $"Good day, table for {count}?";
     }
 }

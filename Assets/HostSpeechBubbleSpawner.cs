@@ -83,4 +83,57 @@ public class HostSpeechBubbleSpawner : MonoBehaviour
             currentBubble = null;
         }
     }
+
+    public void ShowForHostGroup(Transform hostAnchor, Camera cam, int groupSize)
+    {
+        if (speechBubblePrefab == null || hostAnchor == null || cam == null)
+            return;
+
+        if (targetCanvas == null)
+            targetCanvas = FindFirstObjectByType<Canvas>();
+
+        if (targetCanvas == null)
+            return;
+
+        HideImmediate();
+
+        currentBubble = Instantiate(speechBubblePrefab, targetCanvas.transform);
+        currentBubble.name = "HostSpeechBubble";
+
+        RectTransform rect = currentBubble.GetComponent<RectTransform>();
+        if (rect != null)
+        {
+            rect.localScale = Vector3.one * bubbleScale;
+            rect.anchoredPosition3D = Vector3.zero;
+        }
+
+        var follow = currentBubble.GetComponentInChildren<UIFollowWorldPoint>(true);
+        if (follow != null)
+            follow.Init(hostAnchor, worldOffset, cam);
+
+        var ui = currentBubble.GetComponentInChildren<HostSpeechBubbleUI>(true);
+        if (ui != null)
+            ui.SetText(GetRandomGreetingForGroup(groupSize));
+    }
+
+    private string GetRandomGreetingForGroup(int groupSize)
+    {
+        bool useTableGreeting = Random.value < 0.5f;
+
+        if (useTableGreeting && groupSize > 0)
+        {
+            string[] tableGreetings =
+            {
+                $"Table for {groupSize}?",
+                $"Party of {groupSize}?",
+                $"Welcome, table for {groupSize}?",
+                $"Good day, table for {groupSize}?"
+            };
+
+            int index = Random.Range(0, tableGreetings.Length);
+            return tableGreetings[index];
+        }
+
+        return GetRandomGreeting();
+    }
 }

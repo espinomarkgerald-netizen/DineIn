@@ -158,6 +158,12 @@ public class CustomerGroup : MonoBehaviour
     [Header("Submitted Order")]
     public SimpleOrder submittedOrder = new SimpleOrder();
 
+    [Header("Eating UI")]
+    [SerializeField] private GameObject eatingBubblePrefab;
+    [SerializeField] private Vector3 eatingBubbleOffset = new Vector3(0f, 2.4f, 0f);
+
+private GameObject eatingBubbleInstance;
+
     private bool waitingForRemake;
     private bool angryResultLocked;
     private bool firstDeliveryCompleted;
@@ -612,17 +618,32 @@ public class CustomerGroup : MonoBehaviour
         return false;
     }
 
-    private bool IsCorrectDeliveredOrder(FoodType deliveredFood, DrinkType deliveredDrink)
+    private bool IsCorrectDeliveredOrder(List<string> deliveredContents)
     {
-        bool foodMatches = deliveredFood == chosenFood;
-        if (!foodMatches)
+        if (currentOrder == null || currentOrder.contents == null)
             return false;
 
-        bool orderHasDrink = CurrentOrderHasDrink();
-        if (!orderHasDrink)
-            return true;
+        if (deliveredContents == null)
+            return false;
 
-        return deliveredDrink == chosenDrink;
+        // Count must match
+        if (currentOrder.contents.Count != deliveredContents.Count)
+            return false;
+
+        // Compare ignoring order
+        List<string> expected = new List<string>(currentOrder.contents);
+        List<string> delivered = new List<string>(deliveredContents);
+
+        expected.Sort();
+        delivered.Sort();
+
+        for (int i = 0; i < expected.Count; i++)
+        {
+            if (expected[i] != delivered[i])
+                return false;
+        }
+
+        return true;
     }
 
     private int GetOrderTotal()
@@ -785,12 +806,12 @@ public class CustomerGroup : MonoBehaviour
         SpawnOrderBubble();
     }
 
-    public void ReceiveFoodFromWaiter(FoodType deliveredFood, DrinkType deliveredDrink)
+    public void ReceiveFoodFromWaiter(List<string> deliveredContents)
     {
         if (state != GroupState.OrderTaken)
             return;
 
-        bool isCorrectOrder = IsCorrectDeliveredOrder(deliveredFood, deliveredDrink);
+        bool isCorrectOrder = IsCorrectDeliveredOrder(deliveredContents);
 
         if (assignedBooth != null)
             assignedBooth.ClearMenuBook();
@@ -807,6 +828,7 @@ public class CustomerGroup : MonoBehaviour
 
         waitingForRemake = false;
         SetState(GroupState.Eating);
+        SpawnEatingBubble();
 
         GameDayManager.Instance?.RegisterFoodDelivered();
         StartCoroutine(EatThenNeedBill());
@@ -842,6 +864,7 @@ public class CustomerGroup : MonoBehaviour
             ClearBillBubble();
             ClearTableNumber();
             ClearMoneyBubble();
+            ClearEatingBubble();
 
             StartLeaving(false);
             return;
@@ -880,6 +903,7 @@ public class CustomerGroup : MonoBehaviour
         float eat = UnityEngine.Random.Range(minEatSeconds, maxEatSeconds);
         yield return new WaitForSeconds(eat);
 
+        ClearEatingBubble();
         SetState(GroupState.NeedsBill);
         SpawnBillBubble();
     }
@@ -955,7 +979,8 @@ public class CustomerGroup : MonoBehaviour
             ReportFinalResult(FinalResult.Happy);
             ShowThought(happyComments, happyFaceSprite);
         }
-
+       
+        ClearEatingBubble();
         SetState(GroupState.Leaving);
         StartLeaving(false);
     }
@@ -976,6 +1001,7 @@ public class CustomerGroup : MonoBehaviour
         ClearBillBubble();
         ClearTableNumber();
         ClearMoneyBubble();
+        ClearEatingBubble();
 
         StartLeaving(false);
     }
@@ -1256,6 +1282,7 @@ public class CustomerGroup : MonoBehaviour
         ClearTableNumber();
         ClearMoneyBubble();
         ClearThoughtBubble();
+        ClearEatingBubble();
 
         if (assignedBooth != null)
             assignedBooth.ClearBoothProps();
@@ -1328,5 +1355,33 @@ public class CustomerGroup : MonoBehaviour
     public void MarkGreeted()
     {
         hasBeenGreeted = true;
+    }
+
+    private void ClearEatingBubble()
+    {
+        if (eatingBubbleInstance == null) return;
+        Destroy(eatingBubbleInstance);
+        eatingBubbleInstance = null;
+    }
+
+    private void SpawnEatingBubble()
+    {
+        if (eatingBubblePrefab == null) return;
+
+        ResolveCanvas();
+        if (gameplayCanvas == null) return;
+
+        ClearEatingBubble();
+
+        eatingBubbleInstance = Instantiate(eatingBubblePrefab, gameplayCanvas.transform);
+        eatingBubbleInstance.name = $"{name}_EatingBubble";
+
+        var follow = eatingBubbleInstance.GetComponentInChildren<UIFollowWorldPoint>(true);
+        if (follow != null)
+            follow.Init(groupUiAnchor, eatingBubbleOffset, GetFollowCam());
+
+        var ui = eatingBubbleInstance.GetComponentInChildren<EatingBubbleUI>(true);
+        if (ui != null)
+            ui.SetBaseText("Eating");
     }
 }

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public class CustomerGroupClickable : MonoBehaviour
@@ -19,15 +20,16 @@ public class CustomerGroupClickable : MonoBehaviour
 
             var tray = WaiterHands.Instance.holdingTray;
             if (tray == null) return;
-    
+
+            List<string> deliveredContents = new List<string>();
+
+            if (tray.DeliveredContents != null && tray.DeliveredContents.Count > 0)
+                deliveredContents.AddRange(tray.DeliveredContents);
+
             WaiterHands.Instance.ClearTray();
             Destroy(tray.gameObject);
 
-            group.ReceiveFoodFromWaiter(
-                tray.DeliveredFood,
-                tray.DeliveredDrink
-            );
-
+            group.ReceiveFoodFromWaiter(deliveredContents);
             return;
         }
 

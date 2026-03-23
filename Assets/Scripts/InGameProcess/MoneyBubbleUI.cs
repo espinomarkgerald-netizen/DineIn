@@ -8,11 +8,50 @@ public class MoneyBubbleUI : MonoBehaviour
     [SerializeField] private TMP_Text amountText;
 
     private MoneyPickup money;
+    private bool isRemoving;
 
     private void Awake()
     {
         if (button == null)
             button = GetComponentInChildren<Button>(true);
+    }
+
+    private void Update()
+    {
+        if (isRemoving) return;
+
+        if (money == null)
+        {
+            RemoveBubble();
+            return;
+        }
+
+        if (!money.gameObject.activeInHierarchy)
+        {
+            RemoveBubble();
+            return;
+        }
+
+        CustomerGroup group = money.TargetGroup;
+        if (group == null)
+        {
+            RemoveBubble();
+            return;
+        }
+
+        if (group.state == CustomerGroup.GroupState.Leaving ||
+            group.state == CustomerGroup.GroupState.AngryLeft ||
+            group.state == CustomerGroup.GroupState.UnhappyLeft)
+        {
+            RemoveBubble();
+            return;
+        }
+
+        var hands = WaiterHands.Instance;
+        if (hands != null && hands.HasMoney && hands.HeldMoney == money)
+        {
+            RemoveBubble();
+        }
     }
 
     public void Init(int amount, MoneyPickup m)
@@ -29,6 +68,13 @@ public class MoneyBubbleUI : MonoBehaviour
         }
     }
 
+    public void RemoveBubble()
+    {
+        if (isRemoving) return;
+        isRemoving = true;
+        Destroy(gameObject);
+    }
+
     private void OnClickCollect()
     {
         if (money == null) return;
@@ -39,7 +85,11 @@ public class MoneyBubbleUI : MonoBehaviour
         if (player == null) return;
 
         player.UI_MoveTo(money);
+    }
 
-        Destroy(gameObject);
+    private void OnDestroy()
+    {
+        if (button != null)
+            button.onClick.RemoveListener(OnClickCollect);
     }
 }

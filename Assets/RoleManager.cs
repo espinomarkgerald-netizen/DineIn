@@ -1,3 +1,4 @@
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -14,14 +15,14 @@ public class RoleManager : MonoBehaviour
     [Header("Default Role")]
     [SerializeField] private GameObject defaultRole;
 
-    [Header("UI")]
-    [SerializeField] private RoleSwitchWarningUI warningUI;
-
     [Header("Role Buttons")]
     [SerializeField] private Button hostButton;
     [SerializeField] private Button waiterButton;
     [SerializeField] private Button cashierButton;
     [SerializeField] private Button busserButton;
+
+    [Header("Role Display")]
+    [SerializeField] private TMP_Text currentRoleText;
 
     [Header("Camera Anchors")]
     [SerializeField] private Transform hostCameraAnchor;
@@ -42,6 +43,7 @@ public class RoleManager : MonoBehaviour
     private void Start()
     {
         RefreshButtonVisuals();
+        UpdateRoleUI();
 
         if (cameraController != null && activeRole != null)
             cameraController.PanToTarget(activeRole.transform);
@@ -61,6 +63,8 @@ public class RoleManager : MonoBehaviour
 
         SetPlayerControlled(activeRole, true);
         SetIndicator(activeRole, true);
+
+        UpdateRoleUI();
     }
 
     private void InitializeRole(GameObject obj, bool playerControlled)
@@ -80,25 +84,25 @@ public class RoleManager : MonoBehaviour
 
     public void SwitchToHost()
     {
-        TrySwitch(host, hostCameraAnchor);
+        TrySwitch(host);
     }
 
     public void SwitchToWaiter()
     {
-        TrySwitch(waiter, waiterCameraAnchor);
+        TrySwitch(waiter);
     }
 
     public void SwitchToCashier()
     {
-        TrySwitch(cashier, cashierCameraAnchor);
+        TrySwitch(cashier);
     }
 
     public void SwitchToBusser()
     {
-        TrySwitch(busser, busserCameraAnchor);
+        TrySwitch(busser);
     }
 
-    private void TrySwitch(GameObject nextRole, Transform nextCameraAnchor)
+    private void TrySwitch(GameObject nextRole)
     {
         if (nextRole == null) return;
         if (activeRole == nextRole) return;
@@ -127,6 +131,7 @@ public class RoleManager : MonoBehaviour
         SetIndicator(activeRole, true);
 
         RefreshButtonVisuals();
+        UpdateRoleUI();
 
         if (cameraController != null)
             cameraController.PanToTarget(activeRole.transform);
@@ -155,6 +160,37 @@ public class RoleManager : MonoBehaviour
         }
     }
 
+    private void UpdateRoleUI()
+    {
+        if (currentRoleText == null) return;
+
+        currentRoleText.text = GetActiveRoleDisplayName();
+    }
+
+    private string GetActiveRoleDisplayName()
+    {
+        if (activeRole == null)
+            return "None";
+
+        StaffRole staffRole = activeRole.GetComponent<StaffRole>();
+        if (staffRole == null)
+            return activeRole.name;
+
+        switch (staffRole.role)
+        {
+            case StaffRole.Role.Host:
+                return "Host";
+            case StaffRole.Role.Waiter:
+                return "Waiter";
+            case StaffRole.Role.Cashier:
+                return "Cashier";
+            case StaffRole.Role.Busser:
+                return "Busser";
+            default:
+                return activeRole.name;
+        }
+    }
+
     private void SetPlayerControlled(GameObject obj, bool value)
     {
         if (obj == null) return;
@@ -180,7 +216,7 @@ public class RoleManager : MonoBehaviour
 
     public string ActiveRoleName()
     {
-        return activeRole != null ? activeRole.name : "NULL";
+        return GetActiveRoleDisplayName();
     }
 
     public StaffRole.Role ActiveRoleType()

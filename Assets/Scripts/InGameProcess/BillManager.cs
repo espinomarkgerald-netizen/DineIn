@@ -49,30 +49,41 @@ public class BillManager : MonoBehaviour
             var group = queue.Dequeue();
             queued.Remove(group);
 
-            yield return new WaitForSeconds(printSeconds);
+            if (group == null)
+                continue;
 
-            if (group == null) continue;
-            if (HasExistingBillForGroup(group)) continue;
+            if (HasExistingBillForGroup(group))
+                continue;
+
+            ProcessingBillIndicatorUI.Instance?.Show();
+
+            yield return new WaitForSeconds(printSeconds);
 
             Transform spawn = GetFreeSpawnPoint();
             if (spawn == null) spawn = billSpawnPoints[0];
-            if (spawn == null) continue;
 
-            Transform parent = billsRoot != null ? billsRoot : spawn;
-
-            var go = Instantiate(billPaperPrefab, spawn.position, spawn.rotation, parent);
-
-            var bill = go.GetComponentInChildren<BillPaper>(true);
-            if (bill != null)
+            if (spawn != null)
             {
-                bill.Init(group);
+                Transform parent = billsRoot != null ? billsRoot : spawn;
 
-                var col = bill.GetComponentInChildren<Collider>(true);
-                if (col != null) col.enabled = true;
+                var go = Instantiate(billPaperPrefab, spawn.position, spawn.rotation, parent);
+
+                var bill = go.GetComponentInChildren<BillPaper>(true);
+                if (bill != null)
+                {
+                    bill.Init(group);
+
+                    var col = bill.GetComponentInChildren<Collider>(true);
+                    if (col != null) col.enabled = true;
+                }
             }
+
+            if (queue.Count <= 0)
+                ProcessingBillIndicatorUI.Instance?.Hide();
         }
 
         printing = false;
+        ProcessingBillIndicatorUI.Instance?.Hide();
     }
 
     private Transform GetFreeSpawnPoint()

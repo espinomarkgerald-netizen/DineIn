@@ -237,8 +237,8 @@ MonoBehaviour:
   tableNumberOffset: {x: 0, y: 1.6, z: 0}
   minOrderDelay: 2
   maxOrderDelay: 5
-  minOrderPatience: 10
-  maxOrderPatience: 15
+  minOrderPatience: 20
+  maxOrderPatience: 25
   minEatSeconds: 8
   maxEatSeconds: 12
   billIcon: {fileID: 0}
@@ -250,8 +250,20 @@ MonoBehaviour:
   iceTeaSprite: {fileID: 21300000, guid: 9746789dafebbb841a6edd396858d4b4, type: 3}
   exitPoint: {fileID: 0}
   exitFormationSpacing: 0.8
-  remakeBubbleDelay: 1.2
+  remakeBubbleDelay: 3
   maxWrongDeliveriesBeforeLeave: 3
+  currentOrder:
+    name: 
+    quantity: 1
+    unitPrice: 0
+    contents: []
+  submittedOrder:
+    name: 
+    quantity: 1
+    unitPrice: 0
+    contents: []
+  eatingBubblePrefab: {fileID: 170256330689608949, guid: f917c154a462f874280eb918ceffa292, type: 3}
+  eatingBubbleOffset: {x: 0, y: 2.4, z: 0}
   assignedBooth: {fileID: 0}
   chosenFood: 0
   chosenDrink: 0
@@ -301,3 +313,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c7ad5cd7e63a35944a00dc796e5c327c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  currentTicket:
+    lines: []

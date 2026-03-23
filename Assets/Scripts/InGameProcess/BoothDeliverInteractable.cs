@@ -6,6 +6,11 @@ public class BoothDeliverInteractable : MonoBehaviour, IInteractable
     [SerializeField] private Transform tableFoodSpawn;
     [SerializeField] private AutoInteractRadius autoRadius;
 
+    [Header("Warning")]
+    [SerializeField] private float wrongOrderWarningCooldown = 1f;
+
+    private float lastWrongOrderWarningTime = -999f;
+
     public Transform StandPoint => booth != null && booth.approachPoint != null ? booth.approachPoint : transform;
     public bool AutoReturnHome => false;
 
@@ -35,7 +40,7 @@ public class BoothDeliverInteractable : MonoBehaviour, IInteractable
         var mover = RoleManager.Instance != null ? RoleManager.Instance.GetActivePlayerMovement() : null;
         if (mover == null) return;
 
-        if (CanInteract())
+        if (CanAttemptInteract())
             Interact(mover);
     }
 
@@ -43,26 +48,59 @@ public class BoothDeliverInteractable : MonoBehaviour, IInteractable
     {
         if (RoleManager.Instance == null) return false;
         if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Waiter)) return false;
-        if (WaiterHands.Instance == null || !WaiterHands.Instance.HasTray) return false;
+
+        var hands = WaiterHands.Instance;
+        if (hands == null || !hands.HasTray) return false;
+
         if (booth == null) return false;
 
         var group = booth.CurrentGroup;
         if (group == null) return false;
         if (group.state != CustomerGroup.GroupState.OrderTaken) return false;
 
-        var tray = WaiterHands.Instance.holdingTray;
+        var tray = hands.holdingTray;
         return tray != null && tray.Matches(group);
+    }
+
+    private bool CanAttemptInteract()
+    {
+        if (RoleManager.Instance == null) return false;
+        if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Waiter)) return false;
+
+        var hands = WaiterHands.Instance;
+        if (hands == null || !hands.HasTray) return false;
+
+        if (booth == null) return false;
+
+        var group = booth.CurrentGroup;
+        if (group == null) return false;
+
+        var tray = hands.holdingTray;
+        return tray != null;
     }
 
     public void Interact(PlayerMovement mover)
     {
-        if (!CanInteract()) return;
+        if (!CanAttemptInteract()) return;
 
         var hands = WaiterHands.Instance;
         var group = booth.CurrentGroup;
         var tray = hands.holdingTray;
 
         if (group == null || tray == null)
+            return;
+
+        if (!tray.Matches(group))
+        {
+            if (Time.time - lastWrongOrderWarningTime >= wrongOrderWarningCooldown)
+            {
+                ShowWarning($"This order is for table {tray.orderNumber}, not table {group.currentOrderNumber}.");
+                lastWrongOrderWarningTime = Time.time;
+            }
+            return;
+        }
+
+        if (group.state != CustomerGroup.GroupState.OrderTaken)
             return;
 
         if (tableFoodSpawn == null)
@@ -74,26 +112,31 @@ public class BoothDeliverInteractable : MonoBehaviour, IInteractable
         bool ok = hands.TryDeliverTrayTo(group, destroyTrayObject: false);
         if (!ok) return;
 
-        if (tray != null)
-        {
-            tray.transform.SetParent(tableFoodSpawn, false);
-            tray.transform.localPosition = Vector3.zero;
-            tray.transform.localRotation = Quaternion.identity;
+        tray.transform.SetParent(tableFoodSpawn, false);
+        tray.transform.localPosition = Vector3.zero;
+        tray.transform.localRotation = Quaternion.identity;
 
-            var col = tray.GetComponentInChildren<Collider>(true);
-            if (col != null) col.enabled = true;
-        }
+        var col = tray.GetComponentInChildren<Collider>(true);
+        if (col != null) col.enabled = true;
 
         var trayInteractable = tray.GetComponent<FoodTrayInteractable>();
         if (trayInteractable != null)
             trayInteractable.NotifyDeliveredToTable();
 
-        group.ReceiveFoodFromWaiter(
-            tray.DeliveredFood,
-            tray.DeliveredDrink
-        );
+        group.ReceiveFoodFromWaiter(tray.DeliveredContents);
 
         Debug.Log($"[BoothDeliver] Delivered tray #{group.currentOrderNumber} to {booth.name}");
+    }
+
+    private void ShowWarning(string message)
+    {
+        if (WarningSlideUI.Instance != null)
+        {
+            WarningSlideUI.Instance.Show(message);
+            return;
+        }
+
+        Debug.LogWarning(message);
     }
 
     public float GetInteractRadius()

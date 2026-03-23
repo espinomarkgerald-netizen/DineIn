@@ -41,10 +41,32 @@ public class FoodTray : MonoBehaviour
     private bool hasDrink;
 
     public CustomerGroup TargetGroup => targetGroup;
-    public CustomerGroup.FoodType DeliveredFood => deliveredFood1;
-    public CustomerGroup.FoodType DeliveredFood1 => deliveredFood1;
-    public CustomerGroup.FoodType DeliveredFood2 => deliveredFood2;
-    public CustomerGroup.DrinkType DeliveredDrink => deliveredDrink;
+
+    // ✅ NEW: unified delivered contents
+    public List<string> DeliveredContents
+    {
+        get
+        {
+            List<string> list = new List<string>();
+
+            list.Add(deliveredFood1.ToString());
+
+            if (hasFood2)
+                list.Add(deliveredFood2.ToString());
+
+            if (hasDrink)
+            {
+                if (deliveredDrink == CustomerGroup.DrinkType.Coke)
+                    list.Add("Coke");
+                else if (deliveredDrink == CustomerGroup.DrinkType.Pineapple)
+                    list.Add("Pineapple");
+                else if (deliveredDrink == CustomerGroup.DrinkType.IceTea)
+                    list.Add("Ice Tea");
+            }
+
+            return list;
+        }
+    }
 
     public void Init(CustomerGroup group)
     {
@@ -82,11 +104,6 @@ public class FoodTray : MonoBehaviour
 
         if (numberUi != null)
             numberUi.SetNumber(orderNumber);
-
-        Debug.Log($"[FoodTray] Init tray: order={orderName}, number={orderNumber}");
-        Debug.Log($"[FoodTray] Anchors: food1={(foodAnchor1 ? foodAnchor1.name : "NULL")}, food2={(foodAnchor2 ? foodAnchor2.name : "NULL")}, drink={(drinkAnchor ? drinkAnchor.name : "NULL")}");
-        Debug.Log($"[FoodTray] Prefabs: chicken={(chickenPrefab ? chickenPrefab.name : "NULL")}, fries={(friesPrefab ? friesPrefab.name : "NULL")}, burger={(burgerPrefab ? burgerPrefab.name : "NULL")}, coke={(cokePrefab ? cokePrefab.name : "NULL")}, pineapple={(pineapplePrefab ? pineapplePrefab.name : "NULL")}, icedtea={(iceTeaPrefab ? iceTeaPrefab.name : "NULL")}");
-        Debug.Log($"[FoodTray] Delivered: food1={deliveredFood1}, food2={deliveredFood2}, drink={deliveredDrink}");
 
         SpawnVisuals();
     }
@@ -143,8 +160,6 @@ public class FoodTray : MonoBehaviour
 
     private void SpawnVisuals()
     {
-        Debug.Log("[FoodTray] SpawnVisuals called");
-
         if (spawnedFood1 != null) Destroy(spawnedFood1);
         if (spawnedFood2 != null) Destroy(spawnedFood2);
         if (spawnedDrink != null) Destroy(spawnedDrink);
