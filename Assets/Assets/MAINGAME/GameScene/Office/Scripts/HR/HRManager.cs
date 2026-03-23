@@ -1,39 +1,23 @@
 using UnityEngine;
-using System.Collections.Generic;
 
 public class HRManager : MonoBehaviour
 {
-    public RoleSlot[] allSlots;
-    public EmployeeGenerator generator;
-    public EmployeeCard[] cards;
+    public RoleRowUI[] rows; // assign in inspector
     public EmployeeData selectedEmployee;
-    public RoleRowUI[] rows;
-
-    Dictionary<EmployeeRole, List<EmployeeData>> employeesByRole 
-        = new Dictionary<EmployeeRole, List<EmployeeData>>();
 
     void Start()
     {
-        Debug.Log($"HRManager Start() running, generator: {generator}, rows length: {rows.Length}");
-        generator.GenerateEmployees();
+        // Ensure employees exist
+        if (EmployeeManager.Instance.allEmployees.Count == 0)
+            EmployeeManager.Instance.GenerateEmployees();
 
-        // Initialize dictionary
-        foreach (EmployeeRole role in System.Enum.GetValues(typeof(EmployeeRole)))
-        {
-            employeesByRole[role] = new List<EmployeeData>();
-        }
-
-        // Group employees
-        foreach (var emp in generator.employees)
-        {
-            employeesByRole[emp.role].Add(emp);
-        }
-
-        // Populate UI
+        // Populate each RoleRowUI
         foreach (var row in rows)
         {
-            var list = employeesByRole[row.roleType];
-            row.Populate(list, this);
+            var group = EmployeeManager.Instance.employeesByRole
+                .Find(g => g.role == row.roleType);
+            if (group != null)
+                row.Populate(group.employees, this);
         }
     }
 
@@ -46,17 +30,21 @@ public class HRManager : MonoBehaviour
     {
         if (selectedEmployee == null) return false;
 
-        if (selectedEmployee.role != targetSlot.roleType)
+        EmployeeManager.Instance.AssignEmployee(selectedEmployee, targetSlot);
+        selectedEmployee = null;
+
+        // Refresh the row UI
+        foreach (var row in rows)
         {
-            Debug.Log("Role mismatch");
-            return false;
+            if (row.roleType == targetSlot.roleType)
+            {
+                var group = EmployeeManager.Instance.employeesByRole
+                    .Find(g => g.role == row.roleType);
+                row.Populate(group.employees, this);
+                break;
+            }
         }
 
-        bool success = targetSlot.AssignEmployee(selectedEmployee);
-
-        if (success)
-            selectedEmployee = null;
-
-        return success;
+        return true;
     }
 }

@@ -1,16 +1,20 @@
 using UnityEngine;
-using System.Collections.Generic;
 using System;
+using System.Collections.Generic;
+
 
 public class InventoryManager : MonoBehaviour
 {
     public static InventoryManager Instance;
 
-    [SerializeField] private List<ItemData> items;
+    [Header("Inventory Setup")]
+    [SerializeField] private List<ItemData> items; // assign in inspector
 
     private Dictionary<ItemType, int> inventory = new Dictionary<ItemType, int>();
 
-    // Event to notify UI
+    [Header("Inspector-Friendly Stock")]
+    [SerializeField] private List<InventoryEntry> inspectorInventory = new List<InventoryEntry>();
+
     public event Action<ItemType, int> OnStockChanged;
 
     void Awake()
@@ -19,17 +23,21 @@ public class InventoryManager : MonoBehaviour
         {
             Instance = this;
             DontDestroyOnLoad(gameObject);
+            InitializeInventory();
         }
         else
         {
             Destroy(gameObject);
-            return;
         }
-
-        InitializeInventory();
     }
 
-    void InitializeInventory()
+    void Start()
+    {
+        foreach (var kvp in inventory)
+            OnStockChanged?.Invoke(kvp.Key, kvp.Value);
+    }
+
+    private void InitializeInventory()
     {
         if (items == null || items.Count == 0)
         {
@@ -40,23 +48,27 @@ public class InventoryManager : MonoBehaviour
         foreach (var item in items)
         {
             if (!inventory.ContainsKey(item.itemType))
-            {
                 inventory[item.itemType] = 0;
-            }
         }
+
+        UpdateInspectorInventory();
+    }
+
+    private void UpdateInspectorInventory()
+    {
+        inspectorInventory.Clear();
+        foreach (var kvp in inventory)
+            inspectorInventory.Add(new InventoryEntry { itemType = kvp.Key, stock = kvp.Value });
     }
 
     public void AddStock(ItemType type, int amount)
     {
         if (!inventory.ContainsKey(type))
-        {
             inventory[type] = 0;
-        }
 
         inventory[type] += amount;
-
-        // Notify UI
         OnStockChanged?.Invoke(type, inventory[type]);
+        UpdateInspectorInventory();
     }
 
     public bool UseStock(ItemType type, int amount)
@@ -65,17 +77,15 @@ public class InventoryManager : MonoBehaviour
             return false;
 
         inventory[type] -= amount;
-
-        // Notify UI
         OnStockChanged?.Invoke(type, inventory[type]);
+        UpdateInspectorInventory();
         return true;
     }
 
     public int GetStock(ItemType type)
     {
-        if (!inventory.ContainsKey(type))
-            return 0;
-
-        return inventory[type];
+        return inventory.ContainsKey(type) ? inventory[type] : 0;
     }
+
+    public List<ItemData> Items => items; // expose items for UI
 }

@@ -1,14 +1,19 @@
-using System;
 using UnityEngine;
+using System;
+using System.Collections.Generic;
 
 public class MoneyManager : MonoBehaviour
 {
     public static MoneyManager Instance;
 
+    [Header("Finance Setup")]
     [SerializeField] private int startingMoney = 500;
     public int Money { get; private set; }
 
-    public event Action<int> OnMoneyChanged; // 👈 add this
+    [Header("Optional Inspector Debug")]
+    [SerializeField] private List<string> transactionLog = new List<string>();
+
+    public event Action<int> OnMoneyChanged;
 
     void Awake()
     {
@@ -24,18 +29,27 @@ public class MoneyManager : MonoBehaviour
         }
     }
 
-    public bool Spend(int amount)
+    void Start()
+    {
+        OnMoneyChanged?.Invoke(Money);
+    }
+
+    public void Earn(int amount, string description = "Income")
+    {
+        Money += amount;
+        OnMoneyChanged?.Invoke(Money);
+        transactionLog.Add($"+{amount}: {description}");
+    }
+
+    public bool Spend(int amount, string description = "Expense")
     {
         if (Money < amount) return false;
 
         Money -= amount;
-        OnMoneyChanged?.Invoke(Money); // 👈 notify UI
+        OnMoneyChanged?.Invoke(Money);
+        transactionLog.Add($"-{amount}: {description}");
         return true;
     }
 
-    public void Earn(int amount)
-    {
-        Money += amount;
-        OnMoneyChanged?.Invoke(Money); // 👈 notify UI
-    }
+    public List<string> TransactionLog => transactionLog;
 }
