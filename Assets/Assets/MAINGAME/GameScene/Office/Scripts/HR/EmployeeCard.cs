@@ -5,7 +5,7 @@ using UnityEngine.UI;
 public class EmployeeCard : MonoBehaviour
 {
     public TMP_Text nameText;
-    public TMP_Text roleText;
+    public TMP_Text salaryText;
     public Image[] starImages; // 5 stars
     public Sprite filledStar;
     public Sprite emptyStar;
@@ -18,7 +18,7 @@ public class EmployeeCard : MonoBehaviour
         employee = data;
 
         nameText.text = data.employeeName;
-        roleText.text = data.role.ToString();
+        salaryText.text = $"₱{data.GetSalary()}/Day";
 
         for (int i = 0; i < starImages.Length; i++)
         {
@@ -30,5 +30,10 @@ public class EmployeeCard : MonoBehaviour
     {
         hrManager.SelectEmployee(employee);
         Debug.Log($"Selected {employee.employeeName}");
+    }
+
+    public void Refresh()
+    {
+        salaryText.text = $"${employee.GetSalary()}";
     }
 }
