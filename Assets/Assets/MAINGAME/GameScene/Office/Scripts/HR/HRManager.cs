@@ -31,9 +31,12 @@ public class HRManager : MonoBehaviour
         if (selectedEmployee == null) return false;
 
         EmployeeManager.Instance.AssignEmployee(selectedEmployee, targetSlot);
+
+        if (KitchenAssignmentSaveBridge.Instance != null)
+            KitchenAssignmentSaveBridge.Instance.SaveAssignedEmployee(selectedEmployee);
+
         selectedEmployee = null;
 
-        // Refresh the row UI
         foreach (var row in rows)
         {
             if (row.roleType == targetSlot.roleType)

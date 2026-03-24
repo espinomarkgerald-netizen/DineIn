@@ -387,6 +387,12 @@ private GameObject eatingBubbleInstance;
 
         GenerateRandomOrder();
 
+        if (currentOrder == null || currentOrder.contents == null || currentOrder.contents.Count == 0 || currentOrder.name == "No Food Available")
+        {
+            BecomeUnhappyAndLeave();
+            yield break;
+        }
+
         if (currentOrderNumber < 0)
         {
             currentOrderNumber = OrderNumberManager.Instance != null
@@ -435,7 +441,7 @@ private GameObject eatingBubbleInstance;
 
             yield return null;
         }
-    }
+}
 
     private void GenerateRandomOrder()
     {
@@ -466,11 +472,38 @@ private GameObject eatingBubbleInstance;
 
         currentOrder.Clear();
 
-        int random = UnityEngine.Random.Range(0, 6);
+        List<int> validOrderTypes = new List<int>();
+
+        if (HasAllFoods("Chicken"))
+            validOrderTypes.Add(0);
+
+        if (HasAllFoods("Fries"))
+            validOrderTypes.Add(1);
+
+        if (HasAllFoods("Burger"))
+            validOrderTypes.Add(2);
+
+        if (HasAllFoods("Chicken", "Fries"))
+            validOrderTypes.Add(3);
+
+        if (HasAllFoods("Chicken", "Burger"))
+            validOrderTypes.Add(4);
+
+        if (HasAllFoods("Burger", "Fries"))
+            validOrderTypes.Add(5);
+
+        if (validOrderTypes.Count == 0)
+        {
+            currentOrder.name = "No Food Available";
+            currentOrder.quantity = 1;
+            currentOrder.unitPrice = 0;
+            return;
+        }
+
+        int random = validOrderTypes[UnityEngine.Random.Range(0, validOrderTypes.Count)];
 
         switch (random)
         {
-            // Solo food
             case 0:
                 currentOrder.name = "Chicken";
                 currentOrder.unitPrice = 299;
@@ -489,7 +522,6 @@ private GameObject eatingBubbleInstance;
                 currentOrder.contents.Add("Burger");
                 break;
 
-            // Bundle food
             case 3:
                 currentOrder.name = "Chicken + Fries";
                 currentOrder.unitPrice = 375;
@@ -512,9 +544,7 @@ private GameObject eatingBubbleInstance;
                 break;
         }
 
-        // ALWAYS add a drink
         currentOrder.contents.Add(GetRandomDrinkName());
-
         currentOrder.quantity = 1;
     }
 
@@ -1383,5 +1413,39 @@ private GameObject eatingBubbleInstance;
         var ui = eatingBubbleInstance.GetComponentInChildren<EatingBubbleUI>(true);
         if (ui != null)
             ui.SetBaseText("Eating");
+    }
+
+    private bool HasAllFoods(params string[] foods)
+    {
+        if (LobbyStockBridge.Instance == null)
+            return true;
+
+        for (int i = 0; i < foods.Length; i++)
+        {
+            if (!HasFoodByName(foods[i]))
+                return false;
+        }
+
+        return true;
+    }
+
+    private bool HasFoodByName(string foodName)
+    {
+        if (LobbyStockBridge.Instance == null)
+            return true;
+
+        switch (foodName)
+        {
+            case "Chicken":
+                return LobbyStockBridge.Instance.HasFoodStock(FoodType.Chicken);
+
+            case "Fries":
+                return LobbyStockBridge.Instance.HasFoodStock(FoodType.Fries);
+
+            case "Burger":
+                return LobbyStockBridge.Instance.HasFoodStock(FoodType.Burger);
+        }
+
+        return false;
     }
 }

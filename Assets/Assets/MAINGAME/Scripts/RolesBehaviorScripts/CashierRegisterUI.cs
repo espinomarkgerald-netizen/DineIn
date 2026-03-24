@@ -211,6 +211,16 @@ public class CashierRegisterUI : MonoBehaviour
 
         if (paidGroup != null)
         {
+       
+            int amountEarned = totalAmount;
+
+            if (DailyFinanceBridge.Instance != null)
+            {
+                DailyFinanceBridge.Instance.AddEarnings(amountEarned);
+                Debug.Log("[Finance] Earned ₱" + amountEarned + 
+                        " | Total = ₱" + DailyFinanceBridge.Instance.EarnedToday);
+            }
+
             GameDayManager.Instance?.RegisterPaymentCompleted();
             paidGroup.PayAndLeave();
         }

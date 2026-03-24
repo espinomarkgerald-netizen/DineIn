@@ -20,7 +20,7 @@ public class RoleRowUI : MonoBehaviour
         }
         spawnedCards.Clear();
 
-        Debug.Log($"Spawning {employees.Count} cards under {contentParent.name}");
+        //Debug.Log($"Spawning {employees.Count} cards under {contentParent.name}");
         RectTransform contentRect = contentParent.GetComponent<RectTransform>();
 
         // Spawn new cards
@@ -29,7 +29,7 @@ public class RoleRowUI : MonoBehaviour
             EmployeeCard card = Instantiate(cardPrefab, contentParent);
             card.Setup(emp);
             card.hrManager = hrManager;
-            Debug.Log($"Spawned card for {emp.employeeName}");
+            //Debug.Log($"Spawned card for {emp.employeeName}");
             
             spawnedCards.Add(card);
         }

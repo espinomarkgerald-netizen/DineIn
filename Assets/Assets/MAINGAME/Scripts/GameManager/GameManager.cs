@@ -89,6 +89,7 @@ public class GameDayManager : MonoBehaviour
     [SerializeField] private TMP_Text dayText;
     [SerializeField] private TMP_Text timerText;
     [SerializeField] private Slider progressBar;
+    [SerializeField] private TMP_Text progressMoneyText;
 
     [Header("Fail Bars")]
     [SerializeField] private Slider angryBar;
@@ -662,32 +663,31 @@ public class GameDayManager : MonoBehaviour
 
         if (progressBar != null)
             progressBar.value = CalculateProgress01();
+
+        RefreshProgressMoneyText();
+    }
+
+    private void RefreshProgressMoneyText()
+    {
+        if (progressMoneyText == null)
+            return;
+
+        if (DailyFinanceBridge.Instance == null)
+        {
+            progressMoneyText.text = "₱0 / ₱0";
+            return;
+        }
+
+        progressMoneyText.text =
+            $"₱{DailyFinanceBridge.Instance.EarnedToday} / ₱{DailyFinanceBridge.Instance.TotalRequiredEarningsToday}";
     }
 
     private float CalculateProgress01()
     {
-        DaySettings settings = GetCurrentSettings();
-        if (settings == null || settings.tasks == null || settings.tasks.Length == 0)
-            return 0f;
+        if (DailyFinanceBridge.Instance != null)
+            return DailyFinanceBridge.Instance.GetProgress01();
 
-        float totalTarget = 0f;
-        float totalDone = 0f;
-
-        for (int i = 0; i < settings.tasks.Length; i++)
-        {
-            DayTask task = settings.tasks[i];
-            if (task == null) continue;
-
-            totalTarget += Mathf.Max(0, task.targetAmount);
-
-            int current = GetTaskProgress(task.taskType);
-            totalDone += Mathf.Min(current, task.targetAmount);
-        }
-
-        if (totalTarget <= 0f)
-            return 0f;
-
-        return Mathf.Clamp01(totalDone / totalTarget);
+        return 0f;
     }
 
     private int GetTaskProgress(TaskType taskType)
@@ -747,6 +747,14 @@ public class GameDayManager : MonoBehaviour
         if (resultsSummaryText != null)
         {
             StringBuilder sb = new StringBuilder();
+
+            if (DailyFinanceBridge.Instance != null)
+            {
+                sb.AppendLine("Finance");
+                sb.AppendLine("Earned: ₱" + DailyFinanceBridge.Instance.EarnedToday);
+                sb.AppendLine("Target: ₱" + DailyFinanceBridge.Instance.TotalRequiredEarningsToday);
+                sb.AppendLine();
+            }
 
             DaySettings settings = GetCurrentSettings();
             if (settings != null && settings.tasks != null && settings.tasks.Length > 0)

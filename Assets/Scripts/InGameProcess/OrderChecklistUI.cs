@@ -50,6 +50,10 @@ public class OrderChecklistUI : MonoBehaviour
 
     [SerializeField] private TutorialHintTextUI tutorialHint;
 
+    [Header("Available Stock UI")]
+    [SerializeField] private TMP_Text chickenAvailableText;
+    [SerializeField] private TMP_Text friesAvailableText;
+    [SerializeField] private TMP_Text burgerAvailableText;
     private CustomerGroup group;
     private Coroutine typingRoutine;
 
@@ -95,6 +99,8 @@ public class OrderChecklistUI : MonoBehaviour
         group.SetOrderPause(true);
 
         ResetToggles();
+        RefreshFoodAvailabilityUI();
+        RefreshAvailableStockUI();
         LoadRequestedOrder();
         RefreshRequestedOrderUI();
 
@@ -122,6 +128,60 @@ public class OrderChecklistUI : MonoBehaviour
         requestedContents.Clear();
 
         gameObject.SetActive(false);
+    }
+
+    private void RefreshAvailableStockUI()
+    {
+        if (LobbyStockBridge.Instance == null)
+        {
+            SetAvailableStockText(chickenAvailableText, 0);
+            SetAvailableStockText(friesAvailableText, 0);
+            SetAvailableStockText(burgerAvailableText, 0);
+            return;
+        }
+
+        SetAvailableStockText(
+            chickenAvailableText,
+            LobbyStockBridge.Instance.GetFoodStock(CustomerGroup.FoodType.Chicken));
+
+        SetAvailableStockText(
+            friesAvailableText,
+            LobbyStockBridge.Instance.GetFoodStock(CustomerGroup.FoodType.Fries));
+
+        SetAvailableStockText(
+            burgerAvailableText,
+            LobbyStockBridge.Instance.GetFoodStock(CustomerGroup.FoodType.Burger));
+    }
+
+    private void SetAvailableStockText(TMP_Text textUI, int amount)
+    {
+        if (textUI == null) return;
+        textUI.text = "x" + amount;
+    }
+
+    private void RefreshFoodAvailabilityUI()
+    {
+        bool chickenAvailable = LobbyStockBridge.Instance == null || LobbyStockBridge.Instance.HasFoodStock(CustomerGroup.FoodType.Chicken);
+        bool friesAvailable = LobbyStockBridge.Instance == null || LobbyStockBridge.Instance.HasFoodStock(CustomerGroup.FoodType.Fries);
+        bool burgerAvailable = LobbyStockBridge.Instance == null || LobbyStockBridge.Instance.HasFoodStock(CustomerGroup.FoodType.Burger);
+
+        SetToggleInteractable(chickenToggle, chickenAvailable);
+        SetToggleInteractable(friesToggle, friesAvailable);
+        SetToggleInteractable(burgerToggle, burgerAvailable);
+
+        SetToggleInteractable(chickenFriesToggle, chickenAvailable && friesAvailable);
+        SetToggleInteractable(chickenBurgerToggle, chickenAvailable && burgerAvailable);
+        SetToggleInteractable(burgerFriesToggle, burgerAvailable && friesAvailable);
+    }
+
+    private void SetToggleInteractable(Toggle toggle, bool interactable)
+    {
+        if (toggle == null) return;
+
+        toggle.interactable = interactable;
+
+        if (!interactable)
+            toggle.SetIsOnWithoutNotify(false);
     }
 
     private void LoadRequestedOrder()
@@ -282,6 +342,50 @@ public class OrderChecklistUI : MonoBehaviour
             out CustomerGroup.DrinkType selectedDrink))
             return;
 
+        if (LobbyStockBridge.Instance != null)
+        {
+            for (int i = 0; i < selectedContents.Count; i++)
+            {
+                string item = selectedContents[i];
+
+                if (item == "Chicken" &&
+                    !LobbyStockBridge.Instance.HasFoodStock(CustomerGroup.FoodType.Chicken))
+                {
+                    ShowWarning("Chicken is no longer available.");
+                    return;
+                }
+
+                if (item == "Fries" &&
+                    !LobbyStockBridge.Instance.HasFoodStock(CustomerGroup.FoodType.Fries))
+                {
+                    ShowWarning("Fries are no longer available.");
+                    return;
+                }
+
+                if (item == "Burger" &&
+                    !LobbyStockBridge.Instance.HasFoodStock(CustomerGroup.FoodType.Burger))
+                {
+                    ShowWarning("Burger is no longer available.");
+                    return;
+                }
+            }
+
+            // Deduct stock
+            for (int i = 0; i < selectedContents.Count; i++)
+            {
+                string item = selectedContents[i];
+
+                if (item == "Chicken")
+                    LobbyStockBridge.Instance.TryUseFoodStock(CustomerGroup.FoodType.Chicken);
+
+                if (item == "Fries")
+                    LobbyStockBridge.Instance.TryUseFoodStock(CustomerGroup.FoodType.Fries);
+
+                if (item == "Burger")
+                    LobbyStockBridge.Instance.TryUseFoodStock(CustomerGroup.FoodType.Burger);
+            }
+        }
+
         if (group.submittedOrder == null)
             group.submittedOrder = new CustomerGroup.SimpleOrder();
 
@@ -301,6 +405,169 @@ public class OrderChecklistUI : MonoBehaviour
             TutorialManager.Instance.OnOrderConfirmed(group);
 
         Close();
+    }
+
+    
+
+    private bool AutoReplaceUnavailableFoods(List<string> selectedContents, out bool replacedAny)
+    {
+        replacedAny = false;
+
+        if (selectedContents == null || selectedContents.Count == 0)
+            return false;
+
+        if (LobbyStockBridge.Instance == null)
+            return true;
+
+        for (int i = 0; i < selectedContents.Count; i++)
+        {
+            string item = selectedContents[i];
+
+            if (!IsFoodItem(item))
+                continue;
+
+            if (HasStockForFoodName(item))
+                continue;
+
+            string replacement = GetReplacementFoodName(item);
+
+            if (string.IsNullOrEmpty(replacement))
+            {
+                ShowWarning("No food ingredients are available for this order.");
+                return false;
+            }
+
+            selectedContents[i] = replacement;
+            replacedAny = true;
+        }
+
+        return true;
+    }
+
+    private void ApplyReplacementToCustomerOrder(List<string> selectedContents, string orderName, int unitPrice)
+    {
+        requestedContents.Clear();
+        requestedContents.AddRange(selectedContents);
+
+        if (group != null && group.currentOrder != null)
+        {
+            group.currentOrder.contents.Clear();
+            group.currentOrder.contents.AddRange(selectedContents);
+            group.currentOrder.name = orderName;
+            group.currentOrder.unitPrice = unitPrice;
+            group.currentOrder.quantity = 1;
+        }
+
+        RefreshRequestedOrderUI();
+    }
+
+    private bool IsFoodItem(string item)
+    {
+        return item == "Chicken" || item == "Fries" || item == "Burger";
+    }
+
+    private bool HasStockForFoodName(string item)
+    {
+        if (LobbyStockBridge.Instance == null)
+            return false;
+
+        switch (item)
+        {
+            case "Chicken":
+                return LobbyStockBridge.Instance.HasFoodStock(CustomerGroup.FoodType.Chicken);
+
+            case "Fries":
+                return LobbyStockBridge.Instance.HasFoodStock(CustomerGroup.FoodType.Fries);
+
+            case "Burger":
+                return LobbyStockBridge.Instance.HasFoodStock(CustomerGroup.FoodType.Burger);
+        }
+
+        return false;
+    }
+
+    private string GetReplacementFoodName(string originalItem)
+    {
+        string[] candidates = { "Chicken", "Fries", "Burger" };
+
+        for (int i = 0; i < candidates.Length; i++)
+        {
+            string candidate = candidates[i];
+
+            if (candidate == originalItem)
+                continue;
+
+            if (HasStockForFoodName(candidate))
+                return candidate;
+        }
+
+        return string.Empty;
+    }
+
+    private void RebuildOrderDataFromContents(
+        List<string> contents,
+        CustomerGroup.DrinkType selectedDrink,
+        out string orderName,
+        out int unitPrice,
+        out CustomerGroup.FoodType mainFood)
+    {
+        List<string> foods = new List<string>();
+
+        unitPrice = 0;
+        orderName = string.Empty;
+        mainFood = CustomerGroup.FoodType.Chicken;
+
+        for (int i = 0; i < contents.Count; i++)
+        {
+            string item = contents[i];
+
+            if (!IsFoodItem(item))
+                continue;
+
+            foods.Add(item);
+
+            if (item == "Chicken")
+                unitPrice += 299;
+            else if (item == "Fries")
+                unitPrice += 79;
+            else if (item == "Burger")
+                unitPrice += 119;
+        }
+
+        for (int i = 0; i < contents.Count; i++)
+        {
+            string item = contents[i];
+
+            if (item == "Coke" || item == "Pineapple" || item == "Ice Tea")
+                unitPrice += 50;
+        }
+
+        if (foods.Count == 1)
+            orderName = foods[0];
+        else if (foods.Count >= 2)
+            orderName = foods[0] + " + " + foods[1];
+        else
+            orderName = "Order";
+
+        if (foods.Count > 0)
+            mainFood = GetFoodTypeFromName(foods[0]);
+    }
+
+    private CustomerGroup.FoodType GetFoodTypeFromName(string item)
+    {
+        switch (item)
+        {
+            case "Chicken":
+                return CustomerGroup.FoodType.Chicken;
+
+            case "Fries":
+                return CustomerGroup.FoodType.Fries;
+
+            case "Burger":
+                return CustomerGroup.FoodType.Burger;
+        }
+
+        return CustomerGroup.FoodType.Chicken;
     }
 
     private bool TryBuildSelection(
