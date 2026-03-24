@@ -18,7 +18,7 @@ public class EmployeeGenerator : MonoBehaviour
     public void GenerateEmployees()
     {
         employees.Clear();
-
+        //Hello Sir, Menu po natin for today is Monggo
         List<string> usedNames = new List<string>();
 
         foreach (EmployeeRole role in System.Enum.GetValues(typeof(EmployeeRole)))
