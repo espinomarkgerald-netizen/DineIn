@@ -47,13 +47,27 @@ public class GameDayManager : MonoBehaviour
         [Tooltip("Length of the day in minutes. Use decimals like 0.2 for quick debugging.")]
         public float dayLengthMinutes = 8f;
 
+        [Header("Spawn")]
         public int maxCustomersToSpawn = 12;
         public int maxGroupsPerMinute = 2;
         public float spawnIntervalMin = 6f;
         public float spawnIntervalMax = 12f;
+
+        [Header("Daily Finance Target")]
+        public int employeeCost = 0;
+        public int marketingCost = 0;
+        public int billsCost = 0;
+        public int ingredientCost = 0;
+
         public DayTask[] tasks;
 
         public float DayLengthSeconds => dayLengthMinutes * 60f;
+
+        public int TotalRequiredEarnings =>
+            Mathf.Max(0, employeeCost) +
+            Mathf.Max(0, marketingCost) +
+            Mathf.Max(0, billsCost) +
+            Mathf.Max(0, ingredientCost);
     }
 
     private const string SaveCurrentDayKey = "DineIn_CurrentDayIndex";
@@ -191,6 +205,8 @@ public class GameDayManager : MonoBehaviour
             resultsActionButton.onClick.AddListener(OnResultsActionPressed);
         }
 
+        ApplyFinanceFromGameFlow();
+
         RefreshUI();
         SetupFailBars(true);
 
@@ -292,6 +308,11 @@ public class GameDayManager : MonoBehaviour
             if (days[i].spawnIntervalMax < days[i].spawnIntervalMin)
                 days[i].spawnIntervalMax = days[i].spawnIntervalMin + 1f;
 
+            days[i].employeeCost = Mathf.Max(0, days[i].employeeCost);
+            days[i].marketingCost = Mathf.Max(0, days[i].marketingCost);
+            days[i].billsCost = Mathf.Max(0, days[i].billsCost);
+            days[i].ingredientCost = Mathf.Max(0, days[i].ingredientCost);
+
             if (days[i].tasks == null)
                 days[i].tasks = Array.Empty<DayTask>();
         }
@@ -352,6 +373,9 @@ public class GameDayManager : MonoBehaviour
         if (settings == null)
             return;
 
+     
+        ApplyFinanceFromGameFlow(); // 
+
         if (resultsPanel != null)
             resultsPanel.SetActive(false);
 
@@ -403,6 +427,9 @@ public class GameDayManager : MonoBehaviour
         if (settings == null)
             return;
 
+ 
+        ApplyFinanceFromGameFlow();
+
         timeRemaining = Mathf.Max(1f, settings.DayLengthSeconds);
         dayRunning = true;
         passedCurrentDay = false;
@@ -423,6 +450,34 @@ public class GameDayManager : MonoBehaviour
         SetupFailBars(true);
 
         Debug.Log("[GameDayManager] StartDay -> currentDayIndex = " + currentDayIndex + " | dayNumber = " + CurrentDayNumber + " | dayLengthMinutes = " + settings.dayLengthMinutes);
+    }
+
+    private void PreviewDayFinance(DaySettings settings)
+    {
+        if (settings == null || DailyFinanceBridge.Instance == null)
+            return;
+
+        DailyFinanceBridge.Instance.ResetDay();
+        DailyFinanceBridge.Instance.SetDailyCosts(
+            settings.employeeCost,
+            settings.marketingCost,
+            settings.billsCost,
+            settings.ingredientCost
+        );
+    }
+
+    private void ApplyDayFinance(DaySettings settings)
+    {
+        if (settings == null || DailyFinanceBridge.Instance == null)
+            return;
+
+        DailyFinanceBridge.Instance.ResetDay();
+        DailyFinanceBridge.Instance.SetDailyCosts(
+            settings.employeeCost,
+            settings.marketingCost,
+            settings.billsCost,
+            settings.ingredientCost
+        );
     }
 
     public void EndDay()
@@ -941,5 +996,22 @@ public class GameDayManager : MonoBehaviour
     public int GetTaskCurrent(TaskType taskType)
     {
         return GetTaskProgress(taskType);
+    }
+
+    private void ApplyFinanceFromGameFlow()
+    {
+        if (DailyFinanceBridge.Instance == null)
+            return;
+
+        if (GameFlowManager.Instance == null)
+            return;
+
+        DailyFinanceBridge.Instance.ResetDay();
+        DailyFinanceBridge.Instance.SetDailyCosts(
+            GameFlowManager.Instance.EmployeeCostToday,
+            GameFlowManager.Instance.MarketingCostToday,
+            GameFlowManager.Instance.BillsCostToday,
+            GameFlowManager.Instance.IngredientCostToday
+        );
     }
 }

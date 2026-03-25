@@ -34,9 +34,6 @@ public class DailyFinanceBridge : MonoBehaviour
         DontDestroyOnLoad(gameObject);
     }
 
-    // =========================
-    // DAY SETUP
-    // =========================
     public void ResetDay()
     {
         employeeCostToday = 0;
@@ -62,19 +59,40 @@ public class DailyFinanceBridge : MonoBehaviour
             ingredientCostToday;
     }
 
-    // =========================
-    // EARNINGS
-    // =========================
-    public void AddEarnings(int amount)
+    public void AddEarnings(int amount, string description = "Daily Earnings")
     {
-        if (amount <= 0) return;
+        if (amount <= 0)
+            return;
 
         earnedToday += amount;
+
+        if (MoneyManager.Instance != null)
+            MoneyManager.Instance.Earn(amount, description);
     }
 
-    // =========================
-    // PROGRESS
-    // =========================
+    public bool SpendMoney(int amount, string description = "Daily Expense")
+    {
+        if (amount <= 0)
+            return false;
+
+        bool success = false;
+
+        if (MoneyManager.Instance != null)
+            success = MoneyManager.Instance.Spend(amount, description);
+
+        if (!success)
+            return false;
+
+        ingredientCostToday += amount;
+        totalRequiredEarningsToday =
+            employeeCostToday +
+            marketingCostToday +
+            billsCostToday +
+            ingredientCostToday;
+
+        return true;
+    }
+
     public float GetProgress01()
     {
         if (totalRequiredEarningsToday <= 0)

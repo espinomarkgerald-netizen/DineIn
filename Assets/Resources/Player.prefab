@@ -193,17 +193,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f8421325c1f3e2a4d85d204fbc750eab, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  moveSpeed: 40
-  acceleration: 18
-  stoppingDistance: 0.15
-  groundLayer:
+  rayDistance: 300
+  clickMask:
     serializedVersion: 2
-    m_Bits: 8
+    m_Bits: 128
   tapThreshold: 10
-  constantSpeedUntilStop: 0
+  arriveDistance: 0.25
+  useInteractRadiusArrival: 1
+  interactStopMultiplier: 0.85
+  homePoint: {fileID: 0}
+  returnHomeWhenIdle: 1
+  returnHomeIdleSeconds: 1.25
+  returnHomeDelay: 1.5
   animator: {fileID: 9013626781662790241}
-  speedParam: Speed
-  animLerpSpeed: 12
+  carryingBoolParam: IsCarrying
   rotateToMovement: 1
   rotationSpeed: 12
 --- !u!114 &2706430922710820492

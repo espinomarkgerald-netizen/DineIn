@@ -13,6 +13,9 @@ public class LocalGameSaveManager : MonoBehaviour
 
     private bool hasLoaded;
 
+    private InventoryManager subscribedInventory;
+    private MoneyManager subscribedMoney;
+
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -27,8 +30,20 @@ public class LocalGameSaveManager : MonoBehaviour
 
     private void Start()
     {
+        TrySubscribe();
+
         if (loadOnStart)
             LoadAllOnce();
+    }
+
+    private void OnEnable()
+    {
+        TrySubscribe();
+    }
+
+    private void OnDisable()
+    {
+        TryUnsubscribe();
     }
 
     private void OnApplicationQuit()
@@ -41,6 +56,54 @@ public class LocalGameSaveManager : MonoBehaviour
     {
         if (pauseStatus && saveOnApplicationPause)
             SaveAll();
+    }
+
+    private void TrySubscribe()
+    {
+        if (InventoryManager.Instance != null && subscribedInventory != InventoryManager.Instance)
+        {
+            if (subscribedInventory != null)
+                subscribedInventory.OnStockChanged -= HandleStockChanged;
+
+            subscribedInventory = InventoryManager.Instance;
+            subscribedInventory.OnStockChanged += HandleStockChanged;
+        }
+
+        if (MoneyManager.Instance != null && subscribedMoney != MoneyManager.Instance)
+        {
+            if (subscribedMoney != null)
+                subscribedMoney.OnMoneyChanged -= HandleMoneyChanged;
+
+            subscribedMoney = MoneyManager.Instance;
+            subscribedMoney.OnMoneyChanged += HandleMoneyChanged;
+        }
+    }
+
+    private void TryUnsubscribe()
+    {
+        if (subscribedInventory != null)
+        {
+            subscribedInventory.OnStockChanged -= HandleStockChanged;
+            subscribedInventory = null;
+        }
+
+        if (subscribedMoney != null)
+        {
+            subscribedMoney.OnMoneyChanged -= HandleMoneyChanged;
+            subscribedMoney = null;
+        }
+    }
+
+    private void HandleStockChanged(ItemType type, int amount)
+    {
+        SaveInventory();
+        Debug.Log($"[LocalGameSaveManager] Auto-saved stock: {type} = {amount}");
+    }
+
+    private void HandleMoneyChanged(int amount)
+    {
+        SaveMoney();
+        Debug.Log($"[LocalGameSaveManager] Auto-saved money: {amount}");
     }
 
     public void SaveMoney()

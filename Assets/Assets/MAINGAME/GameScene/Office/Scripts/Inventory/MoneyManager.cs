@@ -15,41 +15,81 @@ public class MoneyManager : MonoBehaviour
 
     public event Action<int> OnMoneyChanged;
 
-    void Awake()
+    private bool initialized;
+
+    private void Awake()
     {
-        if (Instance == null)
-        {
-            Instance = this;
-            DontDestroyOnLoad(gameObject);
-            Money = startingMoney;
-        }
-        else
+        if (Instance != null && Instance != this)
         {
             Destroy(gameObject);
+            return;
+        }
+
+        Instance = this;
+        DontDestroyOnLoad(gameObject);
+
+        if (!initialized)
+        {
+            Money = Mathf.Max(0, startingMoney);
+            initialized = true;
         }
     }
 
-    void Start()
+    private void Start()
     {
-        OnMoneyChanged?.Invoke(Money);
+        NotifyMoneyChanged();
     }
 
     public void Earn(int amount, string description = "Income")
     {
+        if (amount <= 0)
+            return;
+
         Money += amount;
-        OnMoneyChanged?.Invoke(Money);
-        transactionLog.Add($"+{amount}: {description}");
+        LogTransaction($"+{amount}: {description}");
+        NotifyMoneyChanged();
     }
 
     public bool Spend(int amount, string description = "Expense")
     {
-        if (Money < amount) return false;
+        if (amount <= 0)
+            return false;
+
+        if (Money < amount)
+            return false;
 
         Money -= amount;
-        OnMoneyChanged?.Invoke(Money);
-        transactionLog.Add($"-{amount}: {description}");
+        LogTransaction($"-{amount}: {description}");
+        NotifyMoneyChanged();
         return true;
     }
 
-    public List<string> TransactionLog => transactionLog;
+    public void SetMoney(int amount, string description = "Set Money")
+    {
+        Money = Mathf.Max(0, amount);
+        LogTransaction($"={Money}: {description}");
+        NotifyMoneyChanged();
+    }
+
+    public bool HasEnough(int amount)
+    {
+        return Money >= amount;
+    }
+
+    public IReadOnlyList<string> TransactionLog => transactionLog;
+
+    private void NotifyMoneyChanged()
+    {
+        OnMoneyChanged?.Invoke(Money);
+    }
+
+    private void LogTransaction(string entry)
+    {
+        transactionLog.Add(entry);
+    }
+
+    public void ResetToStartingMoney()
+    {
+        SetMoney(startingMoney, "Bankruptcy Reset");
+    }
 }
