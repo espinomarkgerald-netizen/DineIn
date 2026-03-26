@@ -800,7 +800,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   nameText: {fileID: 8749738129126807520}
-  roleText: {fileID: 7840514857444185409}
+  salaryText: {fileID: 7840514857444185409}
   starImages:
   - {fileID: 1896081756510928225}
   - {fileID: 3945908909929705871}
@@ -809,4 +809,16 @@ MonoBehaviour:
   - {fileID: 5285038395926958717}
   filledStar: {fileID: 21300000, guid: de877c2d43858764588ec65354231396, type: 3}
   emptyStar: {fileID: 21300000, guid: 673ce36af3a402b46956d0dfdc0346c5, type: 3}
+  employee:
+    employeeName: 
+    stars: 0
+    role: 0
+    currentSlot: {fileID: 0}
+    assignedSlot: {fileID: 0}
+    assignedSlotName: 
+    assigned: 0
+    useManualSalary: 0
+    manualSalary: 0
+    performanceMultiplier: 0
+    bonusFlat: 0
   hrManager: {fileID: 0}
