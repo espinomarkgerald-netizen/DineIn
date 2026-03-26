@@ -63,10 +63,15 @@ public class KitchenManager : MonoBehaviour
 
     private IEnumerator CookAndSpawn(CustomerGroup group, int orderNo)
     {
-        yield return new WaitForSeconds(cookSeconds);
-
         try
         {
+            yield return new WaitForSeconds(2f);
+
+            if (ProcessingBillIndicatorUI.Instance != null)
+                ProcessingBillIndicatorUI.Instance.ShowForSeconds("Order #" + orderNo + " is being prepared", 2f);
+
+            yield return new WaitForSeconds(cookSeconds);
+
             if (!IsOrderStillValid(group, orderNo))
                 yield break;
 

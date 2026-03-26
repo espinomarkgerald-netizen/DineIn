@@ -91,8 +91,31 @@ public class CustomerGroup : MonoBehaviour
     [SerializeField] private Sprite unhappyFaceSprite;
     [SerializeField] private Sprite angryFaceSprite;
 
+    [Header("Line Patience")]
+    [SerializeField] private GameObject linePatiencePrefab;
+    [SerializeField] private Vector3 linePatienceOffset = new Vector3(0f, 2.6f, 0f);
+    [SerializeField] private float linePatienceSeconds = 60f;
+    [SerializeField] private float greetedLinePatienceDrainMultiplier = 0.5f;
+
+    [Header("DEBUG - Line Patience")]
+    [SerializeField] private bool debugForceShowLinePatience;
+    [SerializeField] private float debugPatienceValue = 1f;
+
+    private GameObject linePatienceInstance;
+    private LinePatienceUI linePatienceUI;
+    private float linePatienceRemaining;
+    private bool linePatienceExpired;
+    private bool hasNotifiedLeftLine;
+
+    private bool hasLineSlotTarget;
+    private Vector3 currentLineSlotTarget;
+
+
+
+
     [Header("Happy Comments")]
-    [SerializeField] private string[] happyComments =
+    [SerializeField]
+    private string[] happyComments =
     {
         "That was great!",
         "Nice service!",
@@ -102,7 +125,8 @@ public class CustomerGroup : MonoBehaviour
     };
 
     [Header("Unhappy Comments")]
-    [SerializeField] private string[] unhappyComments =
+    [SerializeField]
+    private string[] unhappyComments =
     {
         "We've been waiting too long.",
         "No one took our order.",
@@ -112,13 +136,25 @@ public class CustomerGroup : MonoBehaviour
     };
 
     [Header("Angry Comments")]
-    [SerializeField] private string[] angryComments =
+    [SerializeField]
+    private string[] angryComments =
     {
         "This isn't what we ordered!",
         "Wrong order!",
         "This service is terrible!",
         "That's not our food!",
         "Unbelievable."
+    };
+
+    [Header("Line Waiting Comments")]
+    [SerializeField]
+    private string[] lineAngryComments =
+    {
+        "This line is too long.",
+        "We've been waiting forever.",
+        "Let's go somewhere else.",
+        "No one is assisting us.",
+        "This place is too slow."
     };
 
     [Header("UI Offsets")]
@@ -162,7 +198,7 @@ public class CustomerGroup : MonoBehaviour
     [SerializeField] private GameObject eatingBubblePrefab;
     [SerializeField] private Vector3 eatingBubbleOffset = new Vector3(0f, 2.4f, 0f);
 
-private GameObject eatingBubbleInstance;
+    private GameObject eatingBubbleInstance;
 
     private bool waitingForRemake;
     private bool angryResultLocked;
@@ -173,6 +209,7 @@ private GameObject eatingBubbleInstance;
 
     public event Action<CustomerGroup> OnGroupAssignedToBooth;
     public event Action<CustomerGroup> OnGroupSeated;
+    public event Action<CustomerGroup> OnGroupLeftLine;
 
     public FoodType chosenFood;
     public DrinkType chosenDrink;
@@ -225,10 +262,14 @@ private GameObject eatingBubbleInstance;
 
         if (currentOrder == null)
             currentOrder = new SimpleOrder();
+
+        linePatienceRemaining = Mathf.Max(1f, linePatienceSeconds);
     }
 
     private void OnDestroy()
     {
+        NotifyLeftLineIfNeeded();
+        ClearLinePatienceUI();
         CleanupOnLeave();
     }
 
@@ -236,6 +277,9 @@ private GameObject eatingBubbleInstance;
     {
         if (groupUiAnchor != null)
             groupUiAnchor.position = GetMembersCenterWorld();
+
+        UpdateWaitingStateFromLineTarget();
+        UpdateLinePatience();
     }
 
     private void SetState(GroupState newState)
@@ -312,6 +356,10 @@ private GameObject eatingBubbleInstance;
         if (booth == null || hasBeenAssigned) return;
 
         hasBeenAssigned = true;
+        hasLineSlotTarget = false;
+        StopLinePatience();
+        NotifyLeftLineIfNeeded();
+
         assignedBooth = booth;
         seatedMembers.Clear();
         SetState(GroupState.WalkingToBooth);
@@ -367,6 +415,7 @@ private GameObject eatingBubbleInstance;
         }
 
         SetState(GroupState.Seated);
+        StopLinePatience();
         SetSelected(false);
 
         OnGroupSeated?.Invoke(this);
@@ -441,7 +490,7 @@ private GameObject eatingBubbleInstance;
 
             yield return null;
         }
-}
+    }
 
     private void GenerateRandomOrder()
     {
@@ -656,11 +705,9 @@ private GameObject eatingBubbleInstance;
         if (deliveredContents == null)
             return false;
 
-        // Count must match
         if (currentOrder.contents.Count != deliveredContents.Count)
             return false;
 
-        // Compare ignoring order
         List<string> expected = new List<string>(currentOrder.contents);
         List<string> delivered = new List<string>(deliveredContents);
 
@@ -776,7 +823,6 @@ private GameObject eatingBubbleInstance;
             if (shaker != null) shaker.StopShake(true);
         }
 
-
         SetState(GroupState.OrderTaken);
 
         ClearOrderBubble();
@@ -797,8 +843,6 @@ private GameObject eatingBubbleInstance;
         confirmedDrink = drink;
         hasConfirmedOrder = true;
     }
-
-    
 
     private void SpawnTableNumber()
     {
@@ -1009,7 +1053,7 @@ private GameObject eatingBubbleInstance;
             ReportFinalResult(FinalResult.Happy);
             ShowThought(happyComments, happyFaceSprite);
         }
-       
+
         ClearEatingBubble();
         SetState(GroupState.Leaving);
         StartLeaving(false);
@@ -1040,6 +1084,8 @@ private GameObject eatingBubbleInstance;
     {
         if (leavingRoutineStarted) return;
         leavingRoutineStarted = true;
+
+        NotifyLeftLineIfNeeded();
 
         if (shouldShowAngryThoughtOnLeave && state == GroupState.Leaving)
             ShowThought(angryComments, angryFaceSprite);
@@ -1313,6 +1359,7 @@ private GameObject eatingBubbleInstance;
         ClearMoneyBubble();
         ClearThoughtBubble();
         ClearEatingBubble();
+        ClearLinePatienceUI();
 
         if (assignedBooth != null)
             assignedBooth.ClearBoothProps();
@@ -1444,6 +1491,271 @@ private GameObject eatingBubbleInstance;
 
             case "Burger":
                 return LobbyStockBridge.Instance.HasFoodStock(FoodType.Burger);
+        }
+
+        return false;
+    }
+
+    private void UpdateLinePatience()
+    {
+        
+        if (debugForceShowLinePatience)
+        {
+            EnsureLinePatienceUI();
+
+            if (linePatienceInstance != null && !linePatienceInstance.activeSelf)
+                linePatienceInstance.SetActive(true);
+
+            if (linePatienceUI != null)
+                linePatienceUI.SetProgress(Mathf.Clamp01(debugPatienceValue));
+
+            return;
+        }
+
+        if (linePatienceExpired)
+        {
+            if (linePatienceInstance != null)
+                linePatienceInstance.SetActive(false);
+            return;
+        }
+
+        bool shouldShow = CanUseLinePatience();
+
+        if (!shouldShow)
+        {
+            if (linePatienceInstance != null)
+                linePatienceInstance.SetActive(false);
+            return;
+        }
+
+        EnsureLinePatienceUI();
+
+        if (linePatienceInstance != null && !linePatienceInstance.activeSelf)
+            linePatienceInstance.SetActive(true);
+
+        float drainMultiplier = hasBeenGreeted ? greetedLinePatienceDrainMultiplier : 1f;
+        linePatienceRemaining -= Time.deltaTime * Mathf.Max(0.01f, drainMultiplier);
+
+        float normalized = Mathf.Clamp01(linePatienceRemaining / Mathf.Max(1f, linePatienceSeconds));
+
+        if (linePatienceUI != null)
+            linePatienceUI.SetProgress(normalized);
+
+        if (linePatienceRemaining > 0f)
+            return;
+
+        linePatienceRemaining = 0f;
+        linePatienceExpired = true;
+        HandleLinePatienceExpired();
+
+        
+    }
+
+    private bool CanUseLinePatience()
+    {
+        if (linePatienceExpired)
+            return false;
+
+        if (hasBeenAssigned)
+            return false;
+
+        if (!hasLineSlotTarget)
+            return false;
+
+        return state == GroupState.Waiting;
+    }
+
+    private void EnsureLinePatienceUI()
+    {
+        if (linePatienceInstance != null)
+            return;
+
+        ResolveCanvas();
+
+        if (linePatiencePrefab == null)
+        {
+            Debug.LogWarning("[CustomerGroup] linePatiencePrefab is missing on " + name);
+            return;
+        }
+
+        if (gameplayCanvas == null)
+        {
+            Debug.LogWarning("[CustomerGroup] gameplayCanvas is missing on " + name);
+            return;
+        }
+
+        if (groupUiAnchor == null)
+        {
+            Debug.LogWarning("[CustomerGroup] groupUiAnchor is missing on " + name);
+            return;
+        }
+
+        linePatienceInstance = Instantiate(linePatiencePrefab, gameplayCanvas.transform);
+        linePatienceInstance.name = name + "_LinePatienceUI";
+        linePatienceInstance.SetActive(true);
+        linePatienceInstance.transform.SetAsLastSibling();
+
+        RectTransform rootRect = linePatienceInstance.GetComponent<RectTransform>();
+        if (rootRect != null)
+        {
+            rootRect.localScale = Vector3.one;
+            rootRect.anchoredPosition3D = Vector3.zero;
+        }
+
+        CanvasGroup[] canvasGroups = linePatienceInstance.GetComponentsInChildren<CanvasGroup>(true);
+        for (int i = 0; i < canvasGroups.Length; i++)
+        {
+            canvasGroups[i].alpha = 1f;
+            canvasGroups[i].interactable = true;
+            canvasGroups[i].blocksRaycasts = false;
+        }
+
+        Image[] images = linePatienceInstance.GetComponentsInChildren<Image>(true);
+        for (int i = 0; i < images.Length; i++)
+            images[i].enabled = true;
+
+        linePatienceUI = linePatienceInstance.GetComponent<LinePatienceUI>();
+        if (linePatienceUI == null)
+            linePatienceUI = linePatienceInstance.GetComponentInChildren<LinePatienceUI>(true);
+
+        if (linePatienceUI == null)
+        {
+            Debug.LogWarning("[CustomerGroup] LinePatienceUI component missing on prefab for " + name);
+            return;
+        }
+
+        linePatienceUI.gameObject.SetActive(true);
+        linePatienceUI.Init(groupUiAnchor, linePatienceOffset, GetFollowCam());
+        linePatienceUI.SetProgress(Mathf.Clamp01(linePatienceRemaining / Mathf.Max(1f, linePatienceSeconds)));
+
+        Canvas.ForceUpdateCanvases();
+
+        Debug.Log("[CustomerGroup] Spawned line patience UI for " + name);
+    }
+
+    private void ClearLinePatienceUI()
+    {
+        if (linePatienceInstance != null)
+            Destroy(linePatienceInstance);
+
+        linePatienceInstance = null;
+        linePatienceUI = null;
+    }
+
+    private void StopLinePatience()
+    {
+        ClearLinePatienceUI();
+    }
+
+    private void HandleLinePatienceExpired()
+    {
+        StopLinePatience();
+
+        if (!angryResultLocked)
+        {
+            angryResultLocked = true;
+            ReportFinalResult(FinalResult.Angry);
+        }
+
+        ShowThought(lineAngryComments, angryFaceSprite);
+
+        SetState(GroupState.AngryLeft);
+
+        ClearOrderBubble();
+        ClearBillBubble();
+        ClearTableNumber();
+        ClearMoneyBubble();
+        ClearEatingBubble();
+
+        StartCoroutine(LeaveAfterDelay(2f));
+    }
+
+    private IEnumerator LeaveAfterDelay(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        StartLeaving(false);
+    }
+
+    private void NotifyLeftLineIfNeeded()
+    {
+        if (hasNotifiedLeftLine)
+            return;
+
+        if (hasBeenAssigned)
+            return;
+
+        if (state != GroupState.Waiting &&
+            state != GroupState.WalkingToLobby &&
+            state != GroupState.AngryLeft &&
+            state != GroupState.UnhappyLeft &&
+            state != GroupState.Leaving)
+            return;
+
+        hasNotifiedLeftLine = true;
+        OnGroupLeftLine?.Invoke(this);
+    }
+
+    public void SetLineSlotTarget(Vector3 target)
+    {
+        currentLineSlotTarget = target;
+        hasLineSlotTarget = true;
+        hasNotifiedLeftLine = false;
+
+        if (!hasBeenAssigned)
+            SetState(GroupState.WalkingToLobby);
+    }
+
+    private void UpdateWaitingStateFromLineTarget()
+    {
+        if (hasBeenAssigned)
+            return;
+
+        if (!hasLineSlotTarget)
+            return;
+
+        if (state == GroupState.AngryLeft || state == GroupState.UnhappyLeft || state == GroupState.Leaving)
+            return;
+
+        if (IsGroupAtLineTarget())
+        {
+            if (state != GroupState.Waiting)
+                SetState(GroupState.Waiting);
+        }
+        else
+        {
+            if (state != GroupState.WalkingToLobby)
+                SetState(GroupState.WalkingToLobby);
+        }
+    }
+
+    private bool IsGroupAtLineTarget()
+    {
+        if (members == null || members.Count == 0)
+            return false;
+
+        Vector3 target = currentLineSlotTarget;
+        target.y = 0f;
+
+        float centerThreshold = 1.35f;
+        float memberThreshold = 1.75f;
+
+        Vector3 center = GetMembersCenterWorld();
+        center.y = 0f;
+
+        if (Vector3.Distance(center, target) <= centerThreshold)
+            return true;
+
+        for (int i = 0; i < members.Count; i++)
+        {
+            var member = members[i];
+            if (member == null)
+                continue;
+
+            Vector3 memberPos = member.transform.position;
+            memberPos.y = 0f;
+
+            if (Vector3.Distance(memberPos, target) <= memberThreshold)
+                return true;
         }
 
         return false;

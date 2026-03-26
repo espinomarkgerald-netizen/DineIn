@@ -16,13 +16,15 @@ public class ProcessingBillIndicatorUI : MonoBehaviour
     [SerializeField] private float slideSpeed = 8f;
 
     [Header("Text Animation")]
-    [SerializeField] private string baseText = "Processing Bill";
+    [SerializeField] private string defaultText = "Processing Bill";
     [SerializeField] private float dotSpeed = 0.35f;
     [SerializeField] private int maxDots = 3;
 
     private Coroutine textRoutine;
+    private Coroutine autoHideRoutine;
     private bool isShowing;
     private bool initialized;
+    private string currentText;
 
     private void Awake()
     {
@@ -37,6 +39,7 @@ public class ProcessingBillIndicatorUI : MonoBehaviour
         if (panelRect == null)
             panelRect = GetComponent<RectTransform>();
 
+        currentText = defaultText;
         SetupInitialPosition();
     }
 
@@ -59,22 +62,44 @@ public class ProcessingBillIndicatorUI : MonoBehaviour
         panelRect.anchoredPosition = pos;
 
         if (label != null)
-            label.text = baseText;
+            label.text = currentText;
 
         initialized = true;
     }
 
     public void Show()
     {
+        Show(defaultText, 0f);
+    }
+
+    public void Show(string message)
+    {
+        Show(message, 0f);
+    }
+
+    public void ShowForSeconds(string message, float seconds)
+    {
+        Show(message, seconds);
+    }
+
+    private void Show(string message, float seconds)
+    {
         if (!initialized)
             SetupInitialPosition();
 
+        currentText = message;
         isShowing = true;
 
         if (textRoutine != null)
             StopCoroutine(textRoutine);
 
+        if (autoHideRoutine != null)
+            StopCoroutine(autoHideRoutine);
+
         textRoutine = StartCoroutine(AnimateText());
+
+        if (seconds > 0f)
+            autoHideRoutine = StartCoroutine(AutoHide(seconds));
     }
 
     public void Hide()
@@ -87,8 +112,14 @@ public class ProcessingBillIndicatorUI : MonoBehaviour
             textRoutine = null;
         }
 
+        if (autoHideRoutine != null)
+        {
+            StopCoroutine(autoHideRoutine);
+            autoHideRoutine = null;
+        }
+
         if (label != null)
-            label.text = baseText;
+            label.text = currentText;
     }
 
     private IEnumerator AnimateText()
@@ -98,7 +129,7 @@ public class ProcessingBillIndicatorUI : MonoBehaviour
         while (true)
         {
             if (label != null)
-                label.text = baseText + new string('.', dots);
+                label.text = currentText + new string('.', dots);
 
             dots++;
             if (dots > maxDots)
@@ -106,5 +137,11 @@ public class ProcessingBillIndicatorUI : MonoBehaviour
 
             yield return new WaitForSeconds(dotSpeed);
         }
+    }
+
+    private IEnumerator AutoHide(float seconds)
+    {
+        yield return new WaitForSeconds(seconds);
+        Hide();
     }
 }
