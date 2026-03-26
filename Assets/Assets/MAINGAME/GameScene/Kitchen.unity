@@ -1174,8 +1174,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6ba7630cbe8dc3f4eb8199bdf90f14c7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ticketPrefab: {fileID: 6951913457169766835, guid: c1438993524e9984fa24aac7a689bc47, type: 3}
-  ticketContainer: {fileID: 1868002663}
 --- !u!1 &79376234
 GameObject:
   m_ObjectHideFlags: 0
@@ -2711,6 +2709,8 @@ MonoBehaviour:
   player: {fileID: 1470914851}
   Terminal: {fileID: 1089129974}
   Board: {fileID: 588913116}
+  TerminalUI: {fileID: 0}
+  BoardUI: {fileID: 0}
 --- !u!4 &246333848
 Transform:
   m_ObjectHideFlags: 0
@@ -3232,7 +3232,7 @@ PrefabInstance:
       objectReference: {fileID: 9100000, guid: db0045be4db694d429eb584112202881, type: 2}
     - target: {fileID: 6403599859377120230, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
       propertyPath: sceneViewId
-      value: 4
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 7828672028217769178, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
       propertyPath: movement
@@ -3357,6 +3357,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 350d45e768479ce4cbf1e3b3cd664993, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  player: {fileID: 0}
+  uiPanel: {fileID: 0}
 --- !u!65 &292839185
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -3441,12 +3443,23 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 544f06c7b96c1ac4e869245e331db46d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  nameText: {fileID: 0}
+  salaryText: {fileID: 0}
+  starImages: []
+  filledStar: {fileID: 0}
+  emptyStar: {fileID: 0}
   employee:
     employeeName: 
-    cooking: 0
-    service: 0
+    stars: 0
+    role: 0
+    currentSlot: {fileID: 0}
+    assignedSlot: {fileID: 0}
+    assignedSlotName: 
     assigned: 0
-    assignedRole: 
+    useManualSalary: 0
+    manualSalary: 0
+    performanceMultiplier: 0
+    bonusFlat: 0
   hrManager: {fileID: 608052895}
 --- !u!114 &300578244
 MonoBehaviour:
@@ -4661,12 +4674,23 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 544f06c7b96c1ac4e869245e331db46d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  nameText: {fileID: 0}
+  salaryText: {fileID: 0}
+  starImages: []
+  filledStar: {fileID: 0}
+  emptyStar: {fileID: 0}
   employee:
     employeeName: 
-    cooking: 0
-    service: 0
+    stars: 0
+    role: 0
+    currentSlot: {fileID: 0}
+    assignedSlot: {fileID: 0}
+    assignedSlotName: 
     assigned: 0
-    assignedRole: 
+    useManualSalary: 0
+    manualSalary: 0
+    performanceMultiplier: 0
+    bonusFlat: 0
   hrManager: {fileID: 608052895}
 --- !u!114 &435536795
 MonoBehaviour:
@@ -6065,6 +6089,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 350d45e768479ce4cbf1e3b3cd664993, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  player: {fileID: 0}
+  uiPanel: {fileID: 0}
 --- !u!65 &588913119
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -6285,12 +6311,21 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 39078a3aaf6dc1e48b068ac0f992b632, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  kitchenRows: []
+  lobbyRows: []
   selectedEmployee:
     employeeName: 
-    cooking: 0
-    service: 0
+    stars: 0
+    role: 0
+    currentSlot: {fileID: 0}
+    assignedSlot: {fileID: 0}
+    assignedSlotName: 
     assigned: 0
-    assignedRole: 
+    useManualSalary: 0
+    manualSalary: 0
+    performanceMultiplier: 0
+    bonusFlat: 0
+  currentPhase: 0
 --- !u!4 &608052896
 Transform:
   m_ObjectHideFlags: 0
@@ -6567,12 +6602,23 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 544f06c7b96c1ac4e869245e331db46d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  nameText: {fileID: 0}
+  salaryText: {fileID: 0}
+  starImages: []
+  filledStar: {fileID: 0}
+  emptyStar: {fileID: 0}
   employee:
     employeeName: 
-    cooking: 0
-    service: 0
+    stars: 0
+    role: 0
+    currentSlot: {fileID: 0}
+    assignedSlot: {fileID: 0}
+    assignedSlotName: 
     assigned: 0
-    assignedRole: 
+    useManualSalary: 0
+    manualSalary: 0
+    performanceMultiplier: 0
+    bonusFlat: 0
   hrManager: {fileID: 608052895}
 --- !u!114 &640978282
 MonoBehaviour:
@@ -6961,7 +7007,43 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   employees: []
-  employeesPerDay: 12
+  names:
+  - Maria
+  - Kelvin
+  - Josh
+  - Nina
+  - Sam
+  - Leo
+  - Kyle
+  - Mark
+  - Michael
+  - Ron
+  - Doyle
+  - Johnvic
+  - Mary
+  - Grace
+  - Paul
+  - Kenneth
+  - Bandoc
+  - Fumi
+  - Riley
+  - Neo
+  - Tom
+  - Hasang
+  - Tachu
+  - Floribel
+  - Ferrer
+  - Montefaro
+  - Miguel
+  - Byron
+  - Darnell
+  - Noel
+  - Christian
+  - Joseph
+  - Namuag
+  employeesPerRole: 4
+  minStars: 1
+  maxStars: 5
 --- !u!4 &674694289
 Transform:
   m_ObjectHideFlags: 0
@@ -7102,12 +7184,23 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 544f06c7b96c1ac4e869245e331db46d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  nameText: {fileID: 0}
+  salaryText: {fileID: 0}
+  starImages: []
+  filledStar: {fileID: 0}
+  emptyStar: {fileID: 0}
   employee:
     employeeName: 
-    cooking: 0
-    service: 0
+    stars: 0
+    role: 0
+    currentSlot: {fileID: 0}
+    assignedSlot: {fileID: 0}
+    assignedSlotName: 
     assigned: 0
-    assignedRole: 
+    useManualSalary: 0
+    manualSalary: 0
+    performanceMultiplier: 0
+    bonusFlat: 0
   hrManager: {fileID: 608052895}
 --- !u!114 &697733363
 MonoBehaviour:
@@ -7590,12 +7683,23 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 544f06c7b96c1ac4e869245e331db46d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  nameText: {fileID: 0}
+  salaryText: {fileID: 0}
+  starImages: []
+  filledStar: {fileID: 0}
+  emptyStar: {fileID: 0}
   employee:
     employeeName: 
-    cooking: 0
-    service: 0
+    stars: 0
+    role: 0
+    currentSlot: {fileID: 0}
+    assignedSlot: {fileID: 0}
+    assignedSlotName: 
     assigned: 0
-    assignedRole: 
+    useManualSalary: 0
+    manualSalary: 0
+    performanceMultiplier: 0
+    bonusFlat: 0
   hrManager: {fileID: 608052895}
 --- !u!114 &770909080
 MonoBehaviour:
@@ -7747,12 +7851,23 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 544f06c7b96c1ac4e869245e331db46d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  nameText: {fileID: 0}
+  salaryText: {fileID: 0}
+  starImages: []
+  filledStar: {fileID: 0}
+  emptyStar: {fileID: 0}
   employee:
     employeeName: 
-    cooking: 0
-    service: 0
+    stars: 0
+    role: 0
+    currentSlot: {fileID: 0}
+    assignedSlot: {fileID: 0}
+    assignedSlotName: 
     assigned: 0
-    assignedRole: 
+    useManualSalary: 0
+    manualSalary: 0
+    performanceMultiplier: 0
+    bonusFlat: 0
   hrManager: {fileID: 608052895}
 --- !u!114 &780636045
 MonoBehaviour:
@@ -9709,14 +9824,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6046d8bce83f81d4d99428d1111d3957, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  roleName: 
+  roleType: 0
   assignedEmployee:
     employeeName: 
-    cooking: 0
-    service: 0
+    stars: 0
+    role: 0
+    currentSlot: {fileID: 0}
+    assignedSlot: {fileID: 0}
+    assignedSlotName: 
     assigned: 0
-    assignedRole: 
-  slotText: {fileID: 0}
+    useManualSalary: 0
+    manualSalary: 0
+    performanceMultiplier: 0
+    bonusFlat: 0
+  employeeText: {fileID: 0}
 --- !u!114 &965418043
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -10952,12 +11073,23 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 544f06c7b96c1ac4e869245e331db46d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  nameText: {fileID: 0}
+  salaryText: {fileID: 0}
+  starImages: []
+  filledStar: {fileID: 0}
+  emptyStar: {fileID: 0}
   employee:
     employeeName: 
-    cooking: 0
-    service: 0
+    stars: 0
+    role: 0
+    currentSlot: {fileID: 0}
+    assignedSlot: {fileID: 0}
+    assignedSlotName: 
     assigned: 0
-    assignedRole: 
+    useManualSalary: 0
+    manualSalary: 0
+    performanceMultiplier: 0
+    bonusFlat: 0
   hrManager: {fileID: 608052895}
 --- !u!114 &1083848878
 MonoBehaviour:
@@ -11075,6 +11207,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 350d45e768479ce4cbf1e3b3cd664993, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  player: {fileID: 0}
+  uiPanel: {fileID: 0}
 --- !u!114 &1089129976
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -12573,14 +12707,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6046d8bce83f81d4d99428d1111d3957, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  roleName: 
+  roleType: 0
   assignedEmployee:
     employeeName: 
-    cooking: 0
-    service: 0
+    stars: 0
+    role: 0
+    currentSlot: {fileID: 0}
+    assignedSlot: {fileID: 0}
+    assignedSlotName: 
     assigned: 0
-    assignedRole: 
-  slotText: {fileID: 0}
+    useManualSalary: 0
+    manualSalary: 0
+    performanceMultiplier: 0
+    bonusFlat: 0
+  employeeText: {fileID: 0}
 --- !u!114 &1289920738
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -12850,12 +12990,23 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 544f06c7b96c1ac4e869245e331db46d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  nameText: {fileID: 0}
+  salaryText: {fileID: 0}
+  starImages: []
+  filledStar: {fileID: 0}
+  emptyStar: {fileID: 0}
   employee:
     employeeName: 
-    cooking: 0
-    service: 0
+    stars: 0
+    role: 0
+    currentSlot: {fileID: 0}
+    assignedSlot: {fileID: 0}
+    assignedSlotName: 
     assigned: 0
-    assignedRole: 
+    useManualSalary: 0
+    manualSalary: 0
+    performanceMultiplier: 0
+    bonusFlat: 0
   hrManager: {fileID: 608052895}
 --- !u!114 &1297688351
 MonoBehaviour:
@@ -15082,12 +15233,23 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 544f06c7b96c1ac4e869245e331db46d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  nameText: {fileID: 0}
+  salaryText: {fileID: 0}
+  starImages: []
+  filledStar: {fileID: 0}
+  emptyStar: {fileID: 0}
   employee:
     employeeName: 
-    cooking: 0
-    service: 0
+    stars: 0
+    role: 0
+    currentSlot: {fileID: 0}
+    assignedSlot: {fileID: 0}
+    assignedSlotName: 
     assigned: 0
-    assignedRole: 
+    useManualSalary: 0
+    manualSalary: 0
+    performanceMultiplier: 0
+    bonusFlat: 0
   hrManager: {fileID: 608052895}
 --- !u!114 &1570124540
 MonoBehaviour:
@@ -16831,12 +16993,23 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 544f06c7b96c1ac4e869245e331db46d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  nameText: {fileID: 0}
+  salaryText: {fileID: 0}
+  starImages: []
+  filledStar: {fileID: 0}
+  emptyStar: {fileID: 0}
   employee:
     employeeName: 
-    cooking: 0
-    service: 0
+    stars: 0
+    role: 0
+    currentSlot: {fileID: 0}
+    assignedSlot: {fileID: 0}
+    assignedSlotName: 
     assigned: 0
-    assignedRole: 
+    useManualSalary: 0
+    manualSalary: 0
+    performanceMultiplier: 0
+    bonusFlat: 0
   hrManager: {fileID: 608052895}
 --- !u!114 &1766677457
 MonoBehaviour:
@@ -17710,12 +17883,23 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 544f06c7b96c1ac4e869245e331db46d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  nameText: {fileID: 0}
+  salaryText: {fileID: 0}
+  starImages: []
+  filledStar: {fileID: 0}
+  emptyStar: {fileID: 0}
   employee:
     employeeName: 
-    cooking: 0
-    service: 0
+    stars: 0
+    role: 0
+    currentSlot: {fileID: 0}
+    assignedSlot: {fileID: 0}
+    assignedSlotName: 
     assigned: 0
-    assignedRole: 
+    useManualSalary: 0
+    manualSalary: 0
+    performanceMultiplier: 0
+    bonusFlat: 0
   hrManager: {fileID: 608052895}
 --- !u!114 &1796258945
 MonoBehaviour:
@@ -18010,14 +18194,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6046d8bce83f81d4d99428d1111d3957, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  roleName: 
+  roleType: 0
   assignedEmployee:
     employeeName: 
-    cooking: 0
-    service: 0
+    stars: 0
+    role: 0
+    currentSlot: {fileID: 0}
+    assignedSlot: {fileID: 0}
+    assignedSlotName: 
     assigned: 0
-    assignedRole: 
-  slotText: {fileID: 0}
+    useManualSalary: 0
+    manualSalary: 0
+    performanceMultiplier: 0
+    bonusFlat: 0
+  employeeText: {fileID: 0}
 --- !u!114 &1839078574
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -19824,14 +20014,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6046d8bce83f81d4d99428d1111d3957, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  roleName: 
+  roleType: 0
   assignedEmployee:
     employeeName: 
-    cooking: 0
-    service: 0
+    stars: 0
+    role: 0
+    currentSlot: {fileID: 0}
+    assignedSlot: {fileID: 0}
+    assignedSlotName: 
     assigned: 0
-    assignedRole: 
-  slotText: {fileID: 0}
+    useManualSalary: 0
+    manualSalary: 0
+    performanceMultiplier: 0
+    bonusFlat: 0
+  employeeText: {fileID: 0}
 --- !u!114 &2006565826
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -20424,12 +20620,23 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 544f06c7b96c1ac4e869245e331db46d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  nameText: {fileID: 0}
+  salaryText: {fileID: 0}
+  starImages: []
+  filledStar: {fileID: 0}
+  emptyStar: {fileID: 0}
   employee:
     employeeName: 
-    cooking: 0
-    service: 0
+    stars: 0
+    role: 0
+    currentSlot: {fileID: 0}
+    assignedSlot: {fileID: 0}
+    assignedSlotName: 
     assigned: 0
-    assignedRole: 
+    useManualSalary: 0
+    manualSalary: 0
+    performanceMultiplier: 0
+    bonusFlat: 0
   hrManager: {fileID: 608052895}
 --- !u!114 &2029938245
 MonoBehaviour:
