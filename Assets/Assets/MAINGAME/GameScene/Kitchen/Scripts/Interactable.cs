@@ -34,6 +34,5 @@ public class Interactable : MonoBehaviour
 
         if (player == null || uiPanel == null) return;
 
-        player.MoveToTargetAndShowUI(transform, uiPanel);
     }
 }

@@ -8,13 +8,4 @@ public class UIButtonMove : MonoBehaviour
     public GameObject TerminalUI;
     public GameObject BoardUI;
 
-    public void MoveToTerminal()
-    {
-        player.MoveToTargetAndShowUI(Terminal, TerminalUI);
-    }
-
-    public void MoveToBoard()
-    {
-        player.MoveToTargetAndShowUI(Board, BoardUI);
-    }
 }

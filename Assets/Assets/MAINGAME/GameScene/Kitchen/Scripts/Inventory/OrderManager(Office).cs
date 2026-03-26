@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public class OrderManager : MonoBehaviour
+public class OrderManagerOffice : MonoBehaviour
 {
     public bool TryMakeRecipe(Recipe recipe)
     {
