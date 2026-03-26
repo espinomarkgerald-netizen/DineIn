@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.AI;
-using UnityEngine.InputSystem; // You are using the NEW Input System!
+using UnityEngine.InputSystem;
+using UnityEngine.EventSystems; // ADDED: This lets the script talk to your UI!
 
 [RequireComponent(typeof(NavMeshAgent))]
 public class SimplePlayerMovement : MonoBehaviour {
@@ -33,15 +34,28 @@ public class SimplePlayerMovement : MonoBehaviour {
     void HandleInput() {
         // 1. MOBILE CHECK: Is a finger tapping the screen right now?
         if (Touchscreen.current != null && Touchscreen.current.primaryTouch.press.wasPressedThisFrame) {
+
+            // --- THE UI SHIELD (MOBILE) ---
+            // If the tap hit a UI element, stop right here and ignore the movement!
+            if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject(Touchscreen.current.primaryTouch.touchId.ReadValue())) {
+                return;
+            }
+
             ProcessClick(Touchscreen.current.primaryTouch.position.ReadValue());
         }
         // 2. PC CHECK: Is the left mouse button clicking?
         else if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame) {
+
+            // --- THE UI SHIELD (PC) ---
+            // If the mouse is hovering over a UI element, stop right here and ignore the movement!
+            if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) {
+                return;
+            }
+
             ProcessClick(Mouse.current.position.ReadValue());
         }
     }
 
-    // NEW: I moved your Raycast logic into its own mini-method so we don't have to write it twice!
     void ProcessClick(Vector2 screenPosition) {
         Ray ray = cam.ScreenPointToRay(screenPosition);
         if (Physics.Raycast(ray, out RaycastHit hit)) {
