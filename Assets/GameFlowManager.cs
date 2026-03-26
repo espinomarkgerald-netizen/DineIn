@@ -28,11 +28,9 @@ public class GameFlowManager : MonoBehaviour
     [Header("Session")]
     [SerializeField] private int currentDay = 1;
     [SerializeField] private GamePhase currentPhase = GamePhase.None;
+    [SerializeField] private DayHalf currentDayHalf = DayHalf.None;
     [SerializeField] private bool lobbyCompleted;
     [SerializeField] private bool kitchenCompleted;
-
-    [Header("Day Split")]
-    [SerializeField] private DayHalf currentDayHalf = DayHalf.None;
 
     [Header("Today Finance")]
     [SerializeField] private int employeeCostToday;
@@ -43,7 +41,6 @@ public class GameFlowManager : MonoBehaviour
     public int CurrentDay => currentDay;
     public GamePhase CurrentPhase => currentPhase;
     public DayHalf CurrentDayHalf => currentDayHalf;
-
     public bool LobbyCompleted => lobbyCompleted;
     public bool KitchenCompleted => kitchenCompleted;
 
@@ -89,26 +86,38 @@ public class GameFlowManager : MonoBehaviour
         ingredientCostToday = 0;
     }
 
-    public void StartDay()
+    public void StartNewDay()
     {
         lobbyCompleted = false;
         kitchenCompleted = false;
+        currentDayHalf = DayHalf.Morning;
+        currentPhase = GamePhase.Management;
+        SceneManager.LoadScene(managementSceneName);
+    }
 
+    public void StartNewDay(int employeeCost, int marketingCost, int billsCost, int ingredientCost)
+    {
+        SetTodayFinance(employeeCost, marketingCost, billsCost, ingredientCost);
+        StartNewDay();
+    }
+
+    public void StartLobbyShift()
+    {
         currentDayHalf = DayHalf.Morning;
         currentPhase = GamePhase.Lobby;
         SceneManager.LoadScene(lobbySceneName);
     }
 
-    public void StartDay(int employeeCost, int marketingCost, int billsCost, int ingredientCost)
-    {
-        SetTodayFinance(employeeCost, marketingCost, billsCost, ingredientCost);
-        StartDay();
-    }
-
-    public void GoToKitchenFromLobby()
+    public void ReturnToManagementFromLobby()
     {
         lobbyCompleted = true;
+        currentDayHalf = DayHalf.Afternoon;
+        currentPhase = GamePhase.Management;
+        SceneManager.LoadScene(managementSceneName);
+    }
 
+    public void StartKitchenShift()
+    {
         currentDayHalf = DayHalf.Afternoon;
         currentPhase = GamePhase.Kitchen;
         SceneManager.LoadScene(kitchenSceneName);
@@ -129,16 +138,27 @@ public class GameFlowManager : MonoBehaviour
 
     public void LoadLobbyScene()
     {
-        currentDayHalf = DayHalf.Morning;
-        currentPhase = GamePhase.Lobby;
-        SceneManager.LoadScene(lobbySceneName);
+        StartLobbyShift();
     }
 
     public void LoadKitchenScene()
     {
-        currentDayHalf = DayHalf.Afternoon;
-        currentPhase = GamePhase.Kitchen;
-        SceneManager.LoadScene(kitchenSceneName);
+        StartKitchenShift();
+    }
+
+    public bool CanStartLobby()
+    {
+        return !lobbyCompleted;
+    }
+
+    public bool CanStartKitchen()
+    {
+        return lobbyCompleted && !kitchenCompleted;
+    }
+
+    public bool IsDayFullyCompleted()
+    {
+        return lobbyCompleted && kitchenCompleted;
     }
 
     public void AdvanceDay()
@@ -164,5 +184,10 @@ public class GameFlowManager : MonoBehaviour
             MoneyManager.Instance.ResetToStartingMoney();
 
         Debug.Log("[GameFlow] Run reset to Day 1 (Bankruptcy)");
+    }
+
+    public void StartDay()
+    {
+        StartNewDay();
     }
 }
