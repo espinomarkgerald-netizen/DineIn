@@ -24,7 +24,7 @@ public class LobbyStockBridge : MonoBehaviour
         switch (foodType)
         {
             case CustomerGroup.FoodType.Chicken:
-                return InventoryManager.Instance.GetStock(ItemType.ChickenRaw) > 0;
+                return InventoryManager.Instance.GetStock(ItemType.Drumsticks) > 0;
 
             case CustomerGroup.FoodType.Fries:
                 return InventoryManager.Instance.GetStock(ItemType.FrenchFryBag) > 0;
@@ -49,7 +49,7 @@ public class LobbyStockBridge : MonoBehaviour
         switch (foodType)
         {
             case CustomerGroup.FoodType.Chicken:
-                return InventoryManager.Instance.UseStock(ItemType.ChickenRaw, 1);
+                return InventoryManager.Instance.UseStock(ItemType.Drumsticks, 1);
 
             case CustomerGroup.FoodType.Fries:
                 return InventoryManager.Instance.UseStock(ItemType.FrenchFryBag, 1);
@@ -74,7 +74,7 @@ public class LobbyStockBridge : MonoBehaviour
         switch (foodType)
         {
             case CustomerGroup.FoodType.Chicken:
-                return InventoryManager.Instance.GetStock(ItemType.ChickenRaw);
+                return InventoryManager.Instance.GetStock(ItemType.Drumsticks);
 
             case CustomerGroup.FoodType.Fries:
                 return InventoryManager.Instance.GetStock(ItemType.FrenchFryBag);
