@@ -215,6 +215,12 @@ MonoBehaviour:
   happyFaceSprite: {fileID: 21300000, guid: 0ea3c26a62dc47c4ca5c71969710d492, type: 3}
   unhappyFaceSprite: {fileID: 21300000, guid: 2e2ecdea4ca406a498fc36aed7671763, type: 3}
   angryFaceSprite: {fileID: 21300000, guid: 7f5e24f463ca8bc40aa0f872cb6e3a4b, type: 3}
+  linePatiencePrefab: {fileID: 5309278383934196884, guid: a97d2839b7a1c944f8592eccc25d38c0, type: 3}
+  linePatienceOffset: {x: 0, y: 2.6, z: 0}
+  linePatienceSeconds: 60
+  greetedLinePatienceDrainMultiplier: 0.5
+  debugForceShowLinePatience: 0
+  debugPatienceValue: 1
   happyComments:
   - That was great!
   - Nice service!
@@ -233,6 +239,12 @@ MonoBehaviour:
   - This service is terrible!
   - That's not our food!
   - Unbelievable.
+  lineAngryComments:
+  - This line is too long.
+  - We've been waiting forever.
+  - Let's go somewhere else.
+  - No one is assisting us.
+  - This place is too slow.
   bubbleOffset: {x: 0, y: 2.2, z: 0}
   tableNumberOffset: {x: 0, y: 1.6, z: 0}
   minOrderDelay: 2

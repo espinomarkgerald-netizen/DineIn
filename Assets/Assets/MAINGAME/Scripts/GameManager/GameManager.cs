@@ -1,6 +1,4 @@
-using System;
 using System.Collections;
-using System.Collections.Generic;
 using System.Text;
 using TMPro;
 using UnityEngine;
@@ -11,70 +9,17 @@ public class GameDayManager : MonoBehaviour
 {
     public static GameDayManager Instance { get; private set; }
 
-    public enum TaskRole
-    {
-        Host,
-        Waiter,
-        Cashier,
-        Busser
-    }
-
-    public enum TaskType
-    {
-        SeatGroups,
-        TakeOrders,
-        ProcessOrders,
-        ServeFood,
-        DeliverBills,
-        CleanTrays,
-        CompletePayments
-    }
-
-    [Serializable]
-    public class DayTask
-    {
-        public TaskRole role;
-        public TaskType taskType;
-        public int targetAmount = 1;
-    }
-
-    [Serializable]
-    public class DaySettings
-    {
-        [Tooltip("Auto-synced from array index. Element 0 = Day 1, Element 1 = Day 2, etc.")]
-        public int dayNumber = 1;
-
-        [Tooltip("Length of the day in minutes. Use decimals like 0.2 for quick debugging.")]
-        public float dayLengthMinutes = 8f;
-
-        [Header("Spawn")]
-        public int maxCustomersToSpawn = 12;
-        public int maxGroupsPerMinute = 2;
-        public float spawnIntervalMin = 6f;
-        public float spawnIntervalMax = 12f;
-
-        [Header("Daily Finance Target")]
-        public int employeeCost = 0;
-        public int marketingCost = 0;
-        public int billsCost = 0;
-        public int ingredientCost = 0;
-
-        public DayTask[] tasks;
-
-        public float DayLengthSeconds => dayLengthMinutes * 60f;
-
-        public int TotalRequiredEarnings =>
-            Mathf.Max(0, employeeCost) +
-            Mathf.Max(0, marketingCost) +
-            Mathf.Max(0, billsCost) +
-            Mathf.Max(0, ingredientCost);
-    }
-
-    private const string SaveCurrentDayKey = "DineIn_CurrentDayIndex";
-    private const string PendingDayKey = "DineIn_PendingDayIndex";
-
     [Header("Scene")]
-    [SerializeField] private string gameplaySceneName = "Lobby1";
+    [SerializeField] private string managementSceneName = "Office";
+
+    [Header("Shift Settings")]
+    [SerializeField] private float shiftLengthMinutes = 4f;
+
+    [Header("Spawn Settings")]
+    [SerializeField] private int maxCustomersToSpawn = 12;
+    [SerializeField] private int maxGroupsPerMinute = 2;
+    [SerializeField] private float spawnIntervalMin = 6f;
+    [SerializeField] private float spawnIntervalMax = 12f;
 
     [Header("Manager Objects")]
     [SerializeField] private GameObject roleManagerObject;
@@ -94,28 +39,25 @@ public class GameDayManager : MonoBehaviour
     [SerializeField] private OrderFlowManager orderFlowManager;
     [SerializeField] private BillManager billManager;
 
-    [Header("Days")]
-    [SerializeField] private DaySettings[] days = new DaySettings[7];
-    [SerializeField] private bool autoShowDayIntroOnPlay = true;
-    [SerializeField] private int startDayIndex = 0;
-
     [Header("HUD UI")]
     [SerializeField] private TMP_Text dayText;
     [SerializeField] private TMP_Text timerText;
     [SerializeField] private Slider progressBar;
     [SerializeField] private TMP_Text progressMoneyText;
 
-    [Header("Fail Bars")]
+    [Header("Mood Bars")]
     [SerializeField] private Slider angryBar;
     [SerializeField] private Slider neutralBar;
-    [SerializeField] private int angryFailLimit = 3;
-    [SerializeField] private int neutralFailLimit = 5;
-    [SerializeField] private float failBarSmoothSpeed = 8f;
+    [SerializeField] private int angryBarMax = 10;
+    [SerializeField] private int neutralBarMax = 10;
+    [SerializeField] private float moodBarSmoothSpeed = 8f;
 
-    [Header("Day Intro UI")]
+    [Header("Shift Intro UI")]
     [SerializeField] private GameObject dayIntroPanel;
     [SerializeField] private TMP_Text dayIntroTitleText;
-    [SerializeField] private TMP_Text dayIntroTasksText;
+    [SerializeField] private TMP_Text dayIntroSummaryLeftText;
+    [SerializeField] private TMP_Text dayIntroSummaryMiddleText;
+    [SerializeField] private TMP_Text dayIntroSummaryRightText;
     [SerializeField] private Button playButton;
 
     [Header("Results UI")]
@@ -128,43 +70,39 @@ public class GameDayManager : MonoBehaviour
     [SerializeField] private Image star3;
     [SerializeField] private Button resultsActionButton;
     [SerializeField] private TMP_Text resultsActionButtonText;
-    [SerializeField] private Color activeStarColor = Color.white;
-    [SerializeField] private Color inactiveStarColor = new Color(1f, 1f, 1f, 0.25f);
 
     [Header("Runtime")]
-    [SerializeField] private int currentDayIndex;
-    [SerializeField] private bool dayRunning;
+    [SerializeField] private bool shiftRunning;
     [SerializeField] private float timeRemaining;
-    [SerializeField] private int groupsSpawnedToday;
+    [SerializeField] private int groupsSpawnedThisShift;
     [SerializeField] private int groupsSpawnedThisMinute;
     [SerializeField] private float minuteWindowTimer;
+
+    [Header("Shift Stats")]
+    [SerializeField] private int groupsSeated;
+    [SerializeField] private int ordersTaken;
+    [SerializeField] private int ordersProcessed;
+    [SerializeField] private int foodDelivered;
+    [SerializeField] private int billsDelivered;
+    [SerializeField] private int traysCleaned;
+    [SerializeField] private int paymentsCompleted;
 
     [Header("Mood Counts")]
     [SerializeField] private int happyCustomers;
     [SerializeField] private int neutralCustomers;
     [SerializeField] private int angryCustomers;
 
-    [Header("Debug Progress")]
-    [SerializeField] private int seatedGroupsDone;
-    [SerializeField] private int ordersTakenDone;
-    [SerializeField] private int ordersProcessedDone;
-    [SerializeField] private int foodDeliveredDone;
-    [SerializeField] private int billsDeliveredDone;
-    [SerializeField] private int traysCleanedDone;
-    [SerializeField] private int paymentsCompletedDone;
-
-    private readonly Dictionary<TaskType, int> taskProgress = new Dictionary<TaskType, int>();
     private Coroutine spawnRoutine;
-
-    private bool passedCurrentDay;
-    private int lastDayStars;
     private float angryBarVisual;
     private float neutralBarVisual;
 
-    public bool DayRunning => dayRunning;
-    public int CurrentDayIndex => currentDayIndex;
-    public int CurrentDayNumber => ClampDayIndex(currentDayIndex) + 1;
+    public bool ShiftRunning => shiftRunning;
     public float TimeRemaining => timeRemaining;
+    public int HappyCustomers => happyCustomers;
+    public int NeutralCustomers => neutralCustomers;
+    public int AngryCustomers => angryCustomers;
+    public int CustomersServed => happyCustomers + neutralCustomers + angryCustomers;
+    public float ShiftLengthSeconds => Mathf.Max(1f, shiftLengthMinutes * 60f);
 
     private void Awake()
     {
@@ -180,13 +118,11 @@ public class GameDayManager : MonoBehaviour
             resultsPanel.SetActive(false);
 
         ResolveManagerComponents();
-        ValidateDays();
+        ValidateSettings();
     }
 
     private void Start()
     {
-        Debug.Log("[GameDayManager] Start");
-
         if (resultsPanel != null)
             resultsPanel.SetActive(false);
 
@@ -195,8 +131,8 @@ public class GameDayManager : MonoBehaviour
 
         if (playButton != null)
         {
-            playButton.onClick.RemoveListener(ConfirmStartCurrentDay);
-            playButton.onClick.AddListener(ConfirmStartCurrentDay);
+            playButton.onClick.RemoveListener(ConfirmStartShift);
+            playButton.onClick.AddListener(ConfirmStartShift);
         }
 
         if (resultsActionButton != null)
@@ -208,32 +144,15 @@ public class GameDayManager : MonoBehaviour
         ApplyFinanceFromGameFlow();
 
         RefreshUI();
-        SetupFailBars(true);
-
-        int pendingDayIndex = LoadPendingDayIndex();
-        Debug.Log("[GameDayManager] Pending day index = " + pendingDayIndex);
-
-        if (pendingDayIndex >= 0)
-        {
-            ClearPendingDayIndex();
-            Debug.Log("[GameDayManager] Loading pending day intro for day index = " + pendingDayIndex);
-            ShowDayIntro(ClampDayIndex(pendingDayIndex));
-            return;
-        }
-
-        if (autoShowDayIntroOnPlay)
-        {
-            int savedDayIndex = LoadSavedCurrentDayIndex();
-            Debug.Log("[GameDayManager] Loading saved day intro for day index = " + savedDayIndex);
-            ShowDayIntro(ClampDayIndex(savedDayIndex));
-        }
+        SetupMoodBars(true);
+        ShowShiftIntro();
     }
 
     private void Update()
     {
-        UpdateFailBarsSmooth();
+        UpdateMoodBarsSmooth();
 
-        if (!dayRunning)
+        if (!shiftRunning)
             return;
 
         timeRemaining -= Time.deltaTime;
@@ -248,16 +167,9 @@ public class GameDayManager : MonoBehaviour
         }
 
         RefreshUI();
-        UpdateFailBarsSmooth();
-
-        if (angryCustomers >= angryFailLimit || neutralCustomers >= neutralFailLimit)
-        {
-            EndDay();
-            return;
-        }
 
         if (timeRemaining <= 0f)
-            EndDay();
+            EndShift();
     }
 
     private void ResolveManagerComponents()
@@ -281,49 +193,33 @@ public class GameDayManager : MonoBehaviour
             billManager = billManagerObject.GetComponent<BillManager>();
     }
 
-    private void ValidateDays()
+    private void ValidateSettings()
     {
-        if (days == null || days.Length != 7)
-            Array.Resize(ref days, 7);
+        if (shiftLengthMinutes <= 0f)
+            shiftLengthMinutes = 4f;
 
-        for (int i = 0; i < days.Length; i++)
-        {
-            if (days[i] == null)
-                days[i] = new DaySettings();
+        if (maxCustomersToSpawn < 0)
+            maxCustomersToSpawn = 0;
 
-            days[i].dayNumber = i + 1;
+        if (maxGroupsPerMinute < 1)
+            maxGroupsPerMinute = 1;
 
-            if (days[i].dayLengthMinutes <= 0f)
-                days[i].dayLengthMinutes = 8f;
+        if (spawnIntervalMin <= 0f)
+            spawnIntervalMin = 6f;
 
-            if (days[i].maxCustomersToSpawn < 0)
-                days[i].maxCustomersToSpawn = 0;
+        if (spawnIntervalMax < spawnIntervalMin)
+            spawnIntervalMax = spawnIntervalMin + 1f;
 
-            if (days[i].maxGroupsPerMinute < 1)
-                days[i].maxGroupsPerMinute = 1;
-
-            if (days[i].spawnIntervalMin <= 0f)
-                days[i].spawnIntervalMin = 6f;
-
-            if (days[i].spawnIntervalMax < days[i].spawnIntervalMin)
-                days[i].spawnIntervalMax = days[i].spawnIntervalMin + 1f;
-
-            days[i].employeeCost = Mathf.Max(0, days[i].employeeCost);
-            days[i].marketingCost = Mathf.Max(0, days[i].marketingCost);
-            days[i].billsCost = Mathf.Max(0, days[i].billsCost);
-            days[i].ingredientCost = Mathf.Max(0, days[i].ingredientCost);
-
-            if (days[i].tasks == null)
-                days[i].tasks = Array.Empty<DayTask>();
-        }
+        angryBarMax = Mathf.Max(1, angryBarMax);
+        neutralBarMax = Mathf.Max(1, neutralBarMax);
     }
 
-    private void SetupFailBars(bool snapToCurrent)
+    private void SetupMoodBars(bool snapToCurrent)
     {
         if (angryBar != null)
         {
             angryBar.minValue = 0f;
-            angryBar.maxValue = angryFailLimit;
+            angryBar.maxValue = angryBarMax;
 
             if (snapToCurrent)
                 angryBarVisual = angryCustomers;
@@ -334,7 +230,7 @@ public class GameDayManager : MonoBehaviour
         if (neutralBar != null)
         {
             neutralBar.minValue = 0f;
-            neutralBar.maxValue = neutralFailLimit;
+            neutralBar.maxValue = neutralBarMax;
 
             if (snapToCurrent)
                 neutralBarVisual = neutralCustomers;
@@ -343,10 +239,10 @@ public class GameDayManager : MonoBehaviour
         }
     }
 
-    private void UpdateFailBarsSmooth()
+    private void UpdateMoodBarsSmooth()
     {
-        angryBarVisual = Mathf.Lerp(angryBarVisual, angryCustomers, Time.deltaTime * failBarSmoothSpeed);
-        neutralBarVisual = Mathf.Lerp(neutralBarVisual, neutralCustomers, Time.deltaTime * failBarSmoothSpeed);
+        angryBarVisual = Mathf.Lerp(angryBarVisual, angryCustomers, Time.deltaTime * moodBarSmoothSpeed);
+        neutralBarVisual = Mathf.Lerp(neutralBarVisual, neutralCustomers, Time.deltaTime * moodBarSmoothSpeed);
 
         if (Mathf.Abs(angryBarVisual - angryCustomers) < 0.01f)
             angryBarVisual = angryCustomers;
@@ -361,20 +257,9 @@ public class GameDayManager : MonoBehaviour
             neutralBar.value = neutralBarVisual;
     }
 
-    public void ShowDayIntro(int dayIndex)
+    public void ShowShiftIntro()
     {
-        if (days == null || days.Length == 0)
-            return;
-
-        dayIndex = ClampDayIndex(dayIndex);
-        currentDayIndex = dayIndex;
-
-        DaySettings settings = GetCurrentSettings();
-        if (settings == null)
-            return;
-
-     
-        ApplyFinanceFromGameFlow(); // 
+        ApplyFinanceFromGameFlow();
 
         if (resultsPanel != null)
             resultsPanel.SetActive(false);
@@ -383,57 +268,73 @@ public class GameDayManager : MonoBehaviour
             dayIntroPanel.SetActive(true);
 
         if (dayIntroTitleText != null)
-            dayIntroTitleText.text = "Day " + CurrentDayNumber + "\nToday's Tasks";
+            dayIntroTitleText.text = "Start Shift";
 
-        if (dayIntroTasksText != null)
-            dayIntroTasksText.text = BuildTaskListText(settings);
+        int minutes = Mathf.FloorToInt(ShiftLengthSeconds / 60f);
+        int seconds = Mathf.FloorToInt(ShiftLengthSeconds % 60f);
 
-        SaveCurrentDayIndex(currentDayIndex);
+        if (dayIntroSummaryLeftText != null)
+        {
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine("<b>Shift Info</b>");
+            sb.AppendLine("Department: Lobby");
+            sb.AppendLine("Phase: First Half");
+            sb.AppendLine("Length: " + minutes.ToString("00") + ":" + seconds.ToString("00"));
+            dayIntroSummaryLeftText.text = sb.ToString().TrimEnd();
+        }
+
+        if (dayIntroSummaryMiddleText != null)
+        {
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine("<b>Service Overview</b>");
+
+            if (DailyFinanceBridge.Instance != null)
+                sb.AppendLine("Target Revenue: ₱" + DailyFinanceBridge.Instance.TotalRequiredEarningsToday);
+            else
+                sb.AppendLine("Target Revenue: ₱0");
+
+            sb.AppendLine("Max Customers: " + maxCustomersToSpawn);
+            sb.AppendLine("Spawn Rate: " + maxGroupsPerMinute + "/min");
+            dayIntroSummaryMiddleText.text = sb.ToString().TrimEnd();
+        }
+
+        if (dayIntroSummaryRightText != null)
+        {
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine("<b>Reminder</b>");
+            sb.AppendLine("Keep customers satisfied.");
+            sb.AppendLine("Avoid angry walkouts.");
+            sb.AppendLine("Review performance after shift.");
+            dayIntroSummaryRightText.text = sb.ToString().TrimEnd();
+        }
+
         RefreshUI();
-        SetupFailBars(true);
-
-        Debug.Log("[GameDayManager] ShowDayIntro -> currentDayIndex = " + currentDayIndex + " | dayNumber = " + CurrentDayNumber);
+        SetupMoodBars(true);
     }
 
-    public void ConfirmStartCurrentDay()
+    public void ConfirmStartShift()
     {
-        StartCoroutine(StartDayRoutine());
+        StartCoroutine(StartShiftRoutine());
     }
 
-    private IEnumerator StartDayRoutine()
+    private IEnumerator StartShiftRoutine()
     {
         if (dayIntroPanel != null)
             dayIntroPanel.SetActive(false);
 
         yield return new WaitForSeconds(0.2f);
 
-        StartDay(currentDayIndex);
+        StartShift();
     }
 
-    public void StartDay(int dayIndex)
+    public void StartShift()
     {
-        if (days == null || days.Length == 0)
-            return;
-
-        dayIndex = ClampDayIndex(dayIndex);
         ResolveManagerComponents();
-
-        currentDayIndex = dayIndex;
-        SaveCurrentDayIndex(currentDayIndex);
-
-        ResetDayRuntime();
-
-        DaySettings settings = GetCurrentSettings();
-        if (settings == null)
-            return;
-
- 
+        ResetShiftRuntime();
         ApplyFinanceFromGameFlow();
 
-        timeRemaining = Mathf.Max(1f, settings.DayLengthSeconds);
-        dayRunning = true;
-        passedCurrentDay = false;
-        lastDayStars = 0;
+        timeRemaining = ShiftLengthSeconds;
+        shiftRunning = true;
 
         if (resultsPanel != null)
             resultsPanel.SetActive(false);
@@ -447,45 +348,15 @@ public class GameDayManager : MonoBehaviour
         spawnRoutine = StartCoroutine(SpawnCustomersRoutine());
 
         RefreshUI();
-        SetupFailBars(true);
-
-        Debug.Log("[GameDayManager] StartDay -> currentDayIndex = " + currentDayIndex + " | dayNumber = " + CurrentDayNumber + " | dayLengthMinutes = " + settings.dayLengthMinutes);
+        SetupMoodBars(true);
     }
 
-    private void PreviewDayFinance(DaySettings settings)
+    public void EndShift()
     {
-        if (settings == null || DailyFinanceBridge.Instance == null)
+        if (!shiftRunning)
             return;
 
-        DailyFinanceBridge.Instance.ResetDay();
-        DailyFinanceBridge.Instance.SetDailyCosts(
-            settings.employeeCost,
-            settings.marketingCost,
-            settings.billsCost,
-            settings.ingredientCost
-        );
-    }
-
-    private void ApplyDayFinance(DaySettings settings)
-    {
-        if (settings == null || DailyFinanceBridge.Instance == null)
-            return;
-
-        DailyFinanceBridge.Instance.ResetDay();
-        DailyFinanceBridge.Instance.SetDailyCosts(
-            settings.employeeCost,
-            settings.marketingCost,
-            settings.billsCost,
-            settings.ingredientCost
-        );
-    }
-
-    public void EndDay()
-    {
-        if (!dayRunning)
-            return;
-
-        dayRunning = false;
+        shiftRunning = false;
 
         if (spawnRoutine != null)
         {
@@ -493,66 +364,38 @@ public class GameDayManager : MonoBehaviour
             spawnRoutine = null;
         }
 
-        int stars = CalculateStars();
-        lastDayStars = stars;
-        passedCurrentDay = stars >= 3;
-
-        if (passedCurrentDay)
-        {
-            int nextDay = Mathf.Min(currentDayIndex + 1, days.Length - 1);
-            SaveCurrentDayIndex(nextDay);
-            Debug.Log("[GameDayManager] Day passed. Saved next day index = " + nextDay);
-        }
-
-        ShowResults(stars);
+        ShowResults();
     }
 
-    public void ShowNextDayIntro()
+    public void RestartShift()
     {
-        int nextIndex = currentDayIndex + 1;
-        if (nextIndex >= days.Length)
-            nextIndex = currentDayIndex;
-
-        ShowDayIntro(nextIndex);
-    }
-
-    public void RestartCurrentDay()
-    {
-        ShowDayIntro(currentDayIndex);
+        ShowShiftIntro();
     }
 
     public void OnResultsActionPressed()
     {
-        if (passedCurrentDay)
+        if (string.IsNullOrWhiteSpace(managementSceneName))
         {
-            if (currentDayIndex < days.Length - 1)
-                ReloadSceneForDay(currentDayIndex + 1);
-            else
-                ReloadSceneForDay(currentDayIndex);
+            Debug.LogWarning("[GameDayManager] Management scene name is empty.");
+            return;
         }
-        else
-        {
-            ReloadSceneForDay(currentDayIndex);
-        }
+
+        SceneManager.LoadScene(managementSceneName, LoadSceneMode.Single);
     }
 
-    private void ReloadSceneForDay(int dayIndex)
+    private void ResetShiftRuntime()
     {
-        dayIndex = ClampDayIndex(dayIndex);
-
-        SavePendingDayIndex(dayIndex);
-        SaveCurrentDayIndex(dayIndex);
-
-        Debug.Log("[GameDayManager] ReloadSceneForDay -> loading scene '" + gameplaySceneName + "' with day index = " + dayIndex);
-
-        SceneManager.LoadScene(gameplaySceneName, LoadSceneMode.Single);
-    }
-
-    private void ResetDayRuntime()
-    {
-        groupsSpawnedToday = 0;
+        groupsSpawnedThisShift = 0;
         groupsSpawnedThisMinute = 0;
         minuteWindowTimer = 0f;
+
+        groupsSeated = 0;
+        ordersTaken = 0;
+        ordersProcessed = 0;
+        foodDelivered = 0;
+        billsDelivered = 0;
+        traysCleaned = 0;
+        paymentsCompleted = 0;
 
         happyCustomers = 0;
         neutralCustomers = 0;
@@ -561,51 +404,24 @@ public class GameDayManager : MonoBehaviour
         angryBarVisual = 0f;
         neutralBarVisual = 0f;
 
-        seatedGroupsDone = 0;
-        ordersTakenDone = 0;
-        ordersProcessedDone = 0;
-        foodDeliveredDone = 0;
-        billsDeliveredDone = 0;
-        traysCleanedDone = 0;
-        paymentsCompletedDone = 0;
-
-        taskProgress.Clear();
-
-        DaySettings settings = GetCurrentSettings();
-        if (settings != null && settings.tasks != null)
-        {
-            for (int i = 0; i < settings.tasks.Length; i++)
-            {
-                DayTask task = settings.tasks[i];
-                if (task == null) continue;
-
-                if (!taskProgress.ContainsKey(task.taskType))
-                    taskProgress.Add(task.taskType, 0);
-            }
-        }
-
-        SetupFailBars(true);
+        SetupMoodBars(true);
     }
 
     private IEnumerator SpawnCustomersRoutine()
     {
         yield return new WaitForSeconds(1f);
 
-        while (dayRunning)
+        while (shiftRunning)
         {
-            DaySettings settings = GetCurrentSettings();
-            if (settings == null)
-                yield break;
+            bool canSpawnMoreShift = groupsSpawnedThisShift < maxCustomersToSpawn;
+            bool canSpawnThisMinute = groupsSpawnedThisMinute < maxGroupsPerMinute;
 
-            bool canSpawnMoreToday = groupsSpawnedToday < settings.maxCustomersToSpawn;
-            bool canSpawnThisMinute = groupsSpawnedThisMinute < settings.maxGroupsPerMinute;
-
-            if (canSpawnMoreToday && canSpawnThisMinute)
+            if (canSpawnMoreShift && canSpawnThisMinute)
             {
                 bool spawned = TrySpawnCustomerGroup();
                 if (spawned)
                 {
-                    float delay = UnityEngine.Random.Range(settings.spawnIntervalMin, settings.spawnIntervalMax);
+                    float delay = Random.Range(spawnIntervalMin, spawnIntervalMax);
                     yield return new WaitForSeconds(delay);
                     continue;
                 }
@@ -617,17 +433,13 @@ public class GameDayManager : MonoBehaviour
 
     private bool TrySpawnCustomerGroup()
     {
-        if (!dayRunning)
+        if (!shiftRunning)
             return false;
 
-        DaySettings settings = GetCurrentSettings();
-        if (settings == null)
+        if (groupsSpawnedThisShift >= maxCustomersToSpawn)
             return false;
 
-        if (groupsSpawnedToday >= settings.maxCustomersToSpawn)
-            return false;
-
-        if (groupsSpawnedThisMinute >= settings.maxGroupsPerMinute)
+        if (groupsSpawnedThisMinute >= maxGroupsPerMinute)
             return false;
 
         if (groupSpawner == null)
@@ -643,71 +455,15 @@ public class GameDayManager : MonoBehaviour
             return false;
         }
 
-        groupsSpawnedToday++;
+        groupsSpawnedThisShift++;
         groupsSpawnedThisMinute++;
         return true;
-    }
-
-    private DaySettings GetCurrentSettings()
-    {
-        if (days == null || days.Length == 0)
-            return null;
-
-        if (currentDayIndex < 0 || currentDayIndex >= days.Length)
-            return null;
-
-        return days[currentDayIndex];
-    }
-
-    private string BuildTaskListText(DaySettings settings)
-    {
-        if (settings == null || settings.tasks == null || settings.tasks.Length == 0)
-            return "No tasks assigned.";
-
-        StringBuilder sb = new StringBuilder();
-
-        for (int i = 0; i < settings.tasks.Length; i++)
-        {
-            DayTask task = settings.tasks[i];
-            if (task == null) continue;
-
-            sb.Append("• ");
-            sb.Append(GetTaskText(task));
-
-            if (i < settings.tasks.Length - 1)
-                sb.Append("\n");
-        }
-
-        return sb.ToString();
-    }
-
-    private string GetTaskText(DayTask task)
-    {
-        switch (task.taskType)
-        {
-            case TaskType.SeatGroups:
-                return "Seat " + task.targetAmount + " customer groups";
-            case TaskType.TakeOrders:
-                return "Take " + task.targetAmount + " orders";
-            case TaskType.ProcessOrders:
-                return "Process " + task.targetAmount + " orders";
-            case TaskType.ServeFood:
-                return "Serve " + task.targetAmount + " foods";
-            case TaskType.DeliverBills:
-                return "Deliver " + task.targetAmount + " bills";
-            case TaskType.CleanTrays:
-                return "Clean " + task.targetAmount + " trays";
-            case TaskType.CompletePayments:
-                return "Complete " + task.targetAmount + " payments";
-            default:
-                return "Complete " + task.targetAmount + " tasks";
-        }
     }
 
     private void RefreshUI()
     {
         if (dayText != null)
-            dayText.text = "Day " + CurrentDayNumber;
+            dayText.text = "Shift";
 
         if (timerText != null)
         {
@@ -745,217 +501,137 @@ public class GameDayManager : MonoBehaviour
         return 0f;
     }
 
-    private int GetTaskProgress(TaskType taskType)
-    {
-        if (taskProgress.TryGetValue(taskType, out int value))
-            return value;
-
-        return 0;
-    }
-
-    private void AddTaskProgress(TaskType taskType, int amount = 1)
-    {
-        if (!dayRunning)
-            return;
-
-        if (!taskProgress.ContainsKey(taskType))
-            taskProgress[taskType] = 0;
-
-        taskProgress[taskType] += amount;
-        RefreshUI();
-    }
-
-    private int CalculateStars()
-    {
-        int totalRatedGroups = happyCustomers + neutralCustomers + angryCustomers;
-        float progress = CalculateProgress01();
-
-        if (totalRatedGroups <= 0)
-        {
-            if (progress >= 1f) return 2;
-            if (progress >= 0.6f) return 1;
-            return 0;
-        }
-
-        float happyRatio = (float)happyCustomers / totalRatedGroups;
-
-        if (happyRatio >= 0.85f && progress >= 1f)
-            return 3;
-
-        if (happyRatio >= 0.60f && progress >= 0.75f)
-            return 2;
-
-        if (happyRatio >= 0.35f && progress >= 0.40f)
-            return 1;
-
-        return 0;
-    }
-
-    private void ShowResults(int stars)
+    private void ShowResults()
     {
         if (resultsPanel != null)
             resultsPanel.SetActive(true);
 
         if (resultsTitleText != null)
-            resultsTitleText.text = passedCurrentDay ? "Day " + CurrentDayNumber + " Complete" : "Day " + CurrentDayNumber + " Failed";
+            resultsTitleText.text = "Half-Day Report";
 
         if (resultsSummaryText != null)
         {
             StringBuilder sb = new StringBuilder();
 
+            int earned = 0;
             if (DailyFinanceBridge.Instance != null)
-            {
-                sb.AppendLine("Finance");
-                sb.AppendLine("Earned: ₱" + DailyFinanceBridge.Instance.EarnedToday);
-                sb.AppendLine("Target: ₱" + DailyFinanceBridge.Instance.TotalRequiredEarningsToday);
-                sb.AppendLine();
-            }
+                earned = DailyFinanceBridge.Instance.EarnedToday;
 
-            DaySettings settings = GetCurrentSettings();
-            if (settings != null && settings.tasks != null && settings.tasks.Length > 0)
-            {
-                sb.AppendLine("Tasks");
-                for (int i = 0; i < settings.tasks.Length; i++)
-                {
-                    DayTask task = settings.tasks[i];
-                    if (task == null) continue;
+            sb.AppendLine("<b>REVENUE</b>");
+            sb.AppendLine("₱" + earned);
+            sb.AppendLine();
+            sb.AppendLine("<b>CUSTOMERS</b>");
+            sb.AppendLine("😊 " + happyCustomers + "   😐 " + neutralCustomers + "   😡 " + angryCustomers);
 
-                    int current = GetTaskProgress(task.taskType);
-                    sb.AppendLine(GetTaskText(task) + "  (" + Mathf.Min(current, task.targetAmount) + "/" + task.targetAmount + ")");
-                }
-
-                sb.AppendLine();
-            }
-
-            sb.AppendLine("Happy: " + happyCustomers);
-            sb.AppendLine("Unhappy: " + neutralCustomers + " / " + neutralFailLimit);
-            sb.AppendLine("Angry: " + angryCustomers + " / " + angryFailLimit);
-
-            resultsSummaryText.text = sb.ToString();
+            resultsSummaryText.text = sb.ToString().TrimEnd();
         }
 
         if (resultsStarsText != null)
-            resultsStarsText.text = stars + " / 3 Stars";
+            resultsStarsText.text = GetShiftStatusText();
 
-        SetStarVisual(star1, stars >= 1);
-        SetStarVisual(star2, stars >= 2);
-        SetStarVisual(star3, stars >= 3);
+        if (star1 != null)
+            star1.gameObject.SetActive(false);
+
+        if (star2 != null)
+            star2.gameObject.SetActive(false);
+
+        if (star3 != null)
+            star3.gameObject.SetActive(false);
 
         if (resultsActionButton != null)
         {
             resultsActionButton.gameObject.SetActive(true);
 
-            bool hasNextDay = currentDayIndex < days.Length - 1;
-
-            if (passedCurrentDay)
-            {
-                if (resultsActionButtonText != null)
-                    resultsActionButtonText.text = hasNextDay ? "Next Day" : "Restart";
-            }
-            else
-            {
-                if (resultsActionButtonText != null)
-                    resultsActionButtonText.text = "Restart";
-            }
+            if (resultsActionButtonText != null)
+                resultsActionButtonText.text = "Back to Management";
         }
     }
 
-    private void SetStarVisual(Image star, bool active)
+    private string GetShiftStatusText()
     {
-        if (star == null)
-            return;
+        if (CustomersServed <= 0)
+            return "Quiet Shift";
 
-        star.color = active ? activeStarColor : inactiveStarColor;
-    }
+        float happyRatio = (float)happyCustomers / CustomersServed;
 
-    private int ClampDayIndex(int index)
-    {
-        if (days == null || days.Length == 0)
-            return 0;
+        if (happyRatio >= 0.80f)
+            return "Excellent Service";
 
-        return Mathf.Clamp(index, 0, days.Length - 1);
-    }
+        if (happyRatio >= 0.55f)
+            return "Good Service";
 
-    private void SaveCurrentDayIndex(int index)
-    {
-        PlayerPrefs.SetInt(SaveCurrentDayKey, ClampDayIndex(index));
-        PlayerPrefs.Save();
-    }
+        if (happyRatio >= 0.35f)
+            return "Average Service";
 
-    private int LoadSavedCurrentDayIndex()
-    {
-        return PlayerPrefs.GetInt(SaveCurrentDayKey, ClampDayIndex(startDayIndex));
-    }
-
-    private void SavePendingDayIndex(int index)
-    {
-        PlayerPrefs.SetInt(PendingDayKey, ClampDayIndex(index));
-        PlayerPrefs.Save();
-    }
-
-    private int LoadPendingDayIndex()
-    {
-        return PlayerPrefs.GetInt(PendingDayKey, -1);
-    }
-
-    private void ClearPendingDayIndex()
-    {
-        PlayerPrefs.DeleteKey(PendingDayKey);
-        PlayerPrefs.Save();
-    }
-
-    public void ResetSavedProgressToDay1()
-    {
-        PlayerPrefs.SetInt(SaveCurrentDayKey, 0);
-        PlayerPrefs.DeleteKey(PendingDayKey);
-        PlayerPrefs.Save();
+        return "Poor Service";
     }
 
     public void RegisterGroupSeated()
     {
-        seatedGroupsDone++;
-        AddTaskProgress(TaskType.SeatGroups);
+        if (!shiftRunning)
+            return;
+
+        groupsSeated++;
+        RefreshUI();
     }
 
     public void RegisterOrderTaken()
     {
-        ordersTakenDone++;
-        AddTaskProgress(TaskType.TakeOrders);
+        if (!shiftRunning)
+            return;
+
+        ordersTaken++;
+        RefreshUI();
     }
 
     public void RegisterOrderProcessed()
     {
-        ordersProcessedDone++;
-        AddTaskProgress(TaskType.ProcessOrders);
+        if (!shiftRunning)
+            return;
+
+        ordersProcessed++;
+        RefreshUI();
     }
 
     public void RegisterFoodDelivered()
     {
-        foodDeliveredDone++;
-        AddTaskProgress(TaskType.ServeFood);
+        if (!shiftRunning)
+            return;
+
+        foodDelivered++;
+        RefreshUI();
     }
 
     public void RegisterBillDelivered()
     {
-        billsDeliveredDone++;
-        AddTaskProgress(TaskType.DeliverBills);
+        if (!shiftRunning)
+            return;
+
+        billsDelivered++;
+        RefreshUI();
     }
 
     public void RegisterTrayCleaned()
     {
-        traysCleanedDone++;
-        AddTaskProgress(TaskType.CleanTrays);
+        if (!shiftRunning)
+            return;
+
+        traysCleaned++;
+        RefreshUI();
     }
 
     public void RegisterPaymentCompleted()
     {
-        paymentsCompletedDone++;
-        AddTaskProgress(TaskType.CompletePayments);
+        if (!shiftRunning)
+            return;
+
+        paymentsCompleted++;
+        RefreshUI();
     }
 
     public void RegisterHappyCustomer()
     {
-        if (!dayRunning)
+        if (!shiftRunning)
             return;
 
         happyCustomers++;
@@ -963,39 +639,23 @@ public class GameDayManager : MonoBehaviour
 
     public void RegisterNeutralCustomer()
     {
-        if (!dayRunning)
+        if (!shiftRunning)
             return;
 
         neutralCustomers++;
-
-        if (neutralCustomers >= neutralFailLimit)
-            EndDay();
     }
 
     public void RegisterAngryCustomer()
     {
-        if (!dayRunning)
+        if (!shiftRunning)
             return;
 
         angryCustomers++;
-
-        if (angryCustomers >= angryFailLimit)
-            EndDay();
-    }
-
-    public int GetCurrentStarsPreview()
-    {
-        return CalculateStars();
     }
 
     public float GetProgress01()
     {
         return CalculateProgress01();
-    }
-
-    public int GetTaskCurrent(TaskType taskType)
-    {
-        return GetTaskProgress(taskType);
     }
 
     private void ApplyFinanceFromGameFlow()

@@ -34,30 +34,37 @@ public class UIManager : MonoBehaviour
             Destroy(gameObject);
             return;
         }
+
         Instance = this;
     }
 
-    void Start()
+    private void Start()
     {
         ShowStaticUI();
     }
 
-    // ---------- Existing UI Methods ----------
     public void ShowStaticUI()
     {
-        staticUI.SetActive(true);
+        if (staticUI != null)
+            staticUI.SetActive(true);
+
         HideCurrentActiveUI();
     }
 
     public void ShowActiveUI(GameObject ui)
     {
+        if (ui == null)
+            return;
+
         if (!activeUIs.Contains(ui))
         {
             Debug.LogWarning($"UIManager: {ui.name} is not registered in Active UIs.");
             return;
         }
 
-        staticUI.SetActive(false);
+        if (staticUI != null)
+            staticUI.SetActive(false);
+
         HideCurrentActiveUI();
 
         currentActiveUI = ui;
@@ -67,7 +74,9 @@ public class UIManager : MonoBehaviour
     public void CloseActiveUI()
     {
         HideCurrentActiveUI();
-        staticUI.SetActive(true);
+
+        if (staticUI != null)
+            staticUI.SetActive(true);
     }
 
     private void HideCurrentActiveUI()
@@ -79,68 +88,102 @@ public class UIManager : MonoBehaviour
         }
     }
 
-    // ---------- Settings ----------
     public void ToggleSettings()
     {
-        if (settingsPanel == null) return;
+        if (settingsPanel == null)
+            return;
 
-        staticUI.SetActive(false);
+        if (staticUI != null)
+            staticUI.SetActive(false);
+
         settingsPanel.SetActive(!settingsPanel.activeSelf);
     }
 
     public void CloseSettings()
     {
-        if (settingsPanel == null) return;
+        if (settingsPanel != null)
+            settingsPanel.SetActive(false);
 
-        settingsPanel.SetActive(false);
-        restockShop.SetActive(false);
-        employeeBoard.SetActive(false);
-        kitchenUI.SetActive(false);
-        lobbyUI.SetActive(false);
-        staticUI.SetActive(true);
+        if (restockShop != null)
+            restockShop.SetActive(false);
+
+        if (employeeBoard != null)
+            employeeBoard.SetActive(false);
+
+        if (kitchenUI != null)
+            kitchenUI.SetActive(false);
+
+        if (lobbyUI != null)
+            lobbyUI.SetActive(false);
+
+        currentActiveUI = null;
+
+        if (staticUI != null)
+            staticUI.SetActive(true);
     }
 
     public void OpenAudioSettings()
     {
         HideSettingsSubPanels();
-        settingsPanel.SetActive(false);
-        audioSettings.SetActive(true);
+
+        if (settingsPanel != null)
+            settingsPanel.SetActive(false);
+
+        if (audioSettings != null)
+            audioSettings.SetActive(true);
     }
 
     public void SettingsBackButton()
     {
         HideSettingsSubPanels();
-        settingsPanel.SetActive(true);
+
+        if (settingsPanel != null)
+            settingsPanel.SetActive(true);
     }
 
-    void HideSettingsSubPanels()
+    private void HideSettingsSubPanels()
     {
-        if (audioSettings != null) audioSettings.SetActive(false);
-        if (videoSettings != null) videoSettings.SetActive(false);
+        if (audioSettings != null)
+            audioSettings.SetActive(false);
+
+        if (videoSettings != null)
+            videoSettings.SetActive(false);
     }
 
     public void SettingsToggle()
     {
-        if (settingsPanel == null) return;
+        if (settingsPanel == null)
+            return;
 
-        staticUI.SetActive(false);
+        if (staticUI != null)
+            staticUI.SetActive(false);
+
         HideSettingsSubPanels();
         settingsPanel.SetActive(!settingsPanel.activeSelf);
     }
 
     public void OpenEmployeeBoard()
     {
-        employeeBoard.SetActive(true);
-        staticUI.SetActive(false);
+        if (employeeBoard != null)
+            employeeBoard.SetActive(true);
+
+        if (staticUI != null)
+            staticUI.SetActive(false);
+
+        currentActiveUI = employeeBoard;
     }
 
     public void OpenRestockShop()
     {
-        restockShop.SetActive(true);
-        staticUI.SetActive(false);
+        if (restockShop != null)
+            restockShop.SetActive(true);
+
+        if (staticUI != null)
+            staticUI.SetActive(false);
+
+        currentActiveUI = restockShop;
     }
 
-    // ---------- NEW: HR UI Integration ----------
     public void OpenHRUI()
     {
         if (hrManager == null)
@@ -149,24 +192,32 @@ public class UIManager : MonoBehaviour
             return;
         }
 
-        // Close any active HR UIs
-        kitchenUI.SetActive(false);
-        lobbyUI.SetActive(false);
+        hrManager.SyncPhaseFromGameFlow();
 
-        // Show correct UI based on phase
-        if (hrManager.currentPhase == HRManager.DayPhase.Morning)
+        if (kitchenUI != null)
+            kitchenUI.SetActive(false);
+
+        if (lobbyUI != null)
+            lobbyUI.SetActive(false);
+
+        if (hrManager.CurrentPhase == HRManager.DayPhase.Morning)
         {
-            kitchenUI.SetActive(true);
-            hrManager.PopulateRows(hrManager.kitchenRows);
+            if (lobbyUI != null)
+                lobbyUI.SetActive(true);
+
+            hrManager.PopulateRows(hrManager.lobbyRows);
+            currentActiveUI = lobbyUI;
         }
         else
         {
-            lobbyUI.SetActive(true);
-            hrManager.PopulateRows(hrManager.lobbyRows);
+            if (kitchenUI != null)
+                kitchenUI.SetActive(true);
+
+            hrManager.PopulateRows(hrManager.kitchenRows);
+            currentActiveUI = kitchenUI;
         }
 
-        // Hide static UI
-        staticUI.SetActive(false);
-        currentActiveUI = hrManager.currentPhase == HRManager.DayPhase.Morning ? kitchenUI : lobbyUI;
+        if (staticUI != null)
+            staticUI.SetActive(false);
     }
 }

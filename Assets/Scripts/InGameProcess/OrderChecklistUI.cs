@@ -370,7 +370,6 @@ public class OrderChecklistUI : MonoBehaviour
                 }
             }
 
-            // Deduct stock
             for (int i = 0; i < selectedContents.Count; i++)
             {
                 string item = selectedContents[i];
@@ -396,6 +395,9 @@ public class OrderChecklistUI : MonoBehaviour
         group.submittedOrder.contents.AddRange(selectedContents);
 
         group.TakeOrderFromWaiter(mainFood, selectedDrink);
+
+        if (ProcessingBillIndicatorUI.Instance != null)
+            ProcessingBillIndicatorUI.Instance.ShowForSeconds("Order Sent to Kitchen", 2f);
 
         KitchenManager kitchen = FindFirstObjectByType<KitchenManager>();
         if (kitchen != null)
