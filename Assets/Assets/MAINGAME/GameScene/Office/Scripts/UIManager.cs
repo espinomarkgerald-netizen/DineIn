@@ -10,14 +10,20 @@ public class UIManager : MonoBehaviour
 
     [Header("Active UI Panels")]
     [SerializeField] private List<GameObject> activeUIs;
-    [SerializeField] GameObject employeeBoard;
-    [SerializeField] GameObject restockShop;
+    [SerializeField] private GameObject employeeBoard;
+    [SerializeField] private GameObject restockShop;
 
     [Header("Settings Panel")]
-    [SerializeField] GameObject settingsPanel;
-    [SerializeField] GameObject audioSettings;
-    [SerializeField] GameObject videoSettings;
+    [SerializeField] private GameObject settingsPanel;
+    [SerializeField] private GameObject audioSettings;
+    [SerializeField] private GameObject videoSettings;
 
+    [Header("HR UI Panels")]
+    [SerializeField] private GameObject kitchenUI;
+    [SerializeField] private GameObject lobbyUI;
+
+    [Header("HR Manager")]
+    [SerializeField] private HRManager hrManager;
 
     private GameObject currentActiveUI;
 
@@ -36,6 +42,7 @@ public class UIManager : MonoBehaviour
         ShowStaticUI();
     }
 
+    // ---------- Existing UI Methods ----------
     public void ShowStaticUI()
     {
         staticUI.SetActive(true);
@@ -71,6 +78,8 @@ public class UIManager : MonoBehaviour
             currentActiveUI = null;
         }
     }
+
+    // ---------- Settings ----------
     public void ToggleSettings()
     {
         if (settingsPanel == null) return;
@@ -86,6 +95,8 @@ public class UIManager : MonoBehaviour
         settingsPanel.SetActive(false);
         restockShop.SetActive(false);
         employeeBoard.SetActive(false);
+        kitchenUI.SetActive(false);
+        lobbyUI.SetActive(false);
         staticUI.SetActive(true);
     }
 
@@ -101,11 +112,13 @@ public class UIManager : MonoBehaviour
         HideSettingsSubPanels();
         settingsPanel.SetActive(true);
     }
+
     void HideSettingsSubPanels()
     {
         if (audioSettings != null) audioSettings.SetActive(false);
         if (videoSettings != null) videoSettings.SetActive(false);
     }
+
     public void SettingsToggle()
     {
         if (settingsPanel == null) return;
@@ -125,5 +138,35 @@ public class UIManager : MonoBehaviour
     {
         restockShop.SetActive(true);
         staticUI.SetActive(false);
+    }
+
+    // ---------- NEW: HR UI Integration ----------
+    public void OpenHRUI()
+    {
+        if (hrManager == null)
+        {
+            Debug.LogError("UIManager: HRManager not assigned!");
+            return;
+        }
+
+        // Close any active HR UIs
+        kitchenUI.SetActive(false);
+        lobbyUI.SetActive(false);
+
+        // Show correct UI based on phase
+        if (hrManager.currentPhase == HRManager.DayPhase.Morning)
+        {
+            kitchenUI.SetActive(true);
+            hrManager.PopulateRows(hrManager.kitchenRows);
+        }
+        else
+        {
+            lobbyUI.SetActive(true);
+            hrManager.PopulateRows(hrManager.lobbyRows);
+        }
+
+        // Hide static UI
+        staticUI.SetActive(false);
+        currentActiveUI = hrManager.currentPhase == HRManager.DayPhase.Morning ? kitchenUI : lobbyUI;
     }
 }

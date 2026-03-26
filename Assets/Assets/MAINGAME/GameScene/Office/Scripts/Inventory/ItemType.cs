@@ -1,6 +1,6 @@
 public enum ItemType
 {
-    ChickenRaw,
+    Drumsticks,
     FrenchFryBag,
     Bun,
     Patty,
