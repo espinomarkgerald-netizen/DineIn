@@ -2208,7 +2208,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d228fc71e4b05284a9981bc6fd7dac87, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  player: {fileID: 1470914851}
+  player: {fileID: 0}
   Terminal: {fileID: 1089129974}
   Board: {fileID: 588913116}
   TerminalUI: {fileID: 0}
@@ -2891,10 +2891,10 @@ PrefabInstance:
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 919144996699085120, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 1470914851}
+      addedObject: {fileID: 1470914861}
     - targetCorrespondingSourceObject: {fileID: 919144996699085120, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 1470914861}
+      addedObject: {fileID: 1470914862}
   m_SourcePrefab: {fileID: 100100000, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
 --- !u!1 &292839179 stripped
 GameObject:
@@ -15969,20 +15969,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 9216089232059409214, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
   m_PrefabInstance: {fileID: 292817759}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &1470914851
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1470914838}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1e66959907f23b748b1f942211703761, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  animator: {fileID: 1024341352}
-  speedParam: Speed
 --- !u!114 &1470914861
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -15997,6 +15983,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   holdPoint: {fileID: 589710947}
   heldObject: {fileID: 0}
+--- !u!114 &1470914862
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1470914838}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 68945b1e9881bad4d97516371541a717, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  animator: {fileID: 1024341352}
+  speedParam: Speed
 --- !u!1 &1482810882
 GameObject:
   m_ObjectHideFlags: 0

@@ -7,6 +7,7 @@ public class UIManager : MonoBehaviour
 
     [Header("Static UI (default)")]
     [SerializeField] private GameObject staticUI;
+    [SerializeField] private GameObject sceneChanger;
 
     [Header("Active UI Panels")]
     [SerializeField] private List<GameObject> activeUIs;
