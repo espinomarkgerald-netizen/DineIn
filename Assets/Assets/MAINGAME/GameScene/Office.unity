@@ -24724,7 +24724,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   managementSceneName: Office
   lobbySceneName: Lobby1
-  kitchenSceneName: Kitchen1
+  kitchenSceneName: Kitchen
   currentDay: 1
   currentPhase: 0
   currentDayHalf: 0
