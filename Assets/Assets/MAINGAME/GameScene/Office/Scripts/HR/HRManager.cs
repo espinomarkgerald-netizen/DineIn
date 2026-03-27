@@ -23,43 +23,54 @@ public class HRManager : MonoBehaviour
 
     public DayPhase CurrentPhase => currentPhase;
 
+    private void OnEnable()
+    {
+        RefreshPhaseUI();
+    }
+
     private void Start()
     {
         if (EmployeeManager.Instance.allEmployees.Count == 0)
             EmployeeManager.Instance.GenerateEmployees();
 
+        RefreshPhaseUI();
+    }
+
+    public void RefreshPhaseUI()
+    {
         SyncPhaseFromGameFlow();
-        PopulateCurrentPhaseRows();
+        PopulateRowsForCurrentPhase();
         UpdateDepartmentButtonsUI();
     }
 
     public void SyncPhaseFromGameFlow()
     {
         if (GameFlowManager.Instance == null)
+        {
+            Debug.LogWarning("GameFlowManager not found.");
             return;
+        }
 
         if (GameFlowManager.Instance.IsMorning)
             currentPhase = DayPhase.Morning;
         else if (GameFlowManager.Instance.IsAfternoon)
             currentPhase = DayPhase.Afternoon;
-
-        UpdateDepartmentButtonsUI();
     }
 
     public void SetPhase(DayPhase phase)
     {
         currentPhase = phase;
-        PopulateCurrentPhaseRows();
+        PopulateRowsForCurrentPhase();
         UpdateDepartmentButtonsUI();
     }
 
-    public void PopulateCurrentPhaseRows()
+    public void PopulateRowsForCurrentPhase()
     {
-        SyncPhaseFromGameFlow();
+        HideAllRows();
 
         RoleRowUI[] rowsToPopulate = GetRowsForCurrentPhase();
         PopulateRows(rowsToPopulate);
-        UpdateDepartmentButtonsUI();
+        SetRowsActive(rowsToPopulate, true);
     }
 
     public void SelectEmployee(EmployeeData employee)
@@ -126,5 +137,25 @@ public class HRManager : MonoBehaviour
 
         if (kitchenButton != null)
             kitchenButton.gameObject.SetActive(currentPhase == DayPhase.Afternoon);
+    }
+
+    private void HideAllRows()
+    {
+        SetRowsActive(lobbyRows, false);
+        SetRowsActive(kitchenRows, false);
+    }
+
+    private void SetRowsActive(RoleRowUI[] rows, bool isActive)
+    {
+        if (rows == null)
+            return;
+
+        foreach (var row in rows)
+        {
+            if (row == null)
+                continue;
+
+            row.gameObject.SetActive(isActive);
+        }
     }
 }
