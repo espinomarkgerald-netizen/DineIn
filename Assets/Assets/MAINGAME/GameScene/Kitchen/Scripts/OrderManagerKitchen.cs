@@ -1,8 +1,8 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class OrderManager : MonoBehaviour {
-    public static OrderManager Instance;
+public class OrderManagerKitchen : MonoBehaviour {
+    public static OrderManagerKitchen Instance;
 
     // --- THE NEW SHIFT TIMER ---
     [Header("Shift Settings")]
@@ -12,8 +12,8 @@ public class OrderManager : MonoBehaviour {
     public float currentShiftTime;
 
     [Header("Menu Pools")]
-    public List<ItemType> foodOptions;
-    public List<ItemType> drinkOptions;
+    public List<ItemTypeKitchen> foodOptions;
+    public List<ItemTypeKitchen> drinkOptions;
 
     [Header("Settings")]
     public float timePerOrder = 90f;
@@ -23,7 +23,7 @@ public class OrderManager : MonoBehaviour {
     [System.Serializable]
     public class LiveTicket {
         public string ticketName;
-        public List<ItemType> missingItems;
+        public List<ItemTypeKitchen> missingItems;
         public float timeLeft;
     }
 
@@ -73,19 +73,19 @@ public class OrderManager : MonoBehaviour {
     private void SpawnOrder() {
         if (foodOptions.Count == 0 || drinkOptions.Count == 0) return;
 
-        ItemType randomFood = foodOptions[Random.Range(0, foodOptions.Count)];
-        ItemType randomDrink = drinkOptions[Random.Range(0, drinkOptions.Count)];
+        ItemTypeKitchen randomFood = foodOptions[Random.Range(0, foodOptions.Count)];
+        ItemTypeKitchen randomDrink = drinkOptions[Random.Range(0, drinkOptions.Count)];
 
         LiveTicket newTicket = new LiveTicket();
         newTicket.ticketName = randomFood.ToString() + " & " + randomDrink.ToString();
-        newTicket.missingItems = new List<ItemType> { randomFood, randomDrink };
+        newTicket.missingItems = new List<ItemTypeKitchen> { randomFood, randomDrink };
         newTicket.timeLeft = timePerOrder;
 
         activeOrders.Add(newTicket);
         Debug.Log("NEW ORDER ARRIVED: " + newTicket.ticketName);
     }
 
-    public bool TryDeliver(ItemType submittedItem) {
+    public bool TryDeliver(ItemTypeKitchen submittedItem) {
         for (int i = 0; i < activeOrders.Count; i++) {
             for (int j = 0; j < activeOrders[i].missingItems.Count; j++) {
 

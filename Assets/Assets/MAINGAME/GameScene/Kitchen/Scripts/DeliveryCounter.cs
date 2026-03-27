@@ -16,18 +16,18 @@ public class DeliveryCounter : Counter {
 
                 if (foodOnPlate != null) {
                     // TRANSLATE IT! Turn their string into your new Enum
-                    ItemType plateEnum = ConvertRecipeToEnum(foodOnPlate.recipeName);
+                    ItemTypeKitchen plateEnum = ConvertRecipeToEnum(foodOnPlate.recipeName);
 
                     // Hand the translated Enum to your Order Manager
-                    if (plateEnum != ItemType.None) {
-                        success = OrderManager.Instance.TryDeliver(plateEnum);
+                    if (plateEnum != ItemTypeKitchen.None) {
+                        success = OrderManagerKitchen.Instance.TryDeliver(plateEnum);
                     }
                 }
             }
             // --- SCENARIO 2: They are delivering a loose cup ---
             else if (player.heldObject.TryGetComponent(out ItemIdentity identity)) {
                 // Cups already have the Enum, so hand it straight in!
-                success = OrderManager.Instance.TryDeliver(identity.itemType);
+                success = OrderManagerKitchen.Instance.TryDeliver(identity.itemType);
             } else {
                 Debug.Log("This item cannot be delivered here!");
             }
@@ -40,16 +40,16 @@ public class DeliveryCounter : Counter {
     }
 
     // --- THE TRANSLATOR METHOD ---
-    private ItemType ConvertRecipeToEnum(string recipeName) {
+    private ItemTypeKitchen ConvertRecipeToEnum(string recipeName) {
         // 1. Strip out spaces so "Iced Tea" becomes "IcedTea"
         string cleanName = recipeName.Replace(" ", "");
 
         // 2. Automatically try to match their text to your dropdown list!
-        if (Enum.TryParse(cleanName, true, out ItemType result)) {
+        if (Enum.TryParse(cleanName, true, out ItemTypeKitchen result)) {
             return result;
         }
 
-        Debug.Log("WARNING: Your teammate's recipe name '" + recipeName + "' doesn't match any of your ItemType Enums!");
-        return ItemType.None;
+        Debug.Log("WARNING: Your teammate's recipe name '" + recipeName + "' doesn't match any of your ItemTypeKitchen Enums!");
+        return ItemTypeKitchen.None;
     }
 }

@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
 
-public class UIManager : MonoBehaviour {
+public class UIManagerKitchen : MonoBehaviour {
 
     [Header("Ticket UI References")]
     public GameObject ticketPrefab;
@@ -18,7 +18,7 @@ public class UIManager : MonoBehaviour {
 
         // --- THE MASTER CLOCK LOGIC ---
         if (shiftTimerText != null) {
-            float timeRemaining = OrderManager.Instance.currentShiftTime;
+            float timeRemaining = OrderManagerKitchen.Instance.currentShiftTime;
 
             if (timeRemaining > 0) {
                 // Convert raw seconds into standard Minutes:Seconds
@@ -42,13 +42,13 @@ public class UIManager : MonoBehaviour {
         // ------------------------------
 
         // --- EXISTING TICKET LOGIC (Untouched so Combos still work!) ---
-        if (spawnedTickets.Count != OrderManager.Instance.activeOrders.Count) {
+        if (spawnedTickets.Count != OrderManagerKitchen.Instance.activeOrders.Count) {
             RebuildTicketUI();
         }
 
         for (int i = 0; i < spawnedTickets.Count; i++) {
 
-            var orderData = OrderManager.Instance.activeOrders[i];
+            var orderData = OrderManagerKitchen.Instance.activeOrders[i];
             TextMeshProUGUI[] texts = spawnedTickets[i].GetComponentsInChildren<TextMeshProUGUI>();
 
             foreach (var textItem in texts) {
@@ -73,7 +73,7 @@ public class UIManager : MonoBehaviour {
         }
         spawnedTickets.Clear();
 
-        for (int i = 0; i < OrderManager.Instance.activeOrders.Count; i++) {
+        for (int i = 0; i < OrderManagerKitchen.Instance.activeOrders.Count; i++) {
             GameObject newTicket = Instantiate(ticketPrefab, ticketContainer);
             spawnedTickets.Add(newTicket);
         }

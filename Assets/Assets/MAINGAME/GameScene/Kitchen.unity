@@ -860,7 +860,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 73091258}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 56b54f6b2928d31449b55796a21bab75, type: 3}
+  m_Script: {fileID: 11500000, guid: 65528f1f0f8f0774a84a3cf6036eb593, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   shiftDuration: 240
@@ -868,7 +868,7 @@ MonoBehaviour:
   currentShiftTime: 0
   foodOptions: 010000000200000003000000
   drinkOptions: 040000000500000006000000
-  timePerOrder: 60
+  timePerOrder: 90
   newOrderDelay: 15
   maxActiveOrders: 4
   activeOrders: []
@@ -2929,6 +2929,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 350d45e768479ce4cbf1e3b3cd664993, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  outline: {fileID: 0}
 --- !u!65 &292839185
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -2962,6 +2963,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5ef653a709be73b4799625bf67f0d1a9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  mainCamera: {fileID: 0}
 --- !u!1 &294662623
 GameObject:
   m_ObjectHideFlags: 0
@@ -3655,6 +3657,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6a653209cf134a84ca1adb423154708a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  cam: {fileID: 0}
+  currentHover: {fileID: 0}
 --- !u!4 &360573873
 Transform:
   m_ObjectHideFlags: 0
@@ -6199,6 +6203,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 350d45e768479ce4cbf1e3b3cd664993, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  outline: {fileID: 0}
 --- !u!65 &588913119
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -7250,6 +7255,17 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   employees: []
+  names:
+  - Alex
+  - Maria
+  - Ken
+  - Lina
+  - Josh
+  - Sam
+  - Dina
+  - Leo
+  - Nina
+  - Mark
   employeesPerDay: 12
 --- !u!4 &674694289
 Transform:
@@ -11470,6 +11486,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 350d45e768479ce4cbf1e3b3cd664993, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  outline: {fileID: 0}
 --- !u!114 &1089129976
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -20731,6 +20748,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2dd1bc541d697e04ea7e32d5c262d13c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  currentOutlined: {fileID: 0}
 --- !u!4 &1989231661
 Transform:
   m_ObjectHideFlags: 0

@@ -4,7 +4,7 @@ using UnityEngine.InputSystem;
 using UnityEngine.EventSystems; // ADDED: This lets the script talk to your UI!
 
 [RequireComponent(typeof(NavMeshAgent))]
-public class SimplePlayerMovement : MonoBehaviour {
+public class KitchenPlayerMovement : MonoBehaviour {
     private NavMeshAgent agent;
     [SerializeField] private Animator animator;
     [SerializeField] private string speedParam = "Speed";
