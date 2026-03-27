@@ -231,6 +231,7 @@ GameObject:
   - component: {fileID: 6059039688234596361}
   - component: {fileID: 1983024618294106628}
   - component: {fileID: 948155911026394839}
+  - component: {fileID: 5562198875933498222}
   m_Layer: 0
   m_Name: Coke
   m_TagString: Untagged
@@ -289,3 +290,16 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &5562198875933498222
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6203857036698224075}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 58a4aa1a30c203a42adf6d2757728a21, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  itemType: 4

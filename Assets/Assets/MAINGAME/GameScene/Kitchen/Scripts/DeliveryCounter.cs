@@ -1,22 +1,55 @@
 using UnityEngine;
+using System; // We need this to magically translate the text!
 
 public class DeliveryCounter : Counter {
 
     public override void Interact(PlayerHolding player) {
 
-        if (player.heldObject != null && player.heldObject.TryGetComponent(out Plate playerPlate)) {
+        if (player.heldObject != null) {
+            bool success = false;
 
-            PlatingRecipe foodOnPlate = playerPlate.GetRecipe();
+            // --- SCENARIO 1: They are delivering a Plate ---
+            if (player.heldObject.TryGetComponent(out Plate playerPlate)) {
 
-            if (foodOnPlate != null) {
+                // Read your teammate's standard string recipe
+                PlatingRecipe foodOnPlate = playerPlate.GetRecipe();
 
-                bool success = OrderManager.Instance.TryDeliver(foodOnPlate);
+                if (foodOnPlate != null) {
+                    // TRANSLATE IT! Turn their string into your new Enum
+                    ItemType plateEnum = ConvertRecipeToEnum(foodOnPlate.recipeName);
 
-                if (success) {
-                    Destroy(player.heldObject);
-                    player.heldObject = null;
+                    // Hand the translated Enum to your Order Manager
+                    if (plateEnum != ItemType.None) {
+                        success = OrderManager.Instance.TryDeliver(plateEnum);
+                    }
                 }
             }
+            // --- SCENARIO 2: They are delivering a loose cup ---
+            else if (player.heldObject.TryGetComponent(out ItemIdentity identity)) {
+                // Cups already have the Enum, so hand it straight in!
+                success = OrderManager.Instance.TryDeliver(identity.itemType);
+            } else {
+                Debug.Log("This item cannot be delivered here!");
+            }
+
+            if (success) {
+                Destroy(player.heldObject);
+                player.heldObject = null;
+            }
         }
+    }
+
+    // --- THE TRANSLATOR METHOD ---
+    private ItemType ConvertRecipeToEnum(string recipeName) {
+        // 1. Strip out spaces so "Iced Tea" becomes "IcedTea"
+        string cleanName = recipeName.Replace(" ", "");
+
+        // 2. Automatically try to match their text to your dropdown list!
+        if (Enum.TryParse(cleanName, true, out ItemType result)) {
+            return result;
+        }
+
+        Debug.Log("WARNING: Your teammate's recipe name '" + recipeName + "' doesn't match any of your ItemType Enums!");
+        return ItemType.None;
     }
 }
