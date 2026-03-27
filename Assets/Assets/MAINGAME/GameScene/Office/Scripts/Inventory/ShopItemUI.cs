@@ -38,7 +38,11 @@ public class ShopItemUI : MonoBehaviour
         buyButton.onClick.AddListener(Buy);
 
         // Subscribe to inventory changes
-        InventoryManager.Instance.OnStockChanged += OnStockChanged;
+        if (InventoryManager.Instance != null)
+        {
+            InventoryManager.Instance.OnStockChanged -= OnStockChanged;
+            InventoryManager.Instance.OnStockChanged += OnStockChanged;
+        }
     }
 
     void OnDestroy()
@@ -99,5 +103,12 @@ public class ShopItemUI : MonoBehaviour
     {
         if (type == itemData.itemType)
             UpdateStock();
+    }
+
+    public void RefreshDisplay()
+    {
+        UpdateStock();
+        UpdateQuantity();
+        UpdateBuyButton();
     }
 }

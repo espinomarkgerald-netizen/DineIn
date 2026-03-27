@@ -20,4 +20,9 @@ public class ClickToMoveTarget : MonoBehaviour, IInteractable
     {
         // intentionally empty (just a move target)
     }
+
+    public float GetInteractRadius()
+    {
+        return 0.25f;
+    }
 }

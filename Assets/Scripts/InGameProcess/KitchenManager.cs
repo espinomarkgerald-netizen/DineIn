@@ -24,6 +24,28 @@ public class KitchenManager : MonoBehaviour
             pickupQueue = gameObject.AddComponent<TrayPickupQueue>();
     }
 
+    private void Start()
+    {
+        ApplyKitchenAssignmentCookTime();
+    }
+
+    private void ApplyKitchenAssignmentCookTime()
+    {
+        if (KitchenAssignmentSaveBridge.Instance == null)
+        {
+            Debug.LogWarning("[KitchenManager] KitchenAssignmentSaveBridge not found. Using default cookSeconds.");
+            return;
+        }
+
+        cookSeconds = KitchenAssignmentSaveBridge.Instance.GetMealSpawnTime();
+
+        Debug.Log(
+            $"[KitchenManager] Applied cookSeconds = {cookSeconds} | " +
+            $"Chef: {KitchenAssignmentSaveBridge.Instance.AssignedChefName} ({KitchenAssignmentSaveBridge.Instance.AssignedChefStars}★) | " +
+            $"Barista: {KitchenAssignmentSaveBridge.Instance.AssignedBaristaName} ({KitchenAssignmentSaveBridge.Instance.AssignedBaristaStars}★)"
+        );
+    }
+
     public void ProcessOrder(CustomerGroup group)
     {
         if (group == null) return;
@@ -41,10 +63,15 @@ public class KitchenManager : MonoBehaviour
 
     private IEnumerator CookAndSpawn(CustomerGroup group, int orderNo)
     {
-        yield return new WaitForSeconds(cookSeconds);
-
         try
         {
+            yield return new WaitForSeconds(2f);
+
+            if (ProcessingBillIndicatorUI.Instance != null)
+                ProcessingBillIndicatorUI.Instance.ShowForSeconds("Order #" + orderNo + " is being prepared", 2f);
+
+            yield return new WaitForSeconds(cookSeconds);
+
             if (!IsOrderStillValid(group, orderNo))
                 yield break;
 

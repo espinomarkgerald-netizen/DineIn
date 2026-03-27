@@ -29,4 +29,9 @@ public class SinkInteractable : MonoBehaviour, IInteractable
             return;
         }
     }
+
+    public float GetInteractRadius()
+    {
+        return 0.5f;
+    }
 }

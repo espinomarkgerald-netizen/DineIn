@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public class FoodTray : MonoBehaviour
@@ -6,86 +7,226 @@ public class FoodTray : MonoBehaviour
     public int orderNumber;
     private CustomerGroup targetGroup;
 
-    [Header("Anchors (required)")]
-    [SerializeField] private Transform foodAnchor;
+    [Header("Order Data")]
+    public string orderName;
+
+    [Header("Delivered Data")]
+    [SerializeField] private CustomerGroup.FoodType deliveredFood1;
+    [SerializeField] private CustomerGroup.FoodType deliveredFood2;
+    [SerializeField] private CustomerGroup.DrinkType deliveredDrink;
+
+    [Header("Anchors")]
+    [SerializeField] private Transform foodAnchor1;
+    [SerializeField] private Transform foodAnchor2;
     [SerializeField] private Transform drinkAnchor;
 
-    [Header("Prefab Models (drag PREFABS from Project)")]
+    [Header("Food Prefabs")]
     [SerializeField] private GameObject chickenPrefab;
     [SerializeField] private GameObject friesPrefab;
     [SerializeField] private GameObject burgerPrefab;
 
+    [Header("Drink Prefabs")]
     [SerializeField] private GameObject cokePrefab;
     [SerializeField] private GameObject pineapplePrefab;
     [SerializeField] private GameObject iceTeaPrefab;
 
-    [Header("Order Number UI (optional)")]
+    [Header("Order Number UI")]
     [SerializeField] private TableNumberUI numberUi;
 
-    private GameObject spawnedFood;
+    private GameObject spawnedFood1;
+    private GameObject spawnedFood2;
     private GameObject spawnedDrink;
+
+    private bool hasFood2;
+    private bool hasDrink;
+
+    public CustomerGroup TargetGroup => targetGroup;
+
+    // ✅ NEW: unified delivered contents
+    public List<string> DeliveredContents
+    {
+        get
+        {
+            List<string> list = new List<string>();
+
+            list.Add(deliveredFood1.ToString());
+
+            if (hasFood2)
+                list.Add(deliveredFood2.ToString());
+
+            if (hasDrink)
+            {
+                if (deliveredDrink == CustomerGroup.DrinkType.Coke)
+                    list.Add("Coke");
+                else if (deliveredDrink == CustomerGroup.DrinkType.Pineapple)
+                    list.Add("Pineapple");
+                else if (deliveredDrink == CustomerGroup.DrinkType.IceTea)
+                    list.Add("Ice Tea");
+            }
+
+            return list;
+        }
+    }
 
     public void Init(CustomerGroup group)
     {
         targetGroup = group;
-        orderNumber = (group != null) ? group.currentOrderNumber : -1;
+        orderNumber = group != null ? group.currentOrderNumber : -1;
 
-        if (numberUi == null) numberUi = GetComponentInChildren<TableNumberUI>(true);
-        if (numberUi != null) numberUi.SetNumber(orderNumber);
+        hasFood2 = false;
+        hasDrink = false;
+        deliveredFood1 = CustomerGroup.FoodType.Chicken;
+        deliveredFood2 = CustomerGroup.FoodType.Chicken;
+        deliveredDrink = CustomerGroup.DrinkType.Coke;
 
-        SpawnOrderModels();
+        if (group != null)
+        {
+            if (group.submittedOrder != null && group.submittedOrder.contents != null && group.submittedOrder.contents.Count > 0)
+            {
+                orderName = group.submittedOrder.name;
+                ExtractFromContents(group.submittedOrder.contents);
+            }
+            else if (group.currentOrder != null)
+            {
+                orderName = group.currentOrder.name;
+                ExtractFromContents(group.currentOrder.contents);
+            }
+            else
+            {
+                deliveredFood1 = group.confirmedFood;
+                deliveredDrink = group.confirmedDrink;
+                hasDrink = true;
+            }
+        }
+
+        if (numberUi == null)
+            numberUi = GetComponentInChildren<TableNumberUI>(true);
+
+        if (numberUi != null)
+            numberUi.SetNumber(orderNumber);
+
+        SpawnVisuals();
     }
 
-    private void SpawnOrderModels()
+    private void ExtractFromContents(List<string> contents)
     {
-        if (targetGroup == null) return;
+        if (contents == null || contents.Count == 0)
+            return;
 
-        if (foodAnchor == null) { Debug.LogError("[FoodTray] FoodAnchor not assigned."); return; }
-        if (drinkAnchor == null) { Debug.LogError("[FoodTray] DrinkAnchor not assigned."); return; }
+        List<CustomerGroup.FoodType> foods = new List<CustomerGroup.FoodType>();
 
-        if (spawnedFood != null) Destroy(spawnedFood);
+        for (int i = 0; i < contents.Count; i++)
+        {
+            string item = contents[i];
+
+            if (string.IsNullOrWhiteSpace(item))
+                continue;
+
+            switch (item)
+            {
+                case "Chicken":
+                    foods.Add(CustomerGroup.FoodType.Chicken);
+                    break;
+                case "Fries":
+                    foods.Add(CustomerGroup.FoodType.Fries);
+                    break;
+                case "Burger":
+                    foods.Add(CustomerGroup.FoodType.Burger);
+                    break;
+                case "Coke":
+                    deliveredDrink = CustomerGroup.DrinkType.Coke;
+                    hasDrink = true;
+                    break;
+                case "Pineapple":
+                    deliveredDrink = CustomerGroup.DrinkType.Pineapple;
+                    hasDrink = true;
+                    break;
+                case "Ice Tea":
+                    deliveredDrink = CustomerGroup.DrinkType.IceTea;
+                    hasDrink = true;
+                    break;
+            }
+        }
+
+        if (foods.Count > 0)
+            deliveredFood1 = foods[0];
+
+        if (foods.Count > 1)
+        {
+            deliveredFood2 = foods[1];
+            hasFood2 = true;
+        }
+    }
+
+    private void SpawnVisuals()
+    {
+        if (spawnedFood1 != null) Destroy(spawnedFood1);
+        if (spawnedFood2 != null) Destroy(spawnedFood2);
         if (spawnedDrink != null) Destroy(spawnedDrink);
 
-        GameObject foodPrefab = null;
-        switch (targetGroup.confirmedFood)
+        if (foodAnchor1 != null)
         {
-            case CustomerGroup.FoodType.Chicken: foodPrefab = chickenPrefab; break;
-            case CustomerGroup.FoodType.Fries: foodPrefab = friesPrefab; break;
-            case CustomerGroup.FoodType.Burger: foodPrefab = burgerPrefab; break;
+            GameObject prefab = GetFoodPrefab(deliveredFood1);
+            if (prefab != null)
+            {
+                spawnedFood1 = Instantiate(prefab, foodAnchor1);
+                ResetLocal(spawnedFood1.transform);
+            }
         }
 
-        GameObject drinkPrefab = null;
-        switch (targetGroup.confirmedDrink)
+        if (hasFood2 && foodAnchor2 != null)
         {
-            case CustomerGroup.DrinkType.Coke: drinkPrefab = cokePrefab; break;
-            case CustomerGroup.DrinkType.Pineapple: drinkPrefab = pineapplePrefab; break;
-            case CustomerGroup.DrinkType.IceTea: drinkPrefab = iceTeaPrefab; break;
+            GameObject prefab = GetFoodPrefab(deliveredFood2);
+            if (prefab != null)
+            {
+                spawnedFood2 = Instantiate(prefab, foodAnchor2);
+                ResetLocal(spawnedFood2.transform);
+            }
         }
 
-        if (foodPrefab != null)
+        if (hasDrink && drinkAnchor != null)
         {
-            spawnedFood = Instantiate(foodPrefab, foodAnchor);
-            ResetLocal(spawnedFood.transform);
+            GameObject prefab = GetDrinkPrefab(deliveredDrink);
+            if (prefab != null)
+            {
+                spawnedDrink = Instantiate(prefab, drinkAnchor);
+                ResetLocal(spawnedDrink.transform);
+            }
         }
+    }
 
-        if (drinkPrefab != null)
+    private GameObject GetFoodPrefab(CustomerGroup.FoodType food)
+    {
+        switch (food)
         {
-            spawnedDrink = Instantiate(drinkPrefab, drinkAnchor);
-            ResetLocal(spawnedDrink.transform);
+            case CustomerGroup.FoodType.Chicken: return chickenPrefab;
+            case CustomerGroup.FoodType.Fries: return friesPrefab;
+            case CustomerGroup.FoodType.Burger: return burgerPrefab;
+            default: return null;
+        }
+    }
+
+    private GameObject GetDrinkPrefab(CustomerGroup.DrinkType drinkType)
+    {
+        switch (drinkType)
+        {
+            case CustomerGroup.DrinkType.Coke: return cokePrefab;
+            case CustomerGroup.DrinkType.Pineapple: return pineapplePrefab;
+            case CustomerGroup.DrinkType.IceTea: return iceTeaPrefab;
+            default: return null;
         }
     }
 
     private static void ResetLocal(Transform t)
     {
+        Vector3 originalScale = t.localScale;
         t.localPosition = Vector3.zero;
         t.localRotation = Quaternion.identity;
-        t.localScale = Vector3.one;
+        t.localScale = originalScale;
     }
 
     public bool Matches(CustomerGroup group)
     {
         return group != null && group.currentOrderNumber == orderNumber;
     }
-
-    public CustomerGroup TargetGroup => targetGroup;
 }

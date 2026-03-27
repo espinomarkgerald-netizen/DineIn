@@ -2717,13 +2717,13 @@ Material:
     - _LightAngle: 3.1416
     - _MaskSoftnessX: 0
     - _MaskSoftnessY: 0
-    - _OutlineSoftness: 0.405
+    - _OutlineSoftness: 0.138
     - _OutlineUVSpeedX: 0
     - _OutlineUVSpeedY: 0
     - _OutlineWidth: 0
     - _PerspectiveFilter: 0.875
     - _Reflectivity: 10
-    - _ScaleRatioA: 0.5382373
+    - _ScaleRatioA: 0.6466562
     - _ScaleRatioB: 0
     - _ScaleRatioC: 0
     - _ScaleX: 1

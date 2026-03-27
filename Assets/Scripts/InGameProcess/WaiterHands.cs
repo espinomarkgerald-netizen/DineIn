@@ -24,7 +24,7 @@ public class WaiterHands : MonoBehaviour
     [SerializeField] private GameObject moneyHeldVisualPrefab;
 
     private GameObject moneyHeldVisualInstance;
-    private MoneyPickup heldMoneyPickup;
+    private MoneyPickup heldMoney;
 
     private GameObject billHeldVisualInstance;
     private BillPaper heldBillPaper;
@@ -32,7 +32,9 @@ public class WaiterHands : MonoBehaviour
     public bool HasTicket => holdingTicketFor != null;
     public bool HasBill => holdingBillFor != null;
     public bool HasTray => holdingTray != null;
-    public bool HasMoney => holdingMoneyFor != null && holdingMoneyAmount > 0;
+    public bool HasMoney => heldMoney != null;
+
+    public MoneyPickup HeldMoney => heldMoney;
 
     public Transform MoneyHoldPoint => moneyHoldPoint != null ? moneyHoldPoint : transform;
     public Transform TrayHoldPoint => trayHoldPoint != null ? trayHoldPoint : transform;
@@ -56,7 +58,7 @@ public class WaiterHands : MonoBehaviour
         heldBillPaper = null;
         holdingMoneyFor = null;
         holdingMoneyAmount = 0;
-        heldMoneyPickup = null;
+        heldMoney = null;
 
         if (billHeldVisualInstance != null)
         {
@@ -257,10 +259,6 @@ public class WaiterHands : MonoBehaviour
     public void PickupMoney(MoneyPickup money)
     {
         if (money == null) return;
-
-        if (holdingMoneyFor != null && holdingMoneyAmount <= 0)
-            ClearMoney();
-
         if (HasMoney) return;
 
         var tg = money.TargetGroup;
@@ -271,9 +269,15 @@ public class WaiterHands : MonoBehaviour
 
         holdingMoneyFor = tg;
         holdingMoneyAmount = amt;
-        heldMoneyPickup = money;
+        heldMoney = money;
 
         Transform parent = MoneyHoldPoint;
+        if (parent == null)
+        {
+            Debug.LogError("[WaiterHands] MoneyHoldPoint is NULL.");
+            return;
+        }
+
         money.transform.SetParent(parent, false);
         money.transform.localPosition = Vector3.zero;
         money.transform.localRotation = Quaternion.identity;
@@ -302,10 +306,10 @@ public class WaiterHands : MonoBehaviour
         holdingMoneyFor = null;
         holdingMoneyAmount = 0;
 
-        if (heldMoneyPickup != null)
+        if (heldMoney != null)
         {
-            Destroy(heldMoneyPickup.gameObject);
-            heldMoneyPickup = null;
+            Destroy(heldMoney.gameObject);
+            heldMoney = null;
         }
 
         if (moneyHeldVisualInstance != null)

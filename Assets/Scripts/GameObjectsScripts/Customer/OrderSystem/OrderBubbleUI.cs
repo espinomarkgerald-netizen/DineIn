@@ -3,7 +3,10 @@ using UnityEngine.UI;
 
 public class OrderBubbleUI : MonoBehaviour
 {
-    [Header("UI Refs")]
+    [Header("Click")]
+    [SerializeField] private Button openButton;
+
+    [Header("Legacy UI Refs (optional)")]
     public Image foodImage;
     public Image drinkImage;
 
@@ -16,53 +19,156 @@ public class OrderBubbleUI : MonoBehaviour
     [SerializeField] private Color redColor = Color.red;
 
     private CustomerGroup group;
+    private Image fillImage;
+
+    private void Awake()
+    {
+        AutoResolveReferences();
+        BindButton();
+        ForceVisible();
+    }
+
+    private void OnEnable()
+    {
+        BindButton();
+        ForceVisible();
+    }
+
+    private void BindButton()
+    {
+        if (openButton == null)
+            openButton = GetComponentInChildren<Button>(true);
+
+        if (openButton != null)
+        {
+            openButton.onClick.RemoveListener(OnClickBubble);
+            openButton.onClick.AddListener(OnClickBubble);
+        }
+    }
+
+    private void AutoResolveReferences()
+    {
+        if (foodImage == null || drinkImage == null)
+        {
+            Image[] images = GetComponentsInChildren<Image>(true);
+
+            for (int i = 0; i < images.Length; i++)
+            {
+                string n = images[i].name.ToLower();
+
+                if (foodImage == null && n.Contains("food"))
+                    foodImage = images[i];
+
+                if (drinkImage == null && n.Contains("drink"))
+                    drinkImage = images[i];
+            }
+        }
+
+        if (patienceSlider == null)
+            patienceSlider = GetComponentInChildren<Slider>(true);
+
+        if (patienceSlider != null && patienceSlider.fillRect != null)
+            fillImage = patienceSlider.fillRect.GetComponent<Image>();
+    }
+
+    private void ForceVisible()
+    {
+        gameObject.SetActive(true);
+
+        CanvasGroup[] groups = GetComponentsInChildren<CanvasGroup>(true);
+        for (int i = 0; i < groups.Length; i++)
+        {
+            groups[i].alpha = 1f;
+            groups[i].interactable = true;
+            groups[i].blocksRaycasts = true;
+        }
+
+        Image[] images = GetComponentsInChildren<Image>(true);
+        for (int i = 0; i < images.Length; i++)
+            images[i].enabled = true;
+
+        if (patienceSlider != null)
+            patienceSlider.gameObject.SetActive(true);
+    }
 
     public void Init(CustomerGroup g)
     {
         group = g;
+        AutoResolveReferences();
+        BindButton();
+        ForceVisible();
+        SetAlert();
         SetPatience(1f);
     }
 
-    public void SetOrder(Sprite foodSprite, Sprite drinkSprite)
+    public void SetAlert()
     {
-        if (foodImage != null) foodImage.sprite = foodSprite;
-        if (drinkImage != null) drinkImage.sprite = drinkSprite;
+        AutoResolveReferences();
+        ForceVisible();
+
+        if (foodImage != null)
+            foodImage.enabled = false;
+
+        if (drinkImage != null)
+            drinkImage.enabled = false;
     }
 
     public void SetPatience(float normalized)
     {
         if (patienceSlider == null) return;
 
+        normalized = Mathf.Clamp01(normalized);
         patienceSlider.value = normalized;
 
-        var fill = patienceSlider.fillRect.GetComponent<Image>();
-        if (fill == null) return;
+        if (fillImage == null && patienceSlider.fillRect != null)
+            fillImage = patienceSlider.fillRect.GetComponent<Image>();
+
+        if (fillImage == null) return;
 
         if (normalized > 0.6f)
-            fill.color = greenColor;
+            fillImage.color = greenColor;
         else if (normalized > 0.3f)
-            fill.color = yellowColor;
+            fillImage.color = yellowColor;
         else
-            fill.color = redColor;
+            fillImage.color = redColor;
     }
 
     public void OnClickBubble()
     {
-        if (group == null) return;
+        if (group == null)
+        {
+            Debug.LogWarning("[OrderBubbleUI] Group is null.");
+            return;
+        }
 
-        if (RoleManager.Instance == null) return;
+        if (RoleManager.Instance == null)
+        {
+            Debug.LogWarning("[OrderBubbleUI] RoleManager missing.");
+            return;
+        }
+
         if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Waiter))
         {
             Debug.Log("[OrderBubbleUI] Only waiter can open the notepad.");
             return;
         }
 
-        if (OrderChecklistUI.Instance == null)
+        if (GameplayUIBlocker.IsBlockedExcept(gameObject))
         {
-            Debug.LogError("[OrderBubbleUI] OrderChecklistUI.Instance NULL");
+            Debug.Log("[OrderBubbleUI] Blocked by other gameplay UI.");
             return;
         }
 
-        OrderChecklistUI.Instance.Open(group);
+        OrderChecklistUI checklist = OrderChecklistUI.Instance;
+        if (checklist == null)
+            checklist = FindFirstObjectByType<OrderChecklistUI>(FindObjectsInactive.Include);
+
+        if (checklist == null)
+        {
+            Debug.LogError("[OrderBubbleUI] No OrderChecklistUI found in scene.");
+            return;
+        }
+
+        checklist.Open(group);
     }
 }

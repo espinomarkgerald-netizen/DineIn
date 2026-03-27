@@ -61,6 +61,11 @@ public class PaymentPickupInteractable : MonoBehaviour, IInteractable
         paymentReady = false; // picked up
     }
 
+    public float GetInteractRadius()
+    {
+        return 1.1f;
+    }
+
     public CustomerGroup CurrentGroup => group;
     public int CurrentAmount => amount;
     public bool PaymentReady => paymentReady;

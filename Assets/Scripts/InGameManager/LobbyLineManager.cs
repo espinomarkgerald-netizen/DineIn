@@ -3,168 +3,218 @@ using UnityEngine;
 
 public class LobbyLineManager : MonoBehaviour
 {
-    [Header("Line points (front to back). Size must be 4.")]
+    [Header("Line points (front to back).")]
     public Transform[] linePoints = new Transform[4];
 
     [Header("Member formation inside each slot")]
     public float sideSpacing = 0.6f;
     public float backSpacing = 0.6f;
 
-    // slot index -> group currently occupying that slot (waiting in line only)
     private CustomerGroup[] slots;
 
     private void Awake()
     {
+        if (linePoints == null || linePoints.Length == 0)
+            linePoints = new Transform[4];
+
         slots = new CustomerGroup[linePoints.Length];
     }
 
-    // ================================
-    // PUBLIC API
-    // ================================
-
     public bool TryJoinLine(CustomerGroup group)
     {
-        if (group == null) return false;
+        if (group == null)
+            return false;
 
         CleanupSlots();
 
         int slotIndex = GetNextBackSlot();
-        if (slotIndex >= slots.Length)
+        if (slotIndex < 0 || slotIndex >= slots.Length)
         {
             Debug.Log("Lobby line is full.");
             return false;
         }
 
-        // track them in the line
-        slots[slotIndex] = group;
+        UnsubscribeGroup(group);
+        SubscribeGroup(group);
 
-        // subscribe to events
+        slots[slotIndex] = group;
+        MoveGroupToSlot(group, slotIndex);
+        return true;
+    }
+
+    private void SubscribeGroup(CustomerGroup group)
+    {
+        if (group == null)
+            return;
+
         group.OnGroupAssignedToBooth -= HandleGroupAssignedToBooth;
         group.OnGroupAssignedToBooth += HandleGroupAssignedToBooth;
 
         group.OnGroupSeated -= HandleGroupSeated;
         group.OnGroupSeated += HandleGroupSeated;
 
-        // put them in position
-        MoveGroupToSlot(group, slotIndex);
-        return true;
+        group.OnGroupLeftLine -= HandleGroupLeftLine;
+        group.OnGroupLeftLine += HandleGroupLeftLine;
     }
 
-    // ================================
-    // EVENT HANDLERS
-    // ================================
-
-    // Player assigned this group -> remove from the line tracking so it won't get moved to other line points
-    private void HandleGroupAssignedToBooth(CustomerGroup group)
+    private void UnsubscribeGroup(CustomerGroup group)
     {
-        int idx = FindSlot(group);
-        if (idx != -1)
-            slots[idx] = null;
-
-        // IMPORTANT: compress the line to remove gaps
-        RebuildLine();
-    }
-
-    // A group finished seating -> they are no longer in line, compress remaining groups forward
-    private void HandleGroupSeated(CustomerGroup group)
-    {
-        int idx = FindSlot(group);
-        if (idx != -1)
-            slots[idx] = null;
+        if (group == null)
+            return;
 
         group.OnGroupAssignedToBooth -= HandleGroupAssignedToBooth;
         group.OnGroupSeated -= HandleGroupSeated;
+        group.OnGroupLeftLine -= HandleGroupLeftLine;
+    }
 
+    private void HandleGroupAssignedToBooth(CustomerGroup group)
+    {
+        RemoveGroupFromSlots(group, false);
         RebuildLine();
     }
 
-    // ================================
-    // CORE LOGIC
-    // ================================
+    private void HandleGroupSeated(CustomerGroup group)
+    {
+        RemoveGroupFromSlots(group, true);
+        RebuildLine();
+    }
+
+    private void HandleGroupLeftLine(CustomerGroup group)
+    {
+        RemoveGroupFromSlots(group, true);
+        RebuildLine();
+    }
+
+    private void RemoveGroupFromSlots(CustomerGroup group, bool unsubscribe)
+    {
+        if (group == null || slots == null)
+            return;
+
+        for (int i = 0; i < slots.Length; i++)
+        {
+            if (slots[i] == group)
+                slots[i] = null;
+        }
+
+        if (unsubscribe)
+            UnsubscribeGroup(group);
+    }
 
     private void RebuildLine()
     {
         CleanupSlots();
 
-        // collect only valid "waiting-in-line" groups in order (front->back)
         List<CustomerGroup> waiting = new List<CustomerGroup>(slots.Length);
 
         for (int i = 0; i < slots.Length; i++)
         {
-            var g = slots[i];
-            if (g == null) continue;
+            CustomerGroup g = slots[i];
+            if (g == null)
+                continue;
 
-            // If they are already going to booth or seated, they should not be in the lobby line.
-            if (g.state == CustomerGroup.GroupState.WalkingToBooth ||
-                g.state == CustomerGroup.GroupState.Seated)
+            if (ShouldRemoveFromLine(g))
                 continue;
 
             waiting.Add(g);
         }
 
-        // clear all slots then repack from front
         for (int i = 0; i < slots.Length; i++)
             slots[i] = null;
 
         for (int i = 0; i < waiting.Count && i < slots.Length; i++)
         {
             slots[i] = waiting[i];
-            MoveGroupToSlot(slots[i], i);
+            MoveGroupToSlot(waiting[i], i);
         }
     }
 
     private void CleanupSlots()
     {
+        if (slots == null)
+            return;
+
         for (int i = 0; i < slots.Length; i++)
         {
-            var g = slots[i];
+            CustomerGroup g = slots[i];
+
             if (g == null)
             {
                 slots[i] = null;
                 continue;
             }
 
-            // destroyed object
             if (g.gameObject == null)
             {
+                UnsubscribeGroup(g);
                 slots[i] = null;
                 continue;
             }
 
-            // don't let assigned/seated groups occupy a line slot
-            if (g.state == CustomerGroup.GroupState.WalkingToBooth ||
-                g.state == CustomerGroup.GroupState.Seated)
+            if (ShouldRemoveFromLine(g))
             {
+                UnsubscribeGroup(g);
                 slots[i] = null;
             }
         }
     }
 
-    // New groups join after the last currently occupied slot
+    private bool ShouldRemoveFromLine(CustomerGroup group)
+    {
+        if (group == null)
+            return true;
+
+        switch (group.state)
+        {
+            case CustomerGroup.GroupState.WalkingToBooth:
+            case CustomerGroup.GroupState.Seated:
+            case CustomerGroup.GroupState.Leaving:
+            case CustomerGroup.GroupState.AngryLeft:
+            case CustomerGroup.GroupState.UnhappyLeft:
+                return true;
+        }
+
+        return false;
+    }
+
     private int GetNextBackSlot()
     {
+        if (slots == null || slots.Length == 0)
+            return -1;
+
         for (int i = slots.Length - 1; i >= 0; i--)
         {
             if (slots[i] != null)
                 return i + 1;
         }
+
         return 0;
     }
 
     private int FindSlot(CustomerGroup group)
     {
+        if (group == null || slots == null)
+            return -1;
+
         for (int i = 0; i < slots.Length; i++)
-            if (slots[i] == group) return i;
+        {
+            if (slots[i] == group)
+                return i;
+        }
+
         return -1;
     }
 
     private void MoveGroupToSlot(CustomerGroup group, int slotIndex)
     {
-        if (group == null) return;
-        if (slotIndex < 0 || slotIndex >= linePoints.Length) return;
+        if (group == null)
+            return;
+
+        if (slotIndex < 0 || linePoints == null || slotIndex >= linePoints.Length)
+            return;
 
         Transform p = linePoints[slotIndex];
-        if (p == null) return;
+        if (p == null)
+            return;
 
         Vector3 basePos = p.position;
         Vector3 forward = p.forward.normalized;
@@ -172,8 +222,9 @@ public class LobbyLineManager : MonoBehaviour
 
         for (int m = 0; m < group.members.Count; m++)
         {
-            var member = group.members[m];
-            if (member == null || member.IsSeated) continue;
+            CustomerAgent member = group.members[m];
+            if (member == null || member.IsSeated)
+                continue;
 
             Vector3 offset;
 
@@ -183,7 +234,7 @@ public class LobbyLineManager : MonoBehaviour
             }
             else if (group.members.Count == 2)
             {
-                offset = (m == 0)
+                offset = m == 0
                     ? (-right * sideSpacing * 0.5f)
                     : (right * sideSpacing * 0.5f);
             }
@@ -192,7 +243,7 @@ public class LobbyLineManager : MonoBehaviour
                 int row = m / 2;
                 int col = m % 2;
 
-                float x = (col == 0) ? -sideSpacing * 0.5f : sideSpacing * 0.5f;
+                float x = col == 0 ? -sideSpacing * 0.5f : sideSpacing * 0.5f;
                 float z = -row * backSpacing;
 
                 offset = right * x + forward * z;
@@ -202,5 +253,54 @@ public class LobbyLineManager : MonoBehaviour
         }
 
         group.transform.rotation = Quaternion.LookRotation(p.forward, Vector3.up);
+        group.SetLineSlotTarget(basePos);
+    }
+
+    public bool IsGroupInLine(CustomerGroup group)
+    {
+        if (group == null || slots == null)
+            return false;
+
+        for (int i = 0; i < slots.Length; i++)
+        {
+            if (slots[i] == group)
+                return true;
+        }
+
+        return false;
+    }
+
+    public bool IsFrontOfLine(CustomerGroup group)
+    {
+        CleanupSlots();
+
+        if (group == null || slots == null || slots.Length == 0)
+            return false;
+
+        return slots[0] == group;
+    }
+
+    public CustomerGroup GetFrontOfLine()
+    {
+        CleanupSlots();
+
+        if (slots == null || slots.Length == 0)
+            return null;
+
+        return slots[0];
+    }
+
+    public void ForceRebuildLine()
+    {
+        RebuildLine();
+    }
+
+    private void OnDestroy()
+    {
+        if (slots == null)
+            return;
+
+        for (int i = 0; i < slots.Length; i++)
+            UnsubscribeGroup(slots[i]);
     }
 }

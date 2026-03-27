@@ -3,22 +3,67 @@ using System.Collections.Generic;
 
 public class ShopManager : MonoBehaviour
 {
-    public Transform contentParent; // The ScrollView content
-    public GameObject shopItemPrefab;
-    public List<ItemData> itemList;
+    [SerializeField] private Transform contentParent;
+    [SerializeField] private GameObject shopItemPrefab;
+    [SerializeField] private List<ItemData> itemList;
 
-    void Start()
+    private readonly List<ShopItemUI> spawnedItems = new List<ShopItemUI>();
+
+    private void Start()
     {
-        PopulateShop();
+        RebuildShop();
     }
 
-    void PopulateShop()
+    private void OnEnable()
     {
-        foreach (var item in itemList)
+        RefreshShop();
+    }
+
+    public void RebuildShop()
+    {
+        ClearShop();
+
+        if (contentParent == null || shopItemPrefab == null || itemList == null)
+            return;
+
+        for (int i = 0; i < itemList.Count; i++)
         {
+            ItemData item = itemList[i];
+            if (item == null) continue;
+
             GameObject go = Instantiate(shopItemPrefab, contentParent);
             ShopItemUI ui = go.GetComponent<ShopItemUI>();
-            ui.Setup(item);
+
+            if (ui != null)
+            {
+                ui.Setup(item);
+                spawnedItems.Add(ui);
+            }
         }
     }
+
+    public void RefreshShop()
+    {
+        if (spawnedItems.Count == 0)
+        {
+            RebuildShop();
+            return;
+        }
+
+        for (int i = 0; i < spawnedItems.Count; i++)
+        {
+            if (spawnedItems[i] != null)
+                spawnedItems[i].RefreshDisplay();
+        }
+    }
+
+    private void ClearShop()
+    {
+        for (int i = contentParent.childCount - 1; i >= 0; i--)
+            Destroy(contentParent.GetChild(i).gameObject);
+
+        spawnedItems.Clear();
+    }
+
+    
 }

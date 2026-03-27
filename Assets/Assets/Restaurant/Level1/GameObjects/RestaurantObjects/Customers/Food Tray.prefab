@@ -25,8 +25,39 @@ Transform:
   m_GameObject: {fileID: 4295081618923968559}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.00275, y: 0.00508, z: 0.00087}
-  m_LocalScale: {x: 0.1, y: 0.1, z: 0.1}
+  m_LocalPosition: {x: -0.00275, y: 0.00363, z: 0.00087}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 1
+  m_Children: []
+  m_Father: {fileID: 2122733857597858455}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &4691848278838218482
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7142500244820006124}
+  m_Layer: 12
+  m_Name: Food Anchor (1)
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7142500244820006124
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4691848278838218482}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0.00252, y: 0.00666, z: 0.00087}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 2122733857597858455}
@@ -88,7 +119,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: -0.00742, y: 0.00508, z: 0.00109}
-  m_LocalScale: {x: 0.1, y: 0.1, z: 0.1}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 2122733857597858455}
@@ -212,6 +243,9 @@ PrefabInstance:
       addedObject: {fileID: 1269439929090499266}
     - targetCorrespondingSourceObject: {fileID: -8679921383154817045, guid: 437b9207e8e129149b8d7d94efd889a0, type: 3}
       insertIndex: -1
+      addedObject: {fileID: 7142500244820006124}
+    - targetCorrespondingSourceObject: {fileID: -8679921383154817045, guid: 437b9207e8e129149b8d7d94efd889a0, type: 3}
+      insertIndex: -1
       addedObject: {fileID: 164251957207035158}
     - targetCorrespondingSourceObject: {fileID: -8679921383154817045, guid: 437b9207e8e129149b8d7d94efd889a0, type: 3}
       insertIndex: -1
@@ -275,7 +309,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   orderNumber: 0
-  foodAnchor: {fileID: 1269439929090499266}
+  orderName: 
+  deliveredFood1: 0
+  deliveredFood2: 0
+  deliveredDrink: 0
+  foodAnchor1: {fileID: 1269439929090499266}
+  foodAnchor2: {fileID: 7142500244820006124}
   drinkAnchor: {fileID: 164251957207035158}
   chickenPrefab: {fileID: 5217746424564396758, guid: ddfc133f0cb2ceb449415ca391e4ae5c, type: 3}
   friesPrefab: {fileID: 8159564397572836276, guid: acdbe8307feda294f9dd3e6ff47e1f1d, type: 3}
@@ -320,6 +359,7 @@ MonoBehaviour:
   uiAnchor: {fileID: 3150447235515961778}
   sink: {fileID: 0}
   autoGoSinkOnCleanupPickup: 1
+  interactRadius: 1.2
 --- !u!114 &610908592411500200
 MonoBehaviour:
   m_ObjectHideFlags: 0
