@@ -1,35 +1,66 @@
 using System.Collections.Generic;
 using UnityEngine;
-using TMPro; // We need this to talk to TextMeshPro!
+using TMPro;
 
 public class UIManager : MonoBehaviour {
 
-    [Header("UI References")]
-    public GameObject ticketPrefab; // Drag your OrderTicket prefab here
-    public Transform ticketContainer; // Drag your TicketContainer panel here
+    [Header("Ticket UI References")]
+    public GameObject ticketPrefab;
+    public Transform ticketContainer;
+
+    // --- NEW CLOCK VARIABLE ---
+    [Header("Shift Clock UI")]
+    public TextMeshProUGUI shiftTimerText;
 
     private List<GameObject> spawnedTickets = new List<GameObject>();
 
     void Update() {
-        // 1. If the number of UI tickets doesn't match the actual orders, rebuild the board!
+
+        // --- THE MASTER CLOCK LOGIC ---
+        if (shiftTimerText != null) {
+            float timeRemaining = OrderManager.Instance.currentShiftTime;
+
+            if (timeRemaining > 0) {
+                // Convert raw seconds into standard Minutes:Seconds
+                int minutes = Mathf.FloorToInt(timeRemaining / 60F);
+                int seconds = Mathf.FloorToInt(timeRemaining - minutes * 60);
+
+                // Format it nicely so "3 minutes and 5 seconds" looks like "03:05"
+                shiftTimerText.text = string.Format("{0:00}:{1:00}", minutes, seconds);
+
+                // Turn the clock RED if there are 30 seconds or less left!
+                if (timeRemaining <= 30f) {
+                    shiftTimerText.color = Color.red;
+                } else {
+                    shiftTimerText.color = Color.white; // Default color
+                }
+            } else {
+                shiftTimerText.text = "CLOSED";
+                shiftTimerText.color = Color.red;
+            }
+        }
+        // ------------------------------
+
+        // --- EXISTING TICKET LOGIC (Untouched so Combos still work!) ---
         if (spawnedTickets.Count != OrderManager.Instance.activeOrders.Count) {
             RebuildTicketUI();
         }
 
-        // 2. Continually update the text on the tickets that are currently on screen
         for (int i = 0; i < spawnedTickets.Count; i++) {
 
-            // Grab the real order data from the OrderManager
             var orderData = OrderManager.Instance.activeOrders[i];
-
-            // Search the UI ticket for our specific Text objects
             TextMeshProUGUI[] texts = spawnedTickets[i].GetComponentsInChildren<TextMeshProUGUI>();
 
             foreach (var textItem in texts) {
                 if (textItem.gameObject.name == "RecipeNameText") {
-                    textItem.text = orderData.orderedRecipe.recipeName;
+
+                    string missingListText = "";
+                    foreach (var item in orderData.missingItems) {
+                        missingListText += "\n+ " + item.ToString();
+                    }
+
+                    textItem.text = orderData.ticketName + "\n<size=60%>" + missingListText + "</size>";
                 } else if (textItem.gameObject.name == "TimerText") {
-                    // Mathf.CeilToInt rounds the timer up so it doesn't show crazy decimals!
                     textItem.text = Mathf.CeilToInt(orderData.timeLeft).ToString() + "s";
                 }
             }
@@ -37,13 +68,11 @@ public class UIManager : MonoBehaviour {
     }
 
     private void RebuildTicketUI() {
-        // Wipe the board clean
         foreach (GameObject ticket in spawnedTickets) {
             Destroy(ticket);
         }
         spawnedTickets.Clear();
 
-        // Spawn a brand new ticket for every active order
         for (int i = 0; i < OrderManager.Instance.activeOrders.Count; i++) {
             GameObject newTicket = Instantiate(ticketPrefab, ticketContainer);
             spawnedTickets.Add(newTicket);

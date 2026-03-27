@@ -121,6 +121,7 @@ GameObject:
   - component: {fileID: 7420786137890428454}
   - component: {fileID: 2603820436068023925}
   - component: {fileID: 4681191198724622209}
+  - component: {fileID: 6058448161170467940}
   m_Layer: 0
   m_Name: Pineapple
   m_TagString: Untagged
@@ -179,6 +180,19 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &6058448161170467940
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7058356608838778419}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 58a4aa1a30c203a42adf6d2757728a21, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  itemType: 5
 --- !u!1 &7253365798343253799
 GameObject:
   m_ObjectHideFlags: 0
