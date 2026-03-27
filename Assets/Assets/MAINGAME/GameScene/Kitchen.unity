@@ -863,7 +863,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 56b54f6b2928d31449b55796a21bab75, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  shiftDuration: 180
+  shiftDuration: 240
   isShiftActive: 0
   currentShiftTime: 0
   foodOptions: 010000000200000003000000
@@ -7170,7 +7170,7 @@ MonoBehaviour:
   m_fontSizeMin: 18
   m_fontSizeMax: 72
   m_fontStyle: 1
-  m_HorizontalAlignment: 1
+  m_HorizontalAlignment: 2
   m_VerticalAlignment: 256
   m_textAlignment: 65535
   m_characterSpacing: 0
@@ -19801,7 +19801,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 1}
   m_AnchorMax: {x: 0.5, y: 1}
   m_AnchoredPosition: {x: 62, y: 0}
-  m_SizeDelta: {x: 824.7046, y: 172.4095}
+  m_SizeDelta: {x: 1200, y: 300}
   m_Pivot: {x: 0.5, y: 1}
 --- !u!114 &1868002664
 MonoBehaviour:
@@ -19816,7 +19816,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 0.6039216}
+  m_Color: {r: 1, g: 1, b: 1, a: 0}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
