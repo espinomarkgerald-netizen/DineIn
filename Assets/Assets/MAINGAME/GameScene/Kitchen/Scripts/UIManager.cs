@@ -15,6 +15,7 @@ public class UIManager : MonoBehaviour
     // --- NEW CLOCK VARIABLE ---
     [Header("Shift Clock UI")]
     public TextMeshProUGUI shiftTimerText;
+    private List<GameObject> spawnedTickets = new List<GameObject>();
 
     [Header("Active UI Panels")]
     [SerializeField] private List<GameObject> activeUIs;
@@ -230,6 +231,8 @@ public class UIManager : MonoBehaviour
     }
 
     void Update() {
+        if (OrderManager.Instance == null)
+        return;
 
         // --- THE MASTER CLOCK LOGIC ---
         if (shiftTimerText != null) {
