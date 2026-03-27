@@ -5302,7 +5302,7 @@ MonoBehaviour:
       m_Calls:
       - m_Target: {fileID: 2056118287}
         m_TargetAssemblyTypeName: GameFlowManager, Assembly-CSharp
-        m_MethodName: StartDay
+        m_MethodName: StartLobbyShift
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -24456,9 +24456,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   managementSceneName: Office
   lobbySceneName: Lobby1
+  kitchenSceneName: Kitchen1
   currentDay: 1
   currentPhase: 0
+  currentDayHalf: 0
   lobbyCompleted: 0
+  kitchenCompleted: 0
   employeeCostToday: 0
   marketingCostToday: 0
   billsCostToday: 0
