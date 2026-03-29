@@ -156,8 +156,23 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
 
     private int GetOrderTotal(CustomerGroup group)
     {
-        if (group == null) return 0;
-        return GetFoodPrice(group.confirmedFood) + GetDrinkPrice(group.confirmedDrink);
+        if (group == null)
+            return 0;
+
+     
+        if (OrderChecklistUI.Instance != null)
+        {
+            return OrderChecklistUI.Instance.GetOrderTotalFromContents(
+                group.GetCurrentOrderContents()
+            );
+        }
+
+        if (group.currentOrder != null)
+        {
+            return group.currentOrder.unitPrice * Mathf.Max(1, group.currentOrder.quantity);
+        }
+
+        return 0;
     }
 
     private int GetFoodPrice(CustomerGroup.FoodType food)

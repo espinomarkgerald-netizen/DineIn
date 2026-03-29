@@ -62,12 +62,12 @@ public class CashierRegisterUI : MonoBehaviour
     [SerializeField] private Color wrongInputColor = Color.red;
     [SerializeField] private Color correctInputColor = Color.green;
 
+    [SerializeField] private TutorialHintTextUI tutorialHint;
+
     private int receivedAmount;
     private int totalAmount;
     private int expectedChange;
     private int inputChangeAmount;
-
-    [SerializeField] private TutorialHintTextUI tutorialHint;
 
     private CustomerGroup activeGroup;
     private bool isOpen;
@@ -165,9 +165,7 @@ public class CashierRegisterUI : MonoBehaviour
             TutorialManager.Instance.OnCashierOpened(activeGroup, expectedChange);
 
         if (TutorialManager.Instance != null && tutorialHint != null)
-        {
             tutorialHint.Show($"Give the exact change: {expectedChange:0.00}");
-        }
     }
 
     public void CloseRegister()
@@ -211,14 +209,16 @@ public class CashierRegisterUI : MonoBehaviour
 
         if (paidGroup != null)
         {
-       
             int amountEarned = totalAmount;
 
             if (DailyFinanceBridge.Instance != null)
             {
                 DailyFinanceBridge.Instance.AddEarnings(amountEarned);
-                Debug.Log("[Finance] Earned ₱" + amountEarned + 
-                        " | Total = ₱" + DailyFinanceBridge.Instance.EarnedToday);
+                if (GameDayManager.Instance != null)
+                GameDayManager.Instance.RefreshRevenueUI();
+                
+                Debug.Log("[Finance] Earned ₱" + amountEarned +
+                          " | Total = ₱" + DailyFinanceBridge.Instance.EarnedToday);
             }
 
             GameDayManager.Instance?.RegisterPaymentCompleted();
@@ -267,11 +267,103 @@ public class CashierRegisterUI : MonoBehaviour
             }
         }
 
-        int sharedFoodPrice = activeGroup.currentOrder.unitPrice;
-        int drinkPrice = string.IsNullOrEmpty(drink) ? 0 : 39;
+        int foodPrice = 0;
+        int drinkPrice = 0;
 
-        SetFoodDisplay(GetItemSprite(firstFood), GetItemSprite(secondFood), sharedFoodPrice);
+        if (OrderChecklistUI.Instance != null)
+        {
+            foodPrice = OrderChecklistUI.Instance.GetFoodTotalFromContents(contents);
+            drinkPrice = OrderChecklistUI.Instance.GetDrinkTotalFromContents(contents);
+        }
+        else
+        {
+            foodPrice = GetFallbackFoodTotal(contents);
+            drinkPrice = GetFallbackDrinkTotal(contents);
+        }
+
+        SetFoodDisplay(GetItemSprite(firstFood), GetItemSprite(secondFood), foodPrice);
         SetDrinkDisplay(GetItemSprite(drink), drinkPrice);
+    }
+
+    private int GetFallbackFoodTotal(List<string> contents)
+    {
+        if (contents == null)
+            return 0;
+
+        List<string> foods = new List<string>();
+
+        for (int i = 0; i < contents.Count; i++)
+        {
+            string item = contents[i];
+            if (item == "Chicken" || item == "Fries" || item == "Burger")
+                foods.Add(item);
+        }
+
+        if (foods.Count == 2)
+        {
+            bool hasChicken = foods.Contains("Chicken");
+            bool hasFries = foods.Contains("Fries");
+            bool hasBurger = foods.Contains("Burger");
+
+            if (hasChicken && hasFries)
+                return 349;
+
+            if (hasChicken && hasBurger)
+                return 399;
+
+            if (hasBurger && hasFries)
+                return 179;
+        }
+
+        int total = 0;
+
+        for (int i = 0; i < foods.Count; i++)
+        {
+            switch (foods[i])
+            {
+                case "Chicken":
+                    total += 299;
+                    break;
+
+                case "Fries":
+                    total += 79;
+                    break;
+
+                case "Burger":
+                    total += 119;
+                    break;
+            }
+        }
+
+        return total;
+    }
+
+    private int GetFallbackDrinkTotal(List<string> contents)
+    {
+        if (contents == null)
+            return 0;
+
+        int total = 0;
+
+        for (int i = 0; i < contents.Count; i++)
+        {
+            switch (contents[i])
+            {
+                case "Coke":
+                    total += 50;
+                    break;
+
+                case "Pineapple":
+                    total += 50;
+                    break;
+
+                case "Ice Tea":
+                    total += 50;
+                    break;
+            }
+        }
+
+        return total;
     }
 
     private void RefreshTotalsDisplay()
