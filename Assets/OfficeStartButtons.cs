@@ -1,25 +1,68 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public class OfficeStartButtons : MonoBehaviour
 {
-    public void StartLobby()
+    [SerializeField]
+    private List<InventoryEntry> kitchenRequirements;
+
+    private bool HasEnoughStock()
     {
-        if (GameFlowManager.Instance == null)
+        foreach (var req in kitchenRequirements)
         {
-            Debug.LogError("GameFlowManager not found.");
-            return;
+            int current = InventoryManager.Instance.GetStock(req.itemType);
+
+            if (current < req.stock)
+            {
+                Debug.Log($"Not enough {req.itemType}");
+                return false;
+            }
         }
+
+        return true;
+    }
+
+    private bool HasEmployeesAssigned()
+    {
+        foreach (var emp in EmployeeManager.Instance.allEmployees)
+        {
+            if (emp.assignedSlot != null)
+                return true;
+        }
+
+        Debug.Log("No employees assigned.");
+        return false;
+    }
+
+    private bool CanStart()
+    {
+        if (InventoryManager.Instance == null || EmployeeManager.Instance == null)
+        {
+            Debug.LogError("Missing managers.");
+            return false;
+        }
+
+        if (!HasEnoughStock())
+            return false;
+
+        if (!HasEmployeesAssigned())
+            return false;
+
+        return true;
+    }
+
+    public void StartLobbyShift()
+    {
+        if (!CanStart())
+            return;
 
         GameFlowManager.Instance.LoadLobbyScene();
     }
 
     public void StartKitchen()
     {
-        if (GameFlowManager.Instance == null)
-        {
-            Debug.LogError("GameFlowManager not found.");
+        if (!CanStart())
             return;
-        }
 
         GameFlowManager.Instance.StartKitchenShift();
     }

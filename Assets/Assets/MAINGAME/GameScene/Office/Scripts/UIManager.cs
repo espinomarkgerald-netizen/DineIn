@@ -19,6 +19,10 @@ public class UIManager : MonoBehaviour
     [SerializeField] private GameObject audioSettings;
     [SerializeField] private GameObject videoSettings;
 
+    [Header("Department Buttons")]
+    [SerializeField] private GameObject lobbyButton;
+    [SerializeField] private GameObject kitchenButton;
+
     [Header("HR UI Panels")]
     [SerializeField] private GameObject kitchenUI;
     [SerializeField] private GameObject lobbyUI;
@@ -42,6 +46,7 @@ public class UIManager : MonoBehaviour
     private void Start()
     {
         ShowStaticUI();
+        RefreshPhaseUI();
     }
 
     public void ShowStaticUI()
@@ -50,6 +55,37 @@ public class UIManager : MonoBehaviour
             staticUI.SetActive(true);
 
         HideCurrentActiveUI();
+    }
+
+     private void OnEnable()
+    {
+        RefreshPhaseUI();
+    }
+
+    public void RefreshPhaseUI()
+    {
+        if (GameFlowManager.Instance == null)
+        {
+            Debug.LogWarning("GameFlowManager not found.");
+            return;
+        }
+        Debug.Log("Phase detected: " + GameFlowManager.Instance.CurrentDayHalf);
+        Debug.Log("Lobby Button: " + (lobbyButton != null));
+        Debug.Log("Kitchen Button: " + (kitchenButton != null));
+
+        Debug.Log("Current DayHalf: " + GameFlowManager.Instance.CurrentDayHalf);
+
+        var phase = GameFlowManager.Instance.CurrentDayHalf;
+        Debug.Log("Phase detected: " + phase);
+
+        bool isMorning = phase == GameFlowManager.DayHalf.Morning;
+        bool isAfternoon = phase == GameFlowManager.DayHalf.Afternoon;
+
+        if (lobbyButton != null)
+            lobbyButton.gameObject.SetActive(isMorning);
+
+        if (kitchenButton != null)
+            kitchenButton.gameObject.SetActive(isAfternoon);
     }
 
     public void ShowActiveUI(GameObject ui)
@@ -193,30 +229,19 @@ public class UIManager : MonoBehaviour
             return;
         }
 
-        hrManager.SyncPhaseFromGameFlow();
-
+        // Show BOTH UIs regardless of phase
         if (kitchenUI != null)
-            kitchenUI.SetActive(false);
+            kitchenUI.SetActive(true);
 
         if (lobbyUI != null)
-            lobbyUI.SetActive(false);
+            lobbyUI.SetActive(true);
 
-        if (hrManager.CurrentPhase == HRManager.DayPhase.Morning)
-        {
-            if (lobbyUI != null)
-                lobbyUI.SetActive(true);
+        // Populate ALL rows
+        hrManager.PopulateRows(hrManager.lobbyRows);
+        hrManager.PopulateRows(hrManager.kitchenRows);
 
-            hrManager.PopulateRows(hrManager.lobbyRows);
-            currentActiveUI = lobbyUI;
-        }
-        else
-        {
-            if (kitchenUI != null)
-                kitchenUI.SetActive(true);
-
-            hrManager.PopulateRows(hrManager.kitchenRows);
-            currentActiveUI = kitchenUI;
-        }
+        // Pick a parent container as active UI (your choice, here lobbyUI)
+        currentActiveUI = lobbyUI;
 
         if (staticUI != null)
             staticUI.SetActive(false);

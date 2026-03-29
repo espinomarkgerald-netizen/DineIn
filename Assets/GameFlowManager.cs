@@ -28,7 +28,7 @@ public class GameFlowManager : MonoBehaviour
     [Header("Session")]
     [SerializeField] private int currentDay = 1;
     [SerializeField] private GamePhase currentPhase = GamePhase.None;
-    [SerializeField] private DayHalf currentDayHalf = DayHalf.None;
+    [SerializeField] private DayHalf currentDayHalf = DayHalf.Morning;
     [SerializeField] private bool lobbyCompleted;
     [SerializeField] private bool kitchenCompleted;
 
@@ -67,6 +67,10 @@ public class GameFlowManager : MonoBehaviour
         }
 
         Instance = this;
+
+        if (currentDayHalf == DayHalf.None)
+            currentDayHalf = DayHalf.Morning;
+
         DontDestroyOnLoad(gameObject);
     }
 

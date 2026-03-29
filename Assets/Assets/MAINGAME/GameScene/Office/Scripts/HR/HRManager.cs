@@ -8,8 +8,6 @@ public class HRManager : MonoBehaviour
     public RoleRowUI[] lobbyRows;
 
     [Header("Department Buttons UI")]
-    [SerializeField] private Button kitchenButton;
-    [SerializeField] private Button lobbyButton;
 
     [HideInInspector] public EmployeeData selectedEmployee;
 
@@ -39,8 +37,10 @@ public class HRManager : MonoBehaviour
     public void RefreshPhaseUI()
     {
         SyncPhaseFromGameFlow();
-        PopulateRowsForCurrentPhase();
-        UpdateDepartmentButtonsUI();
+
+        // 🔹 CHANGED: Show all rows instead of filtering by phase
+        PopulateAllRows();
+
     }
 
     public void SyncPhaseFromGameFlow()
@@ -60,17 +60,22 @@ public class HRManager : MonoBehaviour
     public void SetPhase(DayPhase phase)
     {
         currentPhase = phase;
-        PopulateRowsForCurrentPhase();
-        UpdateDepartmentButtonsUI();
+
+        // 🔹 CHANGED: Always show all rows
+        PopulateAllRows();
+
     }
 
-    public void PopulateRowsForCurrentPhase()
+    // 🔹 NEW: Populate everything regardless of phase
+    public void PopulateAllRows()
     {
         HideAllRows();
 
-        RoleRowUI[] rowsToPopulate = GetRowsForCurrentPhase();
-        PopulateRows(rowsToPopulate);
-        SetRowsActive(rowsToPopulate, true);
+        PopulateRows(lobbyRows);
+        PopulateRows(kitchenRows);
+
+        SetRowsActive(lobbyRows, true);
+        SetRowsActive(kitchenRows, true);
     }
 
     public void SelectEmployee(EmployeeData employee)
@@ -88,9 +93,10 @@ public class HRManager : MonoBehaviour
         EmployeeManager.Instance.AssignEmployee(selectedEmployee, targetSlot);
         selectedEmployee = null;
 
-        RoleRowUI[] rowsToRefresh = GetRowsForCurrentPhase();
+        // 🔹 CHANGED: Refresh across ALL rows instead of phase-based
+        RoleRowUI[] allRows = CombineRows();
 
-        foreach (var row in rowsToRefresh)
+        foreach (var row in allRows)
         {
             if (row == null)
                 continue;
@@ -104,8 +110,6 @@ public class HRManager : MonoBehaviour
                 break;
             }
         }
-
-        UpdateDepartmentButtonsUI();
         return true;
     }
 
@@ -125,18 +129,10 @@ public class HRManager : MonoBehaviour
         }
     }
 
+    // 🔹 KEPT but no longer used for filtering
     private RoleRowUI[] GetRowsForCurrentPhase()
     {
         return currentPhase == DayPhase.Morning ? lobbyRows : kitchenRows;
-    }
-
-    private void UpdateDepartmentButtonsUI()
-    {
-        if (lobbyButton != null)
-            lobbyButton.gameObject.SetActive(currentPhase == DayPhase.Morning);
-
-        if (kitchenButton != null)
-            kitchenButton.gameObject.SetActive(currentPhase == DayPhase.Afternoon);
     }
 
     private void HideAllRows()
@@ -157,5 +153,28 @@ public class HRManager : MonoBehaviour
 
             row.gameObject.SetActive(isActive);
         }
+    }
+
+    // 🔹 NEW helper to merge both row arrays
+    private RoleRowUI[] CombineRows()
+    {
+        int totalLength = (lobbyRows?.Length ?? 0) + (kitchenRows?.Length ?? 0);
+        RoleRowUI[] combined = new RoleRowUI[totalLength];
+
+        int index = 0;
+
+        if (lobbyRows != null)
+        {
+            foreach (var row in lobbyRows)
+                combined[index++] = row;
+        }
+
+        if (kitchenRows != null)
+        {
+            foreach (var row in kitchenRows)
+                combined[index++] = row;
+        }
+
+        return combined;
     }
 }
