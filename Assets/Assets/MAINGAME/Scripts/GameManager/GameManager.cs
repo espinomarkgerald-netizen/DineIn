@@ -674,4 +674,12 @@ public class GameDayManager : MonoBehaviour
             GameFlowManager.Instance.IngredientCostToday
         );
     }
+
+    public void RefreshRevenueUI()
+    {
+        RefreshProgressMoneyText();
+
+        if (progressBar != null)
+            progressBar.value = CalculateProgress01();
+    }
 }

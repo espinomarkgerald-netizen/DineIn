@@ -166,8 +166,7 @@ MonoBehaviour:
   uiOffset: {x: 0, y: 0.35, z: 0}
   spawnPickupUiOnInit: 1
   gameplayCanvas: {fileID: 0}
-  autoRadius: {fileID: 0}
-  debugLogs: 0
+  autoRadius: {fileID: 2020754531203673856}
 --- !u!114 &6361949517478868824
 MonoBehaviour:
   m_ObjectHideFlags: 0

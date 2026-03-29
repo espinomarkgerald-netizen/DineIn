@@ -17,7 +17,6 @@ public class TableNumberUI : MonoBehaviour
         booth = b;
     }
 
-    // assign this in Button OnClick
     public void OnClickMoveToTable()
     {
         if (booth == null) return;
@@ -26,10 +25,30 @@ public class TableNumberUI : MonoBehaviour
         if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Waiter)) return;
 
         var player = RoleManager.Instance.GetActivePlayerMovement();
-        if (player == null || player.Agent == null) return;
+        if (player == null) return;
+
+        BoothDeliverInteractable boothDeliver = booth.GetComponent<BoothDeliverInteractable>();
+        if (boothDeliver == null)
+            boothDeliver = booth.GetComponentInChildren<BoothDeliverInteractable>(true);
+
+        if (boothDeliver != null && boothDeliver.CanInteract())
+        {
+            player.UI_MoveTo(boothDeliver);
+            return;
+        }
+
+        CustomerDeliverInteractable customerDeliver = booth.GetComponent<CustomerDeliverInteractable>();
+        if (customerDeliver == null)
+            customerDeliver = booth.GetComponentInChildren<CustomerDeliverInteractable>(true);
+
+        if (customerDeliver != null && customerDeliver.CanInteract())
+        {
+            player.UI_MoveTo(customerDeliver);
+            return;
+        }
 
         Transform target = booth.approachPoint != null ? booth.approachPoint : booth.transform;
-
-        player.Agent.SetDestination(target.position);
+        if (player.Agent != null)
+            player.Agent.SetDestination(target.position);
     }
 }

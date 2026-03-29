@@ -27,6 +27,7 @@ public class BillPaper : MonoBehaviour, IInteractable, ICancelableTaskTarget
     private Collider cachedCol;
     private GameObject pickupUiInstance;
     private bool pickupRequested;
+    private bool isPickedUp;
 
     public Transform StandPoint => standPoint != null ? standPoint : transform;
     public bool AutoReturnHome => autoReturnHome;
@@ -34,22 +35,35 @@ public class BillPaper : MonoBehaviour, IInteractable, ICancelableTaskTarget
     private void Awake()
     {
         cachedCol = GetComponentInChildren<Collider>(true);
-        if (autoRadius == null) autoRadius = GetComponent<AutoInteractRadius>();
+        if (autoRadius == null)
+            autoRadius = GetComponent<AutoInteractRadius>();
 
         if (uiAnchor == null)
         {
             var t = transform.Find("ButtonAnchor");
-            if (t != null) uiAnchor = t;
+            if (t != null)
+                uiAnchor = t;
         }
+    }
+
+    private void Start()
+    {
+        RefreshPickupUI();
     }
 
     private void Update()
     {
-        if (pickupRequested)
+        if (IsHeldByWaiter())
         {
+            if (!isPickedUp)
+                isPickedUp = true;
+
+            pickupRequested = false;
             ClearPickupUI();
             return;
         }
+
+        RefreshPickupUI();
 
         if (autoRadius != null && autoRadius.IsActiveRoleInRange(StaffRole.Role.Waiter))
         {
@@ -68,12 +82,13 @@ public class BillPaper : MonoBehaviour, IInteractable, ICancelableTaskTarget
         if (num != null)
             num.SetNumber(orderNumber);
 
-        if (spawnPickupUiOnInit)
-            SpawnPickupUI();
+        RefreshPickupUI();
     }
 
     public bool CanInteract()
     {
+        if (isPickedUp) return false;
+        if (IsHeldByWaiter()) return false;
         if (targetGroup == null) return false;
         if (RoleManager.Instance == null) return false;
         if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Waiter)) return false;
@@ -96,12 +111,14 @@ public class BillPaper : MonoBehaviour, IInteractable, ICancelableTaskTarget
         if (mover == null) return;
 
         pickupRequested = true;
-        ClearPickupUI();
+        RefreshPickupUI();
         mover.UI_MoveTo(this);
     }
 
     public bool TryPickup()
     {
+        if (isPickedUp) return false;
+        if (IsHeldByWaiter()) return false;
         if (!CanPickupWithWarning()) return false;
 
         var hands = WaiterHands.Instance;
@@ -113,6 +130,7 @@ public class BillPaper : MonoBehaviour, IInteractable, ICancelableTaskTarget
         if (disableColliderWhileHeld && cachedCol != null)
             cachedCol.enabled = false;
 
+        isPickedUp = true;
         pickupRequested = false;
         ClearPickupUI();
         return true;
@@ -128,6 +146,8 @@ public class BillPaper : MonoBehaviour, IInteractable, ICancelableTaskTarget
 
     private bool CanPickupWithWarning()
     {
+        if (isPickedUp) return false;
+        if (IsHeldByWaiter()) return false;
         if (targetGroup == null) return false;
         if (RoleManager.Instance == null) return false;
 
@@ -155,17 +175,45 @@ public class BillPaper : MonoBehaviour, IInteractable, ICancelableTaskTarget
         return true;
     }
 
+    private void RefreshPickupUI()
+    {
+        bool shouldShow =
+            spawnPickupUiOnInit &&
+            !pickupRequested &&
+            !isPickedUp &&
+            !IsHeldByWaiter();
+
+        if (shouldShow)
+        {
+            if (pickupUiInstance == null)
+                SpawnPickupUI();
+        }
+        else
+        {
+            if (pickupUiInstance != null)
+                ClearPickupUI();
+        }
+    }
+
+    private bool IsHeldByWaiter()
+    {
+        if (WaiterHands.Instance == null)
+            return false;
+
+        var holdPoint = WaiterHands.Instance.BillHoldPoint;
+        if (holdPoint == null)
+            return false;
+
+        return transform == holdPoint || transform.IsChildOf(holdPoint);
+    }
+
     private void SpawnPickupUI()
     {
-        if (pickupRequested) return;
-        if (!CanInteract()) return;
-
         if (pickupUiPrefab == null || uiAnchor == null) return;
+        if (pickupUiInstance != null) return;
 
         var canvas = ResolveGameplayCanvas();
         if (canvas == null) return;
-
-        ClearPickupUI();
 
         pickupUiInstance = Instantiate(pickupUiPrefab);
         pickupUiInstance.transform.SetParent(canvas.transform, false);
@@ -216,13 +264,13 @@ public class BillPaper : MonoBehaviour, IInteractable, ICancelableTaskTarget
         return 1.1f;
     }
 
-    // 🔥 FIXED PART (important)
     public void OnTaskCancelled()
     {
-        pickupRequested = false;
+        if (isPickedUp || IsHeldByWaiter())
+            return;
 
-        if (pickupUiInstance == null && spawnPickupUiOnInit)
-            SpawnPickupUI();
+        pickupRequested = false;
+        RefreshPickupUI();
     }
 
     private void OnDisable() => ClearPickupUI();

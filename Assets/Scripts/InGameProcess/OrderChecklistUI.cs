@@ -44,6 +44,31 @@ public class OrderChecklistUI : MonoBehaviour
     [SerializeField] private Sprite pineappleSprite;
     [SerializeField] private Sprite iceTeaSprite;
 
+    [Header("Single Item Prices")]
+    [SerializeField] private int chickenPrice = 299;
+    [SerializeField] private int friesPrice = 79;
+    [SerializeField] private int burgerPrice = 119;
+    [SerializeField] private int cokePrice = 50;
+    [SerializeField] private int pineapplePrice = 50;
+    [SerializeField] private int iceTeaPrice = 50;
+
+    [Header("Bundle Prices")]
+    [SerializeField] private bool useCustomBundlePrices = true;
+    [SerializeField] private int chickenFriesBundlePrice = 349;
+    [SerializeField] private int chickenBurgerBundlePrice = 399;
+    [SerializeField] private int burgerFriesBundlePrice = 179;
+
+    [Header("Price Text UI")]
+    [SerializeField] private TMP_Text chickenPriceText;
+    [SerializeField] private TMP_Text friesPriceText;
+    [SerializeField] private TMP_Text burgerPriceText;
+    [SerializeField] private TMP_Text cokePriceText;
+    [SerializeField] private TMP_Text pineapplePriceText;
+    [SerializeField] private TMP_Text iceTeaPriceText;
+    [SerializeField] private TMP_Text chickenFriesBundlePriceText;
+    [SerializeField] private TMP_Text chickenBurgerBundlePriceText;
+    [SerializeField] private TMP_Text burgerFriesBundlePriceText;
+
     [Header("Typewriter")]
     [SerializeField] private bool useTypewriter = true;
     [SerializeField] private float typeSpeed = 0.02f;
@@ -54,10 +79,10 @@ public class OrderChecklistUI : MonoBehaviour
     [SerializeField] private TMP_Text chickenAvailableText;
     [SerializeField] private TMP_Text friesAvailableText;
     [SerializeField] private TMP_Text burgerAvailableText;
+
     private CustomerGroup group;
     private Coroutine typingRoutine;
 
-    // This stays as the CUSTOMER'S real generated order.
     private readonly List<string> requestedContents = new List<string>();
 
     private void Awake()
@@ -84,8 +109,25 @@ public class OrderChecklistUI : MonoBehaviour
 
         BindToggleLogic();
         ResetToggles();
+        RefreshPriceTexts();
 
         gameObject.SetActive(false);
+    }
+
+    private void OnEnable()
+    {
+        RefreshPriceTexts();
+    }
+
+    private void OnValidate()
+    {
+        RefreshPriceTexts();
+    }
+
+    private void OnDestroy()
+    {
+        if (Instance == this)
+            Instance = null;
     }
 
     public void Open(CustomerGroup g)
@@ -99,6 +141,7 @@ public class OrderChecklistUI : MonoBehaviour
         group.SetOrderPause(true);
 
         ResetToggles();
+        RefreshPriceTexts();
         RefreshFoodAvailabilityUI();
         RefreshAvailableStockUI();
         LoadRequestedOrder();
@@ -108,9 +151,7 @@ public class OrderChecklistUI : MonoBehaviour
             TutorialManager.Instance.OnNotepadOpened(g);
 
         if (TutorialManager.Instance != null && tutorialHint != null)
-        {
             tutorialHint.Show("Read the order above. Match the same food and drink below.");
-        }
     }
 
     public void Close()
@@ -128,6 +169,36 @@ public class OrderChecklistUI : MonoBehaviour
         requestedContents.Clear();
 
         gameObject.SetActive(false);
+    }
+
+    private void RefreshPriceTexts()
+    {
+        SetPriceText(chickenPriceText, chickenPrice);
+        SetPriceText(friesPriceText, friesPrice);
+        SetPriceText(burgerPriceText, burgerPrice);
+
+        SetPriceText(cokePriceText, cokePrice);
+        SetPriceText(pineapplePriceText, pineapplePrice);
+        SetPriceText(iceTeaPriceText, iceTeaPrice);
+
+        if (useCustomBundlePrices)
+        {
+            SetPriceText(chickenFriesBundlePriceText, chickenFriesBundlePrice);
+            SetPriceText(chickenBurgerBundlePriceText, chickenBurgerBundlePrice);
+            SetPriceText(burgerFriesBundlePriceText, burgerFriesBundlePrice);
+        }
+        else
+        {
+            SetPriceText(chickenFriesBundlePriceText, chickenPrice + friesPrice);
+            SetPriceText(chickenBurgerBundlePriceText, chickenPrice + burgerPrice);
+            SetPriceText(burgerFriesBundlePriceText, burgerPrice + friesPrice);
+        }
+    }
+
+    private void SetPriceText(TMP_Text target, int value)
+    {
+        if (target == null) return;
+        target.text = value.ToString("0.00");
     }
 
     private void RefreshAvailableStockUI()
@@ -316,6 +387,11 @@ public class OrderChecklistUI : MonoBehaviour
         return item == "Coke" || item == "Pineapple" || item == "Ice Tea";
     }
 
+    private bool IsFoodItem(string item)
+    {
+        return item == "Chicken" || item == "Fries" || item == "Burger";
+    }
+
     private Sprite GetSprite(string item)
     {
         switch (item)
@@ -328,6 +404,106 @@ public class OrderChecklistUI : MonoBehaviour
             case "Ice Tea": return iceTeaSprite;
             default: return null;
         }
+    }
+
+    public int GetPriceForItem(string item)
+    {
+        switch (item)
+        {
+            case "Chicken": return chickenPrice;
+            case "Fries": return friesPrice;
+            case "Burger": return burgerPrice;
+            case "Coke": return cokePrice;
+            case "Pineapple": return pineapplePrice;
+            case "Ice Tea": return iceTeaPrice;
+            default: return 0;
+        }
+    }
+
+    public bool TryGetBundleFoodPrice(List<string> contents, out int price)
+    {
+        price = 0;
+
+        if (contents == null)
+            return false;
+
+        List<string> foods = new List<string>();
+
+        for (int i = 0; i < contents.Count; i++)
+        {
+            string item = contents[i];
+            if (IsFoodItem(item))
+                foods.Add(item);
+        }
+
+        if (foods.Count != 2)
+            return false;
+
+        bool hasChicken = foods.Contains("Chicken");
+        bool hasFries = foods.Contains("Fries");
+        bool hasBurger = foods.Contains("Burger");
+
+        if (hasChicken && hasFries)
+        {
+            price = useCustomBundlePrices ? chickenFriesBundlePrice : chickenPrice + friesPrice;
+            return true;
+        }
+
+        if (hasChicken && hasBurger)
+        {
+            price = useCustomBundlePrices ? chickenBurgerBundlePrice : chickenPrice + burgerPrice;
+            return true;
+        }
+
+        if (hasBurger && hasFries)
+        {
+            price = useCustomBundlePrices ? burgerFriesBundlePrice : burgerPrice + friesPrice;
+            return true;
+        }
+
+        return false;
+    }
+
+    public int GetFoodTotalFromContents(List<string> contents)
+    {
+        if (contents == null) return 0;
+
+        if (TryGetBundleFoodPrice(contents, out int bundlePrice))
+            return bundlePrice;
+
+        int total = 0;
+
+        for (int i = 0; i < contents.Count; i++)
+        {
+            string item = contents[i];
+
+            if (item == "Chicken" || item == "Fries" || item == "Burger")
+                total += GetPriceForItem(item);
+        }
+
+        return total;
+    }
+
+    public int GetDrinkTotalFromContents(List<string> contents)
+    {
+        if (contents == null) return 0;
+
+        int total = 0;
+
+        for (int i = 0; i < contents.Count; i++)
+        {
+            string item = contents[i];
+
+            if (item == "Coke" || item == "Pineapple" || item == "Ice Tea")
+                total += GetPriceForItem(item);
+        }
+
+        return total;
+    }
+
+    public int GetOrderTotalFromContents(List<string> contents)
+    {
+        return GetFoodTotalFromContents(contents) + GetDrinkTotalFromContents(contents);
     }
 
     private void Confirm()
@@ -409,8 +585,6 @@ public class OrderChecklistUI : MonoBehaviour
         Close();
     }
 
-    
-
     private bool AutoReplaceUnavailableFoods(List<string> selectedContents, out bool replacedAny)
     {
         replacedAny = false;
@@ -461,11 +635,6 @@ public class OrderChecklistUI : MonoBehaviour
         }
 
         RefreshRequestedOrderUI();
-    }
-
-    private bool IsFoodItem(string item)
-    {
-        return item == "Chicken" || item == "Fries" || item == "Burger";
     }
 
     private bool HasStockForFoodName(string item)
@@ -523,26 +692,11 @@ public class OrderChecklistUI : MonoBehaviour
         {
             string item = contents[i];
 
-            if (!IsFoodItem(item))
-                continue;
-
-            foods.Add(item);
-
-            if (item == "Chicken")
-                unitPrice += 299;
-            else if (item == "Fries")
-                unitPrice += 79;
-            else if (item == "Burger")
-                unitPrice += 119;
+            if (IsFoodItem(item))
+                foods.Add(item);
         }
 
-        for (int i = 0; i < contents.Count; i++)
-        {
-            string item = contents[i];
-
-            if (item == "Coke" || item == "Pineapple" || item == "Ice Tea")
-                unitPrice += 50;
-        }
+        unitPrice = GetOrderTotalFromContents(contents);
 
         if (foods.Count == 1)
             orderName = foods[0];
@@ -561,10 +715,8 @@ public class OrderChecklistUI : MonoBehaviour
         {
             case "Chicken":
                 return CustomerGroup.FoodType.Chicken;
-
             case "Fries":
                 return CustomerGroup.FoodType.Fries;
-
             case "Burger":
                 return CustomerGroup.FoodType.Burger;
         }
@@ -610,65 +762,65 @@ public class OrderChecklistUI : MonoBehaviour
         if (IsOn(chickenToggle))
         {
             orderName = "Chicken";
-            unitPrice = 299;
             selectedContents.Add("Chicken");
+            unitPrice += GetPriceForItem("Chicken");
             mainFood = CustomerGroup.FoodType.Chicken;
         }
         else if (IsOn(friesToggle))
         {
             orderName = "Fries";
-            unitPrice = 79;
             selectedContents.Add("Fries");
+            unitPrice += GetPriceForItem("Fries");
             mainFood = CustomerGroup.FoodType.Fries;
         }
         else if (IsOn(burgerToggle))
         {
             orderName = "Burger";
-            unitPrice = 119;
             selectedContents.Add("Burger");
+            unitPrice += GetPriceForItem("Burger");
             mainFood = CustomerGroup.FoodType.Burger;
         }
         else if (IsOn(chickenFriesToggle))
         {
             orderName = "Chicken + Fries";
-            unitPrice = 375;
             selectedContents.Add("Chicken");
             selectedContents.Add("Fries");
+            unitPrice += useCustomBundlePrices ? chickenFriesBundlePrice : GetPriceForItem("Chicken") + GetPriceForItem("Fries");
             mainFood = CustomerGroup.FoodType.Chicken;
         }
         else if (IsOn(chickenBurgerToggle))
         {
             orderName = "Chicken + Burger";
-            unitPrice = 415;
             selectedContents.Add("Chicken");
             selectedContents.Add("Burger");
+            unitPrice += useCustomBundlePrices ? chickenBurgerBundlePrice : GetPriceForItem("Chicken") + GetPriceForItem("Burger");
             mainFood = CustomerGroup.FoodType.Chicken;
         }
         else if (IsOn(burgerFriesToggle))
         {
             orderName = "Burger + Fries";
-            unitPrice = 195;
             selectedContents.Add("Burger");
             selectedContents.Add("Fries");
+            unitPrice += useCustomBundlePrices ? burgerFriesBundlePrice : GetPriceForItem("Burger") + GetPriceForItem("Fries");
             mainFood = CustomerGroup.FoodType.Burger;
         }
 
         if (IsOn(cokeToggle))
         {
             selectedContents.Add("Coke");
-            unitPrice += 50;
+            unitPrice += GetPriceForItem("Coke");
             selectedDrink = CustomerGroup.DrinkType.Coke;
         }
         else if (IsOn(pineappleToggle))
         {
             selectedContents.Add("Pineapple");
-            unitPrice += 50;
+            unitPrice += GetPriceForItem("Pineapple");
             selectedDrink = CustomerGroup.DrinkType.Pineapple;
         }
         else if (IsOn(iceTeaToggle))
         {
             selectedContents.Add("Ice Tea");
-            unitPrice += 50;
+            unitPrice += GetPriceForItem("Ice Tea");
             selectedDrink = CustomerGroup.DrinkType.IceTea;
         }
         else if (group != null)
