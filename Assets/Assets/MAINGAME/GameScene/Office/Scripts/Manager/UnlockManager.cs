@@ -1,16 +1,25 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public class UnlockManager : MonoBehaviour
 {
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+    public static UnlockManager Instance;
+
+    private HashSet<string> unlockedRecipes = new HashSet<string>();
+
+    private void Awake()
     {
-        
+        Instance = this;
     }
 
-    // Update is called once per frame
-    void Update()
+    public void UnlockRecipe(string recipeID)
     {
-        
+        unlockedRecipes.Add(recipeID);
+    }
+
+    public bool IsRecipeUnlocked(string recipeID)
+    {
+        return unlockedRecipes.Contains(recipeID);
     }
 }
+

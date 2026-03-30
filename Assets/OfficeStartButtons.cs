@@ -51,18 +51,28 @@ public class OfficeStartButtons : MonoBehaviour
         return true;
     }
 
-    public void StartLobbyShift()
+    public void StartLobby()
     {
-        if (!CanStart())
+        if (GameFlowManager.Instance == null)
+        {
+            Debug.LogError("GameFlowManager not found.");
             return;
+        }
+        if (!CanStart())
+            return; // Abort if stock or employees fail
 
         GameFlowManager.Instance.LoadLobbyScene();
     }
 
     public void StartKitchen()
     {
-        if (!CanStart())
+        if (GameFlowManager.Instance == null)
+        {
+            Debug.LogError("GameFlowManager not found.");
             return;
+        }
+        if (!CanStart())
+            return; // Abort if stock or employees fail
 
         GameFlowManager.Instance.StartKitchenShift();
     }

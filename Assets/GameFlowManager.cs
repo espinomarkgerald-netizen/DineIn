@@ -99,6 +99,13 @@ public class GameFlowManager : MonoBehaviour
         SceneManager.LoadScene(managementSceneName);
     }
 
+    public void NextDay()
+    {
+        currentDay++;
+        RecipeManager.Instance.UnlockByDay(currentDay);
+        // Equipment UI can refresh using EquipmentManager.Instance.GetPurchasable(currentDay)
+    }
+
     public void StartNewDay(int employeeCost, int marketingCost, int billsCost, int ingredientCost)
     {
         SetTodayFinance(employeeCost, marketingCost, billsCost, ingredientCost);

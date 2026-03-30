@@ -11,7 +11,11 @@ public class RecipeIngredient
 [CreateAssetMenu(menuName = "Game/Recipe")]
 public class Recipe : ScriptableObject
 {
+    public string recipeID;          // Unique ID for save/load
     public string recipeName;
+
+    [Header("Unlock")]
+    public int dayToUnlock = 1;      // The day this recipe becomes available
 
     [Header("Ingredients")]
     public List<RecipeIngredient> ingredients;

@@ -69,23 +69,27 @@ public class UIManager : MonoBehaviour
             Debug.LogWarning("GameFlowManager not found.");
             return;
         }
-        Debug.Log("Phase detected: " + GameFlowManager.Instance.CurrentDayHalf);
-        Debug.Log("Lobby Button: " + (lobbyButton != null));
-        Debug.Log("Kitchen Button: " + (kitchenButton != null));
-
-        Debug.Log("Current DayHalf: " + GameFlowManager.Instance.CurrentDayHalf);
 
         var phase = GameFlowManager.Instance.CurrentDayHalf;
-        Debug.Log("Phase detected: " + phase);
+        Debug.Log("Current DayHalf: " + phase);
 
-        bool isMorning = phase == GameFlowManager.DayHalf.Morning;
-        bool isAfternoon = phase == GameFlowManager.DayHalf.Afternoon;
+        switch (phase)
+        {
+            case GameFlowManager.DayHalf.Morning:
+                lobbyButton.SetActive(true);
+                kitchenButton.SetActive(false);
+                break;
 
-        if (lobbyButton != null)
-            lobbyButton.gameObject.SetActive(isMorning);
+            case GameFlowManager.DayHalf.Afternoon:
+                lobbyButton.SetActive(false);
+                kitchenButton.SetActive(true);
+                break;
 
-        if (kitchenButton != null)
-            kitchenButton.gameObject.SetActive(isAfternoon);
+            default: // None or invalid
+                lobbyButton.SetActive(false);
+                kitchenButton.SetActive(false);
+                break;
+        }
     }
 
     public void ShowActiveUI(GameObject ui)
