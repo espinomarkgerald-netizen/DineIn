@@ -163,6 +163,7 @@ GameObject:
   - component: {fileID: -4980108588594427370}
   - component: {fileID: 6811034643799746791}
   - component: {fileID: 5437476184709532955}
+  - component: {fileID: 7525971941370858287}
   m_Layer: 8
   m_Name: CustomerGroup
   m_TagString: Untagged
@@ -327,3 +328,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   currentTicket:
     lines: []
+--- !u!114 &7525971941370858287
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7159145075819185033}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bb75e463c5b42274792658eb44ee573d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 

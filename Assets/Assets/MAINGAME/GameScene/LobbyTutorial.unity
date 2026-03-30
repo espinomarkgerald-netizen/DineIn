@@ -176,7 +176,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u20B139.00"
+  m_text: 50.00
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 44132a242d69e514eaf236194f4a06cf, type: 2}
   m_sharedMaterial: {fileID: 4763482080473113484, guid: 44132a242d69e514eaf236194f4a06cf, type: 2}
@@ -917,6 +917,10 @@ PrefabInstance:
     - target: {fileID: 5033952426681832222, guid: 1245529bf8ffa43469bfc322ef8a5f64, type: 3}
       propertyPath: m_Name
       value: Long Table 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 5033952426681832222, guid: 1245529bf8ffa43469bfc322ef8a5f64, type: 3}
+      propertyPath: m_IsActive
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 6684562536468137154, guid: 1245529bf8ffa43469bfc322ef8a5f64, type: 3}
       propertyPath: m_LocalPosition.x
@@ -3917,6 +3921,11 @@ Transform:
   - {fileID: 134113203}
   m_Father: {fileID: 336112290}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &350852542 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 3073344002748996892, guid: b020577023f70774cb5eab10d6eb76bd, type: 3}
+  m_PrefabInstance: {fileID: 1591282100}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &357177063
 GameObject:
   m_ObjectHideFlags: 0
@@ -4603,8 +4612,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 36
-  m_fontSizeBase: 36
+  m_fontSize: 25
+  m_fontSizeBase: 25
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -6379,6 +6388,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Long Table 3
       objectReference: {fileID: 0}
+    - target: {fileID: 5033952426681832222, guid: 1245529bf8ffa43469bfc322ef8a5f64, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 6684562536468137154, guid: 1245529bf8ffa43469bfc322ef8a5f64, type: 3}
       propertyPath: m_LocalPosition.x
       value: 16.71
@@ -6738,6 +6751,10 @@ PrefabInstance:
     - target: {fileID: 4057343320147768237, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_Name
       value: Booth.008 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 4057343320147768237, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5693246615320672451, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.x
@@ -7502,7 +7519,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7416339107325409356, guid: 3bf3a3c7725d3924fa743579b9cacdfc, type: 3}
       propertyPath: sceneViewId
-      value: 1
+      value: 11
       objectReference: {fileID: 0}
     - target: {fileID: 9105747433823410986, guid: 3bf3a3c7725d3924fa743579b9cacdfc, type: 3}
       propertyPath: homePoint
@@ -7709,7 +7726,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u20B1415.00"
+  m_text: 399.00
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 44132a242d69e514eaf236194f4a06cf, type: 2}
   m_sharedMaterial: {fileID: 4763482080473113484, guid: 44132a242d69e514eaf236194f4a06cf, type: 2}
@@ -11059,7 +11076,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1234013864836622141, guid: e8870a052eba37b42a1e39a4328ac915, type: 3}
       propertyPath: sceneViewId
-      value: 4
+      value: 9
       objectReference: {fileID: 0}
     - target: {fileID: 5123694006237456069, guid: e8870a052eba37b42a1e39a4328ac915, type: 3}
       propertyPath: m_Name
@@ -12892,7 +12909,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 284, y: 109.3}
+  m_AnchoredPosition: {x: 290, y: 100}
   m_SizeDelta: {x: 200, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &971443438
@@ -13818,6 +13835,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Long Table 4
       objectReference: {fileID: 0}
+    - target: {fileID: 5033952426681832222, guid: 1245529bf8ffa43469bfc322ef8a5f64, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 6684562536468137154, guid: 1245529bf8ffa43469bfc322ef8a5f64, type: 3}
       propertyPath: m_LocalPosition.x
       value: 27.32
@@ -14356,7 +14377,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u20B139.00"
+  m_text: 50.00
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 44132a242d69e514eaf236194f4a06cf, type: 2}
   m_sharedMaterial: {fileID: 4763482080473113484, guid: 44132a242d69e514eaf236194f4a06cf, type: 2}
@@ -14712,7 +14733,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u20B179.00"
+  m_text: 79.00
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 44132a242d69e514eaf236194f4a06cf, type: 2}
   m_sharedMaterial: {fileID: 4763482080473113484, guid: 44132a242d69e514eaf236194f4a06cf, type: 2}
@@ -17020,7 +17041,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 9221084057954882074, guid: 4197fbd1f0695d84baa432f964adbbca, type: 3}
       propertyPath: sceneViewId
-      value: 2
+      value: 10
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -17848,7 +17869,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u20B1119.00"
+  m_text: 119.00
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 44132a242d69e514eaf236194f4a06cf, type: 2}
   m_sharedMaterial: {fileID: 4763482080473113484, guid: 44132a242d69e514eaf236194f4a06cf, type: 2}
@@ -18452,7 +18473,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u20B1375.00"
+  m_text: 349.00
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 44132a242d69e514eaf236194f4a06cf, type: 2}
   m_sharedMaterial: {fileID: 4763482080473113484, guid: 44132a242d69e514eaf236194f4a06cf, type: 2}
@@ -19114,6 +19135,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Booth.008 5
       objectReference: {fileID: 0}
+    - target: {fileID: 4057343320147768237, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 5693246615320672451, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.x
       value: -0.0042
@@ -19200,7 +19225,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u20B139.00"
+  m_text: 50.00
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 44132a242d69e514eaf236194f4a06cf, type: 2}
   m_sharedMaterial: {fileID: 4763482080473113484, guid: 44132a242d69e514eaf236194f4a06cf, type: 2}
@@ -20899,7 +20924,7 @@ MonoBehaviour:
   shownX: 0
   hiddenX: 900
   slideSpeed: 8
-  baseText: Processing Bill
+  defaultText: Processing Bill
   dotSpeed: 0.35
   maxDots: 3
 --- !u!1 &1526825547
@@ -20959,7 +20984,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u20B1195.00"
+  m_text: 179.00
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 44132a242d69e514eaf236194f4a06cf, type: 2}
   m_sharedMaterial: {fileID: 4763482080473113484, guid: 44132a242d69e514eaf236194f4a06cf, type: 2}
@@ -21675,13 +21700,45 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 3073344002748996892, guid: b020577023f70774cb5eab10d6eb76bd, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1591282107}
   m_SourcePrefab: {fileID: 100100000, guid: b020577023f70774cb5eab10d6eb76bd, type: 3}
 --- !u!4 &1591282101 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 1173144575150773961, guid: b020577023f70774cb5eab10d6eb76bd, type: 3}
   m_PrefabInstance: {fileID: 1591282100}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &1591282105 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 2238149940968076085, guid: b020577023f70774cb5eab10d6eb76bd, type: 3}
+  m_PrefabInstance: {fileID: 1591282100}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 350852542}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a8bf157dd4f550f43b8bf861601d40e4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!114 &1591282107
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 350852542}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1cbcc68d88435f948a2c192b69f3eedf, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  cashierBooth: {fileID: 1591282105}
+  handoffRadius: 1.5
+  usePlanarDistance: 1
+  autoCompleteCustomerLeave: 1
+  registerPaymentCompletedInGameDay: 1
+  debugLogs: 0
 --- !u!1 &1596502683
 GameObject:
   m_ObjectHideFlags: 0
@@ -23319,7 +23376,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u20B1299.00"
+  m_text: 299.00
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 44132a242d69e514eaf236194f4a06cf, type: 2}
   m_sharedMaterial: {fileID: 4763482080473113484, guid: 44132a242d69e514eaf236194f4a06cf, type: 2}
@@ -24145,6 +24202,7 @@ GameObject:
   - component: {fileID: 1801708153}
   - component: {fileID: 1801708154}
   - component: {fileID: 1801708155}
+  - component: {fileID: 1801708156}
   m_Layer: 5
   m_Name: CashierRegisterUI
   m_TagString: Untagged
@@ -24260,6 +24318,21 @@ MonoBehaviour:
   targetText: {fileID: 1378655835}
   root: {fileID: 832524633}
   typeSpeed: 0.02
+--- !u!114 &1801708156
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1801708151}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 011256f480d386c48897bc172a2d2daf, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  autoCompleteCustomerLeave: 1
+  registerPaymentCompletedInGameDay: 1
+  debugLogs: 0
 --- !u!1 &1812804173
 GameObject:
   m_ObjectHideFlags: 0
@@ -25711,6 +25784,9 @@ GameObject:
   - component: {fileID: 1899391347}
   - component: {fileID: 1899391348}
   - component: {fileID: 1899391349}
+  - component: {fileID: 1899391350}
+  - component: {fileID: 1899391351}
+  - component: {fileID: 1899391354}
   m_Layer: 0
   m_Name: TutorialManager
   m_TagString: Untagged
@@ -25773,17 +25849,12 @@ MonoBehaviour:
   orderFlowManager: {fileID: 1588669151}
   billManager: {fileID: 960503511}
   kitchenManager: {fileID: 952672341}
-  spawnCustomerOnStart: 1
-  firstSpawnDelay: 0.5
-  tutorialIntroPanel: {fileID: 1978864202}
-  startTutorialButton: {fileID: 815852674}
-  objectiveText: {fileID: 1000204429}
-  phaseText: {fileID: 392692081}
-  progressBar: {fileID: 1021750946}
-  dialogueUI: {fileID: 1899391347}
-  showDialoguePerPhase: 1
-  phaseDialogueDuration: 3
   roleCameraController: {fileID: 1385933979}
+  dialogueUI: {fileID: 1899391347}
+  roleHighlight: {fileID: 1899391348}
+  arrowManager: {fileID: 1899391345}
+  sceneWatcher: {fileID: 1899391344}
+  playOpeningSequenceBeforeDay1: 1
   introSteps:
   - roleName: Host
     message: The Host greets arriving customers and assigns them to the correct table.
@@ -25804,12 +25875,153 @@ MonoBehaviour:
     highlightTarget: {fileID: 510410515}
   returnCameraAfterIntro: 1
   gameplayCameraAnchorAfterIntro: {fileID: 1683000274}
+  openingDoneMessage: "Now that you know the roles, let\u2019s begin with the Host.
+    Greet the first customer."
+  tutorialIntroPanel: {fileID: 1978864202}
+  startTutorialButton: {fileID: 815852674}
+  objectiveText: {fileID: 1000204429}
+  phaseText: {fileID: 392692081}
+  dayText: {fileID: 392692081}
+  progressBar: {fileID: 1021750946}
+  showDialoguePerPhase: 1
+  phaseDialogueDuration: 3
+  currentDay: 1
+  dayConfigs:
+  - day: 0
+    dayTitle: 'Day 1 '
+    roleName: Host
+    dayGoalMessage: 'Goal: teach the player how to greet and assign customers to
+      a table.'
+    introMessage: Today you will learn how to play as the Host
+    practiceStartMessage: Now do it yourself. Assign 4 customer groups to tables
+      within 2 minutes.
+    completionMessage: Congrats! you've perfected host tutorial!
+    waiterTutorialBooths: []
+    waiterOrderDelay: 0.25
+    waiterMarkGroupAsGreeted: 1
+    autoSpawnGroups: 1
+    spawnGroupCount: 1
+    firstSpawnDelay: 0.35
+    preplacedGroups: []
+    preplacedDirtyTrays: []
+    enablePractice: 1
+    practiceDurationSeconds: 120
+    practiceSpawnIntervalSeconds: 30
+    practiceTargetCount: 4
+    autoSpawnDuringPractice: 1
+    practiceSpawnCountPerWave: 1
+    cameraAnchor: {fileID: 1078603718}
+    roleHighlightTarget: {fileID: 1591151988}
+  - day: 1
+    dayTitle: Day 2 - Waiter
+    roleName: Waiter
+    dayGoalMessage: 'Goal: teach the player how to take order, get bill, give bill,
+      take money, and bring money to the cashier booth.'
+    introMessage: Today you are the Waiter. I will teach you the full waiter flow
+      step by step. Then you will handle the flow yourself.
+    practiceStartMessage: Now do it yourself. Handle 2 customer groups within 2 minutes.
+    completionMessage: Good job. You finished the Waiter tutorial day.
+    waiterTutorialBooths:
+    - {fileID: 1065963042}
+    - {fileID: 1058565127}
+    waiterOrderDelay: 0.25
+    waiterMarkGroupAsGreeted: 1
+    autoSpawnGroups: 1
+    spawnGroupCount: 1
+    firstSpawnDelay: 0.35
+    preplacedGroups: []
+    preplacedDirtyTrays: []
+    enablePractice: 1
+    practiceDurationSeconds: 120
+    practiceSpawnIntervalSeconds: 30
+    practiceTargetCount: 2
+    autoSpawnDuringPractice: 0
+    practiceSpawnCountPerWave: 1
+    cameraAnchor: {fileID: 666022390}
+    roleHighlightTarget: {fileID: 1378099354}
+  - day: 2
+    dayTitle: Day 3 - Cashier
+    roleName: Cashier
+    dayGoalMessage: 'Goal: teach the player how to use the POS.'
+    introMessage: Today you are the Cashier. I will teach you how to wait for payment
+      and process it in the POS. Then you will do it yourself.
+    practiceStartMessage: Now do it yourself. Process 4 payments within 2 minutes.
+    completionMessage: Good job. You finished the Cashier tutorial day.
+    waiterTutorialBooths: []
+    waiterOrderDelay: 0.25
+    waiterMarkGroupAsGreeted: 1
+    autoSpawnGroups: 0
+    spawnGroupCount: 1
+    firstSpawnDelay: 0.35
+    preplacedGroups: []
+    preplacedDirtyTrays: []
+    enablePractice: 1
+    practiceDurationSeconds: 120
+    practiceSpawnIntervalSeconds: 30
+    practiceTargetCount: 4
+    autoSpawnDuringPractice: 0
+    practiceSpawnCountPerWave: 1
+    cameraAnchor: {fileID: 0}
+    roleHighlightTarget: {fileID: 0}
+  - day: 3
+    dayTitle: Day 4 - Busser
+    roleName: Busser
+    dayGoalMessage: 'Goal: teach the player how to pick up and clean trays.'
+    introMessage: Today you are the Busser. I will teach you how to pick up trays
+      and clean tables. Then you will clean on your own.
+    practiceStartMessage: Now do it yourself. Clean as many trays as you can within
+      2 minutes.
+    completionMessage: Good job. You finished the Busser tutorial day.
+    waiterTutorialBooths: []
+    waiterOrderDelay: 0.25
+    waiterMarkGroupAsGreeted: 1
+    autoSpawnGroups: 0
+    spawnGroupCount: 1
+    firstSpawnDelay: 0.35
+    preplacedGroups: []
+    preplacedDirtyTrays: []
+    enablePractice: 1
+    practiceDurationSeconds: 120
+    practiceSpawnIntervalSeconds: 30
+    practiceTargetCount: 4
+    autoSpawnDuringPractice: 0
+    practiceSpawnCountPerWave: 1
+    cameraAnchor: {fileID: 0}
+    roleHighlightTarget: {fileID: 0}
+  - day: 4
+    dayTitle: Day 5 - All Together
+    roleName: Host
+    dayGoalMessage: 'Goal: explain each process while playing, including mistakes,
+      customer mood, arrows, messages, and indicators.'
+    introMessage: Today everything comes together. Play the normal lobby flow while
+      I explain what the game is tracking.
+    practiceStartMessage: Play the lobby flow with all guidance active.
+    completionMessage: Good job. You finished the All Together tutorial day.
+    waiterTutorialBooths: []
+    waiterOrderDelay: 0.25
+    waiterMarkGroupAsGreeted: 1
+    autoSpawnGroups: 1
+    spawnGroupCount: 1
+    firstSpawnDelay: 0.35
+    preplacedGroups: []
+    preplacedDirtyTrays: []
+    enablePractice: 0
+    practiceDurationSeconds: 120
+    practiceSpawnIntervalSeconds: 30
+    practiceTargetCount: 1
+    autoSpawnDuringPractice: 1
+    practiceSpawnCountPerWave: 1
+    cameraAnchor: {fileID: 0}
+    roleHighlightTarget: {fileID: 0}
   tutorialCompletePanel: {fileID: 23184226}
   tutorialCompleteText: {fileID: 2056599635}
   finishButton: {fileID: 386937815}
+  showCompletionPanel: 0
   currentPhase: 0
   activeTutorialGroup: {fileID: 0}
+  activeDirtyTray: {fileID: 0}
   tutorialStarted: 0
+  practiceTimerText: {fileID: 971443438}
 --- !u!114 &1899391343
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -26045,14 +26257,64 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4a1ef10647b70f74091669a31aa79734, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  autoStartOnPlay: 0
   durationSeconds: 240
-  timerText: {fileID: 971443438}
-  resultPanel: {fileID: 23184226}
-  resultText: {fileID: 372209093}
   assignTarget: 3
   serveTarget: 3
   paymentTarget: 3
   cleanTarget: 3
+  timerText: {fileID: 971443438}
+  assignObjectiveText: {fileID: 0}
+  serveObjectiveText: {fileID: 0}
+  paymentObjectiveText: {fileID: 0}
+  cleanObjectiveText: {fileID: 0}
+  resultPanel: {fileID: 23184226}
+  resultTitleText: {fileID: 0}
+  resultBodyText: {fileID: 0}
+  gameplayHUDRoot: {fileID: 0}
+  stopTimeWhenFinished: 0
+--- !u!114 &1899391350
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1899391339}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cf55c201e7206c242828f440df6dbc14, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!114 &1899391351
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1899391339}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3c4106cd2e3e42f43aee15d43a0c56eb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  tutorialManager: {fileID: 1899391342}
+  groupSpawner: {fileID: 597439887}
+  checkEverySeconds: 1
+--- !u!114 &1899391354
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1899391339}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 96bb6d15661df7148b3519d41786ad35, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  guidedFlowOnly: 1
+  duplicateCooldown: 0.5
+  fallbackDialogueDuration: 3.5
 --- !u!1 &1901889023
 GameObject:
   m_ObjectHideFlags: 0
@@ -29587,9 +29849,31 @@ MonoBehaviour:
   cokeSprite: {fileID: 21300000, guid: 85cf06d21ea9d7b4d9eb81f3472adce4, type: 3}
   pineappleSprite: {fileID: 21300000, guid: a128577fa7c156c4a90b4d0537692668, type: 3}
   iceTeaSprite: {fileID: 21300000, guid: 9746789dafebbb841a6edd396858d4b4, type: 3}
+  chickenPrice: 299
+  friesPrice: 79
+  burgerPrice: 119
+  cokePrice: 50
+  pineapplePrice: 50
+  iceTeaPrice: 50
+  useCustomBundlePrices: 1
+  chickenFriesBundlePrice: 349
+  chickenBurgerBundlePrice: 399
+  burgerFriesBundlePrice: 179
+  chickenPriceText: {fileID: 1719256781}
+  friesPriceText: {fileID: 1100579743}
+  burgerPriceText: {fileID: 1322576418}
+  cokePriceText: {fileID: 745321}
+  pineapplePriceText: {fileID: 1062337933}
+  iceTeaPriceText: {fileID: 1400405044}
+  chickenFriesBundlePriceText: {fileID: 1361289715}
+  chickenBurgerBundlePriceText: {fileID: 633776101}
+  burgerFriesBundlePriceText: {fileID: 1526825549}
   useTypewriter: 1
   typeSpeed: 0.02
   tutorialHint: {fileID: 2142882891}
+  chickenAvailableText: {fileID: 0}
+  friesAvailableText: {fileID: 0}
+  burgerAvailableText: {fileID: 0}
 --- !u!114 &2142882890
 MonoBehaviour:
   m_ObjectHideFlags: 0

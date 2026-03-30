@@ -60,6 +60,9 @@ public class CustomerGroup : MonoBehaviour
         }
     }
 
+    private Coroutine readyToOrderRoutine;
+    private bool tutorialDisableAutoOrderFlow;
+
     [Header("Runtime")]
     public GroupState state = GroupState.Spawning;
     public List<CustomerAgent> members = new List<CustomerAgent>();
@@ -424,7 +427,8 @@ public class CustomerGroup : MonoBehaviour
         if (assignedBooth != null)
             assignedBooth.SpawnMenuBook();
 
-        StartCoroutine(ReadyToOrderFlow());
+        if (!tutorialDisableAutoOrderFlow)
+            StartReadyToOrderFlow();
     }
 
     private IEnumerator ReadyToOrderFlow()
@@ -1759,5 +1763,137 @@ public class CustomerGroup : MonoBehaviour
         }
 
         return false;
+    }
+
+    private void StartReadyToOrderFlow()
+    {
+        StopReadyToOrderFlow();
+        readyToOrderRoutine = StartCoroutine(ReadyToOrderFlow());
+    }
+
+    private void StopReadyToOrderFlow()
+    {
+        if (readyToOrderRoutine != null)
+        {
+            StopCoroutine(readyToOrderRoutine);
+            readyToOrderRoutine = null;
+        }
+    }
+
+    public void SetTutorialDisableAutoOrderFlow(bool disabled)
+    {
+        tutorialDisableAutoOrderFlow = disabled;
+
+        if (!disabled)
+            return;
+
+        StopReadyToOrderFlow();
+        TutorialClearServiceUI();
+
+        if (state == GroupState.WaitingToOrder ||
+            state == GroupState.ReadyToOrder ||
+            state == GroupState.OrderTaken ||
+            state == GroupState.Eating ||
+            state == GroupState.NeedsBill)
+        {
+            SetState(GroupState.Seated);
+        }
+    }
+
+    public void TutorialClearServiceUI()
+    {
+        StopReadyToOrderFlow();
+        ClearOrderBubble();
+        ClearBillBubble();
+        ClearTableNumber();
+        ClearMoneyBubble();
+        ClearEatingBubble();
+    }
+
+    public void TutorialBeginWaiterFlow(float delay = 0.25f)
+    {
+        tutorialDisableAutoOrderFlow = false;
+        StopReadyToOrderFlow();
+        TutorialClearServiceUI();
+        StartCoroutine(TutorialBeginWaiterFlowRoutine(delay));
+    }
+
+    private IEnumerator TutorialBeginWaiterFlowRoutine(float delay)
+    {
+        if (state != GroupState.Seated)
+            SetState(GroupState.Seated);
+
+        if (delay > 0f)
+            yield return new WaitForSeconds(delay);
+
+        if (tutorialDisableAutoOrderFlow)
+            yield break;
+
+        StartReadyToOrderFlow();
+    }
+
+    public void TutorialPlaceGroupAtBooth(Booth booth, bool startWaiterFlow, float orderDelay = 0.25f, bool markGreeted = true)
+    {
+        if (booth == null)
+            return;
+
+        if (seatingRoutine != null)
+        {
+            StopCoroutine(seatingRoutine);
+            seatingRoutine = null;
+        }
+
+        StopReadyToOrderFlow();
+        TutorialClearServiceUI();
+
+        assignedBooth = booth;
+        hasBeenAssigned = true;
+        hasLineSlotTarget = false;
+
+        if (markGreeted)
+            hasBeenGreeted = true;
+
+        StopLinePatience();
+        NotifyLeftLineIfNeeded();
+
+        seatedMembers.Clear();
+        assignedBooth.SetCurrentGroup(this);
+
+        for (int i = 0; i < members.Count; i++)
+        {
+            var member = members[i];
+            if (member == null)
+                continue;
+
+            Transform seat = assignedBooth.GetSeat(i);
+            if (seat == null)
+                continue;
+
+            SeatAnchor.TryOccupy(seat, member.gameObject);
+
+            Quaternion rot = assignedBooth.GetSeatedRotation(seat.position);
+
+            if (member.Agent != null)
+                member.Agent.Warp(seat.position);
+            else
+                member.transform.position = seat.position;
+
+            member.SnapToSeat(seat.position, rot);
+            seatedMembers.Add(member);
+        }
+
+        SetState(GroupState.Seated);
+        SetSelected(false);
+
+        OnGroupAssignedToBooth?.Invoke(this);
+        OnGroupSeated?.Invoke(this);
+
+        if (assignedBooth != null)
+            assignedBooth.SpawnMenuBook();
+
+        tutorialDisableAutoOrderFlow = !startWaiterFlow;
+
+        if (startWaiterFlow)
+            TutorialBeginWaiterFlow(orderDelay);
     }
 }
