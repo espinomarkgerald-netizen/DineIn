@@ -13,6 +13,8 @@ public class UIManager : MonoBehaviour
     [SerializeField] private List<GameObject> activeUIs;
     [SerializeField] private GameObject employeeBoard;
     [SerializeField] private GameObject restockShop;
+    [SerializeField] private GameObject equipmentShop;
+    [SerializeField] private GameObject recipeBook;
 
     [Header("Settings Panel")]
     [SerializeField] private GameObject settingsPanel;
@@ -157,6 +159,12 @@ public class UIManager : MonoBehaviour
         if (lobbyUI != null)
             lobbyUI.SetActive(false);
 
+        if (equipmentShop != null)
+            equipmentShop.SetActive(false);
+
+        if (recipeBook != null)
+            recipeBook.SetActive(false);
+
         currentActiveUI = null;
 
         if (staticUI != null)
@@ -223,6 +231,28 @@ public class UIManager : MonoBehaviour
             staticUI.SetActive(false);
 
         currentActiveUI = restockShop;
+    }
+
+    public void OpenEquipmentShop()
+    {
+        if (equipmentShop != null)
+            equipmentShop.SetActive(true);
+
+        if (staticUI != null)
+            staticUI.SetActive(false);
+
+        currentActiveUI = equipmentShop;
+    }
+
+    public void OpenRecipeBook()
+    {
+        if (recipeBook != null)
+            recipeBook.SetActive(true);
+
+        if (staticUI != null)
+            staticUI.SetActive(false);
+
+        currentActiveUI = recipeBook;
     }
 
     public void OpenHRUI()

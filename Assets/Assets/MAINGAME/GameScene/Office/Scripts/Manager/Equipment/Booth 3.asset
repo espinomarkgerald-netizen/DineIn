@@ -12,8 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c675d5873bca1044da69f18c59bbe5d9, type: 3}
   m_Name: Booth 3
   m_EditorClassIdentifier: 
-  itemID: 03
-  displayName: Booth3
-  cost: 0
-  dayAvailable: 1
-  upgradeLevels: []
+  itemID: booth03
+  displayName: Booth 3
+  cost: 2000

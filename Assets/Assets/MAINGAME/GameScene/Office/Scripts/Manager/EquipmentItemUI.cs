@@ -4,30 +4,41 @@ using UnityEngine.UI;
 
 public class EquipmentItemUI : MonoBehaviour
 {
-    public Image equipmentImage;
     public TMP_Text nameText;
     public TMP_Text costText;
     public Button buyButton;
     private Equipment equip;
+    private bool listenerAdded = false;
 
     public void Setup(Equipment e)
     {
         equip = e;
         nameText.text = e.displayName;
-        RefreshUI();
+        costText.text = $"₱{e.cost}";
 
-        buyButton.onClick.RemoveAllListeners();
-        buyButton.onClick.AddListener(() =>
+        if (!listenerAdded)
         {
-            if (EquipmentManager.Instance.Purchase(equip.itemID, MoneyManager.Instance.Money))
-                RefreshUI();
-        });
+            buyButton.onClick.AddListener(OnBuy);
+            listenerAdded = true;
+        }
+
+        RefreshUI();
+    }
+
+    public void OnBuy()
+    {
+        if (equip == null) return;
+
+        Debug.Log("Purchase called for: " + equip.itemID);
+        EquipmentManager.Instance.Purchase(equip.itemID);
     }
 
     public void RefreshUI()
     {
-        int level = EquipmentManager.Instance.GetLevel(equip.itemID);
-        costText.text = level < equip.upgradeLevels.Length ? $"₱{equip.cost}" : "MAX";
-        buyButton.interactable = level < equip.upgradeLevels.Length;
+        if (equip == null || buyButton == null || MoneyManager.Instance == null)
+            return;
+
+        bool alreadyBought = EquipmentManager.Instance.Purchased(equip.itemID);
+        buyButton.interactable = MoneyManager.Instance.Money >= equip.cost && !alreadyBought;
     }
 }

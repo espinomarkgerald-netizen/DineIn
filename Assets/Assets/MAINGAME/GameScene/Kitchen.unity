@@ -863,12 +863,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 65528f1f0f8f0774a84a3cf6036eb593, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  shiftDuration: 120
+  shiftDuration: 60
   isShiftActive: 0
   currentShiftTime: 0
   foodOptions: 010000000200000003000000
   drinkOptions: 040000000500000006000000
-  timePerOrder: 90
+  timePerOrder: 60
   newOrderDelay: 15
   maxActiveOrders: 4
   activeOrders: []
@@ -3048,6 +3048,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 544f06c7b96c1ac4e869245e331db46d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  employeePicture: {fileID: 0}
   nameText: {fileID: 0}
   salaryText: {fileID: 0}
   starImages: []
@@ -4431,6 +4432,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 544f06c7b96c1ac4e869245e331db46d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  employeePicture: {fileID: 0}
   nameText: {fileID: 0}
   salaryText: {fileID: 0}
   starImages: []
@@ -6493,8 +6495,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   kitchenRows: []
   lobbyRows: []
-  kitchenButton: {fileID: 0}
-  lobbyButton: {fileID: 0}
   selectedEmployee:
     employeeName: 
     stars: 0
@@ -6821,6 +6821,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 544f06c7b96c1ac4e869245e331db46d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  employeePicture: {fileID: 0}
   nameText: {fileID: 0}
   salaryText: {fileID: 0}
   starImages: []
@@ -7454,6 +7455,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 544f06c7b96c1ac4e869245e331db46d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  employeePicture: {fileID: 0}
   nameText: {fileID: 0}
   salaryText: {fileID: 0}
   starImages: []
@@ -8015,6 +8017,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 544f06c7b96c1ac4e869245e331db46d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  employeePicture: {fileID: 0}
   nameText: {fileID: 0}
   salaryText: {fileID: 0}
   starImages: []
@@ -8183,6 +8186,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 544f06c7b96c1ac4e869245e331db46d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  employeePicture: {fileID: 0}
   nameText: {fileID: 0}
   salaryText: {fileID: 0}
   starImages: []
@@ -11449,6 +11453,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 544f06c7b96c1ac4e869245e331db46d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  employeePicture: {fileID: 0}
   nameText: {fileID: 0}
   salaryText: {fileID: 0}
   starImages: []
@@ -14356,6 +14361,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 544f06c7b96c1ac4e869245e331db46d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  employeePicture: {fileID: 0}
   nameText: {fileID: 0}
   salaryText: {fileID: 0}
   starImages: []
@@ -16713,6 +16719,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 544f06c7b96c1ac4e869245e331db46d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  employeePicture: {fileID: 0}
   nameText: {fileID: 0}
   salaryText: {fileID: 0}
   starImages: []
@@ -18448,6 +18455,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 544f06c7b96c1ac4e869245e331db46d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  employeePicture: {fileID: 0}
   nameText: {fileID: 0}
   salaryText: {fileID: 0}
   starImages: []
@@ -19309,6 +19317,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 544f06c7b96c1ac4e869245e331db46d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  employeePicture: {fileID: 0}
   nameText: {fileID: 0}
   salaryText: {fileID: 0}
   starImages: []
@@ -22017,6 +22026,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 544f06c7b96c1ac4e869245e331db46d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  employeePicture: {fileID: 0}
   nameText: {fileID: 0}
   salaryText: {fileID: 0}
   starImages: []

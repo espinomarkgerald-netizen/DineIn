@@ -24921,7 +24921,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 35.65205, y: -60.00946}
+  m_AnchoredPosition: {x: 35.6521, y: -60.00946}
   m_SizeDelta: {x: 20, y: 20}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1697956498
@@ -27823,7 +27823,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   managementSceneName: Office
-  shiftLengthMinutes: 0.1
+  shiftLengthMinutes: 10
   maxCustomersToSpawn: 12
   maxGroupsPerMinute: 2
   spawnIntervalMin: 6
@@ -31733,3 +31733,4 @@ SceneRoots:
   - {fileID: 336112290}
   - {fileID: 1584635587}
   - {fileID: 24908415}
+  - {fileID: 1604267753}

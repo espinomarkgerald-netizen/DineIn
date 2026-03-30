@@ -5,35 +5,54 @@ public class EquipmentManager : MonoBehaviour
 {
     public static EquipmentManager Instance;
     [SerializeField] private List<Equipment> allEquipment;
-    private Dictionary<string, int> purchasedLevels = new Dictionary<string, int>();
+    private HashSet<string> purchased = new HashSet<string>();
 
-    private void Awake() => Instance = this;
-
-    public int GetLevel(string itemID) => purchasedLevels.TryGetValue(itemID, out int level) ? level : 0;
-
-    public bool Purchase(string itemID, int playerMoney)
+    private void Awake()
     {
+        Instance = this;
+    }
+
+    public bool Purchase(string itemID)
+    {
+        if (purchased.Contains(itemID))
+        {
+            Debug.Log($"Already own {itemID}, cannot buy again");
+            return false;
+        }
+
         Equipment equip = allEquipment.Find(e => e.itemID == itemID);
-        if (equip == null) return false;
+        if (equip == null)
+        {
+            Debug.LogWarning("No Equipment found with ID: " + itemID);
+            return false;
+        }
 
-        int currentLevel = GetLevel(itemID);
-        if (currentLevel >= equip.upgradeLevels.Length || playerMoney < equip.cost) return false;
+        if (!MoneyManager.Instance.Spend(equip.cost, equip.displayName))
+        {
+            Debug.LogWarning("Not enough money for: " + equip.displayName);
+            return false;
+        }
 
-        MoneyManager.Instance.Spend(equip.cost, $"Purchased {equip.displayName} Level {currentLevel + 1}");
-        purchasedLevels[itemID] = currentLevel + 1;
-        UpdateVisual(equip, currentLevel + 1);
+        EquipmentLink[] allLinks = FindObjectsOfType<EquipmentLink>(true);
+        foreach (var link in allLinks)
+        {
+            if (link.itemID == itemID)
+            {
+                link.gameObject.SetActive(true);
+                purchased.Add(itemID); // mark as purchased
+                Debug.Log($"Activated {equip.displayName}");
+                return true;
+            }
+        }
 
-        Debug.Log($"{equip.displayName} upgraded to Level {currentLevel + 1}");
-        return true;
+        Debug.LogWarning("No matching scene object found for: " + itemID);
+        return false;
     }
 
-    private void UpdateVisual(Equipment equip, int level)
+    public bool Purchased(string itemID)
     {
-        for (int i = 0; i < equip.upgradeLevels.Length; i++)
-            if (equip.upgradeLevels[i] != null)
-                equip.upgradeLevels[i].SetActive(i == level - 1);
+        return purchased.Contains(itemID);
     }
 
-    public List<Equipment> GetPurchasable(int currentDay) =>
-        allEquipment.FindAll(e => e.dayAvailable <= currentDay);
+    public List<Equipment> GetAllEquipment() => allEquipment;
 }
