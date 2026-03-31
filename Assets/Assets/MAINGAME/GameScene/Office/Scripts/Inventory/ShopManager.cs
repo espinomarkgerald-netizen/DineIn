@@ -6,6 +6,8 @@ public class ShopManager : MonoBehaviour
     [SerializeField] private Transform contentParent;
     [SerializeField] private GameObject shopItemPrefab;
     [SerializeField] private List<ItemData> itemList;
+    [SerializeField] private ShopCheckoutManager checkoutManager;
+    public List<ShopItemUI> GetSpawnedItems() => spawnedItems;
 
     private readonly List<ShopItemUI> spawnedItems = new List<ShopItemUI>();
 
@@ -37,9 +39,11 @@ public class ShopManager : MonoBehaviour
             if (ui != null)
             {
                 ui.Setup(item);
+                ui.OnQuantityChanged += checkoutManager.UpdateTotalCost;
                 spawnedItems.Add(ui);
             }
         }
+        checkoutManager.UpdateTotalCost();
     }
 
     public void RefreshShop()

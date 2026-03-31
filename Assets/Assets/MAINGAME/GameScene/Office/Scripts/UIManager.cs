@@ -15,6 +15,7 @@ public class UIManager : MonoBehaviour
     [SerializeField] private GameObject restockShop;
     [SerializeField] private GameObject equipmentShop;
     [SerializeField] private GameObject recipeBook;
+    [SerializeField] private GameObject receiptPanel;
 
     [Header("Settings Panel")]
     [SerializeField] private GameObject settingsPanel;
@@ -164,6 +165,9 @@ public class UIManager : MonoBehaviour
 
         if (recipeBook != null)
             recipeBook.SetActive(false);
+
+        if (receiptPanel != null)
+            receiptPanel.SetActive(false);
 
         currentActiveUI = null;
 

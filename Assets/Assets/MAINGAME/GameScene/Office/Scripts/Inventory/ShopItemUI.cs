@@ -11,11 +11,13 @@ public class ShopItemUI : MonoBehaviour
     public TMP_Text quantityText;
     public Button plusButton;
     public Button minusButton;
-    public Button buyButton;
-    public TMP_Text buyButtonText;
+    public TMP_Text totalPriceText; // NEW
+    public System.Action OnQuantityChanged;
 
     private ItemData itemData;
     private int quantity = 0;
+    public int Quantity => quantity;
+    public ItemData ItemData => itemData;
 
     public void Setup(ItemData data)
     {
@@ -26,16 +28,14 @@ public class ShopItemUI : MonoBehaviour
 
         UpdateStock();
         UpdateQuantity();
-        UpdateBuyButton();
+        UpdatePriceDisplay();
 
         plusButton.onClick.RemoveAllListeners();
         minusButton.onClick.RemoveAllListeners();
-        buyButton.onClick.RemoveAllListeners();
 
         // Subscribe buttons
         plusButton.onClick.AddListener(() => ChangeQuantity(1));
         minusButton.onClick.AddListener(() => ChangeQuantity(-1));
-        buyButton.onClick.AddListener(Buy);
 
         // Subscribe to inventory changes
         if (InventoryManager.Instance != null)
@@ -54,16 +54,24 @@ public class ShopItemUI : MonoBehaviour
     void ChangeQuantity(int delta)
     {
         Debug.Log("Clicked: " + delta);
-
         quantity += delta;
         if (quantity < 0) quantity = 0;
         UpdateQuantity();
-        UpdateBuyButton();
+        UpdatePriceDisplay();
+
+        OnQuantityChanged?.Invoke();        
     }
 
     void UpdateQuantity()
     {
         quantityText.text = quantity.ToString();
+    }
+
+    public void ResetQuantity()
+    {
+        quantity = 0;
+        UpdateQuantity();
+        UpdatePriceDisplay();
     }
 
     void UpdateStock()
@@ -72,31 +80,10 @@ public class ShopItemUI : MonoBehaviour
         stockText.text = "Stock: " + stock;
     }
 
-    void UpdateBuyButton()
+    void UpdatePriceDisplay()
     {
         int totalPrice = quantity * itemData.boxCost;
-        buyButtonText.text = $"₱{totalPrice}";
-    }
-
-    void Buy()
-    {
-        if (quantity <= 0) return;
-
-        int totalPrice = quantity * itemData.boxCost; // COST PER BOX
-        int totalUnits = quantity * itemData.unitsPerBox; // CONVERT TO UNITS
-
-        if (MoneyManager.Instance.Spend(totalPrice))
-        {
-            InventoryManager.Instance.AddStock(itemData.itemType, totalUnits); // ADD UNITS
-            quantity = 0;
-
-            UpdateQuantity();
-            UpdateBuyButton();
-        }
-        else
-        {
-            Debug.Log("Not enough money");
-        }
+        totalPriceText.text = $"₱{totalPrice}";
     }
 
     void OnStockChanged(ItemType type, int newStock)
@@ -109,6 +96,6 @@ public class ShopItemUI : MonoBehaviour
     {
         UpdateStock();
         UpdateQuantity();
-        UpdateBuyButton();
+        UpdatePriceDisplay();
     }
 }

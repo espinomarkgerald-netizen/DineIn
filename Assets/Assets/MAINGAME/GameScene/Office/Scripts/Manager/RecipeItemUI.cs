@@ -18,6 +18,8 @@ public class RecipeItemUI : MonoBehaviour
     {
         recipe = r;
         nameText.text = r.recipeName;
+        recipeImage.sprite = r.sprite;
+        descriptionText.text = r.descriptionText;
 
         PopulateIngredients();
 

@@ -14,6 +14,9 @@ public class Recipe : ScriptableObject
     public string recipeID;          // Unique ID for save/load
     public string recipeName;
 
+    [Header("Visuals")]
+    public Sprite sprite;
+
     [Header("Unlock")]
     public int dayToUnlock = 1;      // The day this recipe becomes available
 
@@ -22,4 +25,7 @@ public class Recipe : ScriptableObject
 
     [Header("Economy")]
     public int sellPrice;
+
+    [Header("Description")]
+    public string descriptionText;
 }

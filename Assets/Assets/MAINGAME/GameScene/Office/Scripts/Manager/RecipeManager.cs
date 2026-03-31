@@ -16,7 +16,7 @@ public class RecipeManager : MonoBehaviour
         UnlockByDay(1); // or whatever your starting day is
         PopulateRecipesUI();
     }
-
+ 
     public void UnlockByDay(int currentDay)
     {
         foreach (var r in allRecipes)
