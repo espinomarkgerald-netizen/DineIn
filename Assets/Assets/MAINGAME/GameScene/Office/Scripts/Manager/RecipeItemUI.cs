@@ -1,4 +1,3 @@
-/*
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -13,9 +12,6 @@ public class RecipeItemUI : MonoBehaviour
     public Transform ingredientContainer;
     public GameObject ingredientPrefab;
 
-    public GameObject lockedOverlay;
-    public Button selectButton;
-
     private Recipe recipe;
 
     public void Setup(Recipe r)
@@ -25,10 +21,8 @@ public class RecipeItemUI : MonoBehaviour
 
         PopulateIngredients();
 
-        Refresh();
-
-        selectButton.onClick.RemoveAllListeners();
-        selectButton.onClick.AddListener(OnSelect);
+        bool unlocked = RecipeManager.Instance.IsUnlocked(recipe.recipeID);
+        gameObject.SetActive(unlocked);
     }
 
     void PopulateIngredients()
@@ -50,15 +44,6 @@ public class RecipeItemUI : MonoBehaviour
     public void Refresh()
     {
         bool unlocked = RecipeManager.Instance.IsUnlocked(recipe.recipeID);
-        selectButton.interactable = unlocked;
-        lockedOverlay.SetActive(!unlocked);
-    }
-
-    void OnSelect()
-    {
-        if (!RecipeManager.Instance.IsUnlocked(recipe.recipeID)) return;
-
-        Debug.Log("Selected " + recipe.recipeName);
+        gameObject.SetActive(unlocked);
     }
 }
-*/

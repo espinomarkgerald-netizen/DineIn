@@ -1,4 +1,3 @@
-/*
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -7,10 +6,9 @@ public class IngredientSlotUI : MonoBehaviour
     public Image icon;
     public TMP_Text amountText;
 
-    public void Setup(ItemType item, int amount)
+    public void Setup(ItemData item, int amount)
     {
-        icon.sprite = item.icon;
+        icon.sprite = item.sprite;
         amountText.text = "x" + amount;
     }
 }
-*/

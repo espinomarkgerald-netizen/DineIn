@@ -16,6 +16,6 @@ MonoBehaviour:
   recipeName: French Fries
   dayToUnlock: 1
   ingredients:
-  - item: 1
+  - item: {fileID: 11400000, guid: 2dc7af590d2f8034fa4956e75867995a, type: 2}
     amount: 1
   sellPrice: 0

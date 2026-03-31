@@ -4,7 +4,7 @@ using System.Collections.Generic;
 [System.Serializable]
 public class RecipeIngredient
 {
-    public ItemType item;
+    public ItemData item;
     public int amount;
 }
 

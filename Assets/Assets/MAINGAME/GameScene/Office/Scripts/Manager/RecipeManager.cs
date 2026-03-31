@@ -11,11 +11,33 @@ public class RecipeManager : MonoBehaviour
 
     private void Awake() => Instance = this;
 
+    void Start()
+    {
+        UnlockByDay(1); // or whatever your starting day is
+        PopulateRecipesUI();
+    }
+
     public void UnlockByDay(int currentDay)
     {
         foreach (var r in allRecipes)
             if (!unlockedRecipes.Contains(r.recipeID) && r.dayToUnlock <= currentDay)
                 unlockedRecipes.Add(r.recipeID);
+    }
+
+    public void PopulateRecipesUI()
+    {
+        // Clear old UI
+        foreach (Transform child in contentParent)
+            Destroy(child.gameObject);
+
+        // Spawn new UI
+        foreach (var recipe in allRecipes)
+        {
+            GameObject obj = Instantiate(recipePrefab, contentParent);
+
+            RecipeItemUI ui = obj.GetComponent<RecipeItemUI>();
+            ui.Setup(recipe);
+        }
     }
 
     public bool IsUnlocked(string recipeID) => unlockedRecipes.Contains(recipeID);

@@ -16,6 +16,6 @@ MonoBehaviour:
   recipeName: Chicken Bucket
   dayToUnlock: 1
   ingredients:
-  - item: 0
+  - item: {fileID: 11400000, guid: 70830520795d900449881daee8ed45ad, type: 2}
     amount: 4
   sellPrice: 359
