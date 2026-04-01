@@ -12,9 +12,14 @@ public class TutorialWaiterGuidedDialogue : MonoBehaviour
     [SerializeField] private float duplicateCooldown = 0.4f;
     [SerializeField] private float fallbackDialogueDuration = 3.5f;
 
+    [Header("Role Lock")]
+    [SerializeField] private bool keepWaiterSelected = true;
+    [SerializeField] private float roleLockInterval = 0.25f;
+
     private TutorialManager tutorialManager;
     private TutorialArrowManager arrowManager;
     private TutorialDialogueUI dialogueUI;
+    private Component roleManagerComponent;
 
     private MethodInfo showAutoHintMethod;
     private MethodInfo showArrowMethod;
@@ -26,6 +31,7 @@ public class TutorialWaiterGuidedDialogue : MonoBehaviour
     private CustomerGroup watchedGroup;
     private int watchedOrderNumber = -1;
     private TutorialManager.TutorialPhase lastPhase = TutorialManager.TutorialPhase.None;
+    private TutorialManager.TutorialPhase lastGuidancePhase = TutorialManager.TutorialPhase.None;
 
     private bool serveFoodWaitHintShown;
     private bool servedFoodHintShown;
@@ -39,6 +45,7 @@ public class TutorialWaiterGuidedDialogue : MonoBehaviour
 
     private string lastHint;
     private float lastHintTime = -999f;
+    private float nextRoleLockTime = -999f;
 
     private void Awake()
     {
@@ -59,6 +66,14 @@ public class TutorialWaiterGuidedDialogue : MonoBehaviour
 
             if (dialogueField != null)
                 dialogueUI = dialogueField.GetValue(tutorialManager) as TutorialDialogueUI;
+
+            FieldInfo roleManagerField = typeof(TutorialManager).GetField(
+                "roleManager",
+                BindingFlags.Instance | BindingFlags.NonPublic
+            );
+
+            if (roleManagerField != null)
+                roleManagerComponent = roleManagerField.GetValue(tutorialManager) as Component;
         }
 
         if (arrowManager != null)
@@ -102,15 +117,25 @@ public class TutorialWaiterGuidedDialogue : MonoBehaviour
             return;
         }
 
+        ForceWaiterSelectionIfNeeded();
         RefreshWatchedGroup();
 
-        if (watchedGroup == null && !ShouldKeepCashierGuidanceWithoutGroup())
+        TutorialManager.TutorialPhase guidancePhase = ResolveGuidancePhase();
+
+        if (guidancePhase != lastGuidancePhase)
+        {
+            lastGuidancePhase = guidancePhase;
+            ResetPhaseFlags();
+            HideArrowOverride();
+        }
+
+        if (watchedGroup == null && !ShouldKeepCashierGuidanceWithoutGroup(guidancePhase))
         {
             HideArrowOverride();
             return;
         }
 
-        HandleCurrentPhase();
+        HandleCurrentPhase(guidancePhase);
     }
 
     private bool IsGuidedWaiterActive()
@@ -133,9 +158,29 @@ public class TutorialWaiterGuidedDialogue : MonoBehaviour
         return true;
     }
 
+    private void ForceWaiterSelectionIfNeeded()
+    {
+        if (!keepWaiterSelected || roleManagerComponent == null)
+            return;
+
+        if (Time.time < nextRoleLockTime)
+            return;
+
+        nextRoleLockTime = Time.time + Mathf.Max(0.1f, roleLockInterval);
+
+        roleManagerComponent.SendMessage("SelectRoleByName", "Waiter", SendMessageOptions.DontRequireReceiver);
+        roleManagerComponent.SendMessage("SwitchRoleByName", "Waiter", SendMessageOptions.DontRequireReceiver);
+        roleManagerComponent.SendMessage("SetCurrentRoleByName", "Waiter", SendMessageOptions.DontRequireReceiver);
+    }
+
     private void RefreshWatchedGroup()
     {
         CustomerGroup current = tutorialManager.ActiveTutorialGroup;
+        var hands = WaiterHands.Instance;
+
+        if (current == null && hands != null && (hands.HasBill || hands.HasMoney) && watchedGroup != null)
+            current = watchedGroup;
+
         int currentOrderNo = current != null ? current.currentOrderNumber : -1;
 
         if (current != watchedGroup || currentOrderNo != watchedOrderNumber)
@@ -149,7 +194,6 @@ public class TutorialWaiterGuidedDialogue : MonoBehaviour
         if (tutorialManager.CurrentPhase != lastPhase)
         {
             lastPhase = tutorialManager.CurrentPhase;
-            ResetPhaseFlags();
             HideArrowOverride();
         }
     }
@@ -159,6 +203,7 @@ public class TutorialWaiterGuidedDialogue : MonoBehaviour
         watchedGroup = null;
         watchedOrderNumber = -1;
         lastPhase = TutorialManager.TutorialPhase.None;
+        lastGuidancePhase = TutorialManager.TutorialPhase.None;
         ResetPhaseFlags();
     }
 
@@ -175,12 +220,12 @@ public class TutorialWaiterGuidedDialogue : MonoBehaviour
         moneyPickedHintShown = false;
     }
 
-    private bool ShouldKeepCashierGuidanceWithoutGroup()
+    private bool ShouldKeepCashierGuidanceWithoutGroup(TutorialManager.TutorialPhase phase)
     {
         if (tutorialManager == null)
             return false;
 
-        if (tutorialManager.CurrentPhase != TutorialManager.TutorialPhase.CollectPayment)
+        if (phase != TutorialManager.TutorialPhase.CollectPayment)
             return false;
 
         var hands = WaiterHands.Instance;
@@ -190,9 +235,67 @@ public class TutorialWaiterGuidedDialogue : MonoBehaviour
         return hands.HasMoney;
     }
 
-    private void HandleCurrentPhase()
+    private TutorialManager.TutorialPhase ResolveGuidancePhase()
     {
-        switch (tutorialManager.CurrentPhase)
+        TutorialManager.TutorialPhase currentPhase = tutorialManager.CurrentPhase;
+        TutorialManager.TutorialPhase observedPhase = ResolveObservedWaiterPhase();
+
+        if (GetWaiterPhaseRank(observedPhase) > GetWaiterPhaseRank(currentPhase))
+            return observedPhase;
+
+        return currentPhase;
+    }
+
+    private TutorialManager.TutorialPhase ResolveObservedWaiterPhase()
+    {
+        var hands = WaiterHands.Instance;
+
+        if (hands != null && hands.HasMoney)
+            return TutorialManager.TutorialPhase.CollectPayment;
+
+        if (watchedGroup != null)
+        {
+            MoneyPickup money = FindMoneyForGroup(watchedGroup);
+            if (money != null)
+                return TutorialManager.TutorialPhase.PickupMoney;
+        }
+
+        if (hands != null && hands.HasBill)
+            return TutorialManager.TutorialPhase.DeliverBill;
+
+        if (watchedGroup != null)
+        {
+            BillPaper bill = FindBillForGroup(watchedGroup);
+            if (bill != null || watchedGroup.state == CustomerGroup.GroupState.NeedsBill)
+                return TutorialManager.TutorialPhase.PickupBill;
+
+            if (watchedGroup.state == CustomerGroup.GroupState.Eating)
+                return TutorialManager.TutorialPhase.ServeFood;
+        }
+
+        return tutorialManager.CurrentPhase;
+    }
+
+    private int GetWaiterPhaseRank(TutorialManager.TutorialPhase phase)
+    {
+        switch (phase)
+        {
+            case TutorialManager.TutorialPhase.TakeOrder: return 0;
+            case TutorialManager.TutorialPhase.ConfirmOrder: return 1;
+            case TutorialManager.TutorialPhase.SubmitOrder: return 2;
+            case TutorialManager.TutorialPhase.ServeFood: return 3;
+            case TutorialManager.TutorialPhase.PickupBill: return 4;
+            case TutorialManager.TutorialPhase.DeliverBill: return 5;
+            case TutorialManager.TutorialPhase.PickupMoney: return 6;
+            case TutorialManager.TutorialPhase.CollectPayment: return 7;
+        }
+
+        return -1;
+    }
+
+    private void HandleCurrentPhase(TutorialManager.TutorialPhase phase)
+    {
+        switch (phase)
         {
             case TutorialManager.TutorialPhase.ServeFood:
                 HandleServeFoodPhase();
@@ -233,7 +336,7 @@ public class TutorialWaiterGuidedDialogue : MonoBehaviour
             if (!serveFoodWaitHintShown)
             {
                 serveFoodWaitHintShown = true;
-                SendHint("The kitchen is working on the order now. Wait for the tray to appear, then deliver it to the correct table.");
+                SendHint("The kitchen is preparing the order. Wait for the tray to appear, then deliver it to the correct table.");
             }
 
             return;
@@ -306,21 +409,21 @@ public class TutorialWaiterGuidedDialogue : MonoBehaviour
 
     private void HandleDeliverBillPhase()
     {
-        if (watchedGroup == null)
-        {
-            HideArrowOverride();
-            return;
-        }
-
         var hands = WaiterHands.Instance;
-        if (hands == null || !hands.HasBill || hands.holdingBillFor != watchedGroup)
+        if (hands == null || !hands.HasBill)
         {
             HideArrowOverride();
             return;
         }
 
-        Transform target = watchedGroup.UIAnchor != null ? watchedGroup.UIAnchor : watchedGroup.transform;
-        ShowArrowOverride(target);
+        Transform target = watchedGroup != null && watchedGroup.UIAnchor != null
+            ? watchedGroup.UIAnchor
+            : watchedGroup != null ? watchedGroup.transform : null;
+
+        if (target != null)
+            ShowArrowOverride(target);
+        else
+            HideArrowOverride();
 
         if (!billPickedHintShown)
         {

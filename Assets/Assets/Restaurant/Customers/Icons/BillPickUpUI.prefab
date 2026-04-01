@@ -11,8 +11,8 @@ GameObject:
   - component: {fileID: 5711857962600914826}
   - component: {fileID: 4212574487490377446}
   - component: {fileID: 3786186593500369959}
-  - component: {fileID: 6242072602588481981}
   - component: {fileID: 4230248319618598975}
+  - component: {fileID: 6242072602588481981}
   m_Layer: 5
   m_Name: BillPickUpUI
   m_TagString: Untagged
@@ -54,6 +54,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   target: {fileID: 0}
   worldOffset: {x: 0, y: 3, z: 0}
+  screenOffset: {x: 0, y: 0}
+  stackStepY: 40
+  hideWhenGameplayUIBlocked: 1
 --- !u!225 &3786186593500369959
 CanvasGroup:
   m_ObjectHideFlags: 0
@@ -66,20 +69,6 @@ CanvasGroup:
   m_Interactable: 1
   m_BlocksRaycasts: 1
   m_IgnoreParentGroups: 0
---- !u!114 &6242072602588481981
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1773576336559369215}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e983c18e74d70904f8051ecdcf420c77, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  button: {fileID: 8088549760576989335}
-  bill: {fileID: 4729912562990798703, guid: b123222c8f4fb714289fd2f7da36fabc, type: 3}
 --- !u!114 &4230248319618598975
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -101,6 +90,20 @@ MonoBehaviour:
   settleTime: 0.12
   bounceOnPointerDown: 1
   bounceOnClick: 1
+--- !u!114 &6242072602588481981
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1773576336559369215}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e983c18e74d70904f8051ecdcf420c77, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  button: {fileID: 8088549760576989335}
+  bill: {fileID: 4729912562990798703, guid: b123222c8f4fb714289fd2f7da36fabc, type: 3}
 --- !u!1 &5779235744137543879
 GameObject:
   m_ObjectHideFlags: 0
@@ -136,7 +139,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -4.487, y: 4.132}
+  m_AnchoredPosition: {x: 0.3, y: 4.132}
   m_SizeDelta: {x: 140.864, y: 50.979}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &4666163233723396954

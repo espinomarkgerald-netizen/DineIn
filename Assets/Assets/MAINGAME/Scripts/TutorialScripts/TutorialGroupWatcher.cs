@@ -7,7 +7,9 @@ public class TutorialGroupWatcher : MonoBehaviour
     private bool greetedReported;
     private bool seatedReported;
     private bool orderTakenReported;
+    private bool eatingReported;
     private bool foodServedReported;
+    private bool waiterFinishedReported;
 
     public void Init(CustomerGroup targetGroup)
     {
@@ -46,8 +48,12 @@ public class TutorialGroupWatcher : MonoBehaviour
             TutorialManager.Instance.RegisterOrderTaken(group);
         }
 
-        // IMPORTANT:
-        // ServeFood phase should finish only when the customer is DONE eating
+        if (!eatingReported && group.state == CustomerGroup.GroupState.Eating)
+        {
+            eatingReported = true;
+            TutorialManager.Instance.RegisterWaiterReachedEating(group);
+        }
+
         if (!foodServedReported &&
             (group.state == CustomerGroup.GroupState.NeedsBill ||
              group.state == CustomerGroup.GroupState.Leaving ||
@@ -56,6 +62,12 @@ public class TutorialGroupWatcher : MonoBehaviour
         {
             foodServedReported = true;
             TutorialManager.Instance.RegisterFoodServed(group);
+        }
+
+        if (!waiterFinishedReported && group.state == CustomerGroup.GroupState.Leaving)
+        {
+            waiterFinishedReported = true;
+            TutorialManager.Instance.RegisterGuidedWaiterFinished(group);
         }
     }
 }
