@@ -15,7 +15,7 @@ MonoBehaviour:
   recipeID: 03
   recipeName: French Fries
   sprite: {fileID: 21300000, guid: 8e78f254a43696f4b9db23ccbb32431a, type: 3}
-  dayToUnlock: 1
+  dayToUnlock: 10
   ingredients:
   - item: {fileID: 11400000, guid: 2dc7af590d2f8034fa4956e75867995a, type: 2}
     amount: 1

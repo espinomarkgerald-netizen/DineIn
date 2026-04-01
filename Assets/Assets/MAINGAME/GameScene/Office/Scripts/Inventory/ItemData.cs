@@ -16,6 +16,7 @@ public class ItemData : ScriptableObject
 
     [Header("Visuals")]
     public Sprite sprite;
+    public int dayToUnlock = 1;
     
 
     public float CostPerUnit

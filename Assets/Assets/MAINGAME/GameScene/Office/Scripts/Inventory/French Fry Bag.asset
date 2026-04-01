@@ -17,3 +17,4 @@ MonoBehaviour:
   unitsPerBox: 10
   boxCost: 200
   sprite: {fileID: 21300000, guid: 8e78f254a43696f4b9db23ccbb32431a, type: 3}
+  dayToUnlock: 10

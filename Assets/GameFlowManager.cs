@@ -96,14 +96,21 @@ public class GameFlowManager : MonoBehaviour
         kitchenCompleted = false;
         currentDayHalf = DayHalf.Morning;
         currentPhase = GamePhase.Management;
+
+        EquipmentManager.Instance.UnlockByDay(currentDay);
+        EquipmentShopManager shop = FindObjectOfType<EquipmentShopManager>();
+        shop?.InitializeShop();
+        RecipeManager.Instance.UnlockByDay(currentDay);
+
         SceneManager.LoadScene(managementSceneName);
     }
 
     public void NextDay()
     {
         currentDay++;
+
+        EquipmentManager.Instance.UnlockByDay(currentDay);
         RecipeManager.Instance.UnlockByDay(currentDay);
-        // Equipment UI can refresh using EquipmentManager.Instance.GetPurchasable(currentDay)
     }
 
     public void StartNewDay(int employeeCost, int marketingCost, int billsCost, int ingredientCost)

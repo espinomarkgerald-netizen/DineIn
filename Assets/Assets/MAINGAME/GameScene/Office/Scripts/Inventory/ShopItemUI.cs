@@ -19,30 +19,38 @@ public class ShopItemUI : MonoBehaviour
     public int Quantity => quantity;
     public ItemData ItemData => itemData;
 
-    public void Setup(ItemData data)
+    public void Setup(ItemData data, bool unlocked)
     {
         itemData = data;
-        ingredientImage.sprite = itemData.sprite; // Add sprite to ItemData
-        nameText.text = data.displayName;
+
+        plusButton.onClick.RemoveAllListeners();
+        minusButton.onClick.RemoveAllListeners();
+
+        if (unlocked)
+        {
+            ingredientImage.sprite = data.sprite;
+            nameText.text = data.displayName;
+
+            plusButton.interactable = true;
+            minusButton.interactable = true;
+
+            plusButton.onClick.AddListener(() => ChangeQuantity(1));
+            minusButton.onClick.AddListener(() => ChangeQuantity(-1));
+        }
+        else
+        {
+            ingredientImage.sprite = null;
+            nameText.text = $"Unlock at Day {data.dayToUnlock}";
+
+            plusButton.interactable = false;
+            minusButton.interactable = false;
+        }
+
         quantity = 0;
 
         UpdateStock();
         UpdateQuantity();
         UpdatePriceDisplay();
-
-        plusButton.onClick.RemoveAllListeners();
-        minusButton.onClick.RemoveAllListeners();
-
-        // Subscribe buttons
-        plusButton.onClick.AddListener(() => ChangeQuantity(1));
-        minusButton.onClick.AddListener(() => ChangeQuantity(-1));
-
-        // Subscribe to inventory changes
-        if (InventoryManager.Instance != null)
-        {
-            InventoryManager.Instance.OnStockChanged -= OnStockChanged;
-            InventoryManager.Instance.OnStockChanged += OnStockChanged;
-        }
     }
 
     void OnDestroy()

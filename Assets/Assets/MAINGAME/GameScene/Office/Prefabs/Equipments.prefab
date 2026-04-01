@@ -133,6 +133,7 @@ MonoBehaviour:
   nameText: {fileID: 4874374237718897958}
   costText: {fileID: 4836145290846475408}
   buyButton: {fileID: 3005005969367034258}
+  lockOverlay: {fileID: 1977426119423994208, guid: 47ee8181524d1d54dbb9d0a110e47706, type: 3}
 --- !u!222 &5795476144524963495
 CanvasRenderer:
   m_ObjectHideFlags: 0

@@ -1,45 +1,99 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+[DefaultExecutionOrder(0)]
 public class RecipeManager : MonoBehaviour
 {
-    public static RecipeManager Instance;
+    public static RecipeManager Instance { get; private set; }
+
+    [Header("Assign in Inspector")]
     [SerializeField] private Transform contentParent;
-    [SerializeField] private GameObject recipePrefab;
+    [SerializeField] private GameObject unlockedPrefab;
+    [SerializeField] private GameObject lockedPrefab;
     [SerializeField] private List<Recipe> allRecipes;
-    private HashSet<string> unlockedRecipes = new HashSet<string>();
 
-    private void Awake() => Instance = this;
-
-    void Start()
+    private void Awake()
     {
-        UnlockByDay(1); // or whatever your starting day is
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+        Instance = this;
+
+        // Inspector safety
+        if (!contentParent || !unlockedPrefab || !lockedPrefab)
+            Debug.LogWarning($"[RecipeManager] Inspector references missing on {name}");
+    }
+
+    private void OnEnable()
+    {
+        UnlockManager.OnRecipeUnlocked += HandleRecipeUnlocked;
+    }
+
+    private void OnDisable()
+    {
+        UnlockManager.OnRecipeUnlocked -= HandleRecipeUnlocked;
+    }
+
+    private void Start()
+    {
+        UnlockByDay(GameFlowManager.Instance.CurrentDay);
         PopulateRecipesUI();
     }
- 
+
+    private void HandleRecipeUnlocked(string recipeID)
+    {
+        PopulateRecipesUI();
+    }
+
     public void UnlockByDay(int currentDay)
     {
         foreach (var r in allRecipes)
-            if (!unlockedRecipes.Contains(r.recipeID) && r.dayToUnlock <= currentDay)
-                unlockedRecipes.Add(r.recipeID);
+        {
+            if (r.dayToUnlock <= currentDay && !UnlockManager.Instance.IsRecipeUnlocked(r.recipeID))
+            {
+                UnlockManager.Instance.UnlockRecipe(r.recipeID);
+
+                // unlock ingredients
+                foreach (var ing in r.ingredients)
+                    UnlockManager.Instance.UnlockIngredient(ing.item);
+            }
+        }
     }
 
     public void PopulateRecipesUI()
     {
-        // Clear old UI
+        if (!contentParent || !unlockedPrefab || !lockedPrefab) return;
+
+        // Clear UI
         foreach (Transform child in contentParent)
             Destroy(child.gameObject);
 
-        // Spawn new UI
-        foreach (var recipe in allRecipes)
+        // Sort: unlocked first
+        var sorted = new List<Recipe>(allRecipes);
+        sorted.Sort((a, b) =>
         {
-            GameObject obj = Instantiate(recipePrefab, contentParent);
+            bool aUnlocked = UnlockManager.Instance.IsRecipeUnlocked(a.recipeID);
+            bool bUnlocked = UnlockManager.Instance.IsRecipeUnlocked(b.recipeID);
 
-            RecipeItemUI ui = obj.GetComponent<RecipeItemUI>();
-            ui.Setup(recipe);
+            int unlockCompare = bUnlocked.CompareTo(aUnlocked);
+            if (unlockCompare != 0)
+                return unlockCompare;
+
+            return a.dayToUnlock.CompareTo(b.dayToUnlock);
+        });
+
+        foreach (var r in sorted)
+        {
+            bool unlocked = UnlockManager.Instance.IsRecipeUnlocked(r.recipeID);
+            GameObject prefab = unlocked ? unlockedPrefab : lockedPrefab;
+            GameObject obj = Instantiate(prefab, contentParent);
+
+            if (obj.TryGetComponent(out RecipeItemUI ui))
+                ui.Setup(r, unlocked);
+            else
+                Debug.LogWarning($"[RecipeManager] Prefab missing RecipeItemUI: {r.recipeName}");
         }
     }
-
-    public bool IsUnlocked(string recipeID) => unlockedRecipes.Contains(recipeID);
-    public List<Recipe> GetUnlockedRecipes() => allRecipes.FindAll(r => unlockedRecipes.Contains(r.recipeID));
 }

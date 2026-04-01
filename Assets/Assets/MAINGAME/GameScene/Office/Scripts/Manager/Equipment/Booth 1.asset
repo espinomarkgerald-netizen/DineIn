@@ -13,5 +13,6 @@ MonoBehaviour:
   m_Name: Booth 1
   m_EditorClassIdentifier: 
   itemID: booth01
-  displayName: Booth 1
-  cost: 500
+  displayName: Booth
+  cost: 0
+  dayToUnlock: 1

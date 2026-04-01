@@ -15,7 +15,7 @@ MonoBehaviour:
   recipeID: 01
   recipeName: Chicken Bucket
   sprite: {fileID: 21300000, guid: 0d0d4d6827467064f9e13d7c7fd1f5ea, type: 3}
-  dayToUnlock: 1
+  dayToUnlock: 5
   ingredients:
   - item: {fileID: 11400000, guid: 70830520795d900449881daee8ed45ad, type: 2}
     amount: 4

@@ -13,5 +13,6 @@ MonoBehaviour:
   m_Name: Table 1
   m_EditorClassIdentifier: 
   itemID: table01
-  displayName: Table 1
+  displayName: Table
   cost: 0
+  dayToUnlock: 1

@@ -192,6 +192,7 @@ MonoBehaviour:
   recipeImage: {fileID: 93727592147157036}
   nameText: {fileID: 4874374237718897958}
   descriptionText: {fileID: 4836145290846475408}
+  lockOverlay: {fileID: 1977426119423994208, guid: 47ee8181524d1d54dbb9d0a110e47706, type: 3}
   ingredientContainer: {fileID: 3142518513136182932}
   ingredientPrefab: {fileID: 6984798142480179518, guid: 7445ba1d7d4c8914d87a263866b31012, type: 3}
 --- !u!1 &4717154449679571983

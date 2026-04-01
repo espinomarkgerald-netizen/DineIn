@@ -7,38 +7,39 @@ public class EquipmentItemUI : MonoBehaviour
     public TMP_Text nameText;
     public TMP_Text costText;
     public Button buyButton;
+
     private Equipment equip;
     private bool listenerAdded = false;
 
-    public void Setup(Equipment e)
+    public void Setup(Equipment e, bool unlocked)
     {
         equip = e;
-        nameText.text = e.displayName;
-        costText.text = $"₱{e.cost}";
 
-        if (!listenerAdded)
+        buyButton.onClick.RemoveAllListeners();
+        buyButton.onClick.AddListener(OnBuy);
+
+        if (unlocked)
         {
-            buyButton.onClick.AddListener(OnBuy);
-            listenerAdded = true;
-        }
+            nameText.text = e.displayName;
+            costText.text = $"₱{e.cost}";
 
-        RefreshUI();
+            bool alreadyBought = EquipmentManager.Instance.Purchased(e.itemID);
+
+            buyButton.interactable =
+                !alreadyBought &&
+                MoneyManager.Instance.Money >= e.cost;
+        }
+        else
+        {
+            nameText.text = "???";
+            costText.text = $"Unlock at Day {e.dayToUnlock}";
+            buyButton.interactable = false;
+        }
     }
 
     public void OnBuy()
     {
         if (equip == null) return;
-
-        Debug.Log("Purchase called for: " + equip.itemID);
         EquipmentManager.Instance.Purchase(equip.itemID);
-    }
-
-    public void RefreshUI()
-    {
-        if (equip == null || buyButton == null || MoneyManager.Instance == null)
-            return;
-
-        bool alreadyBought = EquipmentManager.Instance.Purchased(equip.itemID);
-        buyButton.interactable = MoneyManager.Instance.Money >= equip.cost && !alreadyBought;
     }
 }

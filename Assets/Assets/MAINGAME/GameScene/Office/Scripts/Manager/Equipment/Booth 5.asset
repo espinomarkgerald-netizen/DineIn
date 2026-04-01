@@ -15,3 +15,4 @@ MonoBehaviour:
   itemID: booth05
   displayName: Booth 5
   cost: 8000
+  dayToUnlock: 24

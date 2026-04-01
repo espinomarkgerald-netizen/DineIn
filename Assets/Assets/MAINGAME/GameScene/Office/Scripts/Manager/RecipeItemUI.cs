@@ -14,38 +14,35 @@ public class RecipeItemUI : MonoBehaviour
 
     private Recipe recipe;
 
-    public void Setup(Recipe r)
+    public void Setup(Recipe r, bool unlocked)
     {
         recipe = r;
-        nameText.text = r.recipeName;
-        recipeImage.sprite = r.sprite;
-        descriptionText.text = r.descriptionText;
 
-        PopulateIngredients();
-
-        bool unlocked = RecipeManager.Instance.IsUnlocked(recipe.recipeID);
-        gameObject.SetActive(unlocked);
+        if (unlocked)
+        {
+            nameText.text = r.recipeName;
+            descriptionText.text = r.descriptionText;
+            recipeImage.sprite = r.sprite;
+            PopulateIngredients();
+        }
+        else
+        {
+            nameText.text = "???";
+            descriptionText.text = $"Unlock at Day {r.dayToUnlock}";
+            recipeImage.sprite = null;
+        }
     }
 
-    void PopulateIngredients()
+    private void PopulateIngredients()
     {
         foreach (Transform child in ingredientContainer)
-        {
             Destroy(child.gameObject);
-        }
 
         foreach (var ing in recipe.ingredients)
         {
             GameObject obj = Instantiate(ingredientPrefab, ingredientContainer);
-
-            IngredientSlotUI slot = obj.GetComponent<IngredientSlotUI>();
-            slot.Setup(ing.item, ing.amount);
+            if (obj.TryGetComponent(out IngredientSlotUI slot))
+                slot.Setup(ing.item, ing.amount);
         }
-    }
-
-    public void Refresh()
-    {
-        bool unlocked = RecipeManager.Instance.IsUnlocked(recipe.recipeID);
-        gameObject.SetActive(unlocked);
     }
 }
