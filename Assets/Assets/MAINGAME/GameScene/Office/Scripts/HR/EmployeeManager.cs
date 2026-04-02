@@ -13,6 +13,9 @@ public class EmployeeManager : MonoBehaviour
     [Header("Employees Grouped by Role")]
     public List<RoleGroup> employeesByRole = new List<RoleGroup>();
 
+    /// <summary>True once the lobby shift starts; prevents reassignment for the rest of the day.</summary>
+    public bool SlotsLocked { get; private set; }
+
     void Awake()
     {
         if (Instance != null) { Destroy(gameObject); return; }
@@ -67,9 +70,25 @@ public class EmployeeManager : MonoBehaviour
             group.employees.Add(employee);
     }
 
+    /// <summary>
+    /// Locks all role slots so no reassignment can happen for the rest of the day.
+    /// Call this when the lobby shift starts.
+    /// </summary>
+    public void LockAllSlots()
+    {
+        SlotsLocked = true;
+
+        // Lock any slots already loaded in the scene.
+        RoleSlot[] allSlots = FindObjectsByType<RoleSlot>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        foreach (var slot in allSlots)
+            slot.Lock();
+    }
+
     /// <summary>Clears all daily assignments and slot locks. Call at the start of each new day.</summary>
     public void ResetDailyAssignments()
     {
+        SlotsLocked = false;
+
         foreach (var emp in allEmployees)
         {
             emp.assigned         = false;
@@ -82,4 +101,17 @@ public class EmployeeManager : MonoBehaviour
         foreach (var slot in allSlots)
             slot.ResetForNewDay();
     }
+
+    public int CalculateTotalPayroll()
+{
+    int total = 0;
+
+    foreach (var emp in allEmployees)
+    {
+        if (emp.assigned) // only working employees
+            total += emp.GetSalary();
+    }
+
+    return total;
+}
 }

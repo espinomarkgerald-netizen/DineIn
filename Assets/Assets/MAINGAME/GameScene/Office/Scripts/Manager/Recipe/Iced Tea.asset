@@ -10,14 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1e5d1a0d830632446bbf9c3cce255d59, type: 3}
-  m_Name: Chicken Bucket
+  m_Name: Iced Tea
   m_EditorClassIdentifier: 
-  recipeID: 01
-  recipeName: Chicken Bucket
-  sprite: {fileID: 21300000, guid: 0d0d4d6827467064f9e13d7c7fd1f5ea, type: 3}
-  dayToUnlock: 2
+  recipeID: 05
+  recipeName: Iced Tea
+  sprite: {fileID: 21300000, guid: 9746789dafebbb841a6edd396858d4b4, type: 3}
+  dayToUnlock: 1
   ingredients:
-  - item: {fileID: 11400000, guid: 70830520795d900449881daee8ed45ad, type: 2}
-    amount: 4
-  sellPrice: 359
-  descriptionText: Chicken na Masarap
+  - item: {fileID: 11400000, guid: 20abafb43ed2b9a4e88ff9064f655c1f, type: 2}
+    amount: 1
+  sellPrice: 0
+  descriptionText: 

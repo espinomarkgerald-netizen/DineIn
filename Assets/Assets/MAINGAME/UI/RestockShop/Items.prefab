@@ -140,7 +140,6 @@ MonoBehaviour:
   plusButton: {fileID: 3522778166067794955}
   minusButton: {fileID: 895043573912464746}
   totalPriceText: {fileID: 6058255047068686584}
-  lockOverlay: {fileID: 1977426119423994208, guid: 47ee8181524d1d54dbb9d0a110e47706, type: 3}
 --- !u!222 &5795476144524963495
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -881,8 +880,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -115, y: 12}
-  m_SizeDelta: {x: 200, y: 50}
+  m_AnchoredPosition: {x: -79.004, y: 12}
+  m_SizeDelta: {x: 271.99, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &2010901125642800016
 CanvasRenderer:
@@ -977,7 +976,7 @@ MonoBehaviour:
   m_VertexBufferAutoSizeReduction: 0
   m_useMaxVisibleDescender: 1
   m_pageToDisplay: 1
-  m_margin: {x: 0, y: 0, z: -37.39682, w: 0}
+  m_margin: {x: 0, y: 0, z: -0.9371872, w: 0}
   m_isUsingLegacyAnimationComponent: 0
   m_isVolumetricText: 0
   m_hasFontAssetChanged: 0

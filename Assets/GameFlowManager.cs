@@ -32,12 +32,6 @@ public class GameFlowManager : MonoBehaviour
     [SerializeField] private bool lobbyCompleted;
     [SerializeField] private bool kitchenCompleted;
 
-    [Header("Today Finance")]
-    [SerializeField] private int employeeCostToday;
-    [SerializeField] private int marketingCostToday;
-    [SerializeField] private int billsCostToday;
-    [SerializeField] private int ingredientCostToday;
-
     public int CurrentDay => currentDay;
     public GamePhase CurrentPhase => currentPhase;
     public DayHalf CurrentDayHalf => currentDayHalf;
@@ -46,17 +40,6 @@ public class GameFlowManager : MonoBehaviour
 
     public bool IsMorning => currentDayHalf == DayHalf.Morning;
     public bool IsAfternoon => currentDayHalf == DayHalf.Afternoon;
-
-    public int EmployeeCostToday => employeeCostToday;
-    public int MarketingCostToday => marketingCostToday;
-    public int BillsCostToday => billsCostToday;
-    public int IngredientCostToday => ingredientCostToday;
-
-    public int TotalRequiredToday =>
-        Mathf.Max(0, employeeCostToday) +
-        Mathf.Max(0, marketingCostToday) +
-        Mathf.Max(0, billsCostToday) +
-        Mathf.Max(0, ingredientCostToday);
 
     private void Awake()
     {
@@ -74,30 +57,16 @@ public class GameFlowManager : MonoBehaviour
         DontDestroyOnLoad(gameObject);
     }
 
-    public void SetTodayFinance(int employeeCost, int marketingCost, int billsCost, int ingredientCost)
-    {
-        employeeCostToday = Mathf.Max(0, employeeCost);
-        marketingCostToday = Mathf.Max(0, marketingCost);
-        billsCostToday = Mathf.Max(0, billsCost);
-        ingredientCostToday = Mathf.Max(0, ingredientCost);
-    }
-
-    public void ResetTodayFinance()
-    {
-        employeeCostToday = 0;
-        marketingCostToday = 0;
-        billsCostToday = 0;
-        ingredientCostToday = 0;
-    }
-
     public void StartNewDay()
     {
+        currentDay++;
         lobbyCompleted = false;
         kitchenCompleted = false;
         currentDayHalf = DayHalf.Morning;
         currentPhase = GamePhase.Management;
 
         DailyRevenueTracker.Instance.ResetForNewDay();
+        FinanceManager.Instance?.ResetDailyExpenses();
         EmployeeManager.Instance?.ResetDailyAssignments();
 
         EquipmentManager.Instance.UnlockByDay(currentDay);
@@ -108,24 +77,11 @@ public class GameFlowManager : MonoBehaviour
         SceneManager.LoadScene(managementSceneName);
     }
 
-    public void NextDay()
-    {
-        currentDay++;
-
-        EquipmentManager.Instance.UnlockByDay(currentDay);
-        RecipeManager.Instance.UnlockByDay(currentDay);
-    }
-
-    public void StartNewDay(int employeeCost, int marketingCost, int billsCost, int ingredientCost)
-    {
-        SetTodayFinance(employeeCost, marketingCost, billsCost, ingredientCost);
-        StartNewDay();
-    }
-
     public void StartLobbyShift()
     {
         currentDayHalf = DayHalf.Morning;
         currentPhase = GamePhase.Lobby;
+        EmployeeManager.Instance?.LockAllSlots();
         SceneManager.LoadScene(lobbySceneName);
     }
 
@@ -182,15 +138,6 @@ public class GameFlowManager : MonoBehaviour
         return lobbyCompleted && kitchenCompleted;
     }
 
-    public void AdvanceDay()
-    {
-        currentDay++;
-        lobbyCompleted = false;
-        kitchenCompleted = false;
-        currentPhase = GamePhase.Management;
-        currentDayHalf = DayHalf.None;
-    }
-
     public void ResetRun()
     {
         currentDay = 1;
@@ -198,8 +145,6 @@ public class GameFlowManager : MonoBehaviour
         currentDayHalf = DayHalf.None;
         lobbyCompleted = false;
         kitchenCompleted = false;
-
-        ResetTodayFinance();
 
         if (MoneyManager.Instance != null)
             MoneyManager.Instance.ResetToStartingMoney();
@@ -209,6 +154,17 @@ public class GameFlowManager : MonoBehaviour
 
     public void StartDay()
     {
-        StartNewDay();
+        StartLobbyShift();
+    }
+
+    public void EndOfDayFinance()
+    {
+        if (EmployeeManager.Instance != null)
+        {
+            float payroll = EmployeeManager.Instance.CalculateTotalPayroll();
+            FinanceManager.Instance.RecordExpense("Payroll", payroll);
+        }
+
+        FinanceManager.Instance.PrintDailyReport();
     }
 }

@@ -45,18 +45,19 @@ public class DailyReportUI : MonoBehaviour
     {
         if (reportPanel == null || reportText == null) return;
 
-        DailyRevenueTracker tracker = DailyRevenueTracker.Instance;
-        if (tracker == null) return;
+        var tracker = DailyRevenueTracker.Instance;
+        var finance = FinanceManager.Instance;
+        var flow = GameFlowManager.Instance;
 
-        int revenue          = tracker.TotalRevenue;
-        int ingredientCost   = tracker.IngredientCost;
-        int payroll          = tracker.GetPayrollTotal();
-        int optionalExpenses = tracker.GetOptionalExpensesTotal();
-        int totalExpenses    = tracker.GetTotalExpenses();
-        int netProfit        = tracker.GetNetProfit();
-        int ordersCompleted  = tracker.OrdersCompleted;
-        int ordersFailed     = tracker.OrdersFailed;
-        int day              = GameFlowManager.Instance != null ? GameFlowManager.Instance.CurrentDay : 0;
+        int revenue = tracker != null ? tracker.TotalRevenue : 0;
+        int ingredientCost = tracker != null ? tracker.IngredientCost : 0;
+        int financeExpenses = finance != null ? Mathf.RoundToInt(finance.GetTotalExpenses()) : 0;
+        int totalExpenses = financeExpenses + ingredientCost;
+        int netProfit = revenue - totalExpenses;
+
+        int day = flow != null ? flow.CurrentDay : 0;
+        int ordersCompleted = tracker != null ? tracker.OrdersCompleted : 0;
+        int ordersFailed = tracker != null ? tracker.OrdersFailed : 0;
 
         StringBuilder sb = new StringBuilder();
         sb.AppendLine($"DAY {day} REPORT");
@@ -69,11 +70,15 @@ public class DailyReportUI : MonoBehaviour
         sb.AppendLine($"Total Revenue       ₱{revenue}");
         sb.AppendLine();
         sb.AppendLine("──────── EXPENSES ────────");
+
+        if (finance != null)
+        {
+            foreach (var e in finance.GetExpenses())
+                sb.AppendLine($"{e.name.PadRight(20)} ₱{e.amount}");
+        }
+
         sb.AppendLine($"Ingredients         ₱{ingredientCost}");
-        sb.AppendLine($"Payroll             ₱{payroll}");
-        sb.AppendLine($"Other Expenses      ₱{optionalExpenses}");
         sb.AppendLine($"Total Expenses      ₱{totalExpenses}");
-        sb.AppendLine();
         sb.AppendLine("──────────────────────────");
 
         reportText.text = sb.ToString();
@@ -90,24 +95,15 @@ public class DailyReportUI : MonoBehaviour
 
     /// <summary>
     /// Called by the Continue button on the report panel.
-    /// Deducts payroll and optional expenses, resets daily tracker, then loads the management scene.
+    /// Runs end-of-day finance once, then advances the day and returns to management.
     /// </summary>
     public void ConfirmAndExit()
     {
-        if (DailyRevenueTracker.Instance != null)
-        {
-            int payroll = DailyRevenueTracker.Instance.GetPayrollTotal();
-            if (payroll > 0)
-                MoneyManager.Instance?.Spend(payroll, "Daily Payroll");
-
-            FinanceManager.Instance?.PayOptionalExpenses();
-
-            DailyRevenueTracker.Instance.ResetForNewDay();
-        }
+        Time.timeScale = 1f;
 
         if (reportPanel != null)
             reportPanel.SetActive(false);
 
-        GameFlowManager.Instance?.ReturnToManagementFromKitchen();
+        GameFlowManager.Instance.StartNewDay();
     }
 }

@@ -35,9 +35,11 @@ public class OrderManagerKitchen : MonoBehaviour {
     void Awake() { Instance = this; }
 
     void Start() {
-        // Start the shift clock exactly when the game begins!
         currentShiftTime = shiftDuration;
         isShiftActive = true;
+
+        // Spawn one order immediately so the board is never empty at game start.
+        SpawnOrder();
     }
 
     void Update() {
@@ -50,6 +52,7 @@ public class OrderManagerKitchen : MonoBehaviour {
                 currentShiftTime = 0;
                 isShiftActive = false;
                 Debug.Log("SHIFT OVER! The restaurant is closed. No new orders!");
+                EndShift();
             }
 
             // 2. ONLY SPAWN NEW TICKETS IF THE SHIFT IS STILL ACTIVE
@@ -71,11 +74,31 @@ public class OrderManagerKitchen : MonoBehaviour {
         }
     }
 
-    private void SpawnOrder() {
-        if (foodOptions.Count == 0 || drinkOptions.Count == 0) return;
+    private void EndShift()
+    {
+        GameFlowManager.Instance?.EndOfDayFinance();
 
-        ItemTypeKitchen randomFood = foodOptions[Random.Range(0, foodOptions.Count)];
-        ItemTypeKitchen randomDrink = drinkOptions[Random.Range(0, drinkOptions.Count)];
+        if (DailyReportUI.Instance != null)
+        {
+            DailyReportUI.Instance.Show();
+        }
+        else
+        {
+            Debug.LogWarning("DailyReportUI not found.");
+        }
+    }
+
+    private void SpawnOrder() {
+        List<ItemTypeKitchen> unlockedFood = GetUnlockedItems(foodOptions);
+        List<ItemTypeKitchen> unlockedDrinks = GetUnlockedItems(drinkOptions);
+
+        if (unlockedFood.Count == 0 || unlockedDrinks.Count == 0) {
+            Debug.LogWarning("[OrderManager] No unlocked food or drink recipes available to spawn an order.");
+            return;
+        }
+
+        ItemTypeKitchen randomFood = unlockedFood[Random.Range(0, unlockedFood.Count)];
+        ItemTypeKitchen randomDrink = unlockedDrinks[Random.Range(0, unlockedDrinks.Count)];
 
         LiveTicket newTicket = new LiveTicket();
         newTicket.ticketName = randomFood.ToString() + " & " + randomDrink.ToString();
@@ -86,31 +109,80 @@ public class OrderManagerKitchen : MonoBehaviour {
         Debug.Log("NEW ORDER ARRIVED: " + newTicket.ticketName);
     }
 
-    public bool TryDeliver(ItemTypeKitchen submittedItem) {
-        for (int i = 0; i < activeOrders.Count; i++) {
-            for (int j = 0; j < activeOrders[i].missingItems.Count; j++) {
+    /// <summary>Filters a pool of kitchen items to only those with an unlocked recipe.
+    /// Falls back to the full pool only when UnlockManager is entirely absent (e.g. direct
+    /// scene launch in Editor). When UnlockManager is present its data is authoritative —
+    /// nothing locked will be returned.</summary>
+    private List<ItemTypeKitchen> GetUnlockedItems(List<ItemTypeKitchen> pool) {
+        // No UnlockManager present at all — treat everything as available.
+        if (UnlockManager.Instance == null)
+            return new List<ItemTypeKitchen>(pool);
 
-                if (activeOrders[i].missingItems[j] == submittedItem) {
-                    Debug.Log("GOOD DROP OFF! Delivered a " + submittedItem.ToString());
-                    activeOrders[i].missingItems.RemoveAt(j);
+        IReadOnlyList<Recipe> recipes = RecipeManager.AllRecipesStatic;
 
-                    if (activeOrders[i].missingItems.Count == 0) {
-                        Debug.Log("COMBO COMPLETE!");
-                        activeOrders.RemoveAt(i);
-                        DailyRevenueTracker.Instance?.RecordOrderCompleted();
-                    }
-                    return true;
+        // No recipe data to cross-reference — fall back so the kitchen isn't dead.
+        if (recipes == null || recipes.Count == 0)
+            return new List<ItemTypeKitchen>(pool);
+
+        List<ItemTypeKitchen> unlocked = new List<ItemTypeKitchen>();
+        foreach (ItemTypeKitchen item in pool) {
+            string itemName = item.ToString();
+            foreach (Recipe recipe in recipes) {
+                if (string.Equals(recipe.recipeName.Replace(" ", ""), itemName, System.StringComparison.OrdinalIgnoreCase)
+                    && UnlockManager.Instance.IsRecipeUnlocked(recipe.recipeID)) {
+                    unlocked.Add(item);
+                    break;
                 }
             }
         }
 
-        Debug.Log("REJECTED! Nobody is waiting for a " + submittedItem.ToString());
+        return unlocked;
+    }
 
-        // --- WIRED THE FEEDBACK BUBBLE HERE! ---
-        if (DeliveryFeedback.Instance != null) {
-            DeliveryFeedback.Instance.ShowRejection("No matching orders!");
+    /// <summary>
+    /// Attempts to fulfill an item in the oldest matching active order.
+    /// Returns true if the item was accepted, false if no order needs it.
+    /// </summary>
+    public bool TryDeliver(ItemTypeKitchen item) {
+        foreach (LiveTicket ticket in activeOrders) {
+            if (ticket.missingItems.Contains(item)) {
+                ticket.missingItems.Remove(item);
+                Debug.Log($"[OrderManager] Delivered {item} for '{ticket.ticketName}'. Remaining: {ticket.missingItems.Count}");
+
+                if (ticket.missingItems.Count == 0) {
+                    int revenue = GetOrderRevenue(ticket.ticketName);
+                    Debug.Log($"[OrderManager] ORDER COMPLETE: '{ticket.ticketName}' — +${revenue}");
+                    DailyRevenueTracker.Instance?.RecordOrderCompleted();
+                    DailyRevenueTracker.Instance?.RecordRevenue(revenue);
+                    activeOrders.Remove(ticket);
+                }
+                return true;
+            }
         }
 
+        Debug.Log($"[OrderManager] No active order needs '{item}'.");
         return false;
+    }
+
+    /// <summary>
+    /// Looks up the combined sell price of all items in the order ticket name
+    /// by matching each token against Recipe.recipeName.
+    /// </summary>
+    private int GetOrderRevenue(string ticketName) {
+        IReadOnlyList<Recipe> recipes = RecipeManager.AllRecipesStatic;
+        if (recipes == null || recipes.Count == 0) return 0;
+
+        int total = 0;
+        string[] tokens = ticketName.Split('&');
+        foreach (string token in tokens) {
+            string clean = token.Trim();
+            foreach (Recipe recipe in recipes) {
+                if (string.Equals(recipe.recipeName.Replace(" ", ""), clean, System.StringComparison.OrdinalIgnoreCase)) {
+                    total += recipe.sellPrice;
+                    break;
+                }
+            }
+        }
+        return total;
     }
 }

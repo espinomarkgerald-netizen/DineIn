@@ -52,7 +52,7 @@ public class OfficeStartButtons : MonoBehaviour
     {
         foreach (var emp in EmployeeManager.Instance.allEmployees)
         {
-            if (emp.assignedSlot != null)
+            if (!string.IsNullOrEmpty(emp.assignedSlotName))
                 return true;
         }
 

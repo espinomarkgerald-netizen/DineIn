@@ -60,18 +60,8 @@ public class DailyRevenueTracker : MonoBehaviour
         return total;
     }
 
-    /// <summary>Calculates optional expenses total from FinanceManager.</summary>
-    public int GetOptionalExpensesTotal()
-    {
-        if (FinanceManager.Instance == null) return 0;
-
-        int total = 0;
-        foreach (var expense in FinanceManager.Instance.optionalExpenses)
-            total += Mathf.RoundToInt(expense.amount);
-        return total;
-    }
-
-    public int GetTotalExpenses() => IngredientCost + GetPayrollTotal() + GetOptionalExpensesTotal();
+    /// <summary>Returns total tracked expenses: ingredients + payroll.</summary>
+    public int GetTotalExpenses() => IngredientCost + GetPayrollTotal();
 
     public int GetNetProfit() => TotalRevenue - GetTotalExpenses();
 

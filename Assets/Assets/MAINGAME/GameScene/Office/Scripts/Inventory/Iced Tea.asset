@@ -10,11 +10,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 13584ed6afc92734f8aea60ecc3d8b1f, type: 3}
-  m_Name: Cheese Slice
+  m_Name: Iced Tea
   m_EditorClassIdentifier: 
-  itemType: 4
-  displayName: "Cheese Slices \xD720"
+  itemType: 6
+  displayName: "Iced Tea Mix \u2013 20 Servings"
   unitsPerBox: 20
-  boxCost: 150
-  sprite: {fileID: 21300000, guid: 5118c0b71dec6e646ac53ea95bac0524, type: 3}
+  boxCost: 0
+  sprite: {fileID: 21300000, guid: 9746789dafebbb841a6edd396858d4b4, type: 3}
   dayToUnlock: 1

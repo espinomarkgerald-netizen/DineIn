@@ -38,7 +38,8 @@ public class RecipeManager : MonoBehaviour
 
     private void Start()
     {
-        UnlockByDay(GameFlowManager.Instance.CurrentDay);
+        int day = GameFlowManager.Instance != null ? GameFlowManager.Instance.CurrentDay : 1;
+        UnlockByDay(day);
         PopulateRecipesUI();
     }
 
@@ -49,6 +50,9 @@ public class RecipeManager : MonoBehaviour
 
     /// <summary>Returns the full recipe list for cross-system queries.</summary>
     public IReadOnlyList<Recipe> AllRecipes => allRecipes;
+
+    /// <summary>Static accessor for cross-scene systems that need the recipe list without a direct reference.</summary>
+    public static IReadOnlyList<Recipe> AllRecipesStatic => Instance?.allRecipes;
 
     public void UnlockByDay(int currentDay)
     {
