@@ -13,6 +13,6 @@ MonoBehaviour:
   m_Name: Table 2
   m_EditorClassIdentifier: 
   itemID: table02
-  displayName: Table 2
+  displayName: Table
   cost: 250
   dayToUnlock: 4

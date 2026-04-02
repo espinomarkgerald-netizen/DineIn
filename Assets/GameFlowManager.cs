@@ -97,6 +97,9 @@ public class GameFlowManager : MonoBehaviour
         currentDayHalf = DayHalf.Morning;
         currentPhase = GamePhase.Management;
 
+        DailyRevenueTracker.Instance.ResetForNewDay();
+        EmployeeManager.Instance?.ResetDailyAssignments();
+
         EquipmentManager.Instance.UnlockByDay(currentDay);
         EquipmentShopManager shop = FindObjectOfType<EquipmentShopManager>();
         shop?.InitializeShop();

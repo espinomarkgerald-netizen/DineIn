@@ -15,4 +15,4 @@ MonoBehaviour:
   itemID: booth01
   displayName: Booth
   cost: 0
-  dayToUnlock: 1
+  dayToUnlock: 12

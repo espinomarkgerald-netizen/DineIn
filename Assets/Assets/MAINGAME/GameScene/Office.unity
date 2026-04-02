@@ -670,6 +670,7 @@ GameObject:
   m_Component:
   - component: {fileID: 41026933}
   - component: {fileID: 41026934}
+  - component: {fileID: 41026935}
   m_Layer: 0
   m_Name: MoneyManager
   m_TagString: Untagged
@@ -707,6 +708,18 @@ MonoBehaviour:
   startingMoney: 20000
   transactionLog:
   - 
+--- !u!114 &41026935
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 41026932}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b28bf404e96dbc24680d6de13a47bf63, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &47837690
 GameObject:
   m_ObjectHideFlags: 0
@@ -3619,7 +3632,6 @@ Transform:
   - {fileID: 1318671623}
   - {fileID: 1340676448}
   - {fileID: 1386307301}
-  - {fileID: 479829978}
   - {fileID: 146025636}
   - {fileID: 576708384}
   - {fileID: 175755758}
@@ -8754,12 +8766,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 479829977}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 310.67685, y: 150.2746, z: -197.23119}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 262190527}
+  m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &479829979
 MonoBehaviour:
@@ -9791,9 +9803,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   kitchenRequirements:
   - itemType: 0
-    stock: 20
+    stock: 0
   - itemType: 1
-    stock: 20
+    stock: 0
   - itemType: 2
     stock: 20
   - itemType: 3
@@ -33578,7 +33590,7 @@ MonoBehaviour:
   managementSceneName: Office
   lobbySceneName: Lobby1
   kitchenSceneName: Kitchen
-  currentDay: 30
+  currentDay: 1
   currentPhase: 0
   currentDayHalf: 0
   lobbyCompleted: 0
@@ -35141,6 +35153,7 @@ SceneRoots:
   - {fileID: 496353009}
   - {fileID: 1251440901}
   - {fileID: 262190527}
+  - {fileID: 479829978}
   - {fileID: 1736921854}
   - {fileID: 842781773}
   - {fileID: 759208088}

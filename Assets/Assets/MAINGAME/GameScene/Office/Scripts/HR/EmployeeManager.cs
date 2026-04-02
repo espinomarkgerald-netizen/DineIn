@@ -57,15 +57,29 @@ public class EmployeeManager : MonoBehaviour
             return;
         }
 
-        slot.AssignEmployee(employee);
+        if (!slot.AssignEmployee(employee)) return;
 
-        // Inspector-visible assignment
-        employee.assignedSlot = slot;
+        employee.assignedSlot     = slot;
         employee.assignedSlotName = slot.name;
 
-        // Make sure role group stays up to date
         var group = employeesByRole.Find(g => g.role == slot.roleType);
         if (group != null && !group.employees.Contains(employee))
             group.employees.Add(employee);
+    }
+
+    /// <summary>Clears all daily assignments and slot locks. Call at the start of each new day.</summary>
+    public void ResetDailyAssignments()
+    {
+        foreach (var emp in allEmployees)
+        {
+            emp.assigned         = false;
+            emp.assignedSlot     = null;
+            emp.assignedSlotName = string.Empty;
+            emp.currentSlot      = null;
+        }
+
+        RoleSlot[] allSlots = FindObjectsByType<RoleSlot>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        foreach (var slot in allSlots)
+            slot.ResetForNewDay();
     }
 }

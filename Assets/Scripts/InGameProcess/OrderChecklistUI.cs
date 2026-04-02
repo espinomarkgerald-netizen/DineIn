@@ -85,6 +85,59 @@ public class OrderChecklistUI : MonoBehaviour
 
     private readonly List<string> requestedContents = new List<string>();
 
+    private const string RecipeIDChicken = "01";
+    private const string RecipeIDBurger = "02";
+    private const string RecipeIDFries = "03";
+
+    private void OnEnable()
+    {
+        UnlockManager.OnRecipeUnlocked += HandleRecipeUnlocked;
+        RefreshPriceTexts();
+    }
+
+    private void OnDisable()
+    {
+        UnlockManager.OnRecipeUnlocked -= HandleRecipeUnlocked;
+    }
+
+    private void HandleRecipeUnlocked(string recipeID)
+    {
+        RefreshUnlockUI();
+    }
+
+    /// <summary>
+    /// Gates food toggles based on recipe unlock state in UnlockManager.
+    /// Runs on top of the existing stock availability gate.
+    /// </summary>
+    private void RefreshUnlockUI()
+    {
+        if (UnlockManager.Instance == null) return;
+
+        bool chickenUnlocked = UnlockManager.Instance.IsRecipeUnlocked(RecipeIDChicken);
+        bool burgerUnlocked  = UnlockManager.Instance.IsRecipeUnlocked(RecipeIDBurger);
+        bool friesUnlocked   = UnlockManager.Instance.IsRecipeUnlocked(RecipeIDFries);
+
+        SetToggleUnlocked(chickenToggle, chickenUnlocked);
+        SetToggleUnlocked(burgerToggle,  burgerUnlocked);
+        SetToggleUnlocked(friesToggle,   friesUnlocked);
+
+        SetToggleUnlocked(chickenFriesToggle,  chickenUnlocked && friesUnlocked);
+        SetToggleUnlocked(chickenBurgerToggle, chickenUnlocked && burgerUnlocked);
+        SetToggleUnlocked(burgerFriesToggle,   burgerUnlocked  && friesUnlocked);
+    }
+
+    private void SetToggleUnlocked(Toggle toggle, bool unlocked)
+    {
+        if (toggle == null) return;
+
+        if (!unlocked)
+        {
+            toggle.interactable = false;
+            toggle.SetIsOnWithoutNotify(false);
+        }
+        // When unlocked, leave interactable as-is — stock gate in RefreshFoodAvailabilityUI owns that state.
+    }
+
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -114,11 +167,6 @@ public class OrderChecklistUI : MonoBehaviour
         gameObject.SetActive(false);
     }
 
-    private void OnEnable()
-    {
-        RefreshPriceTexts();
-    }
-
     private void OnValidate()
     {
         RefreshPriceTexts();
@@ -142,6 +190,7 @@ public class OrderChecklistUI : MonoBehaviour
 
         ResetToggles();
         RefreshPriceTexts();
+        RefreshUnlockUI();
         RefreshFoodAvailabilityUI();
         RefreshAvailableStockUI();
         LoadRequestedOrder();

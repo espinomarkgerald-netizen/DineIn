@@ -8,7 +8,17 @@ public class EquipmentManager : MonoBehaviour
     [SerializeField] private List<Equipment> allEquipment;
     private HashSet<string> purchased = new HashSet<string>();
 
-    private void Awake() => Instance = this;
+    private void Awake()
+    {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
+        Instance = this;
+        DontDestroyOnLoad(gameObject);
+    }
 
     public void UnlockByDay(int day)
     {
@@ -21,9 +31,14 @@ public class EquipmentManager : MonoBehaviour
 
     private void Start()
     {
-        UnlockByDay(1); // force Day 1 unlock
+        int day = GameFlowManager.Instance != null ? GameFlowManager.Instance.CurrentDay : 1;
+        UnlockByDay(day);
     }
 
+    /// <summary>
+    /// Records the purchase and activates any EquipmentLink in the current scene matching itemID.
+    /// If no link exists yet (different scene), EquipmentLink.Start() will self-activate on load.
+    /// </summary>
     public bool Purchase(string itemID)
     {
         if (purchased.Contains(itemID)) return false;
@@ -33,18 +48,16 @@ public class EquipmentManager : MonoBehaviour
 
         if (!MoneyManager.Instance.Spend(e.cost, e.displayName)) return false;
 
+        purchased.Add(itemID);
+
         EquipmentLink[] allLinks = FindObjectsOfType<EquipmentLink>(true);
         foreach (var link in allLinks)
         {
             if (link.itemID == itemID)
-            {
                 link.gameObject.SetActive(true);
-                purchased.Add(itemID);
-                return true;
-            }
         }
 
-        return false;
+        return true;
     }
 
     public bool Purchased(string itemID) => purchased.Contains(itemID);

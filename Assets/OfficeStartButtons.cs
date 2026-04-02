@@ -10,6 +10,9 @@ public class OfficeStartButtons : MonoBehaviour
     {
         foreach (var req in kitchenRequirements)
         {
+            if (!IsRequiredByUnlockedRecipe(req.itemType))
+                continue;
+
             int current = InventoryManager.Instance.GetStock(req.itemType);
 
             if (current < req.stock)
@@ -20,6 +23,29 @@ public class OfficeStartButtons : MonoBehaviour
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// Returns true if at least one unlocked recipe uses this ingredient.
+    /// Locked-recipe ingredients are skipped from stock requirements.
+    /// </summary>
+    private bool IsRequiredByUnlockedRecipe(ItemType itemType)
+    {
+        if (RecipeManager.Instance == null) return true;
+
+        foreach (var recipe in RecipeManager.Instance.AllRecipes)
+        {
+            if (!UnlockManager.Instance.IsRecipeUnlocked(recipe.recipeID))
+                continue;
+
+            foreach (var ingredient in recipe.ingredients)
+            {
+                if (ingredient.item != null && ingredient.item.itemType == itemType)
+                    return true;
+            }
+        }
+
+        return false;
     }
 
     private bool HasEmployeesAssigned()

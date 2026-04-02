@@ -46,6 +46,8 @@ public class ShopCheckoutManager : MonoBehaviour
             return;
         }
 
+        DailyRevenueTracker.Instance?.RecordIngredientCost(totalCost);
+
         // STEP 3: Add to inventory
         foreach (var itemUI in shopManager.GetSpawnedItems())
         {

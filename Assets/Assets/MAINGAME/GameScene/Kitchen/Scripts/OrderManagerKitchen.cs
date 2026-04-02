@@ -66,6 +66,7 @@ public class OrderManagerKitchen : MonoBehaviour {
             if (activeOrders[i].timeLeft <= 0) {
                 Debug.Log("FAILED ORDER: Customer left waiting for " + activeOrders[i].ticketName);
                 activeOrders.RemoveAt(i);
+                DailyRevenueTracker.Instance?.RecordOrderFailed();
             }
         }
     }
@@ -96,6 +97,7 @@ public class OrderManagerKitchen : MonoBehaviour {
                     if (activeOrders[i].missingItems.Count == 0) {
                         Debug.Log("COMBO COMPLETE!");
                         activeOrders.RemoveAt(i);
+                        DailyRevenueTracker.Instance?.RecordOrderCompleted();
                     }
                     return true;
                 }

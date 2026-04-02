@@ -13,6 +13,6 @@ MonoBehaviour:
   m_Name: Booth 4
   m_EditorClassIdentifier: 
   itemID: booth04
-  displayName: Booth 4
+  displayName: Booth
   cost: 4000
   dayToUnlock: 18

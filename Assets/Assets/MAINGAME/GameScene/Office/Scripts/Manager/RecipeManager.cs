@@ -47,6 +47,9 @@ public class RecipeManager : MonoBehaviour
         PopulateRecipesUI();
     }
 
+    /// <summary>Returns the full recipe list for cross-system queries.</summary>
+    public IReadOnlyList<Recipe> AllRecipes => allRecipes;
+
     public void UnlockByDay(int currentDay)
     {
         foreach (var r in allRecipes)

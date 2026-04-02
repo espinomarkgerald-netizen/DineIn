@@ -6,29 +6,28 @@ public class RoleSlot : MonoBehaviour
 {
     public EmployeeRole roleType;
     public EmployeeData assignedEmployee;
+    public bool isLocked;
 
     public TMP_Text employeeText;
 
     public bool AssignEmployee(EmployeeData employee)
     {
+        if (isLocked)
+        {
+            Debug.Log($"Slot {name} is locked for today.");
+            return false;
+        }
+
         if (employee.role != roleType) return false;
 
         // Remove from previous slot
         if (employee.currentSlot != null)
-        {
             employee.currentSlot.RemoveEmployee();
-        }
 
-        // Replace current employee if occupied
-        if (assignedEmployee != null)
-        {
-            assignedEmployee.assigned = false;
-            assignedEmployee.currentSlot = null;
-        }
-
-        assignedEmployee = employee;
-        employee.assigned = true;
-        employee.currentSlot = this;
+        assignedEmployee        = employee;
+        employee.assigned       = true;
+        employee.currentSlot    = this;
+        isLocked                = true;
 
         UpdateUI();
         return true;
@@ -38,19 +37,25 @@ public class RoleSlot : MonoBehaviour
     {
         if (assignedEmployee != null)
         {
-            assignedEmployee.assigned = false;
+            assignedEmployee.assigned    = false;
             assignedEmployee.currentSlot = null;
-            assignedEmployee = null;
+            assignedEmployee             = null;
 
             UpdateUI();
         }
     }
 
-    void UpdateUI()
+    /// <summary>Clears lock and assignment at the start of a new day.</summary>
+    public void ResetForNewDay()
     {
-        if (assignedEmployee != null)
-            employeeText.text = assignedEmployee.employeeName;
-        else
-            employeeText.text = "Empty";
+        isLocked         = false;
+        assignedEmployee = null;
+        UpdateUI();
+    }
+
+    private void UpdateUI()
+    {
+        if (employeeText == null) return;
+        employeeText.text = assignedEmployee != null ? assignedEmployee.employeeName : "Empty";
     }
 }
