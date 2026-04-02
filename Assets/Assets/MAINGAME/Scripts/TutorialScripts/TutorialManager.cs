@@ -143,6 +143,7 @@ public class TutorialManager : MonoBehaviour
     [Header("Completion UI")]
     [SerializeField] private GameObject tutorialCompletePanel;
     [SerializeField] private TMP_Text tutorialCompleteText;
+    [SerializeField] private TMP_Text tutorialCompleteDayTitle;
     [SerializeField] private Button finishButton;
     [SerializeField] private TMP_Text finishButtonText;
     [SerializeField] private bool showCompletionPanel = true;
@@ -154,6 +155,11 @@ public class TutorialManager : MonoBehaviour
     [SerializeField] private string tutorialSceneName = "LobbyTutorial";
     [SerializeField] private string nextDayButtonLabel = "Next Day";
     [SerializeField] private string finishTutorialButtonLabel = "Finish";
+
+    [Header("Role Lock")]
+    [SerializeField] private bool lockRoleDuringGuidedPhases = true;
+    [SerializeField] private float roleLockRefreshInterval = 0.25f;
+    private float roleLockTimer;
 
     [Header("Busser Tutorial")]
     [SerializeField] private string lockedBusserRoleName = "Busser";
@@ -191,6 +197,28 @@ public class TutorialManager : MonoBehaviour
     private FoodTray heldBusserTray;
     private bool activeBusserTrayPickedUp;
 
+    private float masteryTipTimer;
+    private int masteryTipIndex;
+    [SerializeField] private float masteryTrayRefreshInterval = 0.2f;
+    [SerializeField] private bool enableDay5MasteryTrayFallback = true;
+    private float masteryTrayRefreshTimer;
+
+    [Header("Cashier Day 3 Only Helpers")]
+    [SerializeField] private Behaviour[] cashierDay3OnlyBehaviours;
+    [SerializeField] private GameObject[] cashierDay3OnlyObjects;
+
+    private static readonly string[] MasteryTips =
+    {
+        "Switch to Host to greet incoming customers and seat them.",
+        "Switch to Waiter to take orders, serve food, and collect bills.",
+        "Switch to Cashier to process payments at the POS when money arrives.",
+        "Switch to Busser to clean dirty trays from tables after customers leave.",
+        "Keep an eye on all four roles. A full lobby needs all of them.",
+        "Unhappy customers leave and reduce your score. Serve them quickly.",
+        "Seating customers fast keeps the whole chain moving.",
+        "The busser clears tables so the host can seat new customers.",
+    };
+
     private readonly List<CustomerGroup> spawnedGroups = new List<CustomerGroup>();
     private readonly HashSet<CustomerGroup> watchedGroups = new HashSet<CustomerGroup>();
     private readonly HashSet<FoodTray> watchedDirtyTrays = new HashSet<FoodTray>();
@@ -202,7 +230,29 @@ public class TutorialManager : MonoBehaviour
     public FoodTray ActiveDirtyTray => activeDirtyTray;
     public bool TutorialStarted => tutorialStarted;
 
+    public bool IsMasteryGameplayActive()
+    {
+        return IsNormalGameplayMasteryActive();
+    }
+
+    public bool ShouldUseTutorialWaiterCashHandoff()
+    {
+        if (!tutorialStarted)
+            return false;
+
+        if (currentDay != TutorialDay.Day2Waiter)
+            return false;
+
+        if (currentPhase == TutorialPhase.None ||
+            currentPhase == TutorialPhase.Intro ||
+            currentPhase == TutorialPhase.Complete)
+            return false;
+
+        return true;
+    }
+
     private bool IsLobbyMasteryDay => currentDay == TutorialDay.Day5AllTogether;
+    private bool IsNormalGameplayMasteryActive() => IsLobbyMasteryDay && currentPhase == TutorialPhase.AllTogetherGameplay;
 
     private void Reset()
     {
@@ -266,6 +316,10 @@ public class TutorialManager : MonoBehaviour
     private void Update()
     {
         RefreshRuntimeTargets();
+
+        if (enableDay5MasteryTrayFallback)
+            RefreshMasteryDirtyTrayTracking();
+
         UpdatePracticeMode();
         UpdateBusserRoleLock();
         RefreshBusserGuidance();
@@ -441,9 +495,9 @@ public class TutorialManager : MonoBehaviour
             case TutorialDay.Day5AllTogether:
                 SetStringDefault(ref config.dayTitle, "Day 5 - Lobby Mastery", force);
                 SetStringDefault(ref config.roleName, "Host", force);
-                SetStringDefault(ref config.dayGoalMessage, "Goal: play the full lobby flow with tutorial guidance active.", force);
-                SetStringDefault(ref config.introMessage, "Today everything comes together. Play the normal lobby flow for 4 minutes while the tutorial explains what the game is tracking.", force);
-                SetStringDefault(ref config.practiceStartMessage, "Lobby mastery is now active. Play the normal lobby flow for 4 minutes.", force);
+                SetStringDefault(ref config.dayGoalMessage, "Goal: play the full lobby flow as normal gameplay.", force);
+                SetStringDefault(ref config.introMessage, "Today everything comes together. Play the lobby normally for 4 minutes. You can freely switch between Host, Waiter, Cashier, and Busser.", force);
+                SetStringDefault(ref config.practiceStartMessage, "Lobby mastery started. Play the lobby normally for 4 minutes.", force);
                 SetStringDefault(ref config.completionMessage, "Good job. You finished the Lobby Mastery tutorial day.", force);
 
                 if (force)
@@ -611,6 +665,9 @@ public class TutorialManager : MonoBehaviour
         heldBusserTray = null;
         activeBusserTrayPickedUp = false;
         busserRoleLockTimer = 0f;
+        roleLockTimer = 0f;
+        masteryTipTimer = 0f;
+        masteryTipIndex = 0;
 
         notepadOpened = false;
         orderConfirmed = false;
@@ -631,6 +688,8 @@ public class TutorialManager : MonoBehaviour
 
         SaveCurrentDayProgress();
         UpdateFinishButtonLabel();
+
+        RefreshCashierDay3OnlyHelpers();
 
         if (tutorialIntroPanel != null)
             tutorialIntroPanel.SetActive(false);
@@ -729,6 +788,9 @@ public class TutorialManager : MonoBehaviour
         heldBusserTray = null;
         activeBusserTrayPickedUp = false;
         busserRoleLockTimer = 0f;
+        roleLockTimer = 0f;
+        masteryTipTimer = 0f;
+        masteryTipIndex = 0;
 
         notepadOpened = false;
         orderConfirmed = false;
@@ -743,6 +805,7 @@ public class TutorialManager : MonoBehaviour
         CancelInvoke(nameof(SpawnConfiguredGroups));
         SaveCurrentDayProgress();
         UpdateFinishButtonLabel();
+        RefreshCashierDay3OnlyHelpers();
 
         DestroyRuntimeBusserTrays();
         watchedDirtyTrays.Clear();
@@ -825,11 +888,14 @@ public class TutorialManager : MonoBehaviour
     private void StartAllTogetherMastery()
     {
         DayConfig config = GetCurrentDayConfig();
-        if (config == null)
-        {
-            SetPhase(TutorialPhase.AllTogetherGameplay);
-            return;
-        }
+
+        // Start on Host, but keep all roles free so the player can switch normally.
+        if (RoleManager.Instance != null)
+            RoleManager.Instance.SwitchToHost();
+
+        // Re-enable group spawning for the full lobby flow.
+        if (groupSpawner != null && config != null && config.autoSpawnGroups)
+            Invoke(nameof(SpawnConfiguredGroups), Mathf.Max(0f, config.firstSpawnDelay));
 
         practiceRunning = true;
         practiceTimer = 0f;
@@ -838,8 +904,11 @@ public class TutorialManager : MonoBehaviour
 
         SetPhase(TutorialPhase.AllTogetherGameplay);
 
-        if (!string.IsNullOrWhiteSpace(config.practiceStartMessage))
-            ShowAutoHint(config.practiceStartMessage);
+        string startMessage = config != null && !string.IsNullOrWhiteSpace(config.practiceStartMessage)
+            ? config.practiceStartMessage
+            : "Play the lobby normally for 4 minutes. Switch between Host, Waiter, Cashier, and Busser as needed.";
+
+        ShowAutoHint(startMessage);
     }
 
     private void StartBusserGuidedFlow()
@@ -976,12 +1045,27 @@ public class TutorialManager : MonoBehaviour
 
     private void TrySelectRole(string roleName)
     {
-        if (roleManager == null || string.IsNullOrWhiteSpace(roleName))
+        if (RoleManager.Instance == null || string.IsNullOrWhiteSpace(roleName))
             return;
 
-        roleManager.SendMessage("SelectRoleByName", roleName, SendMessageOptions.DontRequireReceiver);
-        roleManager.SendMessage("SwitchRoleByName", roleName, SendMessageOptions.DontRequireReceiver);
-        roleManager.SendMessage("SetCurrentRoleByName", roleName, SendMessageOptions.DontRequireReceiver);
+        switch (roleName.Trim().ToLowerInvariant())
+        {
+            case "host":
+                RoleManager.Instance.SwitchToHost();
+                break;
+            case "waiter":
+                RoleManager.Instance.SwitchToWaiter();
+                break;
+            case "cashier":
+                RoleManager.Instance.SwitchToCashier();
+                break;
+            case "busser":
+                RoleManager.Instance.SwitchToBusser();
+                break;
+            default:
+                Debug.LogWarning("[TutorialManager] TrySelectRole: unknown role name '" + roleName + "'");
+                break;
+        }
     }
 
     private DayConfig GetCurrentDayConfig()
@@ -1013,7 +1097,8 @@ public class TutorialManager : MonoBehaviour
 
         if (newPhase != TutorialPhase.CollectPayment &&
             newPhase != TutorialPhase.CashierWaitForMoney &&
-            newPhase != TutorialPhase.CashierProcessPayment)
+            newPhase != TutorialPhase.CashierProcessPayment &&
+            newPhase != TutorialPhase.AllTogetherGameplay)
         {
             cashierOpened = false;
             cashierConfirmed = false;
@@ -1224,6 +1309,25 @@ public class TutorialManager : MonoBehaviour
 
         if (timerDone || targetDone)
             SetPhase(TutorialPhase.Complete);
+
+    }
+
+    private void UpdateMasteryTips()
+    {
+        const float TipInterval = 30f;
+
+        masteryTipTimer -= Time.deltaTime;
+        if (masteryTipTimer > 0f)
+            return;
+
+        masteryTipTimer = TipInterval;
+
+        if (MasteryTips.Length == 0)
+            return;
+
+        string tip = MasteryTips[masteryTipIndex % MasteryTips.Length];
+        masteryTipIndex++;
+        ShowAutoHint(tip);
     }
 
     private void SpawnPracticeWave()
@@ -1304,6 +1408,8 @@ public class TutorialManager : MonoBehaviour
             ? config.completionMessage
             : "Tutorial day complete.";
 
+        string dayTitle = GetDayTitle();
+
         if (arrowManager != null)
             arrowManager.ForceHide();
 
@@ -1315,6 +1421,9 @@ public class TutorialManager : MonoBehaviour
         if (showCompletionPanel && tutorialCompletePanel != null)
         {
             tutorialCompletePanel.SetActive(true);
+
+            if (tutorialCompleteDayTitle != null)
+                tutorialCompleteDayTitle.text = dayTitle;
 
             if (tutorialCompleteText != null)
                 tutorialCompleteText.text = message;
@@ -1439,7 +1548,7 @@ public class TutorialManager : MonoBehaviour
                 switch (phase)
                 {
                     case TutorialPhase.AllTogetherGameplay:
-                        return "Play normally now. This is the lobby mastery day. Keep the whole flow moving while the tutorial guidance stays active.";
+                        return "Play normally now. This is the lobby mastery day. Keep the whole lobby flow running for the full timer.";
                 }
                 break;
         }
@@ -1635,7 +1744,7 @@ public class TutorialManager : MonoBehaviour
                     float remaining = cfg != null ? Mathf.Max(0f, cfg.practiceDurationSeconds - practiceTimer) : 0f;
                     int minutes = Mathf.FloorToInt(remaining / 60f);
                     int seconds = Mathf.FloorToInt(remaining % 60f);
-                    return $"Play the full lobby flow. Time remaining: {minutes:00}:{seconds:00}";
+                    return $"Play the lobby normally. Time remaining: {minutes:00}:{seconds:00}";
                 }
                 break;
         }
@@ -1808,6 +1917,107 @@ public class TutorialManager : MonoBehaviour
             activeDirtyTray = GetBestTrayForCurrentDay(null);
     }
 
+    private void RefreshMasteryDirtyTrayTracking()
+    {
+        if (!tutorialStarted)
+            return;
+
+        if (!enableDay5MasteryTrayFallback)
+            return;
+
+        if (!IsNormalGameplayMasteryActive())
+            return;
+
+        masteryTrayRefreshTimer -= Time.deltaTime;
+        if (masteryTrayRefreshTimer > 0f)
+            return;
+
+        masteryTrayRefreshTimer = Mathf.Max(0.05f, masteryTrayRefreshInterval);
+
+        RegisterSceneMasteryDirtyTrays();
+
+        FoodTray fallbackTray = null;
+        FoodTray readyTray = null;
+
+        foreach (FoodTray tray in watchedDirtyTrays)
+        {
+            if (!IsTrayRelevantForMasteryCleanup(tray))
+                continue;
+
+            if (fallbackTray == null)
+                fallbackTray = tray;
+
+            if (!IsTrayReadyForMasteryCleanup(tray))
+                continue;
+
+            PrepareBusserTrayForTutorial(tray);
+
+            if (readyTray == null)
+                readyTray = tray;
+        }
+
+        if (readyTray != null)
+        {
+            activeDirtyTray = readyTray;
+            return;
+        }
+
+        if (!IsTrayRelevantForMasteryCleanup(activeDirtyTray) || !IsTrayReadyForMasteryCleanup(activeDirtyTray))
+            activeDirtyTray = fallbackTray;
+    }
+
+    private void RegisterSceneMasteryDirtyTrays()
+    {
+        FoodTray[] trays = FindObjectsByType<FoodTray>(FindObjectsSortMode.None);
+        if (trays == null)
+            return;
+
+        for (int i = 0; i < trays.Length; i++)
+        {
+            FoodTray tray = trays[i];
+            if (!IsTrayRelevantForMasteryCleanup(tray) || watchedDirtyTrays.Contains(tray))
+                continue;
+
+            watchedDirtyTrays.Add(tray);
+        }
+    }
+
+    private bool IsTrayRelevantForMasteryCleanup(FoodTray tray)
+    {
+        if (!IsValidDirtyTrayForTracking(tray))
+            return false;
+
+        Booth booth = tray.GetComponentInParent<Booth>();
+        if (booth == null)
+            return false;
+
+        return true;
+    }
+
+    private bool IsTrayReadyForMasteryCleanup(FoodTray tray)
+    {
+        if (!IsTrayRelevantForMasteryCleanup(tray))
+            return false;
+
+        Booth booth = tray.GetComponentInParent<Booth>();
+        if (booth == null)
+            return false;
+
+        CustomerGroup boothGroup = booth.CurrentGroup;
+        if (boothGroup == null)
+            return true;
+
+        switch (boothGroup.state)
+        {
+            case CustomerGroup.GroupState.Leaving:
+            case CustomerGroup.GroupState.AngryLeft:
+            case CustomerGroup.GroupState.UnhappyLeft:
+                return true;
+        }
+
+        return false;
+    }
+
     private bool IsUsableTutorialGroup(CustomerGroup group)
     {
         if (group == null)
@@ -1867,6 +2077,9 @@ public class TutorialManager : MonoBehaviour
 
     private FoodTray GetBestTrayForCurrentDay(FoodTray preferred)
     {
+        if (IsNormalGameplayMasteryActive())
+            return GetBestMasteryDirtyTray(preferred);
+
         if (IsValidBusserTrayForCurrentStep(preferred))
             return preferred;
 
@@ -1889,6 +2102,33 @@ public class TutorialManager : MonoBehaviour
 
         FoodTray[] trays = FindObjectsByType<FoodTray>(FindObjectsSortMode.None);
         return GetFirstValidTray(trays);
+    }
+
+    private FoodTray GetBestMasteryDirtyTray(FoodTray preferred)
+    {
+        if (IsTrayRelevantForMasteryCleanup(preferred) && IsTrayReadyForMasteryCleanup(preferred))
+            return preferred;
+
+        FoodTray tray = GetFirstMasteryReadyTray(watchedDirtyTrays);
+        if (tray != null)
+            return tray;
+
+        RegisterSceneMasteryDirtyTrays();
+        return GetFirstMasteryReadyTray(watchedDirtyTrays);
+    }
+
+    private FoodTray GetFirstMasteryReadyTray(IEnumerable<FoodTray> trays)
+    {
+        if (trays == null)
+            return null;
+
+        foreach (FoodTray tray in trays)
+        {
+            if (IsTrayRelevantForMasteryCleanup(tray) && IsTrayReadyForMasteryCleanup(tray))
+                return tray;
+        }
+
+        return null;
     }
 
     private bool IsValidBusserTrayForCurrentStep(FoodTray tray)
@@ -2101,6 +2341,7 @@ public class TutorialManager : MonoBehaviour
     public void RegisterCustomerGreeted(CustomerGroup group)
     {
         if (!tutorialStarted) return;
+        if (IsNormalGameplayMasteryActive()) return;
 
         if (currentDay == TutorialDay.Day1Host)
         {
@@ -2125,6 +2366,7 @@ public class TutorialManager : MonoBehaviour
     public void RegisterTableAssigned(CustomerGroup group)
     {
         if (!tutorialStarted) return;
+        if (IsNormalGameplayMasteryActive()) return;
 
         if (currentDay == TutorialDay.Day1Host)
         {
@@ -2149,6 +2391,7 @@ public class TutorialManager : MonoBehaviour
     public void RegisterOrderTaken(CustomerGroup group)
     {
         if (!tutorialStarted) return;
+        if (IsNormalGameplayMasteryActive()) return;
 
         if (currentDay == TutorialDay.Day2Waiter)
         {
@@ -2173,6 +2416,7 @@ public class TutorialManager : MonoBehaviour
     public void RegisterOrderSubmitted(CustomerGroup group)
     {
         if (!tutorialStarted) return;
+        if (IsNormalGameplayMasteryActive()) return;
 
         if (currentDay == TutorialDay.Day2Waiter)
         {
@@ -2197,6 +2441,7 @@ public class TutorialManager : MonoBehaviour
     public void RegisterFoodServed(CustomerGroup group)
     {
         if (!tutorialStarted) return;
+        if (IsNormalGameplayMasteryActive()) return;
 
         if (currentDay == TutorialDay.Day2Waiter)
         {
@@ -2229,6 +2474,7 @@ public class TutorialManager : MonoBehaviour
     public void RegisterBillPickedUp(CustomerGroup group)
     {
         if (!tutorialStarted) return;
+        if (IsNormalGameplayMasteryActive()) return;
 
         if (currentDay == TutorialDay.Day2Waiter)
         {
@@ -2255,6 +2501,7 @@ public class TutorialManager : MonoBehaviour
     public void RegisterBillDelivered(CustomerGroup group)
     {
         if (!tutorialStarted) return;
+        if (IsNormalGameplayMasteryActive()) return;
 
         if (currentDay == TutorialDay.Day2Waiter)
         {
@@ -2281,6 +2528,7 @@ public class TutorialManager : MonoBehaviour
     public void RegisterMoneyPickedUp(CustomerGroup group)
     {
         if (!tutorialStarted) return;
+        if (IsNormalGameplayMasteryActive()) return;
 
         if (currentDay == TutorialDay.Day2Waiter)
         {
@@ -2307,6 +2555,7 @@ public class TutorialManager : MonoBehaviour
     public void RegisterPaymentCollected(CustomerGroup group)
     {
         if (!tutorialStarted) return;
+        if (IsNormalGameplayMasteryActive()) return;
 
         if (currentDay == TutorialDay.Day2Waiter)
         {
@@ -2331,6 +2580,7 @@ public class TutorialManager : MonoBehaviour
     public void RegisterCashierPaymentProcessed(CustomerGroup group)
     {
         if (!tutorialStarted) return;
+        if (IsNormalGameplayMasteryActive()) return;
 
         if (currentDay == TutorialDay.Day3Cashier)
         {
@@ -2351,6 +2601,7 @@ public class TutorialManager : MonoBehaviour
     public void RegisterTrayCleaned(CustomerGroup group)
     {
         if (!tutorialStarted) return;
+        if (IsNormalGameplayMasteryActive()) return;
 
         if (currentDay == TutorialDay.Day4Busser)
         {
@@ -2436,6 +2687,36 @@ public class TutorialManager : MonoBehaviour
             ShowAutoHint("Dirty trays must be cleared so the next customers can use the table.");
     }
 
+    public void RegisterFoodDeliveredToTable(FoodTray tray)
+    {
+        if (!tutorialStarted)
+            return;
+
+        if (!IsNormalGameplayMasteryActive())
+            return;
+
+        if (tray == null || !IsTrayRelevantForMasteryCleanup(tray))
+            return;
+
+        watchedDirtyTrays.Add(tray);
+    }
+
+    public void RegisterGroupLeftTable(FoodTray tray)
+    {
+        if (!tutorialStarted)
+            return;
+
+        if (!IsNormalGameplayMasteryActive())
+            return;
+
+        if (tray == null || !IsTrayRelevantForMasteryCleanup(tray))
+            return;
+
+        watchedDirtyTrays.Add(tray);
+        PrepareBusserTrayForTutorial(tray);
+        activeDirtyTray = tray;
+    }
+
     public void RegisterAllTogetherCompleted()
     {
         if (!tutorialStarted) return;
@@ -2448,7 +2729,8 @@ public class TutorialManager : MonoBehaviour
     public void OnNotepadOpened(CustomerGroup group)
     {
         if (!tutorialStarted) return;
-        if (!IsPhase(TutorialPhase.TakeOrder) && !IsPhase(TutorialPhase.AllTogetherGameplay)) return;
+        if (IsNormalGameplayMasteryActive()) return;
+        if (!IsPhase(TutorialPhase.TakeOrder)) return;
         if (group != null && activeTutorialGroup != null && !IsActiveGroup(group) && !IsLobbyMasteryDay) return;
         if (notepadOpened) return;
 
@@ -2467,7 +2749,8 @@ public class TutorialManager : MonoBehaviour
     public void OnOrderConfirmed(CustomerGroup group)
     {
         if (!tutorialStarted) return;
-        if (!IsPhase(TutorialPhase.TakeOrder) && !IsPhase(TutorialPhase.ConfirmOrder) && !IsPhase(TutorialPhase.AllTogetherGameplay)) return;
+        if (IsNormalGameplayMasteryActive()) return;
+        if (!IsPhase(TutorialPhase.TakeOrder) && !IsPhase(TutorialPhase.ConfirmOrder)) return;
         if (group != null && activeTutorialGroup != null && !IsActiveGroup(group) && !IsLobbyMasteryDay) return;
         if (orderConfirmed) return;
 
@@ -2492,6 +2775,7 @@ public class TutorialManager : MonoBehaviour
     public void OnCashierOpened(CustomerGroup group, int expectedChange)
     {
         if (!tutorialStarted) return;
+        if (IsNormalGameplayMasteryActive()) return;
 
         if (currentDay == TutorialDay.Day2Waiter)
         {
@@ -2501,8 +2785,7 @@ public class TutorialManager : MonoBehaviour
 
         if (!IsPhase(TutorialPhase.CollectPayment) &&
             !IsPhase(TutorialPhase.CashierWaitForMoney) &&
-            !IsPhase(TutorialPhase.CashierProcessPayment) &&
-            !IsPhase(TutorialPhase.AllTogetherGameplay)) return;
+            !IsPhase(TutorialPhase.CashierProcessPayment)) return;
 
         if (cashierOpened) return;
 
@@ -2523,9 +2806,10 @@ public class TutorialManager : MonoBehaviour
     public void OnCashierConfirmed(CustomerGroup group)
     {
         if (!tutorialStarted) return;
+        if (IsNormalGameplayMasteryActive()) return;
         if (!IsPhase(TutorialPhase.CollectPayment) &&
-            !IsPhase(TutorialPhase.CashierProcessPayment) &&
-            !IsPhase(TutorialPhase.AllTogetherGameplay)) return;
+            !IsPhase(TutorialPhase.CashierProcessPayment)) return;
+
         if (cashierConfirmed) return;
 
         cashierConfirmed = true;
@@ -2548,7 +2832,9 @@ public class TutorialManager : MonoBehaviour
 
     public void OnMoneyGivenToCashier(CustomerGroup group)
     {
-        if (!tutorialStarted) return;
+        if (!tutorialStarted)
+            return;
+        if (IsNormalGameplayMasteryActive()) return;
 
         if (currentDay == TutorialDay.Day2Waiter)
         {
@@ -2606,12 +2892,16 @@ public class TutorialManager : MonoBehaviour
         }
 
         if (IsLobbyMasteryDay && currentPhase == TutorialPhase.AllTogetherGameplay)
-            ShowAutoHint("Money reaches the cashier before the table fully finishes.");
+        {
+            Debug.Log("[TutorialManager] Mastery day money handoff detected. Let normal gameplay open the POS.");
+            return;
+        }
     }
 
     public void OnCustomerAngry(CustomerGroup group)
     {
         if (!tutorialStarted) return;
+        if (IsNormalGameplayMasteryActive()) return;
         if (!IsLobbyMasteryDay) return;
         if (currentPhase != TutorialPhase.AllTogetherGameplay) return;
 
@@ -2621,6 +2911,7 @@ public class TutorialManager : MonoBehaviour
     public void OnCustomerMistakeRecognized(string message)
     {
         if (!tutorialStarted) return;
+        if (IsNormalGameplayMasteryActive()) return;
         if (!IsLobbyMasteryDay) return;
         if (currentPhase != TutorialPhase.AllTogetherGameplay) return;
 
@@ -2962,18 +3253,41 @@ public class TutorialManager : MonoBehaviour
         if (!tutorialStarted)
             return;
 
-        if (!lockBusserRoleDuringDay4)
+        // Day 5 Lobby Mastery: no role lock — player switches freely.
+        if (currentDay == TutorialDay.Day5AllTogether)
             return;
 
-        if (currentDay != TutorialDay.Day4Busser)
+        // Only enforce lock during guided or practice phases (not Complete/None/Intro).
+        if (currentPhase == TutorialPhase.None ||
+            currentPhase == TutorialPhase.Intro ||
+            currentPhase == TutorialPhase.Complete)
             return;
 
-        busserRoleLockTimer -= Time.deltaTime;
-        if (busserRoleLockTimer > 0f)
+        if (!lockRoleDuringGuidedPhases && !(lockBusserRoleDuringDay4 && currentDay == TutorialDay.Day4Busser))
             return;
 
-        busserRoleLockTimer = Mathf.Max(0.05f, busserRoleLockRefreshInterval);
-        TrySelectRole(lockedBusserRoleName);
+        // Throttle.
+        roleLockTimer -= Time.deltaTime;
+        if (roleLockTimer > 0f)
+            return;
+
+        roleLockTimer = Mathf.Max(0.05f, roleLockRefreshInterval);
+
+        string requiredRole = GetRequiredRoleForCurrentDay();
+        if (!string.IsNullOrEmpty(requiredRole))
+            TrySelectRole(requiredRole);
+    }
+
+    private string GetRequiredRoleForCurrentDay()
+    {
+        switch (currentDay)
+        {
+            case TutorialDay.Day1Host: return "Host";
+            case TutorialDay.Day2Waiter: return "Waiter";
+            case TutorialDay.Day3Cashier: return "Cashier";
+            case TutorialDay.Day4Busser: return lockedBusserRoleName;
+        }
+        return string.Empty;
     }
 
     private void RefreshBusserGuidance()
@@ -3020,18 +3334,7 @@ public class TutorialManager : MonoBehaviour
         if (arrowManager == null)
             return;
 
-        if (target == null)
-        {
-            arrowManager.ForceHide();
-            return;
-        }
-
-        arrowManager.SendMessage("PointToTransform", target, SendMessageOptions.DontRequireReceiver);
-        arrowManager.SendMessage("ShowForTransform", target, SendMessageOptions.DontRequireReceiver);
-        arrowManager.SendMessage("ShowTarget", target, SendMessageOptions.DontRequireReceiver);
-        arrowManager.SendMessage("PointToTarget", target, SendMessageOptions.DontRequireReceiver);
-        arrowManager.SendMessage("SetTarget", target, SendMessageOptions.DontRequireReceiver);
-        arrowManager.SendMessage("SetWorldTarget", target, SendMessageOptions.DontRequireReceiver);
+        arrowManager.PointToTransform(target);
     }
 
     private void DestroyRuntimeBusserTrays()
@@ -3078,9 +3381,11 @@ public class TutorialManager : MonoBehaviour
 
         if (busserTutorialTrayPrefab != null && busserTraySpawnPoints != null && busserTraySpawnPoints.Count > 0)
         {
-            int loopCount = Mathf.Max(1, desiredCount);
+            // Spawn at most one tray per unique spawn point.
+            int maxSpawnable = busserTraySpawnPoints.Count;
+            int spawnCount = Mathf.Min(desiredCount, maxSpawnable);
 
-            for (int i = 0; i < loopCount; i++)
+            for (int i = 0; i < spawnCount; i++)
             {
                 FoodTray tray = SpawnBusserTrayAtIndex(i);
                 if (tray != null)
@@ -3104,7 +3409,11 @@ public class TutorialManager : MonoBehaviour
         if (busserTraySpawnPoints == null || busserTraySpawnPoints.Count == 0)
             return null;
 
-        Transform spawnPoint = busserTraySpawnPoints[Mathf.Clamp(index, 0, busserTraySpawnPoints.Count - 1)];
+        // Each index maps to exactly one spawn point — no wrapping that causes stacking.
+        if (index < 0 || index >= busserTraySpawnPoints.Count)
+            return null;
+
+        Transform spawnPoint = busserTraySpawnPoints[index];
         if (spawnPoint == null)
             return null;
 
@@ -3122,7 +3431,6 @@ public class TutorialManager : MonoBehaviour
 
         runtimeBusserSpawnedTrays.Add(tray);
         watchedDirtyTrays.Add(tray);
-        PrepareBusserTrayForTutorial(tray);
         return tray;
     }
 
@@ -3155,13 +3463,49 @@ public class TutorialManager : MonoBehaviour
         if (!trayObject.activeSelf)
             trayObject.SetActive(true);
 
-        trayObject.SendMessage("SetTutorialCleanable", true, SendMessageOptions.DontRequireReceiver);
-        trayObject.SendMessage("SetCanBeCleaned", true, SendMessageOptions.DontRequireReceiver);
-        trayObject.SendMessage("SetDirty", true, SendMessageOptions.DontRequireReceiver);
-        trayObject.SendMessage("MarkAsDirty", SendMessageOptions.DontRequireReceiver);
-        trayObject.SendMessage("EnablePickupButton", SendMessageOptions.DontRequireReceiver);
-        trayObject.SendMessage("ShowPickupButton", SendMessageOptions.DontRequireReceiver);
-        trayObject.SendMessage("RefreshPickupButton", SendMessageOptions.DontRequireReceiver);
-        trayObject.SendMessage("TutorialEnableCleanable", SendMessageOptions.DontRequireReceiver);
+        // Activate the FoodTrayInteractable into Cleanup mode so the pickup button
+        // appears and the busser can interact with it.
+        FoodTrayInteractable interactable = trayObject.GetComponent<FoodTrayInteractable>();
+        if (interactable == null)
+            interactable = trayObject.GetComponentInChildren<FoodTrayInteractable>(true);
+
+        if (interactable != null)
+            interactable.SetCleanupPickable(true);
+        else
+            Debug.LogWarning("[TutorialManager] PrepareBusserTrayForTutorial: no FoodTrayInteractable found on " + trayObject.name);
+
+        // Also notify BoothTrayRegistry on the same object or parent booth, if present.
+        BoothTrayRegistry registry = trayObject.GetComponentInParent<BoothTrayRegistry>(true);
+        if (registry != null)
+            registry.EnableCleanupPickup();
+    }
+
+    private void RefreshCashierDay3OnlyHelpers()
+    {
+        bool enable = currentDay == TutorialDay.Day3Cashier;
+
+        if (cashierDay3OnlyBehaviours != null)
+        {
+            for (int i = 0; i < cashierDay3OnlyBehaviours.Length; i++)
+            {
+                Behaviour behaviour = cashierDay3OnlyBehaviours[i];
+                if (behaviour == null)
+                    continue;
+
+                behaviour.enabled = enable;
+            }
+        }
+
+        if (cashierDay3OnlyObjects != null)
+        {
+            for (int i = 0; i < cashierDay3OnlyObjects.Length; i++)
+            {
+                GameObject obj = cashierDay3OnlyObjects[i];
+                if (obj == null)
+                    continue;
+
+                obj.SetActive(enable);
+            }
+        }
     }
 }

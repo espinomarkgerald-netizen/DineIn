@@ -7,21 +7,26 @@ public class CashierMoneyAutoReceiver : MonoBehaviour
     [SerializeField] private bool useXZOnly = true;
     [SerializeField] private float cooldown = 0.2f;
 
-    private PlayerMovement player;
     private float nextAllowedTime;
 
     private void Awake()
     {
         if (cashier == null)
             cashier = GetComponent<CashierBoothInteractable>();
-
-        player = FindFirstObjectByType<PlayerMovement>();
     }
 
     private void Update()
     {
         if (Time.time < nextAllowedTime) return;
         if (cashier == null) return;
+
+        // Always use the currently active player role, not a stale Awake reference.
+        // On Day 5, multiple PlayerMovement components exist (one per role), so
+        // FindFirstObjectByType would grab the wrong one.
+        if (RoleManager.Instance == null) return;
+        if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Waiter)) return;
+
+        var player = RoleManager.Instance.GetActivePlayerMovement();
         if (player == null) return;
 
         var hands = WaiterHands.Instance;

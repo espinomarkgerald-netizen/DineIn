@@ -1,16 +1,27 @@
+using TMPro;
 using UnityEngine;
 
 public class BillBubbleUI : MonoBehaviour
 {
     [SerializeField] private bool oneRequestOnly = true;
+    [SerializeField] private TMP_Text tableNumberText;
 
     private CustomerGroup group;
     private bool requested;
 
+    /// <summary>Initializes the bill bubble and sets the table number label.</summary>
     public void Init(CustomerGroup g)
     {
         group = g;
         requested = false;
+        SetTableNumber(g != null ? g.currentOrderNumber : -1);
+    }
+
+    /// <summary>Sets the table number displayed on the bubble. Pass -1 to hide it.</summary>
+    public void SetTableNumber(int number)
+    {
+        if (tableNumberText == null) return;
+        tableNumberText.text = number >= 0 ? $"#{number}" : string.Empty;
     }
 
     public void OnClickBillBubble()

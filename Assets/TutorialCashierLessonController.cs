@@ -96,6 +96,8 @@ public class TutorialCashierLessonController : MonoBehaviour
 
     private void EndLesson()
     {
+        Debug.LogWarning($"[LessonController] EndLesson called — sessionRunning={sessionRunning} lessonStarted={lessonStarted}", this);
+
         sessionRunning = false;
         lessonStarted = false;
         roundOpen = false;
@@ -114,12 +116,18 @@ public class TutorialCashierLessonController : MonoBehaviour
 
     private void ApplyCashierDayVisuals(bool active)
     {
+        bool registerIsOpen = CashierRegisterUI.Instance != null && CashierRegisterUI.Instance.IsOpen;
+
         if (hideOnCashierDay != null)
         {
             for (int i = 0; i < hideOnCashierDay.Length; i++)
             {
-                if (hideOnCashierDay[i] != null)
-                    hideOnCashierDay[i].SetActive(!active);
+                if (hideOnCashierDay[i] == null)
+                    continue;
+
+                bool next = !active;
+                Debug.Log($"[LessonController] hideOnCashierDay[{i}]={hideOnCashierDay[i].name} → SetActive({next})", hideOnCashierDay[i]);
+                hideOnCashierDay[i].SetActive(next);
             }
         }
 
@@ -127,8 +135,18 @@ public class TutorialCashierLessonController : MonoBehaviour
         {
             for (int i = 0; i < showOnCashierDay.Length; i++)
             {
-                if (showOnCashierDay[i] != null)
-                    showOnCashierDay[i].SetActive(active);
+                if (showOnCashierDay[i] == null)
+                    continue;
+
+                // Never force-disable a UI object while the POS register is open.
+                if (!active && registerIsOpen)
+                {
+                    Debug.LogWarning($"[LessonController] SKIPPED SetActive(false) on showOnCashierDay[{i}]={showOnCashierDay[i].name} because CashierRegisterUI is open.", showOnCashierDay[i]);
+                    continue;
+                }
+
+                Debug.Log($"[LessonController] showOnCashierDay[{i}]={showOnCashierDay[i].name} → SetActive({active})", showOnCashierDay[i]);
+                showOnCashierDay[i].SetActive(active);
             }
         }
     }

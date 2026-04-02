@@ -25,7 +25,9 @@ public class SinkInteractable : MonoBehaviour, IInteractable
 
         if (BusserHands.Instance != null && BusserHands.Instance.HasTray)
         {
+            FoodTray cleanedTray = BusserHands.Instance.holdingTray;
             BusserHands.Instance.DisposeTray(true);
+            NotifyTutorialTrayCleaned(cleanedTray);
             return;
         }
     }
@@ -33,5 +35,13 @@ public class SinkInteractable : MonoBehaviour, IInteractable
     public float GetInteractRadius()
     {
         return 0.5f;
+    }
+
+    private void NotifyTutorialTrayCleaned(FoodTray tray)
+    {
+        if (TutorialManager.Instance == null || !TutorialManager.Instance.TutorialStarted)
+            return;
+
+        TutorialManager.Instance.RegisterDirtyTrayCleaned(tray);
     }
 }

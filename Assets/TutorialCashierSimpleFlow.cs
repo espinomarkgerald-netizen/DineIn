@@ -36,12 +36,18 @@ public class TutorialCashierSimpleFlow : MonoBehaviour
     {
         CancelInvoke();
 
+        bool registerIsOpen = CashierRegisterUI.Instance != null && CashierRegisterUI.Instance.IsOpen;
+
         if (hideOnCashierDay != null)
         {
             for (int i = 0; i < hideOnCashierDay.Length; i++)
             {
-                if (hideOnCashierDay[i] != null)
-                    hideOnCashierDay[i].SetActive(!active);
+                if (hideOnCashierDay[i] == null)
+                    continue;
+
+                bool next = !active;
+                Debug.Log($"[SimpleFlow] hideOnCashierDay[{i}]={hideOnCashierDay[i].name} → SetActive({next})", hideOnCashierDay[i]);
+                hideOnCashierDay[i].SetActive(next);
             }
         }
 
@@ -49,8 +55,18 @@ public class TutorialCashierSimpleFlow : MonoBehaviour
         {
             for (int i = 0; i < showOnCashierDay.Length; i++)
             {
-                if (showOnCashierDay[i] != null)
-                    showOnCashierDay[i].SetActive(active);
+                if (showOnCashierDay[i] == null)
+                    continue;
+
+                // Never force-disable a UI object while the POS register is open.
+                if (!active && registerIsOpen)
+                {
+                    Debug.LogWarning($"[SimpleFlow] SKIPPED SetActive(false) on showOnCashierDay[{i}]={showOnCashierDay[i].name} because CashierRegisterUI is open.", showOnCashierDay[i]);
+                    continue;
+                }
+
+                Debug.Log($"[SimpleFlow] showOnCashierDay[{i}]={showOnCashierDay[i].name} → SetActive({active})", showOnCashierDay[i]);
+                showOnCashierDay[i].SetActive(active);
             }
         }
 

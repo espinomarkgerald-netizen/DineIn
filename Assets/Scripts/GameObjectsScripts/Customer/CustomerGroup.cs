@@ -1089,6 +1089,8 @@ public class CustomerGroup : MonoBehaviour
         if (leavingRoutineStarted) return;
         leavingRoutineStarted = true;
 
+        NotifyTrayGroupLeaving();
+
         NotifyLeftLineIfNeeded();
 
         if (shouldShowAngryThoughtOnLeave && state == GroupState.Leaving)
@@ -1109,6 +1111,34 @@ public class CustomerGroup : MonoBehaviour
             assignedBooth.ClearCurrentGroup();
 
         StartCoroutine(LeaveToExitFlow());
+    }
+
+    /// <summary>
+    /// Finds any FoodTrayInteractable whose tray targets this group and notifies it
+    /// that the group is leaving, so the pickup button can appear even after this
+    /// GameObject is destroyed.
+    /// </summary>
+    private void NotifyTrayGroupLeaving()
+    {
+        FoodTrayInteractable[] trays = FindObjectsByType<FoodTrayInteractable>(
+            FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+
+        for (int i = 0; i < trays.Length; i++)
+        {
+            if (trays[i] == null) continue;
+
+            FoodTray foodTray = trays[i].GetComponentInChildren<FoodTray>(true);
+            if (foodTray == null) foodTray = trays[i].GetComponent<FoodTray>();
+            if (foodTray == null) continue;
+
+            if (foodTray.TargetGroup == this)
+            {
+                trays[i].NotifyGroupLeaving();
+
+                if (TutorialManager.Instance != null)
+                    TutorialManager.Instance.RegisterGroupLeftTable(foodTray);
+            }
+        }
     }
 
     private IEnumerator LeaveToExitFlow()

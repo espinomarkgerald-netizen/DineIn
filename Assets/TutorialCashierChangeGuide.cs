@@ -106,9 +106,10 @@ public class TutorialCashierChangeGuide : MonoBehaviour
         if (!canRun)
         {
             if (wasOpen)
+            {
                 EndRound();
-
-            wasOpen = isOpen;
+                wasOpen = false;
+            }
             return;
         }
 

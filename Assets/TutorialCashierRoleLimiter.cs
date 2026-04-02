@@ -48,18 +48,33 @@ public class TutorialCashierRoleLimiter : MonoBehaviour
 
     private void OnDisable()
     {
+        // If the register is open, do not apply the disabled state — doing so would
+        // call SetActive(false) on managed UI objects and kill the POS panel externally.
+        bool registerIsOpen = CashierRegisterUI.Instance != null && CashierRegisterUI.Instance.IsOpen;
+        if (registerIsOpen)
+        {
+            Debug.LogWarning("[RoleLimiter] OnDisable skipped ApplyCashierDayState(false) — register is open.", this);
+            return;
+        }
+
         ApplyCashierDayState(false);
         lastCashierDayState = false;
     }
 
     private void ApplyCashierDayState(bool cashierDayActive)
     {
+        bool registerIsOpen = CashierRegisterUI.Instance != null && CashierRegisterUI.Instance.IsOpen;
+
         if (disableOnCashierDay != null)
         {
             for (int i = 0; i < disableOnCashierDay.Length; i++)
             {
-                if (disableOnCashierDay[i] != null)
-                    disableOnCashierDay[i].SetActive(!cashierDayActive);
+                if (disableOnCashierDay[i] == null)
+                    continue;
+
+                bool next = !cashierDayActive;
+                Debug.Log($"[RoleLimiter] disableOnCashierDay[{i}]={disableOnCashierDay[i].name} → SetActive({next})", disableOnCashierDay[i]);
+                disableOnCashierDay[i].SetActive(next);
             }
         }
 
@@ -67,8 +82,19 @@ public class TutorialCashierRoleLimiter : MonoBehaviour
         {
             for (int i = 0; i < enableOnCashierDay.Length; i++)
             {
-                if (enableOnCashierDay[i] != null)
-                    enableOnCashierDay[i].SetActive(cashierDayActive);
+                if (enableOnCashierDay[i] == null)
+                    continue;
+
+                // Never force-disable a UI object while the POS register is open —
+                // that would silently kill the panel without going through Hide().
+                if (!cashierDayActive && registerIsOpen)
+                {
+                    Debug.LogWarning($"[RoleLimiter] SKIPPED SetActive(false) on enableOnCashierDay[{i}]={enableOnCashierDay[i].name} because CashierRegisterUI is open.", enableOnCashierDay[i]);
+                    continue;
+                }
+
+                Debug.Log($"[RoleLimiter] enableOnCashierDay[{i}]={enableOnCashierDay[i].name} → SetActive({cashierDayActive})", enableOnCashierDay[i]);
+                enableOnCashierDay[i].SetActive(cashierDayActive);
             }
         }
 

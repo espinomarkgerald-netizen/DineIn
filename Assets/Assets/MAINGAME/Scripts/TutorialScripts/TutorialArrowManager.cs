@@ -12,6 +12,7 @@ public class TutorialArrowManager : MonoBehaviour
     [SerializeField] private Vector3 defaultOffset = new Vector3(0f, 10f, 0f);
 
     [Header("Scene Targets")]
+    [SerializeField] private Transform greetTarget;
     [SerializeField] private Transform orderSubmitTarget;
     [SerializeField] private Transform cashierMoneyTarget;
     [SerializeField] private Transform sinkTarget;
@@ -33,6 +34,14 @@ public class TutorialArrowManager : MonoBehaviour
 
         if (followCamera == null)
             followCamera = Camera.main;
+
+        // Auto-resolve greet target from LobbyLineManager front slot if not assigned in Inspector.
+        if (greetTarget == null)
+        {
+            LobbyLineManager lineManager = FindFirstObjectByType<LobbyLineManager>(FindObjectsInactive.Include);
+            if (lineManager != null && lineManager.linePoints != null && lineManager.linePoints.Length > 0)
+                greetTarget = lineManager.linePoints[0];
+        }
     }
 
     private void Update()
@@ -76,6 +85,15 @@ public class TutorialArrowManager : MonoBehaviour
 
         switch (tutorialManager.CurrentPhase)
         {
+            case TutorialManager.TutorialPhase.GreetCustomer:
+            {
+                // Point to the active group if it is waiting to be greeted; otherwise fall back to the greet spot.
+                if (group != null)
+                    return group.UIAnchor != null ? group.UIAnchor : group.transform;
+
+                return greetTarget;
+            }
+
             case TutorialManager.TutorialPhase.AssignTable:
             {
                 if (group == null)
@@ -175,7 +193,8 @@ public class TutorialArrowManager : MonoBehaviour
 
                 if (!busserHoldingTray)
                 {
-                    FoodTray tray = FindFoodTrayForGroup(group);
+                    // Day 4: find any active cleanup tray — no group is associated.
+                    FoodTray tray = group != null ? FindFoodTrayForGroup(group) : FindAnyCleanupTray();
                     if (tray != null)
                         return tray.transform;
 
@@ -183,6 +202,20 @@ public class TutorialArrowManager : MonoBehaviour
                 }
 
                 return sinkTarget;
+            }
+
+            case TutorialManager.TutorialPhase.AllTogetherGameplay:
+            {
+                // Mastery day: if the busser is holding a tray, point at the sink.
+                if (BusserHands.Instance != null && BusserHands.Instance.HasTray)
+                    return sinkTarget;
+
+                // Otherwise find any cleanup-ready tray and point at it.
+                FoodTray cleanupTray = FindAnyCleanupTray();
+                if (cleanupTray != null)
+                    return cleanupTray.transform;
+
+                return null;
             }
         }
 
@@ -227,6 +260,17 @@ public class TutorialArrowManager : MonoBehaviour
         HideArrow();
     }
 
+    /// <summary>
+    /// Directs the arrow to a specific world-space target. Used when phase resolution cannot find the target automatically.
+    /// </summary>
+    public void PointToTransform(Transform target)
+    {
+        if (target != null)
+            ShowArrow(target);
+        else
+            HideArrow();
+    }
+
     private Booth FindBestBoothForGroup(CustomerGroup group)
     {
         if (group == null || hostBooths == null || hostBooths.Length == 0)
@@ -261,6 +305,25 @@ public class TutorialArrowManager : MonoBehaviour
             return false;
 
         return booth.IsAvailableFor(group.Size);
+    }
+
+    private FoodTray FindAnyCleanupTray()
+    {
+        FoodTray[] all = FindObjectsByType<FoodTray>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        for (int i = 0; i < all.Length; i++)
+        {
+            if (all[i] == null)
+                continue;
+
+            FoodTrayInteractable interactable = all[i].GetComponent<FoodTrayInteractable>();
+            if (interactable == null)
+                interactable = all[i].GetComponentInChildren<FoodTrayInteractable>(false);
+
+            if (interactable != null && interactable.IsCleanupPickable)
+                return all[i];
+        }
+
+        return null;
     }
 
     private FoodTray FindFoodTrayForGroup(CustomerGroup group)

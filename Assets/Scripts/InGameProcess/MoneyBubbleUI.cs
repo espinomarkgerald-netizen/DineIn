@@ -6,6 +6,7 @@ public class MoneyBubbleUI : MonoBehaviour
 {
     [SerializeField] private Button button;
     [SerializeField] private TMP_Text amountText;
+    [SerializeField] private TMP_Text tableNumberText;
 
     private MoneyPickup money;
     private bool isRemoving;
@@ -54,6 +55,7 @@ public class MoneyBubbleUI : MonoBehaviour
         }
     }
 
+    /// <summary>Initializes the money bubble with amount, pickup reference, and table number.</summary>
     public void Init(int amount, MoneyPickup m)
     {
         money = m;
@@ -61,11 +63,21 @@ public class MoneyBubbleUI : MonoBehaviour
         if (amountText != null)
             amountText.text = amount.ToString();
 
+        int tableNumber = m != null && m.TargetGroup != null ? m.TargetGroup.currentOrderNumber : -1;
+        SetTableNumber(tableNumber);
+
         if (button != null)
         {
             button.onClick.RemoveAllListeners();
             button.onClick.AddListener(OnClickCollect);
         }
+    }
+
+    /// <summary>Sets the table number displayed on the bubble. Pass -1 to hide it.</summary>
+    public void SetTableNumber(int number)
+    {
+        if (tableNumberText == null) return;
+        tableNumberText.text = number >= 0 ? $"#{number}" : string.Empty;
     }
 
     public void RemoveBubble()

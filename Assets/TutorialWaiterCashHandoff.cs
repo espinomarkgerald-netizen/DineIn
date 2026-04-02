@@ -1,3 +1,4 @@
+using System.Reflection;
 using UnityEngine;
 
 [DefaultExecutionOrder(-200)]
@@ -12,6 +13,10 @@ public class TutorialWaiterCashHandoff : MonoBehaviour
     [SerializeField] private bool autoCompleteCustomerLeave = true;
     [SerializeField] private bool registerPaymentCompletedInGameDay = true;
 
+    [Header("Fallback Rules")]
+    [SerializeField] private bool fallbackAllowOnlyOnWaiterDay = true;
+    [SerializeField] private bool fallbackBlockOnMasteryLikeDays = true;
+
     [Header("Debug")]
     [SerializeField] private bool debugLogs;
 
@@ -25,7 +30,7 @@ public class TutorialWaiterCashHandoff : MonoBehaviour
 
     private void Update()
     {
-        if (!IsWaiterTutorialDay())
+        if (!ShouldRunTutorialHandoff())
             return;
 
         if (Time.time - lastHandoffTime < 0.15f)
@@ -60,20 +65,31 @@ public class TutorialWaiterCashHandoff : MonoBehaviour
         CompleteWaiterTutorialHandoff(hands);
     }
 
-    private bool IsWaiterTutorialDay()
+    private bool ShouldRunTutorialHandoff()
     {
         if (!TutorialSceneRuntimeMarker.IsTutorialRuntimeActive)
             return false;
 
-        if (TutorialManager.Instance == null || !TutorialManager.Instance.TutorialStarted)
+        var tm = TutorialManager.Instance;
+        if (tm == null)
             return false;
 
-        return TutorialManager.Instance.CurrentDay == TutorialManager.TutorialDay.Day2Waiter;
+        if (!tm.TutorialStarted)
+            return false;
+
+        if (IsMasteryGameplayActive(tm))
+            return false;
+
+        return ShouldUseTutorialWaiterCashHandoff(tm);
     }
 
     private void CompleteWaiterTutorialHandoff(WaiterHands hands)
     {
         if (hands == null || !hands.HasMoney)
+            return;
+
+        var tm = TutorialManager.Instance;
+        if (tm != null && IsMasteryGameplayActive(tm))
             return;
 
         lastHandoffTime = Time.time;
@@ -91,10 +107,145 @@ public class TutorialWaiterCashHandoff : MonoBehaviour
         if (autoCompleteCustomerLeave && paidGroup != null)
             paidGroup.PayAndLeave();
 
-        if (TutorialManager.Instance != null)
-            TutorialManager.Instance.OnMoneyGivenToCashier(paidGroup);
+        if (tm != null)
+            tm.OnMoneyGivenToCashier(paidGroup);
 
         if (CashierRegisterUI.Instance != null && CashierRegisterUI.Instance.IsOpen)
             CashierRegisterUI.Instance.CloseRegister();
+    }
+
+    private bool IsMasteryGameplayActive(TutorialManager tm)
+    {
+        if (tm == null)
+            return false;
+
+        if (TryCallBoolMethod(tm, "IsMasteryGameplayActive", out bool result))
+            return result;
+
+        if (!fallbackBlockOnMasteryLikeDays)
+            return false;
+
+        string dayName = ReadMemberAsString(tm, "currentDay");
+        if (string.IsNullOrEmpty(dayName))
+            dayName = ReadMemberAsString(tm, "CurrentDay");
+
+        string phaseName = ReadMemberAsString(tm, "currentPhase");
+        if (string.IsNullOrEmpty(phaseName))
+            phaseName = ReadMemberAsString(tm, "CurrentPhase");
+
+        return ContainsAny(dayName, "day5", "mastery", "alltogether", "alltogethergameplay")
+            || ContainsAny(phaseName, "mastery", "alltogether", "alltogethergameplay");
+    }
+
+    private bool ShouldUseTutorialWaiterCashHandoff(TutorialManager tm)
+    {
+        if (tm == null)
+            return false;
+
+        if (TryCallBoolMethod(tm, "ShouldUseTutorialWaiterCashHandoff", out bool result))
+            return result;
+
+        if (!fallbackAllowOnlyOnWaiterDay)
+            return !IsMasteryGameplayActive(tm);
+
+        string dayName = ReadMemberAsString(tm, "currentDay");
+        if (string.IsNullOrEmpty(dayName))
+            dayName = ReadMemberAsString(tm, "CurrentDay");
+
+        string phaseName = ReadMemberAsString(tm, "currentPhase");
+        if (string.IsNullOrEmpty(phaseName))
+            phaseName = ReadMemberAsString(tm, "CurrentPhase");
+
+        bool looksLikeWaiter = ContainsAny(dayName, "day2", "waiter")
+                            || ContainsAny(phaseName, "waiter");
+
+        bool looksLikeOtherRole = ContainsAny(dayName, "day1", "host", "day3", "cashier", "day4", "busser")
+                               || ContainsAny(phaseName, "host", "cashier", "busser");
+
+        if (looksLikeOtherRole)
+            return false;
+
+        if (IsMasteryGameplayActive(tm))
+            return false;
+
+        return looksLikeWaiter;
+    }
+
+    private bool TryCallBoolMethod(object target, string methodName, out bool value)
+    {
+        value = false;
+
+        if (target == null)
+            return false;
+
+        var flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+        var method = target.GetType().GetMethod(methodName, flags);
+
+        if (method == null)
+            return false;
+
+        if (method.ReturnType != typeof(bool))
+            return false;
+
+        if (method.GetParameters().Length != 0)
+            return false;
+
+        try
+        {
+            object result = method.Invoke(target, null);
+            if (result is bool boolResult)
+            {
+                value = boolResult;
+                return true;
+            }
+        }
+        catch (System.Exception ex)
+        {
+            if (debugLogs)
+                Debug.LogWarning($"[TutorialWaiterCashHandoff] Failed calling {methodName}: {ex.Message}");
+        }
+
+        return false;
+    }
+
+    private string ReadMemberAsString(object target, string memberName)
+    {
+        if (target == null || string.IsNullOrEmpty(memberName))
+            return string.Empty;
+
+        var flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+        var type = target.GetType();
+
+        var field = type.GetField(memberName, flags);
+        if (field != null)
+        {
+            object value = field.GetValue(target);
+            return value != null ? value.ToString() : string.Empty;
+        }
+
+        var property = type.GetProperty(memberName, flags);
+        if (property != null)
+        {
+            object value = property.GetValue(target, null);
+            return value != null ? value.ToString() : string.Empty;
+        }
+
+        return string.Empty;
+    }
+
+    private bool ContainsAny(string source, params string[] terms)
+    {
+        if (string.IsNullOrEmpty(source) || terms == null || terms.Length == 0)
+            return false;
+
+        string lowered = source.ToLowerInvariant();
+
+        for (int i = 0; i < terms.Length; i++)
+        {
+            if (!string.IsNullOrEmpty(terms[i]) && lowered.Contains(terms[i].ToLowerInvariant()))
+                return true;
+        }
+
+        return false;
     }
 }

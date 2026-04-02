@@ -92,6 +92,9 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
         RefreshUI();
     }
 
+    /// <summary>Returns true when this tray is in Cleanup mode and ready to be picked up by the busser.</summary>
+    public bool IsCleanupPickable => mode == TrayMode.Cleanup;
+
     public void SetQueuePickable(bool allowed)
     {
         RefreshUI();
@@ -171,6 +174,8 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
                 RefreshUI();
                 return;
             }
+
+            NotifyTutorialBusserPickup(tray);
         }
 
         pickupRequested = false;
@@ -264,15 +269,37 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
         if (mode != TrayMode.None) return;
         if (tray == null) return;
 
+        // If we already flagged this tray as needing cleanup (group has gone), promote immediately.
+        if (pendingCleanup)
+        {
+            pendingCleanup = false;
+            SetCleanupPickable(true);
+            return;
+        }
+
         var group = tray.TargetGroup;
         if (group == null) return;
 
         if (group.state == CustomerGroup.GroupState.Leaving ||
-            group.state == CustomerGroup.GroupState.AngryLeft)
+            group.state == CustomerGroup.GroupState.AngryLeft ||
+            group.state == CustomerGroup.GroupState.UnhappyLeft)
         {
             SetCleanupPickable(true);
         }
     }
+
+    /// <summary>
+    /// Called by the customer group when it begins leaving so the tray can
+    /// promote to Cleanup mode even after the group GameObject is destroyed.
+    /// </summary>
+    public void NotifyGroupLeaving()
+    {
+        if (mode != TrayMode.None) return;
+
+        pendingCleanup = true;
+    }
+
+    private bool pendingCleanup;
 
     private void RefreshUI()
     {
@@ -294,12 +321,6 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
             return;
         }
 
-        if (!CanInteract())
-        {
-            HideUI();
-            return;
-        }
-
         if (mode == TrayMode.Delivery)
         {
             if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Waiter))
@@ -314,16 +335,37 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
                 return;
             }
         }
-        else if (mode == TrayMode.Cleanup)
-        {
-            if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Busser))
-            {
-                HideUI();
-                return;
-            }
-        }
+
+        // Cleanup trays always show their button so the player knows to switch to Busser.
+        // CanInteract() still gates the actual interaction to Busser-only.
 
         ShowUI();
+    }
+
+    private static Canvas cachedMainHudCanvas;
+
+    private static Canvas ResolveTargetCanvas()
+    {
+        if (cachedMainHudCanvas != null && cachedMainHudCanvas.isActiveAndEnabled)
+            return cachedMainHudCanvas;
+
+        cachedMainHudCanvas = null;
+
+        var canvases = FindObjectsByType<Canvas>(FindObjectsSortMode.None);
+        for (int i = 0; i < canvases.Length; i++)
+        {
+            var c = canvases[i];
+            if (!c.isActiveAndEnabled) continue;
+            if (c.name != "CanvasMainHUD") continue;
+
+            var ray = c.GetComponent<GraphicRaycaster>();
+            if (ray == null || !ray.enabled) continue;
+
+            cachedMainHudCanvas = c;
+            return cachedMainHudCanvas;
+        }
+
+        return null;
     }
 
     private void ShowUI()
@@ -331,27 +373,8 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
         if (pickupUiPrefab == null || uiAnchor == null) return;
         if (uiInstance != null) return;
 
-        Canvas canvas = null;
-        var canvases = FindObjectsByType<Canvas>(FindObjectsSortMode.None);
-        for (int i = 0; i < canvases.Length; i++)
-        {
-            var c = canvases[i];
-            if (!c.isActiveAndEnabled) continue;
-
-            var ray = c.GetComponent<GraphicRaycaster>();
-            if (ray == null || !ray.enabled) continue;
-
-            if (c.renderMode == RenderMode.ScreenSpaceOverlay || c.renderMode == RenderMode.ScreenSpaceCamera)
-            {
-                canvas = c;
-                break;
-            }
-        }
-
+        Canvas canvas = ResolveTargetCanvas();
         if (canvas == null) return;
-
-        if (canvas.renderMode == RenderMode.ScreenSpaceCamera && canvas.worldCamera == null)
-            canvas.worldCamera = Camera.main;
 
         uiInstance = Instantiate(pickupUiPrefab, canvas.transform);
 
@@ -363,6 +386,9 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
         if (btn != null)
         {
             btn.SetTray(this);
+
+            int tableNumber = tray != null ? tray.orderNumber : -1;
+            btn.SetTableNumber(tableNumber);
         }
         else
         {
@@ -386,5 +412,13 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
     private void ShowWarning(string message)
     {
         WarningSlideUI.Instance?.Show(message);
+    }
+
+    private void NotifyTutorialBusserPickup(FoodTray pickedTray)
+    {
+        if (TutorialManager.Instance == null || !TutorialManager.Instance.TutorialStarted)
+            return;
+
+        TutorialManager.Instance.RegisterDirtyTrayPickedUp(pickedTray);
     }
 }

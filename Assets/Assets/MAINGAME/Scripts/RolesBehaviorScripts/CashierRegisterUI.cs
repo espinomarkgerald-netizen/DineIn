@@ -7,6 +7,8 @@ public class CashierRegisterUI : MonoBehaviour
 {
     public static CashierRegisterUI Instance { get; private set; }
 
+    public static event System.Action OnHidden;
+
     [Header("Root")]
     [SerializeField] private GameObject root;
 
@@ -71,8 +73,20 @@ public class CashierRegisterUI : MonoBehaviour
 
     private CustomerGroup activeGroup;
     private bool isOpen;
+    private bool buttonsBound;
 
-    public bool IsOpen => isOpen;
+    public bool IsOpen
+    {
+        get
+        {
+            ResolveRoot();
+
+            if (root == null)
+                return false;
+
+            return isOpen && root.activeInHierarchy;
+        }
+    }
 
     private void Awake()
     {
@@ -84,12 +98,38 @@ public class CashierRegisterUI : MonoBehaviour
 
         Instance = this;
 
-        if (root == null)
-            root = gameObject;
-
+        ResolveRoot();
         BindButtons();
         ResetDisplay();
-        Hide();
+        HideImmediate();
+    }
+
+    private void LateUpdate()
+    {
+        ResolveRoot();
+
+        if (root == null || !isOpen)
+            return;
+
+        // If the root went inactive while the register is open, something external
+        // disabled it without going through Hide(). Log it and reset state cleanly.
+        if (!root.activeInHierarchy)
+        {
+            Debug.LogError($"[CashierRegisterUI] Root '{root.name}' was deactivated externally while open. Closing register.", this);
+            ForceClosedState(true);
+        }
+    }
+
+    private void OnDisable()
+    {
+        // Fired when this GameObject itself is disabled externally while the register is open.
+        // Log the full stack trace so the caller can be identified and fixed.
+        if (isOpen)
+        {
+            Debug.LogError(
+                $"[CashierRegisterUI] OnDisable — this GameObject was disabled while isOpen=true! Caller:\n{new System.Diagnostics.StackTrace(true)}",
+                this);
+        }
     }
 
     private void OnDestroy()
@@ -98,8 +138,34 @@ public class CashierRegisterUI : MonoBehaviour
             Instance = null;
     }
 
+    private void ResolveRoot()
+    {
+        if (root == null || root == gameObject)
+        {
+            Transform pos = transform.Find("POS");
+            if (pos != null)
+            {
+                root = pos.gameObject;
+                return;
+            }
+
+            if (transform.childCount > 0)
+            {
+                root = transform.GetChild(0).gameObject;
+                return;
+            }
+
+            root = gameObject;
+        }
+    }
+
     private void BindButtons()
     {
+        if (buttonsBound)
+            return;
+
+        buttonsBound = true;
+
         BindMoneyButton(bill1000Button, 1000);
         BindMoneyButton(bill500Button, 500);
         BindMoneyButton(bill200Button, 200);
@@ -126,7 +192,8 @@ public class CashierRegisterUI : MonoBehaviour
 
     private void BindMoneyButton(Button button, int value)
     {
-        if (button == null) return;
+        if (button == null)
+            return;
 
         button.onClick.RemoveAllListeners();
         button.onClick.AddListener(() => AddChangeInput(value));
@@ -134,18 +201,110 @@ public class CashierRegisterUI : MonoBehaviour
 
     public void Show()
     {
+        ResolveRoot();
+
         if (root != null)
+        {
             root.SetActive(true);
 
+            SetParentsActive(root.transform);
+            SetHierarchyActive(root.transform);
+
+            CanvasGroup[] groups = root.GetComponentsInChildren<CanvasGroup>(true);
+            for (int i = 0; i < groups.Length; i++)
+            {
+                if (groups[i] == null)
+                    continue;
+
+                groups[i].alpha = 1f;
+                groups[i].interactable = true;
+                groups[i].blocksRaycasts = true;
+            }
+        }
+
+        if (transform.parent != null)
+            transform.SetAsLastSibling();
+
         isOpen = true;
+        Debug.Log($"[CashierRegisterUI] Show() called — root={root?.name ?? "NULL"} isOpen={isOpen}", this);
     }
 
     public void Hide()
     {
-        if (root != null)
-            root.SetActive(false);
+        ResolveRoot();
 
+        if (root != null)
+        {
+            CanvasGroup[] groups = root.GetComponentsInChildren<CanvasGroup>(true);
+            for (int i = 0; i < groups.Length; i++)
+            {
+                if (groups[i] == null)
+                    continue;
+
+                groups[i].alpha = 0f;
+                groups[i].interactable = false;
+                groups[i].blocksRaycasts = false;
+            }
+
+            root.SetActive(false);
+        }
+
+        ForceClosedState(true);
+
+        Debug.Log($"[CashierRegisterUI] Hide() called — root={root?.name ?? "NULL"} caller={new System.Diagnostics.StackTrace().ToString().Split('\n')[1].Trim()}", this);
+    }
+
+    private void HideImmediate()
+    {
+        ResolveRoot();
+
+        if (root != null)
+        {
+            CanvasGroup[] groups = root.GetComponentsInChildren<CanvasGroup>(true);
+            for (int i = 0; i < groups.Length; i++)
+            {
+                if (groups[i] == null)
+                    continue;
+
+                groups[i].alpha = 0f;
+                groups[i].interactable = false;
+                groups[i].blocksRaycasts = false;
+            }
+
+            root.SetActive(false);
+        }
+
+        ForceClosedState(false);
+    }
+
+    private void ForceClosedState(bool invokeEvent)
+    {
+        bool wasOpen = isOpen;
         isOpen = false;
+
+        if (invokeEvent && wasOpen)
+            OnHidden?.Invoke();
+    }
+
+    private void SetParentsActive(Transform child)
+    {
+        Transform current = child;
+        while (current != null)
+        {
+            current.gameObject.SetActive(true);
+            current = current.parent;
+        }
+    }
+
+    private void SetHierarchyActive(Transform target)
+    {
+        if (target == null)
+            return;
+
+        target.gameObject.SetActive(true);
+
+        for (int i = 0; i < target.childCount; i++)
+            SetHierarchyActive(target.GetChild(i));
     }
 
     public void OpenForPayment(CustomerGroup group, int received, int total)
@@ -156,10 +315,13 @@ public class CashierRegisterUI : MonoBehaviour
         expectedChange = Mathf.Max(0, receivedAmount - totalAmount);
         inputChangeAmount = 0;
 
+        Show();
+
+        // Refresh AFTER Show() so any OnEnable or tutorial callbacks
+        // that run during Show() cannot overwrite the display values.
         RefreshOrderDisplay();
         RefreshTotalsDisplay();
         RefreshInputDisplay();
-        Show();
 
         if (TutorialManager.Instance != null)
             TutorialManager.Instance.OnCashierOpened(activeGroup, expectedChange);
@@ -182,7 +344,8 @@ public class CashierRegisterUI : MonoBehaviour
 
     private void AddChangeInput(int value)
     {
-        if (!isOpen) return;
+        if (!IsOpen)
+            return;
 
         inputChangeAmount += value;
         RefreshInputDisplay();
@@ -190,7 +353,8 @@ public class CashierRegisterUI : MonoBehaviour
 
     private void UndoLastInput()
     {
-        if (!isOpen) return;
+        if (!IsOpen)
+            return;
 
         inputChangeAmount = 0;
         RefreshInputDisplay();
@@ -198,8 +362,11 @@ public class CashierRegisterUI : MonoBehaviour
 
     private void Confirm()
     {
-        if (!isOpen) return;
-        if (inputChangeAmount != expectedChange) return;
+        if (!IsOpen)
+            return;
+
+        if (inputChangeAmount != expectedChange)
+            return;
 
         var paidGroup = activeGroup;
 
@@ -214,9 +381,10 @@ public class CashierRegisterUI : MonoBehaviour
             if (DailyFinanceBridge.Instance != null)
             {
                 DailyFinanceBridge.Instance.AddEarnings(amountEarned);
+
                 if (GameDayManager.Instance != null)
-                GameDayManager.Instance.RefreshRevenueUI();
-                
+                    GameDayManager.Instance.RefreshRevenueUI();
+
                 Debug.Log("[Finance] Earned ₱" + amountEarned +
                           " | Total = ₱" + DailyFinanceBridge.Instance.EarnedToday);
             }
@@ -324,11 +492,9 @@ public class CashierRegisterUI : MonoBehaviour
                 case "Chicken":
                     total += 299;
                     break;
-
                 case "Fries":
                     total += 79;
                     break;
-
                 case "Burger":
                     total += 119;
                     break;
@@ -352,11 +518,9 @@ public class CashierRegisterUI : MonoBehaviour
                 case "Coke":
                     total += 50;
                     break;
-
                 case "Pineapple":
                     total += 50;
                     break;
-
                 case "Ice Tea":
                     total += 50;
                     break;
@@ -368,6 +532,7 @@ public class CashierRegisterUI : MonoBehaviour
 
     private void RefreshTotalsDisplay()
     {
+        Debug.Log($"[CashierRegisterUI] RefreshTotalsDisplay — received={receivedAmount} total={totalAmount} change={expectedChange}", this);
         SetText(receivedText, FormatMoney(receivedAmount));
         SetText(totalText, FormatMoney(totalAmount));
         SetText(changeText, FormatMoney(expectedChange));
@@ -377,7 +542,8 @@ public class CashierRegisterUI : MonoBehaviour
     {
         SetText(cashierChangeText, FormatMoney(inputChangeAmount));
 
-        if (cashierChangeText == null) return;
+        if (cashierChangeText == null)
+            return;
 
         if (inputChangeAmount == 0)
             cashierChangeText.color = normalInputColor;
@@ -389,6 +555,7 @@ public class CashierRegisterUI : MonoBehaviour
 
     private void ResetDisplay()
     {
+        Debug.Log($"[CashierRegisterUI] ResetDisplay called", this);
         SetText(tableNumberText, "-");
         SetFoodDisplay(null, null, 0);
         SetDrinkDisplay(null, 0);
@@ -450,7 +617,7 @@ public class CashierRegisterUI : MonoBehaviour
 
     private string FormatMoney(int value)
     {
-        return value.ToString("0.00");
+        return value.ToString("N0");
     }
 
     private bool IsDrink(string itemName)

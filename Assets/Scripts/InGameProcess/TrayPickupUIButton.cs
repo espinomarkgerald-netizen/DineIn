@@ -1,9 +1,11 @@
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
 public class TrayPickupUIButton : MonoBehaviour
 {
     [SerializeField] private Button button;
+    [SerializeField] private TMP_Text tableNumberText;
     private FoodTrayInteractable tray;
 
     private void Awake()
@@ -30,6 +32,13 @@ public class TrayPickupUIButton : MonoBehaviour
     public void SetTray(FoodTrayInteractable t)
     {
         tray = t;
+    }
+
+    /// <summary>Sets the table number displayed on the pickup button. Pass -1 to hide it.</summary>
+    public void SetTableNumber(int number)
+    {
+        if (tableNumberText == null) return;
+        tableNumberText.text = number >= 0 ? $"#{number}" : string.Empty;
     }
 
     private void OnClick()

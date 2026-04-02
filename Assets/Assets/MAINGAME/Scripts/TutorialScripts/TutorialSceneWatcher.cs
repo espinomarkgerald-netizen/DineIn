@@ -33,9 +33,9 @@ public class TutorialSceneWatcher : MonoBehaviour
             if (tutorialManager.CurrentPhase == TutorialManager.TutorialPhase.CollectPayment)
                 tutorialManager.RegisterPaymentCollected(null);
 
-            if (tutorialManager.CurrentPhase == TutorialManager.TutorialPhase.CleanTray)
-                tutorialManager.RegisterTrayCleaned(null);
-
+            // Do NOT auto-complete CleanTray when there is no customer group —
+            // the Busser guided tray is tracked separately via RegisterDirtyTrayCleaned,
+            // not through a CustomerGroup. Firing here would skip the guided step.
             return;
         }
 
