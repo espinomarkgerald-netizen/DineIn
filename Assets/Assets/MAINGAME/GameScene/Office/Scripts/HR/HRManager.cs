@@ -8,8 +8,6 @@ public class HRManager : MonoBehaviour
     public RoleRowUI[] lobbyRows;
 
     [Header("Department Buttons UI")]
-    [SerializeField] private Button kitchenButton;
-    [SerializeField] private Button lobbyButton;
 
     [HideInInspector] public EmployeeData selectedEmployee;
 
@@ -23,43 +21,61 @@ public class HRManager : MonoBehaviour
 
     public DayPhase CurrentPhase => currentPhase;
 
+    private void OnEnable()
+    {
+        RefreshPhaseUI();
+    }
+
     private void Start()
     {
         if (EmployeeManager.Instance.allEmployees.Count == 0)
             EmployeeManager.Instance.GenerateEmployees();
 
+        RefreshPhaseUI();
+    }
+
+    public void RefreshPhaseUI()
+    {
         SyncPhaseFromGameFlow();
-        PopulateCurrentPhaseRows();
-        UpdateDepartmentButtonsUI();
+
+        // 🔹 CHANGED: Show all rows instead of filtering by phase
+        PopulateAllRows();
+
     }
 
     public void SyncPhaseFromGameFlow()
     {
         if (GameFlowManager.Instance == null)
+        {
+            Debug.LogWarning("GameFlowManager not found.");
             return;
+        }
 
         if (GameFlowManager.Instance.IsMorning)
             currentPhase = DayPhase.Morning;
         else if (GameFlowManager.Instance.IsAfternoon)
             currentPhase = DayPhase.Afternoon;
-
-        UpdateDepartmentButtonsUI();
     }
 
     public void SetPhase(DayPhase phase)
     {
         currentPhase = phase;
-        PopulateCurrentPhaseRows();
-        UpdateDepartmentButtonsUI();
+
+        // 🔹 CHANGED: Always show all rows
+        PopulateAllRows();
+
     }
 
-    public void PopulateCurrentPhaseRows()
+    // 🔹 NEW: Populate everything regardless of phase
+    public void PopulateAllRows()
     {
-        SyncPhaseFromGameFlow();
+        HideAllRows();
 
-        RoleRowUI[] rowsToPopulate = GetRowsForCurrentPhase();
-        PopulateRows(rowsToPopulate);
-        UpdateDepartmentButtonsUI();
+        PopulateRows(lobbyRows);
+        PopulateRows(kitchenRows);
+
+        SetRowsActive(lobbyRows, true);
+        SetRowsActive(kitchenRows, true);
     }
 
     public void SelectEmployee(EmployeeData employee)
@@ -77,9 +93,10 @@ public class HRManager : MonoBehaviour
         EmployeeManager.Instance.AssignEmployee(selectedEmployee, targetSlot);
         selectedEmployee = null;
 
-        RoleRowUI[] rowsToRefresh = GetRowsForCurrentPhase();
+        // 🔹 CHANGED: Refresh across ALL rows instead of phase-based
+        RoleRowUI[] allRows = CombineRows();
 
-        foreach (var row in rowsToRefresh)
+        foreach (var row in allRows)
         {
             if (row == null)
                 continue;
@@ -93,20 +110,17 @@ public class HRManager : MonoBehaviour
                 break;
             }
         }
-
-        UpdateDepartmentButtonsUI();
         return true;
     }
 
     public void PopulateRows(RoleRowUI[] rowsToPopulate)
     {
-        if (rowsToPopulate == null)
-            return;
+        if (rowsToPopulate == null) return;
+        if (EmployeeManager.Instance == null) return;
 
         foreach (var row in rowsToPopulate)
         {
-            if (row == null)
-                continue;
+            if (row == null) continue;
 
             var group = EmployeeManager.Instance.employeesByRole.Find(g => g.role == row.roleType);
             if (group != null)
@@ -114,17 +128,52 @@ public class HRManager : MonoBehaviour
         }
     }
 
+    // 🔹 KEPT but no longer used for filtering
     private RoleRowUI[] GetRowsForCurrentPhase()
     {
         return currentPhase == DayPhase.Morning ? lobbyRows : kitchenRows;
     }
 
-    private void UpdateDepartmentButtonsUI()
+    private void HideAllRows()
     {
-        if (lobbyButton != null)
-            lobbyButton.gameObject.SetActive(currentPhase == DayPhase.Morning);
+        SetRowsActive(lobbyRows, false);
+        SetRowsActive(kitchenRows, false);
+    }
 
-        if (kitchenButton != null)
-            kitchenButton.gameObject.SetActive(currentPhase == DayPhase.Afternoon);
+    private void SetRowsActive(RoleRowUI[] rows, bool isActive)
+    {
+        if (rows == null)
+            return;
+
+        foreach (var row in rows)
+        {
+            if (row == null)
+                continue;
+
+            row.gameObject.SetActive(isActive);
+        }
+    }
+
+    // 🔹 NEW helper to merge both row arrays
+    private RoleRowUI[] CombineRows()
+    {
+        int totalLength = (lobbyRows?.Length ?? 0) + (kitchenRows?.Length ?? 0);
+        RoleRowUI[] combined = new RoleRowUI[totalLength];
+
+        int index = 0;
+
+        if (lobbyRows != null)
+        {
+            foreach (var row in lobbyRows)
+                combined[index++] = row;
+        }
+
+        if (kitchenRows != null)
+        {
+            foreach (var row in kitchenRows)
+                combined[index++] = row;
+        }
+
+        return combined;
     }
 }

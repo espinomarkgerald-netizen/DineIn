@@ -4,6 +4,7 @@ using UnityEngine.UI;
 
 public class EmployeeCard : MonoBehaviour
 {
+    public Image employeePicture;
     public TMP_Text nameText;
     public TMP_Text salaryText;
     public Image[] starImages; // 5 stars

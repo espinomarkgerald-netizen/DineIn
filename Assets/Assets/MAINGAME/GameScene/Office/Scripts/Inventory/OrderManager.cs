@@ -7,14 +7,14 @@ public class OrderManager : MonoBehaviour
         // Check ingredients
         foreach (var ing in recipe.ingredients)
         {
-            if (InventoryManager.Instance.GetStock(ing.item) < ing.amount)
+            if (InventoryManager.Instance.GetStock(ing.item.itemType) < ing.amount)
                 return false;
         }
 
         // Deduct ingredients
         foreach (var ing in recipe.ingredients)
         {
-            InventoryManager.Instance.UseStock(ing.item, ing.amount);
+            InventoryManager.Instance.UseStock(ing.item.itemType, ing.amount);
         }
 
         // Add money

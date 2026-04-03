@@ -28,15 +28,9 @@ public class GameFlowManager : MonoBehaviour
     [Header("Session")]
     [SerializeField] private int currentDay = 1;
     [SerializeField] private GamePhase currentPhase = GamePhase.None;
-    [SerializeField] private DayHalf currentDayHalf = DayHalf.None;
+    [SerializeField] private DayHalf currentDayHalf = DayHalf.Morning;
     [SerializeField] private bool lobbyCompleted;
     [SerializeField] private bool kitchenCompleted;
-
-    [Header("Today Finance")]
-    [SerializeField] private int employeeCostToday;
-    [SerializeField] private int marketingCostToday;
-    [SerializeField] private int billsCostToday;
-    [SerializeField] private int ingredientCostToday;
 
     public int CurrentDay => currentDay;
     public GamePhase CurrentPhase => currentPhase;
@@ -47,17 +41,6 @@ public class GameFlowManager : MonoBehaviour
     public bool IsMorning => currentDayHalf == DayHalf.Morning;
     public bool IsAfternoon => currentDayHalf == DayHalf.Afternoon;
 
-    public int EmployeeCostToday => employeeCostToday;
-    public int MarketingCostToday => marketingCostToday;
-    public int BillsCostToday => billsCostToday;
-    public int IngredientCostToday => ingredientCostToday;
-
-    public int TotalRequiredToday =>
-        Mathf.Max(0, employeeCostToday) +
-        Mathf.Max(0, marketingCostToday) +
-        Mathf.Max(0, billsCostToday) +
-        Mathf.Max(0, ingredientCostToday);
-
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -67,44 +50,42 @@ public class GameFlowManager : MonoBehaviour
         }
 
         Instance = this;
+
+        if (currentDayHalf == DayHalf.None)
+            currentDayHalf = DayHalf.Morning;
+
         DontDestroyOnLoad(gameObject);
-    }
-
-    public void SetTodayFinance(int employeeCost, int marketingCost, int billsCost, int ingredientCost)
-    {
-        employeeCostToday = Mathf.Max(0, employeeCost);
-        marketingCostToday = Mathf.Max(0, marketingCost);
-        billsCostToday = Mathf.Max(0, billsCost);
-        ingredientCostToday = Mathf.Max(0, ingredientCost);
-    }
-
-    public void ResetTodayFinance()
-    {
-        employeeCostToday = 0;
-        marketingCostToday = 0;
-        billsCostToday = 0;
-        ingredientCostToday = 0;
     }
 
     public void StartNewDay()
     {
+        currentDay++;
         lobbyCompleted = false;
         kitchenCompleted = false;
         currentDayHalf = DayHalf.Morning;
         currentPhase = GamePhase.Management;
-        SceneManager.LoadScene(managementSceneName);
-    }
 
-    public void StartNewDay(int employeeCost, int marketingCost, int billsCost, int ingredientCost)
-    {
-        SetTodayFinance(employeeCost, marketingCost, billsCost, ingredientCost);
-        StartNewDay();
+        DailyRevenueTracker.Instance.ResetForNewDay();
+        FinanceManager.Instance?.ResetDailyExpenses();
+        EmployeeManager.Instance?.ResetDailyAssignments();
+
+        EquipmentManager.Instance.UnlockByDay(currentDay);
+        EquipmentShopManager shop = FindObjectOfType<EquipmentShopManager>();
+        shop?.InitializeShop();
+
+        // RecipeManager lives in the Office scene and may not exist yet during
+        // this transition — UnlockByDay will also run in RecipeManager.Start
+        // once the Office scene loads, so this call is safe to skip if null.
+        RecipeManager.Instance?.UnlockByDay(currentDay);
+
+        SceneManager.LoadScene(managementSceneName);
     }
 
     public void StartLobbyShift()
     {
         currentDayHalf = DayHalf.Morning;
         currentPhase = GamePhase.Lobby;
+        EmployeeManager.Instance?.LockAllSlots();
         SceneManager.LoadScene(lobbySceneName);
     }
 
@@ -161,15 +142,6 @@ public class GameFlowManager : MonoBehaviour
         return lobbyCompleted && kitchenCompleted;
     }
 
-    public void AdvanceDay()
-    {
-        currentDay++;
-        lobbyCompleted = false;
-        kitchenCompleted = false;
-        currentPhase = GamePhase.Management;
-        currentDayHalf = DayHalf.None;
-    }
-
     public void ResetRun()
     {
         currentDay = 1;
@@ -177,8 +149,6 @@ public class GameFlowManager : MonoBehaviour
         currentDayHalf = DayHalf.None;
         lobbyCompleted = false;
         kitchenCompleted = false;
-
-        ResetTodayFinance();
 
         if (MoneyManager.Instance != null)
             MoneyManager.Instance.ResetToStartingMoney();
@@ -188,6 +158,17 @@ public class GameFlowManager : MonoBehaviour
 
     public void StartDay()
     {
-        StartNewDay();
+        StartLobbyShift();
+    }
+
+    public void EndOfDayFinance()
+    {
+        if (EmployeeManager.Instance != null)
+        {
+            float payroll = EmployeeManager.Instance.CalculateTotalPayroll();
+            FinanceManager.Instance.RecordExpense("Payroll", payroll);
+        }
+
+        FinanceManager.Instance.PrintDailyReport();
     }
 }

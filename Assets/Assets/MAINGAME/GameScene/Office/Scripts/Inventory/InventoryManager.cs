@@ -87,5 +87,8 @@ public class InventoryManager : MonoBehaviour
         return inventory.ContainsKey(type) ? inventory[type] : 0;
     }
 
+    /// <summary>Returns true if this item type has ever been stocked (i.e. registered in inventory).</summary>
+    public bool IsTracked(ItemType type) => inventory.ContainsKey(type);
+
     public List<ItemData> Items => items; // expose items for UI
 }

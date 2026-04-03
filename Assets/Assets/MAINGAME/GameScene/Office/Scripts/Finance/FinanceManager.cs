@@ -12,13 +12,8 @@ public class FinanceManager : MonoBehaviour
 {
     public static FinanceManager Instance { get; private set; }
 
-    [Header("Expenses")]
-    public List<Expense> optionalExpenses = new List<Expense>();
-
-    [Header("Daily Financials (Read-Only)")]
-    [SerializeField] private float totalExpensesToday = 0;
-    [SerializeField] private float payrollPaidToday = 0;
-    [SerializeField] private float optionalExpensesPaidToday = 0;
+    [Header("Daily Expenses")]
+    public List<Expense> dailyExpenses = new List<Expense>();
 
     void Awake()
     {
@@ -27,37 +22,44 @@ public class FinanceManager : MonoBehaviour
         DontDestroyOnLoad(gameObject);
     }
 
-    // Pay optional expenses dynamically
-    public void PayOptionalExpenses()
+    /// <summary>
+    /// Records a new expense or adds to an existing one by name.
+    /// </summary>
+    public void RecordExpense(string name, float amount)
     {
-        float optionalTotal = 0;
+        var record = dailyExpenses.Find(e => e.name == name);
+        if (record != null) record.amount += amount;
+        else dailyExpenses.Add(new Expense { name = name, amount = amount });
 
-        foreach (var expense in optionalExpenses)
-        {
-            optionalTotal += expense.amount;
-            MoneyManager.Instance.Spend(Mathf.RoundToInt(expense.amount), expense.name);
-        }
-
-        optionalExpensesPaidToday += optionalTotal;
-        totalExpensesToday += optionalTotal;
-
-        Debug.Log($"Paid {optionalTotal} in optional expenses. Remaining cash: {MoneyManager.Instance.Money}");
+        MoneyManager.Instance?.Spend(Mathf.RoundToInt(amount), name);
     }
 
+    /// <summary>Clears all daily expenses. Call at the start of a new day.</summary>
     public void ResetDailyExpenses()
     {
-        payrollPaidToday = 0;
-        optionalExpensesPaidToday = 0;
-        totalExpensesToday = 0;
+        dailyExpenses.Clear();
     }
 
+    /// <summary>Returns total expenses for the day.</summary>
+    public float GetTotalExpenses()
+    {
+        float total = 0;
+        foreach (var e in dailyExpenses)
+            total += e.amount;
+        return total;
+    }
+
+    /// <summary>Returns a copy of the expense list for reporting.</summary>
+    public List<Expense> GetExpenses() => new List<Expense>(dailyExpenses);
+
+    /// <summary>Prints a console report of all expenses.</summary>
     public void PrintDailyReport()
     {
-        Debug.Log($"----- DAILY FINANCIAL REPORT -----");
-        Debug.Log($"Payroll Paid: {payrollPaidToday}");
-        Debug.Log($"Optional Expenses Paid: {optionalExpensesPaidToday}");
-        Debug.Log($"Total Expenses Today: {totalExpensesToday}");
+        Debug.Log("----- DAILY FINANCIAL REPORT -----");
+        foreach (var e in dailyExpenses)
+            Debug.Log($"{e.name.PadRight(20)} ₱{e.amount}");
+        Debug.Log($"Total Expenses Today: {GetTotalExpenses()}");
         Debug.Log($"Cash Remaining: {MoneyManager.Instance.Money}");
-        Debug.Log($"---------------------------------");
+        Debug.Log("---------------------------------");
     }
 }

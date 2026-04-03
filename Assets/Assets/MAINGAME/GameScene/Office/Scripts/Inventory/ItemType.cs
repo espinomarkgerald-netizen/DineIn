@@ -1,8 +1,14 @@
 public enum ItemType
 {
+    // Food ingredients
     Drumsticks,
     FrenchFryBag,
     Bun,
     Patty,
-    Cheese
+    Cheese,
+
+    // Drink ingredients
+    Coke,
+    IcedTea,
+    Pineapple
 }
