@@ -243,6 +243,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   button: {fileID: 8884144428762590314}
   tableNumberText: {fileID: 1347626073637848024}
+  hideTarget: {fileID: 2633997611543956007}
 --- !u!1 &7976666886216561043
 GameObject:
   m_ObjectHideFlags: 0

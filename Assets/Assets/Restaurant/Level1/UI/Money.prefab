@@ -182,7 +182,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   button: {fileID: 3534748800655100995}
   amountText: {fileID: 5766947374298224672}
-  tableNumberText: {fileID: 5766947374298224672}
+  tableNumberText: {fileID: 6461182613828491062}
 --- !u!1 &3143768097696977701
 GameObject:
   m_ObjectHideFlags: 0
@@ -195,7 +195,7 @@ GameObject:
   - component: {fileID: 1771342063652363316}
   - component: {fileID: 6461182613828491062}
   m_Layer: 5
-  m_Name: Text (TMP)
+  m_Name: TableNumber
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -248,7 +248,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: '1
+  m_text: '
 
 '
   m_isRightToLeft: 0
@@ -277,8 +277,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 20
-  m_fontSizeBase: 20
+  m_fontSize: 10
+  m_fontSizeBase: 10
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18

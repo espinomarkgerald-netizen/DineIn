@@ -15,6 +15,8 @@ public class MoneyBubbleUI : MonoBehaviour
     {
         if (button == null)
             button = GetComponentInChildren<Button>(true);
+
+        Debug.Log($"[MoneyBubbleUI.Awake] name={name}", this);
     }
 
     private void Update()
@@ -23,12 +25,14 @@ public class MoneyBubbleUI : MonoBehaviour
 
         if (money == null)
         {
+            Debug.Log("[MoneyBubbleUI.Update] money is null, removing bubble.", this);
             RemoveBubble();
             return;
         }
 
         if (!money.gameObject.activeInHierarchy)
         {
+            Debug.Log("[MoneyBubbleUI.Update] money object inactive, removing bubble.", this);
             RemoveBubble();
             return;
         }
@@ -36,6 +40,7 @@ public class MoneyBubbleUI : MonoBehaviour
         CustomerGroup group = money.TargetGroup;
         if (group == null)
         {
+            Debug.Log("[MoneyBubbleUI.Update] TargetGroup is null, removing bubble.", this);
             RemoveBubble();
             return;
         }
@@ -44,27 +49,34 @@ public class MoneyBubbleUI : MonoBehaviour
             group.state == CustomerGroup.GroupState.AngryLeft ||
             group.state == CustomerGroup.GroupState.UnhappyLeft)
         {
+            Debug.Log($"[MoneyBubbleUI.Update] Group {group.name} is leaving, removing bubble.", this);
             RemoveBubble();
             return;
         }
 
+        SetTableNumber(group.currentOrderNumber);
+
         var hands = WaiterHands.Instance;
         if (hands != null && hands.HasMoney && hands.HeldMoney == money)
         {
+            Debug.Log("[MoneyBubbleUI.Update] Money picked up by waiter, removing bubble.", this);
             RemoveBubble();
         }
     }
 
-    /// <summary>Initializes the money bubble with amount, pickup reference, and table number.</summary>
     public void Init(int amount, MoneyPickup m)
     {
         money = m;
 
+        string groupName = m != null && m.TargetGroup != null ? m.TargetGroup.name : "null";
+        string orderNo = m != null && m.TargetGroup != null ? m.TargetGroup.currentOrderNumber.ToString() : "null";
+
+        Debug.Log($"[MoneyBubbleUI.Init] amount={amount}, group={groupName}, currentOrderNumber={orderNo}", this);
+
         if (amountText != null)
             amountText.text = amount.ToString();
 
-        int tableNumber = m != null && m.TargetGroup != null ? m.TargetGroup.currentOrderNumber : -1;
-        SetTableNumber(tableNumber);
+        SetTableNumber(m != null && m.TargetGroup != null ? m.TargetGroup.currentOrderNumber : -1);
 
         if (button != null)
         {
@@ -73,11 +85,16 @@ public class MoneyBubbleUI : MonoBehaviour
         }
     }
 
-    /// <summary>Sets the table number displayed on the bubble. Pass -1 to hide it.</summary>
     public void SetTableNumber(int number)
     {
-        if (tableNumberText == null) return;
+        if (tableNumberText == null)
+        {
+            Debug.LogWarning("[MoneyBubbleUI.SetTableNumber] tableNumberText is null.", this);
+            return;
+        }
+
         tableNumberText.text = number >= 0 ? $"#{number}" : string.Empty;
+        Debug.Log($"[MoneyBubbleUI.SetTableNumber] visible text set to {tableNumberText.text}", this);
     }
 
     public void RemoveBubble()

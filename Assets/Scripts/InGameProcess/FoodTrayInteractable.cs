@@ -24,9 +24,12 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
     private TrayPickupQueue queueOwner;
     private TrayMode mode = TrayMode.None;
     private bool pickupRequested;
+    private bool pendingCleanup;
+    private bool uiHiddenUntilStateChange;
 
     public Transform StandPoint => pickupPoint != null ? pickupPoint : transform;
     public bool AutoReturnHome => false;
+    public bool IsCleanupPickable => mode == TrayMode.Cleanup;
 
     private void Awake()
     {
@@ -57,6 +60,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
     public void OnTaskCancelled()
     {
         pickupRequested = false;
+        uiHiddenUntilStateChange = false;
         RefreshUI();
     }
 
@@ -69,6 +73,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
             queueOwner.Register(this);
 
         pickupRequested = false;
+        uiHiddenUntilStateChange = false;
         RefreshUI();
     }
 
@@ -77,6 +82,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
         mode = TrayMode.None;
         queueOwner = null;
         pickupRequested = false;
+        uiHiddenUntilStateChange = false;
         HideUI();
     }
 
@@ -88,12 +94,9 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
         queueOwner = null;
         mode = value ? TrayMode.Cleanup : TrayMode.None;
         pickupRequested = false;
-
+        uiHiddenUntilStateChange = false;
         RefreshUI();
     }
-
-    /// <summary>Returns true when this tray is in Cleanup mode and ready to be picked up by the busser.</summary>
-    public bool IsCleanupPickable => mode == TrayMode.Cleanup;
 
     public void SetQueuePickable(bool allowed)
     {
@@ -134,6 +137,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
         if (!CanInteractWithWarning())
         {
             pickupRequested = false;
+            uiHiddenUntilStateChange = false;
             RefreshUI();
             return;
         }
@@ -145,13 +149,16 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
             if (WaiterHands.Instance == null)
             {
                 pickupRequested = false;
+                uiHiddenUntilStateChange = false;
                 RefreshUI();
                 return;
             }
 
             if (!WaiterHands.Instance.PickupTray(tray))
             {
+                Debug.Log("[FoodTrayInteractable] Waiter pickup failed: " + name);
                 pickupRequested = false;
+                uiHiddenUntilStateChange = false;
                 RefreshUI();
                 return;
             }
@@ -164,13 +171,16 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
             if (BusserHands.Instance == null)
             {
                 pickupRequested = false;
+                uiHiddenUntilStateChange = false;
                 RefreshUI();
                 return;
             }
 
             if (!BusserHands.Instance.PickupTray(tray))
             {
+                Debug.Log("[FoodTrayInteractable] Busser pickup failed: " + name);
                 pickupRequested = false;
+                uiHiddenUntilStateChange = false;
                 RefreshUI();
                 return;
             }
@@ -179,9 +189,12 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
         }
 
         pickupRequested = false;
+        uiHiddenUntilStateChange = true;
         mode = TrayMode.None;
         queueOwner = null;
         HideUI();
+
+        Debug.Log("[FoodTrayInteractable] Pickup success, hiding UI: " + name);
 
         if (wasCleanup && autoGoSinkOnCleanupPickup && sink != null && mover != null)
         {
@@ -199,7 +212,10 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
         if (mover == null) return;
 
         pickupRequested = true;
+        uiHiddenUntilStateChange = true;
         HideUI();
+
+        Debug.Log("[FoodTrayInteractable] UI pickup requested: " + name);
 
         mover.LockTask(this);
         mover.UI_MoveTo(this);
@@ -269,7 +285,6 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
         if (mode != TrayMode.None) return;
         if (tray == null) return;
 
-        // If we already flagged this tray as needing cleanup (group has gone), promote immediately.
         if (pendingCleanup)
         {
             pendingCleanup = false;
@@ -288,18 +303,11 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
         }
     }
 
-    /// <summary>
-    /// Called by the customer group when it begins leaving so the tray can
-    /// promote to Cleanup mode even after the group GameObject is destroyed.
-    /// </summary>
     public void NotifyGroupLeaving()
     {
         if (mode != TrayMode.None) return;
-
         pendingCleanup = true;
     }
-
-    private bool pendingCleanup;
 
     private void RefreshUI()
     {
@@ -329,15 +337,32 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
                 return;
             }
 
+            if (WaiterHands.Instance == null || WaiterHands.Instance.HasTray || WaiterHands.Instance.HasBill)
+            {
+                HideUI();
+                return;
+            }
+
             if (queueOwner != null && !queueOwner.IsNext(this))
             {
                 HideUI();
                 return;
             }
         }
+        else if (mode == TrayMode.Cleanup)
+        {
+            if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Busser))
+            {
+                HideUI();
+                return;
+            }
 
-        // Cleanup trays always show their button so the player knows to switch to Busser.
-        // CanInteract() still gates the actual interaction to Busser-only.
+            if (BusserHands.Instance == null || BusserHands.Instance.HasTray)
+            {
+                HideUI();
+                return;
+            }
+        }
 
         ShowUI();
     }
