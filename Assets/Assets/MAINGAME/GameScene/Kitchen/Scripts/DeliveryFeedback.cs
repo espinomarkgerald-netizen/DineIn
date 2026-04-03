@@ -17,13 +17,23 @@ public class DeliveryFeedback : MonoBehaviour {
     }
 
     void Start() {
-        // Save exactly where you placed it in the editor so it doesn't float into space
         originalPos = feedbackText.transform.localPosition;
-        canvasGroup.alpha = 0f; // Hide it at the start of the game
+        canvasGroup.alpha = 0f;
     }
 
+    // --- FOR WHEN THEY MESS UP ---
     public void ShowRejection(string message) {
-        // If they spam the window, cancel the old animation and restart it
+        feedbackText.color = Color.red; // Force it Red
+        TriggerAnimation(message);
+    }
+
+    // --- FOR WHEN THEY WIN ---
+    public void ShowSuccess(string message) {
+        feedbackText.color = Color.green; // Force it Green
+        TriggerAnimation(message);
+    }
+
+    private void TriggerAnimation(string message) {
         if (activeCoroutine != null) {
             StopCoroutine(activeCoroutine);
         }
@@ -35,27 +45,24 @@ public class DeliveryFeedback : MonoBehaviour {
         canvasGroup.alpha = 1f;
         feedbackText.transform.localPosition = originalPos;
 
-        // Float it straight up by 1 unit
+        // Float it straight up
         Vector3 endPos = originalPos + new Vector3(0, 1f, 0);
 
-        float duration = 1.5f; // Lasts 1.5 seconds
+        float duration = 1.5f;
         float elapsed = 0f;
 
         while (elapsed < duration) {
             elapsed += Time.deltaTime;
             float percent = elapsed / duration;
 
-            // Start fading out when the animation is halfway done
             if (percent > 0.5f) {
                 canvasGroup.alpha = 1f - ((percent - 0.5f) * 2f);
             }
 
-            // Smoothly move it up
             feedbackText.transform.localPosition = Vector3.Lerp(originalPos, endPos, percent);
             yield return null;
         }
 
-        // Reset it when it's done
         canvasGroup.alpha = 0f;
         feedbackText.transform.localPosition = originalPos;
     }

@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.InputSystem;
-using UnityEngine.EventSystems; // ADDED: This lets the script talk to your UI!
+using UnityEngine.EventSystems;
 
 [RequireComponent(typeof(NavMeshAgent))]
 public class KitchenPlayerMovement : MonoBehaviour {
@@ -12,6 +12,9 @@ public class KitchenPlayerMovement : MonoBehaviour {
     private Camera cam;
     private Transform targetInteractable;
     private Transform targetStandPoint;
+
+    // --- NEW: THE LOCKOUT SHIELD ---
+    public bool isBusy = false;
 
     void Awake() {
         agent = GetComponent<NavMeshAgent>();
@@ -32,34 +35,33 @@ public class KitchenPlayerMovement : MonoBehaviour {
     }
 
     void HandleInput() {
-        // 1. MOBILE CHECK: Is a finger tapping the screen right now?
+        // --- NEW: If the player is doing an automatic task (like restocking), ignore all clicks! ---
+        if (isBusy) return;
+
         if (Touchscreen.current != null && Touchscreen.current.primaryTouch.press.wasPressedThisFrame) {
-
-            // --- THE UI SHIELD (MOBILE) ---
-            // If the tap hit a UI element, stop right here and ignore the movement!
-            if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject(Touchscreen.current.primaryTouch.touchId.ReadValue())) {
-                return;
-            }
-
+            if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject(Touchscreen.current.primaryTouch.touchId.ReadValue())) return;
+            CancelMenus();
             ProcessClick(Touchscreen.current.primaryTouch.position.ReadValue());
-        }
-        // 2. PC CHECK: Is the left mouse button clicking?
-        else if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame) {
-
-            // --- THE UI SHIELD (PC) ---
-            // If the mouse is hovering over a UI element, stop right here and ignore the movement!
-            if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) {
-                return;
-            }
-
+        } else if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame) {
+            if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
+            CancelMenus();
             ProcessClick(Mouse.current.position.ReadValue());
         }
+    }
+
+    private void CancelMenus() {
+        if (DrinkDispenser.activeDispenser != null) DrinkDispenser.activeDispenser.CloseMenu();
+        if (Cupboard.activeCupboard != null) Cupboard.activeCupboard.CloseMenu();
     }
 
     void ProcessClick(Vector2 screenPosition) {
         Ray ray = cam.ScreenPointToRay(screenPosition);
         if (Physics.Raycast(ray, out RaycastHit hit)) {
-            if (hit.collider.TryGetComponent(out Shelf shelf)) {
+            if (hit.collider.TryGetComponent(out Cupboard cupboard)) {
+                targetInteractable = hit.transform;
+                targetStandPoint = cupboard.standPoint != null ? cupboard.standPoint : hit.transform;
+                MoveToTarget(targetStandPoint.position);
+            } else if (hit.collider.TryGetComponent(out Shelf shelf)) {
                 targetInteractable = hit.transform;
                 targetStandPoint = shelf.standPoint != null ? shelf.standPoint : hit.transform;
                 MoveToTarget(targetStandPoint.position);
@@ -87,7 +89,9 @@ public class KitchenPlayerMovement : MonoBehaviour {
         if (distanceToTarget <= 1.5f) {
             PlayerHolding myHands = GetComponent<PlayerHolding>();
 
-            if (targetInteractable.TryGetComponent(out Shelf shelf)) {
+            if (targetInteractable.TryGetComponent(out Cupboard cupboard)) {
+                cupboard.Interact(myHands);
+            } else if (targetInteractable.TryGetComponent(out Shelf shelf)) {
                 shelf.Interact(myHands);
             } else if (targetInteractable.TryGetComponent(out Counter counter)) {
                 counter.Interact(myHands);

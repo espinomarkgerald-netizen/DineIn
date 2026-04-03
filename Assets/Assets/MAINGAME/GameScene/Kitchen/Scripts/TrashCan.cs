@@ -7,6 +7,10 @@ public class TrashCan : MonoBehaviour {
     public void Interact(PlayerHolding player) {
         // Check if the player is actually holding something in their hands
         if (player.heldObject != null) {
+
+            // --- NEW: LOG THE TRASHED ITEM ---
+            PerformanceManager.AddTrashedItem();
+
             // 1. Destroy the 3D model of the food
             Destroy(player.heldObject);
 

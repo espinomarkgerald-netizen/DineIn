@@ -10,7 +10,6 @@ public class Grill : Counter {
     public Image progressFill;
 
     [Header("Station Rules")]
-    // FIXED: Changed 'IngredientData' to your actual class name 'Ingredient'
     public List<Ingredient> acceptedIngredients;
 
     void Start() {
@@ -23,11 +22,9 @@ public class Grill : Counter {
 
                 bool isAllowedHere = false;
 
-                // If the list is empty, cook anything
                 if (acceptedIngredients.Count == 0) {
                     isAllowedHere = true;
                 } else {
-                    // Check if the current item is on the VIP list
                     if (acceptedIngredients.Contains(itemData.ingredientData)) {
                         isAllowedHere = true;
                     }
@@ -55,6 +52,13 @@ public class Grill : Counter {
     }
 
     private void CookItem(IngredientComponent rawItem) {
+        // --- NEW: CHECK IF WE JUST BURNT IT ---
+        // If the item we are about to destroy was already cooked, then we just burnt it!
+        if (rawItem.gameObject.name.ToLower().Contains("cooked") || rawItem.gameObject.name.ToLower().Contains("fried")) {
+            PerformanceManager.AddBurnedItem();
+            Debug.Log("Item Burnt on Grill!");
+        }
+
         GameObject cookedPrefab = rawItem.ingredientData.processedForm.prefab;
         Destroy(rawItem.gameObject);
 

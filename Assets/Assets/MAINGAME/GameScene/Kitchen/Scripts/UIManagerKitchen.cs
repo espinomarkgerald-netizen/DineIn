@@ -59,7 +59,12 @@ public class UIManagerKitchen : MonoBehaviour {
                         missingListText += "\n+ " + item.ToString();
                     }
 
-                    textItem.text = orderData.ticketName + "\n<size=60%>" + missingListText + "</size>";
+                    string completedListText = "";
+                    foreach (var item in orderData.completedItems) {
+                        completedListText += "\n<color=#00CC44>+ " + item.ToString() + "</color>";
+                    }
+
+                    textItem.text = orderData.ticketName + "\n<size=60%>" + completedListText + missingListText + "</size>";
                 } else if (textItem.gameObject.name == "TimerText") {
                     textItem.text = Mathf.CeilToInt(orderData.timeLeft).ToString() + "s";
                 }
