@@ -320,6 +320,9 @@ public class TutorialManager : MonoBehaviour
         if (enableDay5MasteryTrayFallback)
             RefreshMasteryDirtyTrayTracking();
 
+        if (IsNormalGameplayMasteryActive())
+            UpdateMasteryTips();
+
         UpdatePracticeMode();
         UpdateBusserRoleLock();
         RefreshBusserGuidance();
@@ -889,11 +892,9 @@ public class TutorialManager : MonoBehaviour
     {
         DayConfig config = GetCurrentDayConfig();
 
-        // Start on Host, but keep all roles free so the player can switch normally.
         if (RoleManager.Instance != null)
             RoleManager.Instance.SwitchToHost();
 
-        // Re-enable group spawning for the full lobby flow.
         if (groupSpawner != null && config != null && config.autoSpawnGroups)
             Invoke(nameof(SpawnConfiguredGroups), Mathf.Max(0f, config.firstSpawnDelay));
 
@@ -902,7 +903,10 @@ public class TutorialManager : MonoBehaviour
         practiceSpawnTimer = 0f;
         practiceProgressCount = 0;
 
+        masteryTrayRefreshTimer = 0f;
+
         SetPhase(TutorialPhase.AllTogetherGameplay);
+        RefreshMasteryDirtyTrayTracking();
 
         string startMessage = config != null && !string.IsNullOrWhiteSpace(config.practiceStartMessage)
             ? config.practiceStartMessage
@@ -1951,6 +1955,7 @@ public class TutorialManager : MonoBehaviour
                 continue;
 
             PrepareBusserTrayForTutorial(tray);
+            RefreshMasteryBoothCleanup(tray);
 
             if (readyTray == null)
                 readyTray = tray;
@@ -1964,6 +1969,23 @@ public class TutorialManager : MonoBehaviour
 
         if (!IsTrayRelevantForMasteryCleanup(activeDirtyTray) || !IsTrayReadyForMasteryCleanup(activeDirtyTray))
             activeDirtyTray = fallbackTray;
+    }
+
+    private void RefreshMasteryBoothCleanup(FoodTray tray)
+    {
+        if (tray == null)
+            return;
+
+        Booth booth = tray.GetComponentInParent<Booth>();
+        if (booth == null)
+            return;
+
+        BoothTrayRegistry[] registries = booth.GetComponentsInChildren<BoothTrayRegistry>(true);
+        for (int i = 0; i < registries.Length; i++)
+        {
+            if (registries[i] != null)
+                registries[i].EnableCleanupPickup();
+        }
     }
 
     private void RegisterSceneMasteryDirtyTrays()
@@ -3463,21 +3485,50 @@ public class TutorialManager : MonoBehaviour
         if (!trayObject.activeSelf)
             trayObject.SetActive(true);
 
-        // Activate the FoodTrayInteractable into Cleanup mode so the pickup button
-        // appears and the busser can interact with it.
-        FoodTrayInteractable interactable = trayObject.GetComponent<FoodTrayInteractable>();
-        if (interactable == null)
-            interactable = trayObject.GetComponentInChildren<FoodTrayInteractable>(true);
+        bool foundInteractable = false;
 
-        if (interactable != null)
+        FoodTrayInteractable[] trayInteractables = trayObject.GetComponentsInChildren<FoodTrayInteractable>(true);
+        for (int i = 0; i < trayInteractables.Length; i++)
+        {
+            FoodTrayInteractable interactable = trayInteractables[i];
+            if (interactable == null)
+                continue;
+
             interactable.SetCleanupPickable(true);
-        else
-            Debug.LogWarning("[TutorialManager] PrepareBusserTrayForTutorial: no FoodTrayInteractable found on " + trayObject.name);
+            foundInteractable = true;
+        }
 
-        // Also notify BoothTrayRegistry on the same object or parent booth, if present.
+        if (!foundInteractable)
+        {
+            FoodTrayInteractable[] parentInteractables = trayObject.GetComponentsInParent<FoodTrayInteractable>(true);
+            for (int i = 0; i < parentInteractables.Length; i++)
+            {
+                FoodTrayInteractable interactable = parentInteractables[i];
+                if (interactable == null)
+                    continue;
+
+                interactable.SetCleanupPickable(true);
+                foundInteractable = true;
+            }
+        }
+
         BoothTrayRegistry registry = trayObject.GetComponentInParent<BoothTrayRegistry>(true);
         if (registry != null)
             registry.EnableCleanupPickup();
+
+        Booth booth = trayObject.GetComponentInParent<Booth>(true);
+        if (booth != null)
+        {
+            BoothTrayRegistry[] registries = booth.GetComponentsInChildren<BoothTrayRegistry>(true);
+            for (int i = 0; i < registries.Length; i++)
+            {
+                if (registries[i] != null)
+                    registries[i].EnableCleanupPickup();
+            }
+        }
+
+        if (!foundInteractable)
+            Debug.LogWarning("[TutorialManager] PrepareBusserTrayForTutorial: no FoodTrayInteractable found for " + trayObject.name);
     }
 
     private void RefreshCashierDay3OnlyHelpers()
