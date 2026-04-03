@@ -14,6 +14,10 @@ public class Recipe : ScriptableObject
     public string recipeID;          // Unique ID for save/load
     public string recipeName;
 
+    [Header("Kitchen")]
+    [Tooltip("The matching kitchen item type. Must be set for kitchen orders to spawn this recipe.")]
+    public ItemTypeKitchen kitchenItemType = ItemTypeKitchen.None;
+
     [Header("Visuals")]
     public Sprite sprite;
 

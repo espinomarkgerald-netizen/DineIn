@@ -10,6 +10,7 @@ public class UnlockManager : MonoBehaviour
     private HashSet<string> unlockedRecipes = new HashSet<string>();
     private HashSet<string> unlockedEquipment = new HashSet<string>();
     private HashSet<ItemData> unlockedIngredients = new HashSet<ItemData>();
+    private HashSet<ItemTypeKitchen> unlockedKitchenItems = new HashSet<ItemTypeKitchen>();
 
     // Events
     public static event Action<string> OnRecipeUnlocked;
@@ -28,13 +29,24 @@ public class UnlockManager : MonoBehaviour
         DontDestroyOnLoad(gameObject);
     }
 
-    public void UnlockRecipe(string recipeID)
+    public void UnlockRecipe(string recipeID, ItemTypeKitchen kitchenItem = ItemTypeKitchen.None)
     {
         if (unlockedRecipes.Add(recipeID))
+        {
+            if (kitchenItem != ItemTypeKitchen.None)
+                unlockedKitchenItems.Add(kitchenItem);
+
             OnRecipeUnlocked?.Invoke(recipeID);
+        }
     }
 
     public bool IsRecipeUnlocked(string recipeID) => unlockedRecipes.Contains(recipeID);
+
+    /// <summary>Returns true if this kitchen item has a corresponding unlocked recipe.</summary>
+    public bool IsKitchenItemUnlocked(ItemTypeKitchen item) => unlockedKitchenItems.Contains(item);
+
+    /// <summary>Returns all unlocked kitchen item types.</summary>
+    public IReadOnlyCollection<ItemTypeKitchen> GetUnlockedKitchenItems() => unlockedKitchenItems;
 
     public void UnlockEquipment(string itemID)
     {

@@ -52,7 +52,15 @@ public class RecipeManager : MonoBehaviour
     public IReadOnlyList<Recipe> AllRecipes => allRecipes;
 
     /// <summary>Static accessor for cross-scene systems that need the recipe list without a direct reference.</summary>
-    public static IReadOnlyList<Recipe> AllRecipesStatic => Instance?.allRecipes;
+    public static IReadOnlyList<Recipe> AllRecipesStatic
+    {
+        get
+        {
+            // Use Unity's overloaded == to correctly detect destroyed (fake-null) instances.
+            if (Instance == null) return null;
+            return Instance.allRecipes;
+        }
+    }
 
     public void UnlockByDay(int currentDay)
     {
@@ -60,9 +68,9 @@ public class RecipeManager : MonoBehaviour
         {
             if (r.dayToUnlock <= currentDay && !UnlockManager.Instance.IsRecipeUnlocked(r.recipeID))
             {
-                UnlockManager.Instance.UnlockRecipe(r.recipeID);
+                // Pass kitchenItemType so UnlockManager can answer kitchen queries directly.
+                UnlockManager.Instance.UnlockRecipe(r.recipeID, r.kitchenItemType);
 
-                // unlock ingredients
                 foreach (var ing in r.ingredients)
                     UnlockManager.Instance.UnlockIngredient(ing.item);
             }

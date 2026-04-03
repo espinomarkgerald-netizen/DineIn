@@ -72,7 +72,11 @@ public class GameFlowManager : MonoBehaviour
         EquipmentManager.Instance.UnlockByDay(currentDay);
         EquipmentShopManager shop = FindObjectOfType<EquipmentShopManager>();
         shop?.InitializeShop();
-        RecipeManager.Instance.UnlockByDay(currentDay);
+
+        // RecipeManager lives in the Office scene and may not exist yet during
+        // this transition — UnlockByDay will also run in RecipeManager.Start
+        // once the Office scene loads, so this call is safe to skip if null.
+        RecipeManager.Instance?.UnlockByDay(currentDay);
 
         SceneManager.LoadScene(managementSceneName);
     }

@@ -110,33 +110,21 @@ public class OrderManagerKitchen : MonoBehaviour {
     }
 
     /// <summary>Filters a pool of kitchen items to only those with an unlocked recipe.
-    /// Falls back to the full pool only when UnlockManager is entirely absent (e.g. direct
-    /// scene launch in Editor). When UnlockManager is present its data is authoritative —
-    /// nothing locked will be returned.</summary>
+    /// When UnlockManager is absent (direct scene launch) the full pool is returned.
+    /// No string-name matching — UnlockManager tracks ItemTypeKitchen directly.</summary>
     private List<ItemTypeKitchen> GetUnlockedItems(List<ItemTypeKitchen> pool) {
-        // No UnlockManager present at all — treat everything as available.
         if (UnlockManager.Instance == null)
-            return new List<ItemTypeKitchen>(pool);
-
-        IReadOnlyList<Recipe> recipes = RecipeManager.AllRecipesStatic;
-
-        // No recipe data to cross-reference — fall back so the kitchen isn't dead.
-        if (recipes == null || recipes.Count == 0)
             return new List<ItemTypeKitchen>(pool);
 
         List<ItemTypeKitchen> unlocked = new List<ItemTypeKitchen>();
         foreach (ItemTypeKitchen item in pool) {
-            string itemName = item.ToString();
-            foreach (Recipe recipe in recipes) {
-                if (string.Equals(recipe.recipeName.Replace(" ", ""), itemName, System.StringComparison.OrdinalIgnoreCase)
-                    && UnlockManager.Instance.IsRecipeUnlocked(recipe.recipeID)) {
-                    unlocked.Add(item);
-                    break;
-                }
-            }
+            if (UnlockManager.Instance.IsKitchenItemUnlocked(item))
+                unlocked.Add(item);
         }
 
-        return unlocked;
+        // If nothing is unlocked yet (e.g. direct kitchen scene launch without Office),
+        // fall back to the full pool so the shift is never broken.
+        return unlocked.Count > 0 ? unlocked : new List<ItemTypeKitchen>(pool);
     }
 
     /// <summary>

@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
+using TMPro;
 
 public class UIManager : MonoBehaviour
 {
@@ -8,6 +9,7 @@ public class UIManager : MonoBehaviour
     [Header("Static UI (default)")]
     [SerializeField] private GameObject staticUI;
     [SerializeField] private GameObject sceneChanger;
+    [SerializeField] private TMP_Text currentDayText;
 
     [Header("Active UI Panels")]
     [SerializeField] private List<GameObject> activeUIs;
@@ -72,6 +74,9 @@ public class UIManager : MonoBehaviour
             Debug.LogWarning("GameFlowManager not found.");
             return;
         }
+
+        if (currentDayText != null)
+            currentDayText.text = $"Day {GameFlowManager.Instance.CurrentDay}";
 
         var phase = GameFlowManager.Instance.CurrentDayHalf;
         Debug.Log("Current DayHalf: " + phase);

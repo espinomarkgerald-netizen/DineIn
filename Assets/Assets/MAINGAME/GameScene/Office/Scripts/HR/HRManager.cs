@@ -115,13 +115,12 @@ public class HRManager : MonoBehaviour
 
     public void PopulateRows(RoleRowUI[] rowsToPopulate)
     {
-        if (rowsToPopulate == null)
-            return;
+        if (rowsToPopulate == null) return;
+        if (EmployeeManager.Instance == null) return;
 
         foreach (var row in rowsToPopulate)
         {
-            if (row == null)
-                continue;
+            if (row == null) continue;
 
             var group = EmployeeManager.Instance.employeesByRole.Find(g => g.role == row.roleType);
             if (group != null)

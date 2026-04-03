@@ -608,6 +608,8 @@ public class OrderChecklistUI : MonoBehaviour
                 if (item == "Burger")
                     LobbyStockBridge.Instance.TryUseFoodStock(CustomerGroup.FoodType.Burger);
             }
+
+            LobbyStockBridge.Instance.TryUseDrinkStock(selectedDrink);
         }
 
         if (group.submittedOrder == null)

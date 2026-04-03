@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   recipeID: 01
   recipeName: Chicken Bucket
+  kitchenItemType: 2
   sprite: {fileID: 21300000, guid: 0d0d4d6827467064f9e13d7c7fd1f5ea, type: 3}
   dayToUnlock: 2
   ingredients:
