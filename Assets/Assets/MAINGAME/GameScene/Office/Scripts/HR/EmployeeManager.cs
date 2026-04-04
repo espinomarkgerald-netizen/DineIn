@@ -7,6 +7,9 @@ public class EmployeeManager : MonoBehaviour
     public static EmployeeManager Instance { get; private set; }
     public EmployeeGenerator generator;
 
+    [Header("Salary")]
+    public SalaryConfig salaryConfig;
+
     [Header("All Employees")]
     public List<EmployeeData> allEmployees = new List<EmployeeData>();
 
@@ -103,15 +106,21 @@ public class EmployeeManager : MonoBehaviour
     }
 
     public int CalculateTotalPayroll()
-{
-    int total = 0;
-
-    foreach (var emp in allEmployees)
     {
-        if (emp.assigned) // only working employees
-            total += emp.GetSalary();
-    }
+        if (salaryConfig == null)
+        {
+            Debug.LogError("EmployeeManager: salaryConfig is not assigned!");
+            return 0;
+        }
 
-    return total;
-}
+        int total = 0;
+
+        foreach (var emp in allEmployees)
+        {
+            if (emp.assigned)
+                total += emp.GetSalary(salaryConfig);
+        }
+
+        return total;
+    }
 }

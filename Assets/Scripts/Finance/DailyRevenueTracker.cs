@@ -50,14 +50,7 @@ public class DailyRevenueTracker : MonoBehaviour
     public int GetPayrollTotal()
     {
         if (EmployeeManager.Instance == null) return 0;
-
-        int total = 0;
-        foreach (var emp in EmployeeManager.Instance.allEmployees)
-        {
-            if (emp.assignedSlot != null)
-                total += emp.GetSalary();
-        }
-        return total;
+        return EmployeeManager.Instance.CalculateTotalPayroll();
     }
 
     /// <summary>Returns total tracked expenses: ingredients + payroll.</summary>

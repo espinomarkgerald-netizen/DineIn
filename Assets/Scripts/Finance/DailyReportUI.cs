@@ -46,10 +46,13 @@ public class DailyReportUI : MonoBehaviour
         if (reportPanel == null || reportText == null) return;
 
         var tracker = DailyRevenueTracker.Instance;
+        var bridge = DailyFinanceBridge.Instance;
         var finance = FinanceManager.Instance;
         var flow = GameFlowManager.Instance;
 
-        int revenue = tracker != null ? tracker.TotalRevenue : 0;
+        // Use DailyFinanceBridge.EarnedToday as the authoritative revenue source —
+        // it captures both lobby and kitchen earnings, matching the in-game HUD.
+        int revenue = bridge != null ? bridge.EarnedToday : (tracker != null ? tracker.TotalRevenue : 0);
         int ingredientCost = tracker != null ? tracker.IngredientCost : 0;
         int financeExpenses = finance != null ? Mathf.RoundToInt(finance.GetTotalExpenses()) : 0;
         int totalExpenses = financeExpenses + ingredientCost;
@@ -58,6 +61,7 @@ public class DailyReportUI : MonoBehaviour
         int day = flow != null ? flow.CurrentDay : 0;
         int ordersCompleted = tracker != null ? tracker.OrdersCompleted : 0;
         int ordersFailed = tracker != null ? tracker.OrdersFailed : 0;
+        int targetRevenue = bridge != null ? bridge.TotalRequiredEarningsToday : 0;
 
         StringBuilder sb = new StringBuilder();
         sb.AppendLine($"DAY {day} REPORT");
@@ -68,6 +72,7 @@ public class DailyReportUI : MonoBehaviour
         sb.AppendLine();
         sb.AppendLine("──────── REVENUE ─────────");
         sb.AppendLine($"Total Revenue       ₱{revenue}");
+        sb.AppendLine($"Target Revenue      ₱{targetRevenue}");
         sb.AppendLine();
         sb.AppendLine("──────── EXPENSES ────────");
 
