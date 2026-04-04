@@ -4,9 +4,13 @@ using UnityEngine;
 
 public class KitchenManager : MonoBehaviour
 {
-    [Header("Spawn Points")]
+    [Header("Dine-In Spawn Points")]
     public Transform[] traySpawnPoints;
     public FoodTray foodTrayPrefab;
+
+    [Header("Takeout Spawn Points")]
+    [SerializeField] private Transform[] takeoutSpawnPoints;
+    [SerializeField] private GameObject takeoutBagPrefab;
 
     [Header("Timing")]
     public float cookSeconds = 5f;
@@ -48,12 +52,15 @@ public class KitchenManager : MonoBehaviour
 
     public void ProcessOrder(CustomerGroup group)
     {
-        if (group == null) return;
+        if (group == null)
+            return;
 
         int orderNo = group.currentOrderNumber;
-        if (orderNo < 0) return;
+        if (orderNo < 0)
+            return;
 
-        if (group.state != CustomerGroup.GroupState.OrderTaken) return;
+        if (group.state != CustomerGroup.GroupState.OrderTaken)
+            return;
 
         if (!cookingOrders.Add(orderNo))
             return;
@@ -67,36 +74,96 @@ public class KitchenManager : MonoBehaviour
         {
             yield return new WaitForSeconds(2f);
 
+            bool isTakeout = group.IsTakeout;
+
             if (ProcessingBillIndicatorUI.Instance != null)
-                ProcessingBillIndicatorUI.Instance.ShowForSeconds("Order #" + orderNo + " is being prepared", 2f);
+                ProcessingBillIndicatorUI.Instance.Show("Order #" + orderNo + " is being prepared");
 
             yield return new WaitForSeconds(cookSeconds);
 
             if (!IsOrderStillValid(group, orderNo))
+            {
+                if (ProcessingBillIndicatorUI.Instance != null)
+                    ProcessingBillIndicatorUI.Instance.Hide();
                 yield break;
+            }
 
-            if (traySpawnPoints == null || traySpawnPoints.Length == 0) yield break;
-            if (foodTrayPrefab == null) yield break;
+            Transform[] targetSlots = isTakeout ? takeoutSpawnPoints : traySpawnPoints;
+
+            if (targetSlots == null || targetSlots.Length == 0)
+            {
+                Debug.LogError($"[KitchenManager] No spawn points assigned for {(isTakeout ? "takeout" : "dine-in")} — assign them in the Inspector on KitchenManager.");
+                if (ProcessingBillIndicatorUI.Instance != null)
+                    ProcessingBillIndicatorUI.Instance.Hide();
+                yield break;
+            }
+
+            if (!isTakeout && foodTrayPrefab == null)
+            {
+                Debug.LogError("[KitchenManager] FoodTray prefab not assigned in Inspector.");
+                if (ProcessingBillIndicatorUI.Instance != null)
+                    ProcessingBillIndicatorUI.Instance.Hide();
+                yield break;
+            }
+
+            if (isTakeout && takeoutBagPrefab == null)
+            {
+                Debug.LogError("[KitchenManager] Takeout bag prefab not assigned in Inspector — assign PaperBag prefab to KitchenManager.takeoutBagPrefab.");
+                if (ProcessingBillIndicatorUI.Instance != null)
+                    ProcessingBillIndicatorUI.Instance.Hide();
+                yield break;
+            }
 
             Transform freeSlot = null;
 
             while (freeSlot == null)
             {
                 if (!IsOrderStillValid(group, orderNo))
+                {
+                    if (ProcessingBillIndicatorUI.Instance != null)
+                        ProcessingBillIndicatorUI.Instance.Hide();
                     yield break;
+                }
 
-                freeSlot = GetFirstFreeSlot();
+                freeSlot = GetFirstFreeSlot(targetSlots);
 
                 if (freeSlot == null)
                     yield return new WaitForSeconds(waitForFreeSlotCheckInterval);
             }
 
-            var tray = Instantiate(foodTrayPrefab, freeSlot.position, freeSlot.rotation, freeSlot);
-            tray.Init(group);
+            if (isTakeout)
+            {
+                GameObject bag = Instantiate(takeoutBagPrefab, freeSlot.position, freeSlot.rotation, freeSlot);
 
-            var it = tray.GetComponent<FoodTrayInteractable>();
-            if (it != null)
-                it.SetDeliveryPickable(pickupQueue);
+                TakeoutBagMarker marker = bag.GetComponent<TakeoutBagMarker>();
+                if (marker != null)
+                    marker.Init(group);
+
+                TakeoutBagInteractable bagInteractable = bag.GetComponent<TakeoutBagInteractable>();
+                if (bagInteractable != null)
+                    bagInteractable.Init(group);
+                else
+                    Debug.LogWarning("[KitchenManager] TakeoutBagInteractable missing on PaperBag prefab — deliveredContents will be empty.");
+
+                TakeoutFlowManager.Instance?.NotifyBagReady(group);
+
+                if (ProcessingBillIndicatorUI.Instance != null)
+                    ProcessingBillIndicatorUI.Instance.ShowForSeconds("Takeout order #" + orderNo + " is ready for pickup!", 3f);
+
+                Debug.Log($"[KitchenManager] Takeout bag spawned at '{freeSlot.name}' for order #{orderNo}.");
+            }
+            else
+            {
+                FoodTray tray = Instantiate(foodTrayPrefab, freeSlot.position, freeSlot.rotation, freeSlot);
+                tray.Init(group);
+
+                FoodTrayInteractable it = tray.GetComponent<FoodTrayInteractable>();
+                if (it != null)
+                    it.SetDeliveryPickable(pickupQueue);
+
+                if (ProcessingBillIndicatorUI.Instance != null)
+                    ProcessingBillIndicatorUI.Instance.Hide();
+            }
         }
         finally
         {
@@ -106,21 +173,27 @@ public class KitchenManager : MonoBehaviour
 
     private bool IsOrderStillValid(CustomerGroup group, int orderNo)
     {
-        if (group == null) return false;
-        if (group.currentOrderNumber != orderNo) return false;
-        if (group.state != CustomerGroup.GroupState.OrderTaken) return false;
+        if (group == null)
+            return false;
+
+        if (group.currentOrderNumber != orderNo)
+            return false;
+
+        if (group.state != CustomerGroup.GroupState.OrderTaken)
+            return false;
+
         return true;
     }
 
-    private Transform GetFirstFreeSlot()
+    private Transform GetFirstFreeSlot(Transform[] slots)
     {
-        for (int i = 0; i < traySpawnPoints.Length; i++)
+        for (int i = 0; i < slots.Length; i++)
         {
-            Transform slot = traySpawnPoints[i];
-            if (slot == null) continue;
+            Transform slot = slots[i];
+            if (slot == null)
+                continue;
 
-            FoodTray existingTray = slot.GetComponentInChildren<FoodTray>(true);
-            if (existingTray == null)
+            if (slot.childCount == 0)
                 return slot;
         }
 

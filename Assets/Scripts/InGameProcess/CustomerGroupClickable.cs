@@ -14,6 +14,12 @@ public class CustomerGroupClickable : MonoBehaviour
     {
         if (group == null || WaiterHands.Instance == null) return;
 
+        if (TakeoutBagInteractable.HasHeldBag)
+        {
+            TakeoutBagInteractable.HeldBag.TryDeliverTo(group);
+            return;
+        }
+
         if (WaiterHands.Instance.HasTray)
         {
             if (group.state != CustomerGroup.GroupState.OrderTaken) return;

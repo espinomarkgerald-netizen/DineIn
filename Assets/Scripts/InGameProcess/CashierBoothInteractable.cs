@@ -4,6 +4,7 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
 {
     [Header("References")]
     public KitchenManager kitchen;
+    [SerializeField] private CashierRegisterUI registerUI;
 
     [Header("Stand Point")]
     [SerializeField] private Transform standPoint;
@@ -26,6 +27,8 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
     [SerializeField] private float autoPayRadius = 1.5f;
     [SerializeField] private bool debugAutoPay = true;
 
+    private bool isOpeningRegister;
+
     public Transform StandPoint => standPoint != null ? standPoint : transform;
     public bool AutoReturnHome => true;
 
@@ -33,6 +36,24 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
     {
         if (kitchen == null)
             kitchen = FindFirstObjectByType<KitchenManager>();
+
+        if (registerUI == null)
+            registerUI = FindFirstObjectByType<CashierRegisterUI>(FindObjectsInactive.Include);
+    }
+
+    private void OnEnable()
+    {
+        CashierRegisterUI.OnHidden += HandleRegisterHidden;
+    }
+
+    private void OnDisable()
+    {
+        CashierRegisterUI.OnHidden -= HandleRegisterHidden;
+    }
+
+    private void HandleRegisterHidden()
+    {
+        isOpeningRegister = false;
     }
 
     private void Update()
@@ -115,9 +136,26 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
 
         var hands = WaiterHands.Instance;
         if (hands == null) return;
-        if (!hands.HasMoney) return;
 
-        if (CashierRegisterUI.Instance != null && CashierRegisterUI.Instance.IsOpen)
+        if (!hands.HasMoney)
+        {
+            // Only clear the guard if the register is also closed — never cancel
+            // mid-session just because money was cleared while the POS is open.
+            var ui = GetRegisterUI();
+            if (ui == null || !ui.IsOpen)
+                isOpeningRegister = false;
+            return;
+        }
+
+        var registerUI = GetRegisterUI();
+        if (registerUI == null)
+        {
+            if (debugAutoPay)
+                Debug.LogWarning("[Cashier AutoOpen] CashierRegisterUI not found.");
+            return;
+        }
+
+        if (registerUI.IsOpen || isOpeningRegister)
             return;
 
         Vector3 a = mover.transform.position;
@@ -134,7 +172,8 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
         if (debugAutoPay)
             Debug.Log($"[Cashier AutoOpen] dist={dist:0.00} radius={autoPayRadius:0.00} hasMoney={hands.HasMoney} mover={mover.name}");
 
-        if (dist > autoPayRadius) return;
+        if (dist > autoPayRadius)
+            return;
 
         OpenRegisterForHeldMoney(hands);
     }
@@ -143,7 +182,24 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
     {
         if (hands == null) return;
         if (!hands.HasMoney) return;
-        if (CashierRegisterUI.Instance == null) return;
+
+        var ui = GetRegisterUI();
+        if (ui == null)
+        {
+            Debug.LogWarning("[Cashier] CashierRegisterUI is missing.");
+            return;
+        }
+
+        if (ui.IsOpen)
+        {
+            Debug.Log($"[Cashier] OpenRegisterForHeldMoney SKIPPED — IsOpen={ui.IsOpen} isOpeningRegister={isOpeningRegister}");
+            return;
+        }
+
+        if (isOpeningRegister)
+            return;
+
+        isOpeningRegister = true;
 
         var group = hands.holdingMoneyFor;
         int receivedAmount = hands.holdingMoneyAmount;
@@ -151,41 +207,46 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
 
         Debug.Log($"[Cashier] Open register | received={receivedAmount} total={totalAmount} group={(group != null ? group.name : "NULL")}");
 
-        CashierRegisterUI.Instance.OpenForPayment(group, receivedAmount, totalAmount);
+        // Do NOT reset isOpeningRegister here — it stays true until OnHidden fires
+        // via HandleRegisterHidden(), preventing TryAutoOpenRegister from re-triggering
+        // while the POS is open or being opened.
+        ui.OpenForPayment(group, receivedAmount, totalAmount);
+    }
+
+    private CashierRegisterUI GetRegisterUI()
+    {
+        if (registerUI != null)
+            return registerUI;
+
+        if (CashierRegisterUI.Instance != null)
+        {
+            registerUI = CashierRegisterUI.Instance;
+            return registerUI;
+        }
+
+        registerUI = FindFirstObjectByType<CashierRegisterUI>(FindObjectsInactive.Include);
+        return registerUI;
     }
 
     private int GetOrderTotal(CustomerGroup group)
     {
-        if (group == null) return 0;
-        return GetFoodPrice(group.confirmedFood) + GetDrinkPrice(group.confirmedDrink);
-    }
+        if (group == null)
+            return 0;
 
-    private int GetFoodPrice(CustomerGroup.FoodType food)
-    {
-        switch (food)
+        if (OrderChecklistUI.Instance != null)
         {
-            case CustomerGroup.FoodType.Chicken: return 99;
-            case CustomerGroup.FoodType.Fries: return 79;
-            case CustomerGroup.FoodType.Burger: return 79;
-            default: return 0;
+            return OrderChecklistUI.Instance.GetOrderTotalFromContents(
+                group.GetCurrentOrderContents()
+            );
         }
+
+        if (group.currentOrder != null)
+            return group.currentOrder.unitPrice * Mathf.Max(1, group.currentOrder.quantity);
+
+        return 0;
     }
 
-    private int GetDrinkPrice(CustomerGroup.DrinkType drink)
-    {
-        switch (drink)
-        {
-            case CustomerGroup.DrinkType.Coke: return 39;
-            case CustomerGroup.DrinkType.Pineapple: return 39;
-            case CustomerGroup.DrinkType.IceTea: return 39;
-            default: return 0;
-        }
-    }
-
-    private Vector3 PickupCenter
-    {
-        get { return StandPoint.position; }
-    }
+    private Vector3 PickupCenter => StandPoint.position;
 
     private float DistToPickupCenter(Vector3 billPos)
     {

@@ -158,7 +158,15 @@ public class RoleBasedAssignController : MonoBehaviour
         if (!lineManager.IsGroupInLine(group))
             return false;
 
-        if (!lineManager.IsFrontOfLine(group))
+        CustomerGroup front = lineManager.GetFrontOfLine();
+
+        if (front == null)
+        {
+            ShowWarning("Wait for customers...");
+            return false;
+        }
+
+        if (group != front)
         {
             ShowWarning("Serve the first customer in line.");
             return false;

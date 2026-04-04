@@ -1,88 +1,133 @@
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class GameplayUIBlocker : MonoBehaviour
 {
     public static GameplayUIBlocker Instance { get; private set; }
 
-    [System.Serializable]
-    public class BlockingEntry
+    [Serializable]
+    public class BlockingPanel
     {
         public GameObject target;
         public bool blocksGameplay = true;
     }
 
-    [Header("Blocking Panels")]
-    [SerializeField] private BlockingEntry[] blockingPanels;
+    [SerializeField] private List<BlockingPanel> blockingPanels = new();
+    [SerializeField] private bool debugBlocking = true;
 
-    private void Awake()
-    {
-        Instance = this;
-    }
+    public bool IsGameplayBlocked => IsAnyBlockingPanelActive(null);
 
     public static bool IsBlocked()
     {
-        if (Instance == null) return false;
+        return Instance != null && Instance.IsAnyBlockingPanelActive(null);
+    }
 
-        var entries = Instance.blockingPanels;
-        if (entries == null || entries.Length == 0) return false;
+    public static bool IsBlockedExcept(GameObject ignoredTarget)
+    {
+        return Instance != null && Instance.IsAnyBlockingPanelActive(ignoredTarget);
+    }
 
-        for (int i = 0; i < entries.Length; i++)
+    public static bool IsBlockedExcept(Component ignoredComponent)
+    {
+        return IsBlockedExcept(ignoredComponent != null ? ignoredComponent.gameObject : null);
+    }
+
+    private void Awake()
+    {
+        if (Instance != null && Instance != this)
         {
-            var entry = entries[i];
-            if (entry == null) continue;
-            if (!entry.blocksGameplay) continue;
-            if (entry.target == null) continue;
-            if (!entry.target.activeInHierarchy) continue;
+            Destroy(gameObject);
+            return;
+        }
 
-            CanvasGroup cg = entry.target.GetComponent<CanvasGroup>();
-            if (cg != null)
-            {
-                if (cg.alpha > 0.01f && cg.blocksRaycasts)
-                    return true;
+        Instance = this;
+    }
 
+    private void OnDestroy()
+    {
+        if (Instance == this)
+            Instance = null;
+    }
+
+    public bool IsAnyBlockingPanelActive(GameObject ignoredTarget)
+    {
+        for (int i = 0; i < blockingPanels.Count; i++)
+        {
+            BlockingPanel panel = blockingPanels[i];
+
+            if (panel == null || !panel.blocksGameplay || panel.target == null)
                 continue;
-            }
 
-            return true;
+            if (panel.target == ignoredTarget)
+                continue;
+
+            if (IsPanelActuallyBlocking(panel.target))
+            {
+                if (debugBlocking)
+                    Debug.Log($"[GameplayUIBlocker] Blocking because of: {panel.target.name}", panel.target);
+
+                return true;
+            }
         }
 
         return false;
     }
 
-    public static bool IsBlockedExcept(GameObject exemptObject)
+    public bool IsPanelActuallyBlocking(GameObject target)
     {
-        if (Instance == null) return false;
+        if (target == null)
+            return false;
 
-        var entries = Instance.blockingPanels;
-        if (entries == null || entries.Length == 0) return false;
+        if (!target.activeInHierarchy || !target.activeSelf)
+            return false;
 
-        for (int i = 0; i < entries.Length; i++)
+        CanvasGroup[] groups = target.GetComponentsInParent<CanvasGroup>(true);
+        for (int i = 0; i < groups.Length; i++)
         {
-            var entry = entries[i];
-            if (entry == null) continue;
-            if (!entry.blocksGameplay) continue;
-            if (entry.target == null) continue;
-            if (!entry.target.activeInHierarchy) continue;
-
-            if (exemptObject != null)
-            {
-                if (entry.target == exemptObject) continue;
-                if (exemptObject.transform.IsChildOf(entry.target.transform)) continue;
-                if (entry.target.transform.IsChildOf(exemptObject.transform)) continue;
-            }
-
-            CanvasGroup cg = entry.target.GetComponent<CanvasGroup>();
-            if (cg != null)
-            {
-                if (cg.alpha > 0.01f && cg.blocksRaycasts)
-                    return true;
-
+            CanvasGroup cg = groups[i];
+            if (cg == null || !cg.enabled)
                 continue;
-            }
 
-            return true;
+            if (cg.alpha <= 0.001f)
+                return false;
+
+            if (!cg.blocksRaycasts)
+                return false;
         }
 
-        return false;
+        Canvas[] canvases = target.GetComponentsInParent<Canvas>(true);
+        for (int i = 0; i < canvases.Length; i++)
+        {
+            Canvas canvas = canvases[i];
+            if (canvas == null)
+                continue;
+
+            if (!canvas.enabled)
+                return false;
+        }
+
+        return true;
+    }
+
+    public void SetPanelBlocksGameplay(GameObject target, bool shouldBlock)
+    {
+        if (target == null)
+            return;
+
+        for (int i = 0; i < blockingPanels.Count; i++)
+        {
+            if (blockingPanels[i] != null && blockingPanels[i].target == target)
+            {
+                blockingPanels[i].blocksGameplay = shouldBlock;
+                return;
+            }
+        }
+
+        blockingPanels.Add(new BlockingPanel
+        {
+            target = target,
+            blocksGameplay = shouldBlock
+        });
     }
 }

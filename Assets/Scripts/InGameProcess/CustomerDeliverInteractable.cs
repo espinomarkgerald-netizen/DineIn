@@ -75,8 +75,10 @@ public class CustomerDeliverInteractable : MonoBehaviour, IInteractable
         if (trayInteractable != null)
             trayInteractable.NotifyDeliveredToTable();
 
-        // ✅ FIXED LINE
         group.ReceiveFoodFromWaiter(tray.DeliveredContents);
+
+        if (TutorialManager.Instance != null)
+            TutorialManager.Instance.RegisterFoodDeliveredToTable(tray);
 
         Debug.Log($"[Deliver] Placed tray #{group.currentOrderNumber} on {booth.name}/{drop.name}");
     }

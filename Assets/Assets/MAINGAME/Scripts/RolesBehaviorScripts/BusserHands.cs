@@ -22,6 +22,7 @@ public class BusserHands : MonoBehaviour
 
         if (Instance != null && Instance != this)
         {
+            Debug.LogWarning($"[BusserHands] Duplicate instance destroyed on {name}");
             Destroy(gameObject);
             return;
         }
@@ -45,19 +46,29 @@ public class BusserHands : MonoBehaviour
 
     public void ClearTray()
     {
+        Debug.Log("[BusserHands] ClearTray");
         holdingTray = null;
         NotifyHandsChanged();
     }
 
     public bool PickupTray(FoodTray tray)
     {
-        if (tray == null) return false;
-        if (HasTray) return false;
+        if (tray == null)
+        {
+            Debug.LogWarning("[BusserHands] PickupTray failed: tray is null");
+            return false;
+        }
+
+        if (HasTray)
+        {
+            Debug.LogWarning("[BusserHands] PickupTray failed: already holding a tray");
+            return false;
+        }
 
         Transform parent = TrayHoldPoint;
         if (parent == null)
         {
-            Debug.LogError("[BusserHands] TrayHoldPoint is NULL.");
+            Debug.LogError("[BusserHands] PickupTray failed: TrayHoldPoint is null");
             return false;
         }
 
@@ -68,7 +79,10 @@ public class BusserHands : MonoBehaviour
         tray.transform.localRotation = Quaternion.identity;
 
         var col = tray.GetComponentInChildren<Collider>(true);
-        if (col != null) col.enabled = false;
+        if (col != null)
+            col.enabled = false;
+
+        Debug.Log($"[BusserHands] PickupTray success: {tray.name}");
 
         NotifyHandsChanged();
         return true;
@@ -81,6 +95,8 @@ public class BusserHands : MonoBehaviour
 
         if (destroyObject && tray != null)
             Destroy(tray.gameObject);
+
+        Debug.Log("[BusserHands] DisposeTray");
 
         NotifyHandsChanged();
     }

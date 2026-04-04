@@ -1,3 +1,4 @@
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -5,55 +6,48 @@ public class BillPaperPickupButton : MonoBehaviour
 {
     [SerializeField] private Button button;
     [SerializeField] private BillPaper bill;
+    [SerializeField] private TMP_Text tableNumberText;
 
     private void Awake()
     {
         if (button == null)
             button = GetComponent<Button>();
 
+        if (button == null)
+            button = GetComponentInChildren<Button>(true);
+
         if (button != null)
         {
-            button.onClick.RemoveAllListeners();
-            button.onClick.AddListener(Click);
+            button.onClick.RemoveListener(OnClick);
+            button.onClick.AddListener(OnClick);
         }
     }
 
+    private void OnDestroy()
+    {
+        if (button != null)
+            button.onClick.RemoveListener(OnClick);
+    }
+
+    /// <summary>Assigns the bill paper this button controls and updates the table number label.</summary>
     public void SetBill(BillPaper b)
     {
         bill = b;
+        SetTableNumber(b != null ? b.orderNumber : -1);
     }
 
-    private void Click()
+    /// <summary>Sets the table number displayed on the pickup button. Pass -1 to hide it.</summary>
+    public void SetTableNumber(int number)
     {
-        if (bill == null) return;
-        if (RoleManager.Instance == null) return;
-
-        if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Waiter))
-        {
-            ShowWarning("Only the waiter can pick up bills.");
-            return;
-        }
-
-        var hands = WaiterHands.Instance;
-        if (hands != null && hands.HasBill)
-        {
-            int tableNo = hands.holdingBillFor != null ? hands.holdingBillFor.currentOrderNumber : -1;
-
-            ShowWarning(tableNo >= 0
-                ? $"You are already holding the bill for table {tableNo}."
-                : "You are already holding a bill.");
-
-            return;
-        }
-
-        var player = RoleManager.Instance.GetActivePlayerMovement();
-        if (player == null) return;
-
-        player.UI_MoveTo(bill);
+        if (tableNumberText == null) return;
+        tableNumberText.text = number >= 0 ? $"#{number}" : string.Empty;
     }
 
-    private void ShowWarning(string message)
+    private void OnClick()
     {
-        WarningSlideUI.Instance?.Show(message);
+        if (bill == null)
+            return;
+
+        bill.UI_Pickup();
     }
 }

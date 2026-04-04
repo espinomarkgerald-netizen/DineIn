@@ -68,6 +68,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   follow: {fileID: 6701950154796014492}
+  bounceTarget: {fileID: 0}
   bounceHeight: 20
   bounceSpeed: 3
 --- !u!1 &2028704277499494057
