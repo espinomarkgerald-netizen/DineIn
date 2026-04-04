@@ -25,7 +25,7 @@ public class ManagementToLobbyStarter : MonoBehaviour
             return;
         }
 
-        GameFlowManager.Instance.StartDay();
+        GameFlowManager.Instance.LoadLobbyScene();
     }
 
     private void SaveKitchenAssignmentFromEmployeeManager()

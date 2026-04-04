@@ -141,8 +141,6 @@ public class GameDayManager : MonoBehaviour
             resultsActionButton.onClick.AddListener(OnResultsActionPressed);
         }
 
-        ApplyFinanceFromGameFlow();
-
         RefreshUI();
         SetupMoodBars(true);
         ShowShiftIntro();
@@ -259,8 +257,6 @@ public class GameDayManager : MonoBehaviour
 
     public void ShowShiftIntro()
     {
-        ApplyFinanceFromGameFlow();
-
         if (resultsPanel != null)
             resultsPanel.SetActive(false);
 
@@ -331,7 +327,6 @@ public class GameDayManager : MonoBehaviour
     {
         ResolveManagerComponents();
         ResetShiftRuntime();
-        ApplyFinanceFromGameFlow();
 
         timeRemaining = ShiftLengthSeconds;
         shiftRunning = true;
@@ -656,23 +651,6 @@ public class GameDayManager : MonoBehaviour
     public float GetProgress01()
     {
         return CalculateProgress01();
-    }
-
-    private void ApplyFinanceFromGameFlow()
-    {
-        if (DailyFinanceBridge.Instance == null)
-            return;
-
-        if (GameFlowManager.Instance == null)
-            return;
-
-        DailyFinanceBridge.Instance.ResetDay();
-        DailyFinanceBridge.Instance.SetDailyCosts(
-            GameFlowManager.Instance.EmployeeCostToday,
-            GameFlowManager.Instance.MarketingCostToday,
-            GameFlowManager.Instance.BillsCostToday,
-            GameFlowManager.Instance.IngredientCostToday
-        );
     }
 
     public void RefreshRevenueUI()

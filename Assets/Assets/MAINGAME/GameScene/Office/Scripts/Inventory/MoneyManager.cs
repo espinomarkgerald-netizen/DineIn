@@ -52,7 +52,7 @@ public class MoneyManager : MonoBehaviour
 
     public bool Spend(int amount, string description = "Expense")
     {
-        if (amount <= 0)
+        if (amount < 0) // only reject negatives
             return false;
 
         if (Money < amount)

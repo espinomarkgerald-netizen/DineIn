@@ -29,30 +29,17 @@ public class EmployeeData
         assigned = false;
     }
 
-    public int GetSalary()
+    /// <summary>Calculates the employee's salary using the provided config. Falls back to manualSalary if toggled.</summary>
+    public int GetSalary(SalaryConfig config)
     {
         if (useManualSalary)
             return manualSalary;
 
-        int baseSalary = GetBaseSalaryByRole();
-        int starValue = stars * 20;
+        int baseSalary = config.GetBaseSalary(role);
+        int starValue = stars * config.salaryPerStar;
 
         float total = (baseSalary + starValue) * performanceMultiplier + bonusFlat;
 
         return Mathf.RoundToInt(total);
-    }
-
-    int GetBaseSalaryByRole()
-    {
-        switch (role)
-        {
-            case EmployeeRole.Chef: return 150 * 8;
-            case EmployeeRole.Barista: return 130 * 8;
-            case EmployeeRole.Cashier: return 110 * 8;
-            case EmployeeRole.Waiter: return 100 * 8;
-            case EmployeeRole.Host: return 90 * 8;
-            case EmployeeRole.Busser: return 80 * 8;
-            default: return 100;
-        }
     }
 }

@@ -16,3 +16,4 @@ MonoBehaviour:
   prefab: {fileID: 1141572852648713379, guid: 66bef047398c563408c215d3265d4bf3, type: 3}
   processedForm: {fileID: 0}
   cookTime: 0
+  itemType: 4

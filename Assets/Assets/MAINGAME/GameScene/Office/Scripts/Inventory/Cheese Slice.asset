@@ -13,7 +13,8 @@ MonoBehaviour:
   m_Name: Cheese Slice
   m_EditorClassIdentifier: 
   itemType: 4
-  displayName: Cheese Slice (20 pcs)
+  displayName: "Cheese Slices \xD720"
   unitsPerBox: 20
   boxCost: 150
   sprite: {fileID: 21300000, guid: 5118c0b71dec6e646ac53ea95bac0524, type: 3}
+  dayToUnlock: 1

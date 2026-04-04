@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
+using TMPro;
 
 public class UIManager : MonoBehaviour
 {
@@ -8,16 +9,24 @@ public class UIManager : MonoBehaviour
     [Header("Static UI (default)")]
     [SerializeField] private GameObject staticUI;
     [SerializeField] private GameObject sceneChanger;
+    [SerializeField] private TMP_Text currentDayText;
 
     [Header("Active UI Panels")]
     [SerializeField] private List<GameObject> activeUIs;
     [SerializeField] private GameObject employeeBoard;
     [SerializeField] private GameObject restockShop;
+    [SerializeField] private GameObject equipmentShop;
+    [SerializeField] private GameObject recipeBook;
+    [SerializeField] private GameObject receiptPanel;
 
     [Header("Settings Panel")]
     [SerializeField] private GameObject settingsPanel;
     [SerializeField] private GameObject audioSettings;
     [SerializeField] private GameObject videoSettings;
+
+    [Header("Department Buttons")]
+    [SerializeField] private GameObject lobbyButton;
+    [SerializeField] private GameObject kitchenButton;
 
     [Header("HR UI Panels")]
     [SerializeField] private GameObject kitchenUI;
@@ -42,6 +51,7 @@ public class UIManager : MonoBehaviour
     private void Start()
     {
         ShowStaticUI();
+        RefreshPhaseUI();
     }
 
     public void ShowStaticUI()
@@ -50,6 +60,44 @@ public class UIManager : MonoBehaviour
             staticUI.SetActive(true);
 
         HideCurrentActiveUI();
+    }
+
+     private void OnEnable()
+    {
+        RefreshPhaseUI();
+    }
+
+    public void RefreshPhaseUI()
+    {
+        if (GameFlowManager.Instance == null)
+        {
+            Debug.LogWarning("GameFlowManager not found.");
+            return;
+        }
+
+        if (currentDayText != null)
+            currentDayText.text = $"Day {GameFlowManager.Instance.CurrentDay}";
+
+        var phase = GameFlowManager.Instance.CurrentDayHalf;
+        Debug.Log("Current DayHalf: " + phase);
+
+        switch (phase)
+        {
+            case GameFlowManager.DayHalf.Morning:
+                lobbyButton.SetActive(true);
+                kitchenButton.SetActive(false);
+                break;
+
+            case GameFlowManager.DayHalf.Afternoon:
+                lobbyButton.SetActive(false);
+                kitchenButton.SetActive(true);
+                break;
+
+            default: // None or invalid
+                lobbyButton.SetActive(false);
+                kitchenButton.SetActive(false);
+                break;
+        }
     }
 
     public void ShowActiveUI(GameObject ui)
@@ -116,6 +164,15 @@ public class UIManager : MonoBehaviour
 
         if (lobbyUI != null)
             lobbyUI.SetActive(false);
+
+        if (equipmentShop != null)
+            equipmentShop.SetActive(false);
+
+        if (recipeBook != null)
+            recipeBook.SetActive(false);
+
+        if (receiptPanel != null)
+            receiptPanel.SetActive(false);
 
         currentActiveUI = null;
 
@@ -185,6 +242,28 @@ public class UIManager : MonoBehaviour
         currentActiveUI = restockShop;
     }
 
+    public void OpenEquipmentShop()
+    {
+        if (equipmentShop != null)
+            equipmentShop.SetActive(true);
+
+        if (staticUI != null)
+            staticUI.SetActive(false);
+
+        currentActiveUI = equipmentShop;
+    }
+
+    public void OpenRecipeBook()
+    {
+        if (recipeBook != null)
+            recipeBook.SetActive(true);
+
+        if (staticUI != null)
+            staticUI.SetActive(false);
+
+        currentActiveUI = recipeBook;
+    }
+
     public void OpenHRUI()
     {
         if (hrManager == null)
@@ -193,30 +272,19 @@ public class UIManager : MonoBehaviour
             return;
         }
 
-        hrManager.SyncPhaseFromGameFlow();
-
+        // Show BOTH UIs regardless of phase
         if (kitchenUI != null)
-            kitchenUI.SetActive(false);
+            kitchenUI.SetActive(true);
 
         if (lobbyUI != null)
-            lobbyUI.SetActive(false);
+            lobbyUI.SetActive(true);
 
-        if (hrManager.CurrentPhase == HRManager.DayPhase.Morning)
-        {
-            if (lobbyUI != null)
-                lobbyUI.SetActive(true);
+        // Populate ALL rows
+        hrManager.PopulateRows(hrManager.lobbyRows);
+        hrManager.PopulateRows(hrManager.kitchenRows);
 
-            hrManager.PopulateRows(hrManager.lobbyRows);
-            currentActiveUI = lobbyUI;
-        }
-        else
-        {
-            if (kitchenUI != null)
-                kitchenUI.SetActive(true);
-
-            hrManager.PopulateRows(hrManager.kitchenRows);
-            currentActiveUI = kitchenUI;
-        }
+        // Pick a parent container as active UI (your choice, here lobbyUI)
+        currentActiveUI = lobbyUI;
 
         if (staticUI != null)
             staticUI.SetActive(false);

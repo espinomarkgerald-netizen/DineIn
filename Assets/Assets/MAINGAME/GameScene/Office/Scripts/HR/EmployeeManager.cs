@@ -7,11 +7,17 @@ public class EmployeeManager : MonoBehaviour
     public static EmployeeManager Instance { get; private set; }
     public EmployeeGenerator generator;
 
+    [Header("Salary")]
+    public SalaryConfig salaryConfig;
+
     [Header("All Employees")]
     public List<EmployeeData> allEmployees = new List<EmployeeData>();
 
     [Header("Employees Grouped by Role")]
     public List<RoleGroup> employeesByRole = new List<RoleGroup>();
+
+    /// <summary>True once the lobby shift starts; prevents reassignment for the rest of the day.</summary>
+    public bool SlotsLocked { get; private set; }
 
     void Awake()
     {
@@ -57,15 +63,64 @@ public class EmployeeManager : MonoBehaviour
             return;
         }
 
-        slot.AssignEmployee(employee);
+        if (!slot.AssignEmployee(employee)) return;
 
-        // Inspector-visible assignment
-        employee.assignedSlot = slot;
+        employee.assignedSlot     = slot;
         employee.assignedSlotName = slot.name;
 
-        // Make sure role group stays up to date
         var group = employeesByRole.Find(g => g.role == slot.roleType);
         if (group != null && !group.employees.Contains(employee))
             group.employees.Add(employee);
+    }
+
+    /// <summary>
+    /// Locks all role slots so no reassignment can happen for the rest of the day.
+    /// Call this when the lobby shift starts.
+    /// </summary>
+    public void LockAllSlots()
+    {
+        SlotsLocked = true;
+
+        // Lock any slots already loaded in the scene.
+        RoleSlot[] allSlots = FindObjectsByType<RoleSlot>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        foreach (var slot in allSlots)
+            slot.Lock();
+    }
+
+    /// <summary>Clears all daily assignments and slot locks. Call at the start of each new day.</summary>
+    public void ResetDailyAssignments()
+    {
+        SlotsLocked = false;
+
+        foreach (var emp in allEmployees)
+        {
+            emp.assigned         = false;
+            emp.assignedSlot     = null;
+            emp.assignedSlotName = string.Empty;
+            emp.currentSlot      = null;
+        }
+
+        RoleSlot[] allSlots = FindObjectsByType<RoleSlot>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        foreach (var slot in allSlots)
+            slot.ResetForNewDay();
+    }
+
+    public int CalculateTotalPayroll()
+    {
+        if (salaryConfig == null)
+        {
+            Debug.LogError("EmployeeManager: salaryConfig is not assigned!");
+            return 0;
+        }
+
+        int total = 0;
+
+        foreach (var emp in allEmployees)
+        {
+            if (emp.assigned)
+                total += emp.GetSalary(salaryConfig);
+        }
+
+        return total;
     }
 }

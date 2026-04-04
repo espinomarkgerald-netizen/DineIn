@@ -13,7 +13,8 @@ MonoBehaviour:
   m_Name: French Fry Bag
   m_EditorClassIdentifier: 
   itemType: 1
-  displayName: French Fry Bag (10 bags)
+  displayName: "French Fries \xD710"
   unitsPerBox: 10
   boxCost: 200
   sprite: {fileID: 21300000, guid: 8e78f254a43696f4b9db23ccbb32431a, type: 3}
+  dayToUnlock: 10
