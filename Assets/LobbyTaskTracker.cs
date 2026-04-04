@@ -179,8 +179,8 @@ public class LobbyTaskTracker : MonoBehaviour
             string cashierLabel = ResolveCashierLabel();
             return new TaskInfo(
                 "held_money",
-                string.Format(deliverMoneyText, cashierLabel),
-                deliverMoneyHint
+                FormatText(deliverMoneyText, cashierLabel, "Deliver money to cashier booth"),
+                CleanText(deliverMoneyHint)
             );
         }
 
@@ -191,7 +191,7 @@ public class LobbyTaskTracker : MonoBehaviour
 
             return new TaskInfo(
                 tableNumber > 0 ? "held_bill_" + tableNumber : "held_bill",
-                tableNumber > 0 ? string.Format(deliverBillText, tableNumber) : deliverBillFallbackText,
+                tableNumber > 0 ? FormatText(deliverBillText, tableNumber, deliverBillFallbackText) : CleanText(deliverBillFallbackText),
                 FormatTableHint(deliverBillHint, tableNumber, deliverBillHintFallback)
             );
         }
@@ -203,7 +203,7 @@ public class LobbyTaskTracker : MonoBehaviour
 
             return new TaskInfo(
                 tableNumber > 0 ? "held_tray_" + tableNumber : "held_tray",
-                tableNumber > 0 ? string.Format(deliverOrderText, tableNumber) : deliverOrderFallbackText,
+                tableNumber > 0 ? FormatText(deliverOrderText, tableNumber, deliverOrderFallbackText) : CleanText(deliverOrderFallbackText),
                 FormatTableHint(deliverOrderHint, tableNumber, deliverOrderHintFallback)
             );
         }
@@ -213,7 +213,7 @@ public class LobbyTaskTracker : MonoBehaviour
         {
             return new TaskInfo(
                 "collect_payment_" + collectPaymentTable,
-                string.Format(collectPaymentText, collectPaymentTable),
+                FormatText(collectPaymentText, collectPaymentTable, "Collect payment"),
                 FormatTableHint(collectPaymentHint, collectPaymentTable, collectPaymentHintFallback)
             );
         }
@@ -223,7 +223,7 @@ public class LobbyTaskTracker : MonoBehaviour
         {
             return new TaskInfo(
                 "pickup_bill_" + billPickupTable,
-                string.Format(pickUpBillText, billPickupTable),
+                FormatText(pickUpBillText, billPickupTable, "Pick up bill"),
                 FormatTableHint(pickUpBillHint, billPickupTable, pickUpBillHintFallback)
             );
         }
@@ -233,7 +233,7 @@ public class LobbyTaskTracker : MonoBehaviour
         {
             return new TaskInfo(
                 "pending_order_" + pendingOrderTable,
-                string.Format(pendingOrderText, pendingOrderTable),
+                FormatText(pendingOrderText, pendingOrderTable, "Deliver order"),
                 FormatTableHint(pendingOrderHint, pendingOrderTable, pendingOrderHintFallback)
             );
         }
@@ -243,7 +243,7 @@ public class LobbyTaskTracker : MonoBehaviour
         {
             return new TaskInfo(
                 "take_order_" + takeOrderTable,
-                string.Format(takeOrderText, takeOrderTable),
+                FormatText(takeOrderText, takeOrderTable, "Take order"),
                 FormatTableHint(takeOrderHint, takeOrderTable, takeOrderHintFallback)
             );
         }
@@ -253,15 +253,39 @@ public class LobbyTaskTracker : MonoBehaviour
 
     private int ResolveHeldTrayTable(object heldTray)
     {
-        int tableNumber = ResolveTableNumberFromObject(heldTray);
+        // Prefer the direct typed path: waiterHands.holdingTray.orderNumber — same source
+        // used by FoodTrayInteractable's pickup button, so it is always authoritative.
+        int tableNumber = ResolveTrayTableNumberDirect();
         if (tableNumber > 0)
             return tableNumber;
 
+        // Reflection fallback for the held object itself.
+        tableNumber = ResolveTableNumberFromObject(heldTray);
+        if (tableNumber > 0)
+            return tableNumber;
+
+        // Last resort: infer from booth state.
         tableNumber = FindFirstTableWithState(deliverOrderStateTokens);
         if (tableNumber > 0)
             return tableNumber;
 
         return -1;
+    }
+
+    /// <summary>
+    /// Reads the order/table number directly from waiterHands.holdingTray.orderNumber,
+    /// the exact same field FoodTrayInteractable uses for its pickup button label.
+    /// </summary>
+    private int ResolveTrayTableNumberDirect()
+    {
+        if (waiterHands == null)
+            return -1;
+
+        FoodTray tray = waiterHands.holdingTray;
+        if (tray == null)
+            return -1;
+
+        return tray.orderNumber > 0 ? tray.orderNumber : -1;
     }
 
     private int ResolveHeldBillTable(object heldBill)
@@ -383,18 +407,36 @@ public class LobbyTaskTracker : MonoBehaviour
 
     private string FormatTableHint(string template, int tableNumber, string fallback)
     {
-        if (tableNumber > 0 && !string.IsNullOrWhiteSpace(template))
+        if (tableNumber > 0)
+            return FormatText(template, tableNumber, fallback);
+
+        return CleanText(fallback);
+    }
+
+    private string FormatText(string template, object value, string fallback)
+    {
+        string cleanedTemplate = CleanText(template);
+
+        if (!string.IsNullOrWhiteSpace(cleanedTemplate))
         {
             try
             {
-                return string.Format(template, tableNumber);
+                return string.Format(cleanedTemplate, value);
             }
             catch
             {
             }
         }
 
-        return fallback;
+        return CleanText(fallback);
+    }
+
+    private string CleanText(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return string.Empty;
+
+        return value.Replace("{{0}}", "{0}");
     }
 
     private bool MatchesAnyToken(string value, string[] tokens)

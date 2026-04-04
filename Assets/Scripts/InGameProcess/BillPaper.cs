@@ -212,11 +212,10 @@ public class BillPaper : MonoBehaviour, IInteractable, ICancelableTaskTarget
         if (pickupUiPrefab == null || uiAnchor == null) return;
         if (pickupUiInstance != null) return;
 
-        var canvas = ResolveGameplayCanvas();
+        Canvas canvas = ResolveMainHUDCanvas();
         if (canvas == null) return;
 
-        pickupUiInstance = Instantiate(pickupUiPrefab);
-        pickupUiInstance.transform.SetParent(canvas.transform, false);
+        pickupUiInstance = Instantiate(pickupUiPrefab, canvas.transform);
         pickupUiInstance.transform.localScale = Vector3.one;
         pickupUiInstance.SetActive(true);
 
@@ -229,19 +228,37 @@ public class BillPaper : MonoBehaviour, IInteractable, ICancelableTaskTarget
             pickBtn.SetBill(this);
     }
 
-    private Canvas ResolveGameplayCanvas()
+    private static Canvas cachedMainHudCanvas;
+
+    /// <summary>
+    /// Resolves the main HUD canvas by name and GraphicRaycaster presence,
+    /// matching the same logic used by FoodTrayInteractable for consistent UI behaviour.
+    /// Falls back to the manually assigned gameplayCanvas if the named canvas is not found.
+    /// </summary>
+    private Canvas ResolveMainHUDCanvas()
     {
-        if (gameplayCanvas != null) return gameplayCanvas;
+        if (cachedMainHudCanvas != null && cachedMainHudCanvas.isActiveAndEnabled)
+            return cachedMainHudCanvas;
+
+        cachedMainHudCanvas = null;
 
         var canvases = FindObjectsByType<Canvas>(FindObjectsSortMode.None);
         for (int i = 0; i < canvases.Length; i++)
         {
-            var c = canvases[i];
-            if (c == null || !c.isActiveAndEnabled) continue;
+            Canvas c = canvases[i];
+            if (!c.isActiveAndEnabled) continue;
+            if (c.name != "CanvasMainHUD") continue;
 
-            if (c.renderMode == RenderMode.ScreenSpaceOverlay || c.renderMode == RenderMode.ScreenSpaceCamera)
-                return c;
+            var ray = c.GetComponent<UnityEngine.UI.GraphicRaycaster>();
+            if (ray == null || !ray.enabled) continue;
+
+            cachedMainHudCanvas = c;
+            return cachedMainHudCanvas;
         }
+
+        // Manual override fallback.
+        if (gameplayCanvas != null && gameplayCanvas.isActiveAndEnabled)
+            return gameplayCanvas;
 
         return null;
     }

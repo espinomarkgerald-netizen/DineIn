@@ -572,12 +572,22 @@ public class OrderChecklistUI : MonoBehaviour
 
         group.TakeOrderFromWaiter(mainFood, selectedDrink);
 
-        if (ProcessingBillIndicatorUI.Instance != null)
-            ProcessingBillIndicatorUI.Instance.ShowForSeconds("Order Sent to Kitchen", 2f);
+        if (group.IsTakeout)
+        {
+            // Takeout: payment must happen before kitchen. TakeOrderFromWaiter already
+            // called TakeoutFlowManager.NotifyOrderTaken, which opens the payment step.
+            if (ProcessingBillIndicatorUI.Instance != null)
+                ProcessingBillIndicatorUI.Instance.ShowForSeconds("Order confirmed — awaiting payment", 2f);
+        }
+        else
+        {
+            if (ProcessingBillIndicatorUI.Instance != null)
+                ProcessingBillIndicatorUI.Instance.ShowForSeconds("Order Sent to Kitchen", 2f);
 
-        KitchenManager kitchen = FindFirstObjectByType<KitchenManager>();
-        if (kitchen != null)
-            kitchen.ProcessOrder(group);
+            KitchenManager kitchen = FindFirstObjectByType<KitchenManager>();
+            if (kitchen != null)
+                kitchen.ProcessOrder(group);
+        }
 
         if (TutorialManager.Instance != null)
             TutorialManager.Instance.OnOrderConfirmed(group);

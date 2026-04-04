@@ -386,11 +386,19 @@ public class CashierRegisterUI : MonoBehaviour
                     GameDayManager.Instance.RefreshRevenueUI();
 
                 Debug.Log("[Finance] Earned ₱" + amountEarned +
-                          " | Total = ₱" + DailyFinanceBridge.Instance.EarnedToday);
+                        " | Total = ₱" + DailyFinanceBridge.Instance.EarnedToday);
             }
 
             GameDayManager.Instance?.RegisterPaymentCompleted();
-            paidGroup.PayAndLeave();
+
+            if (paidGroup.IsTakeout)
+            {
+                TakeoutFlowManager.Instance?.NotifyPaymentCompleted(paidGroup);
+            }
+            else
+            {
+                paidGroup.PayAndLeave();
+            }
         }
 
         if (TutorialManager.Instance != null)
@@ -617,7 +625,7 @@ public class CashierRegisterUI : MonoBehaviour
 
     private string FormatMoney(int value)
     {
-        return value.ToString("N0");
+        return value.ToString("N2");
     }
 
     private bool IsDrink(string itemName)

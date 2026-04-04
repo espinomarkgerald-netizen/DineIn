@@ -36,6 +36,21 @@ public class CustomerGroup : MonoBehaviour
         Angry
     }
 
+    public enum ServiceType
+    {
+        DineIn,
+        Takeout
+    }
+
+    public enum TakeoutQueueState
+    {
+        None,
+        WalkingToQueueSlot,
+        WaitingInQueue,
+        WalkingToOrderPoint,
+        AtOrderPoint
+    }
+
     [Serializable]
     public class SimpleOrder
     {
@@ -103,6 +118,15 @@ public class CustomerGroup : MonoBehaviour
     [Header("DEBUG - Line Patience")]
     [SerializeField] private bool debugForceShowLinePatience;
     [SerializeField] private float debugPatienceValue = 1f;
+
+    [Header("Takeout")]
+    [SerializeField] private ServiceType serviceType = ServiceType.DineIn;
+    [SerializeField] private TakeoutQueueState takeoutQueueState = TakeoutQueueState.None;
+
+    
+
+    public bool IsTakeout => serviceType == ServiceType.Takeout;
+    public TakeoutQueueState CurrentTakeoutQueueState => takeoutQueueState;
 
     private GameObject linePatienceInstance;
     private LinePatienceUI linePatienceUI;
@@ -817,28 +841,36 @@ public class CustomerGroup : MonoBehaviour
 
     public void TakeOrderFromWaiter(FoodType food, DrinkType drink)
     {
-        if (state != GroupState.ReadyToOrder) return;
+        if (state != GroupState.ReadyToOrder)
+            return;
 
         ConfirmOrder(food, drink);
 
         if (orderBubbleInstance != null)
         {
             var shaker = orderBubbleInstance.GetComponentInChildren<UIShake>(true);
-            if (shaker != null) shaker.StopShake(true);
+            if (shaker != null)
+                shaker.StopShake(true);
         }
 
         SetState(GroupState.OrderTaken);
-
         ClearOrderBubble();
-        SpawnTableNumber();
 
         if (!waitingForRemake)
             GameDayManager.Instance?.RegisterOrderTaken();
 
+        waitingForRemake = false;
+
+        if (IsTakeout)
+        {
+            TakeoutFlowManager.Instance?.NotifyOrderTaken(this);
+            return;
+        }
+
+        SpawnTableNumber();
+
         if (OrderFlowManager.Instance != null)
             OrderFlowManager.Instance.SpawnTicket(this);
-
-        waitingForRemake = false;
     }
 
     public void ConfirmOrder(FoodType food, DrinkType drink)
@@ -1926,4 +1958,102 @@ public class CustomerGroup : MonoBehaviour
         if (startWaiterFlow)
             TutorialBeginWaiterFlow(orderDelay);
     }
+
+    public void SetServiceType(ServiceType value)
+    {
+        serviceType = value;
+    }
+
+    public void SetTakeoutQueueState(TakeoutQueueState value)
+    {
+        takeoutQueueState = value;
+    }
+
+    public void MoveToTakeoutPoint(Vector3 worldPoint)
+    {
+        for (int i = 0; i < members.Count; i++)
+        {
+            var member = members[i];
+            if (member == null)
+                continue;
+
+            member.WalkTo(worldPoint);
+        }
+    }
+
+    public bool HasReachedTakeoutPoint(Vector3 worldPoint, float threshold = 0.6f)
+    {
+        Vector3 center = GetMembersCenterWorld();
+        center.y = 0f;
+        worldPoint.y = 0f;
+
+        return Vector3.Distance(center, worldPoint) <= threshold;
+    }
+
+    public void BeginTakeoutOrderFlow(float delay = 0.15f)
+    {
+        if (!IsTakeout)
+            return;
+
+        tutorialDisableAutoOrderFlow = false;
+        StopReadyToOrderFlow();
+        ClearOrderBubble();
+
+        StartCoroutine(BeginTakeoutOrderFlowRoutine(delay));
+    }
+
+    private IEnumerator BeginTakeoutOrderFlowRoutine(float delay)
+    {
+        if (delay > 0f)
+            yield return new WaitForSeconds(delay);
+
+        if (!IsTakeout)
+            yield break;
+
+        if (state != GroupState.Waiting &&
+            state != GroupState.WaitingToOrder &&
+            state != GroupState.ReadyToOrder &&
+            state != GroupState.OrderTaken)
+        {
+            SetState(GroupState.Waiting);
+        }
+
+        StartReadyToOrderFlow();
+    }
+
+    public bool ReceiveTakeoutBagFromWaiter(List<string> deliveredContents)
+    {
+        if (!IsTakeout)
+            return false;
+
+        if (state != GroupState.OrderTaken)
+            return false;
+
+        bool isCorrectOrder = IsCorrectDeliveredOrder(deliveredContents);
+
+        if (!isCorrectOrder)
+        {
+            ShowThought(angryComments, angryFaceSprite);
+            return false;
+        }
+
+        GameDayManager.Instance?.RegisterFoodDelivered();
+        ReportFinalResult(FinalResult.Happy);
+        ShowThought(happyComments, happyFaceSprite);
+
+        ClearOrderBubble();
+        ClearBillBubble();
+        ClearTableNumber();
+        ClearMoneyBubble();
+        ClearEatingBubble();
+
+        SetState(GroupState.Leaving);
+
+        TakeoutFlowManager.Instance?.NotifyBagDelivered(this);
+        return true;
+    }
+
+    
+    
 }
+

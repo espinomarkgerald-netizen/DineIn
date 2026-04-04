@@ -12,6 +12,11 @@ public class GroupSpawner : MonoBehaviour
     [Header("Lobby Line (4 slots)")]
     public LobbyLineManager lobbyLine;
 
+    [Header("Takeout")]
+    [SerializeField] private TakeoutQueueManager takeoutQueueManager;
+    [SerializeField] private bool forceTakeoutForTesting = true;
+    [SerializeField] private int forcedTakeoutSize = 1;
+
     [Header("Spawn Settings")]
     public bool autoSpawn = false;
     public float spawnInterval = 8f;
@@ -35,13 +40,27 @@ public class GroupSpawner : MonoBehaviour
 
     public CustomerGroup SpawnGroup()
     {
-        if (groupPrefab == null || customerPrefab == null || spawnPoint == null || lobbyLine == null)
+        if (groupPrefab == null || customerPrefab == null || spawnPoint == null)
         {
             Debug.LogWarning("Spawner missing references.");
             return null;
         }
 
-        int size = Random.Range(minGroupSize, maxGroupSize + 1);
+        if (!forceTakeoutForTesting && lobbyLine == null)
+        {
+            Debug.LogWarning("Spawner missing LobbyLineManager.");
+            return null;
+        }
+
+        if (forceTakeoutForTesting && takeoutQueueManager == null)
+        {
+            Debug.LogWarning("Spawner missing TakeoutQueueManager.");
+            return null;
+        }
+
+        int size = forceTakeoutForTesting
+            ? forcedTakeoutSize
+            : Random.Range(minGroupSize, maxGroupSize + 1);
 
         var group = Instantiate(groupPrefab, spawnPoint.position, Quaternion.identity);
         group.name = $"Group_{size}";
@@ -52,6 +71,16 @@ public class GroupSpawner : MonoBehaviour
             var cust = Instantiate(customerPrefab, spawnPoint.position + offset, Quaternion.identity, group.transform);
             cust.name = $"Customer_{i + 1}";
             group.members.Add(cust);
+        }
+
+        if (forceTakeoutForTesting)
+        {
+            group.SetServiceType(CustomerGroup.ServiceType.Takeout);
+            group.SetTakeoutQueueState(CustomerGroup.TakeoutQueueState.None);
+            group.state = CustomerGroup.GroupState.Waiting;
+
+            takeoutQueueManager.Enqueue(group);
+            return group;
         }
 
         lobbyLine.TryJoinLine(group);

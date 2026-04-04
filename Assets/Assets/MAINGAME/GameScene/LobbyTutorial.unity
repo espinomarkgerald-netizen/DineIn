@@ -9092,6 +9092,7 @@ MonoBehaviour:
     blocksGameplay: 1
   - target: {fileID: 23184226}
     blocksGameplay: 1
+  debugBlocking: 1
 --- !u!4 &782011408 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 5693246615320672451, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
