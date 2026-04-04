@@ -1,10 +1,15 @@
 using UnityEngine;
+using UnityEngine.UI;
 
 public class HRManager : MonoBehaviour
 {
     [Header("Department Rows")]
     public RoleRowUI[] kitchenRows;
     public RoleRowUI[] lobbyRows;
+
+    [Header("Department Buttons UI")]
+    [SerializeField] private Button kitchenButton;
+    [SerializeField] private Button lobbyButton;
 
     [HideInInspector] public EmployeeData selectedEmployee;
 
@@ -25,6 +30,7 @@ public class HRManager : MonoBehaviour
 
         SyncPhaseFromGameFlow();
         PopulateCurrentPhaseRows();
+        UpdateDepartmentButtonsUI();
     }
 
     public void SyncPhaseFromGameFlow()
@@ -32,22 +38,19 @@ public class HRManager : MonoBehaviour
         if (GameFlowManager.Instance == null)
             return;
 
-        switch (GameFlowManager.Instance.CurrentDayHalf)
-        {
-            case GameFlowManager.DayHalf.Morning:
-                currentPhase = DayPhase.Morning;
-                break;
+        if (GameFlowManager.Instance.IsMorning)
+            currentPhase = DayPhase.Morning;
+        else if (GameFlowManager.Instance.IsAfternoon)
+            currentPhase = DayPhase.Afternoon;
 
-            case GameFlowManager.DayHalf.Afternoon:
-                currentPhase = DayPhase.Afternoon;
-                break;
-        }
+        UpdateDepartmentButtonsUI();
     }
 
     public void SetPhase(DayPhase phase)
     {
         currentPhase = phase;
         PopulateCurrentPhaseRows();
+        UpdateDepartmentButtonsUI();
     }
 
     public void PopulateCurrentPhaseRows()
@@ -56,6 +59,7 @@ public class HRManager : MonoBehaviour
 
         RoleRowUI[] rowsToPopulate = GetRowsForCurrentPhase();
         PopulateRows(rowsToPopulate);
+        UpdateDepartmentButtonsUI();
     }
 
     public void SelectEmployee(EmployeeData employee)
@@ -90,6 +94,7 @@ public class HRManager : MonoBehaviour
             }
         }
 
+        UpdateDepartmentButtonsUI();
         return true;
     }
 
@@ -112,5 +117,14 @@ public class HRManager : MonoBehaviour
     private RoleRowUI[] GetRowsForCurrentPhase()
     {
         return currentPhase == DayPhase.Morning ? lobbyRows : kitchenRows;
+    }
+
+    private void UpdateDepartmentButtonsUI()
+    {
+        if (lobbyButton != null)
+            lobbyButton.gameObject.SetActive(currentPhase == DayPhase.Morning);
+
+        if (kitchenButton != null)
+            kitchenButton.gameObject.SetActive(currentPhase == DayPhase.Afternoon);
     }
 }
