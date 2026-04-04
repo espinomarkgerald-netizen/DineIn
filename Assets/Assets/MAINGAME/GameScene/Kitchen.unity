@@ -863,7 +863,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 65528f1f0f8f0774a84a3cf6036eb593, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  shiftDuration: 60
+  shiftDuration: 300
   isShiftActive: 0
   currentShiftTime: 0
   foodOptions: 010000000200000003000000

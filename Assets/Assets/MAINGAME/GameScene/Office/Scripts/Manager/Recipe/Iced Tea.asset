@@ -16,7 +16,7 @@ MonoBehaviour:
   recipeName: Iced Tea
   kitchenItemType: 6
   sprite: {fileID: 21300000, guid: 9746789dafebbb841a6edd396858d4b4, type: 3}
-  dayToUnlock: 1
+  dayToUnlock: 2
   ingredients:
   - item: {fileID: 11400000, guid: 20abafb43ed2b9a4e88ff9064f655c1f, type: 2}
     amount: 1
