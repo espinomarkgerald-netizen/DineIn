@@ -595,21 +595,26 @@ public class OrderChecklistUI : MonoBehaviour
                 }
             }
 
-            for (int i = 0; i < selectedContents.Count; i++)
+            int stockMultiplier = Mathf.Max(1, group.Size);
+
+            for (int repeat = 0; repeat < stockMultiplier; repeat++)
             {
-                string item = selectedContents[i];
+                for (int i = 0; i < selectedContents.Count; i++)
+                {
+                    string item = selectedContents[i];
 
-                if (item == "Chicken")
-                    LobbyStockBridge.Instance.TryUseFoodStock(CustomerGroup.FoodType.Chicken);
+                    if (item == "Chicken")
+                        LobbyStockBridge.Instance.TryUseFoodStock(CustomerGroup.FoodType.Chicken);
 
-                if (item == "Fries")
-                    LobbyStockBridge.Instance.TryUseFoodStock(CustomerGroup.FoodType.Fries);
+                    if (item == "Fries")
+                        LobbyStockBridge.Instance.TryUseFoodStock(CustomerGroup.FoodType.Fries);
 
-                if (item == "Burger")
-                    LobbyStockBridge.Instance.TryUseFoodStock(CustomerGroup.FoodType.Burger);
+                    if (item == "Burger")
+                        LobbyStockBridge.Instance.TryUseFoodStock(CustomerGroup.FoodType.Burger);
+                }
+
+                LobbyStockBridge.Instance.TryUseDrinkStock(selectedDrink);
             }
-
-            LobbyStockBridge.Instance.TryUseDrinkStock(selectedDrink);
         }
 
         if (group.submittedOrder == null)
@@ -618,8 +623,10 @@ public class OrderChecklistUI : MonoBehaviour
         group.submittedOrder.Clear();
         group.submittedOrder.name = orderName;
         group.submittedOrder.unitPrice = unitPrice;
-        group.submittedOrder.quantity = 1;
+        group.submittedOrder.quantity = Mathf.Max(1, group.Size);
         group.submittedOrder.contents.AddRange(selectedContents);
+
+        group.currentOrder.quantity = group.submittedOrder.quantity;
 
         group.TakeOrderFromWaiter(mainFood, selectedDrink);
 

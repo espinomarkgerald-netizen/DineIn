@@ -129,9 +129,9 @@ public class OrderManagerKitchen : MonoBehaviour {
 
                 if (ticket.missingItems.Count == 0) {
                     int revenue = GetOrderRevenue(ticket.ticketName);
-                    Debug.Log($"[OrderManager] ORDER COMPLETE: '{ticket.ticketName}' — +${revenue}");
+                    Debug.Log($"[OrderManager] ORDER COMPLETE: '{ticket.ticketName}' — +₱{revenue}");
                     DailyRevenueTracker.Instance?.RecordOrderCompleted();
-                    DailyRevenueTracker.Instance?.RecordRevenue(revenue);
+                    DailyFinanceBridge.Instance?.AddEarnings(revenue, "Kitchen Order");
                     activeOrders.Remove(ticket);
                     if (DeliveryFeedback.Instance != null) DeliveryFeedback.Instance.ShowSuccess("Order Completed!");
                 }

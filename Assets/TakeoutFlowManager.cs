@@ -136,9 +136,10 @@ public class TakeoutFlowManager : MonoBehaviour
         }
 
         int total = 0;
+        int groupSize = Mathf.Max(1, group.Size);
 
         if (OrderChecklistUI.Instance != null)
-            total = OrderChecklistUI.Instance.GetOrderTotalFromContents(group.GetCurrentOrderContents());
+            total = OrderChecklistUI.Instance.GetOrderTotalFromContents(group.GetCurrentOrderContents()) * groupSize;
         else if (group.currentOrder != null)
             total = group.currentOrder.unitPrice * Mathf.Max(1, group.currentOrder.quantity);
 

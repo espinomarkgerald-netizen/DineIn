@@ -50,11 +50,12 @@ public class DailyReportUI : MonoBehaviour
         var finance = FinanceManager.Instance;
         var flow = GameFlowManager.Instance;
 
-        // Use DailyFinanceBridge.EarnedToday as the authoritative revenue source —
-        // it captures both lobby and kitchen earnings, matching the in-game HUD.
-        int revenue = bridge != null ? bridge.EarnedToday : (tracker != null ? tracker.TotalRevenue : 0);
+        // DailyFinanceBridge.EarnedToday is the single authoritative revenue source —
+        // AddEarnings() is the only earn path for both lobby (CashierRegisterUI) and
+        // kitchen (OrderManagerKitchen) orders.
+        int revenue = bridge != null ? bridge.EarnedToday : 0;
         int ingredientCost = tracker != null ? tracker.IngredientCost : 0;
-        int financeExpenses = finance != null ? Mathf.RoundToInt(finance.GetTotalExpenses()) : 0;
+        int financeExpenses = finance != null ? finance.GetTotalExpenses() : 0;
         int totalExpenses = financeExpenses + ingredientCost;
         int netProfit = revenue - totalExpenses;
 

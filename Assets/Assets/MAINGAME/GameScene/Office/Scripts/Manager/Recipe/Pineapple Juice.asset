@@ -16,7 +16,7 @@ MonoBehaviour:
   recipeName: Pineapple Juice
   kitchenItemType: 5
   sprite: {fileID: 21300000, guid: a128577fa7c156c4a90b4d0537692668, type: 3}
-  dayToUnlock: 5
+  dayToUnlock: 1
   ingredients:
   - item: {fileID: 11400000, guid: b32890b307b693b44bb82cdd6505a12a, type: 2}
     amount: 1

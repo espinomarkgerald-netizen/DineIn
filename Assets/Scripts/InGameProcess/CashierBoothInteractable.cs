@@ -241,11 +241,13 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
         if (group == null)
             return 0;
 
+        int groupSize = Mathf.Max(1, group.Size);
+
         if (OrderChecklistUI.Instance != null)
         {
             return OrderChecklistUI.Instance.GetOrderTotalFromContents(
                 group.GetCurrentOrderContents()
-            );
+            ) * groupSize;
         }
 
         if (group.currentOrder != null)

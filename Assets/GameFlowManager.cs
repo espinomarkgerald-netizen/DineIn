@@ -65,7 +65,8 @@ public class GameFlowManager : MonoBehaviour
         currentDayHalf = DayHalf.Morning;
         currentPhase = GamePhase.Management;
 
-        DailyRevenueTracker.Instance.ResetForNewDay();
+        DailyRevenueTracker.Instance?.ResetForNewDay();
+        DailyFinanceBridge.Instance?.ResetDay();
         FinanceManager.Instance?.ResetDailyExpenses();
         EmployeeManager.Instance?.ResetDailyAssignments();
 
@@ -165,10 +166,11 @@ public class GameFlowManager : MonoBehaviour
     {
         if (EmployeeManager.Instance != null)
         {
-            float payroll = EmployeeManager.Instance.CalculateTotalPayroll();
-            FinanceManager.Instance.RecordExpense("Payroll", payroll);
+            int payroll = EmployeeManager.Instance.CalculateTotalPayroll();
+            FinanceManager.Instance?.RecordExpense("Payroll", payroll);
         }
 
-        FinanceManager.Instance.PrintDailyReport();
+        FinanceManager.Instance?.DeductAllExpenses();
+        FinanceManager.Instance?.PrintDailyReport();
     }
 }

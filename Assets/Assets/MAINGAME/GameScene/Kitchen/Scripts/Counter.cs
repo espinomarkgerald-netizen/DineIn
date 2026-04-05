@@ -43,7 +43,15 @@ public class Counter : MonoBehaviour {
     }
 
     protected void PickUpItem(PlayerHolding player) {
-        player.PickUp(currentItem);
-        currentItem = null;
+        if (currentItem.TryGetComponent(out IngredientStack stack)) {
+            GameObject single = stack.ConsumeOne();
+            if (single != null)
+                player.PickUp(single);
+            if (stack.Remaining <= 0)
+                currentItem = null;
+        } else {
+            player.PickUp(currentItem);
+            currentItem = null;
+        }
     }
 }

@@ -21,6 +21,38 @@ public class GameDayManager : MonoBehaviour
     [SerializeField] private float spawnIntervalMin = 6f;
     [SerializeField] private float spawnIntervalMax = 12f;
 
+    [Header("Spawn Difficulty Scaling")]
+    [Tooltip("X = normalized day (0 = Day 1, 1 = max day). Y = max customer groups to spawn.")]
+    [SerializeField] private AnimationCurve maxCustomersCurve = new AnimationCurve(
+        new Keyframe(0f, 4f),
+        new Keyframe(0.25f, 7f),
+        new Keyframe(0.6f, 10f),
+        new Keyframe(1f, 14f));
+
+    [Tooltip("X = normalized day. Y = max groups allowed per minute.")]
+    [SerializeField] private AnimationCurve groupsPerMinuteCurve = new AnimationCurve(
+        new Keyframe(0f, 1f),
+        new Keyframe(0.25f, 1f),
+        new Keyframe(0.6f, 2f),
+        new Keyframe(1f, 3f));
+
+    [Tooltip("X = normalized day. Y = minimum seconds between spawns.")]
+    [SerializeField] private AnimationCurve spawnIntervalMinCurve = new AnimationCurve(
+        new Keyframe(0f, 60f),
+        new Keyframe(0.25f, 40f),
+        new Keyframe(0.6f, 20f),
+        new Keyframe(1f, 8f));
+
+    [Tooltip("X = normalized day. Y = maximum seconds between spawns.")]
+    [SerializeField] private AnimationCurve spawnIntervalMaxCurve = new AnimationCurve(
+        new Keyframe(0f, 90f),
+        new Keyframe(0.25f, 60f),
+        new Keyframe(0.6f, 35f),
+        new Keyframe(1f, 14f));
+
+    [Tooltip("The day number that counts as the difficulty ceiling (1 = disabled, scales up to this day).")]
+    [SerializeField] private int maxScalingDay = 20;
+
     [Header("Manager Objects")]
     [SerializeField] private GameObject roleManagerObject;
     [SerializeField] private GameObject restaurantManagerObject;
@@ -143,8 +175,6 @@ public class GameDayManager : MonoBehaviour
             resultsActionButton.onClick.RemoveListener(OnResultsActionPressed);
             resultsActionButton.onClick.AddListener(OnResultsActionPressed);
         }
-
-        ApplyFinanceFromGameFlow();
 
         ApplyTakeoutUnlock();
 
@@ -333,6 +363,7 @@ public class GameDayManager : MonoBehaviour
     public void StartShift()
     {
         ResolveManagerComponents();
+        ApplyDifficultyScaling();
         ResetShiftRuntime();
 
         timeRemaining = ShiftLengthSeconds;
@@ -353,6 +384,24 @@ public class GameDayManager : MonoBehaviour
         SetupMoodBars(true);
     }
 
+    /// <summary>
+    /// Reads the current day from GameFlowManager and evaluates each AnimationCurve
+    /// to override flat spawn settings before the shift starts.
+    /// </summary>
+    private void ApplyDifficultyScaling()
+    {
+        if (GameFlowManager.Instance == null || maxScalingDay <= 1)
+            return;
+
+        int day = GameFlowManager.Instance.CurrentDay;
+        float t = Mathf.Clamp01((float)(day - 1) / (maxScalingDay - 1));
+
+        maxCustomersToSpawn = Mathf.RoundToInt(maxCustomersCurve.Evaluate(t));
+        maxGroupsPerMinute  = Mathf.Max(1, Mathf.RoundToInt(groupsPerMinuteCurve.Evaluate(t)));
+        spawnIntervalMin    = Mathf.Max(1f, spawnIntervalMinCurve.Evaluate(t));
+        spawnIntervalMax    = Mathf.Max(spawnIntervalMin + 1f, spawnIntervalMaxCurve.Evaluate(t));
+    }
+
     public void EndShift()
     {
         if (!shiftRunning)
@@ -365,6 +414,14 @@ public class GameDayManager : MonoBehaviour
             StopCoroutine(spawnRoutine);
             spawnRoutine = null;
         }
+
+        StartCoroutine(ShowResultsWhenClear());
+    }
+
+    private IEnumerator ShowResultsWhenClear()
+    {
+        while (FindObjectsByType<CustomerGroup>(FindObjectsSortMode.None).Length > 0)
+            yield return new WaitForSeconds(1f);
 
         ShowResults();
     }
@@ -466,9 +523,14 @@ public class GameDayManager : MonoBehaviour
         Debug.Log($"[GameDayManager] Takeout {(enabled ? "ENABLED" : "DISABLED")}.");
     }
 
+    private const float StopSpawnTimeRemainingSeconds = 60f;
+
     private bool TrySpawnCustomerGroup()
     {
         if (!shiftRunning)
+            return false;
+
+        if (timeRemaining <= StopSpawnTimeRemainingSeconds)
             return false;
 
         if (groupsSpawnedThisShift >= maxCustomersToSpawn)

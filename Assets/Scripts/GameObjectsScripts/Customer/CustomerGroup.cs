@@ -755,14 +755,20 @@ public class CustomerGroup : MonoBehaviour
         if (currentOrder == null)
             return 0;
 
-        int total = currentOrder.unitPrice * Mathf.Max(1, currentOrder.quantity);
+        int quantity = Mathf.Max(1, currentOrder.quantity);
+
+        if (OrderChecklistUI.Instance != null)
+            return OrderChecklistUI.Instance.GetOrderTotalFromContents(currentOrder.contents) * quantity;
+
+        // Fallback: use baked unit price + hardcoded drink price.
+        int total = currentOrder.unitPrice * quantity;
 
         for (int i = 0; i < currentOrder.contents.Count; i++)
         {
             string item = currentOrder.contents[i];
 
             if (item == "Coke" || item == "Pineapple" || item == "Ice Tea")
-                total += 39 * Mathf.Max(1, currentOrder.quantity);
+                total += 39 * quantity;
         }
 
         return total;
@@ -1072,7 +1078,8 @@ public class CustomerGroup : MonoBehaviour
                 return validAmounts[i];
         }
 
-        return total;
+        // Total exceeds largest denomination — round up to nearest 1000.
+        return Mathf.CeilToInt(total / 1000f) * 1000;
     }
 
     public void PayAndLeave()
@@ -1404,14 +1411,17 @@ public class CustomerGroup : MonoBehaviour
         {
             case FinalResult.Happy:
                 GameDayManager.Instance?.RegisterHappyCustomer();
+                DailyRevenueTracker.Instance?.RecordOrderCompleted();
                 break;
 
             case FinalResult.Neutral:
                 GameDayManager.Instance?.RegisterNeutralCustomer();
+                DailyRevenueTracker.Instance?.RecordOrderCompleted();
                 break;
 
             case FinalResult.Angry:
                 GameDayManager.Instance?.RegisterAngryCustomer();
+                DailyRevenueTracker.Instance?.RecordOrderFailed();
                 break;
         }
     }
