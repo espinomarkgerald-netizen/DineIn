@@ -17,9 +17,9 @@ public class Shelf : MonoBehaviour {
 
     /// <summary>Called by the Take Stack button on the shelf.</summary>
     public void Button_TakeStack() {
-        PlayerHolding player = interactingPlayer ?? FindNearestPlayer();
+        if (interactingPlayer == null || interactingPlayer.heldObject != null) return;
 
-        if (player == null || player.heldObject != null) return;
+        PlayerHolding player = interactingPlayer;
 
         int amount = TryDeductStock(grabQuantity);
 
@@ -38,21 +38,6 @@ public class Shelf : MonoBehaviour {
         interactingPlayer = null;
     }
 
-    private PlayerHolding FindNearestPlayer() {
-        PlayerHolding[] all = FindObjectsByType<PlayerHolding>(FindObjectsSortMode.None);
-        PlayerHolding nearest = null;
-        float minDist = float.MaxValue;
-
-        foreach (PlayerHolding p in all) {
-            float dist = Vector3.Distance(transform.position, p.transform.position);
-            if (dist < minDist) {
-                minDist = dist;
-                nearest = p;
-            }
-        }
-
-        return nearest;
-    }
 
     /// <summary>
     /// Deducts up to <paramref name="requested"/> units from InventoryManager.

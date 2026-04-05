@@ -88,6 +88,7 @@ public class KitchenPlayerMovement : MonoBehaviour {
               else if (hit.collider.TryGetComponent(out Counter counter)) {
                 SetTarget(hit.transform, counter.standPoint);
             } else if (hit.collider.TryGetComponent(out Shelf shelf)) {
+                if (myRole != KitchenRole.PrepCook) { ShowWarning("Only Prep Cook can take from shelves!"); return; }
                 SetTarget(hit.transform, shelf.standPoint);
             } else if (hit.collider.TryGetComponent(out TrashCan trashCan)) {
                 SetTarget(hit.transform, trashCan.standPoint);

@@ -41,6 +41,8 @@ public class OrderManagerKitchen : MonoBehaviour {
         SpawnOrder();
     }
 
+    private bool pendingReport = false;
+
     void Update() {
         if (isShiftActive) {
             currentShiftTime -= Time.deltaTime;
@@ -48,7 +50,7 @@ public class OrderManagerKitchen : MonoBehaviour {
             if (currentShiftTime <= 0) {
                 currentShiftTime = 0;
                 isShiftActive = false;
-                EndShift();
+                OnShiftTimerExpired();
             }
 
             spawnTimer += Time.deltaTime;
@@ -61,23 +63,34 @@ public class OrderManagerKitchen : MonoBehaviour {
         for (int i = activeOrders.Count - 1; i >= 0; i--) {
             activeOrders[i].timeLeft -= Time.deltaTime;
             if (activeOrders[i].timeLeft <= 0) {
-
-                // --- NEW: LOG A FAILED ORDER! ---
                 PerformanceManager.AddFailedOrder();
-
                 activeOrders.RemoveAt(i);
                 DailyRevenueTracker.Instance?.RecordOrderFailed();
             }
         }
+
+        if (pendingReport && activeOrders.Count == 0)
+            ShowDailyReport();
     }
 
-    private void EndShift() {
+    /// <summary>Called once when the shift timer reaches zero. Triggers the report
+    /// immediately if the board is already clear, otherwise waits for remaining tickets.</summary>
+    private void OnShiftTimerExpired() {
         GameFlowManager.Instance?.EndOfDayFinance();
+
+        if (activeOrders.Count == 0)
+            ShowDailyReport();
+        else
+            pendingReport = true;
+    }
+
+    private void ShowDailyReport() {
+        pendingReport = false;
 
         if (DailyReportUI.Instance != null)
             DailyReportUI.Instance.Show();
         else
-            Debug.LogWarning("DailyReportUI not found.");
+            Debug.LogWarning("[OrderManagerKitchen] DailyReportUI not found.");
     }
 
     private void SpawnOrder() {
