@@ -13109,7 +13109,7 @@ MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 1414530160320430229, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
   m_PrefabInstance: {fileID: 569230125}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
+  m_GameObject: {fileID: 569230127}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4d75b7bcdb426e94e932312f72304bb3, type: 3}
@@ -14908,7 +14908,7 @@ MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 1132522026155506242, guid: 1245529bf8ffa43469bfc322ef8a5f64, type: 3}
   m_PrefabInstance: {fileID: 527146615}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
+  m_GameObject: {fileID: 527146617}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4d75b7bcdb426e94e932312f72304bb3, type: 3}
@@ -16509,15 +16509,15 @@ MonoBehaviour:
   roleManager: {fileID: 1385933978}
   cashierBooth: {fileID: 1591282106}
   boothSources:
-  - {fileID: 1398435364}
+  - {fileID: 0}
   - {fileID: 1741813111}
-  - {fileID: 969107139}
-  - {fileID: 1025279266}
+  - {fileID: 0}
+  - {fileID: 0}
   - {fileID: 966462379}
   - {fileID: 1341613598}
-  - {fileID: 1535063397}
+  - {fileID: 0}
   - {fileID: 863491688}
-  - {fileID: 1058565127}
+  - {fileID: 0}
   showOnlyWhenWaiterIsActive: 1
   waiterRoleToken: Waiter
   cashierLabelOverride: cashier booth
@@ -21226,7 +21226,7 @@ MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 1132522026155506242, guid: 1245529bf8ffa43469bfc322ef8a5f64, type: 3}
   m_PrefabInstance: {fileID: 110128958}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
+  m_GameObject: {fileID: 110128960}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4d75b7bcdb426e94e932312f72304bb3, type: 3}
@@ -21277,6 +21277,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   queueManager: {fileID: 1323237028}
+  kitchenManager: {fileID: 0}
   startOrderDelay: 0.15
   autoStartOrderWhenFrontArrives: 1
   autoSendToKitchenAfterPayment: 1
@@ -27119,7 +27120,7 @@ MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 1414530160320430229, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
   m_PrefabInstance: {fileID: 553168632}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
+  m_GameObject: {fileID: 553168634}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4d75b7bcdb426e94e932312f72304bb3, type: 3}
@@ -29301,7 +29302,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   managementSceneName: Office
-  shiftLengthMinutes: 5
+  shiftLengthMinutes: 0.1
   maxCustomersToSpawn: 12
   maxGroupsPerMinute: 2
   spawnIntervalMin: 6
