@@ -20,5 +20,5 @@ MonoBehaviour:
   ingredients:
   - item: {fileID: 11400000, guid: 70830520795d900449881daee8ed45ad, type: 2}
     amount: 4
-  sellPrice: 359
+  sellPrice: 299
   descriptionText: Chicken na Masarap

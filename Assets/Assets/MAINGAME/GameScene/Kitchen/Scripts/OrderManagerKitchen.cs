@@ -55,9 +55,24 @@ public class OrderManagerKitchen : MonoBehaviour {
     public List<LiveTicket> activeOrders = new List<LiveTicket>();
     private float spawnTimer = 0f;
 
+    // Prices per ItemTypeKitchen, built once at Start() from RecipeManager while it's
+    // still alive, then kept in memory for the duration of the kitchen shift.
+    private static readonly Dictionary<ItemTypeKitchen, int> FallbackPrices =
+        new Dictionary<ItemTypeKitchen, int> {
+            { ItemTypeKitchen.Burger,   119 },
+            { ItemTypeKitchen.Chicken,  299 },
+            { ItemTypeKitchen.Fries,     79 },
+            { ItemTypeKitchen.Coke,      50 },
+            { ItemTypeKitchen.Pineapple, 50 },
+            { ItemTypeKitchen.IcedTea,   50 },
+        };
+
+    private Dictionary<ItemTypeKitchen, int> priceMap;
+
     void Awake() { Instance = this; }
 
     void Start() {
+        BuildPriceMap();
         ApplyDifficultyScaling();
 
         currentShiftTime = shiftDuration;
@@ -182,10 +197,11 @@ public class OrderManagerKitchen : MonoBehaviour {
         foreach (LiveTicket ticket in activeOrders) {
             if (ticket.missingItems.Contains(item)) {
                 ticket.missingItems.Remove(item);
+                ticket.completedItems.Add(item);
                 Debug.Log($"[OrderManager] Delivered {item} for '{ticket.ticketName}'. Remaining: {ticket.missingItems.Count}");
 
                 if (ticket.missingItems.Count == 0) {
-                    int revenue = GetOrderRevenue(ticket.ticketName);
+                    int revenue = GetOrderRevenue(ticket.completedItems);
                     Debug.Log($"[OrderManager] ORDER COMPLETE: '{ticket.ticketName}' — +₱{revenue}");
                     DailyRevenueTracker.Instance?.RecordOrderCompleted();
                     DailyFinanceBridge.Instance?.AddEarnings(revenue, "Kitchen Order");
@@ -202,23 +218,37 @@ public class OrderManagerKitchen : MonoBehaviour {
     }
 
     /// <summary>
-    /// Looks up the combined sell price of all items in the order ticket name
-    /// by matching each token against Recipe.recipeName.
+    /// Reads prices from RecipeManager while it may still be alive (called at Start).
+    /// Falls back to hardcoded lobby-matching prices if RecipeManager is absent.
     /// </summary>
-    private int GetOrderRevenue(string ticketName) {
-        IReadOnlyList<Recipe> recipes = RecipeManager.AllRecipesStatic;
-        if (recipes == null || recipes.Count == 0) return 0;
+    private void BuildPriceMap() {
+        priceMap = new Dictionary<ItemTypeKitchen, int>(FallbackPrices);
 
+        IReadOnlyList<Recipe> recipes = RecipeManager.AllRecipesStatic;
+        if (recipes == null || recipes.Count == 0) {
+            Debug.Log("[OrderManagerKitchen] RecipeManager unavailable — using built-in price map.");
+            return;
+        }
+
+        foreach (Recipe recipe in recipes) {
+            if (recipe.kitchenItemType != ItemTypeKitchen.None)
+                priceMap[recipe.kitchenItemType] = recipe.sellPrice;
+        }
+
+        Debug.Log("[OrderManagerKitchen] Price map built from RecipeManager.");
+    }
+
+    /// <summary>
+    /// Sums the sell price of each ItemTypeKitchen on the completed ticket
+    /// using the price map built at shift start.
+    /// </summary>
+    private int GetOrderRevenue(List<ItemTypeKitchen> items) {
         int total = 0;
-        string[] tokens = ticketName.Split('&');
-        foreach (string token in tokens) {
-            string clean = token.Trim();
-            foreach (Recipe recipe in recipes) {
-                if (string.Equals(recipe.recipeName.Replace(" ", ""), clean, System.StringComparison.OrdinalIgnoreCase)) {
-                    total += recipe.sellPrice;
-                    break;
-                }
-            }
+        foreach (ItemTypeKitchen item in items) {
+            if (priceMap.TryGetValue(item, out int price))
+                total += price;
+            else
+                Debug.LogWarning($"[OrderManagerKitchen] No price for {item} — item not counted.");
         }
         return total;
     }

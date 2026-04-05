@@ -20,5 +20,5 @@ MonoBehaviour:
   ingredients:
   - item: {fileID: 11400000, guid: 69cc4862a76fc1542bbcb2ba9bbff83b, type: 2}
     amount: 1
-  sellPrice: 0
+  sellPrice: 50
   descriptionText: 
