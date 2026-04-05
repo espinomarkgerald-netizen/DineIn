@@ -7387,6 +7387,9 @@ MonoBehaviour:
   customerPrefab: {fileID: 3759403404594665735, guid: 2ed0b38795c7a544c909106d69b9865e, type: 3}
   spawnPoint: {fileID: 566677334}
   lobbyLine: {fileID: 519868826}
+  takeoutQueueManager: {fileID: 0}
+  takeoutEnabled: 0
+  takeoutSpawnChance: 0.2
   autoSpawn: 0
   spawnInterval: 16
   minGroupSize: 1
@@ -9080,7 +9083,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 779453279}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 07596b7b5b54d0a4cb00894ffc32905f, type: 3}
   m_Name: 
@@ -9088,7 +9091,7 @@ MonoBehaviour:
   blockingPanels:
   - target: {fileID: 2142882885}
     blocksGameplay: 1
-  - target: {fileID: 1801708151}
+  - target: {fileID: 832524633}
     blocksGameplay: 1
   - target: {fileID: 23184226}
     blocksGameplay: 1
@@ -10239,6 +10242,7 @@ RectTransform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
+  - {fileID: 1378655837}
   - {fileID: 1422712815}
   m_Father: {fileID: 1801708152}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -12121,6 +12125,8 @@ MonoBehaviour:
   - {fileID: 1451838212}
   - {fileID: 1474986902}
   foodTrayPrefab: {fileID: 8503857634238110082, guid: d31d808e8c170a64092e5200a4ff9757, type: 3}
+  takeoutSpawnPoints: []
+  takeoutBagPrefab: {fileID: 0}
   cookSeconds: 1
   waitForFreeSlotCheckInterval: 0.25
 --- !u!114 &952672342
@@ -18658,7 +18664,7 @@ RectTransform:
   m_LocalScale: {x: 0.50000006, y: 0.50000006, z: 0.50000006}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 1801708152}
+  m_Father: {fileID: 832524634}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
@@ -24050,7 +24056,6 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 832524634}
-  - {fileID: 1378655837}
   m_Father: {fileID: 1113496784}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
@@ -25614,6 +25619,8 @@ GameObject:
   - component: {fileID: 1899391350}
   - component: {fileID: 1899391351}
   - component: {fileID: 1899391354}
+  - component: {fileID: 1899391356}
+  - component: {fileID: 1899391355}
   m_Layer: 0
   m_Name: TutorialManager
   m_TagString: Untagged
@@ -25641,6 +25648,7 @@ Transform:
   - {fileID: 740364585}
   - {fileID: 1596502684}
   - {fileID: 1929912338}
+  - {fileID: 1960441079}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1899391341
@@ -25715,7 +25723,7 @@ MonoBehaviour:
   practiceTimerText: {fileID: 971443438}
   showDialoguePerPhase: 1
   phaseDialogueDuration: 3
-  currentDay: 4
+  currentDay: 0
   dayConfigs:
   - day: 0
     dayTitle: 'Day 1 '
@@ -25927,7 +25935,10 @@ MonoBehaviour:
   greetTarget: {fileID: 0}
   orderSubmitTarget: {fileID: 957956620}
   cashierMoneyTarget: {fileID: 1205362116}
-  sinkTarget: {fileID: 2030584026}
+  sinkTarget: {fileID: 947797748}
+  notepadTarget: {fileID: 1531882250}
+  cashierCounterTarget: {fileID: 1205362116}
+  cashierWaitSpotTarget: {fileID: 1960441079}
   hostBooths:
   - {fileID: 1058565127}
   - {fileID: 1065963042}
@@ -26283,6 +26294,49 @@ MonoBehaviour:
   fallbackDialogueDuration: 3.5
   keepWaiterSelected: 1
   roleLockInterval: 0.25
+--- !u!114 &1899391355
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1899391339}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 071bccb8d26c3bf44995f39b2ff39381, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  tutorialManager: {fileID: 1899391342}
+  arrowManager: {fileID: 1899391345}
+  orderSubmitTarget: {fileID: 957956620}
+  cashierBillTarget: {fileID: 1205362116}
+  cashierCounterTarget: {fileID: 1205362116}
+  cashierWaitSpotTarget: {fileID: 1960441079}
+  busserSinkTarget: {fileID: 947797748}
+  arrowRefreshInterval: 0.3
+--- !u!114 &1899391356
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1899391339}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 058c8b7163c8b5540be010bf840329ee, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  tutorialManager: {fileID: 1899391342}
+  arrowManager: {fileID: 1899391345}
+  dialogueUI: {fileID: 1899391347}
+  roleHighlight: {fileID: 1899391348}
+  cashierCounterTarget: {fileID: 1205362116}
+  cashierWaitSpotTarget: {fileID: 1960441079}
+  notepadTarget: {fileID: 1531882250}
+  orderSubmitTarget: {fileID: 957956620}
+  busserSinkTarget: {fileID: 947797748}
+  phaseEntryHintDuration: 3.5
+  busserArrowRefreshInterval: 0.2
 --- !u!1 &1901889023
 GameObject:
   m_ObjectHideFlags: 0
@@ -27277,6 +27331,37 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1952862811}
   m_CullTransparentMesh: 1
+--- !u!1 &1960441078
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1960441079}
+  m_Layer: 0
+  m_Name: CashierWaitSpot
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1960441079
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1960441078}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -7.5, y: 0, z: 2}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1899391340}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1973692159
 GameObject:
   m_ObjectHideFlags: 0

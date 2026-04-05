@@ -203,6 +203,9 @@ public class TutorialManager : MonoBehaviour
     [SerializeField] private bool enableDay5MasteryTrayFallback = true;
     private float masteryTrayRefreshTimer;
 
+    // Cached reference to the tutorial-only phase guidance driver (co-located on this GameObject).
+    private TutorialPhaseGuidanceDriver guidanceDriver;
+
     [Header("Cashier Day 3 Only Helpers")]
     [SerializeField] private Behaviour[] cashierDay3OnlyBehaviours;
     [SerializeField] private GameObject[] cashierDay3OnlyObjects;
@@ -284,6 +287,9 @@ public class TutorialManager : MonoBehaviour
         LoadSavedDayProgress();
         ResolveSceneReferences();
         EnsureDayConfigs(false);
+
+        // Cache tutorial-only helpers co-located on this GameObject.
+        guidanceDriver = GetComponent<TutorialPhaseGuidanceDriver>();
 
         if (tutorialIntroPanel != null)
             tutorialIntroPanel.SetActive(true);
@@ -1122,6 +1128,10 @@ public class TutorialManager : MonoBehaviour
 
         if (showDialoguePerPhase && dialogueUI != null)
             ShowPhaseDialogue(currentPhase);
+
+        // Notify tutorial-only guidance driver on phase entry.
+        if (guidanceDriver != null)
+            guidanceDriver.OnPhaseEntered(currentPhase);
     }
 
     public void AdvancePhase()
@@ -1914,11 +1924,17 @@ public class TutorialManager : MonoBehaviour
         if (!tutorialStarted)
             return;
 
+        CustomerGroup prevGroup = activeTutorialGroup;
+
         if (activeTutorialGroup == null || !IsUsableTutorialGroup(activeTutorialGroup))
             activeTutorialGroup = GetBestGroupForCurrentDay(null);
 
         if (!IsValidDirtyTrayForTracking(activeDirtyTray))
             activeDirtyTray = GetBestTrayForCurrentDay(null);
+
+        // Notify tutorial-only guidance driver when the tracked group changes.
+        if (guidanceDriver != null && activeTutorialGroup != prevGroup)
+            guidanceDriver.OnActiveTutorialGroupChanged(activeTutorialGroup);
     }
 
     private void RefreshMasteryDirtyTrayTracking()
