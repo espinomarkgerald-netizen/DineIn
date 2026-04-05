@@ -176,12 +176,15 @@ public class TakeoutFlowManager : MonoBehaviour
         if (autoSendToKitchenAfterPayment)
         {
             if (kitchenManager != null)
+            {
                 kitchenManager.ProcessOrder(group);
+                Debug.Log($"[TakeoutFlow] Payment completed for {group.name}. Sent to kitchen.");
+            }
             else
-                Debug.LogWarning("[TakeoutFlow] kitchenManager not assigned on TakeoutFlowManager.");
+            {
+                Debug.LogError("[TakeoutFlow] kitchenManager is NOT assigned on TakeoutFlowManager — assign it in the Inspector! Bag will never spawn.");
+            }
         }
-
-        Debug.Log($"[TakeoutFlow] Payment completed for {group.name}. Sent to kitchen.");
     }
 
     public void NotifyBagReady(CustomerGroup group)
@@ -230,6 +233,22 @@ public class TakeoutFlowManager : MonoBehaviour
             return;
 
         NotifyBagReady(activeGroup);
+    }
+
+    /// <summary>
+    /// Forces the flow manager to release its reference to the given group and
+    /// reset to idle. Called when a takeout group times out and leaves without
+    /// completing the normal bag-delivery path.
+    /// Only clears state when the group matches the currently tracked active group
+    /// so that an unrelated group timing out cannot corrupt an ongoing flow.
+    /// </summary>
+    public void ForceRelease(CustomerGroup group)
+    {
+        if (group == null || group != activeGroup)
+            return;
+
+        Debug.Log($"[TakeoutFlow] ForceRelease called for {group.name}. Clearing active flow.");
+        ClearRuntime();
     }
 
     private bool IsActiveFront(CustomerGroup group)

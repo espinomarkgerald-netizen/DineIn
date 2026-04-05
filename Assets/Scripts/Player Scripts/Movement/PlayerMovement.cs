@@ -176,6 +176,7 @@ public class PlayerMovement : MonoBehaviour
         bool isCarryingTray = WaiterHands.Instance != null && WaiterHands.Instance.HasTray;
         bool isCarryingBill = WaiterHands.Instance != null && WaiterHands.Instance.HasBill;
         bool isCarryingMoney = WaiterHands.Instance != null && WaiterHands.Instance.HasMoney;
+        bool isCarryingBag = TakeoutBagInteractable.HasHeldBag;
 
         IInteractable bestTarget = null;
         RaycastHit bestHit = default;
@@ -192,6 +193,16 @@ public class PlayerMovement : MonoBehaviour
                 if (it == null) continue;
 
                 if (isCarryingMoney && it is CashierBoothInteractable)
+                {
+                    if (!it.CanInteract()) continue;
+
+                    bestTarget = it;
+                    bestHit = hit;
+                    goto FoundTarget;
+                }
+
+                // When holding a takeout bag, prioritise the matching takeout customer.
+                if (isCarryingBag && it is TakeoutCustomerInteractable)
                 {
                     if (!it.CanInteract()) continue;
 

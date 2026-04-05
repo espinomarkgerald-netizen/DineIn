@@ -19,6 +19,25 @@ public class TakeoutQueueManager : MonoBehaviour
 
     public CustomerGroup CurrentFront => currentFront;
 
+    public static TakeoutQueueManager Instance { get; private set; }
+
+    private void Awake()
+    {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
+        Instance = this;
+    }
+
+    private void OnDestroy()
+    {
+        if (Instance == this)
+            Instance = null;
+    }
+
     private void Update()
     {
         CleanupInvalidReferences();
@@ -81,6 +100,43 @@ public class TakeoutQueueManager : MonoBehaviour
             {
                 Destroy(released.gameObject);
             }
+        }
+
+        RefreshQueue();
+    }
+
+    /// <summary>
+    /// Releases any takeout group — whether it is the current front or still
+    /// waiting in the queue — and drives it to the exit point so it despawns.
+    /// Used by the unhappy/angry timeout paths in CustomerGroup.StartLeaving().
+    /// </summary>
+    public void ReleaseGroup(CustomerGroup group)
+    {
+        if (group == null)
+            return;
+
+        if (group == currentFront)
+        {
+            ReleaseFrontFromOrderPoint();
+            return;
+        }
+
+        // Group is queued but not yet at the order point.
+        queue.Remove(group);
+        slotLookup.Remove(group);
+
+        group.SetTakeoutQueueState(CustomerGroup.TakeoutQueueState.None);
+
+        if (exitPoint != null)
+        {
+            group.MoveToTakeoutPoint(exitPoint.position);
+
+            if (!leavingGroups.Contains(group))
+                leavingGroups.Add(group);
+        }
+        else
+        {
+            Destroy(group.gameObject);
         }
 
         RefreshQueue();

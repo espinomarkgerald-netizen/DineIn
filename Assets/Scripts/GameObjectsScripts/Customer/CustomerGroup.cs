@@ -122,8 +122,7 @@ public class CustomerGroup : MonoBehaviour
     [Header("Takeout")]
     [SerializeField] private ServiceType serviceType = ServiceType.DineIn;
     [SerializeField] private TakeoutQueueState takeoutQueueState = TakeoutQueueState.None;
-
-    
+    [SerializeField] private GameObject deliveryHighlightVisual;
 
     public bool IsTakeout => serviceType == ServiceType.Takeout;
     public TakeoutQueueState CurrentTakeoutQueueState => takeoutQueueState;
@@ -1128,6 +1127,21 @@ public class CustomerGroup : MonoBehaviour
         if (shouldShowAngryThoughtOnLeave && state == GroupState.Leaving)
             ShowThought(angryComments, angryFaceSprite);
 
+        // Drive the full takeout exit: move the group to the exit point and despawn.
+        // This covers both the happy path (bag delivered) and all timeout paths
+        // (order patience expired, line patience expired) that reach StartLeaving().
+        if (IsTakeout)
+        {
+            TakeoutQueueManager qm = TakeoutQueueManager.Instance;
+            if (qm != null)
+                qm.ReleaseGroup(this);
+            else
+                Destroy(gameObject);
+
+            TakeoutFlowManager.Instance?.ForceRelease(this);
+            return;
+        }
+
         ResolveExitPoint();
 
         if (exitPoint == null)
@@ -1175,6 +1189,10 @@ public class CustomerGroup : MonoBehaviour
 
     private IEnumerator LeaveToExitFlow()
     {
+        // Takeout exit is handled by TakeoutQueueManager — do not run the dine-in booth exit flow.
+        if (IsTakeout)
+            yield break;
+
         if (assignedBooth == null)
         {
             CleanupOnLeave();
@@ -1489,6 +1507,13 @@ public class CustomerGroup : MonoBehaviour
 
         return count > 0 ? sum / count : transform.position;
     }
+
+    /// <summary>
+    /// Returns the current world-space centre of all members in this group.
+    /// Used by TakeoutCustomerInteractable so the waiter walks to where the
+    /// members actually are, not to the group root (which is the spawn point).
+    /// </summary>
+    public Vector3 GetCurrentWorldCenter() => GetMembersCenterWorld();
 
     public bool CanBeGreeted()
     {
@@ -1969,6 +1994,27 @@ public class CustomerGroup : MonoBehaviour
         takeoutQueueState = value;
     }
 
+    /// <summary>
+    /// Activates or deactivates the delivery target highlight so the waiter knows
+    /// which takeout customer to approach when carrying the correct bag.
+    /// Uses the dedicated deliveryHighlightVisual if assigned, otherwise falls back
+    /// to the selectionVisual.
+    /// </summary>
+    public void SetDeliveryHighlight(bool active)
+    {
+        if (!IsTakeout)
+            return;
+
+        if (deliveryHighlightVisual != null)
+        {
+            deliveryHighlightVisual.SetActive(active);
+            return;
+        }
+
+        if (selectionVisual != null)
+            selectionVisual.SetActive(active);
+    }
+
     public void MoveToTakeoutPoint(Vector3 worldPoint)
     {
         for (int i = 0; i < members.Count; i++)
@@ -2026,10 +2072,26 @@ public class CustomerGroup : MonoBehaviour
         if (!IsTakeout)
             return false;
 
-        if (state != GroupState.OrderTaken)
-            return false;
+        // Accept any state that means the group has placed its order and is waiting.
+        // After payment and kitchen prep the state may be Waiting or WaitingToOrder
+        // rather than OrderTaken, depending on timing.
+        bool validState = state == GroupState.OrderTaken
+                       || state == GroupState.Waiting
+                       || state == GroupState.WaitingToOrder;
 
-        bool isCorrectOrder = IsCorrectDeliveredOrder(deliveredContents);
+        if (!validState)
+        {
+            Debug.LogWarning($"[TakeoutDelivery] {name} cannot receive bag in state {state}.");
+            return false;
+        }
+
+        // For takeout: if the order contents were cleared after payment/kitchen processing,
+        // skip the contents match. Group identity was already validated by TryDeliverTo
+        // (same targetGroup reference set at bag spawn time) before reaching this method.
+        bool skipContentsCheck = currentOrder == null
+                              || currentOrder.contents == null
+                              || currentOrder.contents.Count == 0;
+        bool isCorrectOrder = skipContentsCheck || IsCorrectDeliveredOrder(deliveredContents);
 
         if (!isCorrectOrder)
         {

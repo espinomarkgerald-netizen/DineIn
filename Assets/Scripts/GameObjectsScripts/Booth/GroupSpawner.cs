@@ -14,8 +14,8 @@ public class GroupSpawner : MonoBehaviour
 
     [Header("Takeout")]
     [SerializeField] private TakeoutQueueManager takeoutQueueManager;
-    [SerializeField] private bool forceTakeoutForTesting = true;
-    [SerializeField] private int forcedTakeoutSize = 1;
+    [SerializeField] private bool takeoutEnabled = false;
+    [SerializeField] [Range(0f, 1f)] private float takeoutSpawnChance = 0.2f;
 
     [Header("Spawn Settings")]
     public bool autoSpawn = false;
@@ -38,29 +38,36 @@ public class GroupSpawner : MonoBehaviour
         }
     }
 
+    /// <summary>Enables or disables the takeout spawn path at runtime.</summary>
+    public void SetTakeoutEnabled(bool enabled) { takeoutEnabled = enabled; }
+
+    /// <summary>Returns the current takeout-enabled state.</summary>
+    public bool TakeoutEnabled => takeoutEnabled;
+
     public CustomerGroup SpawnGroup()
     {
         if (groupPrefab == null || customerPrefab == null || spawnPoint == null)
         {
-            Debug.LogWarning("Spawner missing references.");
+            Debug.LogWarning("[GroupSpawner] Spawner missing core references (groupPrefab / customerPrefab / spawnPoint).");
             return null;
         }
 
-        if (!forceTakeoutForTesting && lobbyLine == null)
+        // Dine-in requires a lobby line. If it is missing, we cannot spawn at all.
+        if (lobbyLine == null)
         {
-            Debug.LogWarning("Spawner missing LobbyLineManager.");
+            Debug.LogWarning("[GroupSpawner] LobbyLineManager not assigned — cannot spawn dine-in groups.");
             return null;
         }
 
-        if (forceTakeoutForTesting && takeoutQueueManager == null)
-        {
-            Debug.LogWarning("Spawner missing TakeoutQueueManager.");
-            return null;
-        }
+        // Decide service type for this spawn.
+        bool spawnAsTakeout = takeoutEnabled
+            && takeoutQueueManager != null
+            && Random.value < takeoutSpawnChance;
 
-        int size = forceTakeoutForTesting
-            ? forcedTakeoutSize
-            : Random.Range(minGroupSize, maxGroupSize + 1);
+        if (takeoutEnabled && takeoutQueueManager == null)
+            Debug.LogWarning("[GroupSpawner] takeoutEnabled is true but TakeoutQueueManager is not assigned — falling back to dine-in.");
+
+        int size = Random.Range(minGroupSize, maxGroupSize + 1);
 
         var group = Instantiate(groupPrefab, spawnPoint.position, Quaternion.identity);
         group.name = $"Group_{size}";
@@ -73,11 +80,28 @@ public class GroupSpawner : MonoBehaviour
             group.members.Add(cust);
         }
 
-        if (forceTakeoutForTesting)
+        if (spawnAsTakeout)
         {
             group.SetServiceType(CustomerGroup.ServiceType.Takeout);
             group.SetTakeoutQueueState(CustomerGroup.TakeoutQueueState.None);
             group.state = CustomerGroup.GroupState.Waiting;
+
+            // TakeoutCustomerInteractable implements IInteractable so the waiter's
+            // custom raycast system (PlayerMovement.TryClickInteractable) can detect
+            // a click on this group while holding the bag. OnMouseDown is NOT used.
+            if (group.GetComponent<TakeoutCustomerInteractable>() == null)
+                group.gameObject.AddComponent<TakeoutCustomerInteractable>();
+
+            // A Collider on the group root is required for Physics.RaycastAll to hit it.
+            // Layer 8 (Customer) is already in PlayerMovement.clickMask in this scene.
+            if (group.GetComponent<Collider>() == null)
+            {
+                var col = group.gameObject.AddComponent<CapsuleCollider>();
+                col.center = new Vector3(0f, 0.9f, 0f);
+                col.radius = 0.45f;
+                col.height = 1.8f;
+                col.isTrigger = false;
+            }
 
             takeoutQueueManager.Enqueue(group);
             return group;

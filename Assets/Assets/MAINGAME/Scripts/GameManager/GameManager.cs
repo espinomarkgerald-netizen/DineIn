@@ -71,6 +71,9 @@ public class GameDayManager : MonoBehaviour
     [SerializeField] private Button resultsActionButton;
     [SerializeField] private TMP_Text resultsActionButtonText;
 
+    [Header("Takeout Unlock")]
+    [SerializeField] private int takeoutUnlockDay = 20;
+
     [Header("Runtime")]
     [SerializeField] private bool shiftRunning;
     [SerializeField] private float timeRemaining;
@@ -142,6 +145,8 @@ public class GameDayManager : MonoBehaviour
         }
 
         ApplyFinanceFromGameFlow();
+
+        ApplyTakeoutUnlock();
 
         RefreshUI();
         SetupMoodBars(true);
@@ -429,6 +434,39 @@ public class GameDayManager : MonoBehaviour
 
             yield return null;
         }
+    }
+
+    /// <summary>
+    /// Automatically enables takeout spawning when the current day meets or
+    /// exceeds <see cref="takeoutUnlockDay"/>. Called once at shift start.
+    /// </summary>
+    private void ApplyTakeoutUnlock()
+    {
+        if (groupSpawner == null)
+            return;
+
+        bool shouldEnable = GameFlowManager.Instance != null
+            && GameFlowManager.Instance.CurrentDay >= takeoutUnlockDay;
+
+        groupSpawner.SetTakeoutEnabled(shouldEnable);
+        Debug.Log($"[GameDayManager] Takeout {(shouldEnable ? "ENABLED" : "DISABLED")} " +
+                  $"(current day: {GameFlowManager.Instance?.CurrentDay}, unlock day: {takeoutUnlockDay}).");
+    }
+
+    /// <summary>
+    /// Enables or disables the takeout customer spawn path at runtime.
+    /// Use this to override the day-based auto-unlock during a running shift.
+    /// </summary>
+    public void SetTakeoutEnabled(bool enabled)
+    {
+        if (groupSpawner == null)
+        {
+            Debug.LogWarning("[GameDayManager] SetTakeoutEnabled — GroupSpawner not resolved.");
+            return;
+        }
+
+        groupSpawner.SetTakeoutEnabled(enabled);
+        Debug.Log($"[GameDayManager] Takeout {(enabled ? "ENABLED" : "DISABLED")}.");
     }
 
     private bool TrySpawnCustomerGroup()

@@ -107,6 +107,14 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
 
         if (!hands.HasBill)
         {
+            // Skip all bill-paper logic during takeout kitchen and delivery phases.
+            // Takeout does not use bills — this prevents the "No BillPaper found" spam
+            // and stops dine-in cashier logic from interfering with the takeout flow.
+            var takeoutPhase = TakeoutFlowManager.Instance?.CurrentPhase;
+            if (takeoutPhase == TakeoutFlowManager.TakeoutPhase.WaitingForKitchen ||
+                takeoutPhase == TakeoutFlowManager.TakeoutPhase.WaitingForBagDelivery)
+                return;
+
             if (TryPickupClosestBillPaper())
                 return;
 

@@ -10,6 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 7052212104302851087}
   - component: {fileID: 7463659476693183290}
+  - component: {fileID: 2490006386707959926}
   m_Layer: 0
   m_Name: PaperBag
   m_TagString: Untagged
@@ -47,12 +48,28 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8e9881025aeb0bb4483e67a90edf54d8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  clickCollider: {fileID: 0}
+  clickCollider: {fileID: 3953253542565737744}
+  holdLocalPosition: {x: 0, y: 0.15, z: 0.35}
+  holdLocalEulerAngles: {x: 0, y: 0, z: 0}
+  pickupUiPrefab: {fileID: 2633997611543956007, guid: dff11620b032b1745b0937aa52aa7d25, type: 3}
+  uiAnchor: {fileID: 3588021775282976301}
   targetGroup: {fileID: 0}
   orderNumber: -1
   deliveredContents: []
-  holdLocalPosition: {x: 0, y: 0.15, z: 0.35}
-  holdLocalEulerAngles: {x: 0, y: 0, z: 0}
+--- !u!114 &2490006386707959926
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2990624723560410755}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a508bfae99852134d9c0607dd8b04bb3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  targetGroup: {fileID: 0}
+  orderNumber: -1
 --- !u!1 &4746205880197439907
 GameObject:
   m_ObjectHideFlags: 0

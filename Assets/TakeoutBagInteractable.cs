@@ -93,6 +93,9 @@ public class TakeoutBagInteractable : MonoBehaviour
 
         if (clickCollider != null)
             clickCollider.enabled = false;
+
+        // Highlight the target customer so the waiter knows where to deliver.
+        ShowDeliveryHighlight();
     }
 
     /// <summary>
@@ -130,6 +133,9 @@ public class TakeoutBagInteractable : MonoBehaviour
         HeldBag = null;
         bag.isHeld = false;
 
+        // Remove the delivery highlight from the target customer.
+        bag.ClearDeliveryHighlight();
+
         if (destroyBag)
         {
             Destroy(bag.gameObject);
@@ -138,6 +144,22 @@ public class TakeoutBagInteractable : MonoBehaviour
 
         if (bag.clickCollider != null)
             bag.clickCollider.enabled = true;
+    }
+
+    private void ShowDeliveryHighlight()
+    {
+        if (targetGroup == null)
+            return;
+
+        targetGroup.SetDeliveryHighlight(true);
+    }
+
+    private void ClearDeliveryHighlight()
+    {
+        if (targetGroup == null)
+            return;
+
+        targetGroup.SetDeliveryHighlight(false);
     }
 
     // -------------------------------------------------------------------------
@@ -186,7 +208,7 @@ public class TakeoutBagInteractable : MonoBehaviour
         if (follow != null)
             follow.Init(uiAnchor, Vector3.zero, Camera.main);
 
-        // Try the bag-specific button first, fall back to any generic Button.
+        // Try the bag-specific button first.
         var bagBtn = uiInstance.GetComponentInChildren<BagPickupUIButton>(true);
         if (bagBtn != null)
         {
@@ -195,11 +217,32 @@ public class TakeoutBagInteractable : MonoBehaviour
         }
         else
         {
-            var b = uiInstance.GetComponentInChildren<Button>(true);
-            if (b != null)
+            // The PaperBag reuses TrayUi.prefab which carries TrayPickupUIButton, not
+            // BagPickupUIButton. Set the order number through TrayPickupUIButton so the
+            // TMP text is updated rather than showing the prefab's baked default "1".
+            var trayBtn = uiInstance.GetComponentInChildren<TrayPickupUIButton>(true);
+            if (trayBtn != null)
             {
-                b.onClick.RemoveAllListeners();
-                b.onClick.AddListener(TryPickup);
+                trayBtn.SetTableNumber(orderNumber);
+
+                // Re-wire the button click to pick up the bag instead of a tray.
+                var b = trayBtn.GetComponentInChildren<Button>(true);
+                if (b == null) b = trayBtn.GetComponent<Button>();
+                if (b != null)
+                {
+                    b.onClick.RemoveAllListeners();
+                    b.onClick.AddListener(TryPickup);
+                }
+            }
+            else
+            {
+                // Last-resort: find any Button and wire it up.
+                var b = uiInstance.GetComponentInChildren<Button>(true);
+                if (b != null)
+                {
+                    b.onClick.RemoveAllListeners();
+                    b.onClick.AddListener(TryPickup);
+                }
             }
         }
     }
