@@ -21277,7 +21277,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   queueManager: {fileID: 1323237028}
-  kitchenManager: {fileID: 0}
+  kitchenManager: {fileID: 952672341}
   startOrderDelay: 0.15
   autoStartOrderWhenFrontArrives: 1
   autoSendToKitchenAfterPayment: 1

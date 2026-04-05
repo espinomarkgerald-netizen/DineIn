@@ -53,18 +53,31 @@ public class KitchenManager : MonoBehaviour
     public void ProcessOrder(CustomerGroup group)
     {
         if (group == null)
+        {
+            Debug.LogError("[KitchenManager] ProcessOrder called with null group.");
             return;
+        }
 
         int orderNo = group.currentOrderNumber;
         if (orderNo < 0)
+        {
+            Debug.LogError($"[KitchenManager] ProcessOrder — invalid orderNumber ({orderNo}) on {group.name}. Order not started.");
             return;
+        }
 
         if (group.state != CustomerGroup.GroupState.OrderTaken)
+        {
+            Debug.LogError($"[KitchenManager] ProcessOrder — {group.name} is in state '{group.state}', expected 'OrderTaken'. Order not started.");
             return;
+        }
 
         if (!cookingOrders.Add(orderNo))
+        {
+            Debug.LogWarning($"[KitchenManager] Order #{orderNo} is already being cooked. Duplicate call ignored.");
             return;
+        }
 
+        Debug.Log($"[KitchenManager] Starting cook for order #{orderNo} — group={group.name} isTakeout={group.IsTakeout}.");
         StartCoroutine(CookAndSpawn(group, orderNo));
     }
 
