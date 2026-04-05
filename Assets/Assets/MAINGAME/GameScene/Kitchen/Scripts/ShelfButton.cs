@@ -3,8 +3,8 @@ using UnityEngine.UI;
 
 /// <summary>
 /// Attach this to the Take button GameObject on a shelf Canvas.
-/// It wires the Button.onClick to the parent Shelf.Button_TakeStack at runtime,
-/// replacing any stale serialized listener.
+/// Wires Button.onClick to Shelf.Button_TakeStack at runtime.
+/// The button only succeeds after the prep cook has physically walked up to the shelf.
 /// </summary>
 [RequireComponent(typeof(Button))]
 public class ShelfButton : MonoBehaviour {

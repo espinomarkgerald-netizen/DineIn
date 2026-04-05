@@ -103,6 +103,11 @@ public class KitchenPlayerMovement : MonoBehaviour {
     }
 
     private void SetTarget(Transform interactable, Transform standPoint) {
+        SetTargetPublic(interactable, standPoint);
+    }
+
+    /// <summary>Sends this chef to the given interactable's stand point. Used by world-space buttons.</summary>
+    public void SetTargetPublic(Transform interactable, Transform standPoint) {
         targetInteractable = interactable;
         targetStandPoint = standPoint != null ? standPoint : interactable;
         MoveToTarget(targetStandPoint.position);

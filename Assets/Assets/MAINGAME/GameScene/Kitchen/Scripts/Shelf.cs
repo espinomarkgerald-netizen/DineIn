@@ -8,18 +8,30 @@ public class Shelf : MonoBehaviour {
     [Tooltip("How many units are grabbed per shelf interaction.")]
     [SerializeField] private int grabQuantity = 5;
 
-    private PlayerHolding interactingPlayer;
 
-    /// <summary>Called by the proximity trigger to register the nearby player.</summary>
-    public void Interact(PlayerHolding player) {
-        interactingPlayer = player;
+    /// <summary>Called by the world-space shelf button. Finds the active PrepCook and
+    /// sends them to this shelf's stand point. The ingredient is given on arrival.</summary>
+    public void Button_TakeStack() {
+        KitchenPlayerMovement prep = FindActivePrepCook();
+
+        if (prep == null) {
+            Debug.Log("[Shelf] No active Prep Cook found.");
+            return;
+        }
+
+        if (prep.myRole != KitchenRole.PrepCook) {
+            if (DeliveryFeedback.Instance != null)
+                DeliveryFeedback.Instance.ShowRejection("Only Prep Cook can take from shelves!");
+            return;
+        }
+
+        prep.SetTargetPublic(transform, standPoint);
     }
 
-    /// <summary>Called by the Take Stack button on the shelf.</summary>
-    public void Button_TakeStack() {
-        if (interactingPlayer == null || interactingPlayer.heldObject != null) return;
-
-        PlayerHolding player = interactingPlayer;
+    /// <summary>Called by KitchenPlayerMovement when the prep cook arrives at this shelf.
+    /// Automatically gives the ingredient stack.</summary>
+    public void Interact(PlayerHolding player) {
+        if (player == null || player.heldObject != null) return;
 
         int amount = TryDeductStock(grabQuantity);
 
@@ -35,7 +47,16 @@ public class Shelf : MonoBehaviour {
         stack.Init(ingredientToSpawn, amount);
 
         player.PickUp(newIngredient);
-        interactingPlayer = null;
+    }
+
+    /// <summary>Finds the KitchenPlayerMovement marked as active player with the PrepCook role.</summary>
+    private KitchenPlayerMovement FindActivePrepCook() {
+        KitchenPlayerMovement[] all = FindObjectsByType<KitchenPlayerMovement>(FindObjectsSortMode.None);
+        foreach (KitchenPlayerMovement k in all) {
+            if (k.isActivePlayer && k.myRole == KitchenRole.PrepCook)
+                return k;
+        }
+        return null;
     }
 
 

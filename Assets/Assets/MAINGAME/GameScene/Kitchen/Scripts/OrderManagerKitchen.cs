@@ -18,6 +18,31 @@ public class OrderManagerKitchen : MonoBehaviour {
     public float newOrderDelay = 15f;
     public int maxActiveOrders = 4;
 
+    [Header("Spawn Difficulty Scaling")]
+    [Tooltip("The day number treated as the difficulty ceiling (scales from Day 1 up to this day).")]
+    [SerializeField] private int maxScalingDay = 20;
+
+    [Tooltip("X = normalized day (0–1). Y = max simultaneous active tickets.")]
+    [SerializeField] private AnimationCurve maxActiveOrdersCurve = new AnimationCurve(
+        new Keyframe(0f, 2f),
+        new Keyframe(0.25f, 3f),
+        new Keyframe(0.6f, 4f),
+        new Keyframe(1f, 5f));
+
+    [Tooltip("X = normalized day (0–1). Y = seconds between new ticket spawns.")]
+    [SerializeField] private AnimationCurve newOrderDelayCurve = new AnimationCurve(
+        new Keyframe(0f, 30f),
+        new Keyframe(0.25f, 22f),
+        new Keyframe(0.6f, 15f),
+        new Keyframe(1f, 8f));
+
+    [Tooltip("X = normalized day (0–1). Y = seconds a ticket stays alive before failing.")]
+    [SerializeField] private AnimationCurve timePerOrderCurve = new AnimationCurve(
+        new Keyframe(0f, 120f),
+        new Keyframe(0.25f, 105f),
+        new Keyframe(0.6f, 90f),
+        new Keyframe(1f, 70f));
+
     [System.Serializable]
     public class LiveTicket {
         public string ticketName;
@@ -33,12 +58,31 @@ public class OrderManagerKitchen : MonoBehaviour {
     void Awake() { Instance = this; }
 
     void Start() {
+        ApplyDifficultyScaling();
+
         currentShiftTime = shiftDuration;
         isShiftActive = true;
-        Time.timeScale = 1f; // Make sure time isn't frozen from the last shift!
+        Time.timeScale = 1f;
 
-        // Spawn one order immediately so the board is never empty at game start.
         SpawnOrder();
+    }
+
+    /// <summary>
+    /// Reads the current day from GameFlowManager and evaluates each AnimationCurve
+    /// to scale ticket spawn settings before the shift starts.
+    /// </summary>
+    private void ApplyDifficultyScaling() {
+        if (GameFlowManager.Instance == null || maxScalingDay <= 1) return;
+
+        int day = GameFlowManager.Instance.CurrentDay;
+        float t = Mathf.Clamp01((float)(day - 1) / (maxScalingDay - 1));
+
+        maxActiveOrders = Mathf.Max(1, Mathf.RoundToInt(maxActiveOrdersCurve.Evaluate(t)));
+        newOrderDelay   = Mathf.Max(1f, newOrderDelayCurve.Evaluate(t));
+        timePerOrder    = Mathf.Max(10f, timePerOrderCurve.Evaluate(t));
+
+        Debug.Log($"[OrderManagerKitchen] Day {day} (t={t:F2}) — " +
+                  $"maxActiveOrders={maxActiveOrders}, newOrderDelay={newOrderDelay:F1}s, timePerOrder={timePerOrder:F1}s");
     }
 
     private bool pendingReport = false;
