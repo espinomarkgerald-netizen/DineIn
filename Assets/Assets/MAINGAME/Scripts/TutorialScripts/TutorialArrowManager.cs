@@ -16,6 +16,9 @@ public class TutorialArrowManager : MonoBehaviour
     [SerializeField] private Transform orderSubmitTarget;
     [SerializeField] private Transform cashierMoneyTarget;
     [SerializeField] private Transform sinkTarget;
+    [SerializeField] private Transform notepadTarget;
+    [SerializeField] private Transform cashierCounterTarget;
+    [SerializeField] private Transform cashierWaitSpotTarget;
     [SerializeField] private Booth[] hostBooths;
 
     private GameObject currentArrow;
@@ -119,6 +122,20 @@ public class TutorialArrowManager : MonoBehaviour
                 return null;
             }
 
+            case TutorialManager.TutorialPhase.TakeOrder:
+            {
+                // Point at the seated customer group so the player knows which table to approach.
+                if (group != null)
+                    return group.UIAnchor != null ? group.UIAnchor : group.transform;
+                return null;
+            }
+
+            case TutorialManager.TutorialPhase.ConfirmOrder:
+            {
+                // After tapping the customer, point at the notepad to guide order matching.
+                return notepadTarget;
+            }
+
             case TutorialManager.TutorialPhase.SubmitOrder:
             {
                 if (group == null)
@@ -216,6 +233,18 @@ public class TutorialArrowManager : MonoBehaviour
                     return cleanupTray.transform;
 
                 return null;
+            }
+
+            case TutorialManager.TutorialPhase.CashierWaitForMoney:
+            {
+                // Point the cashier to their waiting position beside the counter.
+                return cashierWaitSpotTarget;
+            }
+
+            case TutorialManager.TutorialPhase.CashierProcessPayment:
+            {
+                // Money has arrived — point at the POS / cashier station.
+                return cashierCounterTarget;
             }
         }
 
