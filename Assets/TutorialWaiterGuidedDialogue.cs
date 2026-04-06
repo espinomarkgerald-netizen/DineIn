@@ -534,7 +534,7 @@ public class TutorialWaiterGuidedDialogue : MonoBehaviour
     private void HideArrowOverride()
     {
         if (arrowManager != null)
-            arrowManager.ForceHide();
+            arrowManager.ForceHide("TutorialManager.CompleteDay");
     }
 
     private Transform GetCashierMoneyTarget()
