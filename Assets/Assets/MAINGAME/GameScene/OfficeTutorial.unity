@@ -16293,6 +16293,7 @@ MonoBehaviour:
   recipeButtonHighlight: {fileID: 0}
   completionPanel: {fileID: 1401752476}
   finishButton: {fileID: 451359166}
+  requiredLobbyRoles: 000000000100000002000000030000000400000005000000
   kitchenRequirements:
   - itemType: 0
     stock: 1

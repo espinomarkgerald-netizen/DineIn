@@ -26,6 +26,9 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Assets/MAINGAME/GameScene/LobbyTutorial.unity
     guid: dd92dfe19c80629418bdba09ac3f2e3e
+  - enabled: 1
+    path: Assets/Assets/MAINGAME/GameScene/OfficeTutorial.unity
+    guid: c8947d1557d9f734a8cba365ceb2447d
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   m_UseUCBPForAssetBundles: 0
