@@ -26,6 +26,7 @@ public class BusserSinkPointer : MonoBehaviour
     [SerializeField] private string labelString = "CLEAN TRAY HERE";
 
     private Vector3 bobOrigin;
+    private bool bobOriginCaptured;
     private bool isShowing;
 
     private void Awake()
@@ -34,7 +35,9 @@ public class BusserSinkPointer : MonoBehaviour
         if (bobTarget == null)
             bobTarget = transform;
 
+        // Cache the origin before any bob animation touches localPosition.
         bobOrigin = bobTarget.localPosition;
+        bobOriginCaptured = true;
 
         if (labelText != null)
         {
@@ -49,6 +52,14 @@ public class BusserSinkPointer : MonoBehaviour
     private void OnEnable()
     {
         // Snap bob position back to origin each time it becomes active.
+        // bobOrigin may not be set yet if the object starts inactive in the scene
+        // (Awake has not run). Capture it here as a safe fallback.
+        if (!bobOriginCaptured && bobTarget != null)
+        {
+            bobOrigin = bobTarget.localPosition;
+            bobOriginCaptured = true;
+        }
+
         if (bobTarget != null)
             bobTarget.localPosition = bobOrigin;
     }
@@ -71,6 +82,8 @@ public class BusserSinkPointer : MonoBehaviour
             return;
 
         isShowing = true;
+
+        // Activate first so OnEnable fires and captures bobOrigin if Awake never ran.
         gameObject.SetActive(true);
 
         if (bobTarget != null)

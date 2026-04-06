@@ -488,7 +488,7 @@ public class TutorialManager : MonoBehaviour
                 SetFloatDefault(ref config.firstSpawnDelay, 0.35f, force);
                 SetFloatDefault(ref config.practiceDurationSeconds, 120f, force);
                 SetFloatDefault(ref config.practiceSpawnIntervalSeconds, 30f, force);
-                SetIntDefault(ref config.practiceTargetCount, 4, force);
+                SetIntDefault(ref config.practiceTargetCount, 7, force);
                 SetIntDefault(ref config.practiceSpawnCountPerWave, 1, force);
                 break;
 
