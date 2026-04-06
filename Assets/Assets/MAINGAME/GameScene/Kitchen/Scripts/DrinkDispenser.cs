@@ -4,11 +4,14 @@ using UnityEngine.EventSystems;
 
 public class DrinkDispenser : Counter {
 
-    // --- NEW: Global reference so the player movement knows this is open! ---
+    // --- Global reference so the player movement knows this is open! ---
     public static DrinkDispenser activeDispenser;
 
     [Header("UI Setup")]
     public GameObject drinkMenuPanel;
+
+    // --- NEW: Slot for the White Circle Popup! ---
+    public GameObject popupCanvas;
 
     [Header("Drink Prefabs")]
     public GameObject cokePrefab;
@@ -21,6 +24,10 @@ public class DrinkDispenser : Counter {
     void Start() {
         if (drinkMenuPanel != null)
             drinkMenuPanel.SetActive(false);
+
+        // Make sure the popup is visible when the game starts!
+        if (popupCanvas != null)
+            popupCanvas.SetActive(true);
     }
 
     void Update() {
@@ -33,8 +40,7 @@ public class DrinkDispenser : Counter {
                 if (Touchscreen.current != null && Touchscreen.current.primaryTouch.press.wasPressedThisFrame) {
                     if (EventSystem.current != null && !EventSystem.current.IsPointerOverGameObject(Touchscreen.current.primaryTouch.touchId.ReadValue()))
                         clickedOutside = true;
-                }
-                else if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame) {
+                } else if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame) {
                     if (EventSystem.current != null && !EventSystem.current.IsPointerOverGameObject())
                         clickedOutside = true;
                 }
@@ -52,7 +58,11 @@ public class DrinkDispenser : Counter {
             string cleanName = player.heldObject.name.Replace(" ", "").ToLower();
             if (cleanName.Contains("emptycup")) {
                 interactingPlayer = player;
+
+                // --- NEW: Hide the white circle, show the menu! ---
+                if (popupCanvas != null) popupCanvas.SetActive(false);
                 drinkMenuPanel.SetActive(true);
+
                 openTimer = 0f;
 
                 // Tell the game this specific dispenser is currently open.
@@ -67,13 +77,16 @@ public class DrinkDispenser : Counter {
         Debug.Log("You need an Empty Cup to use the dispenser! You are holding: " + holdingName);
     }
 
-    public void Button_SelectCoke()      { FillCup(cokePrefab,      ItemType.Coke);      }
+    public void Button_SelectCoke() { FillCup(cokePrefab, ItemType.Coke); }
     public void Button_SelectPineapple() { FillCup(pineapplePrefab, ItemType.Pineapple); }
-    public void Button_SelectIcedTea()   { FillCup(icedTeaPrefab,   ItemType.IcedTea);   }
+    public void Button_SelectIcedTea() { FillCup(icedTeaPrefab, ItemType.IcedTea); }
 
     public void CloseMenu() {
-        if (drinkMenuPanel != null)
-            drinkMenuPanel.SetActive(false);
+        if (drinkMenuPanel != null) drinkMenuPanel.SetActive(false);
+
+        // --- NEW: Bring the white circle back when the menu closes! ---
+        if (popupCanvas != null) popupCanvas.SetActive(true);
+
         interactingPlayer = null;
 
         // Clear the global reference when closed
@@ -105,8 +118,6 @@ public class DrinkDispenser : Counter {
     private bool TryDeductDrinkStock(ItemType drinkType) {
         if (InventoryManager.Instance == null) return true;
 
-        // Only gate on stock if this item was actually purchased and registered in inventory.
-        // If it was never stocked, allow dispensing freely (e.g. testing or first-day play).
         if (InventoryManager.Instance.IsTracked(drinkType) && InventoryManager.Instance.GetStock(drinkType) <= 0) {
             return false;
         }
