@@ -67,7 +67,13 @@ public class KitchenPlayerMovement : MonoBehaviour {
                 if (myRole != KitchenRole.PrepCook) { ShowWarning("Only Prep Cook can grab ingredients!"); return; }
                 SetTargetPublic(cupboard.transform, cupboard.standPoint);
             }
-            // 2. LINE COOK EXCLUSIVE
+            // 2. PREP COOK EXCLUSIVE: Breader (uses Grill script but belongs to Prep Cook)
+            else if (hitRoot.GetComponentInParent<Grill>() && hitRoot.GetComponentInParent<Grill>().gameObject.name == "Breader") {
+                Grill breader = hitRoot.GetComponentInParent<Grill>();
+                if (myRole != KitchenRole.PrepCook) { ShowWarning("Only Prep Cook can use the Breader!"); return; }
+                SetTargetPublic(breader.transform, breader.standPoint);
+            }
+            // LINE COOK EXCLUSIVE
             else if (hitRoot.GetComponentInParent<Grill>()) {
                 Grill grill = hitRoot.GetComponentInParent<Grill>();
                 if (myRole != KitchenRole.LineCook) { ShowWarning("Only Line Cook can use the Grill!"); return; }
