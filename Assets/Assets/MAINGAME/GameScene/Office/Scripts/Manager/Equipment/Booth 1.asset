@@ -16,3 +16,4 @@ MonoBehaviour:
   displayName: Booth
   cost: 0
   dayToUnlock: 12
+  sprite: {fileID: 21300000, guid: ceb822c554b718d448a1003e3cf6e31a, type: 3}
