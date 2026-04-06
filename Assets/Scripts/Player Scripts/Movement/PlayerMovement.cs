@@ -95,6 +95,7 @@ public class PlayerMovement : MonoBehaviour
 
     private void Start()
     {
+        // Only fall back to Camera.main when no camera was injected externally (e.g. by PlayerSetup).
         if (activeCam == null)
             activeCam = Camera.main;
 
@@ -105,13 +106,26 @@ public class PlayerMovement : MonoBehaviour
             GoHomeImmediate();
     }
 
+    /// <summary>
+    /// Re-evaluates and assigns the scene camera using the same priority logic as PlayerSetup.
+    /// Call this after scene camera state changes (e.g. a room manager swapping cameras mid-session).
+    /// </summary>
+    public void RefreshSceneCamera()
+    {
+        Camera found = PlayerSetup.FindActiveSceneCamera();
+        if (found != null)
+            activeCam = found;
+    }
+
     private void Update()
     {
         if (activeCam == null) return;
 
         if (isPlayerControlled && state != State.DoingJob)
         {
-            if (Input.touchSupported && Application.isMobilePlatform)
+            // Always handle touch input when touches are present (covers mobile + tablet).
+            // Fall back to mouse input on desktop / editor when no touches are active.
+            if (Input.touchCount > 0)
                 HandleTouchInput();
             else
                 HandleMouseInput();

@@ -7,11 +7,13 @@ using UnityEngine;
 public class RoomManager : MonoBehaviourPunCallbacks
 {
     [Header("Spawn Settings")]
-    [SerializeField] private GameObject playerPrefab;     // MUST be inside a Resources folder
+    [SerializeField] private GameObject playerPrefab;
     [SerializeField] private Transform spawnPoint;
     [SerializeField] private float spawnSpacing = 1.5f;
 
-    [Header("Room Camera (Pre-Spawn)")]
+    [Header("Room Camera")]
+    [Tooltip("The scene camera used during and after gameplay. " +
+             "This is NEVER disabled — it is the only rendering camera in this scene.")]
     [SerializeField] private GameObject roomCamera;
 
     [Header("Timing")]
@@ -22,10 +24,22 @@ public class RoomManager : MonoBehaviourPunCallbacks
 
     private void Start()
     {
-        if (roomCamera != null) roomCamera.SetActive(true);
+        // Ensure the room camera is on when the scene loads.
+        if (roomCamera != null)
+        {
+            roomCamera.SetActive(true);
+            Debug.Log($"[RoomManager] Room camera '{roomCamera.name}' enabled on Start. " +
+                      $"Active={roomCamera.activeInHierarchy} | " +
+                      $"Camera enabled={roomCamera.GetComponentInChildren<Camera>()?.enabled}");
+        }
+        else
+        {
+            Debug.LogWarning("[RoomManager] roomCamera is not assigned — scene will have no rendering camera!");
+        }
 
         Debug.Log($"[RoomManager] Start | ConnectedReady={PhotonNetwork.IsConnectedAndReady} " +
-                  $"InRoom={PhotonNetwork.InRoom} Room={(PhotonNetwork.CurrentRoom != null ? PhotonNetwork.CurrentRoom.Name : "-")}");
+                  $"InRoom={PhotonNetwork.InRoom} " +
+                  $"Room={(PhotonNetwork.CurrentRoom != null ? PhotonNetwork.CurrentRoom.Name : "-")}");
 
         StartCoroutine(SpawnRoutine());
     }
@@ -35,7 +49,7 @@ public class RoomManager : MonoBehaviourPunCallbacks
         if (spawnedThisScene || spawning) yield break;
         spawning = true;
 
-        // Wait for InRoom to become true (PhotonNetwork.LoadLevel sync timing)
+        // Wait for InRoom to become true (PhotonNetwork.LoadLevel sync timing).
         float t = 0f;
         while (!PhotonNetwork.InRoom && t < waitForInRoomSeconds)
         {
@@ -45,7 +59,7 @@ public class RoomManager : MonoBehaviourPunCallbacks
 
         if (!PhotonNetwork.InRoom)
         {
-            Debug.LogError("[RoomManager] NOT in a room. Cannot spawn.");
+            Debug.LogError("[RoomManager] NOT in a room after timeout. Cannot spawn.");
             spawning = false;
             yield break;
         }
@@ -57,71 +71,99 @@ public class RoomManager : MonoBehaviourPunCallbacks
             yield break;
         }
 
-        // Prefab must be in Resources for PhotonNetwork.Instantiate(string,...)
+        // Prefab must be inside a Resources folder for PhotonNetwork.Instantiate.
         string prefabName = playerPrefab.name;
         if (Resources.Load(prefabName) == null)
         {
-            Debug.LogError($"[RoomManager] Prefab '{prefabName}' not found in Resources. Put it in Assets/Resources/.");
+            Debug.LogError($"[RoomManager] Prefab '{prefabName}' not found in Resources. " +
+                           "Place it under Assets/Resources/.");
             spawning = false;
             yield break;
         }
 
-        // If TagObject already set, we already spawned (best check)
+        // LocalPlayer.TagObject is set after a successful spawn — skip if already done.
         if (PhotonNetwork.LocalPlayer.TagObject != null)
         {
-            Debug.Log("[RoomManager] LocalPlayer.TagObject already set. Skipping spawn.");
-            if (roomCamera != null) roomCamera.SetActive(false);
+            Debug.Log("[RoomManager] LocalPlayer.TagObject already set. Skipping duplicate spawn.");
             spawnedThisScene = true;
             spawning = false;
             yield break;
         }
 
-        // Optional: push customization before spawn
+        // Push appearance customization before spawning so remote clients see it immediately.
         var pfm = FindFirstObjectByType<PlayfabManager>();
         if (pfm != null)
         {
             pfm.PushCustomizationToPhoton();
-            Debug.Log("[RoomManager] ✅ Called PushCustomizationToPhoton()");
+            Debug.Log("[RoomManager] Called PushCustomizationToPhoton().");
         }
         else
         {
-            Debug.LogWarning("[RoomManager] ⚠️ PlayfabManager not found yet. Spawning with defaults.");
+            Debug.LogWarning("[RoomManager] PlayfabManager not found. Spawning with defaults.");
         }
 
         Vector3 basePos = spawnPoint != null ? spawnPoint.position : Vector3.zero;
-        Quaternion rot = spawnPoint != null ? spawnPoint.rotation : Quaternion.identity;
+        Quaternion rot  = spawnPoint != null ? spawnPoint.rotation : Quaternion.identity;
 
         int actorIndex = GetStableActorIndex(PhotonNetwork.LocalPlayer);
-        Vector3 offset = new Vector3(actorIndex * spawnSpacing, 0f, 0f);
-        Vector3 spawnPos = basePos + offset;
+        Vector3 spawnPos = basePos + new Vector3(actorIndex * spawnSpacing, 0f, 0f);
 
-        Debug.Log($"[RoomManager] Spawning '{prefabName}' ActorNumber={PhotonNetwork.LocalPlayer.ActorNumber} Index={actorIndex} at {spawnPos}");
+        Debug.Log($"[RoomManager] Spawning '{prefabName}' | " +
+                  $"ActorNumber={PhotonNetwork.LocalPlayer.ActorNumber} " +
+                  $"Index={actorIndex} at {spawnPos}");
 
         GameObject localPlayer = PhotonNetwork.Instantiate(prefabName, spawnPos, rot);
 
-        if (localPlayer != null)
+        if (localPlayer == null)
         {
-            PhotonNetwork.LocalPlayer.TagObject = localPlayer;
+            Debug.LogError("[RoomManager] PhotonNetwork.Instantiate returned null.");
+            spawning = false;
+            yield break;
+        }
 
-            if (roomCamera != null) roomCamera.SetActive(false);
+        PhotonNetwork.LocalPlayer.TagObject = localPlayer;
+        spawnedThisScene = true;
+        spawning = false;
 
-            spawnedThisScene = true;
-            Debug.Log("[RoomManager] ✅ Local player spawned.");
+        // Hand the room camera directly to PlayerSetup so it binds it before
+        // any coroutine timing can cause a miss. The camera stays active — it is
+        // the scene's only rendering camera and must never be disabled.
+        Camera sceneCam = roomCamera != null
+            ? roomCamera.GetComponentInChildren<Camera>(true)
+            : null;
+
+        if (sceneCam != null)
+        {
+            PlayerSetup setup = localPlayer.GetComponent<PlayerSetup>();
+            if (setup != null)
+            {
+                setup.InjectCamera(sceneCam);
+                Debug.Log($"[RoomManager] Injected scene camera '{sceneCam.name}' into PlayerSetup. " +
+                          $"Camera active={sceneCam.isActiveAndEnabled} | " +
+                          $"TargetDisplay={sceneCam.targetDisplay} | " +
+                          $"AudioListener={sceneCam.GetComponent<AudioListener>() != null}");
+            }
+            else
+            {
+                Debug.LogWarning("[RoomManager] PlayerSetup not found on spawned player — " +
+                                 "camera must be bound by PlayerSetup's own coroutine.");
+            }
         }
         else
         {
-            Debug.LogError("[RoomManager] ❌ PhotonNetwork.Instantiate returned null.");
+            Debug.LogWarning("[RoomManager] roomCamera has no Camera component — " +
+                             "PlayerSetup will fall back to scene scan.");
         }
 
-        spawning = false;
+        Debug.Log($"[RoomManager] Local player spawned successfully. " +
+                  $"RoomCamera active={roomCamera?.activeInHierarchy}");
     }
 
     private int GetStableActorIndex(Player p)
     {
         if (PhotonNetwork.CurrentRoom == null) return 0;
 
-        // Sort actor numbers so every client computes the SAME order
-        List<int> actorNums = new List<int>();
+        var actorNums = new List<int>();
         foreach (var kv in PhotonNetwork.CurrentRoom.Players)
             actorNums.Add(kv.Value.ActorNumber);
 

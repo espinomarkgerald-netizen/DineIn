@@ -27,7 +27,7 @@ public class SceneManagerUI : MonoBehaviourPunCallbacks
 
     [Header("Menu <-> Gameplay")]
     [SerializeField] private string menuSceneName = "MainMenu";
-    [SerializeField] private string gameplaySceneName = "CoreGameplay";
+    [SerializeField] private string gameplaySceneName = "Multiplayer";
 
     [Tooltip("When gameplay loads additively (offline only), disable all root objects in the Menu scene (keeps scene loaded but hides UI).")]
     [SerializeField] private bool hideMenuWhenGameplayLoaded = true;
@@ -42,7 +42,7 @@ public class SceneManagerUI : MonoBehaviourPunCallbacks
     [SerializeField] private bool deactivateOtherScenesOnLoad = true;
 
     [Header("Customization Sync")]
-    [Tooltip("Push customization to Photon properties when CoreGameplay loads (recommended).")]
+    [Tooltip("Push customization to Photon properties when Multiplayer loads (recommended).")]
     [SerializeField] private bool pushCustomizationOnGameplayLoad = true;
 
     private void Awake()
@@ -117,7 +117,7 @@ public class SceneManagerUI : MonoBehaviourPunCallbacks
             }
 
             // If connected but not in a room, do NOT load gameplay here (join/create first)
-            Debug.LogWarning("[SceneManagerUI] Connected to Photon but NOT in a room. Join/Create a room before loading CoreGameplay.");
+            Debug.LogWarning("[SceneManagerUI] Connected to Photon but NOT in a room. Join/Create a room before loading Multiplayer.");
             return;
         }
 

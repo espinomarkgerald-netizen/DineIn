@@ -5,7 +5,7 @@ using UnityEngine;
 public class RoomSceneLoader : MonoBehaviourPunCallbacks
 {
     [Header("Scene")]
-    [SerializeField] private string gameplaySceneName = "CoreGameplay";
+    [SerializeField] private string gameplaySceneName = "Multiplayer";
 
     [Header("Gate شروط")]
     [Tooltip("How many players must be inside the room before loading gameplay.")]

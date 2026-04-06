@@ -1,6 +1,11 @@
+using Photon.Pun;
 using UnityEngine;
 using UnityEngine.AI;
 
+/// <summary>
+/// Drives the movement particle system based on NavMeshAgent state for the local player,
+/// or from network-received movement state for remote players via <see cref="SetMovingRemote"/>.
+/// </summary>
 [RequireComponent(typeof(NavMeshAgent))]
 public class PlayerMovementParticles : MonoBehaviour
 {
@@ -12,12 +17,19 @@ public class PlayerMovementParticles : MonoBehaviour
     [SerializeField] private float stopDelay = 0.1f;
 
     private NavMeshAgent agent;
+    private PhotonView photonView;
+
     private float stopTimer;
     private bool isPlaying;
 
-    void Awake()
+    // Set each frame by NetworkPlayerMovementSync for remote players.
+    private bool remoteIsMoving;
+    private bool isRemotePlayer;
+
+    private void Awake()
     {
-        agent = GetComponent<NavMeshAgent>();
+        agent       = GetComponent<NavMeshAgent>();
+        photonView  = GetComponent<PhotonView>();
 
         if (moveParticles == null)
             moveParticles = GetComponentInChildren<ParticleSystem>(true);
@@ -26,42 +38,63 @@ public class PlayerMovementParticles : MonoBehaviour
             moveParticles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
     }
 
-    void Update()
+    private void Start()
     {
-        if (agent == null || moveParticles == null) return;
+        // Determine once at start whether this is a remote player.
+        if (photonView != null && PhotonNetwork.IsConnected && !photonView.IsMine)
+            isRemotePlayer = true;
+    }
 
-        // IMPORTANT: avoid NavMesh errors when not on a baked navmesh yet
-        if (!agent.isOnNavMesh)
+    private void Update()
+    {
+        if (moveParticles == null) return;
+
+        bool moving;
+
+        if (isRemotePlayer)
         {
-            if (isPlaying)
-            {
-                moveParticles.Stop(true, ParticleSystemStopBehavior.StopEmitting);
-                isPlaying = false;
-            }
-            return;
+            // Remote: driven by network data pushed via SetMovingRemote().
+            moving = remoteIsMoving;
         }
+        else
+        {
+            // Local: read directly from NavMeshAgent.
+            if (agent == null || !agent.isOnNavMesh)
+            {
+                StopIfPlaying();
+                return;
+            }
 
-        float speed = agent.desiredVelocity.magnitude;
-
-        bool moving =
-            speed > moveThreshold &&
-            agent.hasPath &&
-            !agent.isStopped &&
-            !agent.pathPending;
+            float speed = agent.desiredVelocity.magnitude;
+            moving = speed > moveThreshold && agent.hasPath && !agent.isStopped && !agent.pathPending;
+        }
 
         if (moving)
         {
             stopTimer = 0f;
-            if (!isPlaying) { moveParticles.Play(); isPlaying = true; }
+            if (!isPlaying)
+            {
+                moveParticles.Play();
+                isPlaying = true;
+            }
         }
         else
         {
             stopTimer += Time.deltaTime;
             if (isPlaying && stopTimer >= stopDelay)
-            {
-                moveParticles.Stop(true, ParticleSystemStopBehavior.StopEmitting);
-                isPlaying = false;
-            }
+                StopIfPlaying();
         }
+    }
+
+    /// <summary>
+    /// Called every frame by <see cref="NetworkPlayerMovementSync"/> for remote player instances.
+    /// </summary>
+    public void SetMovingRemote(bool moving) => remoteIsMoving = moving;
+
+    private void StopIfPlaying()
+    {
+        if (!isPlaying) return;
+        moveParticles.Stop(true, ParticleSystemStopBehavior.StopEmitting);
+        isPlaying = false;
     }
 }
