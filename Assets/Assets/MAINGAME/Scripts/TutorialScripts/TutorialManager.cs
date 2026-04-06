@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -153,6 +154,7 @@ public class TutorialManager : MonoBehaviour
     [SerializeField] private bool reloadSceneWhenStartingNextDay = true;
     [SerializeField] private bool autoStartWhenSceneReloads = true;
     [SerializeField] private string tutorialSceneName = "LobbyTutorial";
+    [SerializeField] private string officeTutorialSceneName = "OfficeTutorial";
     [SerializeField] private string nextDayButtonLabel = "Next Day";
     [SerializeField] private string finishTutorialButtonLabel = "Finish";
 
@@ -3009,7 +3011,7 @@ public class TutorialManager : MonoBehaviour
         ClearAutoStartFlag();
         ClearGuidance();
 
-        Debug.Log("[TutorialManager] Tutorial finished.");
+        SceneManager.LoadScene(officeTutorialSceneName);
     }
 
     private void ConfigureSpawnedGroupForCurrentDay(CustomerGroup group, bool isPracticeSpawn)
@@ -3575,4 +3577,5 @@ public class TutorialManager : MonoBehaviour
             }
         }
     }
+
 }

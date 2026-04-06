@@ -7,6 +7,7 @@ public class EquipmentItemUI : MonoBehaviour
     public TMP_Text nameText;
     public TMP_Text costText;
     public Button buyButton;
+    public Image equipmentImage;
 
     private Equipment equip;
     private bool listenerAdded = false;
@@ -22,6 +23,7 @@ public class EquipmentItemUI : MonoBehaviour
         {
             nameText.text = e.displayName;
             costText.text = $"₱{e.cost}";
+            equipmentImage.sprite = e.sprite;
 
             bool alreadyBought = EquipmentManager.Instance.Purchased(e.itemID);
 

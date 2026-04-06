@@ -16,3 +16,4 @@ MonoBehaviour:
   displayName: Table
   cost: 250
   dayToUnlock: 4
+  sprite: {fileID: 21300000, guid: f7634157d19c56d49961c6dfa3cb46d0, type: 3}

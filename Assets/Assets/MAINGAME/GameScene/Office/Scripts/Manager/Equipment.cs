@@ -11,4 +11,5 @@ public class Equipment : ScriptableObject
     public int cost;
     [Header("Unlock")]
     public int dayToUnlock = 1;
+    public Sprite sprite;
 }
