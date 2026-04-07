@@ -19,7 +19,7 @@ public class CreateRoomUI : MonoBehaviourPunCallbacks
     [SerializeField] private bool forceUppercase = true;
 
     [Header("Scene")]
-    [SerializeField] private string gameplaySceneName = "CoreGameplay";
+    [SerializeField] private string gameplaySceneName = "Multiplayer";
 
     [Header("Debug (Inspector Visible)")]
     [SerializeField] private string currentRoomCode;

@@ -23,6 +23,11 @@ public class TutorialArrowManager : MonoBehaviour
 
     private GameObject currentArrow;
     private Transform currentTarget;
+    private bool externalDriverActive;
+    private string externalDriverOwner;
+
+    public bool HasRuntimeArrow => currentArrow != null;
+    public string ExternalDriverOwner => externalDriverOwner;
 
     private void Awake()
     {
@@ -38,19 +43,34 @@ public class TutorialArrowManager : MonoBehaviour
         if (followCamera == null)
             followCamera = Camera.main;
 
-        // Auto-resolve greet target from LobbyLineManager front slot if not assigned in Inspector.
         if (greetTarget == null)
         {
             LobbyLineManager lineManager = FindFirstObjectByType<LobbyLineManager>(FindObjectsInactive.Include);
             if (lineManager != null && lineManager.linePoints != null && lineManager.linePoints.Length > 0)
                 greetTarget = lineManager.linePoints[0];
         }
+
+        Debug.Log(
+            $"[TutorialArrowManager] Awake | tutorialManager={(tutorialManager != null ? tutorialManager.name : "NULL")} " +
+            $"canvas={(targetCanvas != null ? targetCanvas.name : "NULL")} " +
+            $"camera={(followCamera != null ? followCamera.name : "NULL")} " +
+            $"arrowPrefab={(arrowPrefab != null ? arrowPrefab.name : "NULL")}",
+            this);
     }
 
     private void Update()
     {
-        if (tutorialManager == null || !tutorialManager.TutorialStarted)
+        if (tutorialManager == null)
         {
+            Debug.LogWarning("[TutorialArrowManager] Update aborted: tutorialManager is NULL", this);
+            externalDriverActive = false;
+            HideArrow();
+            return;
+        }
+
+        if (!tutorialManager.TutorialStarted)
+        {
+            externalDriverActive = false;
             HideArrow();
             return;
         }
@@ -59,9 +79,13 @@ public class TutorialArrowManager : MonoBehaviour
             tutorialManager.CurrentPhase == TutorialManager.TutorialPhase.Intro ||
             tutorialManager.CurrentPhase == TutorialManager.TutorialPhase.Complete)
         {
+            externalDriverActive = false;
             HideArrow();
             return;
         }
+
+        if (externalDriverActive)
+            return;
 
         Transform target = ResolveTarget();
 
@@ -83,6 +107,9 @@ public class TutorialArrowManager : MonoBehaviour
 
     private Transform ResolveTarget()
     {
+        if (tutorialManager == null)
+            return null;
+
         CustomerGroup group = tutorialManager.ActiveTutorialGroup;
         CustomerGroup.GroupState state = group != null ? group.state : CustomerGroup.GroupState.Spawning;
 
@@ -90,7 +117,6 @@ public class TutorialArrowManager : MonoBehaviour
         {
             case TutorialManager.TutorialPhase.GreetCustomer:
             {
-                // Point to the active group if it is waiting to be greeted; otherwise fall back to the greet spot.
                 if (group != null)
                     return group.UIAnchor != null ? group.UIAnchor : group.transform;
 
@@ -111,7 +137,6 @@ public class TutorialArrowManager : MonoBehaviour
                             : group.assignedBooth.transform;
                     }
 
-                    // once seated, hide arrow and let phase advance naturally
                     return null;
                 }
 
@@ -124,15 +149,14 @@ public class TutorialArrowManager : MonoBehaviour
 
             case TutorialManager.TutorialPhase.TakeOrder:
             {
-                // Point at the seated customer group so the player knows which table to approach.
                 if (group != null)
                     return group.UIAnchor != null ? group.UIAnchor : group.transform;
+
                 return null;
             }
 
             case TutorialManager.TutorialPhase.ConfirmOrder:
             {
-                // After tapping the customer, point at the notepad to guide order matching.
                 return notepadTarget;
             }
 
@@ -141,7 +165,6 @@ public class TutorialArrowManager : MonoBehaviour
                 if (group == null)
                     return orderSubmitTarget;
 
-                // only point to counter while the order is already taken
                 if (state == CustomerGroup.GroupState.OrderTaken)
                     return orderSubmitTarget;
 
@@ -155,7 +178,6 @@ public class TutorialArrowManager : MonoBehaviour
 
                 bool waiterHoldingTray = WaiterHands.Instance != null && WaiterHands.Instance.HasTray;
 
-                // show tray first
                 if (!waiterHoldingTray)
                 {
                     FoodTray tray = FindFoodTrayForGroup(group);
@@ -165,11 +187,9 @@ public class TutorialArrowManager : MonoBehaviour
                     return null;
                 }
 
-                // after pickup, point to customer head
                 if (state == CustomerGroup.GroupState.OrderTaken)
                     return group.UIAnchor != null ? group.UIAnchor : group.transform;
 
-                // once they are eating, hide arrow
                 return null;
             }
 
@@ -178,7 +198,6 @@ public class TutorialArrowManager : MonoBehaviour
                 if (group == null)
                     return null;
 
-                // do not show arrow while they are still eating
                 if (state != CustomerGroup.GroupState.NeedsBill)
                     return null;
 
@@ -208,10 +227,20 @@ public class TutorialArrowManager : MonoBehaviour
             {
                 bool busserHoldingTray = BusserHands.Instance != null && BusserHands.Instance.HasTray;
 
+                Debug.Log(
+                    $"[TutorialArrowManager] ResolveTarget CleanTray | holding={busserHoldingTray} " +
+                    $"sinkTarget={(sinkTarget != null ? sinkTarget.name : "NULL")} " +
+                    $"externalDriverActive={externalDriverActive}",
+                    this);
+
                 if (!busserHoldingTray)
                 {
-                    // Day 4: find any active cleanup tray — no group is associated.
                     FoodTray tray = group != null ? FindFoodTrayForGroup(group) : FindAnyCleanupTray();
+
+                    Debug.Log(
+                        $"[TutorialArrowManager] ResolveTarget CleanTray tray={(tray != null ? tray.name : "NULL")}",
+                        this);
+
                     if (tray != null)
                         return tray.transform;
 
@@ -223,11 +252,9 @@ public class TutorialArrowManager : MonoBehaviour
 
             case TutorialManager.TutorialPhase.AllTogetherGameplay:
             {
-                // Mastery day: if the busser is holding a tray, point at the sink.
                 if (BusserHands.Instance != null && BusserHands.Instance.HasTray)
                     return sinkTarget;
 
-                // Otherwise find any cleanup-ready tray and point at it.
                 FoodTray cleanupTray = FindAnyCleanupTray();
                 if (cleanupTray != null)
                     return cleanupTray.transform;
@@ -237,13 +264,11 @@ public class TutorialArrowManager : MonoBehaviour
 
             case TutorialManager.TutorialPhase.CashierWaitForMoney:
             {
-                // Point the cashier to their waiting position beside the counter.
                 return cashierWaitSpotTarget;
             }
 
             case TutorialManager.TutorialPhase.CashierProcessPayment:
             {
-                // Money has arrived — point at the POS / cashier station.
                 return cashierCounterTarget;
             }
         }
@@ -255,49 +280,114 @@ public class TutorialArrowManager : MonoBehaviour
     {
         if (target == null)
         {
+            Debug.LogWarning("[TutorialArrowManager] ShowArrow target is NULL", this);
             HideArrow();
             return;
         }
 
         HideArrow();
 
-        if (arrowPrefab == null || targetCanvas == null || followCamera == null)
-            return;
+        Debug.Log(
+            $"[TutorialArrowManager] ShowArrow -> target={target.name}, " +
+            $"arrowPrefab={(arrowPrefab != null ? arrowPrefab.name : "NULL")}, " +
+            $"canvas={(targetCanvas != null ? targetCanvas.name : "NULL")}, " +
+            $"camera={(followCamera != null ? followCamera.name : "NULL")}",
+            this);
 
-        currentArrow = Instantiate(arrowPrefab, targetCanvas.transform);
+        if (arrowPrefab == null || targetCanvas == null || followCamera == null)
+        {
+            Debug.LogWarning("[TutorialArrowManager] ShowArrow aborted because a reference is missing", this);
+            return;
+        }
+
+        currentArrow = Instantiate(arrowPrefab, targetCanvas.transform, false);
+        currentArrow.name = "TutorialArrowRuntime";
+        currentArrow.SetActive(true);
+        currentArrow.transform.SetAsLastSibling();
+
+        RectTransform rootRect = currentArrow.GetComponent<RectTransform>();
+        if (rootRect != null)
+        {
+            rootRect.localScale = Vector3.one;
+            rootRect.localRotation = Quaternion.identity;
+            rootRect.anchoredPosition3D = Vector3.zero;
+        }
+
+        CanvasGroup[] groups = currentArrow.GetComponentsInChildren<CanvasGroup>(true);
+        for (int i = 0; i < groups.Length; i++)
+            groups[i].alpha = 1f;
+
         currentTarget = target;
 
         BoothAssignArrowUI arrowUI = currentArrow.GetComponent<BoothAssignArrowUI>();
         if (arrowUI == null)
             arrowUI = currentArrow.GetComponentInChildren<BoothAssignArrowUI>(true);
 
+        Debug.Log($"[TutorialArrowManager] arrowUI found={(arrowUI != null)}", this);
+
         if (arrowUI != null)
+        {
             arrowUI.Init(target, defaultOffset, followCamera);
+            Debug.Log("[TutorialArrowManager] Arrow initialized successfully", this);
+        }
+        else
+        {
+            Debug.LogWarning("[TutorialArrowManager] BoothAssignArrowUI component was not found on spawned arrow", this);
+        }
     }
 
     private void HideArrow()
     {
         if (currentArrow != null)
+        {
+            Debug.Log($"[TutorialArrowManager] HideArrow destroying {currentArrow.name}", this);
             Destroy(currentArrow);
+        }
 
         currentArrow = null;
         currentTarget = null;
     }
 
-    public void ForceHide()
+    public void BeginExternalControl(string owner)
     {
-        HideArrow();
+        Debug.Log($"[TutorialArrowManager] BeginExternalControl owner={owner}");
+        externalDriverActive = true;
+        externalDriverOwner = owner;
     }
 
-    /// <summary>
-    /// Directs the arrow to a specific world-space target. Used when phase resolution cannot find the target automatically.
-    /// </summary>
-    public void PointToTransform(Transform target)
+    public void EndExternalControl(string owner)
     {
+        Debug.Log($"[TutorialArrowManager] EndExternalControl owner={owner} currentOwner={externalDriverOwner}");
+        externalDriverActive = false;
+        externalDriverOwner = null;
+    }
+
+    public void PointToTransform(Transform target, string owner)
+    {
+        Debug.Log($"[TutorialArrowManager] PointToTransform owner={owner} target={(target != null ? target.name : "NULL")}");
+
         if (target != null)
             ShowArrow(target);
         else
             HideArrow();
+    }
+
+    public void ForceHide(string owner)
+    {
+        Debug.Log($"[TutorialArrowManager] ForceHide owner={owner} externalOwner={externalDriverOwner}");
+        externalDriverActive = false;
+        externalDriverOwner = null;
+        HideArrow();
+    }
+
+    /// <summary>
+    /// Hides the arrow without releasing external driver ownership.
+    /// Use this when the owning driver wants to temporarily hide without giving up control.
+    /// </summary>
+    public void HideArrowKeepControl(string owner)
+    {
+        Debug.Log($"[TutorialArrowManager] HideArrowKeepControl owner={owner}");
+        HideArrow();
     }
 
     private Booth FindBestBoothForGroup(CustomerGroup group)
@@ -339,6 +429,9 @@ public class TutorialArrowManager : MonoBehaviour
     private FoodTray FindAnyCleanupTray()
     {
         FoodTray[] all = FindObjectsByType<FoodTray>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+
+        Debug.Log($"[TutorialArrowManager] FindAnyCleanupTray count={all.Length}", this);
+
         for (int i = 0; i < all.Length; i++)
         {
             if (all[i] == null)
@@ -347,6 +440,11 @@ public class TutorialArrowManager : MonoBehaviour
             FoodTrayInteractable interactable = all[i].GetComponent<FoodTrayInteractable>();
             if (interactable == null)
                 interactable = all[i].GetComponentInChildren<FoodTrayInteractable>(false);
+
+            Debug.Log(
+                $"[TutorialArrowManager] Tray={all[i].name} interactable={(interactable != null)} " +
+                $"cleanupPickable={(interactable != null && interactable.IsCleanupPickable)}",
+                this);
 
             if (interactable != null && interactable.IsCleanupPickable)
                 return all[i];

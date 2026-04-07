@@ -11,7 +11,7 @@ public class JoinRoomUI : MonoBehaviourPunCallbacks
     [SerializeField] private TMP_Text statusText;
 
     [Header("Scene")]
-    [SerializeField] private string gameplaySceneName = "CoreGameplay";
+    [SerializeField] private string gameplaySceneName = "Multiplayer";
 
     private void Awake()
     {
@@ -53,13 +53,8 @@ public class JoinRoomUI : MonoBehaviourPunCallbacks
     public override void OnJoinedRoom()
     {
         SetStatus("Joined room: " + PhotonNetwork.CurrentRoom.Name);
-
-        // Master loads the scene, others auto follow because AutomaticallySyncScene = true
-        if (PhotonNetwork.IsMasterClient)
-        {
-            SetStatus("Loading gameplay...");
-            PhotonNetwork.LoadLevel(gameplaySceneName);
-        }
+        // Scene loading is handled by RoomSceneLoader on the same NetworkManager.
+        // Do NOT call PhotonNetwork.LoadLevel here — it would race with RoomSceneLoader.
     }
 
     public override void OnJoinRoomFailed(short returnCode, string message)

@@ -173,12 +173,21 @@ public class TutorialManager : MonoBehaviour
     [SerializeField] private int busserGuidedSpawnIndex = 0;
     [SerializeField] private int busserPracticeMinimumTrayCount = 5;
 
+    [Header("Busser Sink Pointer")]
+    [Tooltip("World-space BusserSinkPointer GameObject positioned above the sink. " +
+             "Shown when the busser picks up the tray; hidden when the tray is cleaned.")]
+    [SerializeField] private BusserSinkPointer busserSinkPointer;
+
+    
+
     [Header("Runtime")]
     [SerializeField] private TutorialPhase currentPhase = TutorialPhase.None;
     [SerializeField] private CustomerGroup activeTutorialGroup;
     [SerializeField] private FoodTray activeDirtyTray;
     [SerializeField] private bool tutorialStarted;
     [SerializeField] private int practiceSpawnedCount;
+
+  
 
     private int currentIntroIndex = -1;
     private bool openingSequenceFinished;
@@ -198,6 +207,11 @@ public class TutorialManager : MonoBehaviour
     private FoodTray guidedBusserTray;
     private FoodTray heldBusserTray;
     private bool activeBusserTrayPickedUp;
+    private Transform lastBusserArrowTarget;
+
+    // True from the moment the guided tray is picked up until RegisterDirtyTrayCleaned fires.
+    // While locked: ClearGuidance, CompleteCurrentDay, and premature AdvancePhase are all blocked.
+    private bool day4GuidedTrayLocked;
 
     private float masteryTipTimer;
     private int masteryTipIndex;
@@ -476,7 +490,7 @@ public class TutorialManager : MonoBehaviour
                 SetFloatDefault(ref config.firstSpawnDelay, 0.35f, force);
                 SetFloatDefault(ref config.practiceDurationSeconds, 120f, force);
                 SetFloatDefault(ref config.practiceSpawnIntervalSeconds, 30f, force);
-                SetIntDefault(ref config.practiceTargetCount, 4, force);
+                SetIntDefault(ref config.practiceTargetCount, 7, force);
                 SetIntDefault(ref config.practiceSpawnCountPerWave, 1, force);
                 break;
 
@@ -675,6 +689,9 @@ public class TutorialManager : MonoBehaviour
         guidedBusserTray = null;
         heldBusserTray = null;
         activeBusserTrayPickedUp = false;
+        lastBusserArrowTarget = null;
+        day4GuidedTrayLocked = false;
+        HideSinkHighlight();
         busserRoleLockTimer = 0f;
         roleLockTimer = 0f;
         masteryTipTimer = 0f;
@@ -798,6 +815,9 @@ public class TutorialManager : MonoBehaviour
         guidedBusserTray = null;
         heldBusserTray = null;
         activeBusserTrayPickedUp = false;
+        lastBusserArrowTarget = null;
+        day4GuidedTrayLocked = false;
+        HideSinkHighlight();
         busserRoleLockTimer = 0f;
         roleLockTimer = 0f;
         masteryTipTimer = 0f;
@@ -871,6 +891,14 @@ public class TutorialManager : MonoBehaviour
 
     private void BeginCurrentDayGameplay()
     {
+        if (guidanceDriver != null)
+        {
+            // Day 4 Busser guided flow is driven entirely by TutorialManager/RefreshBusserGuidance.
+            // TutorialPhaseGuidanceDriver must not touch arrow ownership during Day 4.
+            bool shouldEnableGuidanceDriver = currentDay != TutorialDay.Day4Busser;
+            guidanceDriver.enabled = shouldEnableGuidanceDriver;
+        }
+
         switch (currentDay)
         {
             case TutorialDay.Day1Host:
@@ -891,6 +919,9 @@ public class TutorialManager : MonoBehaviour
                 break;
 
             case TutorialDay.Day5AllTogether:
+                if (guidanceDriver != null)
+                    guidanceDriver.enabled = true;
+
                 StartAllTogetherMastery();
                 break;
         }
@@ -933,11 +964,20 @@ public class TutorialManager : MonoBehaviour
         activeDirtyTray = guidedBusserTray;
         heldBusserTray = null;
         activeBusserTrayPickedUp = false;
+        day4GuidedTrayLocked = false;
 
-        RefreshBusserGuidance();
+        // Sink highlight starts hidden; it will appear only after tray pickup.
+        HideSinkHighlight();
+
+        // Release external control so TutorialArrowManager.Update() handles arrow targeting
+        // natively via ResolveTarget(). It already knows CleanTray → tray or sink.
+        if (arrowManager != null)
+            arrowManager.EndExternalControl("TutorialManager.StartBusserGuidedFlow");
 
         if (guidedBusserTray == null)
-            Debug.LogWarning("[TutorialManager] No guided busser tray found or spawned.");
+            Debug.LogWarning("[TutorialManager] No guided busser tray found or spawned.", this);
+        else
+            Debug.Log($"[TutorialManager] StartBusserGuidedFlow tray={guidedBusserTray.name} activeDirtyTray={activeDirtyTray?.name}", this);
     }
 
     private void ConfigureCurrentDayScene()
@@ -1099,6 +1139,8 @@ public class TutorialManager : MonoBehaviour
         if (currentPhase == newPhase)
             return;
 
+        Debug.Log($"[TutorialManager] SetPhase {currentPhase} -> {newPhase} | currentDay={currentDay}", this);
+
         currentPhase = newPhase;
 
         if (newPhase != TutorialPhase.TakeOrder && newPhase != TutorialPhase.ConfirmOrder)
@@ -1131,8 +1173,7 @@ public class TutorialManager : MonoBehaviour
         if (showDialoguePerPhase && dialogueUI != null)
             ShowPhaseDialogue(currentPhase);
 
-        // Notify tutorial-only guidance driver on phase entry.
-        if (guidanceDriver != null)
+        if (guidanceDriver != null && guidanceDriver.enabled)
             guidanceDriver.OnPhaseEntered(currentPhase);
     }
 
@@ -1202,7 +1243,15 @@ public class TutorialManager : MonoBehaviour
 
             case TutorialDay.Day4Busser:
                 if (currentPhase == TutorialPhase.CleanTray)
+                {
+                    // Only RegisterDirtyTrayCleaned may advance — it clears day4GuidedTrayLocked first.
+                    if (day4GuidedTrayLocked)
+                    {
+                        Debug.Log("[TutorialManager] AdvancePhase BLOCKED on Day4/CleanTray — day4GuidedTrayLocked.", this);
+                        return;
+                    }
                     StartPracticeOrComplete();
+                }
                 break;
 
             case TutorialDay.Day5AllTogether:
@@ -1414,6 +1463,15 @@ public class TutorialManager : MonoBehaviour
         if (completionShown)
             return;
 
+        // Do not complete while the guided tray is still being carried to the sink.
+        if (day4GuidedTrayLocked)
+        {
+            Debug.Log("[TutorialManager] CompleteCurrentDay BLOCKED — day4GuidedTrayLocked is true.", this);
+            return;
+        }
+
+        Debug.Log($"[TutorialManager] CompleteCurrentDay CALLED | currentDay={currentDay} currentPhase={currentPhase}", this);
+
         completionShown = true;
         practiceRunning = false;
         practiceTimer = 0f;
@@ -1427,7 +1485,7 @@ public class TutorialManager : MonoBehaviour
         string dayTitle = GetDayTitle();
 
         if (arrowManager != null)
-            arrowManager.ForceHide();
+            arrowManager.ForceHide("TutorialManager.CompleteCurrentDay");
 
         if (roleHighlight != null)
             roleHighlight.Hide();
@@ -1452,8 +1510,20 @@ public class TutorialManager : MonoBehaviour
 
     private void ClearGuidance()
     {
+        // While the Day 4 guided tray is in transit (picked up, not yet cleaned), do not
+        // wipe guidance — the arrow must keep pointing at the sink.
+        if (day4GuidedTrayLocked)
+        {
+            Debug.Log("[TutorialManager] ClearGuidance SKIPPED — day4GuidedTrayLocked is true.", this);
+            return;
+        }
+
+        Debug.Log($"[TutorialManager] ClearGuidance CALLED | currentDay={currentDay} currentPhase={currentPhase}", this);
+
+        lastBusserArrowTarget = null;
+
         if (arrowManager != null)
-            arrowManager.ForceHide();
+            arrowManager.ForceHide("TutorialManager.ClearGuidance");
 
         if (roleHighlight != null)
             roleHighlight.Hide();
@@ -2647,6 +2717,10 @@ public class TutorialManager : MonoBehaviour
         {
             if (currentPhase == TutorialPhase.CleanTray)
             {
+                // Release the lock — the tray has reached the sink and been cleaned.
+                day4GuidedTrayLocked = false;
+                HideSinkHighlight();
+                Debug.Log("[TutorialManager] RegisterTrayCleaned — day4GuidedTrayLocked released, advancing phase.", this);
                 AdvancePhase();
                 return;
             }
@@ -2678,6 +2752,19 @@ public class TutorialManager : MonoBehaviour
         heldBusserTray = tray;
         activeBusserTrayPickedUp = true;
 
+        // Lock guided step: nothing should complete/clear/advance until the tray is cleaned.
+        if (currentPhase == TutorialPhase.CleanTray)
+        {
+            day4GuidedTrayLocked = true;
+            Debug.Log("[TutorialManager] Day4 guided tray LOCKED — waiting for sink clean.", this);
+
+            // Pan camera to sink once so the player can see it, then show highlight.
+            if (roleCameraController != null && busserSinkTarget != null)
+                roleCameraController.PanToTarget(busserSinkTarget);
+
+            ShowSinkHighlight();
+        }
+
         ShowAutoHint("Good. Now bring that tray to the sink and clean it.");
         RefreshBusserGuidance();
     }
@@ -2703,6 +2790,14 @@ public class TutorialManager : MonoBehaviour
             heldBusserTray = null;
 
         activeBusserTrayPickedUp = false;
+        lastBusserArrowTarget = null;
+
+        // Unlock the guided step — this is the ONLY valid exit from the locked state.
+        bool wasLocked = day4GuidedTrayLocked;
+        day4GuidedTrayLocked = false;
+        if (wasLocked)
+            HideSinkHighlight();
+        Debug.Log($"[TutorialManager] RegisterDirtyTrayCleaned — wasLocked={wasLocked}", this);
 
         if (currentDay == TutorialDay.Day4Busser)
         {
@@ -3332,39 +3427,59 @@ public class TutorialManager : MonoBehaviour
 
     private void RefreshBusserGuidance()
     {
-        if (!tutorialStarted)
+        if (!tutorialStarted || currentDay != TutorialDay.Day4Busser)
             return;
 
-        if (currentDay != TutorialDay.Day4Busser)
+        if (currentPhase != TutorialPhase.CleanTray)
             return;
 
-        if (currentPhase != TutorialPhase.CleanTray && currentPhase != TutorialPhase.PracticeGameplay)
-            return;
+        // Keep activeDirtyTray up-to-date so TutorialArrowManager.ResolveTarget can read it.
+        bool busserHoldingTray =
+            (BusserHands.Instance != null && BusserHands.Instance.HasTray) ||
+            activeBusserTrayPickedUp;
 
-        if (activeBusserTrayPickedUp && heldBusserTray != null)
+        if (!busserHoldingTray)
         {
-            PointArrowToTransform(busserSinkTarget);
-            return;
+            if (!IsValidDirtyTrayForTracking(activeDirtyTray))
+                activeDirtyTray = GetBestTrayForCurrentDay(null);
         }
-
-        if (activeDirtyTray != null)
-        {
-            PointArrowToTransform(GetBusserTrayArrowTarget(activeDirtyTray));
-            return;
-        }
-
-        if (arrowManager != null)
-            arrowManager.ForceHide();
     }
+
+    /// <summary>
+    /// Activates the sink pointer and suppresses the legacy TutorialArrowManager canvas arrow
+    /// for the duration of the guided clean phase. The world-space BusserSinkPointer is the
+    /// sole visual guide while the busser is carrying the tray to the sink.
+    /// </summary>
+    private void ShowSinkHighlight()
+    {
+        if (busserSinkPointer != null)
+            busserSinkPointer.Show();
+
+        // Take exclusive arrow control so TutorialArrowManager does not spawn its own
+        // canvas arrow pointing at the sink while BusserSinkPointer is visible.
+        if (arrowManager != null)
+        {
+            arrowManager.BeginExternalControl("TutorialManager.SinkHighlight");
+            arrowManager.HideArrowKeepControl("TutorialManager.SinkHighlight");
+        }
+    }
+
+    /// <summary>Deactivates the sink pointer and returns arrow ownership to TutorialArrowManager.</summary>
+    private void HideSinkHighlight()
+    {
+        if (busserSinkPointer != null)
+            busserSinkPointer.Hide();
+
+        // Release arrow ownership so TutorialArrowManager can resume normal targeting.
+        if (arrowManager != null)
+            arrowManager.EndExternalControl("TutorialManager.SinkHighlight");
+    }
+
 
     private Transform GetBusserTrayArrowTarget(FoodTray tray)
     {
         if (tray == null)
             return null;
-
-        Booth booth = tray.GetComponentInParent<Booth>();
-        if (booth != null)
-            return booth.transform;
 
         return tray.transform;
     }
@@ -3374,7 +3489,7 @@ public class TutorialManager : MonoBehaviour
         if (arrowManager == null)
             return;
 
-        arrowManager.PointToTransform(target);
+        arrowManager.PointToTransform(target, "TutorialManager.PointArrowToTransform");
     }
 
     private void DestroyRuntimeBusserTrays()

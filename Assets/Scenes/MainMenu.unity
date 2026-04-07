@@ -21469,8 +21469,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a7106d03a906b7b4a9717e4ac26835d1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  gameplaySceneName: CoreGameplay
-  minPlayersToStart: 2
+  gameplaySceneName: Multiplayer
+  minPlayersToStart: 1
   masterOnlyLoads: 1
 --- !u!1 &1353828592
 GameObject:
@@ -21630,7 +21630,7 @@ MonoBehaviour:
   codeInput: {fileID: 240485364}
   joinButton: {fileID: 566177919}
   statusText: {fileID: 424750548}
-  gameplaySceneName: CoreGameplay
+  gameplaySceneName: Multiplayer
 --- !u!1 &1364047432
 GameObject:
   m_ObjectHideFlags: 0

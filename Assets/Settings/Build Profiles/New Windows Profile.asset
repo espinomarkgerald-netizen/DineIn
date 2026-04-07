@@ -30,6 +30,12 @@ MonoBehaviour:
     m_path: Assets/Scenes/Singleplayer/Waiter/WaiterLevel1.unity
   - m_enabled: 1
     m_path: Assets/Assets/MAINGAME/GameScene/Lobby1.unity
+  - m_enabled: 1
+    m_path: Assets/Assets/MAINGAME/GameScene/Office.unity
+  - m_enabled: 1
+    m_path: Assets/Assets/MAINGAME/GameScene/LobbyTutorial.unity
+  - m_enabled: 1
+    m_path: Assets/Assets/MAINGAME/GameScene/Multiplayer.unity
   m_ScriptingDefines: []
   m_PlayerSettingsYaml:
     m_Settings: []

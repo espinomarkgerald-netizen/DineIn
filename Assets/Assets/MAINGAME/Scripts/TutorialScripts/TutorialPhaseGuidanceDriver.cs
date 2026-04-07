@@ -1,16 +1,5 @@
 using UnityEngine;
 
-/// <summary>
-/// Tutorial-only driver that fires a contextual hint and points the arrow at the first
-/// required action object every time a new guided phase begins.
-/// Also manages TutorialRoleHighlight visibility during active gameplay phases.
-/// During the CleanTray guided phase it continuously tracks whether the busser is
-/// already holding a tray and redirects the arrow to the sink accordingly.
-///
-/// Lives on the TutorialManager GameObject.
-/// Does NOT modify any main gameplay script — only reads public state and calls
-/// TutorialArrowManager / TutorialDialogueUI / TutorialRoleHighlight.
-/// </summary>
 [DisallowMultipleComponent]
 [DefaultExecutionOrder(100)]
 public class TutorialPhaseGuidanceDriver : MonoBehaviour
@@ -21,15 +10,15 @@ public class TutorialPhaseGuidanceDriver : MonoBehaviour
     [SerializeField] private TutorialDialogueUI dialogueUI;
     [SerializeField] private TutorialRoleHighlight roleHighlight;
 
-    [Header("Scene Targets – Cashier")]
+    [Header("Scene Targets - Cashier")]
     [SerializeField] private Transform cashierCounterTarget;
     [SerializeField] private Transform cashierWaitSpotTarget;
 
-    [Header("Scene Targets – Waiter")]
+    [Header("Scene Targets - Waiter")]
     [SerializeField] private Transform notepadTarget;
     [SerializeField] private Transform orderSubmitTarget;
 
-    [Header("Scene Targets – Busser")]
+    [Header("Scene Targets - Busser")]
     [SerializeField] private Transform busserSinkTarget;
 
     [Header("Timing")]
@@ -58,9 +47,10 @@ public class TutorialPhaseGuidanceDriver : MonoBehaviour
         if (tutorialManager == null || !tutorialManager.TutorialStarted)
             return;
 
-        // During the guided CleanTray phase the arrow must switch dynamically:
-        // tray not yet picked up → point at the dirty tray.
-        // tray picked up         → point at the sink.
+        // Day 4 Busser CleanTray is owned by TutorialManager / TutorialArrowManager.
+        if (ShouldSkipBusserCleanTrayOwnership())
+            return;
+
         if (tutorialManager.CurrentPhase == TutorialManager.TutorialPhase.CleanTray)
         {
             busserRefreshTimer -= Time.deltaTime;
@@ -72,24 +62,36 @@ public class TutorialPhaseGuidanceDriver : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Called by TutorialManager.SetPhase() immediately after the phase is changed.
-    /// Fires a phase-entry hint and points the arrow at the first action object.
-    /// </summary>
     public void OnPhaseEntered(TutorialManager.TutorialPhase phase)
     {
         if (tutorialManager == null || !tutorialManager.TutorialStarted)
             return;
 
-        busserRefreshTimer = 0f; // force immediate arrow update on next Update tick
+        Debug.Log($"[TutorialGuidance] OnPhaseEntered: {phase}");
+
+        // Day 4 Busser CleanTray: do not own arrow control.
+        if (ShouldSkipBusserCleanTrayOwnership(phase))
+        {
+            arrowManager?.EndExternalControl("TutorialPhaseGuidanceDriver:skip-day4-cleantray");
+
+            string day4Hint = BuildPhaseEntryHint(phase, tutorialManager.ActiveTutorialGroup);
+            if (!string.IsNullOrWhiteSpace(day4Hint))
+                SendHint(day4Hint);
+
+            UpdateRoleHighlight(phase);
+            return;
+        }
+
+        if (phase == TutorialManager.TutorialPhase.CleanTray)
+            arrowManager?.BeginExternalControl("TutorialPhaseGuidanceDriver");
+        else
+            arrowManager?.EndExternalControl("TutorialPhaseGuidanceDriver");
+
+        busserRefreshTimer = 0f;
         UpdateRoleHighlight(phase);
         FirePhaseEntryGuidance(phase);
     }
 
-    /// <summary>
-    /// Called by TutorialManager.RefreshRuntimeTargets() when activeTutorialGroup changes.
-    /// Refreshes the arrow immediately so the player is never left without a target.
-    /// </summary>
     public void OnActiveTutorialGroupChanged(CustomerGroup group)
     {
         if (tutorialManager == null || !tutorialManager.TutorialStarted)
@@ -97,38 +99,39 @@ public class TutorialPhaseGuidanceDriver : MonoBehaviour
 
         TutorialManager.TutorialPhase phase = tutorialManager.CurrentPhase;
 
-        // Waiter phases ServeFood→CollectPayment are fully owned by TutorialWaiterGuidedDialogue.
+        if (ShouldSkipBusserCleanTrayOwnership(phase))
+            return;
+
         if (IsWaiterOwnedPhase(phase))
             return;
 
-        // Re-point the arrow at the newly active group if the phase expects one.
         Transform target = ResolveFirstTargetForPhase(phase, group);
         if (target != null)
             PointArrow(target);
     }
 
-    // -------------------------------------------------------------------------
-    // Private helpers
-    // -------------------------------------------------------------------------
-
-    /// <summary>
-    /// Continuously called during CleanTray to redirect the arrow based on
-    /// whether the busser is currently holding a tray.
-    /// </summary>
     private void UpdateCleanTrayArrow()
     {
+        if (ShouldSkipBusserCleanTrayOwnership())
+            return;
+
         BusserHands hands = BusserHands.Instance;
 
         if (hands != null && hands.HasTray)
         {
-            // Busser picked up the tray — point at the sink.
+            Debug.Log("[TutorialGuidance] CleanTray - busser HasTray=true, pointing to sink: " +
+                      (busserSinkTarget != null ? busserSinkTarget.name : "NULL"));
+
             if (busserSinkTarget != null)
                 PointArrow(busserSinkTarget);
+
             return;
         }
 
-        // Busser does not have a tray yet — keep pointing at the active dirty tray.
         FoodTray active = tutorialManager.ActiveDirtyTray;
+
+        Debug.Log($"[TutorialGuidance] CleanTray - HasTray=false  ActiveDirtyTray={(active != null ? active.name : "NULL")}  BusserHands.Instance={(hands != null ? "OK" : "NULL")}");
+
         if (active != null)
         {
             PointArrow(active.transform);
@@ -140,7 +143,6 @@ public class TutorialPhaseGuidanceDriver : MonoBehaviour
 
     private void FirePhaseEntryGuidance(TutorialManager.TutorialPhase phase)
     {
-        // Waiter phases ServeFood→CollectPayment already handled by TutorialWaiterGuidedDialogue.
         if (IsWaiterOwnedPhase(phase))
             return;
 
@@ -148,9 +150,13 @@ public class TutorialPhaseGuidanceDriver : MonoBehaviour
         Transform target = ResolveFirstTargetForPhase(phase, group);
 
         if (target != null)
+        {
             PointArrow(target);
-        else
+        }
+        else if (phase != TutorialManager.TutorialPhase.CleanTray)
+        {
             HideArrow();
+        }
 
         string hint = BuildPhaseEntryHint(phase, group);
         if (!string.IsNullOrWhiteSpace(hint))
@@ -189,19 +195,17 @@ public class TutorialPhaseGuidanceDriver : MonoBehaviour
                 return cashierCounterTarget;
 
             case TutorialManager.TutorialPhase.CleanTray:
-                // Phase entry: initially point at the dirty tray.
-                // The Update() loop takes over from here and switches to the sink when needed.
+            {
                 FoodTray tray = tutorialManager.ActiveDirtyTray;
                 if (tray != null)
                     return tray.transform;
                 return null;
+            }
 
             case TutorialManager.TutorialPhase.PracticeGameplay:
-                // Practice arrow is handled by TutorialPracticeArrowDriver.
                 return null;
 
             case TutorialManager.TutorialPhase.AllTogetherGameplay:
-                // Mastery arrow is handled by TutorialArrowManager.
                 return null;
 
             default:
@@ -268,13 +272,13 @@ public class TutorialPhaseGuidanceDriver : MonoBehaviour
     private void PointArrow(Transform target)
     {
         if (arrowManager != null && target != null)
-            arrowManager.PointToTransform(target);
+            arrowManager.PointToTransform(target, "TutorialPhaseGuidanceDriver");
     }
 
     private void HideArrow()
     {
         if (arrowManager != null)
-            arrowManager.ForceHide();
+            arrowManager.ForceHide("TutorialPhaseGuidanceDriver");
     }
 
     private void SendHint(string message)
@@ -288,10 +292,23 @@ public class TutorialPhaseGuidanceDriver : MonoBehaviour
             Debug.Log("[TutorialPhaseGuidanceDriver] " + message);
     }
 
-    /// <summary>
-    /// Returns true for the waiter phases fully owned by TutorialWaiterGuidedDialogue.
-    /// This driver must not override the arrow for those phases.
-    /// </summary>
+    private bool ShouldSkipBusserCleanTrayOwnership()
+    {
+        if (tutorialManager == null)
+            return false;
+
+        return ShouldSkipBusserCleanTrayOwnership(tutorialManager.CurrentPhase);
+    }
+
+    private bool ShouldSkipBusserCleanTrayOwnership(TutorialManager.TutorialPhase phase)
+    {
+        if (tutorialManager == null)
+            return false;
+
+        return tutorialManager.CurrentDay == TutorialManager.TutorialDay.Day4Busser &&
+               phase == TutorialManager.TutorialPhase.CleanTray;
+    }
+
     private static bool IsWaiterOwnedPhase(TutorialManager.TutorialPhase phase)
     {
         switch (phase)

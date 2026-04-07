@@ -1,13 +1,5 @@
 using UnityEngine;
 
-/// <summary>
-/// Tutorial-only driver that keeps the arrow pointing at the most urgently needed
-/// action object during PracticeGameplay phases (Days 1–4).
-///
-/// Runs after TutorialArrowManager so its calls win during practice phases.
-/// Does NOT modify any main gameplay script — only reads public state.
-/// Day 5 mastery arrow is handled by TutorialArrowManager directly.
-/// </summary>
 [DisallowMultipleComponent]
 [DefaultExecutionOrder(50)]
 public class TutorialPracticeArrowDriver : MonoBehaviour
@@ -31,6 +23,8 @@ public class TutorialPracticeArrowDriver : MonoBehaviour
     [SerializeField] private float arrowRefreshInterval = 0.3f;
 
     private float refreshTimer;
+    private bool ownsArrowControl;
+    private Transform lastPracticeTarget;
 
     private void Awake()
     {
@@ -41,16 +35,26 @@ public class TutorialPracticeArrowDriver : MonoBehaviour
             arrowManager = GetComponent<TutorialArrowManager>();
     }
 
+    private void OnDisable()
+    {
+        ReleaseArrowControl();
+    }
+
     private void Update()
     {
         if (tutorialManager == null || !tutorialManager.TutorialStarted)
+        {
+            ReleaseArrowControl();
             return;
+        }
 
         if (tutorialManager.CurrentPhase != TutorialManager.TutorialPhase.PracticeGameplay)
         {
-            // Not in practice — do nothing. Other drivers / TutorialArrowManager own the arrow.
+            ReleaseArrowControl();
             return;
         }
+
+        EnsureArrowControl();
 
         refreshTimer -= Time.deltaTime;
         if (refreshTimer > 0f)
@@ -60,10 +64,24 @@ public class TutorialPracticeArrowDriver : MonoBehaviour
 
         Transform target = ResolvePracticeTarget(tutorialManager.CurrentDay);
 
-        if (target != null)
-            PointArrow(target);
-        else
-            HideArrow();
+        if (target == null)
+        {
+            if (lastPracticeTarget != null)
+            {
+                Debug.Log("[TutorialPracticeArrowDriver] Practice target lost, hiding arrow.");
+                HideArrow();
+                lastPracticeTarget = null;
+            }
+
+            return;
+        }
+
+        if (lastPracticeTarget == target)
+            return;
+
+        lastPracticeTarget = target;
+        Debug.Log($"[TutorialPracticeArrowDriver] Pointing practice arrow to {target.name}");
+        PointArrow(target);
     }
 
     // -------------------------------------------------------------------------
@@ -134,12 +152,11 @@ public class TutorialPracticeArrowDriver : MonoBehaviour
     /// </summary>
     private Transform ResolveDay2WaiterTarget()
     {
-        // If waiter is holding money, point at the cashier handoff spot.
         WaiterHands hands = WaiterHands.Instance;
+
         if (hands != null && hands.HasMoney && cashierBillTarget != null)
             return cashierBillTarget;
 
-        // If waiter is holding a bill, point at the active group.
         if (hands != null && hands.HasBill)
         {
             CustomerGroup active = tutorialManager.ActiveTutorialGroup;
@@ -147,7 +164,6 @@ public class TutorialPracticeArrowDriver : MonoBehaviour
                 return active.UIAnchor != null ? active.UIAnchor : active.transform;
         }
 
-        // If waiter is holding a tray, point at the active group.
         if (hands != null && hands.HasTray)
         {
             CustomerGroup active = tutorialManager.ActiveTutorialGroup;
@@ -187,7 +203,6 @@ public class TutorialPracticeArrowDriver : MonoBehaviour
             }
         }
 
-        // Priority: someone ready to order > order sent to kitchen > bill needed.
         CustomerGroup priority = readyToOrder ?? orderTaken ?? needsBill;
 
         if (priority != null)
@@ -198,7 +213,6 @@ public class TutorialPracticeArrowDriver : MonoBehaviour
             return priority.UIAnchor != null ? priority.UIAnchor : priority.transform;
         }
 
-        // Check for a food tray ready for delivery.
         FoodTray tray = FindDeliveryTray();
         if (tray != null)
             return tray.transform;
@@ -226,13 +240,17 @@ public class TutorialPracticeArrowDriver : MonoBehaviour
     {
         BusserHands hands = BusserHands.Instance;
         if (hands != null && hands.HasTray)
+        {
+            if (busserSinkTarget == null)
+                Debug.LogWarning("[TutorialPracticeArrowDriver] busserSinkTarget is NULL during Day4 practice.");
+
             return busserSinkTarget;
+        }
 
         FoodTray active = tutorialManager.ActiveDirtyTray;
         if (active != null)
             return active.transform;
 
-        // Fallback: scan for any pickup-ready cleanup tray.
         FoodTray[] all = FindObjectsByType<FoodTray>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
         for (int i = 0; i < all.Length; i++)
         {
@@ -251,6 +269,40 @@ public class TutorialPracticeArrowDriver : MonoBehaviour
     // -------------------------------------------------------------------------
     // Shared helpers
     // -------------------------------------------------------------------------
+
+    private void EnsureArrowControl()
+    {
+        if (ownsArrowControl)
+            return;
+
+        ownsArrowControl = true;
+        refreshTimer = 0f;
+        lastPracticeTarget = null;
+
+        if (arrowManager != null)
+        {
+            Debug.Log("[TutorialPracticeArrowDriver] BeginExternalControl");
+            arrowManager.BeginExternalControl("TutorialPracticeArrowDriver");
+        }
+    }
+
+    private void ReleaseArrowControl()
+    {
+        refreshTimer = 0f;
+        lastPracticeTarget = null;
+
+        if (!ownsArrowControl)
+            return;
+
+        ownsArrowControl = false;
+
+        if (arrowManager != null)
+        {
+            Debug.Log("[TutorialPracticeArrowDriver] EndExternalControl");
+            arrowManager.EndExternalControl("TutorialPracticeArrowDriver");
+            arrowManager.ForceHide("TutorialPracticeArrowDriver");
+        }
+    }
 
     private static bool IsActiveGroup(CustomerGroup g)
     {
@@ -276,7 +328,6 @@ public class TutorialPracticeArrowDriver : MonoBehaviour
             if (all[i] == null)
                 continue;
 
-            // A tray with a valid group reference that is not yet in cleanup state is a delivery tray.
             FoodTrayInteractable interactable = all[i].GetComponentInChildren<FoodTrayInteractable>(false);
             if (interactable != null && !interactable.IsCleanupPickable)
                 return all[i];
@@ -288,12 +339,12 @@ public class TutorialPracticeArrowDriver : MonoBehaviour
     private void PointArrow(Transform target)
     {
         if (arrowManager != null && target != null)
-            arrowManager.PointToTransform(target);
+            arrowManager.PointToTransform(target, "TutorialPracticeArrowDriver");
     }
 
     private void HideArrow()
     {
         if (arrowManager != null)
-            arrowManager.ForceHide();
+            arrowManager.ForceHide("TutorialPracticeArrowDriver");
     }
 }

@@ -225,7 +225,7 @@ MonoBehaviour:
   firstSceneToLoad: MainMenu
   protectMenuFromSingleLoad: 1
   menuSceneName: MainMenu
-  gameplaySceneName: CoreGameplay
+  gameplaySceneName: Multiplayer
   hideMenuWhenGameplayLoaded: 1
   extraMenuObjectsToDisable: []
   setRecentlyLoadedAsActiveScene: 1
