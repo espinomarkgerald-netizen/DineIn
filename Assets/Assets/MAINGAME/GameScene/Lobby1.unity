@@ -25445,7 +25445,7 @@ MonoBehaviour:
   m_OverrideVoxelSize: 0
   m_VoxelSize: 0.26666668
   m_MinRegionArea: 2
-  m_NavMeshData: {fileID: 23800000, guid: 89b6b8e0878c42b45a856c955f1249c7, type: 2}
+  m_NavMeshData: {fileID: 23800000, guid: a4ac8b90dfa28d9458000852c17d5a6b, type: 2}
   m_BuildHeightMesh: 0
 --- !u!64 &1636670760
 MeshCollider:
@@ -29302,7 +29302,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   managementSceneName: Office
-  shiftLengthMinutes: 0.1
+  shiftLengthMinutes: 4
   maxCustomersToSpawn: 12
   maxGroupsPerMinute: 2
   spawnIntervalMin: 6
@@ -31889,7 +31889,7 @@ MonoBehaviour:
   title: Current Task
   hideHelperWhenEmpty: 1
   shownAnchoredPosition: {x: 0, y: 30}
-  hiddenAnchoredPosition: {x: 0, y: 100}
+  hiddenAnchoredPosition: {x: 0, y: 200}
   slideDuration: 0.33
   useUnscaledTime: 1
   startHidden: 1

@@ -71,6 +71,7 @@ MonoBehaviour:
   bounceTarget: {fileID: 0}
   bounceHeight: 20
   bounceSpeed: 3
+  debugPinToScreenCenter: 0
 --- !u!1 &2028704277499494057
 GameObject:
   m_ObjectHideFlags: 0
