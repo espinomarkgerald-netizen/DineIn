@@ -16,5 +16,5 @@ MonoBehaviour:
   displayName: "Cheese Slices \xD720"
   unitsPerBox: 20
   boxCost: 150
-  sprite: {fileID: 21300000, guid: 5118c0b71dec6e646ac53ea95bac0524, type: 3}
+  sprite: {fileID: 21300000, guid: 75552c844cda6294e91e0600518c5d90, type: 3}
   dayToUnlock: 1

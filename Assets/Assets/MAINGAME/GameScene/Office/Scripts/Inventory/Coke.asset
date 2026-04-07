@@ -15,6 +15,6 @@ MonoBehaviour:
   itemType: 5
   displayName: "Coke Mix \u2013 20 Servings"
   unitsPerBox: 20
-  boxCost: 0
+  boxCost: 150
   sprite: {fileID: 21300000, guid: 85cf06d21ea9d7b4d9eb81f3472adce4, type: 3}
   dayToUnlock: 1
