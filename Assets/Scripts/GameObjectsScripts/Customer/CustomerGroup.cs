@@ -1424,6 +1424,8 @@ public class CustomerGroup : MonoBehaviour
                 DailyRevenueTracker.Instance?.RecordOrderFailed();
                 break;
         }
+
+        AlienApprovalManager.Instance?.RegisterGroupResult(result);
     }
 
     private void CleanupSeatsAndBoothOnly()

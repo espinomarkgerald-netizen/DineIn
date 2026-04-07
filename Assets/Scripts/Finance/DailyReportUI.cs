@@ -101,7 +101,8 @@ public class DailyReportUI : MonoBehaviour
 
     /// <summary>
     /// Called by the Continue button on the report panel.
-    /// Runs end-of-day finance once, then advances the day and returns to management.
+    /// Evaluates end-of-day win/loss and grade first, then advances the day.
+    /// EvaluateEndOfDay() calls StartNewDay() internally when no game over is triggered.
     /// </summary>
     public void ConfirmAndExit()
     {
@@ -110,6 +111,6 @@ public class DailyReportUI : MonoBehaviour
         if (reportPanel != null)
             reportPanel.SetActive(false);
 
-        GameFlowManager.Instance.StartNewDay();
+        GameFlowManager.Instance.EvaluateEndOfDay();
     }
 }

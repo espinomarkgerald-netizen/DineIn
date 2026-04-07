@@ -41,6 +41,10 @@ public class OfficeStartDayButton : MonoBehaviour
             return;
         }
 
+        // Roll the day's objectives before the shift starts so they are
+        // ready to display in the pre-shift panel and evaluated at day end.
+        DailyObjectiveManager.Instance?.RollObjectivesForDay(GameFlowManager.Instance.CurrentDay);
+
         GameFlowManager.Instance.StartDay();
     }
 }

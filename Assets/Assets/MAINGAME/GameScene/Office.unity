@@ -4334,7 +4334,7 @@ PrefabInstance:
       objectReference: {fileID: 9100000, guid: db0045be4db694d429eb584112202881, type: 2}
     - target: {fileID: 6403599859377120230, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
       propertyPath: sceneViewId
-      value: 4
+      value: 10
       objectReference: {fileID: 0}
     - target: {fileID: 7828672028217769178, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
       propertyPath: movement
@@ -9713,6 +9713,7 @@ MonoBehaviour:
   staticUI: {fileID: 644625129}
   sceneChanger: {fileID: 1284927217}
   currentDayText: {fileID: 2128894747}
+  settingsButton: {fileID: 0}
   activeUIs:
   - {fileID: 944246048}
   - {fileID: 1990963041}
@@ -9734,6 +9735,7 @@ MonoBehaviour:
   kitchenUI: {fileID: 467886686}
   lobbyUI: {fileID: 1898722581}
   hrManager: {fileID: 608052895}
+  mainMenuSceneName: MainMenu
 --- !u!4 &522746015
 Transform:
   m_ObjectHideFlags: 0
@@ -27088,6 +27090,91 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1639288160}
   m_CullTransparentMesh: 1
+--- !u!1 &1645829172
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1645829174}
+  - component: {fileID: 1645829173}
+  - component: {fileID: 1645829175}
+  m_Layer: 0
+  m_Name: AlienApprovalManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1645829173
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1645829172}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2d1fff109eff7eb4ba65a017fec7587b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  startingApproval: 5
+  happyDelta: 3
+  neutralDelta: 0
+  angryDelta: -6
+--- !u!4 &1645829174
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1645829172}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 310.67685, y: 150.2746, z: -197.23119}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1645829175
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1645829172}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d890ac8d7e3c0a340beb05c854ab3908, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  mandatoryPool:
+  - type: 0
+    descriptionTemplate: Earn at least {0} today
+    baseTargetValue: 600
+    scalingPerDay: 0.08
+  secondaryPool:
+  - type: 2
+    descriptionTemplate: No more than {0} alien(s) leave angry
+    baseTargetValue: 2
+    scalingPerDay: 0
+  - type: 1
+    descriptionTemplate: Fewer than {0} failed kitchen orders
+    baseTargetValue: 4
+    scalingPerDay: 0
+  bonusPool:
+  - type: 3
+    descriptionTemplate: Serve at least {0} alien groups today
+    baseTargetValue: 5
+    scalingPerDay: 0.1
+  gradeS_Bonus: 5
+  gradeA_Bonus: 3
+  gradeB_Bonus: 1
+  gradeC_Bonus: 0
+  gradeF_Penalty: -8
 --- !u!1 &1651082131
 GameObject:
   m_ObjectHideFlags: 0
@@ -33342,6 +33429,7 @@ MonoBehaviour:
   currentDayHalf: 0
   lobbyCompleted: 0
   kitchenCompleted: 0
+  gameOverScreen: {fileID: 0}
 --- !u!114 &2056118288
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -35038,6 +35126,7 @@ SceneRoots:
   - {fileID: 842781773}
   - {fileID: 759208088}
   - {fileID: 41026933}
+  - {fileID: 1645829174}
   - {fileID: 205686505}
   - {fileID: 346550953}
   - {fileID: 2056118286}

@@ -69,6 +69,7 @@ public class GameFlowManager : MonoBehaviour
         DailyFinanceBridge.Instance?.ResetDay();
         FinanceManager.Instance?.ResetDailyExpenses();
         EmployeeManager.Instance?.ResetDailyAssignments();
+        DailyObjectiveManager.Instance?.RollObjectivesForDay(currentDay);
 
         EquipmentManager.Instance.UnlockByDay(currentDay);
         EquipmentShopManager shop = FindObjectOfType<EquipmentShopManager>();
@@ -173,4 +174,70 @@ public class GameFlowManager : MonoBehaviour
         FinanceManager.Instance?.DeductAllExpenses();
         FinanceManager.Instance?.PrintDailyReport();
     }
+
+    /// <summary>
+    /// Evaluates end-of-day win/loss conditions after all finances have been settled.
+    /// Call this after EndOfDayFinance() — it will either advance to the next day
+    /// or trigger the appropriate game over screen.
+    /// </summary>
+    public void EvaluateEndOfDay()
+    {
+        int money    = MoneyManager.Instance != null         ? MoneyManager.Instance.Money           : 0;
+        int approval = AlienApprovalManager.Instance != null ? AlienApprovalManager.Instance.Approval : 0;
+
+        // Evaluate objectives and apply grade bonus/penalty to approval before win/loss check
+        DailyObjectiveManager.Instance?.EvaluateAndApply();
+
+        // Re-read approval after the grade delta has been applied
+        approval = AlienApprovalManager.Instance != null ? AlienApprovalManager.Instance.Approval : 0;
+
+        if (money <= 0)
+        {
+            TriggerGameOver(GameOverReason.Bankruptcy);
+            return;
+        }
+
+        if (approval <= 0)
+        {
+            TriggerGameOver(GameOverReason.ApprovalCollapsed);
+            return;
+        }
+
+        if (currentDay >= 30)
+        {
+            GameOverReason reason = approval >= 40
+                ? GameOverReason.EarthSaved
+                : GameOverReason.EarthConqueredDay30;
+
+            TriggerGameOver(reason);
+            return;
+        }
+
+        StartNewDay();
+    }
+
+    /// <summary>
+    /// Shows the appropriate game over / win screen and pauses the game.
+    /// Uses GameOverScreen.Instance so the screen is reachable from any scene,
+    /// including the Lobby shift before the Kitchen scene is loaded.
+    /// Falls back to the serialized reference if Instance is unavailable.
+    /// </summary>
+    public void TriggerGameOver(GameOverReason reason)
+    {
+        int money    = MoneyManager.Instance != null         ? MoneyManager.Instance.Money           : 0;
+        int approval = AlienApprovalManager.Instance != null ? AlienApprovalManager.Instance.Approval : 0;
+
+        GameOverScreen screen = GameOverScreen.Instance != null ? GameOverScreen.Instance : gameOverScreen;
+
+        if (screen != null)
+            screen.Show(reason, approval, money, currentDay);
+        else
+            Debug.LogWarning("[GameFlowManager] No GameOverScreen found. " +
+                             "Assign it in the Inspector or ensure it is present in the Kitchen scene.");
+
+        Time.timeScale = 0f;
+    }
+
+    [Header("Game Over")]
+    [SerializeField] private GameOverScreen gameOverScreen;
 }

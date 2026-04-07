@@ -387,6 +387,8 @@ public class GameDayManager : MonoBehaviour
     /// <summary>
     /// Reads the current day from GameFlowManager and evaluates each AnimationCurve
     /// to override flat spawn settings before the shift starts.
+    /// Also applies the AlienApprovalManager spawn modifier so high approval
+    /// brings more alien visitors and low approval reduces foot traffic.
     /// </summary>
     private void ApplyDifficultyScaling()
     {
@@ -400,6 +402,14 @@ public class GameDayManager : MonoBehaviour
         maxGroupsPerMinute  = Mathf.Max(1, Mathf.RoundToInt(groupsPerMinuteCurve.Evaluate(t)));
         spawnIntervalMin    = Mathf.Max(1f, spawnIntervalMinCurve.Evaluate(t));
         spawnIntervalMax    = Mathf.Max(spawnIntervalMin + 1f, spawnIntervalMaxCurve.Evaluate(t));
+
+        // Apply approval-based spawn modifier: word of mouth from happy aliens
+        // brings more visitors; repeated dissatisfaction drives them away.
+        if (AlienApprovalManager.Instance != null)
+        {
+            int approvalModifier = AlienApprovalManager.Instance.GetSpawnModifier();
+            maxCustomersToSpawn = Mathf.Max(1, maxCustomersToSpawn + approvalModifier);
+        }
     }
 
     public void EndShift()

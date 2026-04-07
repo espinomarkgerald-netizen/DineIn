@@ -1,0 +1,781 @@
+2-Day Build Plan — Alien Narrative Systems
+
+## Overview
+
+DineIN is an educational restaurant management game for hospitality students. The narrative framing is:
+
+> *Aliens have invaded Earth and find humans edible. World leaders devised a plan — serve them human food to quench their hunger. The aliens aren't easily convinced, so the player has 30 in-game days to win their approval. Fail, and Earth is conquered.*
+
+This document is the complete build plan for the final 2 days of development. It covers four systems that must be built in order. Every section includes what the system does, how it connects to existing code, what new files to create, and what UI the player sees.
+
+---
+
+## Existing Code You Will Be Hooking Into
+
+Before touching anything, read these files to understand the existing architecture:
+
+
+| File                     | What it does                                                                                                       |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| `MoneyManager.cs`        | Singleton. Tracks player money. Has `Earn()`, `Spend()`, `Money` property, `OnMoneyChanged` event                  |
+| `DailyFinanceBridge.cs`  | Singleton. Tracks daily costs and `EarnedToday`. Has `GetProgress01()`                                             |
+| `FinanceManager.cs`      | Records and deducts daily expenses via `DeductAllExpenses()`                                                       |
+| `EmployeeManager.cs`     | Manages staff hiring, role assignment, payroll calculation                                                         |
+| `GameFlowManager.cs`     | Controls day progression. Has `CurrentDay`. This is where end-of-day logic lives                                   |
+| `CustomerGroup.cs`       | Full customer state machine. Computes a `FinalResult` (Happy / Neutral / Angry / UnhappyLeft) when a group departs |
+| `DailyRevenueTracker.cs` | Tracks `OrdersCompleted` and `OrdersFailed` per day                                                                |
+| `CleanableEvent.cs`      | Handles spill/puddle events that the player must clean                                                             |
+
+
+---
+
+## Narrative Skin — Rename Everything Before Building
+
+No code changes required for this step. These are the display labels only. Apply them to all new UI text.
+
+
+| Old Game Concept         | New Alien Narrative Label                               |
+| ------------------------ | ------------------------------------------------------- |
+| Reputation Score         | Alien Approval Rating                                   |
+| Game Over                | Earth Conquered                                         |
+| Win                      | Earth Saved                                             |
+| Daily Financial Report   | Alien Intelligence Report                               |
+| Daily Objectives         | Alien Demands                                           |
+| Angry customer walks out | Alien leaves unsatisfied — threat level rises           |
+| Happy customer departs   | Alien converts — sends word back to the fleet           |
+| Day 30                   | Judgment Day — the Fleet Commander decides Earth's fate |
+
+
+---
+
+## System 1 — AlienApprovalManager
+
+### What This System Does
+
+This is the reputation system. It tracks a single integer score (0–100) that represents how convinced the alien fleet is that human food is worth sparing Earth for. It starts at 50 (skeptical) and changes based on how each customer group leaves. It is the most important system in this build — everything else either feeds into it or reacts to it.
+
+It drives three things:
+
+1. The HUD widget the player watches during a shift
+2. The win/loss evaluation at end of day
+3. The customer spawn modifier (more aliens visit if they like the food, fewer if they don't)
+
+### Files to Create
+
+`**/Assets/Scripts/AlienApprovalManager.cs**`
+
+```csharp
+using UnityEngine;
+using System;
+
+public class AlienApprovalManager : MonoBehaviour
+{
+    public static AlienApprovalManager Instance { get; private set; }
+
+    [Header("Starting Approval (0–100)")]
+    [SerializeField] private int startingApproval = 50;
+
+    [Header("Approval Deltas Per Group Result")]
+    [SerializeField] private int happyDelta       =  3;
+    [SerializeField] private int neutralDelta     =  0;
+    [SerializeField] private int angryDelta       = -6;
+    [SerializeField] private int unhappyDelta     = -3;
+
+    public int Approval { get; private set; }
+
+    public event Action<int> OnApprovalChanged;
+
+    private void Awake()
+    {
+        if (Instance != null && Instance != this) { Destroy(gameObject); return; }
+        Instance = this;
+        DontDestroyOnLoad(gameObject);
+        Approval = Mathf.Clamp(startingApproval, 0, 100);
+    }
+
+    /// <summary>
+    /// Call this from CustomerGroup when a group finishes their visit and departs.
+    /// Pass the group's computed FinalResult.
+    /// </summary>
+    public void RegisterGroupResult(CustomerGroupResult result)
+    {
+        int delta = result switch
+        {
+            CustomerGroupResult.Happy       => happyDelta,
+            CustomerGroupResult.Neutral     => neutralDelta,
+            CustomerGroupResult.AngryLeft   => angryDelta,
+            CustomerGroupResult.UnhappyLeft => unhappyDelta,
+            _ => 0
+        };
+
+        Approval = Mathf.Clamp(Approval + delta, 0, 100);
+        OnApprovalChanged?.Invoke(Approval);
+
+        if (Approval <= 0)
+            GameFlowManager.Instance?.TriggerGameOver(GameOverReason.ApprovalCollapsed);
+    }
+
+    /// <summary>
+    /// Returns a modifier for how many customer groups spawn this shift.
+    /// Consumed by the customer spawner at the start of each shift.
+    /// </summary>
+    public int GetSpawnModifier()
+    {
+        if (Approval >= 80) return  2;
+        if (Approval >= 60) return  0;
+        if (Approval >= 40) return -1;
+        if (Approval >= 20) return -2;
+        return -99; // effectively blocks spawning — game over should trigger first
+    }
+
+    /// <summary>Resets approval to starting value. Call only on full game restart.</summary>
+    public void ResetApproval()
+    {
+        Approval = startingApproval;
+        OnApprovalChanged?.Invoke(Approval);
+    }
+}
+```
+
+`**/Assets/Scripts/AlienApprovalHUD.cs**`
+
+```csharp
+using UnityEngine;
+using UnityEngine.UI;
+using TMPro;
+
+public class AlienApprovalHUD : MonoBehaviour
+{
+    [SerializeField] private TextMeshProUGUI approvalLabel;
+    [SerializeField] private Slider approvalSlider;
+    [SerializeField] private Image sliderFill;
+
+    [SerializeField] private Color highApprovalColor  = Color.green;
+    [SerializeField] private Color midApprovalColor   = Color.yellow;
+    [SerializeField] private Color lowApprovalColor   = Color.red;
+
+    private void OnEnable()
+    {
+        if (AlienApprovalManager.Instance == null) return;
+        AlienApprovalManager.Instance.OnApprovalChanged += UpdateDisplay;
+        UpdateDisplay(AlienApprovalManager.Instance.Approval);
+    }
+
+    private void OnDisable()
+    {
+        if (AlienApprovalManager.Instance == null) return;
+        AlienApprovalManager.Instance.OnApprovalChanged -= UpdateDisplay;
+    }
+
+    private void UpdateDisplay(int approval)
+    {
+        approvalLabel.text = $"Alien Approval: {approval}/100";
+        approvalSlider.value = approval / 100f;
+
+        sliderFill.color = approval >= 60 ? highApprovalColor
+                         : approval >= 40 ? midApprovalColor
+                         : lowApprovalColor;
+    }
+}
+```
+
+### Wiring Into Existing Code
+
+Open `CustomerGroup.cs`. Find the section where the group's final state is resolved — where `FinalResult` is set to Happy, Neutral, AngryLeft, or UnhappyLeft and the group begins departing. Add this single line immediately after `FinalResult` is assigned:
+
+```csharp
+AlienApprovalManager.Instance?.RegisterGroupResult(FinalResult);
+```
+
+That is the only change needed in `CustomerGroup.cs`.
+
+### Scene Setup
+
+- Add `AlienApprovalManager` as a component on the same persistent manager GameObject that holds `MoneyManager` and `DailyFinanceBridge`. It must be `DontDestroyOnLoad`.
+- Add `AlienApprovalHUD` to the lobby shift HUD canvas. Wire the `approvalLabel`, `approvalSlider`, and `sliderFill` references in the Inspector.
+
+---
+
+## System 2 — Win / Loss Conditions
+
+### What This System Does
+
+The game currently has no ending. This system adds three possible endings and the screens that display them. It hooks into `GameFlowManager` and evaluates at the end of every day.
+
+### Files to Create
+
+`**/Assets/Scripts/GameOverReason.cs**`
+
+```csharp
+public enum GameOverReason
+{
+    Bankruptcy,         // MoneyManager.Money <= 0 after expense deduction
+    ApprovalCollapsed,  // AlienApprovalManager.Approval <= 0
+    EarthSaved,         // Reached day 30 with Approval >= 40
+    EarthConqueredDay30 // Reached day 30 but Approval < 40 (bittersweet loss)
+}
+```
+
+`**/Assets/Scripts/GameOverScreen.cs**`
+
+```csharp
+using UnityEngine;
+using TMPro;
+
+public class GameOverScreen : MonoBehaviour
+{
+    [SerializeField] private TextMeshProUGUI headlineText;
+    [SerializeField] private TextMeshProUGUI bodyText;
+    [SerializeField] private TextMeshProUGUI statsText;
+
+    private static readonly string BankruptcyHeadline  = "Earth Has Been Conquered";
+    private static readonly string ApprovalHeadline    = "Earth Has Been Conquered";
+    private static readonly string WinHeadline         = "Earth Has Been Saved";
+    private static readonly string BittersweetHeadline = "Earth Has Been Conquered";
+
+    private static readonly string BankruptcyBody =
+        "Your restaurant ran out of funds.\n" +
+        "Without food service, the alien fleet lost patience.\n" +
+        "Earth has fallen. 🌍💀";
+
+    private static readonly string ApprovalBody =
+        "The alien fleet reported back to their Commander.\n" +
+        "The food was unacceptable.\n" +
+        "Earth has fallen. 🌍💀";
+
+    private static readonly string WinBody =
+        "The Fleet Commander has tasted your cuisine.\n" +
+        "After 30 days of exceptional service, Earth has been spared.\n" +
+        "Humanity owes you everything. 🌍✅";
+
+    private static readonly string BittersweetBody =
+        "You survived 30 days, but the aliens remain unconvinced.\n" +
+        "The Fleet Commander calls for invasion.\n" +
+        "Earth has fallen — but you came closer than anyone expected. 🌍⚠️";
+
+    /// <summary>
+    /// Called by GameFlowManager. Populates and displays the appropriate screen.
+    /// </summary>
+    public void Show(GameOverReason reason, int finalApproval, int finalMoney, int daysReached)
+    {
+        gameObject.SetActive(true);
+
+        headlineText.text = reason switch
+        {
+            GameOverReason.Bankruptcy         => BankruptcyHeadline,
+            GameOverReason.ApprovalCollapsed  => ApprovalHeadline,
+            GameOverReason.EarthSaved         => WinHeadline,
+            GameOverReason.EarthConqueredDay30 => BittersweetHeadline,
+            _ => string.Empty
+        };
+
+        bodyText.text = reason switch
+        {
+            GameOverReason.Bankruptcy         => BankruptcyBody,
+            GameOverReason.ApprovalCollapsed  => ApprovalBody,
+            GameOverReason.EarthSaved         => WinBody,
+            GameOverReason.EarthConqueredDay30 => BittersweetBody,
+            _ => string.Empty
+        };
+
+        statsText.text =
+            $"Days Survived: {daysReached} / 30\n" +
+            $"Final Alien Approval: {finalApproval} / 100\n" +
+            $"Remaining Funds: ₱{finalMoney}";
+    }
+}
+```
+
+### Wiring Into GameFlowManager
+
+Open `GameFlowManager.cs`. Add the following two methods. Call `EvaluateEndOfDay()` wherever the existing day-end logic currently runs — after expenses are deducted and the daily report is shown.
+
+```csharp
+// Add this field at the top of GameFlowManager
+[SerializeField] private GameOverScreen gameOverScreen;
+
+public void EvaluateEndOfDay()
+{
+    // Step 1 — Deduct all expenses
+    FinanceManager.Instance.DeductAllExpenses();
+
+    int money    = MoneyManager.Instance.Money;
+    int approval = AlienApprovalManager.Instance.Approval;
+
+    // Step 2 — Check bankruptcy
+    if (money <= 0)
+    {
+        TriggerGameOver(GameOverReason.Bankruptcy);
+        return;
+    }
+
+    // Step 3 — Check approval collapse (redundant safety check — 
+    // ApprovalManager fires this too, but belt-and-suspenders here)
+    if (approval <= 0)
+    {
+        TriggerGameOver(GameOverReason.ApprovalCollapsed);
+        return;
+    }
+
+    // Step 4 — Check win / Day 30
+    if (CurrentDay >= 30)
+    {
+        GameOverReason reason = approval >= 40
+            ? GameOverReason.EarthSaved
+            : GameOverReason.EarthConqueredDay30;
+
+        TriggerGameOver(reason);
+        return;
+    }
+
+    // Step 5 — All clear, advance to next day
+    AdvanceToNextDay();
+}
+
+public void TriggerGameOver(GameOverReason reason)
+{
+    int money    = MoneyManager.Instance?.Money ?? 0;
+    int approval = AlienApprovalManager.Instance?.Approval ?? 0;
+
+    gameOverScreen?.Show(reason, approval, money, CurrentDay);
+
+    // Pause the game
+    Time.timeScale = 0f;
+}
+```
+
+### Scene Setup
+
+- Create a full-screen UI panel in your main canvas. Name it `GameOverScreen`. Attach `GameOverScreen.cs` to it.
+- Add three `TextMeshProUGUI` children: `HeadlineText`, `BodyText`, `StatsText`.
+- Add a "Try Again" button that calls `Time.timeScale = 1f` and reloads the game scene.
+- Set the panel inactive by default — `GameOverScreen.Show()` activates it.
+- Wire the `gameOverScreen` reference on `GameFlowManager` in the Inspector.
+
+---
+
+## System 3 — Daily Alien Demands (Objectives)
+
+### What This System Does
+
+Three objectives are shown to the player at the start of each shift. They are evaluated at the end of the day. Results feed a letter grade. The grade gives a bonus or penalty to `AlienApprovalManager`. This system uses data already being collected — no new trackers are needed.
+
+Objective types and their data sources:
+
+
+| Objective Type           | Data Source                                  |
+| ------------------------ | -------------------------------------------- |
+| Minimum revenue          | `DailyFinanceBridge.EarnedToday`             |
+| Maximum failed orders    | `DailyRevenueTracker.OrdersFailed`           |
+| Maximum angry departures | Count tracked inside `DailyObjectiveManager` |
+| Minimum groups served    | `DailyRevenueTracker.OrdersCompleted`        |
+
+
+### Files to Create
+
+`**/Assets/Scripts/DailyObjectiveManager.cs**`
+
+```csharp
+using UnityEngine;
+using System.Collections.Generic;
+
+public enum ObjectiveType
+{
+    MinRevenue,
+    MaxFailedOrders,
+    MaxAngryDepartures,
+    MinGroupsServed
+}
+
+public enum ObjectiveGrade { S, A, B, C, F }
+
+[System.Serializable]
+public class ObjectiveDefinition
+{
+    public ObjectiveType type;
+
+    [Tooltip("Template string. Use {0} for the target value. " +
+             "Example: 'Earn at least ₱{0} today'")]
+    public string descriptionTemplate;
+
+    public int baseTargetValue;
+
+    [Tooltip("Percentage increase per day. 0.05 = 5% harder each day.")]
+    public float scalingPerDay = 0.05f;
+
+    public int GetTargetForDay(int day)
+        => Mathf.RoundToInt(baseTargetValue * (1f + scalingPerDay * (day - 1)));
+
+    public string GetDescription(int day)
+        => string.Format(descriptionTemplate, GetTargetForDay(day));
+}
+
+public class DailyObjectiveManager : MonoBehaviour
+{
+    public static DailyObjectiveManager Instance { get; private set; }
+
+    [Header("Objective Pool — assign in Inspector")]
+    [SerializeField] private List<ObjectiveDefinition> mandatoryObjectivePool;
+    [SerializeField] private List<ObjectiveDefinition> secondaryObjectivePool;
+    [SerializeField] private List<ObjectiveDefinition> bonusObjectivePool;
+
+    [Header("Grade → Approval Bonuses")]
+    [SerializeField] private int gradeS_ApprovalBonus =  5;
+    [SerializeField] private int gradeA_ApprovalBonus =  3;
+    [SerializeField] private int gradeB_ApprovalBonus =  1;
+    [SerializeField] private int gradeC_ApprovalBonus =  0;
+    [SerializeField] private int gradeF_ApprovalPenalty = -8;
+
+    // The three active objectives for the current day
+    public ObjectiveDefinition MandatoryObjective  { get; private set; }
+    public ObjectiveDefinition SecondaryObjective  { get; private set; }
+    public ObjectiveDefinition BonusObjective      { get; private set; }
+
+    // Angry departure counter — incremented by AlienApprovalManager
+    private int angryDeparturesToday;
+
+    private void Awake()
+    {
+        if (Instance != null && Instance != this) { Destroy(gameObject); return; }
+        Instance = this;
+        DontDestroyOnLoad(gameObject);
+    }
+
+    /// <summary>
+    /// Call at the start of each day (before the shift) to pick that day's objectives.
+    /// </summary>
+    public void RollObjectivesForDay(int day)
+    {
+        angryDeparturesToday = 0;
+
+        MandatoryObjective = PickRandom(mandatoryObjectivePool);
+        SecondaryObjective = PickRandom(secondaryObjectivePool);
+        BonusObjective     = PickRandom(bonusObjectivePool);
+    }
+
+    /// <summary>Called by AlienApprovalManager when an angry or unhappy group departs.</summary>
+    public void RegisterAngryDeparture() => angryDeparturesToday++;
+
+    /// <summary>
+    /// Evaluates all three objectives at end of day and applies the grade bonus/penalty.
+    /// Call this from GameFlowManager.EvaluateEndOfDay(), before AdvanceToNextDay().
+    /// </summary>
+    public ObjectiveGrade EvaluateAndApply(int day)
+    {
+        bool mandatoryPassed  = Evaluate(MandatoryObjective,  day);
+        bool secondaryPassed  = Evaluate(SecondaryObjective,  day);
+        bool bonusPassed      = Evaluate(BonusObjective,      day);
+
+        ObjectiveGrade grade;
+
+        if (!mandatoryPassed)
+            grade = ObjectiveGrade.F;
+        else if (mandatoryPassed && secondaryPassed && bonusPassed)
+            grade = ObjectiveGrade.S;
+        else if (mandatoryPassed && secondaryPassed)
+            grade = ObjectiveGrade.A;
+        else if (mandatoryPassed)
+            grade = ObjectiveGrade.B;
+        else
+            grade = ObjectiveGrade.C;
+
+        // Apply approval delta
+        int approvalDelta = grade switch
+        {
+            ObjectiveGrade.S => gradeS_ApprovalBonus,
+            ObjectiveGrade.A => gradeA_ApprovalBonus,
+            ObjectiveGrade.B => gradeB_ApprovalBonus,
+            ObjectiveGrade.C => gradeC_ApprovalBonus,
+            ObjectiveGrade.F => gradeF_ApprovalPenalty,
+            _ => 0
+        };
+
+        // Apply via RegisterGroupResult equivalent — direct approval shift
+        int current = AlienApprovalManager.Instance.Approval;
+        // Use reflection or expose a direct method on AlienApprovalManager
+        // Simplest: add a public ApplyGradeBonus(int delta) method on AlienApprovalManager
+        AlienApprovalManager.Instance.ApplyGradeBonus(approvalDelta);
+
+        return grade;
+    }
+
+    private bool Evaluate(ObjectiveDefinition obj, int day)
+    {
+        if (obj == null) return false;
+
+        int target = obj.GetTargetForDay(day);
+
+        return obj.type switch
+        {
+            ObjectiveType.MinRevenue =>
+                DailyFinanceBridge.Instance.EarnedToday >= target,
+
+            ObjectiveType.MaxFailedOrders =>
+                DailyRevenueTracker.Instance.OrdersFailed <= target,
+
+            ObjectiveType.MaxAngryDepartures =>
+                angryDeparturesToday <= target,
+
+            ObjectiveType.MinGroupsServed =>
+                DailyRevenueTracker.Instance.OrdersCompleted >= target,
+
+            _ => false
+        };
+    }
+
+    private ObjectiveDefinition PickRandom(List<ObjectiveDefinition> pool)
+    {
+        if (pool == null || pool.Count == 0) return null;
+        return pool[Random.Range(0, pool.Count)];
+    }
+}
+```
+
+**Add `ApplyGradeBonus` to `AlienApprovalManager.cs`:**
+
+```csharp
+/// <summary>Applies a direct approval delta from the daily grade. Can be negative.</summary>
+public void ApplyGradeBonus(int delta)
+{
+    Approval = Mathf.Clamp(Approval + delta, 0, 100);
+    OnApprovalChanged?.Invoke(Approval);
+}
+```
+
+**Add to `AlienApprovalManager.RegisterGroupResult()` — register angry departures for the objective tracker:**
+
+```csharp
+if (result == CustomerGroupResult.AngryLeft || result == CustomerGroupResult.UnhappyLeft)
+    DailyObjectiveManager.Instance?.RegisterAngryDeparture();
+```
+
+### Objective Definitions — Create in Inspector
+
+In the Inspector, populate the three pools on `DailyObjectiveManager` with `ObjectiveDefinition` entries. Suggested starting values:
+
+**Mandatory Pool (pick 1 per day):**
+
+```
+type: MinRevenue
+descriptionTemplate: "Earn at least ₱{0} today"
+baseTargetValue: 800
+scalingPerDay: 0.08
+```
+
+**Secondary Pool (pick 1 per day):**
+
+```
+type: MaxAngryDepartures
+descriptionTemplate: "No more than {0} alien(s) leave angry"
+baseTargetValue: 2
+scalingPerDay: 0.0 (keep fixed — always 2)
+
+type: MaxFailedOrders
+descriptionTemplate: "Fewer than {0} failed orders in the kitchen"
+baseTargetValue: 4
+scalingPerDay: 0.05
+```
+
+**Bonus Pool (pick 1 per day):**
+
+```
+type: MinGroupsServed
+descriptionTemplate: "Serve at least {0} alien groups today"
+baseTargetValue: 5
+scalingPerDay: 0.1
+```
+
+### Pre-Shift UI Panel — "Alien Demands"
+
+Create a UI panel shown at the start of each shift before the player enters the lobby. It should show:
+
+```
+╔══════════════════════════════════════════╗
+║      TODAY'S ALIEN DEMANDS — Day 7       ║
+╠══════════════════════════════════════════╣
+║  ★ MANDATORY   Earn at least ₱1,200      ║
+║    SERVICE     No more than 2 angry      ║
+║    BONUS       Serve 8+ groups today     ║
+╚══════════════════════════════════════════╝
+         [ BEGIN SHIFT ]
+```
+
+The "Begin Shift" button calls `DailyObjectiveManager.Instance.RollObjectivesForDay(CurrentDay)` — or better, roll at the start of the day before this panel opens, so the panel just displays already-rolled objectives.
+
+### End-of-Day Report — "Alien Intelligence Report"
+
+In your existing `DailyReportUI`, append an objectives result section. It should show:
+
+```
+╔══════════════════════════════════════════╗
+║        ALIEN INTELLIGENCE REPORT         ║
+╠══════════════════════════════════════════╣
+║  ★ MANDATORY   ₱1,340 earned    ✅ PASS  ║
+║    SERVICE     1 angry alien    ✅ PASS  ║
+║    BONUS       6 groups served  ❌ FAIL  ║
+╠══════════════════════════════════════════╣
+║  DAILY GRADE: B                          ║
+║  Approval: 64 → 65 (+1)                  ║
+╚══════════════════════════════════════════╝
+```
+
+---
+
+## System 4 — Shift Difficulty Scaling
+
+### What This System Does
+
+Currently, customer patience timers and group sizes are fixed Inspector values. This system scales them based on `GameFlowManager.CurrentDay` so that the game becomes progressively harder — simulating a growing restaurant that serves more and more aliens as word spreads (or fewer if approval drops).
+
+### Files to Create
+
+`**/Assets/Scripts/ShiftScaler.cs**`
+
+```csharp
+using UnityEngine;
+
+public class ShiftScaler : MonoBehaviour
+{
+    public static ShiftScaler Instance { get; private set; }
+
+    [Header("Patience (seconds aliens wait before leaving)")]
+    [SerializeField] private float basePatienceSeconds = 60f;
+    [SerializeField] private float minPatienceSeconds  = 25f;
+
+    [Header("Groups Per Shift")]
+    [SerializeField] private int baseGroupsPerShift = 5;
+    [SerializeField] private int maxGroupsPerShift  = 14;
+
+    private void Awake()
+    {
+        if (Instance != null && Instance != this) { Destroy(gameObject); return; }
+        Instance = this;
+        DontDestroyOnLoad(gameObject);
+    }
+
+    /// <summary>
+    /// Call this at the start of each shift from GameFlowManager.
+    /// Pushes updated patience and spawn count to the customer spawner.
+    /// </summary>
+    public void ApplyScaling(int day)
+    {
+        float t = Mathf.InverseLerp(1, 30, day);
+        float patience = Mathf.Lerp(basePatienceSeconds, minPatienceSeconds, t);
+
+        int spawnModifier = AlienApprovalManager.Instance?.GetSpawnModifier() ?? 0;
+        int groupCount = Mathf.Clamp(
+            baseGroupsPerShift + (day / 5) + spawnModifier,
+            2,
+            maxGroupsPerShift
+        );
+
+        // Replace CustomerSpawner with whatever your actual spawner class is called
+        CustomerSpawner.Instance?.SetPatienceSeconds(patience);
+        CustomerSpawner.Instance?.SetGroupsForShift(groupCount);
+    }
+}
+```
+
+### Wiring Into GameFlowManager
+
+At the point where the lobby shift starts (after the office phase and before customer spawning begins), call:
+
+```csharp
+ShiftScaler.Instance?.ApplyScaling(CurrentDay);
+```
+
+### What This Achieves Day by Day
+
+```
+Day 1  → 5 groups, 60s patience   (learning phase)
+Day 5  → 6 groups, 51s patience
+Day 10 → 7 groups, 43s patience
+Day 15 → 8 groups, 34s patience
+Day 20 → 9 groups, 26s patience
+Day 25 → 10 groups, 25s patience  (near minimum)
+Day 30 → 10–14 groups depending on approval rating
+```
+
+---
+
+## Full 2-Day Build Schedule
+
+### Day 1
+
+```
+MORNING
+  1. Create GameOverReason.cs
+  2. Create AlienApprovalManager.cs
+  3. Add AlienApprovalManager to the persistent manager GameObject in the scene
+  4. Open CustomerGroup.cs — add RegisterGroupResult() call on group departure
+  5. Create AlienApprovalHUD.cs
+  6. Add HUD widget to the lobby shift canvas — wire references in Inspector
+
+AFTERNOON
+  7. Create GameOverScreen.cs
+  8. Build the GameOver UI panel (headline, body, stats, Try Again button)
+  9. Set panel inactive by default
+  10. Add EvaluateEndOfDay() and TriggerGameOver() to GameFlowManager
+  11. Wire gameOverScreen reference in Inspector
+  12. Test: manually set Approval to 0 in Inspector during Play Mode — confirm Earth Conquered screen appears
+  13. Test: manually set Money to 0 — confirm Bankruptcy screen appears
+  14. Test: set CurrentDay to 30 with Approval 50 — confirm Earth Saved screen appears
+```
+
+### Day 2
+
+```
+MORNING
+  1. Create DailyObjectiveManager.cs
+  2. Add DailyObjectiveManager to persistent manager GameObject
+  3. Populate Mandatory, Secondary, and Bonus objective pools in Inspector (see definitions above)
+  4. Add ApplyGradeBonus() to AlienApprovalManager.cs
+  5. Add RegisterAngryDeparture() call inside AlienApprovalManager.RegisterGroupResult()
+  6. Build the pre-shift "Alien Demands" UI panel — wire to DailyObjectiveManager
+  7. Call RollObjectivesForDay() at the start of each day in GameFlowManager
+
+AFTERNOON
+  8. Add objective result display to existing DailyReportUI
+  9. Call EvaluateAndApply() inside EvaluateEndOfDay() before AdvanceToNextDay()
+  10. Create ShiftScaler.cs
+  11. Add ShiftScaler to persistent manager GameObject
+  12. Call ApplyScaling(CurrentDay) at shift start in GameFlowManager
+  13. Wire SetPatienceSeconds() and SetGroupsForShift() into your actual spawner class
+  14. Full run-through test: play Days 1–3, verify objectives shown, grade given, approval changes, report reflects results
+
+EVENING (buffer)
+  15. Polish narrative text in all screens
+  16. Fix any wiring issues found during testing
+  17. Verify Time.timeScale resets to 1f on Try Again
+  18. Final check: all four systems active simultaneously with no null reference errors
+```
+
+---
+
+## What Was Intentionally Left Out
+
+These were considered and cut due to the 2-day constraint. Do not attempt these now:
+
+- **Meta/persistent progression** — saving progress between class sessions
+- **Health Inspection event** — fines for uncleaned spills exceeding a threshold
+- **Employee morale system** — staff burnout affecting payroll next day
+- **Actionable debrief recommendations** — text like "You had too many failed orders — consider hiring a better chef"
+- **Narrative cutscenes or dialogue** — the intro premise is text-only
+
+---
+
+## Definition of Done
+
+The build is complete when all of the following are true:
+
+- [ ] Alien Approval Rating is visible on the HUD during the lobby shift and updates in real time
+- [ ] Happy customer groups increase approval; angry departures decrease it
+- [ ] Approval dropping to 0 at any point shows the Earth Conquered screen and pauses the game
+- [ ] Money dropping to 0 after expense deduction shows the Bankruptcy screen and pauses the game
+- [ ] Reaching Day 30 with Approval ≥ 40 shows the Earth Saved screen
+- [ ] Reaching Day 30 with Approval < 40 shows the bittersweet Earth Conquered screen
+- [ ] Three objectives are shown to the player before each shift begins
+- [ ] Objectives are evaluated at end of day and a letter grade (S/A/B/C/F) is displayed
+- [ ] The grade applies an approval bonus or penalty
+- [ ] Customer patience timers decrease and group counts increase as days progress
+- [ ] Approval rating modifies how many customer groups spawn per shift
