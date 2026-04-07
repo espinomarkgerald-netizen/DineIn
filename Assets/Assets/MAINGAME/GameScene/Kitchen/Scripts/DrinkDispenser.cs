@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.InputSystem;
 using UnityEngine.EventSystems;
 
 public class DrinkDispenser : Counter {
@@ -20,37 +19,67 @@ public class DrinkDispenser : Counter {
 
     private PlayerHolding interactingPlayer;
     private float openTimer = 0f;
+    /// <summary>Seconds since the drink menu was last opened. Used by KitchenPlayerMovement for the grace-period check.</summary>
+    public float OpenTimer => openTimer;
+
+    // Button RectTransforms resolved at runtime from drinkMenuPanel children.
+    private RectTransform cokeButtonRect;
+    private RectTransform pineappleButtonRect;
+    private RectTransform icedTeaButtonRect;
+    private Camera uiCamera;
 
     void Start() {
-        if (drinkMenuPanel != null)
+        if (drinkMenuPanel != null) {
             drinkMenuPanel.SetActive(false);
 
-        // Make sure the popup is visible when the game starts!
+            // Cache button RectTransforms by name so we don't depend on Button.onClick
+            // or the EventSystem at all — we do our own screen-point hit test instead.
+            cokeButtonRect     = FindButtonRect("CokeButton");
+            pineappleButtonRect = FindButtonRect("PineappleButton");
+            icedTeaButtonRect  = FindButtonRect("IcedTeaButton");
+        }
+
         if (popupCanvas != null)
             popupCanvas.SetActive(true);
+
+        uiCamera = Camera.main;
+    }
+
+    private RectTransform FindButtonRect(string buttonName) {
+        Transform t = drinkMenuPanel.transform.Find(buttonName);
+        return t != null ? t.GetComponent<RectTransform>() : null;
     }
 
     void Update() {
-        if (drinkMenuPanel != null && drinkMenuPanel.activeSelf) {
-            openTimer += Time.deltaTime;
-
-            if (openTimer > 0.1f) {
-                bool clickedOutside = false;
-
-                if (Touchscreen.current != null && Touchscreen.current.primaryTouch.press.wasPressedThisFrame) {
-                    if (EventSystem.current != null && !EventSystem.current.IsPointerOverGameObject(Touchscreen.current.primaryTouch.touchId.ReadValue()))
-                        clickedOutside = true;
-                } else if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame) {
-                    if (EventSystem.current != null && !EventSystem.current.IsPointerOverGameObject())
-                        clickedOutside = true;
-                }
-
-                if (clickedOutside)
-                    CloseMenu();
-            }
-        } else {
+        if (drinkMenuPanel == null || !drinkMenuPanel.activeSelf) {
             openTimer = 0f;
+        } else {
+            openTimer += Time.deltaTime;
         }
+    }
+
+    /// <summary>Returns true when <paramref name="screenPos"/> falls inside the button's rect.</summary>
+    private bool HitButton(RectTransform rect, Vector2 screenPos) {
+        if (rect == null || !rect.gameObject.activeInHierarchy) return false;
+        return RectTransformUtility.RectangleContainsScreenPoint(rect, screenPos, uiCamera);
+    }
+
+    /// <summary>
+    /// Returns true if the screen position overlaps the drink menu panel.
+    /// Called by KitchenPlayerMovement to decide whether to block world-click processing.
+    /// Also selects the button that was tapped.
+    /// </summary>
+    public bool IsPointerOverMenu(Vector2 screenPos) {
+        if (drinkMenuPanel == null || !drinkMenuPanel.activeSelf) return false;
+
+        if (HitButton(cokeButtonRect, screenPos))      { Button_SelectCoke();      return true; }
+        if (HitButton(pineappleButtonRect, screenPos)) { Button_SelectPineapple(); return true; }
+        if (HitButton(icedTeaButtonRect, screenPos))   { Button_SelectIcedTea();   return true; }
+
+        // Tapped inside the panel background but not a button.
+        RectTransform panelRect = drinkMenuPanel.GetComponent<RectTransform>();
+        return panelRect != null &&
+               RectTransformUtility.RectangleContainsScreenPoint(panelRect, screenPos, uiCamera);
     }
 
     public override void Interact(PlayerHolding player) {

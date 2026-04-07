@@ -15228,7 +15228,8 @@ MonoBehaviour:
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 44132a242d69e514eaf236194f4a06cf, type: 2}
   m_sharedMaterial: {fileID: 4763482080473113484, guid: 44132a242d69e514eaf236194f4a06cf, type: 2}
-  m_fontSharedMaterials: []
+  m_fontSharedMaterials:
+  - {fileID: 4763482080473113484, guid: 44132a242d69e514eaf236194f4a06cf, type: 2}
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
   m_fontColor32:
@@ -25864,6 +25865,7 @@ MonoBehaviour:
   reloadSceneWhenStartingNextDay: 1
   autoStartWhenSceneReloads: 1
   tutorialSceneName: LobbyTutorial
+  officeTutorialSceneName: OfficeTutorial
   nextDayButtonLabel: Next Day
   finishTutorialButtonLabel: Finish
   lockRoleDuringGuidedPhases: 1
@@ -29151,7 +29153,8 @@ MonoBehaviour:
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 44132a242d69e514eaf236194f4a06cf, type: 2}
   m_sharedMaterial: {fileID: 4763482080473113484, guid: 44132a242d69e514eaf236194f4a06cf, type: 2}
-  m_fontSharedMaterials: []
+  m_fontSharedMaterials:
+  - {fileID: 4763482080473113484, guid: 44132a242d69e514eaf236194f4a06cf, type: 2}
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
   m_fontColor32:

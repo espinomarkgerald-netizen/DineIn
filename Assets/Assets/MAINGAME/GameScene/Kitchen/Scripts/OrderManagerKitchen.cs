@@ -49,11 +49,15 @@ public class OrderManagerKitchen : MonoBehaviour {
         public List<ItemTypeKitchen> missingItems;
         public List<ItemTypeKitchen> completedItems;
         public float timeLeft;
+        public bool noTimer; // When true the ticket never expires (used in tutorial)
     }
 
     [Header("Live Orders")]
     public List<LiveTicket> activeOrders = new List<LiveTicket>();
     private float spawnTimer = 0f;
+
+    /// <summary>Fired whenever any order is fully completed. Used by KitchenTutorialManager to track free-play progress.</summary>
+    public static event System.Action OnOrderCompleted;
 
     // Prices per ItemTypeKitchen, built once at Start() from RecipeManager while it's
     // still alive, then kept in memory for the duration of the kitchen shift.
@@ -76,9 +80,15 @@ public class OrderManagerKitchen : MonoBehaviour {
         ApplyDifficultyScaling();
 
         currentShiftTime = shiftDuration;
+
+        // In tutorial scenes KitchenTutorialManager controls the shift — don't auto-start
+        if (KitchenTutorialManager.Instance != null) {
+            isShiftActive = false;
+            return;
+        }
+
         isShiftActive = true;
         Time.timeScale = 1f;
-
         SpawnOrder();
     }
 
@@ -120,6 +130,7 @@ public class OrderManagerKitchen : MonoBehaviour {
         }
 
         for (int i = activeOrders.Count - 1; i >= 0; i--) {
+            if (activeOrders[i].noTimer) continue; // tutorial tickets never expire
             activeOrders[i].timeLeft -= Time.deltaTime;
             if (activeOrders[i].timeLeft <= 0) {
                 PerformanceManager.AddFailedOrder();
@@ -206,6 +217,7 @@ public class OrderManagerKitchen : MonoBehaviour {
                     DailyRevenueTracker.Instance?.RecordOrderCompleted();
                     DailyFinanceBridge.Instance?.AddEarnings(revenue, "Kitchen Order");
                     activeOrders.Remove(ticket);
+                    OnOrderCompleted?.Invoke();
                     if (DeliveryFeedback.Instance != null) DeliveryFeedback.Instance.ShowSuccess("Order Completed!");
                 }
                 return true;
@@ -251,5 +263,39 @@ public class OrderManagerKitchen : MonoBehaviour {
                 Debug.LogWarning($"[OrderManagerKitchen] No price for {item} — item not counted.");
         }
         return total;
+    }
+
+    /// <summary>Adds a specific scripted order to the board with no timer. Used by KitchenTutorialManager.</summary>
+    public void InjectOrder(ItemTypeKitchen food, ItemTypeKitchen drink) {
+        LiveTicket ticket = new LiveTicket();
+        ticket.ticketName = food.ToString() + " & " + drink.ToString();
+        ticket.missingItems = new List<ItemTypeKitchen> { food, drink };
+        ticket.completedItems = new List<ItemTypeKitchen>();
+        ticket.timeLeft = float.MaxValue;
+        ticket.noTimer = true;
+        activeOrders.Add(ticket);
+    }
+
+    /// <summary>
+    /// Silently removes the oldest scripted (noTimer) ticket from the board.
+    /// Used by KitchenTutorialManager to simulate the rest of the kitchen team
+    /// automatically completing a tutorial order so the ticket disappears without
+    /// triggering revenue tracking or delivery feedback.
+    /// </summary>
+    public void ForceCompleteTutorialOrder() {
+        for (int i = 0; i < activeOrders.Count; i++) {
+            if (activeOrders[i].noTimer) {
+                activeOrders.RemoveAt(i);
+                return;
+            }
+        }
+    }
+
+    /// <summary>Adds one random order to the board. Used during tutorial free-play phases.</summary>
+    public void InjectRandomOrder() {
+        List<ItemTypeKitchen> foods   = GetUnlockedItems(foodOptions);
+        List<ItemTypeKitchen> drinks  = GetUnlockedItems(drinkOptions);
+        if (foods.Count == 0 || drinks.Count == 0) return;
+        InjectOrder(foods[Random.Range(0, foods.Count)], drinks[Random.Range(0, drinks.Count)]);
     }
 }

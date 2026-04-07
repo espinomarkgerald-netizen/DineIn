@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.InputSystem;
 using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
 [RequireComponent(typeof(NavMeshAgent))]
 public class KitchenPlayerMovement : MonoBehaviour {
@@ -17,6 +18,14 @@ public class KitchenPlayerMovement : MonoBehaviour {
     public KitchenRole myRole;
     public bool isActivePlayer = false;
     public bool isBusy = false;
+
+    /// <summary>
+    /// Assign any UI panels that should block world clicks when visible
+    /// (e.g. the tutorial DialoguePanel). Movement is suppressed when the
+    /// pointer lands inside one of these rects.
+    /// </summary>
+    [Header("UI Blocking Panels")]
+    [SerializeField] private RectTransform[] blockingUIPanels;
 
     void Awake() {
         agent = GetComponent<NavMeshAgent>();
@@ -40,19 +49,50 @@ public class KitchenPlayerMovement : MonoBehaviour {
         if (!isActivePlayer || isBusy) return;
 
         if (Touchscreen.current != null && Touchscreen.current.primaryTouch.press.wasPressedThisFrame) {
-            if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject(Touchscreen.current.primaryTouch.touchId.ReadValue())) return;
-            CancelMenus();
-            ProcessClick(Touchscreen.current.primaryTouch.position.ReadValue());
+            Vector2 pos = Touchscreen.current.primaryTouch.position.ReadValue();
+            if (IsPointerOverBlockingUI(pos)) return;
+            if (DrinkDispenser.activeDispenser != null) {
+                // Grace period: ignore the tap that opened the menu.
+                if (DrinkDispenser.activeDispenser.OpenTimer > 0.15f) {
+                    if (!DrinkDispenser.activeDispenser.IsPointerOverMenu(pos))
+                        DrinkDispenser.activeDispenser.CloseMenu();
+                }
+                return;
+            }
+            if (Cupboard.activeCupboard != null) Cupboard.activeCupboard.CloseMenu();
+            ProcessClick(pos);
         } else if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame) {
-            if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
-            CancelMenus();
-            ProcessClick(Mouse.current.position.ReadValue());
+            Vector2 pos = Mouse.current.position.ReadValue();
+            if (IsPointerOverBlockingUI(pos)) return;
+            if (DrinkDispenser.activeDispenser != null) {
+                // Grace period: ignore the tap that opened the menu.
+                if (DrinkDispenser.activeDispenser.OpenTimer > 0.15f) {
+                    if (!DrinkDispenser.activeDispenser.IsPointerOverMenu(pos))
+                        DrinkDispenser.activeDispenser.CloseMenu();
+                }
+                return;
+            }
+            if (Cupboard.activeCupboard != null) Cupboard.activeCupboard.CloseMenu();
+            ProcessClick(pos);
         }
     }
 
-    private void CancelMenus() {
-        if (DrinkDispenser.activeDispenser != null) DrinkDispenser.activeDispenser.CloseMenu();
-        if (Cupboard.activeCupboard != null) Cupboard.activeCupboard.CloseMenu();
+    /// <summary>
+    /// Returns true if the screen-space position falls inside any of the
+    /// explicitly assigned blocking UI panels. This is more reliable than
+    /// EventSystem.IsPointerOverGameObject() which triggers for any canvas.
+    /// </summary>
+    private bool IsPointerOverBlockingUI(Vector2 screenPos) {
+        if (blockingUIPanels == null) return false;
+        foreach (RectTransform panel in blockingUIPanels) {
+            if (panel == null || !panel.gameObject.activeInHierarchy) continue;
+            Canvas canvas = panel.GetComponentInParent<Canvas>();
+            Camera canvasCam = canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay
+                ? canvas.worldCamera : null;
+            if (RectTransformUtility.RectangleContainsScreenPoint(panel, screenPos, canvasCam))
+                return true;
+        }
+        return false;
     }
 
     void ProcessClick(Vector2 screenPosition) {
@@ -139,7 +179,10 @@ public class KitchenPlayerMovement : MonoBehaviour {
 
     void CheckIfWeArrived() {
         if (targetInteractable == null || targetStandPoint == null) return;
-        float distanceToTarget = Vector3.Distance(transform.position, targetStandPoint.position);
+        // Compare XZ only — StandPoints may sit at a different Y than the agent.
+        Vector3 selfXZ   = new Vector3(transform.position.x, 0f, transform.position.z);
+        Vector3 targetXZ = new Vector3(targetStandPoint.position.x, 0f, targetStandPoint.position.z);
+        float distanceToTarget = Vector3.Distance(selfXZ, targetXZ);
 
         if (distanceToTarget <= 1.5f) {
             PlayerHolding myHands = GetComponent<PlayerHolding>();
@@ -172,7 +215,7 @@ public class KitchenPlayerMovement : MonoBehaviour {
     }
 
     public void MoveToTarget(Vector3 targetPosition) {
-        if (agent != null) {
+        if (agent != null && agent.isOnNavMesh) {
             agent.isStopped = false;
             agent.SetDestination(targetPosition);
         }
