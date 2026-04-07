@@ -13,11 +13,9 @@ public class KitchenPlayerMovement : MonoBehaviour {
     private Transform targetInteractable;
     private Transform targetStandPoint;
 
-    // --- NEW: ROLE SYSTEM VARIABLES ---
     [Header("Chef Identity")]
     public KitchenRole myRole;
     public bool isActivePlayer = false;
-
     public bool isBusy = false;
 
     void Awake() {
@@ -39,7 +37,6 @@ public class KitchenPlayerMovement : MonoBehaviour {
     }
 
     void HandleInput() {
-        // --- NEW: If this chef is NOT the active player, ignore all clicks! ---
         if (!isActivePlayer || isBusy) return;
 
         if (Touchscreen.current != null && Touchscreen.current.primaryTouch.press.wasPressedThisFrame) {
@@ -58,43 +55,64 @@ public class KitchenPlayerMovement : MonoBehaviour {
         if (Cupboard.activeCupboard != null) Cupboard.activeCupboard.CloseMenu();
     }
 
-    // --- THE BOUNCER: Checking roles before we walk! ---
     void ProcessClick(Vector2 screenPosition) {
         Ray ray = cam.ScreenPointToRay(screenPosition);
         if (Physics.Raycast(ray, out RaycastHit hit)) {
 
+            Transform hitRoot = hit.collider.transform;
+
             // 1. PREP COOK EXCLUSIVE
-            if (hit.collider.TryGetComponent(out Cupboard cupboard)) {
+            if (hitRoot.GetComponentInParent<Cupboard>()) {
+                Cupboard cupboard = hitRoot.GetComponentInParent<Cupboard>();
                 if (myRole != KitchenRole.PrepCook) { ShowWarning("Only Prep Cook can grab ingredients!"); return; }
-                SetTarget(hit.transform, cupboard.standPoint);
+                SetTargetPublic(cupboard.transform, cupboard.standPoint);
             }
-            // 2. LINE COOK EXCLUSIVE
-            else if (hit.collider.TryGetComponent(out Grill grill)) {
+            // 2. PREP COOK EXCLUSIVE: Breader (uses Grill script but belongs to Prep Cook)
+            else if (hitRoot.GetComponentInParent<Grill>() && hitRoot.GetComponentInParent<Grill>().gameObject.name == "Breader") {
+                Grill breader = hitRoot.GetComponentInParent<Grill>();
+                if (myRole != KitchenRole.PrepCook) { ShowWarning("Only Prep Cook can use the Breader!"); return; }
+                SetTargetPublic(breader.transform, breader.standPoint);
+            }
+            // LINE COOK EXCLUSIVE
+            else if (hitRoot.GetComponentInParent<Grill>()) {
+                Grill grill = hitRoot.GetComponentInParent<Grill>();
                 if (myRole != KitchenRole.LineCook) { ShowWarning("Only Line Cook can use the Grill!"); return; }
-                SetTarget(hit.transform, grill.standPoint);
-            } else if (hit.collider.TryGetComponent(out Fryer fryer)) {
+                SetTargetPublic(grill.transform, grill.standPoint);
+            } else if (hitRoot.GetComponentInParent<Fryer>()) {
+                Fryer fryer = hitRoot.GetComponentInParent<Fryer>();
                 if (myRole != KitchenRole.LineCook) { ShowWarning("Only Line Cook can use the Fryer!"); return; }
-                SetTarget(hit.transform, fryer.standPoint);
+                SetTargetPublic(fryer.transform, fryer.standPoint);
             }
-              // 3. ASSEMBLER EXCLUSIVE
-              else if (hit.collider.TryGetComponent(out DrinkDispenser dispenser)) {
+            // 3. ASSEMBLER EXCLUSIVE
+            else if (hitRoot.GetComponentInParent<DrinkDispenser>()) {
+                DrinkDispenser dispenser = hitRoot.GetComponentInParent<DrinkDispenser>();
                 if (myRole != KitchenRole.Assembler) { ShowWarning("Only Assembler can get drinks!"); return; }
-                SetTarget(hit.transform, dispenser.standPoint);
-            } else if (hit.collider.TryGetComponent(out DeliveryCounter delivery)) {
+                SetTargetPublic(dispenser.transform, dispenser.standPoint);
+            } else if (hitRoot.GetComponentInParent<DeliveryCounter>()) {
+                DeliveryCounter delivery = hitRoot.GetComponentInParent<DeliveryCounter>();
                 if (myRole != KitchenRole.Assembler) { ShowWarning("Only Assembler can deliver orders!"); return; }
-                SetTarget(hit.transform, delivery.standPoint);
+                SetTargetPublic(delivery.transform, delivery.standPoint);
             }
-              // 4. NEUTRAL (Anyone can use normal counters to pass food, shelves, and trash)
-              else if (hit.collider.TryGetComponent(out Counter counter)) {
-                SetTarget(hit.transform, counter.standPoint);
-            } else if (hit.collider.TryGetComponent(out Shelf shelf)) {
+            // --- NEW: CUP SPAWNER EXCLUSIVE ---
+            else if (hitRoot.GetComponentInParent<CupSpawner>()) {
+                CupSpawner cupSpawner = hitRoot.GetComponentInParent<CupSpawner>();
+                if (myRole != KitchenRole.Assembler) { ShowWarning("Only Assembler can grab cups!"); return; }
+                SetTargetPublic(cupSpawner.transform, cupSpawner.standPoint);
+            }
+            // 4. NEUTRAL (Counters, shelves, trash)
+            else if (hitRoot.GetComponentInParent<Counter>()) {
+                Counter counter = hitRoot.GetComponentInParent<Counter>();
+                SetTargetPublic(counter.transform, counter.standPoint);
+            } else if (hitRoot.GetComponentInParent<Shelf>()) {
+                Shelf shelf = hitRoot.GetComponentInParent<Shelf>();
                 if (myRole != KitchenRole.PrepCook) { ShowWarning("Only Prep Cook can take from shelves!"); return; }
-                SetTarget(hit.transform, shelf.standPoint);
-            } else if (hit.collider.TryGetComponent(out TrashCan trashCan)) {
-                SetTarget(hit.transform, trashCan.standPoint);
+                SetTargetPublic(shelf.transform, shelf.standPoint);
+            } else if (hitRoot.GetComponentInParent<TrashCan>()) {
+                TrashCan trashCan = hitRoot.GetComponentInParent<TrashCan>();
+                SetTargetPublic(trashCan.transform, trashCan.standPoint);
             }
-              // 5. JUST WALKING ON THE FLOOR
-              else {
+            // 5. JUST WALKING ON THE FLOOR
+            else {
                 targetInteractable = null;
                 targetStandPoint = null;
                 MoveToTarget(hit.point);
@@ -106,7 +124,6 @@ public class KitchenPlayerMovement : MonoBehaviour {
         SetTargetPublic(interactable, standPoint);
     }
 
-    /// <summary>Sends this chef to the given interactable's stand point. Used by world-space buttons.</summary>
     public void SetTargetPublic(Transform interactable, Transform standPoint) {
         targetInteractable = interactable;
         targetStandPoint = standPoint != null ? standPoint : interactable;
@@ -127,11 +144,13 @@ public class KitchenPlayerMovement : MonoBehaviour {
         if (distanceToTarget <= 1.5f) {
             PlayerHolding myHands = GetComponent<PlayerHolding>();
 
-            // Trigger the interaction based on what it is
-            if (targetInteractable.TryGetComponent(out Cupboard cupboard)) cupboard.Interact(myHands);
-            else if (targetInteractable.TryGetComponent(out Shelf shelf)) shelf.Interact(myHands);
-            else if (targetInteractable.TryGetComponent(out Counter counter)) counter.Interact(myHands);
-            else if (targetInteractable.TryGetComponent(out TrashCan trashCan)) trashCan.Interact(myHands);
+            if (targetInteractable.GetComponent<Cupboard>()) targetInteractable.GetComponent<Cupboard>().Interact(myHands);
+            else if (targetInteractable.GetComponent<Shelf>()) targetInteractable.GetComponent<Shelf>().Interact(myHands);
+
+            // Because CupSpawner inherits from Counter, this ONE line handles both normal counters AND the Cup Spawner automatically!
+            else if (targetInteractable.GetComponent<Counter>()) targetInteractable.GetComponent<Counter>().Interact(myHands);
+
+            else if (targetInteractable.GetComponent<TrashCan>()) targetInteractable.GetComponent<TrashCan>().Interact(myHands);
 
             targetInteractable = null;
             targetStandPoint = null;
@@ -159,7 +178,6 @@ public class KitchenPlayerMovement : MonoBehaviour {
         }
     }
 
-    // --- NEW: Helper to stop the agent instantly when switching roles ---
     public void StopMovement() {
         if (agent != null && agent.isOnNavMesh) {
             agent.isStopped = true;
