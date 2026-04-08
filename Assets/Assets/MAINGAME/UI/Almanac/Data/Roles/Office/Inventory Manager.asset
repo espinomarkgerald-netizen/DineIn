@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7c441fc5b04604458af20f08da8df09, type: 3}
+  m_Name: Inventory Manager
+  m_EditorClassIdentifier: 
+  entryName: Inventory Manager
+  subTitle: Management/Office
+  description: 'Manages ingredient stocks, restocking, and monitoring supplies to
+    avoid shortages.
+
+'
+  icon: {fileID: 21300000, guid: a407eb5f6b3fc2741b372204ac366ff9, type: 3}

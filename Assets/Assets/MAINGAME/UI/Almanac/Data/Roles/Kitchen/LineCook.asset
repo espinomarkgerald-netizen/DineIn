@@ -1,0 +1,18 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7c441fc5b04604458af20f08da8df09, type: 3}
+  m_Name: LineCook
+  m_EditorClassIdentifier: 
+  entryName: Line Cook
+  subTitle: Back of House/Kitchen
+  description: Cooks the dishes at assigned stations.
+  icon: {fileID: 21300000, guid: 194b9b2ebd58ffa45949efa38541d471, type: 3}
