@@ -127,6 +127,9 @@ public class GameDayManager : MonoBehaviour
     [SerializeField] private int neutralCustomers;
     [SerializeField] private int angryCustomers;
 
+    [Header("Cash Handling")]
+    [SerializeField] private int cashErrors;
+
     private Coroutine spawnRoutine;
     private float angryBarVisual;
     private float neutralBarVisual;
@@ -138,6 +141,7 @@ public class GameDayManager : MonoBehaviour
     public int AngryCustomers => angryCustomers;
     public int CustomersServed => happyCustomers + neutralCustomers + angryCustomers;
     public float ShiftLengthSeconds => Mathf.Max(1f, shiftLengthMinutes * 60f);
+    public int CashErrors => cashErrors;
 
     private void Awake()
     {
@@ -465,6 +469,7 @@ public class GameDayManager : MonoBehaviour
         billsDelivered = 0;
         traysCleaned = 0;
         paymentsCompleted = 0;
+        cashErrors = 0;
 
         happyCustomers = 0;
         neutralCustomers = 0;
@@ -629,6 +634,12 @@ public class GameDayManager : MonoBehaviour
             sb.AppendLine();
             sb.AppendLine("<b>CUSTOMERS</b>");
             sb.AppendLine("😊 " + happyCustomers + "   😐 " + neutralCustomers + "   😡 " + angryCustomers);
+            sb.AppendLine();
+            sb.AppendLine("<b>CASH HANDLING</b>");
+            if (cashErrors == 0)
+                sb.AppendLine("✓ No errors");
+            else
+                sb.AppendLine("⚠ " + cashErrors + " error" + (cashErrors == 1 ? "" : "s"));
 
             resultsSummaryText.text = sb.ToString().TrimEnd();
         }
@@ -748,7 +759,6 @@ public class GameDayManager : MonoBehaviour
     {
         if (!shiftRunning)
             return;
-
         neutralCustomers++;
     }
 
@@ -758,6 +768,19 @@ public class GameDayManager : MonoBehaviour
             return;
 
         angryCustomers++;
+    }
+
+    /// <summary>
+    /// Records a failed cash-handling session — the register was closed without a
+    /// correct Confirm (group left, or session timed out before correct change was given).
+    /// </summary>
+    public void RegisterCashError()
+    {
+        if (!shiftRunning)
+            return;
+
+        cashErrors++;
+        RefreshUI();
     }
 
     public float GetProgress01()

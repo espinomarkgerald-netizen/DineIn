@@ -173,6 +173,7 @@ public class GameFlowManager : MonoBehaviour
             MoneyManager.Instance.ResetToStartingMoney();
 
         AlienApprovalManager.Instance?.ResetApproval();
+        DailyObjectiveManager.Instance?.ResetForNewRun();
 
         Debug.Log("[GameFlow] Run reset to Day 1 (Bankruptcy)");
     }

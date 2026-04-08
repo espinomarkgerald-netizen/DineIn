@@ -416,12 +416,21 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a0ae62a5d7994d04abce5e794226dc66, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  dayHeaderLabel: {fileID: 742849048}
   mandatoryLabel: {fileID: 1619817399}
   secondaryLabel: {fileID: 1807923438}
   bonusLabel: {fileID: 90828413}
-  dayHeaderLabel: {fileID: 742849048}
+  yesterdaySection: {fileID: 0}
+  yesterdayHeaderLabel: {fileID: 0}
+  yesterdayMandatoryLabel: {fileID: 0}
+  yesterdayServiceLabel: {fileID: 0}
+  yesterdayBonusLabel: {fileID: 0}
+  firstShiftSection: {fileID: 0}
+  firstShiftLabel: {fileID: 0}
   confirmButton: {fileID: 651430150}
   officeStartButtons: {fileID: 522746016}
+  passColor: {r: 0.2, g: 0.9, b: 0.3, a: 1}
+  failColor: {r: 0.9, g: 0.2, b: 0.2, a: 1}
 --- !u!1 &31185422
 GameObject:
   m_ObjectHideFlags: 0
@@ -23852,7 +23861,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &1340676448
 Transform:
   m_ObjectHideFlags: 0
@@ -26660,6 +26669,7 @@ MonoBehaviour:
   headlineText: {fileID: 2103407798}
   bodyText: {fileID: 815780491}
   statsText: {fileID: 1990187971}
+  debriefText: {fileID: 0}
   tryAgainButton: {fileID: 659521534}
 --- !u!1 &1525548763
 GameObject:

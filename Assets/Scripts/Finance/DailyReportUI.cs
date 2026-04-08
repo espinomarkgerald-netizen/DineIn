@@ -120,12 +120,28 @@ public class DailyReportUI : MonoBehaviour
         int ordersFailed = tracker != null ? tracker.OrdersFailed : 0;
         int targetRevenue = bridge != null ? bridge.TotalRequiredEarningsToday : 0;
 
+        // Mood and cash data from GameDayManager (lobby-side shift tracker)
+        int happy      = GameDayManager.Instance != null ? GameDayManager.Instance.HappyCustomers    : 0;
+        int neutral    = GameDayManager.Instance != null ? GameDayManager.Instance.NeutralCustomers  : 0;
+        int angry      = GameDayManager.Instance != null ? GameDayManager.Instance.AngryCustomers    : 0;
+        int cashErrors = GameDayManager.Instance != null ? GameDayManager.Instance.CashErrors        : 0;
+
         StringBuilder sb = new StringBuilder();
         sb.AppendLine($"DAY {day} REPORT");
         sb.AppendLine("──────────────────────");
         sb.AppendLine();
         sb.AppendLine($"Orders Completed    {ordersCompleted}");
         sb.AppendLine($"Orders Failed       {ordersFailed}");
+        sb.AppendLine();
+        sb.AppendLine("──── CUSTOMER MOOD ───────");
+        sb.AppendLine($"😊 Happy     {happy}");
+        sb.AppendLine($"😐 Neutral   {neutral}");
+        sb.AppendLine($"😡 Angry     {angry}");
+        sb.AppendLine();
+        sb.AppendLine("── CASH HANDLING ─────────");
+        sb.AppendLine(cashErrors == 0
+            ? "✓ No cash errors"
+            : $"⚠ {cashErrors} abandoned transaction{(cashErrors == 1 ? "" : "s")}");
         sb.AppendLine();
         sb.AppendLine("──────── REVENUE ─────────");
         sb.AppendLine($"Total Revenue       ₱{revenue}");

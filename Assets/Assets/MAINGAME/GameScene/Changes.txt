@@ -1,0 +1,7 @@
+#	New files	Modified files	Inspector changes	What student sees	What educator gets
+1	0	0–1	Place GameDayManager GO in lobby scene	Half-day results panel appears after shift timer	Real per-shift stats: seated, orders, mood counts
+2	0	4	Add TMP_Text debriefText to GameOverScreen	End screen shows full run breakdown, not just 3 numbers	Actionable reason for failure
+3	0	2	Add 3 TMP_Text labels to AlienDemandsPanel	Pre-shift panel shows yesterday's grade and pass/fail	Reflection moment before every shift
+4	1	3	Wire booth GameObjects to LobbyUnlockManager	Gradual complexity ramp across first 10 days	Natural scaffolding without a separate tutorial system
+5	0	3	None	End-of-day report adds cash error count	Cash accuracy as a standalone KPI
+6	2	6	Add toggle to settings menu	All labels switch to real hospitality vocabulary	Assessment-ready mode, no gameplay changes

@@ -75,6 +75,11 @@ public class CashierRegisterUI : MonoBehaviour
     private bool isOpen;
     private bool buttonsBound;
 
+    // Tracks whether this register session ended with a successful Confirm().
+    // Set to true by Confirm(), reset to false by OpenForPayment() and CloseRegister().
+    // Used to detect abandoned sessions for cash error tracking.
+    private bool sessionConfirmed;
+
     public bool IsOpen
     {
         get
@@ -314,6 +319,7 @@ public class CashierRegisterUI : MonoBehaviour
         totalAmount = Mathf.Max(0, total);
         expectedChange = Mathf.Max(0, receivedAmount - totalAmount);
         inputChangeAmount = 0;
+        sessionConfirmed = false;
 
         Show();
 
@@ -332,11 +338,17 @@ public class CashierRegisterUI : MonoBehaviour
 
     public void CloseRegister()
     {
+        // If this session was opened (a group was present) but never successfully confirmed,
+        // it counts as a cash-handling error — the waiter abandoned the transaction.
+        if (activeGroup != null && !sessionConfirmed)
+            GameDayManager.Instance?.RegisterCashError();
+
         activeGroup = null;
         receivedAmount = 0;
         totalAmount = 0;
         expectedChange = 0;
         inputChangeAmount = 0;
+        sessionConfirmed = false;
 
         ResetDisplay();
         Hide();
@@ -368,6 +380,8 @@ public class CashierRegisterUI : MonoBehaviour
         if (inputChangeAmount != expectedChange)
             return;
 
+        // Mark session as completed before CloseRegister() so the abandonment check is skipped.
+        sessionConfirmed = true;
         var paidGroup = activeGroup;
 
         var hands = WaiterHands.Instance;

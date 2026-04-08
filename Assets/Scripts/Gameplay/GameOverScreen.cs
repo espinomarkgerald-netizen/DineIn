@@ -17,6 +17,9 @@ public class GameOverScreen : MonoBehaviour
     [SerializeField] private TextMeshProUGUI headlineText;
     [SerializeField] private TextMeshProUGUI bodyText;
     [SerializeField] private TextMeshProUGUI statsText;
+    [Tooltip("A separate TMP_Text for the run debrief (days passed, angry count, cash errors). " +
+             "Can be a child of the same panel or a second scrollable block.")]
+    [SerializeField] private TextMeshProUGUI debriefText;
 
     [Header("Buttons")]
     [SerializeField] private Button tryAgainButton;
@@ -46,7 +49,6 @@ public class GameOverScreen : MonoBehaviour
 
     private void Awake()
     {
-        // Singleton guard — destroy any duplicate that arrives when a scene reloads.
         if (Instance != null && Instance != this)
         {
             Destroy(gameObject);
@@ -55,23 +57,17 @@ public class GameOverScreen : MonoBehaviour
 
         Instance = this;
 
-        // Persist this object across every scene load so TriggerGameOver()
-        // can always reach this screen, regardless of which scene is active.
-        // NOTE: this GameObject must be a scene root — not a child of any other
-        // object — otherwise DontDestroyOnLoad will silently grab the root parent
-        // and take the entire canvas hierarchy with it.
         DontDestroyOnLoad(gameObject);
 
         if (tryAgainButton != null)
             tryAgainButton.onClick.AddListener(OnTryAgainClicked);
 
-        // Hide immediately — the panel must start active in the scene so Awake
-        // runs and Instance is set, but we never want it visible until Show() is called.
         gameObject.SetActive(false);
     }
 
     /// <summary>
-    /// Activates and populates the screen with the correct narrative text and run stats.
+    /// Activates and populates the screen with the correct narrative text, run stats,
+    /// and a debrief block showing the student what drove the outcome.
     /// Called by GameFlowManager.TriggerGameOver().
     /// </summary>
     public void Show(GameOverReason reason, int finalApproval, int finalMoney, int daysReached)
@@ -94,7 +90,55 @@ public class GameOverScreen : MonoBehaviour
         statsText.text =
             $"Days Survived: {daysReached} / 30\n" +
             $"Alien Approval: {finalApproval} / 100\n" +
-            $"Remaining Funds: {finalMoney}";
+            $"Remaining Funds: ₱{finalMoney}";
+
+        BuildDebrief(daysReached);
+    }
+
+    /// <summary>
+    /// Builds the debrief block from DailyObjectiveManager and GameDayManager data.
+    /// Gives the student actionable context for why the run ended.
+    /// </summary>
+    private void BuildDebrief(int daysReached)
+    {
+        if (debriefText == null)
+            return;
+
+        var objMgr = DailyObjectiveManager.Instance;
+        var dayMgr = GameDayManager.Instance;
+
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("── RUN SUMMARY ─────────────────");
+
+        // Objective performance across the run
+        int daysPassed = objMgr != null ? objMgr.TotalDaysPassed : 0;
+        int daysFailed = daysReached - daysPassed;
+        sb.AppendLine($"Mandatory Objective");
+        sb.AppendLine($"  Passed:  {daysPassed} day{(daysPassed == 1 ? "" : "s")}");
+        sb.AppendLine($"  Failed:  {daysFailed} day{(daysFailed == 1 ? "" : "s")}");
+        sb.AppendLine();
+
+        // Customer mood across the last shift (GameDayManager resets each shift)
+        if (dayMgr != null)
+        {
+            int served = dayMgr.CustomersServed;
+            int angry  = dayMgr.AngryCustomers;
+            float angryPct = served > 0 ? (angry / (float)served) * 100f : 0f;
+
+            sb.AppendLine($"Last Shift — Customers");
+            sb.AppendLine($"  Served:  {served}");
+            sb.AppendLine($"  Angry:   {angry} ({angryPct:F0}%)");
+            sb.AppendLine();
+
+            int cash = dayMgr.CashErrors;
+            sb.AppendLine($"Last Shift — Cash Handling");
+            sb.AppendLine(cash == 0
+                ? "  ✓ No errors"
+                : $"  ⚠ {cash} abandoned transaction{(cash == 1 ? "" : "s")}");
+        }
+
+        sb.AppendLine("────────────────────────────────");
+        debriefText.text = sb.ToString();
     }
 
     /// <summary>
@@ -106,6 +150,7 @@ public class GameOverScreen : MonoBehaviour
         Time.timeScale = 1f;
 
         AlienApprovalManager.Instance?.ResetApproval();
+        DailyObjectiveManager.Instance?.ResetForNewRun();
         GameFlowManager.Instance?.ResetRun();
 
         gameObject.SetActive(false);

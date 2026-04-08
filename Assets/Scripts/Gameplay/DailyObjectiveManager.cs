@@ -89,6 +89,20 @@ public class DailyObjectiveManager : MonoBehaviour
     /// <summary>The grade computed at end of day. Available after EvaluateAndApply() is called.</summary>
     public ObjectiveGrade LastGrade { get; private set; } = ObjectiveGrade.C;
 
+    /// <summary>Pass/fail results from the previous day. Available after EvaluateAndApply() and persist until the next call.</summary>
+    public bool LastMandatoryPassed { get; private set; }
+    public bool LastSecondaryPassed { get; private set; }
+    public bool LastBonusPassed     { get; private set; }
+
+    /// <summary>Whether EvaluateAndApply() has been called at least once (i.e. Day 1 has completed).</summary>
+    public bool HasPreviousDayResult { get; private set; }
+
+    /// <summary>The day number whose results are stored in Last* properties.</summary>
+    public int LastResultDay { get; private set; }
+
+    /// <summary>Running count of days where mandatory objective was passed (grade != F).</summary>
+    public int TotalDaysPassed { get; private set; }
+
     /// <summary>Fires after EvaluateAndApply() completes. Passes the grade and each pass/fail result.</summary>
     public event Action<ObjectiveGrade, bool, bool, bool> OnObjectivesEvaluated;
 
@@ -157,6 +171,16 @@ public class DailyObjectiveManager : MonoBehaviour
 
         LastGrade = grade;
 
+        // Persist individual results so AlienDemandsPanel can show yesterday's scorecard
+        LastMandatoryPassed  = mandatoryPassed;
+        LastSecondaryPassed  = secondaryPassed;
+        LastBonusPassed      = bonusPassed;
+        HasPreviousDayResult = true;
+        LastResultDay        = currentDay;
+
+        if (mandatoryPassed)
+            TotalDaysPassed++;
+
         int approvalDelta = grade switch
         {
             ObjectiveGrade.S => gradeS_Bonus,
@@ -176,6 +200,26 @@ public class DailyObjectiveManager : MonoBehaviour
 
     /// <summary>Resets the angry departure counter for a new day. Called by RollObjectivesForDay.</summary>
     public void ResetForNewDay() => angryDeparturesToday = 0;
+
+    /// <summary>
+    /// Resets all cross-day state. Call this when the player starts a new run.
+    /// Does NOT reset the objective pools — those are Inspector config.
+    /// </summary>
+    public void ResetForNewRun()
+    {
+        angryDeparturesToday = 0;
+        currentDay           = 0;
+        LastGrade            = ObjectiveGrade.C;
+        LastMandatoryPassed  = false;
+        LastSecondaryPassed  = false;
+        LastBonusPassed      = false;
+        HasPreviousDayResult = false;
+        LastResultDay        = 0;
+        TotalDaysPassed      = 0;
+        ActiveMandatory      = null;
+        ActiveSecondary      = null;
+        ActiveBonus          = null;
+    }
 
     private bool Evaluate(ObjectiveDefinition obj)
     {
