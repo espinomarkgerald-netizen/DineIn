@@ -1,3 +1,4 @@
+using System;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -5,6 +6,12 @@ using UnityEngine.UI;
 public class RoleManager : MonoBehaviour
 {
     public static RoleManager Instance;
+
+    /// <summary>
+    /// Raised whenever the player successfully switches to a different role.
+    /// Subscribers receive the call after the switch is fully applied.
+    /// </summary>
+    public event Action OnRoleSwitched;
 
     [Header("Staff")]
     public GameObject host;
@@ -135,6 +142,8 @@ public class RoleManager : MonoBehaviour
 
         if (cameraController != null)
             cameraController.PanToTarget(activeRole.transform);
+
+        OnRoleSwitched?.Invoke();
     }
 
     private void RefreshButtonVisuals()

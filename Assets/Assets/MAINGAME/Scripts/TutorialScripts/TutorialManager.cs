@@ -122,6 +122,12 @@ public class TutorialManager : MonoBehaviour
     [SerializeField] private IntroStep[] introSteps;
     [SerializeField] private bool returnCameraAfterIntro = true;
     [SerializeField] private Transform gameplayCameraAnchorAfterIntro;
+
+    [Header("Role Switch Intro")]
+    [Tooltip("Optional interactive step that teaches role-switching before Day 1 Host gameplay begins. " +
+             "Leave null to skip. Runs after the opening dialogue, before StartCurrentDayFlow.")]
+    [SerializeField] private TutorialRoleSwitchIntro roleSwitchIntro;
+
     [SerializeField] private string openingDoneMessage = "Now that you know the roles, let’s begin with the Host. Greet the first customer.";
 
     [Header("UI")]
@@ -796,7 +802,25 @@ public class TutorialManager : MonoBehaviour
 
         if (dialogueUI != null && !string.IsNullOrWhiteSpace(openingDoneMessage))
         {
-            dialogueUI.ShowManual("Manager", openingDoneMessage, StartCurrentDayFlow);
+            // After the closing dialogue, insert the role-switch intro before Day 1 begins.
+            dialogueUI.ShowManual("Manager", openingDoneMessage, BeginRoleSwitchIntroOrStartDay);
+        }
+        else
+        {
+            BeginRoleSwitchIntroOrStartDay();
+        }
+    }
+
+    /// <summary>
+    /// Runs the interactive role-switch onboarding step if one is configured,
+    /// then proceeds to <see cref="StartCurrentDayFlow"/>. Skips cleanly when
+    /// <see cref="roleSwitchIntro"/> is null or the current day is not Day 1.
+    /// </summary>
+    private void BeginRoleSwitchIntroOrStartDay()
+    {
+        if (roleSwitchIntro != null && currentDay == TutorialDay.Day1Host)
+        {
+            roleSwitchIntro.Begin(StartCurrentDayFlow);
         }
         else
         {
@@ -992,7 +1016,12 @@ public class TutorialManager : MonoBehaviour
         if (currentDay != TutorialDay.Day4Busser)
             RegisterPreplacedDirtyTrays(config.preplacedDirtyTrays);
 
-        if (config.autoSpawnGroups && groupSpawner != null)
+        // Busser day never auto-spawns customer groups — it is tray-cleaning only.
+        bool canAutoSpawn = config.autoSpawnGroups
+            && groupSpawner != null
+            && currentDay != TutorialDay.Day4Busser;
+
+        if (canAutoSpawn)
             Invoke(nameof(SpawnConfiguredGroups), Mathf.Max(0f, config.firstSpawnDelay));
 
         activeTutorialGroup = GetBestGroupForCurrentDay(null);

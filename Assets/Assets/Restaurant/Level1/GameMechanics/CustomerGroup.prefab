@@ -202,6 +202,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   state: 0
   members: []
+  customerType: 0
+  profileGreen: {fileID: 11400000, guid: cb09512fd3d4b44468ed6de651a51d0c, type: 2}
+  profilePink: {fileID: 11400000, guid: ed016c5e53873bf45a16146d134b158b, type: 2}
+  profileBlue: {fileID: 11400000, guid: 199b862f6e17a3e42810c9e44bc7cee3, type: 2}
+  tipPopupPrefab: {fileID: 170256330689608949, guid: 56b23800cf6341047bb73eba08421dce, type: 3}
+  tipPopupOffset: {x: 0, y: 1.9, z: 0}
   isSelected: 0
   selectionVisual: {fileID: 212460738703290197}
   shakeBeforeAngrySeconds: 3
@@ -222,12 +228,21 @@ MonoBehaviour:
   greetedLinePatienceDrainMultiplier: 0.5
   debugForceShowLinePatience: 0
   debugPatienceValue: 1
+  serviceType: 0
+  takeoutQueueState: 0
+  deliveryHighlightVisual: {fileID: 0}
   happyComments:
   - That was great!
   - Nice service!
   - Everything was perfect.
   - We enjoyed it!
   - We'll come back again.
+  vipTipComments:
+  - Excellent service. Here's a tip!
+  - You handled us well. Keep the change.
+  - Very impressive service. A little tip for you.
+  - That was fast and clean. Here's a tip!
+  - You earned this tip. Thank you!
   unhappyComments:
   - We've been waiting too long.
   - No one took our order.
@@ -340,3 +355,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bb75e463c5b42274792658eb44ee573d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  resetToNormalWhenTutorialStops: 1
+  mode: 0
+  autoApplyWhenDayChanges: 1
+  waiterTutorialBooth: {fileID: 0}
+  seatImmediatelyForWaiterDay: 1
+  waiterOrderDelay: 0.25
+  markGroupAsGreeted: 1
+  hideOnCashierDay: 1
+  hideOnBusserDay: 1

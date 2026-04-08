@@ -12,6 +12,10 @@ public class OrderChecklistUI : MonoBehaviour
     [SerializeField] private TMP_Text tableNumberText;
     [SerializeField] private TMP_Text customerMessageText;
 
+    [Header("Customer Type UI")]
+    [SerializeField] private TMP_Text customerTypeText;
+    [SerializeField] private Image customerImage;
+
     [Header("Icons")]
     [SerializeField] private Image food1;
     [SerializeField] private Image food2;
@@ -85,6 +89,10 @@ public class OrderChecklistUI : MonoBehaviour
 
     private readonly List<string> requestedContents = new List<string>();
 
+    private string cachedOpeningMessage;
+    private string cachedCustomerTypeName;
+    private Sprite cachedCustomerImage;
+
     private const string RecipeIDChicken = "01";
     private const string RecipeIDBurger = "02";
     private const string RecipeIDFries = "03";
@@ -114,16 +122,16 @@ public class OrderChecklistUI : MonoBehaviour
         if (UnlockManager.Instance == null) return;
 
         bool chickenUnlocked = UnlockManager.Instance.IsRecipeUnlocked(RecipeIDChicken);
-        bool burgerUnlocked  = UnlockManager.Instance.IsRecipeUnlocked(RecipeIDBurger);
-        bool friesUnlocked   = UnlockManager.Instance.IsRecipeUnlocked(RecipeIDFries);
+        bool burgerUnlocked = UnlockManager.Instance.IsRecipeUnlocked(RecipeIDBurger);
+        bool friesUnlocked = UnlockManager.Instance.IsRecipeUnlocked(RecipeIDFries);
 
         SetToggleUnlocked(chickenToggle, chickenUnlocked);
-        SetToggleUnlocked(burgerToggle,  burgerUnlocked);
-        SetToggleUnlocked(friesToggle,   friesUnlocked);
+        SetToggleUnlocked(burgerToggle, burgerUnlocked);
+        SetToggleUnlocked(friesToggle, friesUnlocked);
 
-        SetToggleUnlocked(chickenFriesToggle,  chickenUnlocked && friesUnlocked);
+        SetToggleUnlocked(chickenFriesToggle, chickenUnlocked && friesUnlocked);
         SetToggleUnlocked(chickenBurgerToggle, chickenUnlocked && burgerUnlocked);
-        SetToggleUnlocked(burgerFriesToggle,   burgerUnlocked  && friesUnlocked);
+        SetToggleUnlocked(burgerFriesToggle, burgerUnlocked && friesUnlocked);
     }
 
     private void SetToggleUnlocked(Toggle toggle, bool unlocked)
@@ -135,7 +143,6 @@ public class OrderChecklistUI : MonoBehaviour
             toggle.interactable = false;
             toggle.SetIsOnWithoutNotify(false);
         }
-        // When unlocked, leave interactable as-is — stock gate in RefreshFoodAvailabilityUI owns that state.
     }
 
     private void Awake()
@@ -183,6 +190,10 @@ public class OrderChecklistUI : MonoBehaviour
         if (g == null) return;
 
         group = g;
+        cachedOpeningMessage = group.GetCustomerOpeningMessage();
+        cachedCustomerTypeName = group.GetCustomerTypeName();
+        cachedCustomerImage = group.GetCustomerTypeImage();
+
         gameObject.SetActive(true);
         transform.SetAsLastSibling();
 
@@ -216,6 +227,10 @@ public class OrderChecklistUI : MonoBehaviour
 
         group = null;
         requestedContents.Clear();
+
+        cachedOpeningMessage = string.Empty;
+        cachedCustomerTypeName = string.Empty;
+        cachedCustomerImage = null;
 
         gameObject.SetActive(false);
     }
@@ -315,6 +330,7 @@ public class OrderChecklistUI : MonoBehaviour
     private void RefreshRequestedOrderUI()
     {
         RefreshTableText();
+        RefreshCustomerTypeUI();
         RefreshMessageFromRequestedOrder();
         RefreshIconsFromRequestedOrder();
     }
@@ -331,6 +347,23 @@ public class OrderChecklistUI : MonoBehaviour
 
         int num = group.currentOrderNumber;
         tableNumberText.text = num > 0 ? $"Table {num}" : "Table -";
+    }
+
+    private void RefreshCustomerTypeUI()
+    {
+        if (customerTypeText != null)
+        {
+            customerTypeText.text = string.IsNullOrWhiteSpace(cachedCustomerTypeName)
+                ? "Customer Type: Regular"
+                : $"Customer Type: {cachedCustomerTypeName}";
+        }
+
+        if (customerImage != null)
+        {
+            customerImage.sprite = cachedCustomerImage;
+            customerImage.enabled = cachedCustomerImage != null;
+            customerImage.gameObject.SetActive(cachedCustomerImage != null);
+        }
     }
 
     private void RefreshMessageFromRequestedOrder()
@@ -404,22 +437,25 @@ public class OrderChecklistUI : MonoBehaviour
                 foods.Add(item);
         }
 
+        string orderSentence;
+
         if (foods.Count == 1 && !string.IsNullOrEmpty(drinkItem))
-            return $"I'd like a {foods[0]} with a {drinkItem}.";
+            orderSentence = $"I'll have a {foods[0]} with a {drinkItem}.";
+        else if (foods.Count == 1)
+            orderSentence = $"I'll have a {foods[0]}.";
+        else if (foods.Count >= 2 && !string.IsNullOrEmpty(drinkItem))
+            orderSentence = $"I'll have a {foods[0]} and {foods[1]} bundle with a {drinkItem}.";
+        else if (foods.Count >= 2)
+            orderSentence = $"I'll have a {foods[0]} and {foods[1]} bundle.";
+        else if (!string.IsNullOrEmpty(drinkItem))
+            orderSentence = $"I'll have a {drinkItem}.";
+        else
+            orderSentence = "Order not found.";
 
-        if (foods.Count == 1)
-            return $"I'd like a {foods[0]}.";
+        if (string.IsNullOrWhiteSpace(cachedOpeningMessage))
+            return orderSentence;
 
-        if (foods.Count >= 2 && !string.IsNullOrEmpty(drinkItem))
-            return $"I'd like a {foods[0]} and {foods[1]} bundle with a {drinkItem}.";
-
-        if (foods.Count >= 2)
-            return $"I'd like a {foods[0]} and {foods[1]} bundle.";
-
-        if (!string.IsNullOrEmpty(drinkItem))
-            return $"I'd like a {drinkItem}.";
-
-        return "Order not found.";
+        return $"{cachedOpeningMessage} {orderSentence}";
     }
 
     private void SetIcon(Image img, Sprite sprite)
@@ -632,8 +668,6 @@ public class OrderChecklistUI : MonoBehaviour
 
         if (group.IsTakeout)
         {
-            // Takeout: payment must happen before kitchen. TakeOrderFromWaiter already
-            // called TakeoutFlowManager.NotifyOrderTaken, which opens the payment step.
             if (ProcessingBillIndicatorUI.Instance != null)
                 ProcessingBillIndicatorUI.Instance.ShowForSeconds("Order confirmed — awaiting payment", 2f);
         }

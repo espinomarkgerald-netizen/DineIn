@@ -121,6 +121,7 @@ public class GameDayManager : MonoBehaviour
     [SerializeField] private int billsDelivered;
     [SerializeField] private int traysCleaned;
     [SerializeField] private int paymentsCompleted;
+    [SerializeField] private int tipsEarned;
 
     [Header("Mood Counts")]
     [SerializeField] private int happyCustomers;
@@ -130,6 +131,7 @@ public class GameDayManager : MonoBehaviour
     private Coroutine spawnRoutine;
     private float angryBarVisual;
     private float neutralBarVisual;
+    private bool warnedLastMinute;
 
     public bool ShiftRunning => shiftRunning;
     public float TimeRemaining => timeRemaining;
@@ -138,6 +140,7 @@ public class GameDayManager : MonoBehaviour
     public int AngryCustomers => angryCustomers;
     public int CustomersServed => happyCustomers + neutralCustomers + angryCustomers;
     public float ShiftLengthSeconds => Mathf.Max(1f, shiftLengthMinutes * 60f);
+    public int TipsEarned => tipsEarned;
 
     private void Awake()
     {
@@ -202,6 +205,12 @@ public class GameDayManager : MonoBehaviour
         }
 
         RefreshUI();
+
+        if (!warnedLastMinute && timeRemaining <= 60f)
+        {
+            warnedLastMinute = true;
+            ShowWarning("Last minute. Finish remaining customers.");
+        }
 
         if (timeRemaining <= 0f)
             EndShift();
@@ -279,17 +288,11 @@ public class GameDayManager : MonoBehaviour
         angryBarVisual = Mathf.Lerp(angryBarVisual, angryCustomers, Time.deltaTime * moodBarSmoothSpeed);
         neutralBarVisual = Mathf.Lerp(neutralBarVisual, neutralCustomers, Time.deltaTime * moodBarSmoothSpeed);
 
-        if (Mathf.Abs(angryBarVisual - angryCustomers) < 0.01f)
-            angryBarVisual = angryCustomers;
+        if (Mathf.Abs(angryBarVisual - angryCustomers) < 0.01f) angryBarVisual = angryCustomers;
+        if (Mathf.Abs(neutralBarVisual - neutralCustomers) < 0.01f) neutralBarVisual = neutralCustomers;
 
-        if (Mathf.Abs(neutralBarVisual - neutralCustomers) < 0.01f)
-            neutralBarVisual = neutralCustomers;
-
-        if (angryBar != null)
-            angryBar.value = angryBarVisual;
-
-        if (neutralBar != null)
-            neutralBar.value = neutralBarVisual;
+        if (angryBar != null) angryBar.value = angryBarVisual;
+        if (neutralBar != null) neutralBar.value = neutralBarVisual;
     }
 
     public void ShowShiftIntro()
@@ -382,12 +385,9 @@ public class GameDayManager : MonoBehaviour
 
         RefreshUI();
         SetupMoodBars(true);
+        ShowWarning("Shift started. Keep customers satisfied.");
     }
 
-    /// <summary>
-    /// Reads the current day from GameFlowManager and evaluates each AnimationCurve
-    /// to override flat spawn settings before the shift starts.
-    /// </summary>
     private void ApplyDifficultyScaling()
     {
         if (GameFlowManager.Instance == null || maxScalingDay <= 1)
@@ -397,9 +397,9 @@ public class GameDayManager : MonoBehaviour
         float t = Mathf.Clamp01((float)(day - 1) / (maxScalingDay - 1));
 
         maxCustomersToSpawn = Mathf.RoundToInt(maxCustomersCurve.Evaluate(t));
-        maxGroupsPerMinute  = Mathf.Max(1, Mathf.RoundToInt(groupsPerMinuteCurve.Evaluate(t)));
-        spawnIntervalMin    = Mathf.Max(1f, spawnIntervalMinCurve.Evaluate(t));
-        spawnIntervalMax    = Mathf.Max(spawnIntervalMin + 1f, spawnIntervalMaxCurve.Evaluate(t));
+        maxGroupsPerMinute = Mathf.Max(1, Mathf.RoundToInt(groupsPerMinuteCurve.Evaluate(t)));
+        spawnIntervalMin = Mathf.Max(1f, spawnIntervalMinCurve.Evaluate(t));
+        spawnIntervalMax = Mathf.Max(spawnIntervalMin + 1f, spawnIntervalMaxCurve.Evaluate(t));
     }
 
     public void EndShift()
@@ -415,6 +415,7 @@ public class GameDayManager : MonoBehaviour
             spawnRoutine = null;
         }
 
+        ShowWarning("Shift ended. Waiting for remaining customers.");
         StartCoroutine(ShowResultsWhenClear());
     }
 
@@ -455,6 +456,7 @@ public class GameDayManager : MonoBehaviour
         billsDelivered = 0;
         traysCleaned = 0;
         paymentsCompleted = 0;
+        tipsEarned = 0;
 
         happyCustomers = 0;
         neutralCustomers = 0;
@@ -462,6 +464,7 @@ public class GameDayManager : MonoBehaviour
 
         angryBarVisual = 0f;
         neutralBarVisual = 0f;
+        warnedLastMinute = false;
 
         SetupMoodBars(true);
     }
@@ -490,10 +493,6 @@ public class GameDayManager : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Automatically enables takeout spawning when the current day meets or
-    /// exceeds <see cref="takeoutUnlockDay"/>. Called once at shift start.
-    /// </summary>
     private void ApplyTakeoutUnlock()
     {
         if (groupSpawner == null)
@@ -507,10 +506,6 @@ public class GameDayManager : MonoBehaviour
                   $"(current day: {GameFlowManager.Instance?.CurrentDay}, unlock day: {takeoutUnlockDay}).");
     }
 
-    /// <summary>
-    /// Enables or disables the takeout customer spawn path at runtime.
-    /// Use this to override the day-based auto-unlock during a running shift.
-    /// </summary>
     public void SetTakeoutEnabled(bool enabled)
     {
         if (groupSpawner == null)
@@ -620,20 +615,22 @@ public class GameDayManager : MonoBehaviour
             sb.AppendLine("<b>CUSTOMERS</b>");
             sb.AppendLine("😊 " + happyCustomers + "   😐 " + neutralCustomers + "   😡 " + angryCustomers);
 
+            if (tipsEarned > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine("<b>TIPS</b>");
+                sb.AppendLine("₱" + tipsEarned);
+            }
+
             resultsSummaryText.text = sb.ToString().TrimEnd();
         }
 
         if (resultsStarsText != null)
             resultsStarsText.text = GetShiftStatusText();
 
-        if (star1 != null)
-            star1.gameObject.SetActive(false);
-
-        if (star2 != null)
-            star2.gameObject.SetActive(false);
-
-        if (star3 != null)
-            star3.gameObject.SetActive(false);
+        if (star1 != null) star1.gameObject.SetActive(false);
+        if (star2 != null) star2.gameObject.SetActive(false);
+        if (star3 != null) star3.gameObject.SetActive(false);
 
         if (resultsActionButton != null)
         {
@@ -651,103 +648,99 @@ public class GameDayManager : MonoBehaviour
 
         float happyRatio = (float)happyCustomers / CustomersServed;
 
-        if (happyRatio >= 0.80f)
-            return "Excellent Service";
-
-        if (happyRatio >= 0.55f)
-            return "Good Service";
-
-        if (happyRatio >= 0.35f)
-            return "Average Service";
+        if (happyRatio >= 0.80f) return "Excellent Service";
+        if (happyRatio >= 0.55f) return "Good Service";
+        if (happyRatio >= 0.35f) return "Average Service";
 
         return "Poor Service";
     }
 
     public void RegisterGroupSeated()
     {
-        if (!shiftRunning)
-            return;
-
+        if (!shiftRunning) return;
         groupsSeated++;
         RefreshUI();
     }
 
     public void RegisterOrderTaken()
     {
-        if (!shiftRunning)
-            return;
-
+        if (!shiftRunning) return;
         ordersTaken++;
         RefreshUI();
     }
 
     public void RegisterOrderProcessed()
     {
-        if (!shiftRunning)
-            return;
-
+        if (!shiftRunning) return;
         ordersProcessed++;
         RefreshUI();
     }
 
     public void RegisterFoodDelivered()
     {
-        if (!shiftRunning)
-            return;
-
+        if (!shiftRunning) return;
         foodDelivered++;
         RefreshUI();
     }
 
     public void RegisterBillDelivered()
     {
-        if (!shiftRunning)
-            return;
-
+        if (!shiftRunning) return;
         billsDelivered++;
         RefreshUI();
     }
 
     public void RegisterTrayCleaned()
     {
-        if (!shiftRunning)
-            return;
-
+        if (!shiftRunning) return;
         traysCleaned++;
         RefreshUI();
     }
 
     public void RegisterPaymentCompleted()
     {
-        if (!shiftRunning)
-            return;
-
+        if (!shiftRunning) return;
         paymentsCompleted++;
         RefreshUI();
     }
 
     public void RegisterHappyCustomer()
     {
-        if (!shiftRunning)
-            return;
-
+        if (!shiftRunning) return;
         happyCustomers++;
     }
 
     public void RegisterNeutralCustomer()
     {
-        if (!shiftRunning)
-            return;
-
+        if (!shiftRunning) return;
         neutralCustomers++;
     }
 
     public void RegisterAngryCustomer()
     {
-        if (!shiftRunning)
+        if (!shiftRunning) return;
+        angryCustomers++;
+    }
+
+    public void RegisterTip(int amount)
+    {
+        if (!shiftRunning) return;
+        if (amount <= 0) return;
+
+        tipsEarned += amount;
+
+        DailyFinanceBridge.Instance?.AddEarnings(amount);
+
+        RefreshUI();
+        Debug.Log($"[GameDayManager] Tip registered: ₱{amount} | Total tips this shift: ₱{tipsEarned}");
+    }
+
+    private void ShowWarning(string message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
             return;
 
-        angryCustomers++;
+        WarningSlideUI.Instance?.Show(message);
     }
 
     public float GetProgress01()

@@ -4334,7 +4334,7 @@ PrefabInstance:
       objectReference: {fileID: 9100000, guid: db0045be4db694d429eb584112202881, type: 2}
     - target: {fileID: 6403599859377120230, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
       propertyPath: sceneViewId
-      value: 4
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 7828672028217769178, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
       propertyPath: movement
@@ -33337,7 +33337,7 @@ MonoBehaviour:
   managementSceneName: Office
   lobbySceneName: Lobby1
   kitchenSceneName: Kitchen
-  currentDay: 1
+  currentDay: 20
   currentPhase: 0
   currentDayHalf: 0
   lobbyCompleted: 0

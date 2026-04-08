@@ -99,6 +99,10 @@ public class RoleBasedAssignController : MonoBehaviour
             case StaffRole.Role.Busser:
                 HandleBusserTap(hits);
                 break;
+
+            case StaffRole.Role.Cashier:
+                HandleCashierTap(hits);
+                break;
         }
     }
 
@@ -162,13 +166,13 @@ public class RoleBasedAssignController : MonoBehaviour
 
         if (front == null)
         {
-            ShowWarning("Wait for customers...");
+            ShowWarning("No customers are ready yet.");
             return false;
         }
 
         if (group != front)
         {
-            ShowWarning("Serve the first customer in line.");
+            ShowWarning("Please assist the first group in line first.");
             return false;
         }
 
@@ -177,19 +181,26 @@ public class RoleBasedAssignController : MonoBehaviour
 
     private void HandleWaiterTap(RaycastHit[] hits)
     {
-        CustomerGroup group = GetTappedAssignableGroup(hits);
-        if (group != null)
-            ShowWarning("Only the host can assign customers to a table.");
+        HandleNonHostSeatingTap(hits);
     }
 
     private void HandleBusserTap(RaycastHit[] hits)
     {
-        CustomerGroup group = GetTappedAssignableGroup(hits);
-        if (group != null)
-            ShowWarning("Only the host can assign customers to a table.");
+        HandleNonHostSeatingTap(hits);
     }
 
-    private CustomerGroup GetTappedAssignableGroup(RaycastHit[] hits)
+    private void HandleCashierTap(RaycastHit[] hits)
+    {
+        HandleNonHostSeatingTap(hits);
+    }
+
+    private void HandleNonHostSeatingTap(RaycastHit[] hits)
+    {
+        if (HasTappedCustomer(hits) || HasTappedBooth(hits))
+            ShowWarning("Only the host can seat customers.");
+    }
+
+    private bool HasTappedCustomer(RaycastHit[] hits)
     {
         for (int i = 0; i < hits.Length; i++)
         {
@@ -199,13 +210,28 @@ public class RoleBasedAssignController : MonoBehaviour
                 continue;
 
             CustomerGroup group = hit.collider.GetComponentInParent<CustomerGroup>();
-            if (group == null) continue;
-            if (!CanHostSelectGroup(group)) continue;
-
-            return group;
+            if (group != null)
+                return true;
         }
 
-        return null;
+        return false;
+    }
+
+    private bool HasTappedBooth(RaycastHit[] hits)
+    {
+        for (int i = 0; i < hits.Length; i++)
+        {
+            RaycastHit hit = hits[i];
+
+            if (((1 << hit.collider.gameObject.layer) & boothLayer) == 0)
+                continue;
+
+            Booth booth = hit.collider.GetComponentInParent<Booth>();
+            if (booth != null)
+                return true;
+        }
+
+        return false;
     }
 
     private void SelectGroup(CustomerGroup group)
@@ -252,20 +278,19 @@ public class RoleBasedAssignController : MonoBehaviour
 
         if (booth.CurrentGroup != null)
         {
-            ShowWarning("Table is occupied");
+            ShowWarning("That table is already occupied.");
             return;
         }
 
         if (booth.seats == null || booth.seats.Count < group.Size)
         {
-            int seatCount = booth.seats != null ? booth.seats.Count : 0;
-            ShowWarning($"You can't assign a group of {group.Size} to a table with {seatCount} seats");
+            ShowWarning("This group needs a bigger table.");
             return;
         }
 
         if (!booth.IsAvailableFor(group.Size))
         {
-            ShowWarning("Table is not available");
+            ShowWarning("That table is not available for this group.");
             return;
         }
 

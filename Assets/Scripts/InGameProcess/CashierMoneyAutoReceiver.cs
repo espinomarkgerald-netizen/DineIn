@@ -20,9 +20,6 @@ public class CashierMoneyAutoReceiver : MonoBehaviour
         if (Time.time < nextAllowedTime) return;
         if (cashier == null) return;
 
-        // Always use the currently active player role, not a stale Awake reference.
-        // On Day 5, multiple PlayerMovement components exist (one per role), so
-        // FindFirstObjectByType would grab the wrong one.
         if (RoleManager.Instance == null) return;
         if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Waiter)) return;
 
@@ -30,7 +27,12 @@ public class CashierMoneyAutoReceiver : MonoBehaviour
         if (player == null) return;
 
         var hands = WaiterHands.Instance;
-        if (hands == null || !hands.HasMoney) return;
+        if (hands == null) return;
+        if (!hands.HasMoney) return;
+
+        // Prevent the money auto-receiver from accidentally triggering ticket submission
+        // when the waiter is somehow still carrying both.
+        if (hands.HasTicket) return;
 
         Vector3 playerPos = player.transform.position;
         Vector3 standPos = cashier.StandPoint != null ? cashier.StandPoint.position : cashier.transform.position;

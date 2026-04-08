@@ -30,7 +30,7 @@ public class RandomEventManager : MonoBehaviour
     [SerializeField] private float maxRayDistance = 300f;
 
     [Header("UI")]
-    [SerializeField] private HoldToCleanUI holdUi;
+
 
     [Header("Block Cleaning When Clicking These")]
     [SerializeField] private LayerMask blockCleaningMask; // set to Food layer
@@ -43,7 +43,7 @@ public class RandomEventManager : MonoBehaviour
     void Awake()
     {
         if (cam == null) cam = Camera.main;
-        if (holdUi == null) holdUi = FindFirstObjectByType<HoldToCleanUI>(FindObjectsInactive.Include);
+        
     }
 
     void Start() => ScheduleNextSpawn();
@@ -79,7 +79,7 @@ public class RandomEventManager : MonoBehaviour
             {
                 currentHoldTarget = target;
                 isHolding = true;
-                holdUi?.Begin(target);
+        
             }
         }
 
@@ -103,8 +103,7 @@ public class RandomEventManager : MonoBehaviour
                             ? (Input.GetTouch(0).phase == TouchPhase.Moved || Input.GetTouch(0).phase == TouchPhase.Stationary)
                             : Input.GetMouseButton(0);
 
-                    holdUi?.TickHold(Time.deltaTime, holdingNow);
-                }
+                    }
             }
         }
     }
@@ -113,7 +112,7 @@ public class RandomEventManager : MonoBehaviour
     {
         isHolding = false;
         currentHoldTarget = null;
-        holdUi?.Cancel();
+    
     }
 
     CleanableEvent RaycastEventUnderPointer()
