@@ -7,6 +7,7 @@ using UnityEngine;
 /// </summary>
 public class UIDeactivationWatcher : MonoBehaviour
 {
+#if UNITY_EDITOR
     [Tooltip("Label shown in the log so you know which object fired.")]
     [SerializeField] private string watchLabel = "Watched Object";
 
@@ -22,4 +23,5 @@ public class UIDeactivationWatcher : MonoBehaviour
     {
         Debug.Log($"[UIDeactivationWatcher] '{watchLabel}' ({gameObject.name}) was ENABLED.", this);
     }
+#endif
 }

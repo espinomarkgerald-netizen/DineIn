@@ -55,6 +55,23 @@ public class GameFlowManager : MonoBehaviour
             currentDayHalf = DayHalf.Morning;
 
         DontDestroyOnLoad(gameObject);
+
+        SceneManager.sceneLoaded += OnSceneLoaded;
+    }
+
+    private void OnDestroy()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    /// <summary>
+    /// Called by Unity after each scene load. Applies shift scaling once the lobby
+    /// scene is live so that GroupSpawner is guaranteed to exist.
+    /// </summary>
+    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        if (scene.name == lobbySceneName && currentPhase == GamePhase.Lobby)
+            ShiftScaler.Instance?.ApplyScaling(currentDay);
     }
 
     public void StartNewDay()
@@ -71,7 +88,7 @@ public class GameFlowManager : MonoBehaviour
         EmployeeManager.Instance?.ResetDailyAssignments();
         DailyObjectiveManager.Instance?.RollObjectivesForDay(currentDay);
 
-        EquipmentManager.Instance.UnlockByDay(currentDay);
+        EquipmentManager.Instance?.UnlockByDay(currentDay);
         EquipmentShopManager shop = FindObjectOfType<EquipmentShopManager>();
         shop?.InitializeShop();
 
@@ -154,6 +171,8 @@ public class GameFlowManager : MonoBehaviour
 
         if (MoneyManager.Instance != null)
             MoneyManager.Instance.ResetToStartingMoney();
+
+        AlienApprovalManager.Instance?.ResetApproval();
 
         Debug.Log("[GameFlow] Run reset to Day 1 (Bankruptcy)");
     }

@@ -46,22 +46,28 @@ public class GameOverScreen : MonoBehaviour
 
     private void Awake()
     {
-        // Singleton guard
+        // Singleton guard — destroy any duplicate that arrives when a scene reloads.
         if (Instance != null && Instance != this)
         {
-            // A duplicate was created (e.g. scene reloaded) — destroy the new one
             Destroy(gameObject);
             return;
         }
 
         Instance = this;
 
-        // Persist the entire root Canvas across scene loads so this screen
-        // is reachable from the Lobby shift, Kitchen shift, and Office phase.
-        DontDestroyOnLoad(transform.root.gameObject);
+        // Persist this object across every scene load so TriggerGameOver()
+        // can always reach this screen, regardless of which scene is active.
+        // NOTE: this GameObject must be a scene root — not a child of any other
+        // object — otherwise DontDestroyOnLoad will silently grab the root parent
+        // and take the entire canvas hierarchy with it.
+        DontDestroyOnLoad(gameObject);
 
         if (tryAgainButton != null)
             tryAgainButton.onClick.AddListener(OnTryAgainClicked);
+
+        // Hide immediately — the panel must start active in the scene so Awake
+        // runs and Instance is set, but we never want it visible until Show() is called.
+        gameObject.SetActive(false);
     }
 
     /// <summary>

@@ -18,10 +18,17 @@ public class DailyReportUI : MonoBehaviour
     [SerializeField] private TMP_Text reportText;
     [SerializeField] private TMP_Text netProfitText;
 
+    [Header("Objective Results (populated after ConfirmAndExit)")]
+    [Tooltip("Assign a TMP_Text that overlays the report panel. " +
+             "Populated by the OnObjectivesEvaluated event when ConfirmAndExit is pressed.")]
+    [SerializeField] private TMP_Text objectiveResultText;
+
     [Header("Colors")]
     [SerializeField] private Color profitColor  = new Color(0.2f, 0.8f, 0.2f);
     [SerializeField] private Color lossColor    = new Color(0.9f, 0.2f, 0.2f);
     [SerializeField] private Color neutralColor = Color.white;
+    [SerializeField] private Color passColor    = new Color(0.2f, 0.9f, 0.3f);
+    [SerializeField] private Color failColor    = new Color(0.9f, 0.2f, 0.2f);
 
     private void Awake()
     {
@@ -35,6 +42,55 @@ public class DailyReportUI : MonoBehaviour
 
         if (reportPanel != null)
             reportPanel.SetActive(false);
+
+        if (objectiveResultText != null)
+            objectiveResultText.text = string.Empty;
+    }
+
+    private void OnEnable()
+    {
+        if (DailyObjectiveManager.Instance != null)
+            DailyObjectiveManager.Instance.OnObjectivesEvaluated += HandleObjectivesEvaluated;
+    }
+
+    private void OnDisable()
+    {
+        if (DailyObjectiveManager.Instance != null)
+            DailyObjectiveManager.Instance.OnObjectivesEvaluated -= HandleObjectivesEvaluated;
+    }
+
+    /// <summary>
+    /// Receives the grade and pass/fail results from DailyObjectiveManager.OnObjectivesEvaluated.
+    /// Fires after ConfirmAndExit() triggers EvaluateEndOfDay().
+    /// </summary>
+    private void HandleObjectivesEvaluated(ObjectiveGrade grade, bool mandatoryPassed, bool secondaryPassed, bool bonusPassed)
+    {
+        if (objectiveResultText == null) return;
+
+        var mgr = DailyObjectiveManager.Instance;
+
+        StringBuilder sb = new StringBuilder();
+        sb.AppendLine("── ALIEN DEMANDS ──────────");
+        sb.AppendLine($"Grade: {grade}");
+        sb.AppendLine();
+
+        AppendObjectiveLine(sb, "MANDATORY", mgr?.ActiveMandatory, mandatoryPassed);
+        AppendObjectiveLine(sb, "SERVICE",   mgr?.ActiveSecondary, secondaryPassed);
+        AppendObjectiveLine(sb, "BONUS",     mgr?.ActiveBonus,     bonusPassed);
+
+        sb.AppendLine("───────────────────────────");
+
+        objectiveResultText.text = sb.ToString();
+
+        // Colour the whole block by overall grade success
+        objectiveResultText.color = grade == ObjectiveGrade.F ? failColor : passColor;
+    }
+
+    private static void AppendObjectiveLine(StringBuilder sb, string label, ObjectiveDefinition obj, bool passed)
+    {
+        string status = passed ? "[PASS]" : "[FAIL]";
+        string desc   = obj != null ? obj.descriptionTemplate : "—";
+        sb.AppendLine($"{status} {label}: {desc}");
     }
 
     /// <summary>
@@ -101,8 +157,9 @@ public class DailyReportUI : MonoBehaviour
 
     /// <summary>
     /// Called by the Continue button on the report panel.
-    /// Evaluates end-of-day win/loss and grade first, then advances the day.
-    /// EvaluateEndOfDay() calls StartNewDay() internally when no game over is triggered.
+    /// Deducts payroll and expenses first, then evaluates win/loss and advances the day.
+    /// Order matters: EndOfDayFinance() must run before EvaluateEndOfDay() so the
+    /// bankruptcy check sees the post-expense money balance.
     /// </summary>
     public void ConfirmAndExit()
     {
@@ -111,6 +168,7 @@ public class DailyReportUI : MonoBehaviour
         if (reportPanel != null)
             reportPanel.SetActive(false);
 
+        GameFlowManager.Instance.EndOfDayFinance();
         GameFlowManager.Instance.EvaluateEndOfDay();
     }
 }

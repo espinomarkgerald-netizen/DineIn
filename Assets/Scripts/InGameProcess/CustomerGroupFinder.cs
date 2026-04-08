@@ -4,7 +4,7 @@ public static class CustomerGroupFinder
 {
     public static CustomerGroup FindClosestNeedsBill(Vector3 from, float maxDistance)
     {
-        var groups = Object.FindObjectsOfType<CustomerGroup>();
+        var groups = Object.FindObjectsByType<CustomerGroup>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
         CustomerGroup best = null;
         float bestD = maxDistance * maxDistance;
 

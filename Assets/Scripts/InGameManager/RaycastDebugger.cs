@@ -3,6 +3,7 @@ using UnityEngine.EventSystems;
 
 public class RaycastDebugger : MonoBehaviour
 {
+#if UNITY_EDITOR
     [SerializeField] private Camera cam;
     [SerializeField] private LayerMask mask;
     [SerializeField] private float dist = 500f;
@@ -30,4 +31,5 @@ public class RaycastDebugger : MonoBehaviour
             Debug.Log("NO HIT");
         }
     }
+#endif
 }

@@ -115,6 +115,16 @@ public class CustomerGroup : MonoBehaviour
     [SerializeField] private float linePatienceSeconds = 60f;
     [SerializeField] private float greetedLinePatienceDrainMultiplier = 0.5f;
 
+    /// <summary>
+    /// Overrides the line patience timer. Called by ShiftScaler before the group is spawned.
+    /// Clamps to a minimum of 10 seconds.
+    /// </summary>
+    public void SetPatienceSeconds(float seconds)
+    {
+        linePatienceSeconds = Mathf.Max(10f, seconds);
+        linePatienceRemaining = linePatienceSeconds;
+    }
+
     [Header("DEBUG - Line Patience")]
     [SerializeField] private bool debugForceShowLinePatience;
     [SerializeField] private float debugPatienceValue = 1f;

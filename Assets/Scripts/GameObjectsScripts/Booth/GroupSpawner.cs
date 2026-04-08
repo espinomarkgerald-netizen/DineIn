@@ -23,11 +23,19 @@ public class GroupSpawner : MonoBehaviour
     public int minGroupSize = 1;
     public int maxGroupSize = 4;
 
+    [Header("Shift Cap (set by ShiftScaler at runtime)")]
+    [SerializeField] private int groupsForShift = 0;
+
+    private int groupsSpawnedThisShift;
     private float timer;
 
     private void Update()
     {
         if (!autoSpawn)
+            return;
+
+        // Respect the shift cap when it has been set (> 0)
+        if (groupsForShift > 0 && groupsSpawnedThisShift >= groupsForShift)
             return;
 
         timer += Time.deltaTime;
@@ -37,6 +45,16 @@ public class GroupSpawner : MonoBehaviour
             SpawnGroup();
         }
     }
+
+    /// <summary>Sets the maximum number of groups to spawn this shift. 0 = unlimited.</summary>
+    public void SetGroupsForShift(int count)
+    {
+        groupsForShift = Mathf.Max(0, count);
+        groupsSpawnedThisShift = 0;
+    }
+
+    /// <summary>Returns the number of groups spawned so far this shift.</summary>
+    public int GroupsSpawnedThisShift => groupsSpawnedThisShift;
 
     /// <summary>Enables or disables the takeout spawn path at runtime.</summary>
     public void SetTakeoutEnabled(bool enabled) { takeoutEnabled = enabled; }
@@ -79,6 +97,12 @@ public class GroupSpawner : MonoBehaviour
             cust.name = $"Customer_{i + 1}";
             group.members.Add(cust);
         }
+
+        groupsSpawnedThisShift++;
+
+        // Apply shift-scaled patience so each group gets the correct timer for this day
+        if (ShiftScaler.Instance != null)
+            group.SetPatienceSeconds(ShiftScaler.Instance.CurrentPatienceSeconds);
 
         if (spawnAsTakeout)
         {

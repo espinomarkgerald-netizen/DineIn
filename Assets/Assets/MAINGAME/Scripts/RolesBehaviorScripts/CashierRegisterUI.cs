@@ -399,6 +399,8 @@ public class CashierRegisterUI : MonoBehaviour
             {
                 paidGroup.PayAndLeave();
             }
+
+            OrderFlowManager.Instance?.ShowPayment(amountEarned, paidGroup.currentOrderNumber);
         }
 
         if (TutorialManager.Instance != null)

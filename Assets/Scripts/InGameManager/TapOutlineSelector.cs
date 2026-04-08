@@ -16,8 +16,17 @@ public class TapOutlineSelector : MonoBehaviour
 
     void Update()
     {
+#if UNITY_EDITOR || UNITY_STANDALONE
         if (Input.GetMouseButtonDown(0))
             HandleTap(Input.mousePosition);
+#else
+        if (Input.touchCount > 0)
+        {
+            Touch touch = Input.GetTouch(0);
+            if (touch.phase == TouchPhase.Began)
+                HandleTap(touch.position);
+        }
+#endif
     }
 
     void HandleTap(Vector3 screenPos)
