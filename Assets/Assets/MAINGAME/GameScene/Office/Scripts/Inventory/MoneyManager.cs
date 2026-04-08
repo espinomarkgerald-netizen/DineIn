@@ -76,6 +76,22 @@ public class MoneyManager : MonoBehaviour
         return Money >= amount;
     }
 
+    /// <summary>
+    /// Unconditionally deducts the amount, flooring Money at zero.
+    /// Use this only for end-of-day expense settlement where the deduction
+    /// must always happen regardless of available funds — allowing bankruptcy
+    /// to be detected by EvaluateEndOfDay() afterwards.
+    /// </summary>
+    public void ForceSpend(int amount, string description = "Forced Expense")
+    {
+        if (amount <= 0)
+            return;
+
+        Money = Mathf.Max(0, Money - amount);
+        LogTransaction($"-{amount} (forced): {description}");
+        NotifyMoneyChanged();
+    }
+
     public IReadOnlyList<string> TransactionLog => transactionLog;
 
     private void NotifyMoneyChanged()

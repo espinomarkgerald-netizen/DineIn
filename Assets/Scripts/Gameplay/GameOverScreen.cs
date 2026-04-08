@@ -57,6 +57,11 @@ public class GameOverScreen : MonoBehaviour
 
         Instance = this;
 
+        // DontDestroyOnLoad only works on root GameObjects. If this component
+        // is nested inside a Canvas, detach to scene root first.
+        if (transform.parent != null)
+            transform.SetParent(null);
+
         DontDestroyOnLoad(gameObject);
 
         if (tryAgainButton != null)

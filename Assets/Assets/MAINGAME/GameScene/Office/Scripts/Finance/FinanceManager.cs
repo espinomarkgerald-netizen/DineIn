@@ -35,6 +35,8 @@ public class FinanceManager : MonoBehaviour
 
     /// <summary>
     /// Deducts all recorded expenses from MoneyManager in a single settlement.
+    /// Uses ForceSpend so money always floors at zero, allowing EvaluateEndOfDay()
+    /// to detect bankruptcy correctly even when expenses exceed available funds.
     /// Call once at end of day after all expenses have been recorded.
     /// </summary>
     public void DeductAllExpenses()
@@ -43,7 +45,7 @@ public class FinanceManager : MonoBehaviour
         if (total <= 0) return;
 
         if (MoneyManager.Instance != null)
-            MoneyManager.Instance.Spend(total, "Daily Expenses");
+            MoneyManager.Instance.ForceSpend(total, "Daily Expenses");
         else
             Debug.LogWarning("[FinanceManager] MoneyManager not found — expenses not deducted.");
     }

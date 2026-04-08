@@ -63,16 +63,20 @@ public class AlienDemandsPanel : MonoBehaviour
     }
 
     /// <summary>
-    /// Opens the panel. Populates yesterday's scorecard and today's objectives.
-    /// Call this from the LobbyButton's onClick instead of OfficeStartButtons.StartLobby().
+    /// Opens the panel. Rolls today's objectives, populates yesterday's scorecard,
+    /// then makes the panel visible. Wire directly to LobbyButton.onClick.
     /// </summary>
     public void ShowPanel()
     {
-        var mgr = DailyObjectiveManager.Instance;
         int day = GameFlowManager.Instance != null ? GameFlowManager.Instance.CurrentDay : 1;
 
+        // Roll objectives here so LobbyButton → ShowPanel() is the only step needed.
+        DailyObjectiveManager.Instance?.RollObjectivesForDay(day);
+
+        var mgr = DailyObjectiveManager.Instance;
+
         if (dayHeaderLabel != null)
-            dayHeaderLabel.text = $"ALIEN DEMANDS — Day {day}";
+            dayHeaderLabel.text = $"Objectives — Day {day}";
 
         // ── Today's Objectives ──────────────────────────────────────────
         if (mandatoryLabel != null)

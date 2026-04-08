@@ -2,49 +2,22 @@ using UnityEngine;
 
 public class OfficeStartDayButton : MonoBehaviour
 {
+    [SerializeField] private AlienDemandsPanel alienDemandsPanel;
+
+    /// <summary>
+    /// Called by LobbyButton.onClick. Objectives are rolled here so the panel
+    /// can immediately display them. Expense deduction and bankruptcy evaluation
+    /// happen at end of day inside GameFlowManager.EvaluateEndOfDay().
+    /// </summary>
     public void OnClickStartDay()
     {
-        if (GameFlowManager.Instance == null)
-        {
-            Debug.LogWarning("No GameFlowManager found.");
-            return;
-        }
+        int day = GameFlowManager.Instance != null ? GameFlowManager.Instance.CurrentDay : 1;
 
-        if (MoneyManager.Instance == null)
-        {
-            Debug.LogWarning("No MoneyManager found.");
-            return;
-        }
+        DailyObjectiveManager.Instance?.RollObjectivesForDay(day);
 
-        int required = DailyFinanceBridge.Instance != null
-            ? DailyFinanceBridge.Instance.TotalRequiredEarningsToday
-            : 0;
-
-        int currentMoney = MoneyManager.Instance.Money;
-
-        Debug.Log($"[StartDay] Money: {currentMoney} | Required: {required}");
-
-        if (currentMoney < required)
-        {
-            Debug.Log("BANKRUPT - Resetting run");
-            WarningSlideUI.Instance?.Show("Bankrupt! Restarting from Day 1");
-            GameFlowManager.Instance.ResetRun();
-            GameFlowManager.Instance.LoadManagementScene();
-            return;
-        }
-
-        bool paid = MoneyManager.Instance.Spend(required, "Daily Costs");
-
-        if (!paid)
-        {
-            Debug.LogWarning("Spend failed unexpectedly.");
-            return;
-        }
-
-        // Roll the day's objectives before the shift starts so they are
-        // ready to display in the pre-shift panel and evaluated at day end.
-        DailyObjectiveManager.Instance?.RollObjectivesForDay(GameFlowManager.Instance.CurrentDay);
-
-        GameFlowManager.Instance.StartDay();
+        if (alienDemandsPanel != null)
+            alienDemandsPanel.ShowPanel();
+        else
+            Debug.LogWarning("[OfficeStartDayButton] AlienDemandsPanel not assigned.");
     }
 }
