@@ -175,7 +175,8 @@ public class GameFlowManager : MonoBehaviour
         AlienApprovalManager.Instance?.ResetApproval();
         DailyObjectiveManager.Instance?.ResetForNewRun();
 
-        Debug.Log("[GameFlow] Run reset to Day 1 (Bankruptcy)");
+        Debug.Log("[GameFlow] Run reset to Day 1.");
+        SceneManager.LoadScene(managementSceneName);
     }
 
     public void StartDay()
