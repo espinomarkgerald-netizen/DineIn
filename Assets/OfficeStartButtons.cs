@@ -16,10 +16,7 @@ public class OfficeStartButtons : MonoBehaviour
             int current = InventoryManager.Instance.GetStock(req.itemType);
 
             if (current < req.stock)
-            {
-                Debug.Log($"Not enough {req.itemType}");
-                return false;
-            }
+                WarningSlideUI.Instance?.Show($"Low stock: {req.itemType}");
         }
 
         return true;
@@ -48,32 +45,22 @@ public class OfficeStartButtons : MonoBehaviour
         return false;
     }
 
-    private bool HasEmployeesAssigned()
+    private void WarnIfNoEmployees()
     {
         foreach (var emp in EmployeeManager.Instance.allEmployees)
-        {
             if (!string.IsNullOrEmpty(emp.assignedSlotName))
-                return true;
-        }
+                return;
 
-        Debug.Log("No employees assigned.");
-        return false;
+        WarningSlideUI.Instance?.Show("No employees assigned — shift may be unproductive.");
     }
 
     private bool CanStart()
     {
         if (InventoryManager.Instance == null || EmployeeManager.Instance == null)
         {
-            Debug.LogError("Missing managers.");
+            Debug.LogError("[OfficeStartButtons] Missing managers.");
             return false;
         }
-
-        if (!HasEnoughStock())
-            return false;
-
-        if (!HasEmployeesAssigned())
-            return false;
-
         return true;
     }
 
@@ -84,8 +71,10 @@ public class OfficeStartButtons : MonoBehaviour
             Debug.LogError("GameFlowManager not found.");
             return;
         }
-        if (!CanStart())
-            return; // Abort if stock or employees fail
+        if (!CanStart()) return;
+
+        HasEnoughStock();       // warns per low item, no longer blocks
+        WarnIfNoEmployees(); 
 
         GameFlowManager.Instance.LoadLobbyScene();
     }
@@ -97,8 +86,10 @@ public class OfficeStartButtons : MonoBehaviour
             Debug.LogError("GameFlowManager not found.");
             return;
         }
-        if (!CanStart())
-            return; // Abort if stock or employees fail
+        if (!CanStart()) return;
+
+        HasEnoughStock();       // warns per low item, no longer blocks
+        WarnIfNoEmployees(); 
 
         GameFlowManager.Instance.StartKitchenShift();
     }
