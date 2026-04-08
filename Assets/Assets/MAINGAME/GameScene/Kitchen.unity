@@ -4000,7 +4000,7 @@ PrefabInstance:
       objectReference: {fileID: 9100000, guid: db0045be4db694d429eb584112202881, type: 2}
     - target: {fileID: 6403599859377120230, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
       propertyPath: sceneViewId
-      value: 5
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 7828672028217769178, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
       propertyPath: movement

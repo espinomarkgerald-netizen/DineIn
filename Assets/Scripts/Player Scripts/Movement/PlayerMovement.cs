@@ -165,11 +165,6 @@ public class PlayerMovement : MonoBehaviour
         if (taskLocked)
             return;
 
-        // Block all 3D interaction while the drink dispenser menu is open —
-        // the dispenser handles its own button hit-testing independently.
-        if (DrinkDispenser.activeDispenser != null)
-            return;
-
         RegisterCommand();
 
         Ray ray = activeCam.ScreenPointToRay(screenPos);

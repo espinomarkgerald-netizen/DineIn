@@ -66,10 +66,7 @@ public class UIManagerKitchen : MonoBehaviour {
 
                     textItem.text = orderData.ticketName + "\n<size=60%>" + completedListText + missingListText + "</size>";
                 } else if (textItem.gameObject.name == "TimerText") {
-                    if (orderData.noTimer)
-                        textItem.text = "";
-                    else
-                        textItem.text = Mathf.CeilToInt(orderData.timeLeft).ToString() + "s";
+                    textItem.text = Mathf.CeilToInt(orderData.timeLeft).ToString() + "s";
                 }
             }
         }

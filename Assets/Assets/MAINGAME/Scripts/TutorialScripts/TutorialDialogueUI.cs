@@ -30,23 +30,6 @@ public class TutorialDialogueUI : MonoBehaviour
             nextButton.onClick.AddListener(OnNextPressed);
         }
 
-        // Disable raycastTarget on all Images and TMP_Text in the panel so clicks
-        // pass through the dialogue box to the game world behind it.
-        // The Next button's own Selectable still intercepts clicks via its Graphic.
-        if (root != null)
-        {
-            foreach (Image img in root.GetComponentsInChildren<Image>(true))
-            {
-                // Keep the button's background image raycast-enabled so it stays clickable.
-                if (nextButton != null && img.transform.IsChildOf(nextButton.transform))
-                    continue;
-                img.raycastTarget = false;
-            }
-
-            foreach (TMP_Text txt in root.GetComponentsInChildren<TMP_Text>(true))
-                txt.raycastTarget = false;
-        }
-
         HideImmediate();
     }
 

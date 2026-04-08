@@ -29,19 +29,6 @@ public class KitchenRoleManager : MonoBehaviour {
     public void Button_SelectLineCook() { SwitchRole(KitchenRole.LineCook); }
     public void Button_SelectAssembler() { SwitchRole(KitchenRole.Assembler); }
 
-    /// <summary>Forces a specific role to be active. Used by KitchenTutorialManager during guided phases.</summary>
-    public void ForceRole(KitchenRole role) { SwitchRole(role); }
-
-    /// <summary>Enables all three roles so the player can freely switch. Used during free-play and Day 4.</summary>
-    public void UnlockAllRoles() {
-        // All three chefs become independently clickable; the currently active one stays active.
-        prepCook.isActivePlayer  = prepCook.isActivePlayer  || false;
-        lineCook.isActivePlayer  = lineCook.isActivePlayer  || false;
-        assembler.isActivePlayer = assembler.isActivePlayer || false;
-        // Re-enable all role buttons by simply leaving isActivePlayer as-is.
-        // The UI buttons call SwitchRole which will correctly transfer control.
-    }
-
     private void SwitchRole(KitchenRole newRole) {
         // 1. Turn off everyone's controls
         prepCook.isActivePlayer = false;
