@@ -58,7 +58,7 @@ public class AlienApprovalHUD : MonoBehaviour
     private void UpdateDisplay(int approval)
     {
         if (approvalLabel != null)
-            approvalLabel.text = $"Alien Approval\n{approval}/100";
+            approvalLabel.text = $"Reputation\n{approval}/100";
 
         if (approvalSlider != null)
             approvalSlider.value = approval / 100f;

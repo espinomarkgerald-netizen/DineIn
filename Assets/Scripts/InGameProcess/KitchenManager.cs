@@ -19,6 +19,8 @@ public class KitchenManager : MonoBehaviour
     [SerializeField] private float waitForFreeSlotCheckInterval = 0.25f;
 
     private readonly HashSet<int> cookingOrders = new HashSet<int>();
+    private readonly HashSet<int> completedOrders = new HashSet<int>();
+
     private TrayPickupQueue pickupQueue;
 
     private void Awake()
@@ -71,23 +73,31 @@ public class KitchenManager : MonoBehaviour
             return;
         }
 
+        if (completedOrders.Contains(orderNo))
+        {
+            Debug.LogWarning($"[KitchenManager] Order #{orderNo} already finished spawning. Duplicate call ignored.");
+            return;
+        }
+
         if (!cookingOrders.Add(orderNo))
         {
             Debug.LogWarning($"[KitchenManager] Order #{orderNo} is already being cooked. Duplicate call ignored.");
             return;
         }
 
-        Debug.Log($"[KitchenManager] Starting cook for order #{orderNo} — group={group.name} isTakeout={group.IsTakeout}.");
-        StartCoroutine(CookAndSpawn(group, orderNo));
+        bool isTakeout = group.IsTakeout;
+
+        Debug.Log($"[KitchenManager] Starting cook for order #{orderNo} — group={group.name} isTakeout={isTakeout}.");
+        StartCoroutine(CookAndSpawn(group, orderNo, isTakeout));
     }
 
-    private IEnumerator CookAndSpawn(CustomerGroup group, int orderNo)
+    private IEnumerator CookAndSpawn(CustomerGroup group, int orderNo, bool isTakeout)
     {
+        bool spawnedSuccessfully = false;
+
         try
         {
             yield return new WaitForSeconds(2f);
-
-            bool isTakeout = group.IsTakeout;
 
             if (ProcessingBillIndicatorUI.Instance != null)
                 ProcessingBillIndicatorUI.Instance.Show("Order #" + orderNo + " is being prepared");
@@ -173,14 +183,24 @@ public class KitchenManager : MonoBehaviour
                 FoodTrayInteractable it = tray.GetComponent<FoodTrayInteractable>();
                 if (it != null)
                     it.SetDeliveryPickable(pickupQueue);
+                else
+                    Debug.LogWarning("[KitchenManager] FoodTrayInteractable missing on FoodTray prefab.");
 
                 if (ProcessingBillIndicatorUI.Instance != null)
                     ProcessingBillIndicatorUI.Instance.Hide();
+
+                Debug.Log($"[KitchenManager] Dine-in tray spawned at '{freeSlot.name}' for order #{orderNo}.");
             }
+
+            spawnedSuccessfully = true;
+            completedOrders.Add(orderNo);
         }
         finally
         {
             cookingOrders.Remove(orderNo);
+
+            if (!spawnedSuccessfully && ProcessingBillIndicatorUI.Instance != null && cookingOrders.Count == 0)
+                ProcessingBillIndicatorUI.Instance.Hide();
         }
     }
 
@@ -192,7 +212,7 @@ public class KitchenManager : MonoBehaviour
         if (group.currentOrderNumber != orderNo)
             return false;
 
-        if (group.state != CustomerGroup.GroupState.OrderTaken)
+        if (completedOrders.Contains(orderNo))
             return false;
 
         return true;
@@ -206,10 +226,31 @@ public class KitchenManager : MonoBehaviour
             if (slot == null)
                 continue;
 
-            if (slot.childCount == 0)
+            if (!SlotHasSpawnedOrder(slot))
                 return slot;
         }
 
         return null;
+    }
+
+    private bool SlotHasSpawnedOrder(Transform slot)
+    {
+        for (int i = 0; i < slot.childCount; i++)
+        {
+            Transform child = slot.GetChild(i);
+            if (child == null)
+                continue;
+
+            if (child.GetComponent<FoodTray>() != null)
+                return true;
+
+            if (child.GetComponent<TakeoutBagMarker>() != null)
+                return true;
+
+            if (child.GetComponent<TakeoutBagInteractable>() != null)
+                return true;
+        }
+
+        return false;
     }
 }

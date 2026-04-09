@@ -36,6 +36,7 @@ public class TakeoutFlowManager : MonoBehaviour
     private CustomerGroup activeGroup;
     private TakeoutPhase currentPhase = TakeoutPhase.None;
     private bool orderFlowStarted;
+    private bool kitchenSubmitSent;
 
     public CustomerGroup ActiveGroup => activeGroup;
     public TakeoutPhase CurrentPhase => currentPhase;
@@ -79,6 +80,7 @@ public class TakeoutFlowManager : MonoBehaviour
         {
             activeGroup = front;
             orderFlowStarted = false;
+            kitchenSubmitSent = false;
             currentPhase = TakeoutPhase.WaitingForFront;
         }
 
@@ -100,6 +102,9 @@ public class TakeoutFlowManager : MonoBehaviour
         if (orderFlowStarted)
             return;
 
+        if (currentPhase != TakeoutPhase.WaitingForFront && currentPhase != TakeoutPhase.None)
+            return;
+
         orderFlowStarted = true;
         currentPhase = TakeoutPhase.WaitingForOrder;
 
@@ -112,6 +117,12 @@ public class TakeoutFlowManager : MonoBehaviour
         if (!IsActiveFront(group))
             return;
 
+        if (currentPhase != TakeoutPhase.WaitingForOrder)
+        {
+            Debug.LogWarning($"[TakeoutFlow] Ignored NotifyOrderTaken for {group.name} because phase is {currentPhase}.");
+            return;
+        }
+
         currentPhase = TakeoutPhase.WaitingForPayment;
         onPaymentRequested?.Invoke();
 
@@ -120,12 +131,6 @@ public class TakeoutFlowManager : MonoBehaviour
         Debug.Log($"[TakeoutFlow] Order taken for {group.name}. Opening cashier for payment.");
     }
 
-    /// <summary>
-    /// Opens the cashier register directly for takeout payment, bypassing the
-    /// dine-in bill-paper → booth → ticket path entirely.
-    /// received is the smallest denomination that covers the total, matching
-    /// the same logic CustomerGroup.GetCustomerPaymentAmount uses for dine-in.
-    /// </summary>
     private void OpenCashierForTakeout(CustomerGroup group)
     {
         CashierRegisterUI ui = CashierRegisterUI.Instance;
@@ -148,10 +153,6 @@ public class TakeoutFlowManager : MonoBehaviour
         ui.OpenForPayment(group, received, total);
     }
 
-    /// <summary>
-    /// Returns the smallest standard denomination that covers the total.
-    /// Mirrors CustomerGroup.GetCustomerPaymentAmount to keep payment amounts consistent.
-    /// </summary>
     private static int GetPaymentDenomination(int total)
     {
         int[] denominations = { 1, 5, 10, 20, 50, 100, 200, 500, 1000 };
@@ -162,7 +163,6 @@ public class TakeoutFlowManager : MonoBehaviour
                 return denominations[i];
         }
 
-        // Total exceeds 1000 — round up to the nearest 1000.
         return Mathf.CeilToInt(total / 1000f) * 1000;
     }
 
@@ -171,20 +171,33 @@ public class TakeoutFlowManager : MonoBehaviour
         if (!IsActiveFront(group))
             return;
 
+        if (currentPhase != TakeoutPhase.WaitingForPayment)
+        {
+            Debug.LogWarning($"[TakeoutFlow] Ignored NotifyPaymentCompleted for {group.name} because phase is {currentPhase}.");
+            return;
+        }
+
         currentPhase = TakeoutPhase.WaitingForKitchen;
         onPaymentCompleted?.Invoke();
 
-        if (autoSendToKitchenAfterPayment)
+        if (!autoSendToKitchenAfterPayment)
+            return;
+
+        if (kitchenSubmitSent)
         {
-            if (kitchenManager != null)
-            {
-                kitchenManager.ProcessOrder(group);
-                Debug.Log($"[TakeoutFlow] Payment completed for {group.name}. Sent to kitchen.");
-            }
-            else
-            {
-                Debug.LogError("[TakeoutFlow] kitchenManager is NOT assigned on TakeoutFlowManager — assign it in the Inspector! Bag will never spawn.");
-            }
+            Debug.LogWarning($"[TakeoutFlow] Kitchen submit already sent for {group.name}. Duplicate payment completion ignored.");
+            return;
+        }
+
+        if (kitchenManager != null)
+        {
+            kitchenSubmitSent = true;
+            kitchenManager.ProcessOrder(group);
+            Debug.Log($"[TakeoutFlow] Payment completed for {group.name}. Sent to kitchen.");
+        }
+        else
+        {
+            Debug.LogError("[TakeoutFlow] kitchenManager is NOT assigned on TakeoutFlowManager — assign it in the Inspector! Bag will never spawn.");
         }
     }
 
@@ -192,6 +205,12 @@ public class TakeoutFlowManager : MonoBehaviour
     {
         if (!IsActiveFront(group))
             return;
+
+        if (currentPhase != TakeoutPhase.WaitingForKitchen)
+        {
+            Debug.LogWarning($"[TakeoutFlow] Ignored NotifyBagReady for {group.name} because phase is {currentPhase}.");
+            return;
+        }
 
         currentPhase = TakeoutPhase.WaitingForBagDelivery;
         onBagDeliveryRequested?.Invoke();
@@ -204,7 +223,15 @@ public class TakeoutFlowManager : MonoBehaviour
         if (!IsActiveFront(group))
             return;
 
-        queueManager.ReleaseFrontFromOrderPoint();
+        if (currentPhase != TakeoutPhase.WaitingForBagDelivery)
+        {
+            Debug.LogWarning($"[TakeoutFlow] Ignored NotifyBagDelivered for {group.name} because phase is {currentPhase}.");
+            return;
+        }
+
+        if (queueManager != null)
+            queueManager.ReleaseFrontFromOrderPoint();
+
         onTakeoutCompleted?.Invoke();
 
         Debug.Log($"[TakeoutFlow] Takeout completed for {group.name}. Releasing customer.");
@@ -236,13 +263,6 @@ public class TakeoutFlowManager : MonoBehaviour
         NotifyBagReady(activeGroup);
     }
 
-    /// <summary>
-    /// Forces the flow manager to release its reference to the given group and
-    /// reset to idle. Called when a takeout group times out and leaves without
-    /// completing the normal bag-delivery path.
-    /// Only clears state when the group matches the currently tracked active group
-    /// so that an unrelated group timing out cannot corrupt an ongoing flow.
-    /// </summary>
     public void ForceRelease(CustomerGroup group)
     {
         if (group == null || group != activeGroup)
@@ -265,5 +285,6 @@ public class TakeoutFlowManager : MonoBehaviour
         activeGroup = null;
         currentPhase = TakeoutPhase.None;
         orderFlowStarted = false;
+        kitchenSubmitSent = false;
     }
 }
