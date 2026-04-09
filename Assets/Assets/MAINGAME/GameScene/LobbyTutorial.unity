@@ -7660,7 +7660,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   groupPrefab: {fileID: 5685048958830651254, guid: e648dd96d49dc8e47b7619a38d214a10, type: 3}
-  customerPrefab: {fileID: 3759403404594665735, guid: 2ed0b38795c7a544c909106d69b9865e, type: 3}
+  customerPrefabGreen: {fileID: 0}
+  customerPrefabPink: {fileID: 0}
+  customerPrefabBlue: {fileID: 0}
+  greenEnabled: 1
+  pinkEnabled: 0
+  blueEnabled: 0
   spawnPoint: {fileID: 566677334}
   lobbyLine: {fileID: 519868826}
   takeoutQueueManager: {fileID: 0}
@@ -7670,6 +7675,10 @@ MonoBehaviour:
   spawnInterval: 16
   minGroupSize: 1
   maxGroupSize: 4
+  weightGreen: 0.7
+  weightPink: 0.2
+  weightBlue: 0.1
+  groupsForShift: 0
 --- !u!1 &626340464
 GameObject:
   m_ObjectHideFlags: 0
@@ -19667,6 +19676,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   dialogueUI: {fileID: 0}
   speakerName: Manager
+  preambleLine: "See those four buttons at the top? Each one switches you into a
+    different staff role.\nEach role has a different job \u2014 Host seats guests,
+    Waiter takes orders, Cashier handles payment, and Busser cleans up.\nI'll walk
+    you through each one now. Press each bouncing button when I point to it."
   roles:
   - roleName: 
     description: 
@@ -19684,6 +19697,12 @@ MonoBehaviour:
     description: 
     button: {fileID: 0}
     roleLabel: {fileID: 0}
+  pressPromptSuffix: '
+
+
+    Press this button now to continue.'
+  bounceScale: 1.15
+  bounceSpeed: 2.2
   dimOverlay: {fileID: 0}
   dimTargetAlpha: 0.55
   dimFadeDuration: 0.35
@@ -19691,8 +19710,6 @@ MonoBehaviour:
   pulseMin: 0.35
   pulseMax: 1
   pulseSpeed: 2.2
-  activeButtonTint: {r: 1, g: 0.92, b: 0.2, a: 1}
-  inactiveButtonTint: {r: 0.3, g: 0.3, b: 0.3, a: 1}
   pointerArrow: {fileID: 1094261715432085740, guid: 82f580a2901e5524ca9fe56d44581953, type: 3}
   pointerOffset: {x: 0, y: 34}
   closingLine: "Good! You now know all four roles. Let's begin \u2014 you're starting
@@ -22419,6 +22436,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e526a2d049d70d141988256556ab57eb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  rootObject: {fileID: 0}
   panel: {fileID: 2019888516}
   messageText: {fileID: 805821983}
   canvasGroup: {fileID: 1587955222}
@@ -26902,7 +26920,6 @@ MonoBehaviour:
     highlightTarget: {fileID: 5371330271326737775}
   returnCameraAfterIntro: 1
   gameplayCameraAnchorAfterIntro: {fileID: 1683000274}
-  roleSwitchIntro: {fileID: 1899391357}
   openingDoneMessage: "Now that you know the roles, let\u2019s begin with the Host.
     Greet the first customer."
   tutorialIntroPanel: {fileID: 1978864202}
@@ -27544,6 +27561,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   dialogueUI: {fileID: 0}
   speakerName: Manager
+  preambleLine: "See those four buttons at the top? Each one switches you into a
+    different staff role.\nEach role has a different job \u2014 Host seats guests,
+    Waiter takes orders, Cashier handles payment, and Busser cleans up.\nI'll walk
+    you through each one now. Press each bouncing button when I point to it."
   roles:
   - roleName: Host
     description: As the Host, you greet customers at the entrance and seat them at
@@ -27565,6 +27586,12 @@ MonoBehaviour:
       leave, so new guests can be seated.
     button: {fileID: 412066455}
     roleLabel: {fileID: 412066453}
+  pressPromptSuffix: '
+
+
+    Press this button now to continue.'
+  bounceScale: 1.15
+  bounceSpeed: 2.2
   dimOverlay: {fileID: 0}
   dimTargetAlpha: 0.6
   dimFadeDuration: 0.3
@@ -27572,8 +27599,6 @@ MonoBehaviour:
   pulseMin: 0.3
   pulseMax: 1
   pulseSpeed: 2.5
-  activeButtonTint: {r: 1, g: 0.92, b: 0.2, a: 1}
-  inactiveButtonTint: {r: 0.3, g: 0.3, b: 0.3, a: 1}
   pointerArrow: {fileID: 0}
   pointerOffset: {x: 0, y: 34}
   closingLine: "Good! You now know all four roles. Let's begin \u2014 you're starting
@@ -31108,6 +31133,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   tableNumberText: {fileID: 1877004043}
   customerMessageText: {fileID: 227552212}
+  customerTypeText: {fileID: 0}
+  customerImage: {fileID: 0}
   food1: {fileID: 185208755}
   food2: {fileID: 69491795}
   drink: {fileID: 626340466}
@@ -37041,7 +37068,7 @@ MonoBehaviour:
   observableSearch: 2
   ObservedComponents:
   - {fileID: 3412083676350833633}
-  sceneViewId: 2
+  sceneViewId: 1
   InstantiationId: 0
   isRuntimeInstantiated: 0
 --- !u!4 &1266061083786103357

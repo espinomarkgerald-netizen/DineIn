@@ -20157,13 +20157,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bfb1e7df6b7adab42891d4f44f0b54c6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  cam: {fileID: 863227610}
-  eventLayerMask:
-    serializedVersion: 2
-    m_Bits: 4608
-  maxRayDistance: 300
-  puddleUi: {fileID: 0}
-  tableUi: {fileID: 0}
 --- !u!225 &1113496786
 CanvasGroup:
   m_ObjectHideFlags: 0
