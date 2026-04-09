@@ -16,6 +16,11 @@ public class UIManagerKitchen : MonoBehaviour {
 
     void Update() {
 
+        // --- NEW: THE TUTORIAL SAFETY NET ---
+        // If the Order Manager is missing (like during our tutorial), stop doing anything!
+        if (OrderManagerKitchen.Instance == null) return;
+        // ------------------------------------
+
         // --- THE MASTER CLOCK LOGIC ---
         if (shiftTimerText != null) {
             float timeRemaining = OrderManagerKitchen.Instance.currentShiftTime;
