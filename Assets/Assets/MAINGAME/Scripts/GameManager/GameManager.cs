@@ -106,6 +106,10 @@ public class GameDayManager : MonoBehaviour
     [Header("Takeout Unlock")]
     [SerializeField] private int takeoutUnlockDay = 20;
 
+    [Header("Customer Type Unlocks")]
+    [SerializeField] private int pinkCustomerUnlockDay = 5;
+    [SerializeField] private int blueCustomerUnlockDay = 10;
+
     [Header("Runtime")]
     [SerializeField] private bool shiftRunning;
     [SerializeField] private float timeRemaining;
@@ -180,6 +184,7 @@ public class GameDayManager : MonoBehaviour
         }
 
         ApplyTakeoutUnlock();
+        ApplyCustomerTypeUnlocks();
 
         RefreshUI();
         SetupMoodBars(true);
@@ -256,6 +261,10 @@ public class GameDayManager : MonoBehaviour
 
         angryBarMax = Mathf.Max(1, angryBarMax);
         neutralBarMax = Mathf.Max(1, neutralBarMax);
+
+        pinkCustomerUnlockDay = Mathf.Max(1, pinkCustomerUnlockDay);
+        blueCustomerUnlockDay = Mathf.Max(1, blueCustomerUnlockDay);
+        takeoutUnlockDay = Mathf.Max(1, takeoutUnlockDay);
     }
 
     private void SetupMoodBars(bool snapToCurrent)
@@ -367,6 +376,8 @@ public class GameDayManager : MonoBehaviour
     {
         ResolveManagerComponents();
         ApplyDifficultyScaling();
+        ApplyTakeoutUnlock();
+        ApplyCustomerTypeUnlocks();
         ResetShiftRuntime();
 
         timeRemaining = ShiftLengthSeconds;
@@ -498,12 +509,27 @@ public class GameDayManager : MonoBehaviour
         if (groupSpawner == null)
             return;
 
-        bool shouldEnable = GameFlowManager.Instance != null
-            && GameFlowManager.Instance.CurrentDay >= takeoutUnlockDay;
+        int currentDay = GameFlowManager.Instance != null ? GameFlowManager.Instance.CurrentDay : 1;
+        bool shouldEnable = currentDay >= takeoutUnlockDay;
 
         groupSpawner.SetTakeoutEnabled(shouldEnable);
-        Debug.Log($"[GameDayManager] Takeout {(shouldEnable ? "ENABLED" : "DISABLED")} " +
-                  $"(current day: {GameFlowManager.Instance?.CurrentDay}, unlock day: {takeoutUnlockDay}).");
+
+        Debug.Log($"[GameDayManager] Takeout {(shouldEnable ? "ENABLED" : "DISABLED")} (current day: {currentDay}, unlock day: {takeoutUnlockDay}).");
+    }
+
+    private void ApplyCustomerTypeUnlocks()
+    {
+        if (groupSpawner == null)
+            return;
+
+        int currentDay = GameFlowManager.Instance != null ? GameFlowManager.Instance.CurrentDay : 1;
+
+        bool enablePink = currentDay >= pinkCustomerUnlockDay;
+        bool enableBlue = currentDay >= blueCustomerUnlockDay;
+
+        groupSpawner.SetCustomerTypeAvailability(true, enablePink, enableBlue);
+
+        Debug.Log($"[GameDayManager] Customer type unlocks applied | Day: {currentDay} | Green: ENABLED | Pink: {(enablePink ? "ENABLED" : "DISABLED")} (unlock day: {pinkCustomerUnlockDay}) | Blue: {(enableBlue ? "ENABLED" : "DISABLED")} (unlock day: {blueCustomerUnlockDay})");
     }
 
     public void SetTakeoutEnabled(bool enabled)
@@ -516,6 +542,18 @@ public class GameDayManager : MonoBehaviour
 
         groupSpawner.SetTakeoutEnabled(enabled);
         Debug.Log($"[GameDayManager] Takeout {(enabled ? "ENABLED" : "DISABLED")}.");
+    }
+
+    public void SetCustomerTypeEnabled(CustomerGroup.CustomerType type, bool enabled)
+    {
+        if (groupSpawner == null)
+        {
+            Debug.LogWarning("[GameDayManager] SetCustomerTypeEnabled — GroupSpawner not resolved.");
+            return;
+        }
+
+        groupSpawner.SetCustomerTypeEnabled(type, enabled);
+        Debug.Log($"[GameDayManager] Customer type {type} {(enabled ? "ENABLED" : "DISABLED")}.");
     }
 
     private const float StopSpawnTimeRemainingSeconds = 60f;

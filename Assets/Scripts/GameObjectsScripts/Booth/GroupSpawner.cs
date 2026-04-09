@@ -10,6 +10,11 @@ public class GroupSpawner : MonoBehaviour
     [SerializeField] private CustomerAgent customerPrefabPink;
     [SerializeField] private CustomerAgent customerPrefabBlue;
 
+    [Header("Customer Type Availability")]
+    [SerializeField] private bool greenEnabled = true;
+    [SerializeField] private bool pinkEnabled = false;
+    [SerializeField] private bool blueEnabled = false;
+
     [Header("Points")]
     [SerializeField] private Transform spawnPoint;
 
@@ -34,6 +39,11 @@ public class GroupSpawner : MonoBehaviour
 
     private float timer;
 
+    public bool TakeoutEnabled => takeoutEnabled;
+    public bool GreenEnabled => greenEnabled;
+    public bool PinkEnabled => pinkEnabled;
+    public bool BlueEnabled => blueEnabled;
+
     private void Update()
     {
         if (!autoSpawn)
@@ -53,17 +63,60 @@ public class GroupSpawner : MonoBehaviour
         takeoutEnabled = enabled;
     }
 
-    public bool TakeoutEnabled => takeoutEnabled;
+    public void SetCustomerTypeAvailability(bool green, bool pink, bool blue)
+    {
+        greenEnabled = green;
+        pinkEnabled = pink;
+        blueEnabled = blue;
+    }
+
+    public void SetCustomerTypeEnabled(CustomerGroup.CustomerType type, bool enabled)
+    {
+        switch (type)
+        {
+            case CustomerGroup.CustomerType.Green:
+                greenEnabled = enabled;
+                break;
+
+            case CustomerGroup.CustomerType.Pink:
+                pinkEnabled = enabled;
+                break;
+
+            case CustomerGroup.CustomerType.Blue:
+                blueEnabled = enabled;
+                break;
+        }
+    }
+
+    public bool IsCustomerTypeEnabled(CustomerGroup.CustomerType type)
+    {
+        switch (type)
+        {
+            case CustomerGroup.CustomerType.Pink:
+                return pinkEnabled;
+
+            case CustomerGroup.CustomerType.Blue:
+                return blueEnabled;
+
+            default:
+                return greenEnabled;
+        }
+    }
 
     private CustomerGroup.CustomerType PickCustomerType()
     {
-        float green = Mathf.Max(0f, weightGreen);
-        float pink = Mathf.Max(0f, weightPink);
-        float blue = Mathf.Max(0f, weightBlue);
+        float green = greenEnabled ? Mathf.Max(0f, weightGreen) : 0f;
+        float pink = pinkEnabled ? Mathf.Max(0f, weightPink) : 0f;
+        float blue = blueEnabled ? Mathf.Max(0f, weightBlue) : 0f;
         float total = green + pink + blue;
 
         if (total <= 0f)
+        {
+            if (greenEnabled) return CustomerGroup.CustomerType.Green;
+            if (pinkEnabled) return CustomerGroup.CustomerType.Pink;
+            if (blueEnabled) return CustomerGroup.CustomerType.Blue;
             return CustomerGroup.CustomerType.Green;
+        }
 
         float roll = Random.Range(0f, total);
 
@@ -133,10 +186,8 @@ public class GroupSpawner : MonoBehaviour
         group.name = $"Group_{type}_{size}";
         group.members.Clear();
 
-        // One type is selected once per group.
         group.SetCustomerType(type);
 
-        // Every member in the group uses the same prefab/type.
         for (int i = 0; i < size; i++)
         {
             Vector3 offset = new Vector3((i % 2) * 0.6f, 0f, (i / 2) * 0.6f);
