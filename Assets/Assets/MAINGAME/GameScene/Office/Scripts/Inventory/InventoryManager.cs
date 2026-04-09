@@ -1,6 +1,7 @@
 using UnityEngine;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 
 public class InventoryManager : MonoBehaviour
@@ -91,4 +92,19 @@ public class InventoryManager : MonoBehaviour
     public bool IsTracked(ItemType type) => inventory.ContainsKey(type);
 
     public List<ItemData> Items => items; // expose items for UI
+
+    /// <summary>
+    /// Zeros all stock counts and notifies listeners. Call on a full run reset
+    /// so the player starts fresh with no carried-over stock.
+    /// </summary>
+    public void ResetStock()
+    {
+        foreach (var key in inventory.Keys.ToArray())
+            inventory[key] = 0;
+
+        UpdateInspectorInventory();
+
+        foreach (var kvp in inventory)
+            OnStockChanged?.Invoke(kvp.Key, kvp.Value);
+    }
 }

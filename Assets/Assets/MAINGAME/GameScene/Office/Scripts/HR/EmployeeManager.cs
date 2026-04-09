@@ -1,6 +1,7 @@
 using UnityEngine;
 using System;
 using System.Collections.Generic;
+using UnityEngine.SceneManagement;
 
 public class EmployeeManager : MonoBehaviour
 {
@@ -29,6 +30,24 @@ public class EmployeeManager : MonoBehaviour
         employeesByRole.Clear();
         foreach (EmployeeRole role in Enum.GetValues(typeof(EmployeeRole)))
             employeesByRole.Add(new RoleGroup { role = role });
+    }
+
+    void OnEnable()
+    {
+        SceneManager.sceneLoaded += OnSceneLoaded;
+    }
+
+    void OnDisable()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        if (generator == null)
+        {
+            generator = FindObjectOfType<EmployeeGenerator>();
+        }
     }
 
     public void GenerateEmployees()
@@ -122,5 +141,23 @@ public class EmployeeManager : MonoBehaviour
         }
 
         return total;
+    }
+
+    /// <summary>
+    /// Wipes all generated employees and clears every role group. Call on a full
+    /// run reset so the player hires fresh staff from Day 1.
+    /// </summary>
+    public void ClearAllEmployees()
+    {
+        allEmployees.Clear();
+
+        foreach (var group in employeesByRole)
+            group.employees.Clear();
+
+        SlotsLocked = false;
+
+        RoleSlot[] allSlots = FindObjectsByType<RoleSlot>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        foreach (var slot in allSlots)
+            slot.ResetForNewDay();
     }
 }

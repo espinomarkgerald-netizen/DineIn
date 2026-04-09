@@ -6,8 +6,10 @@ public class OfficeStartButtons : MonoBehaviour
     [SerializeField]
     private List<InventoryEntry> kitchenRequirements;
 
-    private bool HasEnoughStock()
+    private List<string> GetStockIssues()
     {
+        List<string> issues = new List<string>();
+
         foreach (var req in kitchenRequirements)
         {
             if (!IsRequiredByUnlockedRecipe(req.itemType))
@@ -16,10 +18,12 @@ public class OfficeStartButtons : MonoBehaviour
             int current = InventoryManager.Instance.GetStock(req.itemType);
 
             if (current < req.stock)
-                WarningSlideUI.Instance?.Show($"Low stock: {req.itemType}");
+            {
+                issues.Add($"{req.itemType}: {current}/{req.stock}");
+            }
         }
 
-        return true;
+        return issues;
     }
 
     /// <summary>
@@ -45,23 +49,69 @@ public class OfficeStartButtons : MonoBehaviour
         return false;
     }
 
-    private void WarnIfNoEmployees()
+    private bool HasEmployeesAssigned()
     {
         foreach (var emp in EmployeeManager.Instance.allEmployees)
+        {
             if (!string.IsNullOrEmpty(emp.assignedSlotName))
-                return;
+                return true;
+        }
 
-        WarningSlideUI.Instance?.Show("No employees assigned — shift may be unproductive.");
+        Debug.Log("No employees assigned.");
+        return false;
     }
 
-    private bool CanStart()
+    private bool HasRequiredEquipment()
     {
+        // Define which equipment types are required to start the lobby
+        string[] requiredIDs = {
+        "booth01", "booth02", "booth03", "booth04", "booth05",
+        "table01", "table02", "table03", "table04" }; // use itemID keywords or exact IDs from your Equipment ScriptableObjects
+
+        foreach (var equip in EquipmentManager.Instance.AllEquipment)
+        {
+            // Skip if not purchased
+            if (!EquipmentManager.Instance.Purchased(equip.itemID))
+                continue;
+
+            // Check if this equipment matches one of the required types
+            foreach (var reqID in requiredIDs)
+            {
+                if (equip.itemID.Contains(reqID))
+                    return true;
+            }
+        }
+
+        // If no required equipment purchased, block start
+        return false;
+    }
+
+    private List<string> GetStartBlockers()
+    {
+        List<string> issues = new List<string>();
+
         if (InventoryManager.Instance == null || EmployeeManager.Instance == null)
         {
-            Debug.LogError("[OfficeStartButtons] Missing managers.");
-            return false;
+            issues.Add("Missing core systems. Congratulations, you broke reality.");
+            return issues;
         }
-        return true;
+
+        var stockIssues = GetStockIssues();
+        if (stockIssues.Count > 0)
+        {
+            issues.Add("Stock up required ingredients:");
+            foreach (var s in stockIssues)
+                issues.Add("• " + s);
+        }
+
+        if (!HasEmployeesAssigned())
+            issues.Add("Assign at least one employee.");
+
+        // NEW: Equipment check (your “buy seats” requirement)
+        if (!HasRequiredEquipment())
+            issues.Add("Buy and place required equipment (e.g., seats).");
+
+        return issues;
     }
 
     public void StartLobby()
@@ -71,10 +121,14 @@ public class OfficeStartButtons : MonoBehaviour
             Debug.LogError("GameFlowManager not found.");
             return;
         }
-        if (!CanStart()) return;
 
-        HasEnoughStock();       // warns per low item, no longer blocks
-        WarnIfNoEmployees(); 
+        var issues = GetStartBlockers();
+
+        if (issues.Count > 0)
+        {
+            StartBlockedPanel.Instance?.Show(issues);
+            return;
+        }
 
         GameFlowManager.Instance.LoadLobbyScene();
     }
@@ -86,10 +140,14 @@ public class OfficeStartButtons : MonoBehaviour
             Debug.LogError("GameFlowManager not found.");
             return;
         }
-        if (!CanStart()) return;
 
-        HasEnoughStock();       // warns per low item, no longer blocks
-        WarnIfNoEmployees(); 
+        var issues = GetStartBlockers();
+
+        if (issues.Count > 0)
+        {
+            StartBlockedPanel.Instance?.Show(issues);
+            return;
+        }
 
         GameFlowManager.Instance.StartKitchenShift();
     }

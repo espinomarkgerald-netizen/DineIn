@@ -63,4 +63,16 @@ public class UnlockManager : MonoBehaviour
     }
 
     public bool IsIngredientUnlocked(ItemData item) => unlockedIngredients.Contains(item);
+
+    /// <summary>
+    /// Clears all unlock records. Call on a full run reset so the player
+    /// re-earns recipes, equipment, and ingredients from Day 1.
+    /// </summary>
+    public void ResetAll()
+    {
+        unlockedRecipes.Clear();
+        unlockedEquipment.Clear();
+        unlockedIngredients.Clear();
+        unlockedKitchenItems.Clear();
+    }
 }

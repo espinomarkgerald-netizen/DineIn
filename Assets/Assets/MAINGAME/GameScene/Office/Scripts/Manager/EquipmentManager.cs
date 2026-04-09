@@ -6,6 +6,7 @@ public class EquipmentManager : MonoBehaviour
     public static EquipmentManager Instance { get; private set; }
 
     [SerializeField] private List<Equipment> allEquipment;
+    public List<Equipment> AllEquipment => allEquipment;
     private HashSet<string> purchased = new HashSet<string>();
 
     private void Awake()
@@ -61,4 +62,17 @@ public class EquipmentManager : MonoBehaviour
     }
 
     public bool Purchased(string itemID) => purchased.Contains(itemID);
+
+    /// <summary>
+    /// Clears all purchase records and deactivates every EquipmentLink in the
+    /// current scene. Call on a full run reset so no equipment carries over.
+    /// </summary>
+    public void ResetPurchases()
+    {
+        purchased.Clear();
+
+        EquipmentLink[] allLinks = FindObjectsByType<EquipmentLink>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        foreach (var link in allLinks)
+            link.gameObject.SetActive(false);
+    }
 }

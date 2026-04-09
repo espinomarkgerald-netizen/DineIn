@@ -165,17 +165,31 @@ public class GameFlowManager : MonoBehaviour
     {
         currentDay = 1;
         currentPhase = GamePhase.Management;
-        currentDayHalf = DayHalf.None;
+        currentDayHalf = DayHalf.Morning;
         lobbyCompleted = false;
         kitchenCompleted = false;
 
-        if (MoneyManager.Instance != null)
-            MoneyManager.Instance.ResetToStartingMoney();
+        // Money
+        MoneyManager.Instance?.ResetToStartingMoney();
 
+        // Narrative / objectives
         AlienApprovalManager.Instance?.ResetApproval();
         DailyObjectiveManager.Instance?.ResetForNewRun();
 
-        Debug.Log("[GameFlow] Run reset to Day 1.");
+        // Finance
+        FinanceManager.Instance?.ResetDailyExpenses();
+        DailyRevenueTracker.Instance?.ResetForNewDay();
+        DailyFinanceBridge.Instance?.ResetDay();
+
+        // Inventory, staff, equipment, progression — full wipe
+        InventoryManager.Instance?.ResetStock();
+        EmployeeManager.Instance?.ClearAllEmployees();
+        EquipmentManager.Instance?.ResetPurchases();
+        UnlockManager.Instance?.ResetAll();
+
+        EquipmentManager.Instance?.UnlockByDay(currentDay); 
+
+        Debug.Log("[GameFlow] Run fully reset to Day 1.");
         SceneManager.LoadScene(managementSceneName);
     }
 

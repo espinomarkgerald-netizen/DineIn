@@ -6,7 +6,7 @@ public class EmployeeGenerator : MonoBehaviour
     public List<EmployeeData> employees = new List<EmployeeData>();
 
     [SerializeField] private string[] names = { "Maria","Kelvin","Josh","Nina","Sam","Leo","Kyle","Mark","Michael",
-                                               "Ron","Doyle","Johnvic","Mary","Grace","Paul","Kenneth","Bandoc",
+                                               "Ron","Doyle","Johnvic","Mary","Paul","Bandoc",
                                                "Fumi","Riley","Neo","Tom","Hasang","Tachu","Floribel","Ferrer",
                                                "Montefaro","Miguel","Byron","Darnell","Noel","Christian",
                                                "Joseph","Namuag" };
