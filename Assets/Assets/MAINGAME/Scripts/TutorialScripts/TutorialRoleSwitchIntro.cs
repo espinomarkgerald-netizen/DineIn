@@ -6,12 +6,12 @@ using UnityEngine.UI;
 /// <summary>
 /// Guided role-switch introduction that runs before Day 1 Host gameplay begins.
 ///
-/// Walks through all four roles — Host, Waiter, Cashier, Busser — one at a time.
-/// For each role:
-///   1. The active button is highlighted (tint); all other buttons are dimmed.
-///   2. The pointer arrow moves above that button.
-///   3. Dialogue describes what that role does.
-///   4. The player MUST press that button to advance to the next role.
+/// Step 0  — Preamble: explains what the four switch buttons do and how switching works.
+/// Steps 1–4 — One per role (Host → Waiter → Cashier → Busser):
+///   1. Active button bounces continuously so it stands out without changing colours.
+///   2. Pointer arrow moves above that button.
+///   3. Dialogue describes the role AND tells the player to press that button.
+///   4. Player MUST press the button to advance — bounce stops on press.
 ///
 /// After all four roles the screen un-dims, a closing line plays, and onComplete fires.
 ///
@@ -34,7 +34,8 @@ public class TutorialRoleSwitchIntro : MonoBehaviour
         [Tooltip("Speaker name shown in the dialogue bubble.")]
         public string roleName;
 
-        [TextArea(2, 4)]
+        [TextArea(2, 5)]
+        [Tooltip("What this role does. A 'press this button now' prompt is appended automatically.")]
         public string description;
 
         [Tooltip("The actual scene Button the player must press to advance.")]
@@ -52,13 +53,32 @@ public class TutorialRoleSwitchIntro : MonoBehaviour
     [SerializeField] private TutorialDialogueUI dialogueUI;
     [SerializeField] private string speakerName = "Manager";
 
+    [Header("Preamble")]
+    [TextArea(2, 5)]
+    [Tooltip("Shown once before walking through each role. Explains what the switch buttons do.")]
+    [SerializeField] private string preambleLine =
+        "See those four buttons at the top? Each one switches you into a different staff role.\n" +
+        "Each role has a different job — Host seats guests, Waiter takes orders, " +
+        "Cashier handles payment, and Busser cleans up.\n" +
+        "I'll walk you through each one now. Press each bouncing button when I point to it.";
+
     [Header("Role Intro Steps  (Host → Waiter → Cashier → Busser)")]
     [SerializeField] private RoleIntroEntry[] roles = new RoleIntroEntry[4];
+
+    [Header("Press-Button Prompt")]
+    [Tooltip("Appended to each role's description so the player knows what to do next.")]
+    [SerializeField] private string pressPromptSuffix = "\n\nPress this button now to continue.";
+
+    [Header("Button Bounce")]
+    [Tooltip("Peak scale of the active button during its bounce (1 = no bounce).")]
+    [SerializeField] private float bounceScale = 1.15f;
+    [Tooltip("Bounces per second.")]
+    [SerializeField] private float bounceSpeed = 2.2f;
 
     [Header("Screen Dim")]
     [Tooltip("Full-screen CanvasGroup (black image, alpha 0, blocksRaycasts false at start).")]
     [SerializeField] private CanvasGroup dimOverlay;
-    [SerializeField] [Range(0f, 1f)] private float dimTargetAlpha = 0.6f;
+    [SerializeField] [Range(0f, 1f)] private float dimTargetAlpha = 0.55f;
     [SerializeField] private float dimFadeDuration = 0.3f;
 
     [Header("Button Panel Highlight")]
@@ -68,10 +88,6 @@ public class TutorialRoleSwitchIntro : MonoBehaviour
     [SerializeField] private float pulseMax  = 1f;
     [SerializeField] private float pulseSpeed = 2.5f;
 
-    [Header("Active Button Tint")]
-    [SerializeField] private Color activeButtonTint   = new Color(1f, 0.92f, 0.2f, 1f);
-    [SerializeField] private Color inactiveButtonTint = new Color(0.3f, 0.3f, 0.3f, 1f);
-
     [Header("Pointer Arrow (optional)")]
     [Tooltip("UI arrow RectTransform repositioned above each active button.")]
     [SerializeField] private RectTransform pointerArrow;
@@ -80,7 +96,9 @@ public class TutorialRoleSwitchIntro : MonoBehaviour
     [Header("Closing")]
     [TextArea(2, 4)]
     [SerializeField] private string closingLine =
-        "Good! You now know all four roles. Let's begin — you're starting as the Host!";
+        "Great — you know all four roles now.\n" +
+        "In mastery gameplay you can switch between them freely at any time.\n" +
+        "Let's begin! You're the Host first — greet the incoming customers!";
 
     // -----------------------------------------------------------------------
     // Runtime
@@ -88,6 +106,7 @@ public class TutorialRoleSwitchIntro : MonoBehaviour
 
     private Action onComplete;
     private Coroutine runRoutine;
+    private Coroutine bounceRoutine;
     private Coroutine pulseRoutine;
 
     // -----------------------------------------------------------------------
@@ -116,21 +135,35 @@ public class TutorialRoleSwitchIntro : MonoBehaviour
         yield return StartCoroutine(FadeDim(0f, dimTargetAlpha));
         StartPanelPulse();
 
+        // Step 0 — Preamble: explain what the buttons are before touching any of them.
+        if (dialogueUI != null && !string.IsNullOrWhiteSpace(preambleLine))
+        {
+            bool preambleDone = false;
+            dialogueUI.ShowManual(speakerName, preambleLine, () => preambleDone = true);
+            while (!preambleDone)
+                yield return null;
+        }
+
+        // Steps 1–N — One per role.
         for (int i = 0; i < roles.Length; i++)
         {
             RoleIntroEntry entry = roles[i];
             if (entry == null) continue;
 
-            ApplyButtonTints(i);
+            StartBounce(entry.button);
             MovePointer(entry.button);
             if (entry.roleLabel != null) entry.roleLabel.SetActive(true);
 
-            // Dialogue — player presses Next to continue.
+            // Build the dialogue: role description + explicit press-button prompt.
             bool dialogueDone = false;
             string speaker = string.IsNullOrWhiteSpace(entry.roleName) ? speakerName : entry.roleName;
+            string body = entry.description ?? string.Empty;
 
-            if (dialogueUI != null && !string.IsNullOrWhiteSpace(entry.description))
-                dialogueUI.ShowManual(speaker, entry.description, () => dialogueDone = true);
+            if (!string.IsNullOrWhiteSpace(pressPromptSuffix))
+                body = body.TrimEnd() + pressPromptSuffix;
+
+            if (dialogueUI != null && !string.IsNullOrWhiteSpace(body))
+                dialogueUI.ShowManual(speaker, body, () => dialogueDone = true);
             else
                 dialogueDone = true;
 
@@ -146,14 +179,18 @@ public class TutorialRoleSwitchIntro : MonoBehaviour
                 while (!pressed) yield return null;
                 entry.button.onClick.RemoveListener(handler);
 
+                StopBounce(entry.button);
                 yield return new WaitForSeconds(0.25f);
+            }
+            else
+            {
+                StopBounce(null);
             }
 
             if (entry.roleLabel != null) entry.roleLabel.SetActive(false);
         }
 
-        // Clean up.
-        ResetButtonTints();
+        // Clean up after all roles.
         StopPanelPulse();
         HidePointer();
         yield return StartCoroutine(FadeDim(dimTargetAlpha, 0f));
@@ -173,7 +210,45 @@ public class TutorialRoleSwitchIntro : MonoBehaviour
     }
 
     // -----------------------------------------------------------------------
-    // Visual helpers
+    // Bounce
+    // -----------------------------------------------------------------------
+
+    private void StartBounce(Button target)
+    {
+        if (bounceRoutine != null)
+            StopCoroutine(bounceRoutine);
+
+        if (target == null) return;
+
+        bounceRoutine = StartCoroutine(BounceButton(target.transform));
+    }
+
+    private void StopBounce(Button target)
+    {
+        if (bounceRoutine != null)
+        {
+            StopCoroutine(bounceRoutine);
+            bounceRoutine = null;
+        }
+
+        // Always restore identity scale so the button sits exactly as it was before.
+        if (target != null)
+            target.transform.localScale = Vector3.one;
+    }
+
+    private IEnumerator BounceButton(Transform buttonTransform)
+    {
+        while (buttonTransform != null)
+        {
+            float t = (Mathf.Sin(Time.unscaledTime * bounceSpeed * Mathf.PI * 2f) + 1f) * 0.5f;
+            float scale = Mathf.Lerp(1f, bounceScale, t);
+            buttonTransform.localScale = new Vector3(scale, scale, 1f);
+            yield return null;
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Screen dim
     // -----------------------------------------------------------------------
 
     private IEnumerator FadeDim(float from, float to)
@@ -194,6 +269,10 @@ public class TutorialRoleSwitchIntro : MonoBehaviour
         dimOverlay.alpha = to;
         if (to <= 0f) dimOverlay.gameObject.SetActive(false);
     }
+
+    // -----------------------------------------------------------------------
+    // Panel pulse
+    // -----------------------------------------------------------------------
 
     private void StartPanelPulse()
     {
@@ -219,25 +298,9 @@ public class TutorialRoleSwitchIntro : MonoBehaviour
         }
     }
 
-    private void ApplyButtonTints(int activeIndex)
-    {
-        for (int i = 0; i < roles.Length; i++)
-        {
-            if (roles[i]?.button == null) continue;
-            Image img = roles[i].button.GetComponent<Image>();
-            if (img != null) img.color = (i == activeIndex) ? activeButtonTint : inactiveButtonTint;
-        }
-    }
-
-    private void ResetButtonTints()
-    {
-        foreach (RoleIntroEntry entry in roles)
-        {
-            if (entry?.button == null) continue;
-            Image img = entry.button.GetComponent<Image>();
-            if (img != null) img.color = Color.white;
-        }
-    }
+    // -----------------------------------------------------------------------
+    // Pointer arrow
+    // -----------------------------------------------------------------------
 
     private void MovePointer(Button targetButton)
     {
