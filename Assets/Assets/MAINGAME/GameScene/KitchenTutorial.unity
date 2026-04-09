@@ -16229,7 +16229,7 @@ PrefabInstance:
       objectReference: {fileID: 9100000, guid: db0045be4db694d429eb584112202881, type: 2}
     - target: {fileID: 6403599859377120230, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
       propertyPath: sceneViewId
-      value: 2
+      value: 4
       objectReference: {fileID: 0}
     - target: {fileID: 7828672028217769178, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
       propertyPath: movement
@@ -27474,6 +27474,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e526a2d049d70d141988256556ab57eb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  rootObject: {fileID: 0}
   panel: {fileID: 2019888516}
   messageText: {fileID: 805821983}
   canvasGroup: {fileID: 1587955222}
