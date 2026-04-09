@@ -123,6 +123,7 @@ public class OrderManagerKitchen : MonoBehaviour {
             activeOrders[i].timeLeft -= Time.deltaTime;
             if (activeOrders[i].timeLeft <= 0) {
                 PerformanceManager.AddFailedOrder();
+                AlienApprovalManager.Instance?.RegisterGroupResult(CustomerGroup.FinalResult.Angry);
                 activeOrders.RemoveAt(i);
                 DailyRevenueTracker.Instance?.RecordOrderFailed();
             }
@@ -205,6 +206,7 @@ public class OrderManagerKitchen : MonoBehaviour {
                     Debug.Log($"[OrderManager] ORDER COMPLETE: '{ticket.ticketName}' — +₱{revenue}");
                     DailyRevenueTracker.Instance?.RecordOrderCompleted();
                     DailyFinanceBridge.Instance?.AddEarnings(revenue, "Kitchen Order");
+                    AlienApprovalManager.Instance?.RegisterGroupResult(CustomerGroup.FinalResult.Happy);
                     activeOrders.Remove(ticket);
                     if (DeliveryFeedback.Instance != null) DeliveryFeedback.Instance.ShowSuccess("Order Completed!");
                 }

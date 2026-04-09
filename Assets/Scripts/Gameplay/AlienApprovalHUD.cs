@@ -19,7 +19,7 @@ public class AlienApprovalHUD : MonoBehaviour
     [SerializeField] private Color midColor  = new Color(1.0f, 0.8f, 0.1f, 1f); // yellow
     [SerializeField] private Color lowColor  = new Color(0.9f, 0.2f, 0.2f, 1f); // red
 
-    private void Start()
+    private void OnEnable()
     {
         if (AlienApprovalManager.Instance == null)
             StartCoroutine(WaitForManager());
@@ -29,6 +29,7 @@ public class AlienApprovalHUD : MonoBehaviour
 
     private void OnDisable()
     {
+        StopAllCoroutines();
         if (AlienApprovalManager.Instance != null)
             AlienApprovalManager.Instance.OnApprovalChanged -= UpdateDisplay;
     }
