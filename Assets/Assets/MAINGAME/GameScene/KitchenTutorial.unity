@@ -920,7 +920,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7912033420225402347, guid: c1438993524e9984fa24aac7a689bc47, type: 3}
       propertyPath: m_text
-      value: Fries
+      value: Burger
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -1956,18 +1956,18 @@ MonoBehaviour:
     onStepComplete:
       m_PersistentCalls:
         m_Calls: []
-  - inspectorTitle: fries shelf
-    stepName: fries shelf
+  - inspectorTitle: patty shelf
+    stepName: patty shelf
     isNewChapter: 0
-    promptText: Click on the raw fries shelf to grab a bag of raw fries - This is
-      the job of the prep cook they prepare the ingredients for the Line cooks
-    worldFocusObject: {fileID: 1171961948}
+    promptText: Lets make a burger, First grab a raw patty from the shelf - This
+      is the job of the prep cook they prepare the ingredients for the Line cooks
+    worldFocusObject: {fileID: 819839260}
     uiFocusObject: {fileID: 0}
     worldArrowOffset: {x: 4, y: 12, z: 0}
     uiArrowOffset: {x: 20, y: -50}
     uiArrowRotation: -90
-    moveCamera: 0
-    cameraTarget: {fileID: 0}
+    moveCamera: 1
+    cameraTarget: {fileID: 1254524929}
     cameraSpeed: 3
     requiredItemName: 
     advanceOnInteract: 1
@@ -1989,6 +1989,114 @@ MonoBehaviour:
     isNewChapter: 0
     promptText: ok now place it on the counter to hand it to the line cook
     worldFocusObject: {fileID: 420901023}
+    uiFocusObject: {fileID: 0}
+    worldArrowOffset: {x: 0, y: 8, z: 0}
+    uiArrowOffset: {x: -350, y: -50}
+    uiArrowRotation: 90
+    moveCamera: 0
+    cameraTarget: {fileID: 0}
+    cameraSpeed: 3
+    requiredItemName: 
+    advanceOnInteract: 1
+    advanceByTimer: 0
+    delayDuration: 1
+    isAutoDemonstration: 0
+    actorToControl: {fileID: 0}
+    useDarkOverlay: 0
+    hideDialogueBox: 0
+    customStepUI: {fileID: 709562232}
+    onStepStart:
+      m_PersistentCalls:
+        m_Calls: []
+    onStepComplete:
+      m_PersistentCalls:
+        m_Calls: []
+  - inspectorTitle: buns shelf
+    stepName: buns shelf
+    isNewChapter: 0
+    promptText: 'the burger recipe requires 3 ingredients next grab the buns '
+    worldFocusObject: {fileID: 792161663}
+    uiFocusObject: {fileID: 0}
+    worldArrowOffset: {x: -1, y: 12, z: 0}
+    uiArrowOffset: {x: 20, y: -50}
+    uiArrowRotation: -90
+    moveCamera: 1
+    cameraTarget: {fileID: 420901023}
+    cameraSpeed: 3
+    requiredItemName: 
+    advanceOnInteract: 1
+    advanceByTimer: 0
+    delayDuration: 1
+    isAutoDemonstration: 0
+    actorToControl: {fileID: 0}
+    useDarkOverlay: 0
+    hideDialogueBox: 0
+    customStepUI: {fileID: 709562232}
+    onStepStart:
+      m_PersistentCalls:
+        m_Calls: []
+    onStepComplete:
+      m_PersistentCalls:
+        m_Calls: []
+  - inspectorTitle: counter
+    stepName: counter
+    isNewChapter: 0
+    promptText: place it next to the patty
+    worldFocusObject: {fileID: 1449566737}
+    uiFocusObject: {fileID: 0}
+    worldArrowOffset: {x: 0, y: 8, z: 0}
+    uiArrowOffset: {x: -350, y: -50}
+    uiArrowRotation: 90
+    moveCamera: 0
+    cameraTarget: {fileID: 0}
+    cameraSpeed: 3
+    requiredItemName: 
+    advanceOnInteract: 1
+    advanceByTimer: 0
+    delayDuration: 1
+    isAutoDemonstration: 0
+    actorToControl: {fileID: 0}
+    useDarkOverlay: 0
+    hideDialogueBox: 0
+    customStepUI: {fileID: 709562232}
+    onStepStart:
+      m_PersistentCalls:
+        m_Calls: []
+    onStepComplete:
+      m_PersistentCalls:
+        m_Calls: []
+  - inspectorTitle: cheese shelf
+    stepName: cheese shelf
+    isNewChapter: 0
+    promptText: Lastly to finish it off grab some cheese from the cheese shelf
+    worldFocusObject: {fileID: 40975137}
+    uiFocusObject: {fileID: 0}
+    worldArrowOffset: {x: 4, y: 12, z: 0}
+    uiArrowOffset: {x: 20, y: -50}
+    uiArrowRotation: -90
+    moveCamera: 1
+    cameraTarget: {fileID: 1254524929}
+    cameraSpeed: 3
+    requiredItemName: 
+    advanceOnInteract: 1
+    advanceByTimer: 0
+    delayDuration: 1
+    isAutoDemonstration: 0
+    actorToControl: {fileID: 0}
+    useDarkOverlay: 0
+    hideDialogueBox: 0
+    customStepUI: {fileID: 709562232}
+    onStepStart:
+      m_PersistentCalls:
+        m_Calls: []
+    onStepComplete:
+      m_PersistentCalls:
+        m_Calls: []
+  - inspectorTitle: counter
+    stepName: counter
+    isNewChapter: 0
+    promptText: Place it next to the buns
+    worldFocusObject: {fileID: 58752186}
     uiFocusObject: {fileID: 0}
     worldArrowOffset: {x: 0, y: 8, z: 0}
     uiArrowOffset: {x: -350, y: -50}
@@ -2039,17 +2147,17 @@ MonoBehaviour:
     onStepComplete:
       m_PersistentCalls:
         m_Calls: []
-  - inspectorTitle: grab fries
-    stepName: grab fries
+  - inspectorTitle: grab patty
+    stepName: grab patty
     isNewChapter: 0
-    promptText: ok now grab the fries
+    promptText: ok now grab the raw patty
     worldFocusObject: {fileID: 420901023}
     uiFocusObject: {fileID: 0}
     worldArrowOffset: {x: 0, y: 8, z: 0}
     uiArrowOffset: {x: -350, y: -50}
     uiArrowRotation: 90
-    moveCamera: 0
-    cameraTarget: {fileID: 0}
+    moveCamera: 1
+    cameraTarget: {fileID: 1661528732}
     cameraSpeed: 3
     requiredItemName: 
     advanceOnInteract: 1
@@ -2066,12 +2174,12 @@ MonoBehaviour:
     onStepComplete:
       m_PersistentCalls:
         m_Calls: []
-  - inspectorTitle: fryer
-    stepName: fryer
+  - inspectorTitle: grill
+    stepName: grill
     isNewChapter: 0
-    promptText: now click the fryer to cook the fries make sure to not wait for too
+    promptText: now click the grill to cook the patty make sure to not wait for too
       long or the fries might burn
-    worldFocusObject: {fileID: 570740252}
+    worldFocusObject: {fileID: 1994283125}
     uiFocusObject: {fileID: 0}
     worldArrowOffset: {x: 0, y: 8, z: 0}
     uiArrowOffset: {x: -350, y: -50}
@@ -2080,9 +2188,9 @@ MonoBehaviour:
     cameraTarget: {fileID: 0}
     cameraSpeed: 3
     requiredItemName: 
-    advanceOnInteract: 1
-    advanceByTimer: 0
-    delayDuration: 5
+    advanceOnInteract: 0
+    advanceByTimer: 1
+    delayDuration: 4
     isAutoDemonstration: 0
     actorToControl: {fileID: 0}
     useDarkOverlay: 0
@@ -2094,11 +2202,11 @@ MonoBehaviour:
     onStepComplete:
       m_PersistentCalls:
         m_Calls: []
-  - inspectorTitle: fryer
-    stepName: fryer
+  - inspectorTitle: grill
+    stepName: grill
     isNewChapter: 0
-    promptText: take fries and place it on the counter
-    worldFocusObject: {fileID: 570740252}
+    promptText: take patty and place it on the counter
+    worldFocusObject: {fileID: 1994283125}
     uiFocusObject: {fileID: 0}
     worldArrowOffset: {x: 0, y: 8, z: 0}
     uiArrowOffset: {x: -350, y: -50}
@@ -2176,11 +2284,92 @@ MonoBehaviour:
     onStepComplete:
       m_PersistentCalls:
         m_Calls: []
-  - inspectorTitle: Pick up fries
-    stepName: Pick up fries
+  - inspectorTitle: Pick up plate
+    stepName: Pick up plate
     isNewChapter: 0
-    promptText: pick up the fries
+    promptText: pick up the plate to assemble burgers
+    worldFocusObject: {fileID: 1254524929}
+    uiFocusObject: {fileID: 0}
+    worldArrowOffset: {x: 0, y: 8, z: 0}
+    uiArrowOffset: {x: 150, y: 60}
+    uiArrowRotation: -90
+    moveCamera: 1
+    cameraTarget: {fileID: 1736225602}
+    cameraSpeed: 3
+    requiredItemName: 
+    advanceOnInteract: 1
+    advanceByTimer: 0
+    delayDuration: 1
+    isAutoDemonstration: 0
+    actorToControl: {fileID: 0}
+    useDarkOverlay: 0
+    hideDialogueBox: 0
+    customStepUI: {fileID: 709562232}
+    onStepStart:
+      m_PersistentCalls:
+        m_Calls: []
+    onStepComplete:
+      m_PersistentCalls:
+        m_Calls: []
+  - inspectorTitle: Pick up patty
+    stepName: Pick up patty
+    isNewChapter: 0
+    promptText: pick up the cooked patty
     worldFocusObject: {fileID: 1118754379}
+    uiFocusObject: {fileID: 0}
+    worldArrowOffset: {x: 0, y: 8, z: 0}
+    uiArrowOffset: {x: 150, y: 60}
+    uiArrowRotation: -90
+    moveCamera: 1
+    cameraTarget: {fileID: 1736225602}
+    cameraSpeed: 3
+    requiredItemName: 
+    advanceOnInteract: 1
+    advanceByTimer: 0
+    delayDuration: 1
+    isAutoDemonstration: 0
+    actorToControl: {fileID: 0}
+    useDarkOverlay: 0
+    hideDialogueBox: 0
+    customStepUI: {fileID: 709562232}
+    onStepStart:
+      m_PersistentCalls:
+        m_Calls: []
+    onStepComplete:
+      m_PersistentCalls:
+        m_Calls: []
+  - inspectorTitle: Pick up buns
+    stepName: Pick up buns
+    isNewChapter: 0
+    promptText: pick up the buns
+    worldFocusObject: {fileID: 1449566737}
+    uiFocusObject: {fileID: 0}
+    worldArrowOffset: {x: 0, y: 8, z: 0}
+    uiArrowOffset: {x: 150, y: 60}
+    uiArrowRotation: -90
+    moveCamera: 1
+    cameraTarget: {fileID: 1736225602}
+    cameraSpeed: 3
+    requiredItemName: 
+    advanceOnInteract: 1
+    advanceByTimer: 0
+    delayDuration: 1
+    isAutoDemonstration: 0
+    actorToControl: {fileID: 0}
+    useDarkOverlay: 0
+    hideDialogueBox: 0
+    customStepUI: {fileID: 709562232}
+    onStepStart:
+      m_PersistentCalls:
+        m_Calls: []
+    onStepComplete:
+      m_PersistentCalls:
+        m_Calls: []
+  - inspectorTitle: Pick up chees
+    stepName: Pick up chees
+    isNewChapter: 0
+    promptText: pick up the cheese
+    worldFocusObject: {fileID: 58752186}
     uiFocusObject: {fileID: 0}
     worldArrowOffset: {x: 0, y: 8, z: 0}
     uiArrowOffset: {x: 150, y: 60}
@@ -2366,7 +2555,7 @@ MonoBehaviour:
     stepName: FINISH
     isNewChapter: 0
     promptText: Now youre ready to play the Kitchen Operation
-    worldFocusObject: {fileID: 574767844}
+    worldFocusObject: {fileID: 0}
     uiFocusObject: {fileID: 0}
     worldArrowOffset: {x: 0, y: 8, z: 0}
     uiArrowOffset: {x: 150, y: 60}
@@ -20645,13 +20834,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bfb1e7df6b7adab42891d4f44f0b54c6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  cam: {fileID: 863227610}
-  eventLayerMask:
-    serializedVersion: 2
-    m_Bits: 4608
-  maxRayDistance: 300
-  puddleUi: {fileID: 0}
-  tableUi: {fileID: 0}
 --- !u!225 &1113496786
 CanvasGroup:
   m_ObjectHideFlags: 0
@@ -22582,7 +22764,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 8ee7f8e9bfb500e4db03ebc0c7699d44, type: 3}
+  m_Sprite: {fileID: 21300000, guid: b98a36e4f0fc5574f9c4bdceaded7bbe, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -22720,13 +22902,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bfb1e7df6b7adab42891d4f44f0b54c6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  cam: {fileID: 0}
-  eventLayerMask:
-    serializedVersion: 2
-    m_Bits: 4608
-  maxRayDistance: 300
-  puddleUi: {fileID: 0}
-  tableUi: {fileID: 0}
 --- !u!114 &1271245465
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -25732,7 +25907,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 8ee7f8e9bfb500e4db03ebc0c7699d44, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 691457362c7e0494cbc3931659f4f918, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -26022,7 +26197,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 8ee7f8e9bfb500e4db03ebc0c7699d44, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 3795a7fef735bd9438db47f7ab546df9, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -28857,7 +29032,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 8ee7f8e9bfb500e4db03ebc0c7699d44, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 97397f16c60e007419d2e9710b9363a6, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
