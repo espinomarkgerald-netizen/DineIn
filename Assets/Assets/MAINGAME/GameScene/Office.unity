@@ -46504,7 +46504,7 @@ MonoBehaviour:
   managementSceneName: Office
   lobbySceneName: Lobby1
   kitchenSceneName: Kitchen
-  currentDay: 10
+  currentDay: 1
   currentPhase: 0
   currentDayHalf: 0
   lobbyCompleted: 0

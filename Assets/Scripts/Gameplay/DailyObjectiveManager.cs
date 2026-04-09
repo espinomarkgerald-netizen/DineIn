@@ -185,17 +185,14 @@ public class DailyObjectiveManager : MonoBehaviour
 
         if (!mandatoryPassed)
             grade = ObjectiveGrade.F;
-        else if (bonusPassed && secondaryPassed)
+        else if (secondaryPassed && bonusPassed)
             grade = ObjectiveGrade.S;
         else if (secondaryPassed)
             grade = ObjectiveGrade.A;
-        else
+        else if (bonusPassed)
             grade = ObjectiveGrade.B;
-
-        // C is only reached if mandatory passed but nothing else —
-        // the branch above covers B for that case, so C is not directly reachable
-        // unless we add a fourth objective. Keep the mapping clean.
-        // F is explicitly set when mandatory fails.
+        else
+            grade = ObjectiveGrade.C;
 
         LastGrade = grade;
 
@@ -285,6 +282,13 @@ public class DailyObjectiveManager : MonoBehaviour
             return null;
         }
 
-        return pool[UnityEngine.Random.Range(0, pool.Count)];
+        var source = pool[UnityEngine.Random.Range(0, pool.Count)];
+        return new ObjectiveDefinition
+        {
+            type                = source.type,
+            descriptionTemplate = source.descriptionTemplate,
+            baseTargetValue     = source.baseTargetValue,
+            scalingPerDay       = source.scalingPerDay
+        };
     }
 }

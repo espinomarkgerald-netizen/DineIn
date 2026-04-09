@@ -22,17 +22,9 @@ public class AlienApprovalHUD : MonoBehaviour
     private void Start()
     {
         if (AlienApprovalManager.Instance == null)
-        {
-            Debug.LogWarning("[AlienApprovalHUD] AlienApprovalManager.Instance is null.");
-            return;
-        }
-        else
-        {
             StartCoroutine(WaitForManager());
-        }
-
-        AlienApprovalManager.Instance.OnApprovalChanged += UpdateDisplay;
-        UpdateDisplay(AlienApprovalManager.Instance.Approval);
+        else
+            Subscribe();
     }
 
     private void OnDisable()
