@@ -705,7 +705,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fd752d71c3a7984e87bae9263808111, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  startingMoney: 20000
+  startingMoney: 5000
   transactionLog:
   - 
 --- !u!114 &41026935
@@ -7807,9 +7807,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   dailyExpenses:
   - name: Rent
-    amount: 0
+    amount: 500
   - name: Utilities
-    amount: 0
+    amount: 500
 --- !u!4 &449305943
 Transform:
   m_ObjectHideFlags: 0
@@ -12078,7 +12078,7 @@ GameObject:
   - component: {fileID: 665817324}
   - component: {fileID: 665817323}
   m_Layer: 5
-  m_Name: Button
+  m_Name: SettingsButton
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

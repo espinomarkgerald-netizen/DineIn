@@ -1,6 +1,9 @@
 using UnityEngine;
 using System.Collections.Generic;
 using TMPro;
+using System.Collections;
+using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 public class UIManager : MonoBehaviour
 {
@@ -10,6 +13,7 @@ public class UIManager : MonoBehaviour
     [SerializeField] private GameObject staticUI;
     [SerializeField] private GameObject sceneChanger;
     [SerializeField] private TMP_Text currentDayText;
+    [SerializeField] private Button settingsButton;
 
     [Header("Active UI Panels")]
     [SerializeField] private List<GameObject> activeUIs;
@@ -35,6 +39,9 @@ public class UIManager : MonoBehaviour
     [Header("HR Manager")]
     [SerializeField] private HRManager hrManager;
 
+    [Header("Scene transition")]
+    [SerializeField] private string mainMenuSceneName = "MainMenu";
+
     private GameObject currentActiveUI;
 
     private void Awake()
@@ -52,6 +59,7 @@ public class UIManager : MonoBehaviour
     {
         ShowStaticUI();
         RefreshPhaseUI();
+        WireSettingsButton();
     }
 
     public void ShowStaticUI()
@@ -288,5 +296,25 @@ public class UIManager : MonoBehaviour
 
         if (staticUI != null)
             staticUI.SetActive(false);
+    }
+
+    public void LoadMainMenu()
+    {
+        SceneManager.LoadScene(mainMenuSceneName);
+    }
+
+    private IEnumerator DelayedSceneLoad(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        LoadMainMenu();
+    }
+
+    private void WireSettingsButton()
+    {
+        if (settingsButton != null)
+        {
+            settingsButton.onClick.RemoveAllListeners();
+            settingsButton.onClick.AddListener(LoadMainMenu);
+        }
     }
 }

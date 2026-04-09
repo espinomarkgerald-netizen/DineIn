@@ -607,6 +607,7 @@ public class OfficeTutorialManager : MonoBehaviour
         yield return new WaitForSeconds(delay);
         LoadKitchenTutorial();
     }
+    
 
     // ─── Public accessors ─────────────────────────────────────────────────────
 
