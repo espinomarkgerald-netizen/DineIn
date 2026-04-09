@@ -66,8 +66,8 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
         var hands = WaiterHands.Instance;
         if (hands == null) return false;
 
-        if (hands.HasTicket) return true;
         if (hands.HasMoney) return true;
+        if (hands.HasTicket) return true;
         if (!hands.HasBill) return true;
 
         return false;
@@ -86,30 +86,19 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
         var hands = WaiterHands.Instance;
         if (hands == null) return;
 
-        if (hands.HasTicket)
-        {
-            var group = hands.holdingTicketFor;
-            if (group == null) return;
-
-            hands.ClearTicket();
-
-            if (kitchen != null)
-                kitchen.ProcessOrder(group);
-
-            return;
-        }
-
+        // Money must win over ticket here so payment auto-open never accidentally
+        // re-submits a stale ticket when the waiter is carrying both.
         if (hands.HasMoney)
         {
             OpenRegisterForHeldMoney(hands);
             return;
         }
 
+        if (TrySubmitHeldTicket(hands))
+            return;
+
         if (!hands.HasBill)
         {
-            // Skip all bill-paper logic during takeout kitchen and delivery phases.
-            // Takeout does not use bills — this prevents the "No BillPaper found" spam
-            // and stops dine-in cashier logic from interfering with the takeout flow.
             var takeoutPhase = TakeoutFlowManager.Instance?.CurrentPhase;
             if (takeoutPhase == TakeoutFlowManager.TakeoutPhase.WaitingForKitchen ||
                 takeoutPhase == TakeoutFlowManager.TakeoutPhase.WaitingForBagDelivery)
@@ -134,6 +123,37 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
         }
     }
 
+    private bool TrySubmitHeldTicket(WaiterHands hands)
+    {
+        if (hands == null || !hands.HasTicket)
+            return false;
+
+        var group = hands.holdingTicketFor;
+
+        if (group == null)
+        {
+            hands.ClearTicket();
+            return true;
+        }
+
+        if (group.state != CustomerGroup.GroupState.OrderTaken)
+        {
+            Debug.LogWarning($"[Cashier] Ignored stale ticket for {group.name}. Current state: {group.state}");
+            hands.ClearTicket();
+            return true;
+        }
+
+        if (kitchen == null)
+        {
+            Debug.LogWarning("[Cashier] KitchenManager is missing.");
+            return true;
+        }
+
+        hands.ClearTicket();
+        kitchen.ProcessOrder(group);
+        return true;
+    }
+
     private void TryAutoOpenRegister()
     {
         if (RoleManager.Instance == null) return;
@@ -147,23 +167,21 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
 
         if (!hands.HasMoney)
         {
-            // Only clear the guard if the register is also closed — never cancel
-            // mid-session just because money was cleared while the POS is open.
             var ui = GetRegisterUI();
             if (ui == null || !ui.IsOpen)
                 isOpeningRegister = false;
             return;
         }
 
-        var registerUI = GetRegisterUI();
-        if (registerUI == null)
+        var uiRegister = GetRegisterUI();
+        if (uiRegister == null)
         {
             if (debugAutoPay)
                 Debug.LogWarning("[Cashier AutoOpen] CashierRegisterUI not found.");
             return;
         }
 
-        if (registerUI.IsOpen || isOpeningRegister)
+        if (uiRegister.IsOpen || isOpeningRegister)
             return;
 
         Vector3 a = mover.transform.position;
@@ -214,10 +232,6 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
         int totalAmount = GetOrderTotal(group);
 
         Debug.Log($"[Cashier] Open register | received={receivedAmount} total={totalAmount} group={(group != null ? group.name : "NULL")}");
-
-        // Do NOT reset isOpeningRegister here — it stays true until OnHidden fires
-        // via HandleRegisterHidden(), preventing TryAutoOpenRegister from re-triggering
-        // while the POS is open or being opened.
         ui.OpenForPayment(group, receivedAmount, totalAmount);
     }
 
@@ -365,6 +379,12 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
     {
         if (group == null) return;
         if (kitchen == null) return;
+
+        if (group.state != CustomerGroup.GroupState.OrderTaken)
+        {
+            Debug.LogWarning($"[Cashier] ProcessTicket ignored for {group.name}. Current state: {group.state}");
+            return;
+        }
 
         kitchen.ProcessOrder(group);
     }

@@ -51,6 +51,13 @@ public class CustomerGroup : MonoBehaviour
         AtOrderPoint
     }
 
+    public enum CustomerType
+    {
+        Green,
+        Pink,
+        Blue
+    }
+
     [Serializable]
     public class SimpleOrder
     {
@@ -81,6 +88,50 @@ public class CustomerGroup : MonoBehaviour
     [Header("Runtime")]
     public GroupState state = GroupState.Spawning;
     public List<CustomerAgent> members = new List<CustomerAgent>();
+
+    [Header("Customer Type")]
+    [SerializeField] private CustomerType customerType = CustomerType.Green;
+
+    [Header("Type Profiles")]
+    [SerializeField] private CustomerTypeProfile profileGreen;
+    [SerializeField] private CustomerTypeProfile profilePink;
+    [SerializeField] private CustomerTypeProfile profileBlue;
+
+    [Header("Tip Popup")]
+    [SerializeField] private GameObject tipPopupPrefab;
+    [SerializeField] private Vector3 tipPopupOffset = new Vector3(0f, 1.9f, 0f);
+
+    private CustomerTypeProfile Profile
+    {
+        get
+        {
+            switch (customerType)
+            {
+                case CustomerType.Pink:
+                    return profilePink != null ? profilePink : profileGreen;
+
+                case CustomerType.Blue:
+                    return profileBlue != null ? profileBlue : profileGreen;
+
+                default:
+                    return profileGreen;
+            }
+        }
+    }
+
+    public CustomerType CurrentCustomerType => customerType;
+    public bool IsMessy => Profile != null && Profile.isMessy;
+
+    public string CustomerTypeDisplayName
+    {
+        get
+        {
+            if (Profile != null && !string.IsNullOrWhiteSpace(Profile.displayName))
+                return Profile.displayName;
+
+            return customerType.ToString();
+        }
+    }
 
     [Header("Selection")]
     public bool isSelected;
@@ -146,9 +197,6 @@ public class CustomerGroup : MonoBehaviour
     private bool hasLineSlotTarget;
     private Vector3 currentLineSlotTarget;
 
-
-
-
     [Header("Happy Comments")]
     [SerializeField]
     private string[] happyComments =
@@ -158,6 +206,17 @@ public class CustomerGroup : MonoBehaviour
         "Everything was perfect.",
         "We enjoyed it!",
         "We'll come back again."
+    };
+
+    [Header("VIP Tip Comments")]
+    [SerializeField]
+    private string[] vipTipComments =
+    {
+        "Excellent service. Here's a tip!",
+        "You handled us well. Keep the change.",
+        "Very impressive service. A little tip for you.",
+        "That was fast and clean. Here's a tip!",
+        "You earned this tip. Thank you!"
     };
 
     [Header("Unhappy Comments")]
@@ -289,6 +348,26 @@ public class CustomerGroup : MonoBehaviour
     [HideInInspector] public bool hasBeenGreeted = false;
 
     public void SetOrderPause(bool paused) => isOrderPaused = paused;
+
+    public void SetCustomerType(CustomerType type)
+    {
+        customerType = type;
+
+        if (Profile == null)
+        {
+            Debug.LogWarning($"[CustomerGroup] Missing profile for type {type} on {name}.");
+            return;
+        }
+
+        Debug.Log(
+            $"[CustomerGroup] {name} set to {CustomerTypeDisplayName} ({customerType}) | " +
+            $"order x{Profile.orderPatienceMultiplier}, " +
+            $"line x{Profile.linePatienceMultiplier}, " +
+            $"eat x{Profile.eatDurationMultiplier}, " +
+            $"tip={Profile.tipAmount}, " +
+            $"messy={Profile.isMessy}"
+        );
+    }
 
     private void Awake()
     {
@@ -473,7 +552,8 @@ public class CustomerGroup : MonoBehaviour
 
         GenerateRandomOrder();
 
-        if (currentOrder == null || currentOrder.contents == null || currentOrder.contents.Count == 0 || currentOrder.name == "No Food Available")
+        if (currentOrder == null || currentOrder.contents == null ||
+            currentOrder.contents.Count == 0 || currentOrder.name == "No Food Available")
         {
             BecomeUnhappyAndLeave();
             yield break;
@@ -506,7 +586,11 @@ public class CustomerGroup : MonoBehaviour
         {
             if (!isOrderPaused)
             {
-                timeLeft -= Time.deltaTime;
+                float mult = Profile != null
+                    ? Mathf.Max(0.01f, Profile.orderPatienceMultiplier)
+                    : 1f;
+
+                timeLeft -= Time.deltaTime * mult;
 
                 if (bubbleUI != null)
                     bubbleUI.SetPatience(Mathf.Clamp01(timeLeft / patience));
@@ -560,23 +644,12 @@ public class CustomerGroup : MonoBehaviour
 
         List<int> validOrderTypes = new List<int>();
 
-        if (HasAllFoods("Chicken"))
-            validOrderTypes.Add(0);
-
-        if (HasAllFoods("Fries"))
-            validOrderTypes.Add(1);
-
-        if (HasAllFoods("Burger"))
-            validOrderTypes.Add(2);
-
-        if (HasAllFoods("Chicken", "Fries"))
-            validOrderTypes.Add(3);
-
-        if (HasAllFoods("Chicken", "Burger"))
-            validOrderTypes.Add(4);
-
-        if (HasAllFoods("Burger", "Fries"))
-            validOrderTypes.Add(5);
+        if (HasAllFoods("Chicken")) validOrderTypes.Add(0);
+        if (HasAllFoods("Fries")) validOrderTypes.Add(1);
+        if (HasAllFoods("Burger")) validOrderTypes.Add(2);
+        if (HasAllFoods("Chicken", "Fries")) validOrderTypes.Add(3);
+        if (HasAllFoods("Chicken", "Burger")) validOrderTypes.Add(4);
+        if (HasAllFoods("Burger", "Fries")) validOrderTypes.Add(5);
 
         if (validOrderTypes.Count == 0)
         {
@@ -696,8 +769,7 @@ public class CustomerGroup : MonoBehaviour
 
     public string GetCurrentOrderSummary()
     {
-        if (currentOrder == null)
-            return "No Order";
+        if (currentOrder == null) return "No Order";
 
         string result = "";
 
@@ -714,9 +786,7 @@ public class CustomerGroup : MonoBehaviour
 
     public List<string> GetCurrentOrderContents()
     {
-        if (currentOrder == null)
-            return new List<string>();
-
+        if (currentOrder == null) return new List<string>();
         return new List<string>(currentOrder.contents);
     }
 
@@ -736,14 +806,9 @@ public class CustomerGroup : MonoBehaviour
 
     private bool IsCorrectDeliveredOrder(List<string> deliveredContents)
     {
-        if (currentOrder == null || currentOrder.contents == null)
-            return false;
-
-        if (deliveredContents == null)
-            return false;
-
-        if (currentOrder.contents.Count != deliveredContents.Count)
-            return false;
+        if (currentOrder == null || currentOrder.contents == null) return false;
+        if (deliveredContents == null) return false;
+        if (currentOrder.contents.Count != deliveredContents.Count) return false;
 
         List<string> expected = new List<string>(currentOrder.contents);
         List<string> delivered = new List<string>(deliveredContents);
@@ -762,15 +827,13 @@ public class CustomerGroup : MonoBehaviour
 
     private int GetOrderTotal()
     {
-        if (currentOrder == null)
-            return 0;
+        if (currentOrder == null) return 0;
 
         int quantity = Mathf.Max(1, currentOrder.quantity);
 
         if (OrderChecklistUI.Instance != null)
             return OrderChecklistUI.Instance.GetOrderTotalFromContents(currentOrder.contents) * quantity;
 
-        // Fallback: use baked unit price + hardcoded drink price.
         int total = currentOrder.unitPrice * quantity;
 
         for (int i = 0; i < currentOrder.contents.Count; i++)
@@ -850,22 +913,19 @@ public class CustomerGroup : MonoBehaviour
         }
 
         Canvas.ForceUpdateCanvases();
-
         Debug.Log($"[CustomerGroup] Spawned order alert bubble for {name} | order={GetCurrentOrderSummary()}");
     }
 
     public void TakeOrderFromWaiter(FoodType food, DrinkType drink)
     {
-        if (state != GroupState.ReadyToOrder)
-            return;
+        if (state != GroupState.ReadyToOrder) return;
 
         ConfirmOrder(food, drink);
 
         if (orderBubbleInstance != null)
         {
             var shaker = orderBubbleInstance.GetComponentInChildren<UIShake>(true);
-            if (shaker != null)
-                shaker.StopShake(true);
+            if (shaker != null) shaker.StopShake(true);
         }
 
         SetState(GroupState.OrderTaken);
@@ -933,8 +993,7 @@ public class CustomerGroup : MonoBehaviour
 
     public void ReceiveFoodFromWaiter(List<string> deliveredContents)
     {
-        if (state != GroupState.OrderTaken)
-            return;
+        if (state != GroupState.OrderTaken) return;
 
         bool isCorrectOrder = IsCorrectDeliveredOrder(deliveredContents);
 
@@ -1025,7 +1084,8 @@ public class CustomerGroup : MonoBehaviour
 
     private IEnumerator EatThenNeedBill()
     {
-        float eat = UnityEngine.Random.Range(minEatSeconds, maxEatSeconds);
+        float mult = Profile != null ? Mathf.Max(0.1f, Profile.eatDurationMultiplier) : 1f;
+        float eat = UnityEngine.Random.Range(minEatSeconds, maxEatSeconds) * mult;
         yield return new WaitForSeconds(eat);
 
         ClearEatingBubble();
@@ -1088,7 +1148,6 @@ public class CustomerGroup : MonoBehaviour
                 return validAmounts[i];
         }
 
-        // Total exceeds largest denomination — round up to nearest 1000.
         return Mathf.CeilToInt(total / 1000f) * 1000;
     }
 
@@ -1104,6 +1163,13 @@ public class CustomerGroup : MonoBehaviour
         {
             ReportFinalResult(FinalResult.Happy);
             ShowThought(happyComments, happyFaceSprite);
+
+            if (ShouldShowVipTip())
+            {
+                GameDayManager.Instance?.RegisterTip(Profile.tipAmount);
+                SpawnTipPopup(Profile.tipAmount);
+                Debug.Log($"[CustomerGroup] {name} ({customerType}) left a tip of {Profile.tipAmount}.");
+            }
         }
 
         ClearEatingBubble();
@@ -1144,9 +1210,6 @@ public class CustomerGroup : MonoBehaviour
         if (shouldShowAngryThoughtOnLeave && state == GroupState.Leaving)
             ShowThought(angryComments, angryFaceSprite);
 
-        // Drive the full takeout exit: move the group to the exit point and despawn.
-        // This covers both the happy path (bag delivered) and all timeout paths
-        // (order patience expired, line patience expired) that reach StartLeaving().
         if (IsTakeout)
         {
             TakeoutQueueManager qm = TakeoutQueueManager.Instance;
@@ -1176,11 +1239,6 @@ public class CustomerGroup : MonoBehaviour
         StartCoroutine(LeaveToExitFlow());
     }
 
-    /// <summary>
-    /// Finds any FoodTrayInteractable whose tray targets this group and notifies it
-    /// that the group is leaving, so the pickup button can appear even after this
-    /// GameObject is destroyed.
-    /// </summary>
     private void NotifyTrayGroupLeaving()
     {
         FoodTrayInteractable[] trays = FindObjectsByType<FoodTrayInteractable>(
@@ -1206,7 +1264,6 @@ public class CustomerGroup : MonoBehaviour
 
     private IEnumerator LeaveToExitFlow()
     {
-        // Takeout exit is handled by TakeoutQueueManager — do not run the dine-in booth exit flow.
         if (IsTakeout)
             yield break;
 
@@ -1369,6 +1426,77 @@ public class CustomerGroup : MonoBehaviour
         thoughtRoutine = StartCoroutine(HideThoughtBubbleAfterDelay());
     }
 
+    private void ShowCustomThought(string message, Sprite faceSprite)
+    {
+        if (thoughtBubblePrefab == null) return;
+        ResolveCanvas();
+        if (gameplayCanvas == null) return;
+        if (string.IsNullOrWhiteSpace(message)) return;
+
+        if (thoughtRoutine != null)
+            StopCoroutine(thoughtRoutine);
+
+        ClearThoughtBubble();
+
+        thoughtBubbleInstance = Instantiate(thoughtBubblePrefab, gameplayCanvas.transform);
+
+        var follow = thoughtBubbleInstance.GetComponentInChildren<UIFollowWorldPoint>(true);
+        if (follow != null)
+            follow.Init(groupUiAnchor, thoughtBubbleOffset, GetFollowCam());
+
+        TMP_Text text = thoughtBubbleInstance.GetComponentInChildren<TMP_Text>(true);
+        if (text != null)
+            text.text = message;
+
+        Transform moodsHolder = FindChildRecursive(thoughtBubbleInstance.transform, "Moods");
+        if (moodsHolder != null)
+        {
+            Image moodImage = moodsHolder.GetComponent<Image>();
+
+            if (moodImage == null)
+                moodImage = moodsHolder.GetComponentInChildren<Image>(true);
+
+            if (moodImage != null)
+            {
+                moodImage.sprite = faceSprite;
+                moodImage.enabled = true;
+            }
+            else
+            {
+                Debug.LogWarning("[CustomerGroup] No Image found in Moods");
+            }
+        }
+        else
+        {
+            Debug.LogWarning("[CustomerGroup] Moods object not found in prefab");
+        }
+
+        thoughtRoutine = StartCoroutine(HideThoughtBubbleAfterDelay());
+    }
+
+    private bool ShouldShowVipTipBubble()
+    {
+        return customerType == CustomerType.Pink &&
+               Profile != null &&
+               Profile.tipAmount > 0;
+    }
+
+    private void ShowHappyOrTipThought()
+    {
+        if (ShouldShowVipTipBubble())
+        {
+            string message = GetRandomComment(vipTipComments);
+
+            if (!string.IsNullOrWhiteSpace(message))
+            {
+                ShowCustomThought($"{message} (+₱{Profile.tipAmount} tip)", happyFaceSprite);
+                return;
+            }
+        }
+
+        ShowThought(happyComments, happyFaceSprite);
+    }
+
     private IEnumerator HideThoughtBubbleAfterDelay()
     {
         yield return new WaitForSeconds(thoughtBubbleDuration);
@@ -1411,8 +1539,7 @@ public class CustomerGroup : MonoBehaviour
 
     private void ReportFinalResult(FinalResult result)
     {
-        if (finalResultReported)
-            return;
+        if (finalResultReported) return;
 
         finalResultReported = true;
         finalResult = result;
@@ -1530,11 +1657,6 @@ public class CustomerGroup : MonoBehaviour
         return count > 0 ? sum / count : transform.position;
     }
 
-    /// <summary>
-    /// Returns the current world-space centre of all members in this group.
-    /// Used by TakeoutCustomerInteractable so the waiter walks to where the
-    /// members actually are, not to the group root (which is the spawn point).
-    /// </summary>
     public Vector3 GetCurrentWorldCenter() => GetMembersCenterWorld();
 
     public bool CanBeGreeted()
@@ -1611,7 +1733,6 @@ public class CustomerGroup : MonoBehaviour
 
     private void UpdateLinePatience()
     {
-        
         if (debugForceShowLinePatience)
         {
             EnsureLinePatienceUI();
@@ -1646,8 +1767,9 @@ public class CustomerGroup : MonoBehaviour
         if (linePatienceInstance != null && !linePatienceInstance.activeSelf)
             linePatienceInstance.SetActive(true);
 
-        float drainMultiplier = hasBeenGreeted ? greetedLinePatienceDrainMultiplier : 1f;
-        linePatienceRemaining -= Time.deltaTime * Mathf.Max(0.01f, drainMultiplier);
+        float baseDrain = hasBeenGreeted ? greetedLinePatienceDrainMultiplier : 1f;
+        float typeMult = Profile != null ? Mathf.Max(0.01f, Profile.linePatienceMultiplier) : 1f;
+        linePatienceRemaining -= Time.deltaTime * baseDrain * typeMult;
 
         float normalized = Mathf.Clamp01(linePatienceRemaining / Mathf.Max(1f, linePatienceSeconds));
 
@@ -1660,21 +1782,13 @@ public class CustomerGroup : MonoBehaviour
         linePatienceRemaining = 0f;
         linePatienceExpired = true;
         HandleLinePatienceExpired();
-
-        
     }
 
     private bool CanUseLinePatience()
     {
-        if (linePatienceExpired)
-            return false;
-
-        if (hasBeenAssigned)
-            return false;
-
-        if (!hasLineSlotTarget)
-            return false;
-
+        if (linePatienceExpired) return false;
+        if (hasBeenAssigned) return false;
+        if (!hasLineSlotTarget) return false;
         return state == GroupState.Waiting;
     }
 
@@ -2016,12 +2130,6 @@ public class CustomerGroup : MonoBehaviour
         takeoutQueueState = value;
     }
 
-    /// <summary>
-    /// Activates or deactivates the delivery target highlight so the waiter knows
-    /// which takeout customer to approach when carrying the correct bag.
-    /// Uses the dedicated deliveryHighlightVisual if assigned, otherwise falls back
-    /// to the selectionVisual.
-    /// </summary>
     public void SetDeliveryHighlight(bool active)
     {
         if (!IsTakeout)
@@ -2094,12 +2202,9 @@ public class CustomerGroup : MonoBehaviour
         if (!IsTakeout)
             return false;
 
-        // Accept any state that means the group has placed its order and is waiting.
-        // After payment and kitchen prep the state may be Waiting or WaitingToOrder
-        // rather than OrderTaken, depending on timing.
         bool validState = state == GroupState.OrderTaken
-                       || state == GroupState.Waiting
-                       || state == GroupState.WaitingToOrder;
+                    || state == GroupState.Waiting
+                    || state == GroupState.WaitingToOrder;
 
         if (!validState)
         {
@@ -2107,12 +2212,9 @@ public class CustomerGroup : MonoBehaviour
             return false;
         }
 
-        // For takeout: if the order contents were cleared after payment/kitchen processing,
-        // skip the contents match. Group identity was already validated by TryDeliverTo
-        // (same targetGroup reference set at bag spawn time) before reaching this method.
         bool skipContentsCheck = currentOrder == null
-                              || currentOrder.contents == null
-                              || currentOrder.contents.Count == 0;
+                            || currentOrder.contents == null
+                            || currentOrder.contents.Count == 0;
         bool isCorrectOrder = skipContentsCheck || IsCorrectDeliveredOrder(deliveredContents);
 
         if (!isCorrectOrder)
@@ -2124,6 +2226,13 @@ public class CustomerGroup : MonoBehaviour
         GameDayManager.Instance?.RegisterFoodDelivered();
         ReportFinalResult(FinalResult.Happy);
         ShowThought(happyComments, happyFaceSprite);
+
+        if (ShouldShowVipTip())
+        {
+            GameDayManager.Instance?.RegisterTip(Profile.tipAmount);
+            SpawnTipPopup(Profile.tipAmount);
+            Debug.Log($"[CustomerGroup] {name} ({customerType}) left a takeout tip of {Profile.tipAmount}.");
+        }
 
         ClearOrderBubble();
         ClearBillBubble();
@@ -2137,7 +2246,74 @@ public class CustomerGroup : MonoBehaviour
         return true;
     }
 
-    
-    
-}
+    public string GetCustomerTypeName()
+    {
+        if (Profile != null && !string.IsNullOrWhiteSpace(Profile.displayName))
+            return Profile.displayName;
 
+        return customerType.ToString();
+    }
+
+    public Sprite GetCustomerTypeImage()
+    {
+        return Profile != null ? Profile.customerImage : null;
+    }
+
+    public string GetCustomerOpeningMessage()
+    {
+        if (Profile == null)
+            return string.Empty;
+
+        return Profile.GetRandomOpeningMessage();
+    }
+
+    private bool ShouldShowVipTip()
+    {
+        return customerType == CustomerType.Pink &&
+            Profile != null &&
+            Profile.tipAmount > 0;
+    }
+
+    private void SpawnTipPopup(int amount)
+    {
+        if (tipPopupPrefab == null || amount <= 0)
+            return;
+
+        ResolveCanvas();
+        if (gameplayCanvas == null)
+            return;
+
+        Transform anchor = assignedBooth != null && assignedBooth.tableNumberAnchor != null
+            ? assignedBooth.tableNumberAnchor
+            : groupUiAnchor;
+
+        if (anchor == null)
+            return;
+
+        GameObject instance = Instantiate(tipPopupPrefab, gameplayCanvas.transform);
+        instance.name = $"{name}_TipPopup";
+
+        RectTransform rootRect = instance.GetComponent<RectTransform>();
+        if (rootRect != null)
+        {
+            rootRect.localScale = Vector3.one;
+            rootRect.anchoredPosition3D = Vector3.zero;
+        }
+
+        CanvasGroup[] canvasGroups = instance.GetComponentsInChildren<CanvasGroup>(true);
+        for (int i = 0; i < canvasGroups.Length; i++)
+        {
+            canvasGroups[i].alpha = 1f;
+            canvasGroups[i].interactable = false;
+            canvasGroups[i].blocksRaycasts = false;
+        }
+
+        var follow = instance.GetComponentInChildren<UIFollowWorldPoint>(true);
+        if (follow != null)
+            follow.Init(anchor, tipPopupOffset, GetFollowCam());
+
+        var ui = instance.GetComponentInChildren<TipPopupUI>(true);
+        if (ui != null)
+            ui.Show(amount);
+    }
+}

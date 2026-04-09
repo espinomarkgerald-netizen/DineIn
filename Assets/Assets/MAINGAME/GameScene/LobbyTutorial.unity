@@ -19589,6 +19589,7 @@ GameObject:
   - component: {fileID: 1385933977}
   - component: {fileID: 1385933978}
   - component: {fileID: 1385933979}
+  - component: {fileID: 1385933980}
   m_Layer: 0
   m_Name: RoleManager
   m_TagString: Untagged
@@ -19652,6 +19653,50 @@ MonoBehaviour:
   mainCameraController: {fileID: 1683000275}
   moveDuration: 0.65
   framingOffset: {x: 0, y: 0, z: 0}
+--- !u!114 &1385933980
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1385933976}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 49f8a57b4ab5bd7428501ee5cf4dd0d3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  dialogueUI: {fileID: 0}
+  speakerName: Manager
+  roles:
+  - roleName: 
+    description: 
+    button: {fileID: 0}
+    roleLabel: {fileID: 0}
+  - roleName: 
+    description: 
+    button: {fileID: 0}
+    roleLabel: {fileID: 0}
+  - roleName: 
+    description: 
+    button: {fileID: 0}
+    roleLabel: {fileID: 0}
+  - roleName: 
+    description: 
+    button: {fileID: 0}
+    roleLabel: {fileID: 0}
+  dimOverlay: {fileID: 0}
+  dimTargetAlpha: 0.55
+  dimFadeDuration: 0.35
+  buttonPanelHighlight: {fileID: 0}
+  pulseMin: 0.35
+  pulseMax: 1
+  pulseSpeed: 2.2
+  activeButtonTint: {r: 1, g: 0.92, b: 0.2, a: 1}
+  inactiveButtonTint: {r: 0.3, g: 0.3, b: 0.3, a: 1}
+  pointerArrow: {fileID: 1094261715432085740, guid: 82f580a2901e5524ca9fe56d44581953, type: 3}
+  pointerOffset: {x: 0, y: 34}
+  closingLine: "Good! You now know all four roles. Let's begin \u2014 you're starting
+    as the Host!"
 --- !u!1 &1391360930
 GameObject:
   m_ObjectHideFlags: 0
@@ -26765,6 +26810,7 @@ GameObject:
   - component: {fileID: 1899391354}
   - component: {fileID: 1899391356}
   - component: {fileID: 1899391355}
+  - component: {fileID: 1899391357}
   m_Layer: 0
   m_Name: TutorialManager
   m_TagString: Untagged
@@ -26856,6 +26902,7 @@ MonoBehaviour:
     highlightTarget: {fileID: 5371330271326737775}
   returnCameraAfterIntro: 1
   gameplayCameraAnchorAfterIntro: {fileID: 1683000274}
+  roleSwitchIntro: {fileID: 1899391357}
   openingDoneMessage: "Now that you know the roles, let\u2019s begin with the Host.
     Greet the first customer."
   tutorialIntroPanel: {fileID: 1978864202}
@@ -27008,6 +27055,7 @@ MonoBehaviour:
   reloadSceneWhenStartingNextDay: 1
   autoStartWhenSceneReloads: 1
   tutorialSceneName: LobbyTutorial
+  officeTutorialSceneName: OfficeTutorial
   nextDayButtonLabel: Next Day
   finishTutorialButtonLabel: Finish
   lockRoleDuringGuidedPhases: 1
@@ -27482,6 +27530,54 @@ MonoBehaviour:
   busserSinkTarget: {fileID: 947797748}
   phaseEntryHintDuration: 3.5
   busserArrowRefreshInterval: 0.2
+--- !u!114 &1899391357
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1899391339}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 49f8a57b4ab5bd7428501ee5cf4dd0d3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  dialogueUI: {fileID: 0}
+  speakerName: Manager
+  roles:
+  - roleName: Host
+    description: As the Host, you greet customers at the entrance and seat them at
+      a table. Without a host, no one gets in!
+    button: {fileID: 1193837349}
+    roleLabel: {fileID: 1193837347}
+  - roleName: Waiter
+    description: As the Waiter, you take orders from seated customers, pick up food
+      from the kitchen, and deliver it to their table.
+    button: {fileID: 1613871720}
+    roleLabel: {fileID: 1613871718}
+  - roleName: Cashier
+    description: As the Cashier, you process payments at the register when the waiter
+      brings money from the table.
+    button: {fileID: 1952862813}
+    roleLabel: {fileID: 1952862811}
+  - roleName: Busser
+    description: As the Busser, you clean dirty trays from tables after customers
+      leave, so new guests can be seated.
+    button: {fileID: 412066455}
+    roleLabel: {fileID: 412066453}
+  dimOverlay: {fileID: 0}
+  dimTargetAlpha: 0.6
+  dimFadeDuration: 0.3
+  buttonPanelHighlight: {fileID: 0}
+  pulseMin: 0.3
+  pulseMax: 1
+  pulseSpeed: 2.5
+  activeButtonTint: {r: 1, g: 0.92, b: 0.2, a: 1}
+  inactiveButtonTint: {r: 0.3, g: 0.3, b: 0.3, a: 1}
+  pointerArrow: {fileID: 0}
+  pointerOffset: {x: 0, y: 34}
+  closingLine: "Good! You now know all four roles. Let's begin \u2014 you're starting
+    as the Host!"
 --- !u!1 &1901889023
 GameObject:
   m_ObjectHideFlags: 0
@@ -36980,10 +37076,6 @@ MonoBehaviour:
   nameText: {fileID: 6430052117549678650}
   worldOffset: {x: 0.5, y: 6, z: 0}
   faceCamera: 1
-  desiredPixelHeight: 40
-  fallbackLocalHeight: 1
-  minWorldScale: 0.005
-  maxWorldScale: 0.05
 --- !u!114 &1295463531607866481
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -42567,10 +42659,6 @@ MonoBehaviour:
   nameText: {fileID: 2327422346077769907}
   worldOffset: {x: 0.5, y: 6, z: 0}
   faceCamera: 1
-  desiredPixelHeight: 40
-  fallbackLocalHeight: 1
-  minWorldScale: 0.005
-  maxWorldScale: 0.05
 --- !u!1 &2152168142325430263
 GameObject:
   m_ObjectHideFlags: 0
@@ -44233,10 +44321,6 @@ MonoBehaviour:
   nameText: {fileID: 2928089287521315950}
   worldOffset: {x: 0.5, y: 6, z: 0}
   faceCamera: 1
-  desiredPixelHeight: 40
-  fallbackLocalHeight: 1
-  minWorldScale: 0.005
-  maxWorldScale: 0.05
 --- !u!1 &3210275349737177373
 GameObject:
   m_ObjectHideFlags: 0
@@ -44305,10 +44389,6 @@ MonoBehaviour:
   nameText: {fileID: 9167122988348140571}
   worldOffset: {x: 0.5, y: 6, z: 0}
   faceCamera: 1
-  desiredPixelHeight: 40
-  fallbackLocalHeight: 1
-  minWorldScale: 0.005
-  maxWorldScale: 0.05
 --- !u!4 &3237122255285370941
 Transform:
   m_ObjectHideFlags: 0

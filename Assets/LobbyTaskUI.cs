@@ -24,6 +24,8 @@ public class LobbyTaskUI : MonoBehaviour
     [SerializeField] private bool useUnscaledTime = true;
     [SerializeField] private bool startHidden = true;
     [SerializeField] private bool keepRootActiveWhenHidden = true;
+    [SerializeField] private bool forceTopCenterAnchor = true;
+    [SerializeField] private bool bringToFrontOnShow = true;
 
     [Header("Raycast")]
     [SerializeField] private bool disableAllGraphicRaycasts = true;
@@ -33,14 +35,20 @@ public class LobbyTaskUI : MonoBehaviour
     private string currentTask = string.Empty;
     private string currentHelper = string.Empty;
 
+    private bool UseSingleTextMode =>
+        titleText == null &&
+        taskText == null &&
+        helperText != null;
+
+    private void Reset()
+    {
+        AutoAssignReferences(false);
+    }
+
     private void Awake()
     {
-        if (root == null && panelRect != null)
-            root = panelRect.gameObject;
-
-        if (canvasGroup == null && panelRect != null)
-            canvasGroup = panelRect.GetComponent<CanvasGroup>();
-
+        AutoAssignReferences(true);
+        EnsureAnchorSetup();
         ConfigureRaycastPassthrough();
         ApplyImmediate(!startHidden);
         RefreshTexts();
@@ -48,8 +56,13 @@ public class LobbyTaskUI : MonoBehaviour
 
     private void OnValidate()
     {
+        AutoAssignReferences(false);
+
         if (!Application.isPlaying)
+        {
+            EnsureAnchorSetup();
             ConfigureRaycastPassthrough();
+        }
     }
 
     public void ShowTask(string task, string helper = "")
@@ -60,10 +73,13 @@ public class LobbyTaskUI : MonoBehaviour
             return;
         }
 
-        currentTask = task;
-        currentHelper = helper ?? string.Empty;
+        currentTask = task.Trim();
+        currentHelper = helper == null ? string.Empty : helper.Trim();
 
         RefreshTexts();
+
+        if (bringToFrontOnShow && panelRect != null)
+            panelRect.SetAsLastSibling();
 
         if (!isVisible)
             StartTransition(true);
@@ -83,6 +99,20 @@ public class LobbyTaskUI : MonoBehaviour
 
     public void RefreshTexts()
     {
+        if (UseSingleTextMode)
+        {
+            string combined = currentTask;
+
+            if (!string.IsNullOrWhiteSpace(currentHelper))
+                combined = string.IsNullOrWhiteSpace(combined)
+                    ? currentHelper
+                    : currentTask + "\n" + currentHelper;
+
+            helperText.text = combined;
+            helperText.gameObject.SetActive(!string.IsNullOrWhiteSpace(combined));
+            return;
+        }
+
         if (titleText != null)
             titleText.text = title;
 
@@ -95,6 +125,8 @@ public class LobbyTaskUI : MonoBehaviour
 
             if (hideHelperWhenEmpty)
                 helperText.gameObject.SetActive(!string.IsNullOrWhiteSpace(currentHelper));
+            else
+                helperText.gameObject.SetActive(true);
         }
     }
 
@@ -118,8 +150,12 @@ public class LobbyTaskUI : MonoBehaviour
             if (!show && root != null && !keepRootActiveWhenHidden)
                 root.SetActive(false);
 
+            transitionRoutine = null;
             yield break;
         }
+
+        if (bringToFrontOnShow && show)
+            panelRect.SetAsLastSibling();
 
         Vector2 startPos = panelRect.anchoredPosition;
         Vector2 endPos = show ? shownAnchoredPosition : hiddenAnchoredPosition;
@@ -165,7 +201,10 @@ public class LobbyTaskUI : MonoBehaviour
             root.SetActive(show || keepRootActiveWhenHidden);
 
         if (panelRect != null)
+        {
             panelRect.anchoredPosition = show ? shownAnchoredPosition : hiddenAnchoredPosition;
+            panelRect.localScale = Vector3.one;
+        }
 
         if (canvasGroup != null)
         {
@@ -173,6 +212,66 @@ public class LobbyTaskUI : MonoBehaviour
             canvasGroup.interactable = false;
             canvasGroup.blocksRaycasts = false;
         }
+    }
+
+    private void AutoAssignReferences(bool allowAddCanvasGroup)
+    {
+        if (root == null)
+            root = gameObject;
+
+        if (panelRect == null)
+        {
+            if (transform.childCount > 0)
+                panelRect = transform.GetChild(0).GetComponent<RectTransform>();
+            else
+                panelRect = GetComponent<RectTransform>();
+        }
+
+        if (panelRect != null && canvasGroup == null)
+        {
+            canvasGroup = panelRect.GetComponent<CanvasGroup>();
+
+            if (canvasGroup == null && allowAddCanvasGroup)
+                canvasGroup = panelRect.gameObject.AddComponent<CanvasGroup>();
+        }
+
+        if (panelRect == null)
+            return;
+
+        TMP_Text[] texts = panelRect.GetComponentsInChildren<TMP_Text>(true);
+
+        if (titleText == null)
+            titleText = FindTextByName(texts, "title");
+
+        if (taskText == null)
+            taskText = FindTextByName(texts, "task");
+
+        if (helperText == null)
+            helperText = FindTextByName(texts, "helper");
+
+        if (taskText == null && helperText == null && texts.Length == 1)
+            taskText = texts[0];
+    }
+
+    private TMP_Text FindTextByName(TMP_Text[] texts, string contains)
+    {
+        for (int i = 0; i < texts.Length; i++)
+        {
+            if (texts[i] != null && texts[i].name.ToLower().Contains(contains))
+                return texts[i];
+        }
+
+        return null;
+    }
+
+    private void EnsureAnchorSetup()
+    {
+        if (!forceTopCenterAnchor || panelRect == null)
+            return;
+
+        panelRect.anchorMin = new Vector2(0.5f, 1f);
+        panelRect.anchorMax = new Vector2(0.5f, 1f);
+        panelRect.pivot = new Vector2(0.5f, 1f);
     }
 
     private void ConfigureRaycastPassthrough()

@@ -7,6 +7,7 @@ public class WarningSlideUI : MonoBehaviour
     public static WarningSlideUI Instance { get; private set; }
 
     [Header("References")]
+    [SerializeField] private GameObject rootObject;
     [SerializeField] private RectTransform panel;
     [SerializeField] private TMP_Text messageText;
     [SerializeField] private CanvasGroup canvasGroup;
@@ -30,17 +31,42 @@ public class WarningSlideUI : MonoBehaviour
 
         Instance = this;
 
+        if (rootObject == null)
+            rootObject = gameObject;
+
         if (panel == null)
             panel = transform as RectTransform;
+
+        if (panel == null)
+            panel = GetComponentInChildren<RectTransform>(true);
 
         if (canvasGroup == null)
             canvasGroup = GetComponent<CanvasGroup>();
 
-        panel.anchorMin = new Vector2(0.5f, 0f);
-        panel.anchorMax = new Vector2(0.5f, 0f);
-        panel.pivot = new Vector2(0.5f, 0f);
+        if (canvasGroup == null && panel != null)
+            canvasGroup = panel.GetComponent<CanvasGroup>();
+
+        if (canvasGroup == null && panel != null)
+            canvasGroup = panel.gameObject.AddComponent<CanvasGroup>();
+
+        if (panel != null)
+        {
+            panel.anchorMin = new Vector2(0.5f, 0f);
+            panel.anchorMax = new Vector2(0.5f, 0f);
+            panel.pivot = new Vector2(0.5f, 0f);
+        }
+        else
+        {
+            Debug.LogError("[WarningSlideUI] Panel reference is missing.", this);
+        }
 
         ApplyHiddenImmediate();
+    }
+
+    private void OnDestroy()
+    {
+        if (Instance == this)
+            Instance = null;
     }
 
     public void Show(string message)
@@ -48,8 +74,24 @@ public class WarningSlideUI : MonoBehaviour
         if (string.IsNullOrWhiteSpace(message))
             return;
 
-        if (messageText != null)
-            messageText.text = message;
+        if (rootObject != null && !rootObject.activeSelf)
+            rootObject.SetActive(true);
+
+        if (!gameObject.activeSelf)
+            gameObject.SetActive(true);
+
+        if (panel != null && !panel.gameObject.activeSelf)
+            panel.gameObject.SetActive(true);
+
+        if (panel == null || messageText == null || canvasGroup == null)
+        {
+            Debug.LogWarning("[WarningSlideUI] Missing references. Cannot show warning.", this);
+            return;
+        }
+
+        Debug.Log("[WarningSlideUI] Show: " + message, this);
+
+        messageText.text = message;
 
         if (showRoutine != null)
             StopCoroutine(showRoutine);
@@ -67,6 +109,17 @@ public class WarningSlideUI : MonoBehaviour
 
     private IEnumerator Animate(Vector2 fromPos, Vector2 toPos, float fromAlpha, float toAlpha, float duration)
     {
+        if (duration <= 0f)
+        {
+            if (panel != null)
+                panel.anchoredPosition = toPos;
+
+            if (canvasGroup != null)
+                canvasGroup.alpha = toAlpha;
+
+            yield break;
+        }
+
         float t = 0f;
 
         while (t < duration)

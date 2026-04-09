@@ -38208,7 +38208,7 @@ MonoBehaviour:
   managementSceneName: Office
   lobbySceneName: Lobby1
   kitchenSceneName: Kitchen
-  currentDay: 1
+  currentDay: 20
   currentPhase: 0
   currentDayHalf: 0
   lobbyCompleted: 0
