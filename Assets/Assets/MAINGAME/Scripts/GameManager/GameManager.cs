@@ -639,7 +639,7 @@ public class GameDayManager : MonoBehaviour
         }
 
         progressMoneyText.text =
-            $"₱{DailyFinanceBridge.Instance.EarnedToday} / ₱{DailyFinanceBridge.Instance.TotalRequiredEarningsToday}";
+            $"₱{DailyFinanceBridge.Instance.EarnedToday}";
     }
 
     private float CalculateProgress01()

@@ -128,7 +128,7 @@ public class DailyObjectiveManager : MonoBehaviour
     /// </summary>
     public void RollObjectivesForDay(int day, int maxGroupsThisShift)
     {
-        currentDay          = day;
+        currentDay = day;
         angryDeparturesToday = 0;
 
         ActiveMandatory = PickRandom(mandatoryPool);
@@ -154,15 +154,13 @@ public class DailyObjectiveManager : MonoBehaviour
                 );
         }
 
-        // Adjust MinGroupsServed objective so it never exceeds the groups that will spawn
+        // Clamp MinGroupsServed to maxGroupsThisShift but keep template intact
         if (ActiveMandatory != null && ActiveMandatory.type == ObjectiveType.MinGroupsServed)
         {
-            int target = Mathf.Min(ActiveMandatory.GetTargetForDay(day), maxGroupsThisShift);
-            ActiveMandatory.descriptionTemplate = $"Serve {target} groups";
-            ActiveMandatory.baseTargetValue = target; // optional: store the clamped value
+            int rawTarget = ActiveMandatory.GetTargetForDay(day);
+            ActiveMandatory.baseTargetValue = Mathf.Min(rawTarget, maxGroupsThisShift);
+            // Do NOT overwrite descriptionTemplate — keep "Serve {0} groups"
         }
-
-        // Optional: also adjust secondary/bonus objectives based on patience/difficulty
     }
 
     /// <summary>

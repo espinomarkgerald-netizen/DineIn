@@ -133,19 +133,8 @@ public class DailyReportUI : MonoBehaviour
         sb.AppendLine($"Orders Completed    {ordersCompleted}");
         sb.AppendLine($"Orders Failed       {ordersFailed}");
         sb.AppendLine();
-        sb.AppendLine("──── CUSTOMER MOOD ───────");
-        sb.AppendLine($"😊 Happy     {happy}");
-        sb.AppendLine($"😐 Neutral   {neutral}");
-        sb.AppendLine($"😡 Angry     {angry}");
-        sb.AppendLine();
-        sb.AppendLine("── CASH HANDLING ─────────");
-        sb.AppendLine(cashErrors == 0
-            ? "✓ No cash errors"
-            : $"⚠ {cashErrors} abandoned transaction{(cashErrors == 1 ? "" : "s")}");
-        sb.AppendLine();
         sb.AppendLine("──────── REVENUE ─────────");
         sb.AppendLine($"Total Revenue       ₱{revenue}");
-        sb.AppendLine($"Target Revenue      ₱{targetRevenue}");
         sb.AppendLine();
         sb.AppendLine("──────── EXPENSES ────────");
 

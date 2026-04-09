@@ -96,7 +96,7 @@ public class AlienDemandsPanel : MonoBehaviour
         if (label == null) return;
 
         string status = passed ? "[PASS]" : "[FAIL]";
-        string desc   = obj != null ? obj.descriptionTemplate : "—";
+        string desc = obj != null ? obj.GetDescription(DailyObjectiveManager.Instance.LastResultDay) : "—";
         label.text  = $"{status} {prefix}: {desc}";
         label.color = passed ? passColor : failColor;
     }

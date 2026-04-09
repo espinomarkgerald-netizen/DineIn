@@ -23,6 +23,7 @@ public class UIManager : MonoBehaviour
     [SerializeField] private GameObject recipeBook;
     [SerializeField] private GameObject receiptPanel;
     [SerializeField] private GameObject objectivesPanel;
+    [SerializeField] private GameObject almanacPanel;
 
     [Header("Settings Panel")]
     [SerializeField] private GameObject settingsPanel;
@@ -186,6 +187,9 @@ public class UIManager : MonoBehaviour
         if (objectivesPanel != null)
             objectivesPanel.SetActive(false);
 
+        if (almanacPanel != null)
+            almanacPanel.SetActive(false);
+
         currentActiveUI = null;
 
         if (staticUI != null)
@@ -203,6 +207,17 @@ public class UIManager : MonoBehaviour
             audioSettings.SetActive(true);
     }
 
+    public void OpenAlmanacPanel()
+    {
+        HideSettingsSubPanels();
+
+        if (settingsPanel != null)
+            settingsPanel.SetActive(false);
+
+        if (almanacPanel != null)
+            almanacPanel.SetActive(true);
+    }
+
     public void SettingsBackButton()
     {
         HideSettingsSubPanels();
@@ -218,6 +233,9 @@ public class UIManager : MonoBehaviour
 
         if (videoSettings != null)
             videoSettings.SetActive(false);
+
+        if (almanacPanel != null)
+            almanacPanel.SetActive(false);
     }
 
     public void SettingsToggle()
