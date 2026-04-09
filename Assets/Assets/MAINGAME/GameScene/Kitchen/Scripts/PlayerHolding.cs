@@ -19,8 +19,18 @@ public class PlayerHolding : MonoBehaviour {
     }
 
     public void Drop() {
-        heldObject.transform.parent = null;
-        heldObject.GetComponent<Collider>().enabled = true;
-        heldObject = null;
+        if (heldObject != null) {
+            heldObject.transform.parent = null;
+            heldObject.GetComponent<Collider>().enabled = true;
+            heldObject = null;
+        }
+    }
+
+    // --- NEW: TUTORIAL MAGIC ---
+    public void ConsumeItem() {
+        if (heldObject != null) {
+            Destroy(heldObject); // This permanently deletes the Coke!
+            heldObject = null;   // This tells the game your hands are empty again
+        }
     }
 }

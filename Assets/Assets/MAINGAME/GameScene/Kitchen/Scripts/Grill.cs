@@ -84,9 +84,17 @@ public class Grill : Counter {
                 showTrash = true;
             }
         } else {
-            // Check Tickets
+            // --- CHECK REAL TICKETS ---
             if (OrderManagerKitchen.Instance != null) {
                 foreach (var ticket in OrderManagerKitchen.Instance.activeOrders) {
+                    if (targetOrder1 != ItemTypeKitchen.None && ticket.missingItems.Contains(targetOrder1)) showP1 = true;
+                    if (targetOrder2 != ItemTypeKitchen.None && ticket.missingItems.Contains(targetOrder2)) showP2 = true;
+                }
+            }
+
+            // --- NEW: CHECK TUTORIAL TICKETS ---
+            if (TutorialOrderManager.Instance != null) {
+                foreach (var ticket in TutorialOrderManager.Instance.activeOrders) {
                     if (targetOrder1 != ItemTypeKitchen.None && ticket.missingItems.Contains(targetOrder1)) showP1 = true;
                     if (targetOrder2 != ItemTypeKitchen.None && ticket.missingItems.Contains(targetOrder2)) showP2 = true;
                 }

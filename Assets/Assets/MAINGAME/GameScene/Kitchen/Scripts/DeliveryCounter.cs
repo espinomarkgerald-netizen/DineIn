@@ -5,6 +5,16 @@ public class DeliveryCounter : Counter {
 
     public override void Interact(PlayerHolding player) {
 
+        // --- NEW: THE TUTORIAL SAFETY NET ---
+        // If the Order Manager is missing, just report the click to the tutorial and stop!
+        if (OrderManagerKitchen.Instance == null) {
+            if (KitchenTutorialManager.Instance != null) {
+                KitchenTutorialManager.Instance.ReportInteraction(transform);
+            }
+            return; // This completely stops the crash!
+        }
+        // ------------------------------------
+
         if (player.heldObject != null) {
             bool success = false;
 
