@@ -24,6 +24,8 @@ public class ShiftScaler : MonoBehaviour
     [SerializeField] private float basePatienceSeconds = 60f;
     [SerializeField] private float minPatienceSeconds  = 25f;
     [SerializeField] private int   maxScalingDay       = 20;
+    public float MinPatienceSeconds => minPatienceSeconds;
+    public float BasePatienceSeconds => basePatienceSeconds;
 
     [Header("Group Count Curve")]
     [SerializeField] private int baseGroupCount   = 8;

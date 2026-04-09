@@ -52,7 +52,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &5130879712110133326
 Transform:
   m_ObjectHideFlags: 0
@@ -1207,7 +1207,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &7435764298486239365
 RectTransform:
   m_ObjectHideFlags: 0
@@ -1308,6 +1308,7 @@ MonoBehaviour:
   billboardRoot: {fileID: 7435764298486239365}
   cam: {fileID: 0}
   faceCamera: 1
+  blockedMessageSeconds: 0.9
 --- !u!1 &8398524760587083217
 GameObject:
   m_ObjectHideFlags: 0
@@ -1613,7 +1614,7 @@ RectTransform:
   m_Father: {fileID: 237644431703433163}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}

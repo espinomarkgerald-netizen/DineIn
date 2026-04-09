@@ -86,15 +86,18 @@ public class GameFlowManager : MonoBehaviour
         DailyFinanceBridge.Instance?.ResetDay();
         FinanceManager.Instance?.ResetDailyExpenses();
         EmployeeManager.Instance?.ResetDailyAssignments();
-        DailyObjectiveManager.Instance?.RollObjectivesForDay(currentDay);
+
+        // Pass max groups from ShiftScaler
+        int maxGroupsThisShift = ShiftScaler.Instance != null
+            ? ShiftScaler.Instance.CurrentGroupCount
+            : 5;
+
+        DailyObjectiveManager.Instance?.RollObjectivesForDay(currentDay, maxGroupsThisShift);
 
         EquipmentManager.Instance?.UnlockByDay(currentDay);
         EquipmentShopManager shop = FindObjectOfType<EquipmentShopManager>();
         shop?.InitializeShop();
 
-        // RecipeManager lives in the Office scene and may not exist yet during
-        // this transition — UnlockByDay will also run in RecipeManager.Start
-        // once the Office scene loads, so this call is safe to skip if null.
         RecipeManager.Instance?.UnlockByDay(currentDay);
 
         SceneManager.LoadScene(managementSceneName);

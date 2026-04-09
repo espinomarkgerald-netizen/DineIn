@@ -13,7 +13,12 @@ public class OfficeStartDayButton : MonoBehaviour
     {
         int day = GameFlowManager.Instance != null ? GameFlowManager.Instance.CurrentDay : 1;
 
-        DailyObjectiveManager.Instance?.RollObjectivesForDay(day);
+        // Make sure ShiftScaler has applied scaling first
+        int maxGroupsThisShift = ShiftScaler.Instance != null
+            ? ShiftScaler.Instance.CurrentGroupCount
+            : 5; // fallback if ShiftScaler is not initialized yet
+
+        DailyObjectiveManager.Instance?.RollObjectivesForDay(day, maxGroupsThisShift);
 
         if (alienDemandsPanel != null)
             alienDemandsPanel.ShowPanel();

@@ -9517,6 +9517,7 @@ MonoBehaviour:
   staticUI: {fileID: 644625129}
   sceneChanger: {fileID: 1284927217}
   currentDayText: {fileID: 2128894747}
+  settingsButton: {fileID: 0}
   activeUIs:
   - {fileID: 944246048}
   - {fileID: 1990963041}
@@ -9530,6 +9531,7 @@ MonoBehaviour:
   equipmentShop: {fileID: 1123161378}
   recipeBook: {fileID: 372326554}
   receiptPanel: {fileID: 2000914042}
+  objectivesPanel: {fileID: 0}
   settingsPanel: {fileID: 99665300}
   audioSettings: {fileID: 1990963041}
   videoSettings: {fileID: 1696621367}
@@ -9538,6 +9540,7 @@ MonoBehaviour:
   kitchenUI: {fileID: 467886686}
   lobbyUI: {fileID: 1898722581}
   hrManager: {fileID: 608052895}
+  mainMenuSceneName: MainMenu
 --- !u!4 &522746015
 Transform:
   m_ObjectHideFlags: 0
@@ -16301,23 +16304,31 @@ MonoBehaviour:
     stock: 0
   kitchenTutorialSceneName: KitchenTutorial
   speakerName: Manager
-  introMessage: Welcome to the Office! Before you start the day, you need to set
-    everything up. I'll guide you through each section.
-  hrArrowMessage: First, tap the HR button to manage your employees.
-  hrBoardMessage: Assign at least one employee to each role. Close the board when
-    all roles are filled.
-  restockArrowMessage: Good! Now tap the Restock button to buy ingredients for today.
-  restockShopMessage: Buy enough stock for all the ingredients your recipes need.
-    Close the shop when everything is stocked.
-  equipmentArrowMessage: Next, tap the Equipment button to purchase kitchen equipment.
-  equipmentShopMessage: Buy at least one piece of equipment to upgrade your kitchen.
-    Close the shop when you're done.
-  recipeArrowMessage: Finally, check out the Recipe Book to see what dishes you can
-    prepare today.
-  recipeBookMessage: These are all the recipes available today. Study them well!
-    Close when you're ready.
-  completionMessage: Great work! The office is ready. Time to move to the Kitchen
-    tutorial!
+  introMessage: "Welcome to the Office! Today you\u2019ll learn how to set up and
+    manage your restaurant. I\u2019ll guide you through each section and explain
+    why every decision matters for smooth operations."
+  hrArrowMessage: First, tap the HR button to manage your employees. Staffing correctly
+    is key to efficient workflow and customer satisfaction.
+  hrBoardMessage: "Assign one employee to each role in the lobby. The panel shows
+    each employee\u2019s role, salary, and mastery level. Making smart choices here
+    teaches resource allocation and team management. Close the board only when all
+    roles are filled."
+  restockArrowMessage: Now, tap the Restock button to buy ingredients. Proper stock
+    levels prevent shortages and help you plan menu execution.
+  restockShopMessage: Buy enough ingredients to meet the requirements of all unlocked
+    recipes. Monitoring stock teaches inventory management and cost control. Close
+    the shop once all required items are purchased.
+  equipmentArrowMessage: Next, tap the Equipment button to purchase restaurant equipment.
+  equipmentShopMessage: Purchase at least one piece of equipment. Understanding equipment
+    impact demonstrates operational decision-making. Close the shop once ready.
+  recipeArrowMessage: "Finally, check the Recipe Book to see today\u2019s available
+    dishes. This helps you plan workflows and resource usage for the day."
+  recipeBookMessage: Review the recipes and study their ingredients. Learning this
+    builds menu knowledge and prepares you for kitchen operations. Close the book
+    when you feel confident.
+  completionMessage: "Excellent work! The office is ready and fully staffed. You\u2019ve
+    practiced staffing, inventory management, and equipment planning. Let\u2019s
+    move on to the Kitchen Tutorial to continue learning operational workflows."
   currentPhase: 0
 --- !u!1 &907269522
 GameObject:
@@ -22888,6 +22899,7 @@ MonoBehaviour:
   musicVol: {fileID: 2052721657}
   sfxVol: {fileID: 227472642}
   audioMixer: {fileID: 24100000, guid: 3fd0d86c1f880854d9b5971fafc00816, type: 2}
+  hospitalityVocabToggle: {fileID: 0}
 --- !u!4 &1318671623
 Transform:
   m_ObjectHideFlags: 0
@@ -27293,6 +27305,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e526a2d049d70d141988256556ab57eb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  rootObject: {fileID: 0}
   panel: {fileID: 2019888516}
   messageText: {fileID: 805821983}
   canvasGroup: {fileID: 1587955222}
@@ -34758,6 +34771,7 @@ MonoBehaviour:
   currentDayHalf: 0
   lobbyCompleted: 0
   kitchenCompleted: 0
+  gameOverScreen: {fileID: 0}
 --- !u!114 &2056118288
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -34785,6 +34799,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e6a574c4bb891fa4493af6a16922fa11, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  alienDemandsPanel: {fileID: 0}
 --- !u!1 &2059234066
 GameObject:
   m_ObjectHideFlags: 0

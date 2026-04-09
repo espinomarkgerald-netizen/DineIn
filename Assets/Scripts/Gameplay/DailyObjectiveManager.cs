@@ -73,6 +73,7 @@ public class DailyObjectiveManager : MonoBehaviour
     [SerializeField] private List<ObjectiveDefinition> mandatoryPool  = new();
     [SerializeField] private List<ObjectiveDefinition> secondaryPool  = new();
     [SerializeField] private List<ObjectiveDefinition> bonusPool      = new();
+    
 
     [Header("Grade → Approval Delta")]
     [SerializeField] private int gradeS_Bonus   =  5;
@@ -125,7 +126,7 @@ public class DailyObjectiveManager : MonoBehaviour
     /// Picks one objective from each pool at random for the given day.
     /// Call this at the start of each day, before showing the pre-shift panel.
     /// </summary>
-    public void RollObjectivesForDay(int day)
+    public void RollObjectivesForDay(int day, int maxGroupsThisShift)
     {
         currentDay          = day;
         angryDeparturesToday = 0;
@@ -133,6 +134,35 @@ public class DailyObjectiveManager : MonoBehaviour
         ActiveMandatory = PickRandom(mandatoryPool);
         ActiveSecondary = PickRandom(secondaryPool);
         ActiveBonus     = PickRandom(bonusPool);
+
+        if (ShiftScaler.Instance != null)
+        {
+            float patienceFactor = Mathf.InverseLerp(
+                ShiftScaler.Instance.MinPatienceSeconds,
+                ShiftScaler.Instance.BasePatienceSeconds,
+                ShiftScaler.Instance.CurrentPatienceSeconds
+            );
+
+            if (ActiveSecondary != null)
+                ActiveSecondary.baseTargetValue = Mathf.CeilToInt(
+                    ActiveSecondary.baseTargetValue * (1f + 0.5f * (1f - patienceFactor))
+                );
+
+            if (ActiveBonus != null)
+                ActiveBonus.baseTargetValue = Mathf.CeilToInt(
+                    ActiveBonus.baseTargetValue * (1f + 0.3f * (1f - patienceFactor))
+                );
+        }
+
+        // Adjust MinGroupsServed objective so it never exceeds the groups that will spawn
+        if (ActiveMandatory != null && ActiveMandatory.type == ObjectiveType.MinGroupsServed)
+        {
+            int target = Mathf.Min(ActiveMandatory.GetTargetForDay(day), maxGroupsThisShift);
+            ActiveMandatory.descriptionTemplate = $"Serve {target} groups";
+            ActiveMandatory.baseTargetValue = target; // optional: store the clamped value
+        }
+
+        // Optional: also adjust secondary/bonus objectives based on patience/difficulty
     }
 
     /// <summary>

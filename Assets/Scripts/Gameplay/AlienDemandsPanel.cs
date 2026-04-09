@@ -68,59 +68,24 @@ public class AlienDemandsPanel : MonoBehaviour
     /// </summary>
     public void ShowPanel()
     {
-        int day = GameFlowManager.Instance != null ? GameFlowManager.Instance.CurrentDay : 1;
+        int day = GameFlowManager.Instance?.CurrentDay ?? 1;
+        int maxGroupsThisShift = ShiftScaler.Instance?.CurrentGroupCount ?? 5;
 
-        // Roll objectives here so LobbyButton → ShowPanel() is the only step needed.
-        DailyObjectiveManager.Instance?.RollObjectivesForDay(day);
+        DailyObjectiveManager.Instance?.RollObjectivesForDay(day, maxGroupsThisShift);
 
         var mgr = DailyObjectiveManager.Instance;
 
-        if (dayHeaderLabel != null)
-            dayHeaderLabel.text = $"Objectives — Day {day}";
+        dayHeaderLabel.text = $"Objectives — Day {day}";
+        mandatoryLabel.text = mgr?.ActiveMandatory?.GetDescription(day) ?? "MANDATORY —";
+        secondaryLabel.text = mgr?.ActiveSecondary?.GetDescription(day) ?? "SERVICE —";
+        bonusLabel.text = mgr?.ActiveBonus?.GetDescription(day) ?? "BONUS —";
 
-        // ── Today's Objectives ──────────────────────────────────────────
-        if (mandatoryLabel != null)
-            mandatoryLabel.text = mgr != null && mgr.ActiveMandatory != null
-                ? MandatoryPrefix + mgr.ActiveMandatory.GetDescription(day)
-                : MandatoryPrefix + "—";
-
-        if (secondaryLabel != null)
-            secondaryLabel.text = mgr != null && mgr.ActiveSecondary != null
-                ? ServicePrefix + mgr.ActiveSecondary.GetDescription(day)
-                : ServicePrefix + "—";
-
-        if (bonusLabel != null)
-            bonusLabel.text = mgr != null && mgr.ActiveBonus != null
-                ? BonusPrefix + mgr.ActiveBonus.GetDescription(day)
-                : BonusPrefix + "—";
-
-        // ── Yesterday's Scorecard ───────────────────────────────────────
-        bool hasPrior = mgr != null && mgr.HasPreviousDayResult;
-
-        if (yesterdaySection != null)
-            yesterdaySection.SetActive(hasPrior);
-
-        if (firstShiftSection != null)
-            firstShiftSection.SetActive(!hasPrior);
-
-        if (hasPrior && mgr != null)
-        {
-            if (yesterdayHeaderLabel != null)
-                yesterdayHeaderLabel.text = $"Day {mgr.LastResultDay} Results — Grade: {mgr.LastGrade}";
-
-            SetObjectiveResultLabel(yesterdayMandatoryLabel, "MANDATORY",
-                mgr.ActiveMandatory, mgr.LastMandatoryPassed);
-
-            SetObjectiveResultLabel(yesterdayServiceLabel, "SERVICE",
-                mgr.ActiveSecondary, mgr.LastSecondaryPassed);
-
-            SetObjectiveResultLabel(yesterdayBonusLabel, "BONUS",
-                mgr.ActiveBonus, mgr.LastBonusPassed);
-        }
-        else if (!hasPrior && firstShiftLabel != null)
-        {
+        bool hasPrior = mgr?.HasPreviousDayResult ?? false;
+        yesterdaySection.SetActive(hasPrior);
+        firstShiftSection.SetActive(!hasPrior);
+        
+        if (!hasPrior && firstShiftLabel != null)
             firstShiftLabel.text = "First Shift — No prior data.";
-        }
 
         gameObject.SetActive(true);
     }

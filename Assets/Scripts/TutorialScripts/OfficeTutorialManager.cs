@@ -87,34 +87,34 @@ public class OfficeTutorialManager : MonoBehaviour
 
     [Header("Dialogue – Messages")]
     [SerializeField] [TextArea(2, 5)]
-    private string introMessage = "Welcome to the Office! Before you start the day, you need to set everything up. I'll guide you through each section.";
+    private string introMessage = "Welcome to the Office! Today you will learn how to set up and manage your restaurant. I will guide you through each section and explain why every decision matters for smooth operations.";
 
     [SerializeField] [TextArea(2, 5)]
-    private string hrArrowMessage = "First, tap the HR button to manage your employees.";
+    private string hrArrowMessage = "First, tap the HR button to manage your employees. Staffing correctly is key to efficient workflow and customer satisfaction.";
 
     [SerializeField] [TextArea(2, 5)]
-    private string hrBoardMessage = "Assign at least one employee to each role. Close the board when all roles are filled.";
+    private string hrBoardMessage = "Assign one employee to each role in the lobby. The panel shows each employee's role, salary, and mastery level. Making smart choices here teaches resource allocation and team management. Close the board only when all roles are filled.";
 
     [SerializeField] [TextArea(2, 5)]
-    private string restockArrowMessage = "Good! Now tap the Restock button to buy ingredients for today.";
+    private string restockArrowMessage = "Now, tap the Restock button to buy ingredients. Proper stock levels prevent shortages and help you plan menu execution.";
 
     [SerializeField] [TextArea(2, 5)]
-    private string restockShopMessage = "Buy enough stock for all the ingredients your recipes need. Close the shop when everything is stocked.";
+    private string restockShopMessage = "Buy enough ingredients to meet the requirements of all unlocked recipes. Monitoring stock teaches inventory management and cost control. Close the shop once all required items are purchased.";
 
     [SerializeField] [TextArea(2, 5)]
-    private string equipmentArrowMessage = "Next, tap the Equipment button to purchase kitchen equipment.";
+    private string equipmentArrowMessage = "Next, tap the Equipment button to purchase restaurant equipment.";
 
     [SerializeField] [TextArea(2, 5)]
-    private string equipmentShopMessage = "Buy at least one piece of equipment to upgrade your kitchen. Close the shop when you're done.";
+    private string equipmentShopMessage = "Purchase at least one piece of equipment. Understanding equipment impact demonstrates operational decision-making. Close the shop once ready.";
 
     [SerializeField] [TextArea(2, 5)]
-    private string recipeArrowMessage = "Finally, check out the Recipe Book to see what dishes you can prepare today.";
+    private string recipeArrowMessage = "Finally, check the Recipe Book to see today's available dishes. This helps you plan workflows and resource usage for the day.";
 
     [SerializeField] [TextArea(2, 5)]
-    private string recipeBookMessage = "These are all the recipes available today. Study them well! Close when you're ready.";
+    private string recipeBookMessage = "Review the recipes and study their ingredients. Learning this builds menu knowledge and prepares you for kitchen operations. Close the book when you feel confident.";
 
     [SerializeField] [TextArea(2, 5)]
-    private string completionMessage = "Great work! The office is ready. Time to move to the Kitchen tutorial!";
+    private string completionMessage = "Excellent work! The office is ready and fully staffed. You've practiced staffing, inventory management, and equipment planning. Let's move on to the Kitchen Tutorial to continue learning operational workflows.";
 
     // ─── PlayerPrefs key ─────────────────────────────────────────────────────
 
