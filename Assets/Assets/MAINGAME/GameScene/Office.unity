@@ -36738,7 +36738,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2d1fff109eff7eb4ba65a017fec7587b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  startingApproval: 5
+  startingApproval: 50
   happyDelta: 3
   neutralDelta: 0
   angryDelta: -6
