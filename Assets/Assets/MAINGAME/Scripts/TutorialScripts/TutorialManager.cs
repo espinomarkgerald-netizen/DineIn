@@ -134,6 +134,10 @@ public class TutorialManager : MonoBehaviour
     [SerializeField] private bool allowEnterKeyToContinueVideoObject = true;
     [SerializeField] private bool allowSpaceKeyToContinueVideoObject = true;
 
+    [Header("Role Switch Interactive Intro")]
+    [SerializeField] private TutorialRoleSwitchIntro roleSwitchIntro;
+    [SerializeField] private bool showRoleSwitchIntroBeforeDay1 = true;
+
     [Header("UI")]
     [SerializeField] private GameObject tutorialIntroPanel;
     [SerializeField] private Button startTutorialButton;
@@ -197,6 +201,7 @@ public class TutorialManager : MonoBehaviour
     private bool openingSequenceFinished;
     private bool completionShown;
     private bool waitingForVideoObjectContinue;
+    private bool roleSwitchIntroRunning;
 
     private bool notepadOpened;
     private bool orderConfirmed;
@@ -699,6 +704,7 @@ public class TutorialManager : MonoBehaviour
         activeTutorialGroup = null;
         activeDirtyTray = null;
         waitingForVideoObjectContinue = false;
+        roleSwitchIntroRunning = false;
         HideVideoObject();
 
         guidedBusserTray = null;
@@ -824,9 +830,28 @@ public class TutorialManager : MonoBehaviour
         if (ShouldShowVideoObjectBeforeDay1())
         {
             ShowVideoObject();
+
+            // If the role-switch intro is enabled, run it immediately while the video screen
+            // is still open. The intro's onComplete is responsible for closing the video and
+            // then starting the Host flow. Keyboard/click shortcuts are suppressed for the
+            // duration so only the correct button sequence can advance the state.
+            if (showRoleSwitchIntroBeforeDay1 && currentDay == TutorialDay.Day1Host && roleSwitchIntro != null)
+            {
+                roleSwitchIntroRunning = true;
+                roleSwitchIntro.Begin(OnRoleSwitchIntroComplete);
+            }
+
             return;
         }
 
+        StartCurrentDayFlow();
+    }
+
+    /// <summary>Called by <see cref="TutorialRoleSwitchIntro"/> once all four buttons have been clicked in order.</summary>
+    private void OnRoleSwitchIntroComplete()
+    {
+        roleSwitchIntroRunning = false;
+        HideVideoObject();
         StartCurrentDayFlow();
     }
 
@@ -838,6 +863,7 @@ public class TutorialManager : MonoBehaviour
         activeTutorialGroup = null;
         activeDirtyTray = null;
         waitingForVideoObjectContinue = false;
+        roleSwitchIntroRunning = false;
         HideVideoObject();
 
         guidedBusserTray = null;
@@ -963,6 +989,11 @@ public class TutorialManager : MonoBehaviour
 
     public void ContinueFromVideoObject()
     {
+        // Block keyboard/click shortcuts while the role-switch intro sequence is running.
+        // The screen will close automatically once all four buttons are clicked in order.
+        if (roleSwitchIntroRunning)
+            return;
+
         if (!waitingForVideoObjectContinue)
             return;
 

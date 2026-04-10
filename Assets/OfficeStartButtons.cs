@@ -3,8 +3,10 @@ using UnityEngine;
 
 public class OfficeStartButtons : MonoBehaviour
 {
-    [SerializeField]
-    private List<InventoryEntry> kitchenRequirements;
+    [SerializeField] private List<InventoryEntry> kitchenRequirements;
+
+    private const string NoEmployeesWarningMessage = "Assign at least one employee.";
+    private const string NoFoodStocksWarningMessage = "Stock up required ingredients first.";
 
     private List<string> GetStockIssues()
     {
@@ -18,9 +20,7 @@ public class OfficeStartButtons : MonoBehaviour
             int current = InventoryManager.Instance.GetStock(req.itemType);
 
             if (current < req.stock)
-            {
                 issues.Add($"{req.itemType}: {current}/{req.stock}");
-            }
         }
 
         return issues;
@@ -32,7 +32,8 @@ public class OfficeStartButtons : MonoBehaviour
     /// </summary>
     private bool IsRequiredByUnlockedRecipe(ItemType itemType)
     {
-        if (RecipeManager.Instance == null) return true;
+        if (RecipeManager.Instance == null)
+            return true;
 
         foreach (var recipe in RecipeManager.Instance.AllRecipes)
         {
@@ -51,6 +52,13 @@ public class OfficeStartButtons : MonoBehaviour
 
     private bool HasEmployeesAssigned()
     {
+        if (EmployeeManager.Instance == null || EmployeeManager.Instance.allEmployees == null)
+        {
+            Debug.Log("EmployeeManager missing or employee list is null.");
+            WarningSlideUI.Instance?.Show(NoEmployeesWarningMessage);
+            return false;
+        }
+
         foreach (var emp in EmployeeManager.Instance.allEmployees)
         {
             if (!string.IsNullOrEmpty(emp.assignedSlotName))
@@ -58,23 +66,23 @@ public class OfficeStartButtons : MonoBehaviour
         }
 
         Debug.Log("No employees assigned.");
+        WarningSlideUI.Instance?.Show(NoEmployeesWarningMessage);
         return false;
     }
 
     private bool HasRequiredEquipment()
     {
-        // Define which equipment types are required to start the lobby
-        string[] requiredIDs = {
-        "booth01", "booth02", "booth03", "booth04", "booth05",
-        "table01", "table02", "table03", "table04" }; // use itemID keywords or exact IDs from your Equipment ScriptableObjects
+        string[] requiredIDs =
+        {
+            "booth01", "booth02", "booth03", "booth04", "booth05",
+            "table01", "table02", "table03", "table04"
+        };
 
         foreach (var equip in EquipmentManager.Instance.AllEquipment)
         {
-            // Skip if not purchased
             if (!EquipmentManager.Instance.Purchased(equip.itemID))
                 continue;
 
-            // Check if this equipment matches one of the required types
             foreach (var reqID in requiredIDs)
             {
                 if (equip.itemID.Contains(reqID))
@@ -82,7 +90,6 @@ public class OfficeStartButtons : MonoBehaviour
             }
         }
 
-        // If no required equipment purchased, block start
         return false;
     }
 
@@ -99,15 +106,16 @@ public class OfficeStartButtons : MonoBehaviour
         var stockIssues = GetStockIssues();
         if (stockIssues.Count > 0)
         {
+            WarningSlideUI.Instance?.Show(NoFoodStocksWarningMessage);
+
             issues.Add("Stock up required ingredients:");
             foreach (var s in stockIssues)
                 issues.Add("• " + s);
         }
 
         if (!HasEmployeesAssigned())
-            issues.Add("Assign at least one employee.");
+            issues.Add(NoEmployeesWarningMessage);
 
-        // NEW: Equipment check (your “buy seats” requirement)
         if (!HasRequiredEquipment())
             issues.Add("Buy and place required equipment (e.g., seats).");
 

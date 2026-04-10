@@ -84,6 +84,8 @@ public class TutorialCashierLessonController : MonoBehaviour
 
         if (!guidedRoundDone)
         {
+            // Explain the auto-switch mechanic before the first register interaction.
+            ShowWarningPopup("When a waiter gives money to the cashier, your role switches automatically!");
             ShowPersistentTip("This is the POS. Read the received amount, total, and change. Give the exact change, then press Confirm.");
             ScheduleNextOpen(introDialogueReadSeconds + guidedDelaySeconds, false);
         }

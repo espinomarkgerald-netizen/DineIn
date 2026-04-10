@@ -4,101 +4,67 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// Guided role-switch introduction that runs before Day 1 Host gameplay begins.
+/// Interactive role-switch tutorial step that runs before Day 1 Host gameplay.
 ///
-/// Step 0  — Preamble: explains what the four switch buttons do and how switching works.
-/// Steps 1–4 — One per role (Host → Waiter → Cashier → Busser):
-///   1. Active button bounces continuously so it stands out without changing colours.
-///   2. Pointer arrow moves above that button.
-///   3. Dialogue describes the role AND tells the player to press that button.
-///   4. Player MUST press the button to advance — bounce stops on press.
-///
-/// After all four roles the screen un-dims, a closing line plays, and onComplete fires.
+/// Flow:
+///   • Begin() is called the same frame the video screen activates.
+///   • Host button immediately starts glowing + bouncing — no yield before first cue.
+///   • Player clicks Host → Busser → Cashier → Waiter in order.
+///   • Wrong clicks are silently ignored.
+///   • After all 4 clicks onComplete fires → TutorialManager hides the video and starts Day 1.
 ///
 /// Wiring (Inspector):
-///   • roles[0–3] — HostButton, WaiterButton, CashierButton, BusserButton (real scene buttons)
-///   • dimOverlay — full-screen black CanvasGroup (alpha 0, blocksRaycasts false)
-///   • buttonPanelHighlight — glow CanvasGroup behind the Buttons group
-///   • pointerArrow — UI RectTransform arrow/hand icon
-///   • dialogueUI  — shared TutorialDialogueUI
+///   roles[0..3] — HostButton, BusserButton, CashierButton, WaiterButton
+///   dialogueUI  — shared TutorialDialogueUI on TutorialManager (optional)
 /// </summary>
 public class TutorialRoleSwitchIntro : MonoBehaviour
 {
     // -----------------------------------------------------------------------
-    // Role definition
+    // Data
     // -----------------------------------------------------------------------
 
     [Serializable]
     public class RoleIntroEntry
     {
-        [Tooltip("Speaker name shown in the dialogue bubble.")]
+        [Tooltip("Display name — used only in editor logs.")]
         public string roleName;
 
-        [TextArea(2, 5)]
-        [Tooltip("What this role does. A 'press this button now' prompt is appended automatically.")]
-        public string description;
-
-        [Tooltip("The actual scene Button the player must press to advance.")]
+        [Tooltip("The scene Button the player must click to advance.")]
         public Button button;
-
-        [Tooltip("Optional badge/label for this role — shown during its step, hidden after. Leave unassigned to skip.")]
-        public GameObject roleLabel;
     }
 
     // -----------------------------------------------------------------------
     // Inspector
     // -----------------------------------------------------------------------
 
-    [Header("Dialogue")]
+    [Header("Dialogue (optional)")]
     [SerializeField] private TutorialDialogueUI dialogueUI;
     [SerializeField] private string speakerName = "Manager";
 
-    [Header("Preamble")]
+    [Header("Preamble (shown automatically when sequence starts)")]
     [TextArea(2, 5)]
-    [Tooltip("Shown once before walking through each role. Explains what the switch buttons do.")]
     [SerializeField] private string preambleLine =
-        "See those four buttons at the top? Each one switches you into a different staff role.\n" +
-        "Each role has a different job — Host seats guests, Waiter takes orders, " +
-        "Cashier handles payment, and Busser cleans up.\n" +
-        "I'll walk you through each one now. Press each bouncing button when I point to it.";
+        "Use the buttons on the left to switch between roles. Click each one when it glows!";
 
-    [Header("Role Intro Steps  (Host → Waiter → Cashier → Busser)")]
+    [Header("Role Buttons  (Host \u2192 Busser \u2192 Cashier \u2192 Waiter)")]
     [SerializeField] private RoleIntroEntry[] roles = new RoleIntroEntry[4];
 
-    [Header("Press-Button Prompt")]
-    [Tooltip("Appended to each role's description so the player knows what to do next.")]
-    [SerializeField] private string pressPromptSuffix = "\n\nPress this button now to continue.";
+    [Header("Button Glow")]
+    [Tooltip("Peak color pulsed on the active button's Image.")]
+    [SerializeField] private Color glowColor = new Color(1f, 0.92f, 0.16f, 1f);
+    [Tooltip("Glow pulse cycles per second.")]
+    [SerializeField] private float glowPulseSpeed = 2.5f;
 
     [Header("Button Bounce")]
-    [Tooltip("Peak scale of the active button during its bounce (1 = no bounce).")]
-    [SerializeField] private float bounceScale = 1.15f;
-    [Tooltip("Bounces per second.")]
-    [SerializeField] private float bounceSpeed = 2.2f;
+    [Tooltip("Peak scale multiplier during bounce (1 = no bounce).")]
+    [SerializeField] private float bounceScale = 1.18f;
+    [Tooltip("Bounce cycles per second.")]
+    [SerializeField] private float bounceSpeed = 2.8f;
 
-    [Header("Screen Dim")]
-    [Tooltip("Full-screen CanvasGroup (black image, alpha 0, blocksRaycasts false at start).")]
-    [SerializeField] private CanvasGroup dimOverlay;
-    [SerializeField] [Range(0f, 1f)] private float dimTargetAlpha = 0.55f;
-    [SerializeField] private float dimFadeDuration = 0.3f;
-
-    [Header("Button Panel Highlight")]
-    [Tooltip("Glow/border CanvasGroup placed behind the Buttons group. Pulsed automatically.")]
-    [SerializeField] private CanvasGroup buttonPanelHighlight;
-    [SerializeField] private float pulseMin  = 0.3f;
-    [SerializeField] private float pulseMax  = 1f;
-    [SerializeField] private float pulseSpeed = 2.5f;
-
-    [Header("Pointer Arrow (optional)")]
-    [Tooltip("UI arrow RectTransform repositioned above each active button.")]
-    [SerializeField] private RectTransform pointerArrow;
-    [SerializeField] private Vector2 pointerOffset = new Vector2(0f, 34f);
-
-    [Header("Closing")]
+    [Header("Closing (optional)")]
     [TextArea(2, 4)]
     [SerializeField] private string closingLine =
-        "Great — you know all four roles now.\n" +
-        "In mastery gameplay you can switch between them freely at any time.\n" +
-        "Let's begin! You're the Host first — greet the incoming customers!";
+        "Good! You know all four roles. Let's begin \u2014 you're starting as the Host!";
 
     // -----------------------------------------------------------------------
     // Runtime
@@ -106,15 +72,17 @@ public class TutorialRoleSwitchIntro : MonoBehaviour
 
     private Action onComplete;
     private Coroutine runRoutine;
+    private Coroutine glowRoutine;
     private Coroutine bounceRoutine;
-    private Coroutine pulseRoutine;
 
     // -----------------------------------------------------------------------
     // Public API
     // -----------------------------------------------------------------------
 
     /// <summary>
-    /// Starts the four-role guided intro. Invokes <paramref name="onComplete"/> when done.
+    /// Starts the guided sequence. The first button starts glowing and bouncing on this
+    /// exact frame so the effect appears the instant the video screen activates.
+    /// Calls <paramref name="onComplete"/> after the last correct button is clicked.
     /// </summary>
     public void Begin(Action onComplete)
     {
@@ -122,6 +90,15 @@ public class TutorialRoleSwitchIntro : MonoBehaviour
 
         if (runRoutine != null)
             StopCoroutine(runRoutine);
+
+        // Fire preamble dialogue immediately alongside the glow — informational only,
+        // auto-dismissed after a few seconds so the player is not blocked by a Next button.
+        if (dialogueUI != null && !string.IsNullOrWhiteSpace(preambleLine))
+            dialogueUI.ShowAuto(speakerName, preambleLine, 4f);
+
+        // Activate the first button on this same frame — no yield, no delay.
+        if (roles.Length > 0 && roles[0] != null && roles[0].button != null)
+            ActivateButtonEffect(roles[0].button);
 
         runRoutine = StartCoroutine(RunSequence());
     }
@@ -132,191 +109,142 @@ public class TutorialRoleSwitchIntro : MonoBehaviour
 
     private IEnumerator RunSequence()
     {
-        yield return StartCoroutine(FadeDim(0f, dimTargetAlpha));
-        StartPanelPulse();
-
-        // Step 0 — Preamble: explain what the buttons are before touching any of them.
-        if (dialogueUI != null && !string.IsNullOrWhiteSpace(preambleLine))
-        {
-            bool preambleDone = false;
-            dialogueUI.ShowManual(speakerName, preambleLine, () => preambleDone = true);
-            while (!preambleDone)
-                yield return null;
-        }
-
-        // Steps 1–N — One per role.
         for (int i = 0; i < roles.Length; i++)
         {
             RoleIntroEntry entry = roles[i];
-            if (entry == null) continue;
+            if (entry == null || entry.button == null) continue;
 
-            StartBounce(entry.button);
-            MovePointer(entry.button);
-            if (entry.roleLabel != null) entry.roleLabel.SetActive(true);
+            // First button was already activated synchronously in Begin().
+            // Activate subsequent buttons here, after the previous click.
+            if (i > 0)
+                ActivateButtonEffect(entry.button);
 
-            // Build the dialogue: role description + explicit press-button prompt.
-            bool dialogueDone = false;
-            string speaker = string.IsNullOrWhiteSpace(entry.roleName) ? speakerName : entry.roleName;
-            string body = entry.description ?? string.Empty;
-
-            if (!string.IsNullOrWhiteSpace(pressPromptSuffix))
-                body = body.TrimEnd() + pressPromptSuffix;
-
-            if (dialogueUI != null && !string.IsNullOrWhiteSpace(body))
-                dialogueUI.ShowManual(speaker, body, () => dialogueDone = true);
-            else
-                dialogueDone = true;
-
-            while (!dialogueDone)
+            // Block until exactly this button is clicked — all others do nothing.
+            // DeactivateButtonEffect and the role switch both happen inside the handler
+            // so the glow/bounce are gone and the role is applied on the same frame as
+            // the click — no one-frame lag where the button still looks active after pressing.
+            bool pressed = false;
+            RoleIntroEntry captured = entry;
+            UnityEngine.Events.UnityAction handler = () =>
+            {
+                DeactivateButtonEffect(captured.button);
+                SwitchToRole(captured.roleName);
+                pressed = true;
+            };
+            entry.button.onClick.AddListener(handler);
+            while (!pressed)
                 yield return null;
+            entry.button.onClick.RemoveListener(handler);
 
-            // Wait for the player to press this role's actual button.
-            if (entry.button != null)
-            {
-                bool pressed = false;
-                UnityEngine.Events.UnityAction handler = () => pressed = true;
-                entry.button.onClick.AddListener(handler);
-                while (!pressed) yield return null;
-                entry.button.onClick.RemoveListener(handler);
-
-                StopBounce(entry.button);
-                yield return new WaitForSeconds(0.25f);
-            }
-            else
-            {
-                StopBounce(null);
-            }
-
-            if (entry.roleLabel != null) entry.roleLabel.SetActive(false);
+            // Short pause so the transition between buttons feels satisfying.
+            yield return new WaitForSeconds(0.18f);
         }
 
-        // Clean up after all roles.
-        StopPanelPulse();
-        HidePointer();
-        yield return StartCoroutine(FadeDim(dimTargetAlpha, 0f));
-
-        // Closing line.
-        bool closingDone = false;
+        // Optional closing line — auto-dismissed, does not block Day 1 from starting.
         if (dialogueUI != null && !string.IsNullOrWhiteSpace(closingLine))
-            dialogueUI.ShowManual(speakerName, closingLine, () => closingDone = true);
-        else
-            closingDone = true;
-
-        while (!closingDone)
-            yield return null;
+            dialogueUI.ShowAuto(speakerName, closingLine, 2f);
 
         runRoutine = null;
         onComplete?.Invoke();
     }
 
     // -----------------------------------------------------------------------
-    // Bounce
+    // Role switch helper
     // -----------------------------------------------------------------------
 
-    private void StartBounce(Button target)
+    /// <summary>
+    /// Switches the player to the role matching <paramref name="roleName"/> immediately.
+    /// Uses <see cref="RoleManager.Instance"/> — the same path TutorialManager uses.
+    /// </summary>
+    private static void SwitchToRole(string roleName)
     {
-        if (bounceRoutine != null)
-            StopCoroutine(bounceRoutine);
+        if (RoleManager.Instance == null || string.IsNullOrWhiteSpace(roleName))
+            return;
+
+        switch (roleName.Trim().ToLowerInvariant())
+        {
+            case "host":    RoleManager.Instance.SwitchToHost();    break;
+            case "busser":  RoleManager.Instance.SwitchToBusser();  break;
+            case "cashier": RoleManager.Instance.SwitchToCashier(); break;
+            case "waiter":  RoleManager.Instance.SwitchToWaiter();  break;
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Per-button effects — glow + bounce run in parallel
+    // -----------------------------------------------------------------------
+
+    private void ActivateButtonEffect(Button target)
+    {
+        if (target == null) return;
+
+        StopEffectRoutines();
+
+        Image img = target.GetComponent<Image>();
+        if (img != null)
+            glowRoutine = StartCoroutine(PulseColor(img));
+
+        bounceRoutine = StartCoroutine(PulseScale(target.transform));
+    }
+
+    private void DeactivateButtonEffect(Button target)
+    {
+        StopEffectRoutines();
 
         if (target == null) return;
 
-        bounceRoutine = StartCoroutine(BounceButton(target.transform));
+        Image img = target.GetComponent<Image>();
+        if (img != null)
+            img.color = Color.white;
+
+        target.transform.localScale = Vector3.one;
     }
 
-    private void StopBounce(Button target)
+    private void StopEffectRoutines()
     {
-        if (bounceRoutine != null)
+        if (glowRoutine != null) { StopCoroutine(glowRoutine); glowRoutine = null; }
+        if (bounceRoutine != null) { StopCoroutine(bounceRoutine); bounceRoutine = null; }
+    }
+
+    private IEnumerator PulseColor(Image img)
+    {
+        while (img != null)
         {
-            StopCoroutine(bounceRoutine);
-            bounceRoutine = null;
+            float t = (Mathf.Sin(Time.unscaledTime * glowPulseSpeed * Mathf.PI * 2f) + 1f) * 0.5f;
+            img.color = Color.Lerp(Color.white, glowColor, t);
+            yield return null;
         }
-
-        // Always restore identity scale so the button sits exactly as it was before.
-        if (target != null)
-            target.transform.localScale = Vector3.one;
     }
 
-    private IEnumerator BounceButton(Transform buttonTransform)
+    private IEnumerator PulseScale(Transform target)
     {
-        while (buttonTransform != null)
+        // Phase-offset by π/2 so the bounce peak lands between glow peaks — feels lively.
+        while (target != null)
         {
-            float t = (Mathf.Sin(Time.unscaledTime * bounceSpeed * Mathf.PI * 2f) + 1f) * 0.5f;
-            float scale = Mathf.Lerp(1f, bounceScale, t);
-            buttonTransform.localScale = new Vector3(scale, scale, 1f);
+            float t = (Mathf.Sin(Time.unscaledTime * bounceSpeed * Mathf.PI * 2f + Mathf.PI * 0.5f) + 1f) * 0.5f;
+            float s = Mathf.Lerp(1f, bounceScale, t);
+            target.localScale = new Vector3(s, s, 1f);
             yield return null;
         }
     }
 
     // -----------------------------------------------------------------------
-    // Screen dim
+    // Cleanup — safety net for scene reloads and day resets
     // -----------------------------------------------------------------------
 
-    private IEnumerator FadeDim(float from, float to)
+    private void OnDisable()
     {
-        if (dimOverlay == null) yield break;
+        StopEffectRoutines();
 
-        dimOverlay.gameObject.SetActive(true);
-        dimOverlay.alpha = from;
+        if (runRoutine != null) { StopCoroutine(runRoutine); runRoutine = null; }
 
-        float elapsed = 0f;
-        while (elapsed < dimFadeDuration)
+        foreach (RoleIntroEntry entry in roles)
         {
-            elapsed += Time.unscaledDeltaTime;
-            dimOverlay.alpha = Mathf.Lerp(from, to, elapsed / dimFadeDuration);
-            yield return null;
+            if (entry?.button == null) continue;
+
+            Image img = entry.button.GetComponent<Image>();
+            if (img != null) img.color = Color.white;
+            entry.button.transform.localScale = Vector3.one;
         }
-
-        dimOverlay.alpha = to;
-        if (to <= 0f) dimOverlay.gameObject.SetActive(false);
-    }
-
-    // -----------------------------------------------------------------------
-    // Panel pulse
-    // -----------------------------------------------------------------------
-
-    private void StartPanelPulse()
-    {
-        if (buttonPanelHighlight == null) return;
-        buttonPanelHighlight.gameObject.SetActive(true);
-        if (pulseRoutine != null) StopCoroutine(pulseRoutine);
-        pulseRoutine = StartCoroutine(PulseHighlight());
-    }
-
-    private void StopPanelPulse()
-    {
-        if (pulseRoutine != null) { StopCoroutine(pulseRoutine); pulseRoutine = null; }
-        if (buttonPanelHighlight != null) buttonPanelHighlight.gameObject.SetActive(false);
-    }
-
-    private IEnumerator PulseHighlight()
-    {
-        while (buttonPanelHighlight != null && buttonPanelHighlight.gameObject.activeSelf)
-        {
-            float t = (Mathf.Sin(Time.unscaledTime * pulseSpeed * Mathf.PI) + 1f) * 0.5f;
-            buttonPanelHighlight.alpha = Mathf.Lerp(pulseMin, pulseMax, t);
-            yield return null;
-        }
-    }
-
-    // -----------------------------------------------------------------------
-    // Pointer arrow
-    // -----------------------------------------------------------------------
-
-    private void MovePointer(Button targetButton)
-    {
-        if (pointerArrow == null || targetButton == null) return;
-
-        RectTransform targetRect = targetButton.GetComponent<RectTransform>();
-        if (targetRect == null) return;
-
-        pointerArrow.gameObject.SetActive(true);
-        pointerArrow.SetParent(targetRect.parent, false);
-        pointerArrow.anchoredPosition = targetRect.anchoredPosition + pointerOffset;
-        pointerArrow.SetAsLastSibling();
-    }
-
-    private void HidePointer()
-    {
-        if (pointerArrow != null) pointerArrow.gameObject.SetActive(false);
     }
 }

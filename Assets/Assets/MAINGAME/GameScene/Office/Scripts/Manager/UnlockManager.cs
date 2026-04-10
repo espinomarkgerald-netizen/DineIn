@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-[DefaultExecutionOrder(-10)] // Ensures this initializes first
+[DefaultExecutionOrder(-10)]
 public class UnlockManager : MonoBehaviour
 {
     public static UnlockManager Instance { get; private set; }
@@ -12,7 +12,6 @@ public class UnlockManager : MonoBehaviour
     private HashSet<ItemData> unlockedIngredients = new HashSet<ItemData>();
     private HashSet<ItemTypeKitchen> unlockedKitchenItems = new HashSet<ItemTypeKitchen>();
 
-    // Events
     public static event Action<string> OnRecipeUnlocked;
     public static event Action<string> OnEquipmentUnlocked;
     public static event Action<ItemData> OnIngredientUnlocked;
@@ -37,21 +36,23 @@ public class UnlockManager : MonoBehaviour
                 unlockedKitchenItems.Add(kitchenItem);
 
             OnRecipeUnlocked?.Invoke(recipeID);
+            GameSaveManager.Instance?.RequestSave();
         }
     }
 
     public bool IsRecipeUnlocked(string recipeID) => unlockedRecipes.Contains(recipeID);
 
-    /// <summary>Returns true if this kitchen item has a corresponding unlocked recipe.</summary>
     public bool IsKitchenItemUnlocked(ItemTypeKitchen item) => unlockedKitchenItems.Contains(item);
 
-    /// <summary>Returns all unlocked kitchen item types.</summary>
     public IReadOnlyCollection<ItemTypeKitchen> GetUnlockedKitchenItems() => unlockedKitchenItems;
 
     public void UnlockEquipment(string itemID)
     {
         if (unlockedEquipment.Add(itemID))
+        {
             OnEquipmentUnlocked?.Invoke(itemID);
+            GameSaveManager.Instance?.RequestSave();
+        }
     }
 
     public bool IsEquipmentUnlocked(string itemID) => unlockedEquipment.Contains(itemID);
@@ -59,20 +60,70 @@ public class UnlockManager : MonoBehaviour
     public void UnlockIngredient(ItemData item)
     {
         if (unlockedIngredients.Add(item))
+        {
             OnIngredientUnlocked?.Invoke(item);
+            GameSaveManager.Instance?.RequestSave();
+        }
     }
 
     public bool IsIngredientUnlocked(ItemData item) => unlockedIngredients.Contains(item);
 
-    /// <summary>
-    /// Clears all unlock records. Call on a full run reset so the player
-    /// re-earns recipes, equipment, and ingredients from Day 1.
-    /// </summary>
     public void ResetAll()
     {
         unlockedRecipes.Clear();
         unlockedEquipment.Clear();
         unlockedIngredients.Clear();
         unlockedKitchenItems.Clear();
+        GameSaveManager.Instance?.RequestSave();
+    }
+
+    public void FillSaveData(GameSaveData data)
+    {
+        if (data == null)
+            return;
+
+        data.unlockedRecipeIDs.Clear();
+        data.unlockedEquipmentIDs.Clear();
+        data.unlockedKitchenItems.Clear();
+
+        data.unlockedRecipeIDs.AddRange(unlockedRecipes);
+        data.unlockedEquipmentIDs.AddRange(unlockedEquipment);
+
+        foreach (var item in unlockedKitchenItems)
+            data.unlockedKitchenItems.Add((int)item);
+    }
+
+    public void ApplySaveData(GameSaveData data)
+    {
+        if (data == null)
+            return;
+
+        unlockedRecipes.Clear();
+        unlockedEquipment.Clear();
+        unlockedKitchenItems.Clear();
+
+        if (data.unlockedRecipeIDs != null)
+        {
+            foreach (string id in data.unlockedRecipeIDs)
+            {
+                if (!string.IsNullOrWhiteSpace(id))
+                    unlockedRecipes.Add(id);
+            }
+        }
+
+        if (data.unlockedEquipmentIDs != null)
+        {
+            foreach (string id in data.unlockedEquipmentIDs)
+            {
+                if (!string.IsNullOrWhiteSpace(id))
+                    unlockedEquipment.Add(id);
+            }
+        }
+
+        if (data.unlockedKitchenItems != null)
+        {
+            foreach (int value in data.unlockedKitchenItems)
+                unlockedKitchenItems.Add((ItemTypeKitchen)value);
+        }
     }
 }

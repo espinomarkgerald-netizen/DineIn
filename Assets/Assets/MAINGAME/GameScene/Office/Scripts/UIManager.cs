@@ -13,6 +13,7 @@ public class UIManager : MonoBehaviour
     [SerializeField] private GameObject staticUI;
     [SerializeField] private GameObject sceneChanger;
     [SerializeField] private TMP_Text currentDayText;
+    [SerializeField] private string currentDayTextObjectName = "CurrentDayText";
     [SerializeField] private Button settingsButton;
 
     [Header("Active UI Panels")]
@@ -45,6 +46,8 @@ public class UIManager : MonoBehaviour
     [SerializeField] private string mainMenuSceneName = "MainMenu";
 
     private GameObject currentActiveUI;
+    private int lastShownDay = -1;
+    private GameFlowManager.DayHalf lastShownDayHalf = (GameFlowManager.DayHalf)(-999);
 
     private void Awake()
     {
@@ -55,13 +58,77 @@ public class UIManager : MonoBehaviour
         }
 
         Instance = this;
+        DontDestroyOnLoad(gameObject);
+    }
+
+    private void OnEnable()
+    {
+        SceneManager.sceneLoaded += OnSceneLoaded;
+        RefreshPhaseUI();
+    }
+
+    private void OnDisable()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoaded;
     }
 
     private void Start()
     {
         ShowStaticUI();
+        TryFindCurrentDayText();
         RefreshPhaseUI();
         WireSettingsButton();
+    }
+
+    private void Update()
+    {
+        if (GameFlowManager.Instance == null)
+            return;
+
+        if (currentDayText == null)
+            TryFindCurrentDayText();
+
+        int currentDay = GameFlowManager.Instance.CurrentDay;
+        var currentHalf = GameFlowManager.Instance.CurrentDayHalf;
+
+        if (currentDay != lastShownDay || currentHalf != lastShownDayHalf)
+            RefreshPhaseUI();
+    }
+
+    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        StartCoroutine(RefreshAfterSceneLoad());
+    }
+
+    private IEnumerator RefreshAfterSceneLoad()
+    {
+        yield return null;
+        TryFindCurrentDayText();
+        WireSettingsButton();
+        RefreshPhaseUI();
+    }
+
+    private void TryFindCurrentDayText()
+    {
+        if (currentDayText != null)
+            return;
+
+        GameObject dayObj = GameObject.Find(currentDayTextObjectName);
+        if (dayObj != null)
+            currentDayText = dayObj.GetComponent<TMP_Text>();
+
+        if (currentDayText == null)
+        {
+            TMP_Text[] allTexts = FindObjectsOfType<TMP_Text>(true);
+            for (int i = 0; i < allTexts.Length; i++)
+            {
+                if (allTexts[i] != null && allTexts[i].gameObject.name == currentDayTextObjectName)
+                {
+                    currentDayText = allTexts[i];
+                    break;
+                }
+            }
+        }
     }
 
     public void ShowStaticUI()
@@ -72,11 +139,6 @@ public class UIManager : MonoBehaviour
         HideCurrentActiveUI();
     }
 
-     private void OnEnable()
-    {
-        RefreshPhaseUI();
-    }
-
     public void RefreshPhaseUI()
     {
         if (GameFlowManager.Instance == null)
@@ -85,11 +147,20 @@ public class UIManager : MonoBehaviour
             return;
         }
 
+        TryFindCurrentDayText();
+
         if (currentDayText != null)
             currentDayText.text = $"Day {GameFlowManager.Instance.CurrentDay}";
 
         var phase = GameFlowManager.Instance.CurrentDayHalf;
+
+        lastShownDay = GameFlowManager.Instance.CurrentDay;
+        lastShownDayHalf = phase;
+
         Debug.Log("Current DayHalf: " + phase);
+
+        if (lobbyButton == null || kitchenButton == null)
+            return;
 
         switch (phase)
         {
@@ -103,11 +174,18 @@ public class UIManager : MonoBehaviour
                 kitchenButton.SetActive(true);
                 break;
 
-            default: // None or invalid
+            default:
                 lobbyButton.SetActive(false);
                 kitchenButton.SetActive(false);
                 break;
         }
+    }
+
+    public void ForceRefreshDayText()
+    {
+        currentDayText = null;
+        TryFindCurrentDayText();
+        RefreshPhaseUI();
     }
 
     public void ShowActiveUI(GameObject ui)
@@ -183,7 +261,7 @@ public class UIManager : MonoBehaviour
 
         if (receiptPanel != null)
             receiptPanel.SetActive(false);
-        
+
         if (objectivesPanel != null)
             objectivesPanel.SetActive(false);
 
@@ -302,18 +380,15 @@ public class UIManager : MonoBehaviour
             return;
         }
 
-        // Show BOTH UIs regardless of phase
         if (kitchenUI != null)
             kitchenUI.SetActive(true);
 
         if (lobbyUI != null)
             lobbyUI.SetActive(true);
 
-        // Populate ALL rows
         hrManager.PopulateRows(hrManager.lobbyRows);
         hrManager.PopulateRows(hrManager.kitchenRows);
 
-        // Pick a parent container as active UI (your choice, here lobbyUI)
         currentActiveUI = lobbyUI;
 
         if (staticUI != null)

@@ -361,11 +361,11 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1978864203}
-  m_Father: {fileID: 1068858671}
+  m_Father: {fileID: 1113496784}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0}
   m_AnchorMax: {x: 0.5, y: 0}
-  m_AnchoredPosition: {x: 0, y: 49.999985}
+  m_AnchoredPosition: {x: 0, y: 226.99998}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!225 &3787833
@@ -6245,11 +6245,11 @@ RectTransform:
   - {fileID: 119741277}
   - {fileID: 392692080}
   - {fileID: 971443437}
-  m_Father: {fileID: 1068858671}
+  m_Father: {fileID: 1113496784}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: -2.0000203}
+  m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!223 &501812631
@@ -7769,6 +7769,7 @@ MonoBehaviour:
   weightGreen: 0.7
   weightPink: 0.2
   weightBlue: 0.1
+  groupsForShift: 0
 --- !u!1 &626340464
 GameObject:
   m_ObjectHideFlags: 0
@@ -9642,11 +9643,11 @@ RectTransform:
   m_Children:
   - {fileID: 716142101}
   - {fileID: 1163581548}
-  m_Father: {fileID: 1068858671}
+  m_Father: {fileID: 1113496784}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: -2.0000203}
+  m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 800, y: 450}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &798028322
@@ -14530,11 +14531,11 @@ RectTransform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 1068858671}
+  m_Father: {fileID: 1113496784}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: -2.0000203}
+  m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1056704187
@@ -14923,14 +14924,6 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 23184227}
-  - {fileID: 2142882886}
-  - {fileID: 1587955221}
-  - {fileID: 1517944430}
-  - {fileID: 1056704186}
-  - {fileID: 796935186}
-  - {fileID: 501812630}
-  - {fileID: 1801708152}
-  - {fileID: 3787832}
   m_Father: {fileID: 1113496784}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0}
@@ -15538,6 +15531,14 @@ RectTransform:
   m_LocalScale: {x: 0, y: 0, z: 0}
   m_ConstrainProportionsScale: 0
   m_Children:
+  - {fileID: 2142882886}
+  - {fileID: 1587955221}
+  - {fileID: 1517944430}
+  - {fileID: 1056704186}
+  - {fileID: 796935186}
+  - {fileID: 501812630}
+  - {fileID: 1801708152}
+  - {fileID: 3787832}
   - {fileID: 1842389590}
   - {fileID: 1068858671}
   - {fileID: 779453280}
@@ -19782,36 +19783,15 @@ MonoBehaviour:
     you to."
   roles:
   - roleName: 
-    description: 
     button: {fileID: 0}
-    roleLabel: {fileID: 0}
   - roleName: 
-    description: 
     button: {fileID: 0}
-    roleLabel: {fileID: 0}
   - roleName: 
-    description: 
     button: {fileID: 0}
-    roleLabel: {fileID: 0}
   - roleName: 
-    description: 
     button: {fileID: 0}
-    roleLabel: {fileID: 0}
-  pressPromptSuffix: '
-
-
-    Press this button now to continue.'
-  bounceScale: 1.15
-  bounceSpeed: 2.2
-  dimOverlay: {fileID: 0}
-  dimTargetAlpha: 0.55
-  dimFadeDuration: 0.35
-  buttonPanelHighlight: {fileID: 0}
-  pulseMin: 0.35
-  pulseMax: 1
-  pulseSpeed: 2.2
-  pointerArrow: {fileID: 1094261715432085740, guid: 82f580a2901e5524ca9fe56d44581953, type: 3}
-  pointerOffset: {x: 0, y: 34}
+  glowColor: {r: 1, g: 0.92, b: 0.2, a: 1}
+  glowPulseSpeed: 2.5
   closingLine: "Good! You now know all four roles. Let's begin \u2014 you're starting
     as the Host!"
 --- !u!1 &1391360930
@@ -21726,11 +21706,11 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 833566035}
-  m_Father: {fileID: 1068858671}
+  m_Father: {fileID: 1113496784}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: -39.000008}
+  m_AnchoredPosition: {x: 0, y: -36.99999}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1517944431
@@ -22583,11 +22563,11 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 2019888516}
-  m_Father: {fileID: 1068858671}
+  m_Father: {fileID: 1113496784}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0}
   m_AnchorMax: {x: 0.5, y: 0}
-  m_AnchoredPosition: {x: 0, y: 49.999985}
+  m_AnchoredPosition: {x: 0, y: 226.99998}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!225 &1587955222
@@ -25265,11 +25245,11 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 832524634}
-  m_Father: {fileID: 1068858671}
+  m_Father: {fileID: 1113496784}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: -2.0000203}
+  m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1801708153
@@ -27176,9 +27156,11 @@ MonoBehaviour:
     Greet the first customer."
   videoObject: {fileID: 1881218739}
   showVideoObjectBeforeDay1: 1
-  allowAnyClickToContinueVideoObject: 1
+  allowAnyClickToContinueVideoObject: 0
   allowEnterKeyToContinueVideoObject: 1
   allowSpaceKeyToContinueVideoObject: 1
+  roleSwitchIntro: {fileID: 1899391357}
+  showRoleSwitchIntroBeforeDay1: 1
   tutorialIntroPanel: {fileID: 1978864202}
   startTutorialButton: {fileID: 815852674}
   objectiveText: {fileID: 1000204429}
@@ -27325,7 +27307,7 @@ MonoBehaviour:
   finishButton: {fileID: 386937815}
   finishButtonText: {fileID: 1303271791}
   showCompletionPanel: 1
-  useSavedDayProgress: 1
+  useSavedDayProgress: 0
   reloadSceneWhenStartingNextDay: 1
   autoStartWhenSceneReloads: 1
   tutorialSceneName: LobbyTutorial
@@ -27816,49 +27798,22 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 49f8a57b4ab5bd7428501ee5cf4dd0d3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  dialogueUI: {fileID: 0}
+  dialogueUI: {fileID: 1899391347}
   speakerName: Manager
-  preambleLine: "See those four buttons at the top? Each one switches you to a different
-    staff role.\nEach role has a different job. You'll need all of them to run the
-    restaurant.\nLet me show you each one now \u2014 press each button when I ask
-    you to."
+  preambleLine: 'in the game when giving the money to the cashier it automatically
+    switches your role '
   roles:
   - roleName: Host
-    description: As the Host, you greet customers at the entrance and seat them at
-      a table. Without a host, no one gets in!
     button: {fileID: 1193837349}
-    roleLabel: {fileID: 1193837347}
-  - roleName: Waiter
-    description: As the Waiter, you take orders from seated customers, pick up food
-      from the kitchen, and deliver it to their table.
-    button: {fileID: 1613871720}
-    roleLabel: {fileID: 1613871718}
-  - roleName: Cashier
-    description: As the Cashier, you process payments at the register when the waiter
-      brings money from the table.
-    button: {fileID: 1952862813}
-    roleLabel: {fileID: 1952862811}
   - roleName: Busser
-    description: As the Busser, you clean dirty trays from tables after customers
-      leave, so new guests can be seated.
     button: {fileID: 412066455}
-    roleLabel: {fileID: 412066453}
-  pressPromptSuffix: '
-
-
-    Press this button now to continue.'
-  bounceScale: 1.15
-  bounceSpeed: 2.2
-  dimOverlay: {fileID: 0}
-  dimTargetAlpha: 0.6
-  dimFadeDuration: 0.3
-  buttonPanelHighlight: {fileID: 0}
-  pulseMin: 0.3
-  pulseMax: 1
-  pulseSpeed: 2.5
-  pointerArrow: {fileID: 0}
-  pointerOffset: {x: 0, y: 34}
-  closingLine: "Good! You now know all four roles. Let's begin \u2014 you're starting
+  - roleName: Cashier
+    button: {fileID: 1952862813}
+  - roleName: Waiter
+    button: {fileID: 1613871720}
+  glowColor: {r: 1, g: 0.92, b: 0.2, a: 1}
+  glowPulseSpeed: 2.5
+  closingLine: "Good! You know all four roles. Let's begin \u2014 you're starting
     as the Host!"
 --- !u!1 &1901889023
 GameObject:
@@ -31331,12 +31286,12 @@ RectTransform:
   m_Children:
   - {fileID: 1531882250}
   - {fileID: 818610582}
-  m_Father: {fileID: 1068858671}
+  m_Father: {fileID: 1113496784}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: -2.0000203}
-  m_SizeDelta: {x: 1500, y: 800}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 800, y: 450}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &2142882887
 MonoBehaviour:

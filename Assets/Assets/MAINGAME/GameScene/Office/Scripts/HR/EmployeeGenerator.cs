@@ -5,11 +5,11 @@ public class EmployeeGenerator : MonoBehaviour
 {
     public List<EmployeeData> employees = new List<EmployeeData>();
 
-    [SerializeField] private string[] names = { "Maria","Kelvin","Josh","Nina","Sam","Leo","Kyle","Mark","Michael",
-                                               "Ron","Doyle","Johnvic","Mary","Paul","Bandoc",
-                                               "Fumi","Riley","Neo","Tom","Hasang","Tachu","Floribel","Ferrer",
-                                               "Montefaro","Miguel","Byron","Darnell","Noel","Christian",
-                                               "Joseph","Namuag" };
+    [SerializeField] private string[] names = {"Maria","Kelvin","Josh","Nina","Sam","Leo","Kyle","Mark","Michael",
+                                               "Ron","Johnvic","Mary",
+                                               "Fumi","Riley","Neo","Tom","Tachu","Floribel",
+                                               "Montefaro","Miguel","Noel","Christian",
+                                               "Joseph","Aljon","Lucky"};
 
     [SerializeField] private int employeesPerRole = 3;
     [SerializeField] private int minStars = 1;

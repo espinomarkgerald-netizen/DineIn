@@ -1,3 +1,5 @@
+using System;
+using System.Reflection;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -11,68 +13,173 @@ public class ShopItemUI : MonoBehaviour
     public TMP_Text quantityText;
     public Button plusButton;
     public Button minusButton;
-    public TMP_Text totalPriceText; // NEW
-    public System.Action OnQuantityChanged;
+    public TMP_Text totalPriceText;
+    public Action OnQuantityChanged;
 
     private ItemData itemData;
     private int quantity = 0;
+
     public int Quantity => quantity;
     public ItemData ItemData => itemData;
 
     public void Setup(ItemData data, bool unlocked)
     {
         itemData = data;
+        quantity = 0;
 
-        plusButton.onClick.RemoveAllListeners();
-        minusButton.onClick.RemoveAllListeners();
-
-        if (unlocked)
+        if (plusButton != null)
         {
-            ingredientImage.sprite = data.sprite;
-            nameText.text = data.displayName;
-
-            plusButton.interactable = true;
-            minusButton.interactable = true;
-
+            plusButton.onClick.RemoveAllListeners();
             plusButton.onClick.AddListener(() => ChangeQuantity(1));
+        }
+
+        if (minusButton != null)
+        {
+            minusButton.onClick.RemoveAllListeners();
             minusButton.onClick.AddListener(() => ChangeQuantity(-1));
+        }
+
+        UnsubscribeInventory();
+        SubscribeInventory();
+
+        bool availableNow = IsAvailableNow(unlocked);
+
+        if (availableNow)
+        {
+            if (ingredientImage != null)
+                ingredientImage.sprite = data != null ? data.sprite : null;
+
+            if (nameText != null)
+                nameText.text = data != null ? data.displayName : string.Empty;
+
+            if (plusButton != null)
+                plusButton.interactable = true;
+
+            if (minusButton != null)
+                minusButton.interactable = true;
         }
         else
         {
-            ingredientImage.sprite = null;
-            nameText.text = $"Unlock at Day {data.dayToUnlock}";
+            if (ingredientImage != null)
+                ingredientImage.sprite = null;
 
-            plusButton.interactable = false;
-            minusButton.interactable = false;
+            if (nameText != null)
+                nameText.text = data != null ? $"Unlock at Day {data.dayToUnlock}" : "Locked";
+
+            if (plusButton != null)
+                plusButton.interactable = false;
+
+            if (minusButton != null)
+                minusButton.interactable = false;
         }
-
-        quantity = 0;
 
         UpdateStock();
         UpdateQuantity();
         UpdatePriceDisplay();
     }
 
-    void OnDestroy()
+    private void OnDestroy()
+    {
+        UnsubscribeInventory();
+    }
+
+    private void OnDisable()
+    {
+        UnsubscribeInventory();
+    }
+
+    private void OnEnable()
+    {
+        SubscribeInventory();
+    }
+
+    private void SubscribeInventory()
+    {
+        if (InventoryManager.Instance != null)
+            InventoryManager.Instance.OnStockChanged += OnStockChanged;
+    }
+
+    private void UnsubscribeInventory()
     {
         if (InventoryManager.Instance != null)
             InventoryManager.Instance.OnStockChanged -= OnStockChanged;
     }
 
-    void ChangeQuantity(int delta)
+    private bool IsAvailableNow(bool unlockedFromCaller)
     {
-        Debug.Log("Clicked: " + delta);
-        quantity += delta;
-        if (quantity < 0) quantity = 0;
-        UpdateQuantity();
-        UpdatePriceDisplay();
+        if (itemData == null)
+            return false;
 
-        OnQuantityChanged?.Invoke();        
+        if (unlockedFromCaller)
+            return true;
+
+        if (UnlockManager.Instance != null && UnlockManager.Instance.IsIngredientUnlocked(itemData))
+            return true;
+
+        int currentDay = GetCurrentDaySafe();
+        return currentDay >= itemData.dayToUnlock;
     }
 
-    void UpdateQuantity()
+    private int GetCurrentDaySafe()
     {
-        quantityText.text = quantity.ToString();
+        if (GameFlowManager.Instance == null)
+            return 1;
+
+        object manager = GameFlowManager.Instance;
+        Type type = manager.GetType();
+
+        string[] propertyNames =
+        {
+            "CurrentDay",
+            "currentDay",
+            "Day",
+            "CurrentDayIndex"
+        };
+
+        foreach (string propertyName in propertyNames)
+        {
+            PropertyInfo property = type.GetProperty(propertyName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+            if (property != null && property.PropertyType == typeof(int))
+                return Mathf.Max(1, (int)property.GetValue(manager));
+        }
+
+        string[] fieldNames =
+        {
+            "currentDay",
+            "CurrentDay",
+            "day",
+            "currentDayIndex"
+        };
+
+        foreach (string fieldName in fieldNames)
+        {
+            FieldInfo field = type.GetField(fieldName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+            if (field != null && field.FieldType == typeof(int))
+                return Mathf.Max(1, (int)field.GetValue(manager));
+        }
+
+        return 1;
+    }
+
+    private void ChangeQuantity(int delta)
+    {
+        if (itemData == null)
+            return;
+
+        quantity += delta;
+
+        if (quantity < 0)
+            quantity = 0;
+
+        UpdateQuantity();
+        UpdatePriceDisplay();
+        OnQuantityChanged?.Invoke();
+    }
+
+    private void UpdateQuantity()
+    {
+        if (quantityText != null)
+            quantityText.text = quantity.ToString();
     }
 
     public void ResetQuantity()
@@ -82,26 +189,83 @@ public class ShopItemUI : MonoBehaviour
         UpdatePriceDisplay();
     }
 
-    void UpdateStock()
+    private void UpdateStock()
     {
+        if (stockText == null)
+            return;
+
+        if (itemData == null || InventoryManager.Instance == null)
+        {
+            stockText.text = "Stock: 0";
+            return;
+        }
+
         int stock = InventoryManager.Instance.GetStock(itemData.itemType);
         stockText.text = "Stock: " + stock;
     }
 
-    void UpdatePriceDisplay()
+    private void UpdatePriceDisplay()
     {
+        if (totalPriceText == null)
+            return;
+
+        if (itemData == null)
+        {
+            totalPriceText.text = "₱0";
+            return;
+        }
+
         int totalPrice = quantity * itemData.boxCost;
         totalPriceText.text = $"₱{totalPrice}";
     }
 
-    void OnStockChanged(ItemType type, int newStock)
+    private void OnStockChanged(ItemType type, int newStock)
     {
+        if (itemData == null)
+            return;
+
         if (type == itemData.itemType)
             UpdateStock();
     }
 
     public void RefreshDisplay()
     {
+        bool availableNow = IsAvailableNow(false);
+
+        if (itemData != null)
+        {
+            if (availableNow)
+            {
+                if (ingredientImage != null)
+                    ingredientImage.sprite = itemData.sprite;
+
+                if (nameText != null)
+                    nameText.text = itemData.displayName;
+
+                if (plusButton != null)
+                    plusButton.interactable = true;
+
+                if (minusButton != null)
+                    minusButton.interactable = true;
+            }
+            else
+            {
+                if (ingredientImage != null)
+                    ingredientImage.sprite = null;
+
+                if (nameText != null)
+                    nameText.text = $"Unlock at Day {itemData.dayToUnlock}";
+
+                if (plusButton != null)
+                    plusButton.interactable = false;
+
+                if (minusButton != null)
+                    minusButton.interactable = false;
+
+                quantity = 0;
+            }
+        }
+
         UpdateStock();
         UpdateQuantity();
         UpdatePriceDisplay();

@@ -3,13 +3,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-
 public class InventoryManager : MonoBehaviour
 {
     public static InventoryManager Instance;
 
     [Header("Inventory Setup")]
-    [SerializeField] private List<ItemData> items; // assign in inspector
+    [SerializeField] private List<ItemData> items;
 
     private Dictionary<ItemType, int> inventory = new Dictionary<ItemType, int>();
 
@@ -18,7 +17,7 @@ public class InventoryManager : MonoBehaviour
 
     public event Action<ItemType, int> OnStockChanged;
 
-    void Awake()
+    private void Awake()
     {
         if (Instance == null)
         {
@@ -32,7 +31,7 @@ public class InventoryManager : MonoBehaviour
         }
     }
 
-    void Start()
+    private void Start()
     {
         foreach (var kvp in inventory)
             OnStockChanged?.Invoke(kvp.Key, kvp.Value);
@@ -48,6 +47,9 @@ public class InventoryManager : MonoBehaviour
 
         foreach (var item in items)
         {
+            if (item == null)
+                continue;
+
             if (!inventory.ContainsKey(item.itemType))
                 inventory[item.itemType] = 0;
         }
@@ -58,12 +60,22 @@ public class InventoryManager : MonoBehaviour
     private void UpdateInspectorInventory()
     {
         inspectorInventory.Clear();
+
         foreach (var kvp in inventory)
-            inspectorInventory.Add(new InventoryEntry { itemType = kvp.Key, stock = kvp.Value });
+        {
+            inspectorInventory.Add(new InventoryEntry
+            {
+                itemType = kvp.Key,
+                stock = kvp.Value
+            });
+        }
     }
 
     public void AddStock(ItemType type, int amount)
     {
+        if (amount <= 0)
+            return;
+
         if (!inventory.ContainsKey(type))
             inventory[type] = 0;
 
@@ -74,6 +86,9 @@ public class InventoryManager : MonoBehaviour
 
     public bool UseStock(ItemType type, int amount)
     {
+        if (amount <= 0)
+            return false;
+
         if (!inventory.ContainsKey(type) || inventory[type] < amount)
             return false;
 
@@ -85,22 +100,70 @@ public class InventoryManager : MonoBehaviour
 
     public int GetStock(ItemType type)
     {
-        return inventory.ContainsKey(type) ? inventory[type] : 0;
+        return inventory.TryGetValue(type, out int stock) ? stock : 0;
     }
 
-    /// <summary>Returns true if this item type has ever been stocked (i.e. registered in inventory).</summary>
-    public bool IsTracked(ItemType type) => inventory.ContainsKey(type);
+    public bool IsTracked(ItemType type)
+    {
+        return inventory.ContainsKey(type);
+    }
 
-    public List<ItemData> Items => items; // expose items for UI
+    public List<ItemData> Items => items;
 
-    /// <summary>
-    /// Zeros all stock counts and notifies listeners. Call on a full run reset
-    /// so the player starts fresh with no carried-over stock.
-    /// </summary>
     public void ResetStock()
     {
         foreach (var key in inventory.Keys.ToArray())
             inventory[key] = 0;
+
+        UpdateInspectorInventory();
+
+        foreach (var kvp in inventory)
+            OnStockChanged?.Invoke(kvp.Key, kvp.Value);
+    }
+
+    public void FillSaveData(GameSaveData data)
+    {
+        if (data == null)
+            return;
+
+        data.inventoryStocks.Clear();
+
+        foreach (var kvp in inventory)
+        {
+            data.inventoryStocks.Add(new InventorySaveEntry
+            {
+                itemType = kvp.Key,
+                stock = kvp.Value
+            });
+        }
+    }
+
+    public void ApplySaveData(GameSaveData data)
+    {
+        if (data == null)
+            return;
+
+        inventory.Clear();
+
+        if (items != null)
+        {
+            foreach (var item in items)
+            {
+                if (item == null)
+                    continue;
+
+                if (!inventory.ContainsKey(item.itemType))
+                    inventory[item.itemType] = 0;
+            }
+        }
+
+        if (data.inventoryStocks != null)
+        {
+            foreach (var entry in data.inventoryStocks)
+            {
+                inventory[entry.itemType] = Mathf.Max(0, entry.stock);
+            }
+        }
 
         UpdateInspectorInventory();
 
