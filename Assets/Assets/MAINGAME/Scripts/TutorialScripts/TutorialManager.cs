@@ -127,6 +127,13 @@ public class TutorialManager : MonoBehaviour
         "As the Host you greet customers at the entrance and assign them to a table.\n" +
         "Let's do it — a group is on their way in now.";
 
+    [Header("Role Switch Video")]
+    [SerializeField] private GameObject videoObject;
+    [SerializeField] private bool showVideoObjectBeforeDay1 = true;
+    [SerializeField] private bool allowAnyClickToContinueVideoObject = true;
+    [SerializeField] private bool allowEnterKeyToContinueVideoObject = true;
+    [SerializeField] private bool allowSpaceKeyToContinueVideoObject = true;
+
     [Header("UI")]
     [SerializeField] private GameObject tutorialIntroPanel;
     [SerializeField] private Button startTutorialButton;
@@ -189,6 +196,7 @@ public class TutorialManager : MonoBehaviour
     private int currentIntroIndex = -1;
     private bool openingSequenceFinished;
     private bool completionShown;
+    private bool waitingForVideoObjectContinue;
 
     private bool notepadOpened;
     private bool orderConfirmed;
@@ -309,6 +317,8 @@ public class TutorialManager : MonoBehaviour
 
         if (tutorialCompletePanel != null)
             tutorialCompletePanel.SetActive(false);
+
+        HideVideoObject();
     }
 
     private void Start()
@@ -335,6 +345,13 @@ public class TutorialManager : MonoBehaviour
     private void Update()
     {
         RefreshRuntimeTargets();
+
+        if (waitingForVideoObjectContinue)
+        {
+            UpdateVideoObjectContinue();
+            RefreshUI();
+            return;
+        }
 
         if (enableDay5MasteryTrayFallback)
             RefreshMasteryDirtyTrayTracking();
@@ -681,6 +698,8 @@ public class TutorialManager : MonoBehaviour
 
         activeTutorialGroup = null;
         activeDirtyTray = null;
+        waitingForVideoObjectContinue = false;
+        HideVideoObject();
 
         guidedBusserTray = null;
         heldBusserTray = null;
@@ -802,6 +821,12 @@ public class TutorialManager : MonoBehaviour
 
     private void BeginRoleSwitchIntroOrStartDay()
     {
+        if (ShouldShowVideoObjectBeforeDay1())
+        {
+            ShowVideoObject();
+            return;
+        }
+
         StartCurrentDayFlow();
     }
 
@@ -812,6 +837,8 @@ public class TutorialManager : MonoBehaviour
         completionShown = false;
         activeTutorialGroup = null;
         activeDirtyTray = null;
+        waitingForVideoObjectContinue = false;
+        HideVideoObject();
 
         guidedBusserTray = null;
         heldBusserTray = null;
@@ -889,6 +916,58 @@ public class TutorialManager : MonoBehaviour
             return config.introMessage;
 
         return config.dayGoalMessage;
+    }
+
+    private bool ShouldShowVideoObjectBeforeDay1()
+    {
+        return currentDay == TutorialDay.Day1Host &&
+               showVideoObjectBeforeDay1 &&
+               videoObject != null;
+    }
+
+    private void ShowVideoObject()
+    {
+        waitingForVideoObjectContinue = true;
+
+        if (videoObject != null)
+            videoObject.SetActive(true);
+    }
+
+    private void HideVideoObject()
+    {
+        waitingForVideoObjectContinue = false;
+
+        if (videoObject != null)
+            videoObject.SetActive(false);
+    }
+
+    private void UpdateVideoObjectContinue()
+    {
+        bool shouldContinue = false;
+
+        if (allowAnyClickToContinueVideoObject && Input.GetMouseButtonDown(0))
+            shouldContinue = true;
+
+        if (allowEnterKeyToContinueVideoObject &&
+            (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter)))
+            shouldContinue = true;
+
+        if (allowSpaceKeyToContinueVideoObject && Input.GetKeyDown(KeyCode.Space))
+            shouldContinue = true;
+
+        if (!shouldContinue)
+            return;
+
+        ContinueFromVideoObject();
+    }
+
+    public void ContinueFromVideoObject()
+    {
+        if (!waitingForVideoObjectContinue)
+            return;
+
+        HideVideoObject();
+        StartCurrentDayFlow();
     }
 
     private void BeginCurrentDayGameplay()
@@ -3050,6 +3129,8 @@ public class TutorialManager : MonoBehaviour
         if (!tutorialStarted)
             return;
 
+        HideVideoObject();
+
         if (currentDay < TutorialDay.Day5AllTogether)
         {
             currentDay = (TutorialDay)Mathf.Min((int)TutorialDay.Day5AllTogether, (int)currentDay + 1);
@@ -3068,6 +3149,8 @@ public class TutorialManager : MonoBehaviour
 
     private void OnFinishTutorial()
     {
+        HideVideoObject();
+
         if (currentDay < TutorialDay.Day5AllTogether)
         {
             currentDay = (TutorialDay)Mathf.Min((int)TutorialDay.Day5AllTogether, (int)currentDay + 1);
