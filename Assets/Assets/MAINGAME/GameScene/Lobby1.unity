@@ -37265,7 +37265,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   managementSceneName: Office
-  shiftLengthMinutes: 0.5
+  shiftLengthMinutes: 4
   maxCustomersToSpawn: 12
   maxGroupsPerMinute: 2
   spawnIntervalMin: 6

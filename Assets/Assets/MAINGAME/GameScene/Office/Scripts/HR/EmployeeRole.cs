@@ -4,6 +4,7 @@ public enum EmployeeRole
     Waiter,
     Cashier,
     Busser,
-    Chef,
-    Barista
+    PrepCook,
+    LineCook,
+    Assembler
 }
