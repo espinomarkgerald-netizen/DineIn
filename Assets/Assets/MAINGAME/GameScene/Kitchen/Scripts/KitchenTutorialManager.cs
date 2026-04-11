@@ -20,7 +20,6 @@ public class TutorialStep {
     public Transform worldFocusObject;
     public RectTransform uiFocusObject;
 
-    // --- UPGRADED: 3D ARROW OFFSET ---
     [Header("3D Arrow Settings")]
     [Tooltip("X/Z move it side-to-side, Y moves it up and down.")]
     public Vector3 worldArrowOffset = new Vector3(0, 3f, 0);
@@ -70,6 +69,9 @@ public class KitchenTutorialManager : MonoBehaviour {
     public TextMeshProUGUI tutorialText;
     public GameObject darkOverlayPanel;
     public GameObject nextButton;
+
+    [Header("Completion Popup")]
+    public TutorialCompletePopup completionPopup;
 
     [Header("Camera References")]
     public Transform cameraRig;
@@ -203,7 +205,6 @@ public class KitchenTutorialManager : MonoBehaviour {
         if (activeWorldArrow != null) {
             activeWorldArrow.SetActive(step.worldFocusObject != null);
             if (step.worldFocusObject != null) {
-                // --- UPGRADED: Apply the full Vector3 offset ---
                 activeWorldArrow.transform.position = step.worldFocusObject.position + step.worldArrowOffset;
             }
         }
@@ -247,6 +248,6 @@ public class KitchenTutorialManager : MonoBehaviour {
             if (s.customStepUI != null) s.customStepUI.SetActive(false);
         }
 
-        if (tutorialText != null) tutorialText.text = "Tutorial Complete!";
+        if (completionPopup != null) completionPopup.Show();
     }
 }
