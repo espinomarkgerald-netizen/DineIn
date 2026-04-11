@@ -508,7 +508,7 @@ public class TutorialManager : MonoBehaviour
                 SetFloatDefault(ref config.firstSpawnDelay, 0.35f, force);
                 SetFloatDefault(ref config.practiceDurationSeconds, 120f, force);
                 SetFloatDefault(ref config.practiceSpawnIntervalSeconds, 30f, force);
-                SetIntDefault(ref config.practiceTargetCount, 7, force);
+                SetIntDefault(ref config.practiceTargetCount, 4, force);
                 SetIntDefault(ref config.practiceSpawnCountPerWave, 1, force);
                 break;
 
@@ -1577,6 +1577,21 @@ public class TutorialManager : MonoBehaviour
 
         practiceProgressCount++;
 
+        if (currentDay == TutorialDay.Day3Cashier)
+        {
+            if (practiceProgressCount >= 4)
+            {
+                practiceRunning = false;
+
+                if (practiceTimerText != null)
+                    practiceTimerText.text = "";
+
+                SetPhase(TutorialPhase.Complete);
+            }
+
+            return;
+        }
+
         if (IsTimeOnlyPracticeDay())
             return;
 
@@ -1598,6 +1613,12 @@ public class TutorialManager : MonoBehaviour
         practiceTimer = 0f;
         practiceSpawnTimer = 0f;
 
+        tutorialStarted = false;
+        CancelInvoke(nameof(SpawnConfiguredGroups));
+
+        if (practiceTimerText != null)
+            practiceTimerText.text = "";
+
         DayConfig config = GetCurrentDayConfig();
         string message = config != null && !string.IsNullOrWhiteSpace(config.completionMessage)
             ? config.completionMessage
@@ -1616,6 +1637,7 @@ public class TutorialManager : MonoBehaviour
         if (showCompletionPanel && tutorialCompletePanel != null)
         {
             tutorialCompletePanel.SetActive(true);
+            tutorialCompletePanel.transform.SetAsLastSibling();
 
             if (tutorialCompleteDayTitle != null)
                 tutorialCompleteDayTitle.text = dayTitle;

@@ -61,13 +61,35 @@ public class TutorialCashierLessonController : MonoBehaviour
         {
             EndLesson();
         }
+
+        // If TutorialManager has completed Day 3 while the lesson is still running,
+        // end the lesson immediately — do not wait for our own payment counter.
+        if (sessionRunning && IsDayComplete())
+        {
+            Debug.Log("[LessonController] TutorialManager completed Day 3 — ending lesson.", this);
+            EndLesson();
+        }
+    }
+
+    /// <summary>
+    /// Returns true when TutorialManager has moved to the Complete phase for Day 3,
+    /// meaning all required payments have been registered and the day is over.
+    /// </summary>
+    private bool IsDayComplete()
+    {
+        TutorialManager tm = TutorialManager.Instance;
+        return tm != null &&
+               tm.CurrentDay == TutorialManager.TutorialDay.Day3Cashier &&
+               tm.CurrentPhase == TutorialManager.TutorialPhase.Complete;
     }
 
     private bool IsDay3CashierActive()
     {
-        return TutorialManager.Instance != null &&
-               TutorialManager.Instance.TutorialStarted &&
-               TutorialManager.Instance.CurrentDay == TutorialManager.TutorialDay.Day3Cashier;
+        TutorialManager tm = TutorialManager.Instance;
+        return tm != null &&
+            tm.TutorialStarted &&
+            tm.CurrentDay == TutorialManager.TutorialDay.Day3Cashier &&
+            tm.CurrentPhase != TutorialManager.TutorialPhase.Complete;
     }
 
     private void BeginLesson()
@@ -183,6 +205,10 @@ public class TutorialCashierLessonController : MonoBehaviour
     {
         roundOpen = false;
 
+        // Abort immediately if TutorialManager already completed Day 3.
+        if (IsDayComplete())
+            yield break;
+
         if (showWaiting)
         {
             ShowWaitingIndicator("Waiting for payments...");
@@ -197,6 +223,13 @@ public class TutorialCashierLessonController : MonoBehaviour
 
         if (!sessionRunning)
             yield break;
+
+        // Second guard after the wait: TutorialManager may have completed during the delay.
+        if (IsDayComplete())
+        {
+            HideWaitingIndicator();
+            yield break;
+        }
 
         yield return StartCoroutine(OpenRandomPaymentRoutine());
         openRoutine = null;
@@ -287,7 +320,13 @@ public class TutorialCashierLessonController : MonoBehaviour
             if (TutorialManager.Instance != null)
                 TutorialManager.Instance.OnCashierConfirmed(null);
 
-            ShowWarningPopup("Good. Now process 5 payments on your own.");
+            if (IsDayComplete())
+            {
+                EndLesson();
+                return;
+            }
+
+            ShowWarningPopup("Good. Now process payments on your own.");
             ScheduleNextOpen(practiceDelaySeconds, true);
             return;
         }
@@ -295,14 +334,27 @@ public class TutorialCashierLessonController : MonoBehaviour
         practiceCompleted++;
 
         if (TutorialManager.Instance != null)
-            TutorialManager.Instance.OnCashierConfirmed(null);
+            TutorialManager.Instance.RegisterCashierPaymentProcessed(null);
 
         if (practiceCompleted >= practicePaymentCount)
         {
             ShowWarningPopup("Cashier practice complete.");
             HideWaitingIndicator();
             HidePersistentTip();
-            sessionRunning = false;
+
+            if (TutorialManager.Instance != null &&
+                TutorialManager.Instance.CurrentPhase != TutorialManager.TutorialPhase.Complete)
+            {
+                TutorialManager.Instance.SetPhase(TutorialManager.TutorialPhase.Complete);
+            }
+
+            EndLesson();
+            return;
+        }
+
+        if (IsDayComplete())
+        {
+            EndLesson();
             return;
         }
 

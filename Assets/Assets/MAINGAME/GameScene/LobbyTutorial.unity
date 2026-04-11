@@ -19792,6 +19792,8 @@ MonoBehaviour:
     button: {fileID: 0}
   glowColor: {r: 1, g: 0.92, b: 0.2, a: 1}
   glowPulseSpeed: 2.5
+  bounceScale: 1.18
+  bounceSpeed: 2.8
   closingLine: "Good! You now know all four roles. Let's begin \u2014 you're starting
     as the Host!"
 --- !u!1 &1391360930
@@ -27307,7 +27309,7 @@ MonoBehaviour:
   finishButton: {fileID: 386937815}
   finishButtonText: {fileID: 1303271791}
   showCompletionPanel: 1
-  useSavedDayProgress: 0
+  useSavedDayProgress: 1
   reloadSceneWhenStartingNextDay: 1
   autoStartWhenSceneReloads: 1
   tutorialSceneName: LobbyTutorial
@@ -27813,6 +27815,8 @@ MonoBehaviour:
     button: {fileID: 1613871720}
   glowColor: {r: 1, g: 0.92, b: 0.2, a: 1}
   glowPulseSpeed: 2.5
+  bounceScale: 1.18
+  bounceSpeed: 2.8
   closingLine: "Good! You know all four roles. Let's begin \u2014 you're starting
     as the Host!"
 --- !u!1 &1901889023

@@ -643,13 +643,21 @@ public class CustomerGroup : MonoBehaviour
         currentOrder.Clear();
 
         List<int> validOrderTypes = new List<int>();
+        bool simpleMealsOnly =
+        TutorialManager.Instance != null &&
+        TutorialManager.Instance.TutorialStarted &&
+        TutorialManager.Instance.CurrentDay == TutorialManager.TutorialDay.Day2Waiter;
 
         if (HasAllFoods("Chicken")) validOrderTypes.Add(0);
         if (HasAllFoods("Fries")) validOrderTypes.Add(1);
         if (HasAllFoods("Burger")) validOrderTypes.Add(2);
-        if (HasAllFoods("Chicken", "Fries")) validOrderTypes.Add(3);
-        if (HasAllFoods("Chicken", "Burger")) validOrderTypes.Add(4);
-        if (HasAllFoods("Burger", "Fries")) validOrderTypes.Add(5);
+
+        if (!simpleMealsOnly)
+        {
+            if (HasAllFoods("Chicken", "Fries")) validOrderTypes.Add(3);
+            if (HasAllFoods("Chicken", "Burger")) validOrderTypes.Add(4);
+            if (HasAllFoods("Burger", "Fries")) validOrderTypes.Add(5);
+        }
 
         if (validOrderTypes.Count == 0)
         {
