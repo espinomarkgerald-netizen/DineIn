@@ -4,10 +4,10 @@ using TMPro;
 
 /// <summary>
 /// Displays the appropriate narrative ending screen based on the GameOverReason.
-/// Singleton — persists across all scene loads via DontDestroyOnLoad on its root Canvas.
-/// Attach to the GameOverPanel (child of CanvasGameMenu). The root Canvas will be
-/// marked DontDestroyOnLoad automatically so this screen is always reachable,
-/// regardless of which scene is currently active.
+/// Singleton — persists across all scene loads.
+/// IMPORTANT: This script's GameObject must be a scene root (no parent). If it is nested
+/// inside another Canvas or GameObject, move it to the scene root before play. DontDestroyOnLoad
+/// only works on root-level GameObjects and will fail silently otherwise.
 /// </summary>
 public class GameOverScreen : MonoBehaviour
 {
@@ -57,10 +57,16 @@ public class GameOverScreen : MonoBehaviour
 
         Instance = this;
 
-        // DontDestroyOnLoad requires a scene-root GameObject. Mark the Canvas
-        // root so the entire UI hierarchy persists across scene loads intact —
-        // no detaching, no missing Canvas, no invisible panels.
-        DontDestroyOnLoad(transform.root.gameObject);
+        // This GameObject must be a scene root for DontDestroyOnLoad to work correctly.
+        // If it is a child of another GameObject, move it in the Inspector so it has no parent.
+        if (transform.parent != null)
+        {
+            Debug.LogError("[GameOverScreen] GameObject is not at scene root. DontDestroyOnLoad requires a root-level object. " +
+                           "Detaching from parent to avoid corrupting parent Canvas hierarchy.");
+            transform.SetParent(null);
+        }
+
+        DontDestroyOnLoad(gameObject);
 
         if (tryAgainButton != null)
             tryAgainButton.onClick.AddListener(OnTryAgainClicked);

@@ -1,6 +1,11 @@
 using UnityEngine;
 using UnityEngine.UI;
 
+/// <summary>
+/// Binds UI buttons to scene-load actions via SceneManagerUI.
+/// Registers on Start and re-registers on OnEnable so buttons stay
+/// live after every scene activation, including returns from other scenes.
+/// </summary>
 public class SceneButtonBinder : MonoBehaviour
 {
     [System.Serializable]
@@ -18,9 +23,21 @@ public class SceneButtonBinder : MonoBehaviour
 
     private void Start()
     {
+        RegisterAll();
+    }
+
+    private void OnEnable()
+    {
+        // Re-register after every activation in case SceneManagerUI cleared its
+        // listeners or the object was disabled/enabled during scene transitions.
+        RegisterAll();
+    }
+
+    private void RegisterAll()
+    {
         if (SceneManagerUI.Instance == null)
         {
-            Debug.LogError("SceneManagerUI not found! Make sure you started from the Bootstrap scene.");
+            Debug.LogError("[SceneButtonBinder] SceneManagerUI not found! Make sure you started from the Bootstrap scene.");
             return;
         }
 

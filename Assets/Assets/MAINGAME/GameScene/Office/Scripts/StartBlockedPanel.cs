@@ -9,15 +9,22 @@ public class StartBlockedPanel : MonoBehaviour
     [SerializeField] private GameObject panel;
     [SerializeField] private TextMeshProUGUI messageText;
 
-    private void Start()
-    {
-        Show(new List<string> { "UI TEST", "If you see this, it's working" });
-    }
-
     private void Awake()
     {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
         Instance = this;
         panel.SetActive(false);
+    }
+
+    private void OnDestroy()
+    {
+        if (Instance == this)
+            Instance = null;
     }
 
     public void Show(List<string> issues)

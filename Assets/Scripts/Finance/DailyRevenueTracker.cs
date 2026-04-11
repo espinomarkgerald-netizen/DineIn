@@ -17,7 +17,7 @@ public class DailyRevenueTracker : MonoBehaviour
     {
         if (Instance != null && Instance != this)
         {
-            Destroy(gameObject);
+            Destroy(this);
             return;
         }
 

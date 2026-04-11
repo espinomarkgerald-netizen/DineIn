@@ -11,6 +11,10 @@ public class SceneManagerUI : MonoBehaviourPunCallbacks
 
     [Header("Bootstrap Config")]
     [SerializeField] private string firstSceneToLoad = "MainMenu";
+    [Tooltip("Optional overlay shown during the Bootstrap -> first scene transition. " +
+             "Assign a Canvas root from the Bootstrap scene. It will be hidden automatically " +
+             "once the first scene loads, or destroyed if it's scene-local.")]
+    [SerializeField] private GameObject bootstrapLoadingScreen;
 
     public enum SceneAction { LoadSingle, LoadAdditive, Unload }
 
@@ -22,28 +26,26 @@ public class SceneManagerUI : MonoBehaviourPunCallbacks
         public SceneAction action;
     }
 
-    [Header("Safety")]
-    [SerializeField] private bool protectMenuFromSingleLoad = true;
-
     [Header("Menu <-> Gameplay")]
     [SerializeField] private string menuSceneName = "MainMenu";
     [SerializeField] private string gameplaySceneName = "Multiplayer";
 
-    [Tooltip("When gameplay loads additively (offline only), disable all root objects in the Menu scene (keeps scene loaded but hides UI).")]
-    [SerializeField] private bool hideMenuWhenGameplayLoaded = true;
-
-    [Tooltip("Also disable these extra objects even if they're not in the menu scene (optional).")]
-    [SerializeField] private GameObject[] extraMenuObjectsToDisable;
-
-    [Tooltip("When a scene loads, make it the Active Scene.")]
-    [SerializeField] private bool setRecentlyLoadedAsActiveScene = true;
-
-    [Tooltip("When a scene loads, disable root objects in all OTHER loaded scenes.")]
+    [Tooltip("When a scene loads additively, disable root objects in all OTHER loaded scenes.")]
     [SerializeField] private bool deactivateOtherScenesOnLoad = true;
 
     [Header("Customization Sync")]
     [Tooltip("Push customization to Photon properties when Multiplayer loads (recommended).")]
     [SerializeField] private bool pushCustomizationOnGameplayLoad = true;
+
+    // Guard against double-firing while a load/unload is already in progress.
+    private bool isLoading;
+
+    // When a LoadSingle is requested but the scene is still mid-unload, we defer
+    // the actual load until OnSceneUnloaded fires.
+    private string pendingLoadAfterUnload;
+
+    // Loading screen overlay owned by SceneLoadWithScreen — hidden after the scene activates.
+    private GameObject _pendingOverlay;
 
     private void Awake()
     {
@@ -52,7 +54,7 @@ public class SceneManagerUI : MonoBehaviourPunCallbacks
             Instance = this;
             DontDestroyOnLoad(gameObject);
 
-            SceneManager.sceneLoaded += OnSceneLoaded;
+            SceneManager.sceneLoaded   += OnSceneLoaded;
             SceneManager.sceneUnloaded += OnSceneUnloaded;
         }
         else
@@ -66,21 +68,41 @@ public class SceneManagerUI : MonoBehaviourPunCallbacks
     {
         if (Instance == this)
         {
-            SceneManager.sceneLoaded -= OnSceneLoaded;
+            SceneManager.sceneLoaded   -= OnSceneLoaded;
             SceneManager.sceneUnloaded -= OnSceneUnloaded;
         }
     }
 
     private void Start()
     {
-        // Bootstrap scene should be buildIndex 0
+        // Bootstrap scene should be buildIndex 0.
+        // Use the async guarded path so isLoading is set correctly and
+        // OnSceneLoaded fires normally — which resets isLoading and clears
+        // any _pendingOverlay. Never use synchronous LoadScene here:
+        // in Unity 6 it is deprecated and, more importantly, it bypasses
+        // isLoading entirely, which can leave the loading flag in an
+        // inconsistent state if a callback fires during the same frame.
         if (SceneManager.GetActiveScene().buildIndex == 0)
         {
-            Debug.Log("Bootstrap successful. Loading: " + firstSceneToLoad);
-            SceneManager.LoadScene(firstSceneToLoad, LoadSceneMode.Single);
+            Debug.Log("[SceneManagerUI] Bootstrap -> Loading: " + firstSceneToLoad);
+
+            // Show the Bootstrap loading overlay if one is assigned, then use the
+            // guarded async path so OnSceneLoaded handles the hide step.
+            if (bootstrapLoadingScreen != null)
+            {
+                bootstrapLoadingScreen.SetActive(true);
+                _pendingOverlay = bootstrapLoadingScreen;
+            }
+
+            LoadSingleSafe(firstSceneToLoad);
         }
     }
 
+    // -------------------------------------------------------------------------
+    // Button registration
+    // -------------------------------------------------------------------------
+
+    /// <summary>Registers a button with a scene name and action. Safe to call multiple times.</summary>
     public void RegisterButton(Button button, string sceneName, SceneAction action)
     {
         if (button == null || string.IsNullOrEmpty(sceneName)) return;
@@ -89,118 +111,235 @@ public class SceneManagerUI : MonoBehaviourPunCallbacks
         button.onClick.AddListener(() => HandleScene(sceneName, action));
     }
 
+    // -------------------------------------------------------------------------
+    // Core scene dispatch
+    // -------------------------------------------------------------------------
+
     private void HandleScene(string sceneName, SceneAction action)
     {
-        if (!Application.CanStreamedLevelBeLoaded(sceneName))
+        if (isLoading)
         {
-            Debug.LogError($"Scene '{sceneName}' is NOT in the Build Profile!");
+            Debug.LogWarning($"[SceneManagerUI] Load already in progress — ignoring request for '{sceneName}'.");
             return;
         }
 
-        // -----------------------------
-        // IMPORTANT: Photon Multiplayer Gameplay Load
-        // -----------------------------
+        if (!Application.CanStreamedLevelBeLoaded(sceneName))
+        {
+            Debug.LogError($"[SceneManagerUI] Scene '{sceneName}' is NOT in the Build Profile!");
+            return;
+        }
+
+        // ------------------------------------------------------------------
+        // Photon multiplayer path
+        // ------------------------------------------------------------------
         if (sceneName == gameplaySceneName && PhotonNetwork.IsConnectedAndReady)
         {
-            // If we are in a room, we MUST use PhotonNetwork.LoadLevel (synced)
             if (PhotonNetwork.InRoom)
             {
                 if (!PhotonNetwork.IsMasterClient)
                 {
-                    Debug.LogWarning("[SceneManagerUI] Tried to load gameplay but not MasterClient. Master should call PhotonNetwork.LoadLevel.");
+                    Debug.LogWarning("[SceneManagerUI] Not MasterClient — Master should call PhotonNetwork.LoadLevel.");
                     return;
                 }
 
-                Debug.Log("[SceneManagerUI] Multiplayer gameplay load via PhotonNetwork.LoadLevel: " + gameplaySceneName);
+                Debug.Log("[SceneManagerUI] Multiplayer load via PhotonNetwork.LoadLevel: " + gameplaySceneName);
                 PhotonNetwork.LoadLevel(gameplaySceneName);
                 return;
             }
 
-            // If connected but not in a room, do NOT load gameplay here (join/create first)
-            Debug.LogWarning("[SceneManagerUI] Connected to Photon but NOT in a room. Join/Create a room before loading Multiplayer.");
+            Debug.LogWarning("[SceneManagerUI] Connected to Photon but NOT in a room — join/create first.");
             return;
         }
 
-        // -----------------------------
-        // Offline / Menu scene loads (Unity)
-        // -----------------------------
-        if (protectMenuFromSingleLoad &&
-            action == SceneAction.LoadSingle &&
-            SceneManager.GetSceneByName(menuSceneName).isLoaded &&
-            sceneName != menuSceneName)
-        {
-            Debug.LogWarning($"Prevented LoadSingle of '{sceneName}' while '{menuSceneName}' is loaded. Loading Additive instead.");
-            action = SceneAction.LoadAdditive;
-        }
-
+        // ------------------------------------------------------------------
+        // Offline / menu scene loads
+        // ------------------------------------------------------------------
         switch (action)
         {
             case SceneAction.LoadSingle:
-                SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Single);
+                LoadSingleSafe(sceneName);
                 break;
 
             case SceneAction.LoadAdditive:
-                if (!SceneManager.GetSceneByName(sceneName).isLoaded)
-                    SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Additive);
+                LoadAdditiveSafe(sceneName);
                 break;
 
             case SceneAction.Unload:
-                if (SceneManager.GetSceneByName(sceneName).isLoaded)
-                    SceneManager.UnloadSceneAsync(sceneName);
+                UnloadSafe(sceneName);
                 break;
         }
     }
 
+    // -------------------------------------------------------------------------
+    // Public API used by SceneLoadWithScreen
+    // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// Called by SceneLoadWithScreen to trigger a load while ensuring there is
+    /// only one active async operation at a time. The overlay root is hidden
+    /// once the new scene has fully loaded.
+    /// </summary>
+    public void LoadSceneWithScreen(string sceneName, GameObject overlayRoot)
+    {
+        if (isLoading)
+        {
+            // Already loading — hide the overlay that was prematurely shown.
+            if (overlayRoot != null) overlayRoot.SetActive(false);
+            Debug.LogWarning($"[SceneManagerUI] LoadSceneWithScreen ignored — already loading.");
+            return;
+        }
+
+        if (!Application.CanStreamedLevelBeLoaded(sceneName))
+        {
+            if (overlayRoot != null) overlayRoot.SetActive(false);
+            Debug.LogError($"[SceneManagerUI] Scene '{sceneName}' is NOT in the Build Profile!");
+            return;
+        }
+
+        _pendingOverlay = overlayRoot;
+        LoadSingleSafe(sceneName);
+    }
+
+    // -------------------------------------------------------------------------
+    // Load helpers — each sets isLoading so the button is guarded
+    // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// Triggers a single-mode load of the given scene through the normal
+    /// isLoading guard. Safe to call from external components (e.g. TutorialResetOnLaunch).
+    /// </summary>
+    public void LoadSingle(string sceneName)
+    {
+        if (isLoading)
+        {
+            Debug.LogWarning($"[SceneManagerUI] LoadSingle ignored — already loading '{sceneName}'.");
+            return;
+        }
+
+        if (!Application.CanStreamedLevelBeLoaded(sceneName))
+        {
+            Debug.LogError($"[SceneManagerUI] Scene '{sceneName}' is NOT in the Build Profile!");
+            return;
+        }
+
+        LoadSingleSafe(sceneName);
+    }
+
+    private void LoadSingleSafe(string sceneName)
+    {
+        isLoading = true;
+        Debug.Log($"[SceneManagerUI] LoadSingle -> '{sceneName}'");
+        SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Single);
+        // isLoading is cleared in OnSceneLoaded.
+    }
+
+    private void LoadAdditiveSafe(string sceneName)
+    {
+        Scene existing = SceneManager.GetSceneByName(sceneName);
+
+        if (existing.isLoaded)
+        {
+            // Scene is still loaded (or mid-unload). Unload it first, then reload.
+            // Store the pending target so OnSceneUnloaded can re-fire the load.
+            Debug.Log($"[SceneManagerUI] '{sceneName}' still loaded — unloading before re-adding.");
+            pendingLoadAfterUnload = sceneName;
+            isLoading = true;
+            SceneManager.UnloadSceneAsync(sceneName);
+            // Flow continues in OnSceneUnloaded.
+            return;
+        }
+
+        isLoading = true;
+        Debug.Log($"[SceneManagerUI] LoadAdditive -> '{sceneName}'");
+        SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Additive);
+        // isLoading is cleared in OnSceneLoaded.
+    }
+
+    private void UnloadSafe(string sceneName)
+    {
+        Scene s = SceneManager.GetSceneByName(sceneName);
+        if (!s.isLoaded)
+        {
+            Debug.LogWarning($"[SceneManagerUI] Tried to unload '{sceneName}' but it is not loaded.");
+            return;
+        }
+
+        isLoading = true;
+        SceneManager.UnloadSceneAsync(sceneName);
+        // isLoading is cleared in OnSceneUnloaded.
+    }
+
+    // -------------------------------------------------------------------------
+    // Scene events
+    // -------------------------------------------------------------------------
+
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        // ✅ Make recently loaded scene active
-        if (setRecentlyLoadedAsActiveScene)
-            SceneManager.SetActiveScene(scene);
+        Debug.Log($"[SceneManagerUI] OnSceneLoaded: '{scene.name}' ({mode})");
 
-        // ✅ Deactivate all other scenes (roots) so only this one is "active/visible"
-        if (deactivateOtherScenesOnLoad)
+        isLoading = false;
+        pendingLoadAfterUnload = null;
+
+        // Hide any loading screen overlay that was shown by SceneLoadWithScreen
+        // or by the Bootstrap startup path.
+        // NOTE: _pendingOverlay may reference a scene-local object that was already
+        // destroyed by LoadSceneMode.Single. Unity's == operator returns true for
+        // destroyed objects compared to null, so we must use ReferenceEquals(null)
+        // to check for a truly unassigned reference, and catch the case where the
+        // object exists in C# but is destroyed on the Unity side.
+        if (_pendingOverlay != null)
+        {
+            try { _pendingOverlay.SetActive(false); }
+            catch (System.Exception) { /* object was destroyed mid-load */ }
+            _pendingOverlay = null;
+        }
+
+        // Make the newly loaded scene the active scene.
+        SceneManager.SetActiveScene(scene);
+
+        // When loading additively, hide roots in every other scene so only the
+        // new scene is visible.
+        if (mode == LoadSceneMode.Additive && deactivateOtherScenesOnLoad)
             DeactivateAllOtherScenesExcept(scene);
 
-        // Gameplay-specific extras
+        // Gameplay-specific extras.
         if (scene.name == gameplaySceneName)
         {
-            if (pushCustomizationOnGameplayLoad && PlayfabManager.Instance != null && PlayfabManager.Instance.IsLoggedIn)
+            if (pushCustomizationOnGameplayLoad
+                && PlayfabManager.Instance != null
+                && PlayfabManager.Instance.IsLoggedIn)
             {
                 PlayfabManager.Instance.PushCustomizationToPhoton();
-                Debug.Log("✅ Pushed customization to Photon on gameplay load.");
+                Debug.Log("[SceneManagerUI] Pushed customization to Photon.");
             }
-
-            // (Optional) Keep your old menu hide behavior if you want.
-            // Note: deactivateOtherScenesOnLoad already hides menu roots,
-            // but this keeps your extraMenuObjectsToDisable behavior too.
-            if (hideMenuWhenGameplayLoaded && mode == LoadSceneMode.Additive)
-            {
-                SetSceneRootObjectsActive(menuSceneName, false);
-
-                if (extraMenuObjectsToDisable != null)
-                {
-                    for (int i = 0; i < extraMenuObjectsToDisable.Length; i++)
-                    {
-                        if (extraMenuObjectsToDisable[i] != null)
-                            extraMenuObjectsToDisable[i].SetActive(false);
-                    }
-                }
-            }
-
-            Debug.Log("✅ Gameplay loaded.");
         }
     }
 
     private void OnSceneUnloaded(Scene scene)
     {
-        // If something unloads, ensure active scene is valid and visible
-        // (Pick the last loaded currently active, else fallback to any loaded)
+        Debug.Log($"[SceneManagerUI] OnSceneUnloaded: '{scene.name}'");
+
+        // If we unloaded a scene in order to reload it (LoadAdditiveSafe race-fix),
+        // now do the actual load.
+        if (!string.IsNullOrEmpty(pendingLoadAfterUnload) && pendingLoadAfterUnload == scene.name)
+        {
+            string target = pendingLoadAfterUnload;
+            pendingLoadAfterUnload = null;
+            // isLoading stays true until OnSceneLoaded fires for the new load.
+            Debug.Log($"[SceneManagerUI] Re-loading '{target}' after unload completed.");
+            SceneManager.LoadSceneAsync(target, LoadSceneMode.Additive);
+            return;
+        }
+
+        isLoading = false;
+
+        // Ensure active scene is valid after unload.
         Scene active = SceneManager.GetActiveScene();
         if (!active.IsValid() || !active.isLoaded)
         {
             for (int i = SceneManager.sceneCount - 1; i >= 0; i--)
             {
-                var s = SceneManager.GetSceneAt(i);
+                Scene s = SceneManager.GetSceneAt(i);
                 if (s.IsValid() && s.isLoaded)
                 {
                     SceneManager.SetActiveScene(s);
@@ -211,44 +350,70 @@ public class SceneManagerUI : MonoBehaviourPunCallbacks
             }
         }
 
-        // Your existing gameplay-unload behavior (optional)
+        // If gameplay unloaded, make sure menu roots are visible.
         if (scene.name == gameplaySceneName)
         {
-            if (hideMenuWhenGameplayLoaded)
-            {
-                SetSceneRootObjectsActive(menuSceneName, true);
-
-                if (extraMenuObjectsToDisable != null)
-                {
-                    for (int i = 0; i < extraMenuObjectsToDisable.Length; i++)
-                    {
-                        if (extraMenuObjectsToDisable[i] != null)
-                            extraMenuObjectsToDisable[i].SetActive(true);
-                    }
-                }
-            }
-
-            Debug.Log("✅ Gameplay unloaded: menu shown.");
+            SetSceneRootObjectsActive(menuSceneName, true);
+            Debug.Log("[SceneManagerUI] Gameplay unloaded — menu restored.");
         }
     }
 
+    // -------------------------------------------------------------------------
+    // Return to menu
+    // -------------------------------------------------------------------------
+
+    /// <summary>Call this from any Exit / Back button.</summary>
+    public void ReturnToMenu()
+    {
+        if (isLoading)
+        {
+            Debug.LogWarning("[SceneManagerUI] ReturnToMenu ignored — load already in progress.");
+            return;
+        }
+
+        // Multiplayer: leave room first; OnLeftRoom will handle the scene load.
+        if (PhotonNetwork.IsConnectedAndReady && PhotonNetwork.InRoom)
+        {
+            Debug.Log("[SceneManagerUI] ReturnToMenu -> Leaving Photon room first.");
+            PhotonNetwork.LeaveRoom();
+            return;
+        }
+
+        // Offline additive: unload gameplay scene; OnSceneUnloaded restores menu.
+        if (SceneManager.GetSceneByName(gameplaySceneName).isLoaded)
+        {
+            UnloadSafe(gameplaySceneName);
+            return;
+        }
+
+        // Fallback: just make sure menu roots are visible.
+        SetSceneRootObjectsActive(menuSceneName, true);
+    }
+
+    public override void OnLeftRoom()
+    {
+        Debug.Log("[SceneManagerUI] OnLeftRoom -> Loading menu scene.");
+        isLoading = false; // clear any leftover guard before triggering new load
+        LoadSingleSafe(menuSceneName);
+    }
+
+    // -------------------------------------------------------------------------
+    // Helpers
+    // -------------------------------------------------------------------------
+
     private void DeactivateAllOtherScenesExcept(Scene keepScene)
     {
-        // KeepScene roots ON, all others OFF
         for (int i = 0; i < SceneManager.sceneCount; i++)
         {
             Scene s = SceneManager.GetSceneAt(i);
             if (!s.IsValid() || !s.isLoaded) continue;
 
-            bool active = (s == keepScene);
-
+            bool keep = (s == keepScene);
             GameObject[] roots = s.GetRootGameObjects();
             for (int r = 0; r < roots.Length; r++)
             {
-                // don't disable this manager object
-                if (roots[r] == gameObject) continue;
-
-                roots[r].SetActive(active);
+                if (roots[r] == gameObject) continue; // never disable the persistent manager
+                roots[r].SetActive(keep);
             }
         }
     }
@@ -264,29 +429,5 @@ public class SceneManagerUI : MonoBehaviourPunCallbacks
             if (roots[i] == gameObject) continue;
             roots[i].SetActive(active);
         }
-    }
-
-    // Call this from your "Back" button
-    public void ReturnToMenu()
-    {
-        // Multiplayer: leave room first, then load menu normally
-        if (PhotonNetwork.IsConnectedAndReady && PhotonNetwork.InRoom)
-        {
-            Debug.Log("[SceneManagerUI] ReturnToMenu -> Leaving Photon room first...");
-            PhotonNetwork.LeaveRoom();
-            return; // OnLeftRoom callback will load menu
-        }
-
-        // Offline: unload gameplay if additive, else ensure menu visible
-        if (SceneManager.GetSceneByName(gameplaySceneName).isLoaded)
-            SceneManager.UnloadSceneAsync(gameplaySceneName);
-        else
-            SetSceneRootObjectsActive(menuSceneName, true);
-    }
-
-    public override void OnLeftRoom()
-    {
-        Debug.Log("[SceneManagerUI] OnLeftRoom -> Loading menu scene");
-        SceneManager.LoadScene(menuSceneName, LoadSceneMode.Single);
     }
 }

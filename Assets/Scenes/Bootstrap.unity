@@ -223,12 +223,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   firstSceneToLoad: MainMenu
-  protectMenuFromSingleLoad: 1
   menuSceneName: MainMenu
   gameplaySceneName: Multiplayer
-  hideMenuWhenGameplayLoaded: 1
-  extraMenuObjectsToDisable: []
-  setRecentlyLoadedAsActiveScene: 1
   deactivateOtherScenesOnLoad: 1
   pushCustomizationOnGameplayLoad: 1
 --- !u!1 &1895272698

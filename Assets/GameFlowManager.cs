@@ -55,7 +55,21 @@ public class GameFlowManager : MonoBehaviour
     {
         if (Instance != null && Instance != this)
         {
-            Destroy(gameObject);
+            // A persistent GameFlowManager from a previous scene already exists.
+            // Transfer any scene-local serialized references (dayText, gameOverScreen)
+            // from this newly spawned copy to the live singleton so they always point
+            // to objects in the currently loaded scene and never become stale.
+            if (dayText != null)
+                Instance.dayText = dayText;
+
+            if (gameOverScreen != null)
+                Instance.gameOverScreen = gameOverScreen;
+
+            // Destroy only this component — sibling components on the same GameObject
+            // (OfficeStartDayButton, OfficeStartButtons, etc.) must survive.
+            Debug.Log($"[GameFlowManager] Duplicate on '{gameObject.name}' in '{gameObject.scene.name}'. " +
+                      $"Transferring scene refs to persistent singleton and destroying this component.");
+            Destroy(this);
             return;
         }
 
