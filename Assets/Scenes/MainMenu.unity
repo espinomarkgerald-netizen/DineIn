@@ -34117,8 +34117,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 36
-  m_fontSizeBase: 36
+  m_fontSize: 20
+  m_fontSizeBase: 20
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -34183,10 +34183,10 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 1898448112}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 0.5}
-  m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 339.4, y: 192.8}
-  m_SizeDelta: {x: 88.1417, y: 30.9882}
+  m_AnchorMin: {x: 1, y: 1}
+  m_AnchorMax: {x: 1, y: 1}
+  m_AnchoredPosition: {x: -44.30005, y: -16.099976}
+  m_SizeDelta: {x: 88.14169, y: 30.988205}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &2139220898
 GameObject:

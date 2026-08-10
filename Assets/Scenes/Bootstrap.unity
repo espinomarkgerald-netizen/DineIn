@@ -223,6 +223,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   firstSceneToLoad: MainMenu
+  bootstrapLoadingScreen: {fileID: 0}
   menuSceneName: MainMenu
   gameplaySceneName: Multiplayer
   deactivateOtherScenesOnLoad: 1

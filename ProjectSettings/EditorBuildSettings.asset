@@ -15,22 +15,22 @@ EditorBuildSettings:
     path: Assets/Scenes/CoreGameplay.unity
     guid: 99c9720ab356a0642a771bea13969a05
   - enabled: 1
-    path: Assets/Assets/MAINGAME/GameScene/Office.unity
+    path: Assets/_Project/Scenes/RoleBased/Office.unity
     guid: 5e7ae3e0ae71a1f4db40a7f87dda949b
   - enabled: 1
-    path: Assets/Assets/MAINGAME/GameScene/Lobby1.unity
+    path: Assets/_Project/Scenes/RoleBased/Lobby1.unity
     guid: c684353cf753d9e47888198224870397
   - enabled: 1
-    path: Assets/Assets/MAINGAME/GameScene/Kitchen.unity
+    path: Assets/_Project/Scenes/RoleBased/Kitchen.unity
     guid: 4ef4f1fb1085f4d41a118d68e4b48794
   - enabled: 1
-    path: Assets/Assets/MAINGAME/GameScene/LobbyTutorial.unity
+    path: Assets/_Project/Scenes/RoleBased/LobbyTutorial.unity
     guid: dd92dfe19c80629418bdba09ac3f2e3e
   - enabled: 1
-    path: Assets/Assets/MAINGAME/GameScene/OfficeTutorial.unity
+    path: Assets/_Project/Scenes/RoleBased/OfficeTutorial.unity
     guid: c8947d1557d9f734a8cba365ceb2447d
   - enabled: 1
-    path: Assets/Assets/MAINGAME/GameScene/Multiplayer.unity
+    path: Assets/_Project/Scenes/RoleBased/Multiplayer.unity
     guid: fc1df697566944f428c45cdf9e20f981
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
