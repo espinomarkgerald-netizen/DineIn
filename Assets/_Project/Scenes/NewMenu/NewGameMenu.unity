@@ -2166,6 +2166,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   gamemodePopupUI: {fileID: 904888439}
   restaurantSelector: {fileID: 0}
+  campaignRestaurantScenes:
+  - Lobby1
 --- !u!1 &631774928
 GameObject:
   m_ObjectHideFlags: 0

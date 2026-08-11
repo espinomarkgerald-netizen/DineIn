@@ -5,13 +5,12 @@ public class HostSpeechBubbleSpawner : MonoBehaviour
     public static HostSpeechBubbleSpawner Instance;
 
     [SerializeField] private GameObject speechBubblePrefab;
-    [SerializeField] private Canvas targetCanvas;
 
     [Header("Position")]
     [SerializeField] private Vector3 worldOffset = new Vector3(0f, 2.2f, 0f);
 
     [Header("Size")]
-    [SerializeField] private float bubbleScale = 1f; // 🔥 adjust in inspector
+    [SerializeField] private float bubbleScale = 1f;
 
     [Header("Text")]
     [TextArea]
@@ -29,75 +28,35 @@ public class HostSpeechBubbleSpawner : MonoBehaviour
     private void Awake()
     {
         Instance = this;
-
-        if (targetCanvas == null)
-            targetCanvas = FindFirstObjectByType<Canvas>();
     }
 
     public void ShowForHost(Transform hostAnchor, Camera cam)
     {
-        if (speechBubblePrefab == null || hostAnchor == null || cam == null)
-            return;
-
-        if (targetCanvas == null)
-            targetCanvas = FindFirstObjectByType<Canvas>();
-
-        if (targetCanvas == null)
-            return;
-
-        HideImmediate();
-
-        currentBubble = Instantiate(speechBubblePrefab, targetCanvas.transform);
-        currentBubble.name = "HostSpeechBubble";
-
-        RectTransform rect = currentBubble.GetComponent<RectTransform>();
-        if (rect != null)
-        {
-            rect.localScale = Vector3.one * bubbleScale; // 🔥 APPLY SCALE
-            rect.anchoredPosition3D = Vector3.zero;
-        }
-
-        var follow = currentBubble.GetComponentInChildren<UIFollowWorldPoint>(true);
-        if (follow != null)
-            follow.Init(hostAnchor, worldOffset, cam);
-
-        var ui = currentBubble.GetComponentInChildren<HostSpeechBubbleUI>(true);
-        if (ui != null)
-            ui.SetText(GetRandomGreeting());
-    }
-
-    private string GetRandomGreeting()
-    {
-        if (greetings == null || greetings.Length == 0)
-            return "Welcome!";
-
-        int index = Random.Range(0, greetings.Length);
-        return greetings[index];
-    }
-
-    public void HideImmediate()
-    {
-        if (currentBubble != null)
-        {
-            Destroy(currentBubble);
-            currentBubble = null;
-        }
+        ShowBubble(hostAnchor, cam, GetRandomGreeting());
     }
 
     public void ShowForHostGroup(Transform hostAnchor, Camera cam, int groupSize)
     {
-        if (speechBubblePrefab == null || hostAnchor == null || cam == null)
+        ShowBubble(hostAnchor, cam, GetRandomGreetingForGroup(groupSize));
+    }
+
+    public void HideImmediate()
+    {
+        if (currentBubble == null)
             return;
 
-        if (targetCanvas == null)
-            targetCanvas = FindFirstObjectByType<Canvas>();
+        Destroy(currentBubble);
+        currentBubble = null;
+    }
 
-        if (targetCanvas == null)
+    private void ShowBubble(Transform hostAnchor, Camera cam, string message)
+    {
+        if (speechBubblePrefab == null || hostAnchor == null || cam == null)
             return;
 
         HideImmediate();
 
-        currentBubble = Instantiate(speechBubblePrefab, targetCanvas.transform);
+        currentBubble = Instantiate(speechBubblePrefab);
         currentBubble.name = "HostSpeechBubble";
 
         RectTransform rect = currentBubble.GetComponent<RectTransform>();
@@ -107,20 +66,26 @@ public class HostSpeechBubbleSpawner : MonoBehaviour
             rect.anchoredPosition3D = Vector3.zero;
         }
 
-        var follow = currentBubble.GetComponentInChildren<UIFollowWorldPoint>(true);
+        UIFollowWorldPoint follow = currentBubble.GetComponentInChildren<UIFollowWorldPoint>(true);
         if (follow != null)
             follow.Init(hostAnchor, worldOffset, cam);
 
-        var ui = currentBubble.GetComponentInChildren<HostSpeechBubbleUI>(true);
+        HostSpeechBubbleUI ui = currentBubble.GetComponentInChildren<HostSpeechBubbleUI>(true);
         if (ui != null)
-            ui.SetText(GetRandomGreetingForGroup(groupSize));
+            ui.SetText(message);
+    }
+
+    private string GetRandomGreeting()
+    {
+        if (greetings == null || greetings.Length == 0)
+            return "Welcome!";
+
+        return greetings[Random.Range(0, greetings.Length)];
     }
 
     private string GetRandomGreetingForGroup(int groupSize)
     {
-        bool useTableGreeting = Random.value < 0.5f;
-
-        if (useTableGreeting && groupSize > 0)
+        if (groupSize > 0 && Random.value < 0.5f)
         {
             string[] tableGreetings =
             {
@@ -130,8 +95,7 @@ public class HostSpeechBubbleSpawner : MonoBehaviour
                 $"Good day, table for {groupSize}?"
             };
 
-            int index = Random.Range(0, tableGreetings.Length);
-            return tableGreetings[index];
+            return tableGreetings[Random.Range(0, tableGreetings.Length)];
         }
 
         return GetRandomGreeting();

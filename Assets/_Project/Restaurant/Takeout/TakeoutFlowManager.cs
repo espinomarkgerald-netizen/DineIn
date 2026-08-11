@@ -22,6 +22,12 @@ public class TakeoutFlowManager : MonoBehaviour
     [Header("Timing")]
     [SerializeField] private float startOrderDelay = 0.15f;
 
+    [Header("Failure Recovery")]
+    [SerializeField, Min(5f)] private float waitingForOrderTimeoutSeconds = 30f;
+    [SerializeField, Min(5f)] private float waitingForPaymentTimeoutSeconds = 20f;
+    [SerializeField, Min(5f)] private float waitingForKitchenTimeoutSeconds = 45f;
+    [SerializeField, Min(5f)] private float waitingForBagDeliveryTimeoutSeconds = 30f;
+
     [Header("Flow")]
     [SerializeField] private bool autoStartOrderWhenFrontArrives = true;
     [SerializeField] private bool autoSendToKitchenAfterPayment = true;
@@ -37,9 +43,16 @@ public class TakeoutFlowManager : MonoBehaviour
     private TakeoutPhase currentPhase = TakeoutPhase.None;
     private bool orderFlowStarted;
     private bool kitchenSubmitSent;
+    private bool automatedService;
+    private float phaseStartedAt = -1f;
 
     public CustomerGroup ActiveGroup => activeGroup;
     public TakeoutPhase CurrentPhase => currentPhase;
+
+    public void SetAutomatedService(bool enabled)
+    {
+        automatedService = enabled;
+    }
 
     private void Awake()
     {
@@ -50,10 +63,19 @@ public class TakeoutFlowManager : MonoBehaviour
         }
 
         Instance = this;
+
+        if (kitchenManager == null)
+            kitchenManager = FindFirstObjectByType<KitchenManager>();
+
+        if (kitchenManager != null)
+            kitchenManager.OrderFinished += HandleKitchenOrderFinished;
     }
 
     private void OnDestroy()
     {
+        if (kitchenManager != null)
+            kitchenManager.OrderFinished -= HandleKitchenOrderFinished;
+
         if (Instance == this)
             Instance = null;
     }
@@ -61,6 +83,7 @@ public class TakeoutFlowManager : MonoBehaviour
     private void Update()
     {
         SyncFrontCustomer();
+        UpdatePhaseTimeout();
     }
 
     private void SyncFrontCustomer()
@@ -81,7 +104,7 @@ public class TakeoutFlowManager : MonoBehaviour
             activeGroup = front;
             orderFlowStarted = false;
             kitchenSubmitSent = false;
-            currentPhase = TakeoutPhase.WaitingForFront;
+            SetPhase(TakeoutPhase.WaitingForFront);
         }
 
         if (activeGroup.CurrentTakeoutQueueState != CustomerGroup.TakeoutQueueState.AtOrderPoint)
@@ -106,7 +129,7 @@ public class TakeoutFlowManager : MonoBehaviour
             return;
 
         orderFlowStarted = true;
-        currentPhase = TakeoutPhase.WaitingForOrder;
+        SetPhase(TakeoutPhase.WaitingForOrder);
 
         onFrontReady?.Invoke();
         activeGroup.BeginTakeoutOrderFlow(startOrderDelay);
@@ -123,12 +146,15 @@ public class TakeoutFlowManager : MonoBehaviour
             return;
         }
 
-        currentPhase = TakeoutPhase.WaitingForPayment;
+        SetPhase(TakeoutPhase.WaitingForPayment);
         onPaymentRequested?.Invoke();
 
-        OpenCashierForTakeout(group);
+        if (!automatedService)
+            OpenCashierForTakeout(group);
 
-        Debug.Log($"[TakeoutFlow] Order taken for {group.name}. Opening cashier for payment.");
+        Debug.Log(automatedService
+            ? $"[TakeoutFlow] Order taken for {group.name}. Waiting for automated payment."
+            : $"[TakeoutFlow] Order taken for {group.name}. Opening cashier for payment.");
     }
 
     private void OpenCashierForTakeout(CustomerGroup group)
@@ -177,7 +203,7 @@ public class TakeoutFlowManager : MonoBehaviour
             return;
         }
 
-        currentPhase = TakeoutPhase.WaitingForKitchen;
+        SetPhase(TakeoutPhase.WaitingForKitchen);
         onPaymentCompleted?.Invoke();
 
         if (!autoSendToKitchenAfterPayment)
@@ -191,31 +217,93 @@ public class TakeoutFlowManager : MonoBehaviour
 
         if (kitchenManager != null)
         {
+            if (!kitchenManager.ProcessOrder(group))
+            {
+                FailActiveTakeout("Kitchen rejected the order before cooking started.");
+                return;
+            }
+
             kitchenSubmitSent = true;
-            kitchenManager.ProcessOrder(group);
+            GameDayManager.Instance?.RegisterOrderProcessed();
             Debug.Log($"[TakeoutFlow] Payment completed for {group.name}. Sent to kitchen.");
         }
         else
         {
             Debug.LogError("[TakeoutFlow] kitchenManager is NOT assigned on TakeoutFlowManager — assign it in the Inspector! Bag will never spawn.");
+            FailActiveTakeout("Kitchen manager is missing.");
         }
     }
 
-    public void NotifyBagReady(CustomerGroup group)
+    public bool NotifyBagReady(CustomerGroup group)
     {
         if (!IsActiveFront(group))
-            return;
+            return false;
 
         if (currentPhase != TakeoutPhase.WaitingForKitchen)
         {
             Debug.LogWarning($"[TakeoutFlow] Ignored NotifyBagReady for {group.name} because phase is {currentPhase}.");
-            return;
+            return false;
         }
 
-        currentPhase = TakeoutPhase.WaitingForBagDelivery;
+        SetPhase(TakeoutPhase.WaitingForBagDelivery);
         onBagDeliveryRequested?.Invoke();
 
         Debug.Log($"[TakeoutFlow] Bag ready for {group.name}. Waiting for delivery.");
+        return true;
+    }
+
+    private void HandleKitchenOrderFinished(CustomerGroup group, int _, bool succeeded)
+    {
+        if (succeeded || currentPhase != TakeoutPhase.WaitingForKitchen || !IsActiveFront(group))
+            return;
+
+        FailActiveTakeout("Kitchen could not create a deliverable takeout bag.");
+    }
+
+    private void FailActiveTakeout(string reason)
+    {
+        CustomerGroup failedGroup = activeGroup;
+        if (failedGroup == null)
+        {
+            ClearRuntime();
+            return;
+        }
+
+        Debug.LogError($"[TakeoutFlow] {reason} Releasing {failedGroup.name} so the queue can continue.", this);
+        failedGroup.FailTakeoutService(reason);
+
+        if (activeGroup == failedGroup)
+            ClearRuntime();
+    }
+
+    private void UpdatePhaseTimeout()
+    {
+        if (activeGroup == null || phaseStartedAt < 0f)
+            return;
+
+        float timeoutSeconds = currentPhase switch
+        {
+            TakeoutPhase.WaitingForOrder => waitingForOrderTimeoutSeconds,
+            TakeoutPhase.WaitingForPayment => waitingForPaymentTimeoutSeconds,
+            TakeoutPhase.WaitingForKitchen => waitingForKitchenTimeoutSeconds,
+            TakeoutPhase.WaitingForBagDelivery => waitingForBagDeliveryTimeoutSeconds,
+            _ => 0f
+        };
+
+        if (timeoutSeconds <= 0f || Time.time - phaseStartedAt < timeoutSeconds)
+            return;
+
+        FailActiveTakeout(
+            $"Timed out in phase {currentPhase} after {timeoutSeconds:0.#} seconds.");
+    }
+
+    private void SetPhase(TakeoutPhase phase)
+    {
+        currentPhase = phase;
+        phaseStartedAt = phase == TakeoutPhase.None ? -1f : Time.time;
+
+        if (activeGroup != null && phase != TakeoutPhase.None)
+            Debug.Log($"[TakeoutFlow] {activeGroup.name} entered phase {phase}.", activeGroup);
     }
 
     public void NotifyBagDelivered(CustomerGroup group)
@@ -283,7 +371,7 @@ public class TakeoutFlowManager : MonoBehaviour
     private void ClearRuntime()
     {
         activeGroup = null;
-        currentPhase = TakeoutPhase.None;
+        SetPhase(TakeoutPhase.None);
         orderFlowStarted = false;
         kitchenSubmitSent = false;
     }

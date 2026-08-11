@@ -21,9 +21,15 @@ MonoBehaviour:
   m_OverrideGlobalSceneList: 1
   m_Scenes:
   - m_enabled: 1
-    m_path: Assets/_Project/Scenes/RoleBased/Office.unity
-  - m_enabled: 1
     m_path: Assets/Scenes/Bootstrap.unity
+  - m_enabled: 1
+    m_path: Assets/_Project/Scenes/NewMenu/NewMainMenu.unity
+  - m_enabled: 1
+    m_path: Assets/_Project/Scenes/NewMenu/NewGameMenu.unity
+  - m_enabled: 1
+    m_path: Assets/_Project/Scenes/RoleBased/Lobby1.unity
+  - m_enabled: 1
+    m_path: Assets/_Project/Scenes/RoleBased/Office.unity
   m_ScriptingDefines: []
   m_PlayerSettingsYaml:
     m_Settings: []

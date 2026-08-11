@@ -1,12 +1,17 @@
 using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
+using UnityEngine.AI;
 
 public class Booth : MonoBehaviour
 {
     [Header("Approach / Seating")]
     public Transform approachPoint;
     public List<Transform> seats = new List<Transform>(4);
+
+    [Header("Navigation")]
+    [SerializeField] private bool carveBoothFromNavMesh = true;
+    [SerializeField, Min(0.25f)] private float approachSampleRadius = 1.5f;
 
     [Header("Facing")]
     public Transform tableLookTarget;
@@ -41,9 +46,12 @@ public class Booth : MonoBehaviour
     public CustomerGroup CurrentGroup => currentGroup;
     public bool IsDirty => isDirty;
     public float MessHoldSeconds => messHoldSeconds;
+    public bool CanCleanMessNow => isDirty && currentGroup == null && !HasTrayOnTable();
 
     private void Awake()
     {
+        EnsureNavigationObstacle();
+
         if (cleanUI == null && cleanUIRoot != null)
             cleanUI = cleanUIRoot.GetComponentInChildren<BoothMessCleanUI>(true);
 
@@ -117,6 +125,16 @@ public class Booth : MonoBehaviour
         return seats[index];
     }
 
+    public Vector3 GetNavigableApproachPosition()
+    {
+        Vector3 desired = approachPoint != null ? approachPoint.position : transform.position;
+
+        if (NavMesh.SamplePosition(desired, out NavMeshHit hit, approachSampleRadius, NavMesh.AllAreas))
+            return hit.position;
+
+        return desired;
+    }
+
     public Quaternion GetSeatedRotation(Vector3 seatPos)
     {
         Vector3 dir = tableLookTarget != null ? tableLookTarget.position - seatPos : transform.forward;
@@ -176,6 +194,19 @@ public class Booth : MonoBehaviour
     public void CleanMess()
     {
         SetDirty(false);
+    }
+
+    public bool BeginAutomatedMessCleaning()
+    {
+        RefreshCleanUIVisibility();
+        return cleanUI != null && cleanUI.BeginAutomatedCleaning();
+    }
+
+    public bool IsAutomatedMessCleaning => cleanUI != null && cleanUI.IsAutomatedCleaning;
+
+    public void CancelAutomatedMessCleaning()
+    {
+        cleanUI?.CancelAutomatedCleaning();
     }
 
     public void OnTableCleaned()
@@ -257,16 +288,7 @@ public class Booth : MonoBehaviour
 
     private bool ShouldShowCleanUI()
     {
-        if (!isDirty)
-            return false;
-
-        if (currentGroup != null)
-            return false;
-
-        if (HasTrayOnTable())
-            return false;
-
-        return true;
+        return CanCleanMessNow;
     }
 
     private Camera FindSceneCamera()
@@ -280,6 +302,31 @@ public class Booth : MonoBehaviour
             return tagged.GetComponent<Camera>();
 
         return FindFirstObjectByType<Camera>();
+    }
+
+    private void EnsureNavigationObstacle()
+    {
+        if (!carveBoothFromNavMesh)
+            return;
+
+        BoxCollider solidCollider = GetComponent<BoxCollider>();
+        if (solidCollider == null || solidCollider.isTrigger)
+        {
+            Debug.LogWarning($"[Booth] {name} cannot carve navigation because its root BoxCollider is missing or is a trigger.", this);
+            return;
+        }
+
+        NavMeshObstacle obstacle = GetComponent<NavMeshObstacle>();
+        if (obstacle == null)
+            obstacle = gameObject.AddComponent<NavMeshObstacle>();
+
+        obstacle.shape = NavMeshObstacleShape.Box;
+        obstacle.center = solidCollider.center;
+        obstacle.size = solidCollider.size;
+        obstacle.carving = true;
+        obstacle.carveOnlyStationary = true;
+        obstacle.carvingMoveThreshold = 0.05f;
+        obstacle.carvingTimeToStationary = 0.1f;
     }
 
     private GameObject FindExistingMenu()

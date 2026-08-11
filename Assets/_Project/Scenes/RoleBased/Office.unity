@@ -49429,6 +49429,12 @@ MonoBehaviour:
   kitchenCompleted: 0
   dayText: {fileID: 2128894747}
   gameOverScreen: {fileID: 606680008}
+  useSingleRestaurantFlow: 1
+  restaurantSceneName: Lobby1
+  campaignDayLimit: 30
+  campaignApprovalTarget: 40
+  restaurantSessionState: 0
+  campaignCompleted: 0
 --- !u!114 &2056118289
 MonoBehaviour:
   m_ObjectHideFlags: 0

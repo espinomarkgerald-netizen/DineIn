@@ -7,7 +7,6 @@ public class BoothAssignArrowManager : MonoBehaviour
 
     [Header("UI")]
     [SerializeField] private GameObject arrowPrefab;
-    [SerializeField] private Canvas targetCanvas;
 
     [Header("Position")]
     [SerializeField] private Vector3 worldOffset = new Vector3(0f, 2.3f, 0f);
@@ -21,9 +20,6 @@ public class BoothAssignArrowManager : MonoBehaviour
     private void Awake()
     {
         Instance = this;
-
-        if (targetCanvas == null)
-            targetCanvas = FindFirstObjectByType<Canvas>();
 
         RefreshBooths();
     }
@@ -39,15 +35,6 @@ public class BoothAssignArrowManager : MonoBehaviour
 
         if (group == null)
             return;
-
-        if (targetCanvas == null)
-            targetCanvas = FindFirstObjectByType<Canvas>();
-
-        if (targetCanvas == null)
-        {
-            Debug.LogWarning("[BoothAssignArrowManager] No target canvas found.");
-            return;
-        }
 
         if (booths == null || booths.Length == 0)
             RefreshBooths();
@@ -98,7 +85,7 @@ public class BoothAssignArrowManager : MonoBehaviour
         if (arrowPrefab == null || booth == null)
             return;
 
-        activeArrow = Instantiate(arrowPrefab, targetCanvas.transform);
+        activeArrow = Instantiate(arrowPrefab);
         activeArrow.name = $"AssignArrow_{booth.name}";
 
         RectTransform rect = activeArrow.GetComponent<RectTransform>();

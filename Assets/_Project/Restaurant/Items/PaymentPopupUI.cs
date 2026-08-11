@@ -1,4 +1,3 @@
-using System.Collections;
 using UnityEngine;
 using TMPro;
 
@@ -12,13 +11,15 @@ public class PaymentPopupUI : MonoBehaviour
         if (text != null)
             text.text = $"PAID ₱{amount}\nOrder #{orderNumber}";
 
-        StartCoroutine(AutoClose());
-    }
+        UIFollowWorldPoint follow = GetComponent<UIFollowWorldPoint>();
+        if (follow != null && follow.target == null)
+            follow.enabled = false;
 
-    private IEnumerator AutoClose()
-    {
-        yield return new WaitForSeconds(autoCloseSeconds);
-        Destroy(gameObject);
+        CanvasGroup group = GetComponent<CanvasGroup>();
+        if (group != null)
+            group.alpha = 1f;
+
+        // Delayed Destroy works even if a parent canvas is temporarily inactive.
+        Destroy(gameObject, autoCloseSeconds);
     }
-    
 }

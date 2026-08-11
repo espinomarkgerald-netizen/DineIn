@@ -75,10 +75,8 @@ public class TakeoutBagInteractable : MonoBehaviour
         if (WaiterHands.Instance == null)
             return;
 
-        if (WaiterHands.Instance.HasTray)
-            return;
-
-        if (WaiterHands.Instance.HasBill)
+        if (WaiterHands.Instance.HasTray || WaiterHands.Instance.HasBill ||
+            WaiterHands.Instance.HasMoney || WaiterHands.Instance.HasTicket)
             return;
 
         isHeld = true;
@@ -174,7 +172,8 @@ public class TakeoutBagInteractable : MonoBehaviour
             return;
         }
 
-        if (WaiterHands.Instance == null || WaiterHands.Instance.HasTray || WaiterHands.Instance.HasBill || HasHeldBag)
+        if (WaiterHands.Instance == null || WaiterHands.Instance.HasTray || WaiterHands.Instance.HasBill ||
+            WaiterHands.Instance.HasMoney || WaiterHands.Instance.HasTicket || HasHeldBag)
         {
             HideUI();
             return;
@@ -197,13 +196,7 @@ public class TakeoutBagInteractable : MonoBehaviour
         if (uiInstance != null)
             return;
 
-        Canvas canvas = ResolveTargetCanvas();
-        if (canvas == null)
-            return;
-
-        uiInstance = Instantiate(pickupUiPrefab, canvas.transform);
-        uiInstance.transform.localScale = Vector3.one;
-
+        uiInstance = Instantiate(pickupUiPrefab);
         var follow = uiInstance.GetComponentInChildren<UIFollowWorldPoint>(true);
         if (follow != null)
             follow.Init(uiAnchor, Vector3.zero, Camera.main);
@@ -255,29 +248,4 @@ public class TakeoutBagInteractable : MonoBehaviour
         uiInstance = null;
     }
 
-    private static Canvas cachedMainHudCanvas;
-
-    private static Canvas ResolveTargetCanvas()
-    {
-        if (cachedMainHudCanvas != null && cachedMainHudCanvas.isActiveAndEnabled)
-            return cachedMainHudCanvas;
-
-        cachedMainHudCanvas = null;
-
-        var canvases = FindObjectsByType<Canvas>(FindObjectsSortMode.None);
-        for (int i = 0; i < canvases.Length; i++)
-        {
-            Canvas c = canvases[i];
-            if (!c.isActiveAndEnabled) continue;
-            if (c.name != "CanvasMainHUD") continue;
-
-            var ray = c.GetComponent<GraphicRaycaster>();
-            if (ray == null || !ray.enabled) continue;
-
-            cachedMainHudCanvas = c;
-            return cachedMainHudCanvas;
-        }
-
-        return null;
-    }
 }

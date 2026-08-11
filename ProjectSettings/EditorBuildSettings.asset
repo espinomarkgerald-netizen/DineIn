@@ -9,6 +9,12 @@ EditorBuildSettings:
     path: Assets/Scenes/Bootstrap.unity
     guid: 2e1cde5490e30ff4eb348aecae899294
   - enabled: 1
+    path: Assets/_Project/Scenes/NewMenu/NewMainMenu.unity
+    guid: 950a446f9623c214194ef2957b38dff5
+  - enabled: 1
+    path: Assets/_Project/Scenes/NewMenu/NewGameMenu.unity
+    guid: 1177f6552c5a2eb4085bfb9c2747417a
+  - enabled: 1
     path: Assets/Scenes/MainMenu.unity
     guid: c882f2b0f219b4a4aad10eb975ee509d
   - enabled: 0

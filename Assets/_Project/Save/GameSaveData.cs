@@ -16,6 +16,7 @@ public class GameSaveData
     public int currentDayHalf = 1;
     public bool lobbyCompleted;
     public bool kitchenCompleted;
+    public bool campaignCompleted;
 
     public int money = 500;
     public int approval = 50;

@@ -43,16 +43,46 @@ public class LinePatienceUI : MonoBehaviour
 
     public void Init(Transform target, Vector3 worldOffset, Camera cam)
     {
-        if (follow == null)
-            follow = GetComponent<UIFollowWorldPoint>();
-
-        if (follow == null)
-            follow = GetComponentInChildren<UIFollowWorldPoint>(true);
+        ResolveFollower();
 
         if (follow != null)
             follow.Init(target, worldOffset, cam);
         else
             Debug.LogWarning("[LinePatienceUI] UIFollowWorldPoint not found on " + name);
+    }
+
+    public void InitAboveTarget(
+        Transform target,
+        Camera cam,
+        float edgeGapPixels,
+        int stackPriority,
+        float stackGapPixels)
+    {
+        ResolveFollower();
+
+        if (follow != null)
+        {
+            follow.InitAboveTarget(
+                target,
+                Vector3.zero,
+                cam,
+                edgeGapPixels,
+                stackPriority,
+                stackGapPixels);
+        }
+        else
+        {
+            Debug.LogWarning("[LinePatienceUI] UIFollowWorldPoint not found on " + name);
+        }
+    }
+
+    private void ResolveFollower()
+    {
+        if (follow == null)
+            follow = GetComponent<UIFollowWorldPoint>();
+
+        if (follow == null)
+            follow = GetComponentInChildren<UIFollowWorldPoint>(true);
     }
 
     public void SetProgress(float normalized)

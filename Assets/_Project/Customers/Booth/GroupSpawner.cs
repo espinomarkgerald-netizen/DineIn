@@ -2,8 +2,20 @@ using UnityEngine;
 
 public class GroupSpawner : MonoBehaviour
 {
+    public static GroupSpawner Instance { get; private set; }
+
     [Header("Shared Group Prefab")]
     [SerializeField] private CustomerGroup groupPrefab;
+
+    [Header("Global Customer Bubble Layout")]
+    [SerializeField, Range(-500f, 500f)]
+    [InspectorName("Max Zoom In Offset (Pixels)")]
+    [Tooltip("Signed vertical offset from the animated customer head at maximum zoom in. Negative is lower.")]
+    private float maxZoomInBubbleOffsetPixels;
+    [SerializeField, Range(-500f, 500f)]
+    [InspectorName("Max Zoom Out Offset (Pixels)")]
+    [Tooltip("Signed vertical offset from the animated customer head at maximum zoom out. Negative is lower.")]
+    private float maxZoomOutBubbleOffsetPixels;
 
     [Header("Customer Prefabs by Type")]
     [SerializeField] private CustomerAgent customerPrefabGreen;
@@ -42,11 +54,42 @@ public class GroupSpawner : MonoBehaviour
 
     private int groupsSpawnedThisShift;
     private float timer;
+    private MainCameraController cameraController;
 
     public bool TakeoutEnabled => takeoutEnabled;
     public bool GreenEnabled => greenEnabled;
     public bool PinkEnabled => pinkEnabled;
     public bool BlueEnabled => blueEnabled;
+    public float CurrentBubbleOffsetPixels => Mathf.Lerp(
+        maxZoomInBubbleOffsetPixels,
+        maxZoomOutBubbleOffsetPixels,
+        ResolveNormalizedZoom());
+
+    private void Awake()
+    {
+        Instance = this;
+    }
+
+    private void OnDestroy()
+    {
+        if (Instance == this)
+            Instance = null;
+    }
+
+    private float ResolveNormalizedZoom()
+    {
+        if (cameraController == null)
+        {
+            Camera gameplayCamera = UIRoot.GameplayCameraOrNull();
+            if (gameplayCamera == null)
+                gameplayCamera = Camera.main;
+
+            if (gameplayCamera != null)
+                cameraController = gameplayCamera.GetComponentInParent<MainCameraController>();
+        }
+
+        return cameraController != null ? cameraController.NormalizedZoom : 0f;
+    }
 
     private void Update()
     {
@@ -189,18 +232,26 @@ public class GroupSpawner : MonoBehaviour
             return null;
         }
 
+        float takeoutRoll = Random.value;
         bool spawnAsTakeout = takeoutEnabled
             && takeoutQueueManager != null
-            && Random.value < takeoutSpawnChance;
+            && takeoutRoll < takeoutSpawnChance;
 
         if (takeoutEnabled && takeoutQueueManager == null)
             Debug.LogWarning("[GroupSpawner] Takeout is enabled but TakeoutQueueManager is missing. Falling back to dine-in.");
 
         int size = Random.Range(minGroupSize, maxGroupSize + 1);
 
+        Debug.Log(
+            $"[GroupSpawner] Routing {type} group of {size}: " +
+            $"takeoutEnabled={takeoutEnabled}, queueAssigned={takeoutQueueManager != null}, " +
+            $"roll={takeoutRoll:0.000}, chance={takeoutSpawnChance:0.000}, selectedTakeout={spawnAsTakeout}.",
+            this);
+
         CustomerGroup group = Instantiate(groupPrefab, spawnPoint.position, Quaternion.identity);
         group.name = $"Group_{type}_{size}";
         group.members.Clear();
+        group.SetBubbleLayoutSource(this);
 
         group.SetCustomerType(type);
 
@@ -240,7 +291,7 @@ public class GroupSpawner : MonoBehaviour
                 col.center = new Vector3(0f, 0.9f, 0f);
                 col.radius = 0.45f;
                 col.height = 1.8f;
-                col.isTrigger = false;
+                col.isTrigger = true;
             }
 
             takeoutQueueManager.Enqueue(group);

@@ -123,7 +123,6 @@ public class RoleBasedAssignController : MonoBehaviour
 
                 CustomerGreetBubbleSpawner.Instance?.Show(
                     group,
-                    group.UIAnchor != null ? group.UIAnchor : group.transform,
                     cam
                 );
                 return;

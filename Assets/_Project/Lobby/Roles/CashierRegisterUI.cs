@@ -423,6 +423,68 @@ public class CashierRegisterUI : MonoBehaviour
         CloseRegister();
     }
 
+    /// <summary>
+    /// Completes a valid restaurant payment without opening the player-facing change UI.
+    /// This is used only by the autonomous Lobby service while no player role exists.
+    /// </summary>
+    public bool CompleteAutomatedPayment(CustomerGroup group)
+    {
+        if (group == null)
+            return false;
+
+        TakeoutFlowManager takeoutFlow = TakeoutFlowManager.Instance;
+        bool validTakeoutPayment = group.IsTakeout &&
+                                   takeoutFlow != null &&
+                                   takeoutFlow.ActiveGroup == group &&
+                                   takeoutFlow.CurrentPhase == TakeoutFlowManager.TakeoutPhase.WaitingForPayment;
+        bool validDineInPayment = !group.IsTakeout && group.state == CustomerGroup.GroupState.NeedsBill;
+
+        if (!validTakeoutPayment && !validDineInPayment)
+            return false;
+
+        int amountEarned = GetAutomatedOrderTotal(group);
+        if (amountEarned <= 0)
+        {
+            Debug.LogWarning($"[CashierRegisterUI] Automated payment skipped for {group.name}: order total is invalid.", this);
+            return false;
+        }
+
+        DailyFinanceBridge.Instance?.AddEarnings(amountEarned, "Autonomous cashier payment");
+        GameDayManager.Instance?.RefreshRevenueUI();
+        GameDayManager.Instance?.RegisterPaymentCompleted();
+
+        if (activeGroup == group)
+        {
+            sessionConfirmed = true;
+            CloseRegister();
+        }
+
+        if (group.IsTakeout)
+            takeoutFlow.NotifyPaymentCompleted(group);
+        else
+            group.PayAndLeave();
+
+        OrderFlowManager.Instance?.ShowPayment(amountEarned, group.currentOrderNumber);
+
+        return true;
+    }
+
+    private static int GetAutomatedOrderTotal(CustomerGroup group)
+    {
+        if (group == null)
+            return 0;
+
+        int groupSize = Mathf.Max(1, group.Size);
+
+        if (OrderChecklistUI.Instance != null)
+            return OrderChecklistUI.Instance.GetOrderTotalFromContents(group.GetCurrentOrderContents()) * groupSize;
+
+        if (group.currentOrder != null)
+            return group.currentOrder.unitPrice * Mathf.Max(1, group.currentOrder.quantity);
+
+        return 0;
+    }
+
     private void RefreshOrderDisplay()
     {
         if (activeGroup == null || activeGroup.currentOrder == null)

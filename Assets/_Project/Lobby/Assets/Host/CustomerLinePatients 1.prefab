@@ -494,7 +494,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: 46}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &4918725153458186361
@@ -585,8 +585,19 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   target: {fileID: 0}
   worldOffset: {x: 0, y: 3, z: 0}
+  presentationSpace: 0
+  preserveScreenSize: 1
+  worldUnitsPerUiUnit: 0.01
+  visualScale: 1
+  cameraDepthOffset: 0.1
+  dynamicPixelsPerUnit: 10
+  baseSortingOrder: 100
   screenOffset: {x: 0, y: 0}
   stackStepY: 40
+  placeAboveTarget: 0
+  edgeGapPixels: 8
+  stackGapPixels: 6
+  stackPriority: 0
   hideWhenGameplayUIBlocked: 1
 --- !u!114 &4208482768379220682
 MonoBehaviour:

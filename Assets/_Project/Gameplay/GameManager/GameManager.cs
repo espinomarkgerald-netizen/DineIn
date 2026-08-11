@@ -12,6 +12,16 @@ public class GameDayManager : MonoBehaviour
     [Header("Scene")]
     [SerializeField] private string managementSceneName = "Office";
 
+    [Header("Single Restaurant Flow")]
+    [Tooltip("Creates the persistent campaign flow when Casual Dining is played directly.")]
+    [SerializeField] private bool bootstrapSingleRestaurantFlow;
+    [SerializeField] private string restaurantSceneName = "Lobby1";
+
+    [Header("Autonomous Service")]
+    [Tooltip("Uses the four Lobby staff as bots and disables manual role switching in this scene.")]
+    [SerializeField] private bool enableAutonomousServiceBots;
+    [SerializeField] private bool autoStartServiceWhenBotsEnabled = true;
+
     [Header("Shift Settings")]
     [SerializeField] private float shiftLengthMinutes = 4f;
 
@@ -112,6 +122,7 @@ public class GameDayManager : MonoBehaviour
 
     [Header("Runtime")]
     [SerializeField] private bool shiftRunning;
+    [SerializeField] private bool closingOut;
     [SerializeField] private float timeRemaining;
     [SerializeField] private int groupsSpawnedThisShift;
     [SerializeField] private int groupsSpawnedThisMinute;
@@ -141,6 +152,7 @@ public class GameDayManager : MonoBehaviour
     private bool warnedLastMinute;
 
     public bool ShiftRunning => shiftRunning;
+    public bool ServiceActive => shiftRunning || closingOut;
     public float TimeRemaining => timeRemaining;
     public int HappyCustomers => happyCustomers;
     public int NeutralCustomers => neutralCustomers;
@@ -159,6 +171,12 @@ public class GameDayManager : MonoBehaviour
         }
 
         Instance = this;
+
+        if (bootstrapSingleRestaurantFlow)
+            GameFlowManager.EnsureSingleRestaurantFlow(restaurantSceneName);
+
+        if (enableAutonomousServiceBots && GetComponent<LobbyAutonomousService>() == null)
+            gameObject.AddComponent<LobbyAutonomousService>();
 
         if (resultsPanel != null)
             resultsPanel.SetActive(false);
@@ -187,12 +205,16 @@ public class GameDayManager : MonoBehaviour
             resultsActionButton.onClick.AddListener(OnResultsActionPressed);
         }
 
-        ApplyTakeoutUnlock();
-        ApplyCustomerTypeUnlocks();
+        SubscribeToDayChanges();
+        ApplyCurrentDayConfiguration();
 
         RefreshUI();
         SetupMoodBars(true);
-        ShowShiftIntro();
+
+        if (enableAutonomousServiceBots && autoStartServiceWhenBotsEnabled)
+            StartShift();
+        else
+            ShowShiftIntro();
     }
 
     private void Update()
@@ -223,6 +245,45 @@ public class GameDayManager : MonoBehaviour
 
         if (timeRemaining <= 0f)
             EndShift();
+    }
+
+    private void OnDestroy()
+    {
+        if (playButton != null)
+            playButton.onClick.RemoveListener(ConfirmStartShift);
+
+        if (resultsActionButton != null)
+            resultsActionButton.onClick.RemoveListener(OnResultsActionPressed);
+
+        if (GameFlowManager.Instance != null)
+            GameFlowManager.Instance.OnDayChanged -= HandleDayChanged;
+
+        if (Instance == this)
+            Instance = null;
+    }
+
+    private void SubscribeToDayChanges()
+    {
+        if (GameFlowManager.Instance == null)
+            return;
+
+        GameFlowManager.Instance.OnDayChanged -= HandleDayChanged;
+        GameFlowManager.Instance.OnDayChanged += HandleDayChanged;
+    }
+
+    private void HandleDayChanged(int _)
+    {
+        ApplyCurrentDayConfiguration();
+        FindFirstObjectByType<LobbyUnlockManager>()?.ApplyUnlocks();
+        RefreshUI();
+    }
+
+    private void ApplyCurrentDayConfiguration()
+    {
+        ResolveManagerComponents();
+        ApplyDifficultyScaling();
+        ApplyTakeoutUnlock();
+        ApplyCustomerTypeUnlocks();
     }
 
     private void ResolveManagerComponents()
@@ -316,8 +377,13 @@ public class GameDayManager : MonoBehaviour
         if (dayIntroPanel != null)
             dayIntroPanel.SetActive(true);
 
+        bool singleRestaurantFlow = GameFlowManager.Instance != null &&
+                                    GameFlowManager.Instance.UsesSingleRestaurantFlow;
+
         if (dayIntroTitleText != null)
-            dayIntroTitleText.text = "Start Shift";
+            dayIntroTitleText.text = singleRestaurantFlow && GameFlowManager.Instance.IsEndlessRestaurantMode
+                ? "Continue Service"
+                : "Start Day";
 
         int minutes = Mathf.FloorToInt(ShiftLengthSeconds / 60f);
         int seconds = Mathf.FloorToInt(ShiftLengthSeconds % 60f);
@@ -326,8 +392,18 @@ public class GameDayManager : MonoBehaviour
         {
             StringBuilder sb = new StringBuilder();
             sb.AppendLine("<b>Shift Info</b>");
-            sb.AppendLine("Department: Lobby");
-            sb.AppendLine("Phase: First Half");
+            if (singleRestaurantFlow)
+            {
+                sb.AppendLine("Restaurant: Casual Dining");
+                sb.AppendLine(GameFlowManager.Instance.IsEndlessRestaurantMode
+                    ? "Mode: Endless Service"
+                    : "Mode: Campaign Service");
+            }
+            else
+            {
+                sb.AppendLine("Department: Lobby");
+                sb.AppendLine("Phase: First Half");
+            }
             sb.AppendLine("Length: " + minutes.ToString("00") + ":" + seconds.ToString("00"));
             dayIntroSummaryLeftText.text = sb.ToString().TrimEnd();
         }
@@ -386,6 +462,8 @@ public class GameDayManager : MonoBehaviour
 
         timeRemaining = ShiftLengthSeconds;
         shiftRunning = true;
+        closingOut = false;
+        GameFlowManager.Instance?.MarkRestaurantServiceStarted();
 
         if (resultsPanel != null)
             resultsPanel.SetActive(false);
@@ -437,6 +515,7 @@ public class GameDayManager : MonoBehaviour
             return;
 
         shiftRunning = false;
+        closingOut = true;
 
         if (spawnRoutine != null)
         {
@@ -453,6 +532,7 @@ public class GameDayManager : MonoBehaviour
         while (FindObjectsByType<CustomerGroup>(FindObjectsSortMode.None).Length > 0)
             yield return new WaitForSeconds(1f);
 
+        closingOut = false;
         ShowResults();
     }
 
@@ -463,6 +543,12 @@ public class GameDayManager : MonoBehaviour
 
     public void OnResultsActionPressed()
     {
+        if (GameFlowManager.Instance != null && GameFlowManager.Instance.UsesSingleRestaurantFlow)
+        {
+            GameFlowManager.Instance.CompleteRestaurantDay();
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(managementSceneName))
         {
             Debug.LogWarning("[GameDayManager] Management scene name is empty.");
@@ -477,6 +563,7 @@ public class GameDayManager : MonoBehaviour
         groupsSpawnedThisShift = 0;
         groupsSpawnedThisMinute = 0;
         minuteWindowTimer = 0f;
+        closingOut = false;
 
         groupsSeated = 0;
         ordersTaken = 0;
@@ -612,7 +699,18 @@ public class GameDayManager : MonoBehaviour
     private void RefreshUI()
     {
         if (dayText != null)
-            dayText.text = "Shift";
+        {
+            if (GameFlowManager.Instance != null && GameFlowManager.Instance.UsesSingleRestaurantFlow)
+            {
+                dayText.text = GameFlowManager.Instance.IsEndlessRestaurantMode
+                    ? "Endless Service"
+                    : $"Day {GameFlowManager.Instance.CurrentDay}";
+            }
+            else
+            {
+                dayText.text = "Shift";
+            }
+        }
 
         if (timerText != null)
         {
@@ -655,8 +753,11 @@ public class GameDayManager : MonoBehaviour
         if (resultsPanel != null)
             resultsPanel.SetActive(true);
 
+        bool singleRestaurantFlow = GameFlowManager.Instance != null &&
+                                    GameFlowManager.Instance.UsesSingleRestaurantFlow;
+
         if (resultsTitleText != null)
-            resultsTitleText.text = "Half-Day Report";
+            resultsTitleText.text = singleRestaurantFlow ? "Day Report" : "Half-Day Report";
 
         if (resultsSummaryText != null)
         {
@@ -700,7 +801,11 @@ public class GameDayManager : MonoBehaviour
             resultsActionButton.gameObject.SetActive(true);
 
             if (resultsActionButtonText != null)
-                resultsActionButtonText.text = "Back to Management";
+            {
+                resultsActionButtonText.text = singleRestaurantFlow
+                    ? (GameFlowManager.Instance.IsEndlessRestaurantMode ? "Continue Service" : "Start Next Day")
+                    : "Back to Management";
+            }
         }
     }
 

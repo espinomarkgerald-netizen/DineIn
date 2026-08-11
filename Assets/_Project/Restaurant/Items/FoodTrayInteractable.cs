@@ -367,41 +367,12 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
         ShowUI();
     }
 
-    private static Canvas cachedMainHudCanvas;
-
-    private static Canvas ResolveTargetCanvas()
-    {
-        if (cachedMainHudCanvas != null && cachedMainHudCanvas.isActiveAndEnabled)
-            return cachedMainHudCanvas;
-
-        cachedMainHudCanvas = null;
-
-        var canvases = FindObjectsByType<Canvas>(FindObjectsSortMode.None);
-        for (int i = 0; i < canvases.Length; i++)
-        {
-            var c = canvases[i];
-            if (!c.isActiveAndEnabled) continue;
-            if (c.name != "CanvasMainHUD") continue;
-
-            var ray = c.GetComponent<GraphicRaycaster>();
-            if (ray == null || !ray.enabled) continue;
-
-            cachedMainHudCanvas = c;
-            return cachedMainHudCanvas;
-        }
-
-        return null;
-    }
-
     private void ShowUI()
     {
         if (pickupUiPrefab == null || uiAnchor == null) return;
         if (uiInstance != null) return;
 
-        Canvas canvas = ResolveTargetCanvas();
-        if (canvas == null) return;
-
-        uiInstance = Instantiate(pickupUiPrefab, canvas.transform);
+        uiInstance = Instantiate(pickupUiPrefab);
 
         var follow = uiInstance.GetComponentInChildren<UIFollowWorldPoint>(true);
         if (follow != null)

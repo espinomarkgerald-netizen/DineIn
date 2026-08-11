@@ -246,4 +246,33 @@ public class RoleManager : MonoBehaviour
         if (activeRole == null) return null;
         return activeRole.GetComponent<PlayerMovement>();
     }
+
+    /// <summary>
+    /// Used by LobbyAutonomousService in the no-player Casual Dining preview.
+    /// Other scenes retain their current role-switching behaviour because they
+    /// never call this method.
+    /// </summary>
+    public void DisablePlayerRoleControl()
+    {
+        SetPlayerControlled(host, false);
+        SetPlayerControlled(waiter, false);
+        SetPlayerControlled(cashier, false);
+        SetPlayerControlled(busser, false);
+
+        SetIndicator(host, false);
+        SetIndicator(waiter, false);
+        SetIndicator(cashier, false);
+        SetIndicator(busser, false);
+
+        if (hostButton != null) hostButton.gameObject.SetActive(false);
+        if (waiterButton != null) waiterButton.gameObject.SetActive(false);
+        if (cashierButton != null) cashierButton.gameObject.SetActive(false);
+        if (busserButton != null) busserButton.gameObject.SetActive(false);
+        if (currentRoleText != null) currentRoleText.gameObject.SetActive(false);
+
+        if (Instance == this)
+            Instance = null;
+
+        enabled = false;
+    }
 }

@@ -6,25 +6,18 @@ public class MoneyPopupSpawner : MonoBehaviour
 
     [SerializeField] private GameObject moneyPopupPrefab;
 
-    private Canvas gameplayCanvas;
-
     private void Awake()
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
-
-        gameplayCanvas = UIRoot.GameplayCanvasOrNull();
-        if (gameplayCanvas == null)
-            gameplayCanvas = FindFirstObjectByType<Canvas>(FindObjectsInactive.Include);
     }
 
     public void Spawn(int amount, Transform worldAnchor, Vector3 worldOffset, Camera cam)
     {
         if (moneyPopupPrefab == null) return;
-        if (gameplayCanvas == null) return;
         if (worldAnchor == null) return;
 
-        var go = Instantiate(moneyPopupPrefab, gameplayCanvas.transform);
+        var go = Instantiate(moneyPopupPrefab);
 
         var follow = go.GetComponentInChildren<UIFollowWorldPoint>(true);
         if (follow != null)

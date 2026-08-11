@@ -1,10 +1,10 @@
 using System;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 /// <summary>
-/// Controls the Campaign/Multiplayer choice popup in GameMenu.
-/// It deliberately does not load a scene yet: the menu project is separate
-/// from the gameplay project. A later handoff system will consume SelectedMode.
+/// Controls the Campaign/Multiplayer choice popup in GameMenu and routes a
+/// Campaign selection to the scene assigned to the highlighted restaurant.
 /// </summary>
 public class GameModePopupController : MonoBehaviour
 {
@@ -24,6 +24,10 @@ public class GameModePopupController : MonoBehaviour
     [Header("Restaurant Selection")]
     [Tooltip("Usually found automatically as a child of GameManager. Assign it manually only if your hierarchy changes.")]
     [SerializeField] private RestaurantSelector restaurantSelector;
+
+    [Header("Campaign Scene Routing")]
+    [Tooltip("Scene names by restaurant index. Casual Dining is index 0 and loads Lobby1.")]
+    [SerializeField] private string[] campaignRestaurantScenes = { "Lobby1" };
 
     /// <summary>The most recent mode chosen during this GameMenu session.</summary>
     public GameModeChoice SelectedMode { get; private set; } = GameModeChoice.None;
@@ -72,7 +76,11 @@ public class GameModePopupController : MonoBehaviour
     /// <summary>Wire this to CampaignButton.</summary>
     public void ChooseCampaign()
     {
+        if (!TryGetSelectedCampaignScene(out string sceneName))
+            return;
+
         ChooseMode(GameModeChoice.Campaign);
+        LoadScene(sceneName);
     }
 
     /// <summary>Wire this to MultiplayerButton.</summary>
@@ -90,5 +98,41 @@ public class GameModePopupController : MonoBehaviour
         Debug.Log($"[GameModePopupController] Restaurant {SelectedRestaurantNumber} + {choice} selected.");
         OnModeSelected?.Invoke(choice);
         HidePopup();
+    }
+
+    private bool TryGetSelectedCampaignScene(out string sceneName)
+    {
+        sceneName = string.Empty;
+        int restaurantIndex = SelectedRestaurantIndex;
+
+        if (campaignRestaurantScenes == null ||
+            restaurantIndex < 0 ||
+            restaurantIndex >= campaignRestaurantScenes.Length ||
+            string.IsNullOrWhiteSpace(campaignRestaurantScenes[restaurantIndex]))
+        {
+            Debug.LogWarning($"[GameModePopupController] Restaurant {SelectedRestaurantNumber} has no Campaign scene assigned yet.");
+            return false;
+        }
+
+        sceneName = campaignRestaurantScenes[restaurantIndex].Trim();
+        if (!Application.CanStreamedLevelBeLoaded(sceneName))
+        {
+            Debug.LogError($"[GameModePopupController] Campaign scene '{sceneName}' is not enabled in the active Build Profile.");
+            return false;
+        }
+
+        return true;
+    }
+
+    private void LoadScene(string sceneName)
+    {
+        if (SceneLoader.Instance != null)
+        {
+            SceneLoader.Instance.LoadScene(sceneName);
+            return;
+        }
+
+        Debug.LogWarning("[GameModePopupController] SceneLoader was not initialized. Loading Campaign directly.");
+        SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Single);
     }
 }

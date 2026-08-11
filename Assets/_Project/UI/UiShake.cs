@@ -1,5 +1,6 @@
 using UnityEngine;
 
+[RequireComponent(typeof(RectTransform))]
 public class UIShake : MonoBehaviour
 {
     [Header("Shake Toggle")]
@@ -18,12 +19,14 @@ public class UIShake : MonoBehaviour
     public float rampMultiplier = 2f;
 
     private RectTransform rect;
+    private Canvas canvas;
     private float t;
     private float originalZ;
 
     private void Awake()
     {
         rect = GetComponent<RectTransform>();
+        canvas = GetComponent<Canvas>();
         originalZ = rect.localEulerAngles.z;
     }
 
@@ -38,10 +41,13 @@ public class UIShake : MonoBehaviour
         shake = false;
         t = 0f;
 
-        if (resetRotation && rect != null)
-        {
+        if (!resetRotation || rect == null)
+            return;
+
+        if (TryGetFacingCamera(out Camera cam))
+            rect.rotation = cam.transform.rotation;
+        else
             rect.localRotation = Quaternion.Euler(0f, 0f, originalZ);
-        }
     }
 
     private void LateUpdate()
@@ -51,12 +57,35 @@ public class UIShake : MonoBehaviour
         t += Time.unscaledDeltaTime;
 
         float angle = maxAngle;
-
         if (rampUp)
             angle *= Mathf.Lerp(1f, rampMultiplier, Mathf.Clamp01(t));
 
         float tilt = Mathf.Sin(t * frequency) * angle;
 
-        rect.localRotation = Quaternion.Euler(0f, 0f, originalZ + tilt);
+        if (TryGetFacingCamera(out Camera cam))
+        {
+            // Face the camera, then roll the tilt around that facing
+            // rotation's own forward axis so it reads as a billboard wobble
+            // instead of fighting UIFollowWorldPoint's camera-facing rotation.
+            rect.rotation = cam.transform.rotation * Quaternion.Euler(0f, 0f, tilt);
+        }
+        else
+        {
+            rect.localRotation = Quaternion.Euler(0f, 0f, originalZ + tilt);
+        }
+    }
+
+    private bool TryGetFacingCamera(out Camera cam)
+    {
+        cam = null;
+
+        if (canvas == null)
+            canvas = GetComponent<Canvas>();
+
+        if (canvas == null || canvas.renderMode != RenderMode.WorldSpace)
+            return false;
+
+        cam = canvas.worldCamera;
+        return cam != null;
     }
 }

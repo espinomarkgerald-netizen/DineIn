@@ -18,9 +18,6 @@ public class BillPaper : MonoBehaviour, IInteractable, ICancelableTaskTarget
     [SerializeField] private Vector3 uiOffset = new Vector3(0f, 0.35f, 0f);
     [SerializeField] private bool spawnPickupUiOnInit = true;
 
-    [Header("Canvas (Optional)")]
-    [SerializeField] private Canvas gameplayCanvas;
-
     [Header("Auto")]
     [SerializeField] private AutoInteractRadius autoRadius;
 
@@ -212,11 +209,7 @@ public class BillPaper : MonoBehaviour, IInteractable, ICancelableTaskTarget
         if (pickupUiPrefab == null || uiAnchor == null) return;
         if (pickupUiInstance != null) return;
 
-        Canvas canvas = ResolveMainHUDCanvas();
-        if (canvas == null) return;
-
-        pickupUiInstance = Instantiate(pickupUiPrefab, canvas.transform);
-        pickupUiInstance.transform.localScale = Vector3.one;
+        pickupUiInstance = Instantiate(pickupUiPrefab);
         pickupUiInstance.SetActive(true);
 
         var follow = pickupUiInstance.GetComponentInChildren<UIFollowWorldPoint>(true);
@@ -226,41 +219,6 @@ public class BillPaper : MonoBehaviour, IInteractable, ICancelableTaskTarget
         var pickBtn = pickupUiInstance.GetComponentInChildren<BillPaperPickupButton>(true);
         if (pickBtn != null)
             pickBtn.SetBill(this);
-    }
-
-    private static Canvas cachedMainHudCanvas;
-
-    /// <summary>
-    /// Resolves the main HUD canvas by name and GraphicRaycaster presence,
-    /// matching the same logic used by FoodTrayInteractable for consistent UI behaviour.
-    /// Falls back to the manually assigned gameplayCanvas if the named canvas is not found.
-    /// </summary>
-    private Canvas ResolveMainHUDCanvas()
-    {
-        if (cachedMainHudCanvas != null && cachedMainHudCanvas.isActiveAndEnabled)
-            return cachedMainHudCanvas;
-
-        cachedMainHudCanvas = null;
-
-        var canvases = FindObjectsByType<Canvas>(FindObjectsSortMode.None);
-        for (int i = 0; i < canvases.Length; i++)
-        {
-            Canvas c = canvases[i];
-            if (!c.isActiveAndEnabled) continue;
-            if (c.name != "CanvasMainHUD") continue;
-
-            var ray = c.GetComponent<UnityEngine.UI.GraphicRaycaster>();
-            if (ray == null || !ray.enabled) continue;
-
-            cachedMainHudCanvas = c;
-            return cachedMainHudCanvas;
-        }
-
-        // Manual override fallback.
-        if (gameplayCanvas != null && gameplayCanvas.isActiveAndEnabled)
-            return gameplayCanvas;
-
-        return null;
     }
 
     private void ClearPickupUI()

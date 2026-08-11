@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -17,11 +18,15 @@ public class KitchenManager : MonoBehaviour
 
     [Header("Queueing")]
     [SerializeField] private float waitForFreeSlotCheckInterval = 0.25f;
+    [SerializeField, Min(1f)] private float maxSlotWaitSeconds = 8f;
 
     private readonly HashSet<int> cookingOrders = new HashSet<int>();
     private readonly HashSet<int> completedOrders = new HashSet<int>();
 
     private TrayPickupQueue pickupQueue;
+
+    public event Action<CustomerGroup, int> OrderStarted;
+    public event Action<CustomerGroup, int, bool> OrderFinished;
 
     private void Awake()
     {
@@ -52,43 +57,45 @@ public class KitchenManager : MonoBehaviour
         );
     }
 
-    public void ProcessOrder(CustomerGroup group)
+    public bool ProcessOrder(CustomerGroup group)
     {
         if (group == null)
         {
             Debug.LogError("[KitchenManager] ProcessOrder called with null group.");
-            return;
+            return false;
         }
 
         int orderNo = group.currentOrderNumber;
         if (orderNo < 0)
         {
             Debug.LogError($"[KitchenManager] ProcessOrder — invalid orderNumber ({orderNo}) on {group.name}. Order not started.");
-            return;
+            return false;
         }
 
         if (group.state != CustomerGroup.GroupState.OrderTaken)
         {
             Debug.LogError($"[KitchenManager] ProcessOrder — {group.name} is in state '{group.state}', expected 'OrderTaken'. Order not started.");
-            return;
+            return false;
         }
 
         if (completedOrders.Contains(orderNo))
         {
             Debug.LogWarning($"[KitchenManager] Order #{orderNo} already finished spawning. Duplicate call ignored.");
-            return;
+            return false;
         }
 
         if (!cookingOrders.Add(orderNo))
         {
             Debug.LogWarning($"[KitchenManager] Order #{orderNo} is already being cooked. Duplicate call ignored.");
-            return;
+            return false;
         }
 
         bool isTakeout = group.IsTakeout;
 
         Debug.Log($"[KitchenManager] Starting cook for order #{orderNo} — group={group.name} isTakeout={isTakeout}.");
         StartCoroutine(CookAndSpawn(group, orderNo, isTakeout));
+        OrderStarted?.Invoke(group, orderNo);
+        return true;
     }
 
     private IEnumerator CookAndSpawn(CustomerGroup group, int orderNo, bool isTakeout)
@@ -138,8 +145,9 @@ public class KitchenManager : MonoBehaviour
             }
 
             Transform freeSlot = null;
+            float slotWaitStarted = Time.time;
 
-            while (freeSlot == null)
+            while (freeSlot == null && Time.time - slotWaitStarted < maxSlotWaitSeconds)
             {
                 if (!IsOrderStillValid(group, orderNo))
                 {
@@ -154,21 +162,38 @@ public class KitchenManager : MonoBehaviour
                     yield return new WaitForSeconds(waitForFreeSlotCheckInterval);
             }
 
+            if (freeSlot == null)
+            {
+                string serviceType = isTakeout ? "takeout" : "dine-in";
+                Debug.LogError($"[KitchenManager] Timed out waiting for a free {serviceType} slot for order #{orderNo}.", this);
+                yield break;
+            }
+
             if (isTakeout)
             {
                 GameObject bag = Instantiate(takeoutBagPrefab, freeSlot.position, freeSlot.rotation, freeSlot);
+
+                TakeoutBagInteractable requiredInteractable = bag.GetComponent<TakeoutBagInteractable>();
+                if (requiredInteractable == null)
+                {
+                    Debug.LogError("[KitchenManager] Spawned takeout bag is missing TakeoutBagInteractable. Order cannot be delivered.", bag);
+                    Destroy(bag);
+                    yield break;
+                }
 
                 TakeoutBagMarker marker = bag.GetComponent<TakeoutBagMarker>();
                 if (marker != null)
                     marker.Init(group);
 
-                TakeoutBagInteractable bagInteractable = bag.GetComponent<TakeoutBagInteractable>();
-                if (bagInteractable != null)
-                    bagInteractable.Init(group);
-                else
-                    Debug.LogWarning("[KitchenManager] TakeoutBagInteractable missing on PaperBag prefab — deliveredContents will be empty.");
+                requiredInteractable.Init(group);
 
-                TakeoutFlowManager.Instance?.NotifyBagReady(group);
+                TakeoutFlowManager flow = TakeoutFlowManager.Instance;
+                if (flow == null || !flow.NotifyBagReady(group))
+                {
+                    Debug.LogError($"[KitchenManager] Takeout flow rejected the ready bag for order #{orderNo}.", this);
+                    Destroy(bag);
+                    yield break;
+                }
 
                 if (ProcessingBillIndicatorUI.Instance != null)
                     ProcessingBillIndicatorUI.Instance.ShowForSeconds("Takeout order #" + orderNo + " is ready for pickup!", 3f);
@@ -198,6 +223,7 @@ public class KitchenManager : MonoBehaviour
         finally
         {
             cookingOrders.Remove(orderNo);
+            OrderFinished?.Invoke(group, orderNo, spawnedSuccessfully);
 
             if (!spawnedSuccessfully && ProcessingBillIndicatorUI.Instance != null && cookingOrders.Count == 0)
                 ProcessingBillIndicatorUI.Instance.Hide();
@@ -244,10 +270,19 @@ public class KitchenManager : MonoBehaviour
             if (child.GetComponent<FoodTray>() != null)
                 return true;
 
-            if (child.GetComponent<TakeoutBagMarker>() != null)
-                return true;
+            TakeoutBagInteractable bag = child.GetComponent<TakeoutBagInteractable>();
+            if (bag != null)
+            {
+                if (bag.TargetGroup == null)
+                {
+                    Destroy(child.gameObject);
+                    continue;
+                }
 
-            if (child.GetComponent<TakeoutBagInteractable>() != null)
+                return true;
+            }
+
+            if (child.GetComponent<TakeoutBagMarker>() != null)
                 return true;
         }
 

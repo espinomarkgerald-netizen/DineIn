@@ -57,7 +57,7 @@ Transform:
   m_GameObject: {fileID: 365736124058334126}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 1.386, z: 0}
+  m_LocalPosition: {x: 0, y: 7.3, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -207,23 +207,19 @@ MonoBehaviour:
   profilePink: {fileID: 11400000, guid: ed016c5e53873bf45a16146d134b158b, type: 2}
   profileBlue: {fileID: 11400000, guid: 199b862f6e17a3e42810c9e44bc7cee3, type: 2}
   tipPopupPrefab: {fileID: 170256330689608949, guid: 56b23800cf6341047bb73eba08421dce, type: 3}
-  tipPopupOffset: {x: 0, y: 1.9, z: 0}
   isSelected: 0
   selectionVisual: {fileID: 212460738703290197}
   shakeBeforeAngrySeconds: 3
   moneyBubblePrefab: {fileID: 2633997611543956007, guid: d14073bac6095154ca7092512c02fc30, type: 3}
-  moneyBubbleOffsetY: 2.2
   orderBubblePrefab: {fileID: 7532560820528851561, guid: 3d429d2ce0f1abc4aa4e7b8da818eb0f, type: 3}
   billBubblePrefab: {fileID: 5445306718687094200, guid: eb1f8e8975e27194bbcdc7a2079d358e, type: 3}
   tableNumberPrefab: {fileID: 2127504583418334704, guid: 6e3d2958f76201c4ab1528b1911ff1ad, type: 3}
   thoughtBubblePrefab: {fileID: 4091299561858918232, guid: cc3695162fe6b8642bdab0f86407034a, type: 3}
-  thoughtBubbleOffset: {x: 0, y: 2.8, z: 0}
   thoughtBubbleDuration: 3
   happyFaceSprite: {fileID: 21300000, guid: 0ea3c26a62dc47c4ca5c71969710d492, type: 3}
   unhappyFaceSprite: {fileID: 21300000, guid: 2e2ecdea4ca406a498fc36aed7671763, type: 3}
   angryFaceSprite: {fileID: 21300000, guid: 7f5e24f463ca8bc40aa0f872cb6e3a4b, type: 3}
   linePatiencePrefab: {fileID: 5309278383934196884, guid: a97d2839b7a1c944f8592eccc25d38c0, type: 3}
-  linePatienceOffset: {x: 0, y: 2.6, z: 0}
   linePatienceSeconds: 60
   greetedLinePatienceDrainMultiplier: 0.5
   debugForceShowLinePatience: 0
@@ -261,8 +257,9 @@ MonoBehaviour:
   - Let's go somewhere else.
   - No one is assisting us.
   - This place is too slow.
-  bubbleOffset: {x: 0, y: 2.2, z: 0}
-  tableNumberOffset: {x: 0, y: 1.6, z: 0}
+  bubbleEdgeGapPixels: 8
+  bubbleStackGapPixels: 0.1
+  fallbackVisualHeight: 0.1
   minOrderDelay: 2
   maxOrderDelay: 5
   minOrderPatience: 20
@@ -291,7 +288,6 @@ MonoBehaviour:
     unitPrice: 0
     contents: []
   eatingBubblePrefab: {fileID: 170256330689608949, guid: f917c154a462f874280eb918ceffa292, type: 3}
-  eatingBubbleOffset: {x: 0, y: 2.4, z: 0}
   assignedBooth: {fileID: 0}
   chosenFood: 0
   chosenDrink: 0

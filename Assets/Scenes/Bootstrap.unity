@@ -222,9 +222,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fe6b868bab47164ca21db43cbc1a1ea, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  firstSceneToLoad: MainMenu
+  firstSceneToLoad: NewMainMenu
   bootstrapLoadingScreen: {fileID: 0}
-  menuSceneName: MainMenu
+  menuSceneName: NewMainMenu
   gameplaySceneName: Multiplayer
   deactivateOtherScenesOnLoad: 1
   pushCustomizationOnGameplayLoad: 1

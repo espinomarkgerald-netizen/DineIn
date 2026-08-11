@@ -39,6 +39,9 @@ public class MainCameraController : MonoBehaviour
     private Vector2 lastPointerPos;
 
     public Camera Cam => cam;
+    public float NormalizedZoom => cam != null
+        ? Mathf.InverseLerp(minOrthoSize, maxOrthoSize, cam.orthographicSize)
+        : 0f;
 
     private void Awake()
     {

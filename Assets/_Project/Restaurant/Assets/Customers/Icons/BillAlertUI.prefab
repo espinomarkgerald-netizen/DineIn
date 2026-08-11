@@ -25,17 +25,17 @@ RectTransform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1433346750587517735}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 4123456011588429394}
-  m_Father: {fileID: 3771077479546904380}
+  m_Father: {fileID: 5111977612638798382}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 1.6329}
+  m_AnchoredPosition: {x: 0, y: -34.66715}
   m_SizeDelta: {x: 50, y: 57.6178}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &864339638444892553
@@ -107,11 +107,12 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 2878421131116916162}
+  - {fileID: 2053895566424894513}
   m_Father: {fileID: 3771077479546904380}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 36.3}
+  m_AnchoredPosition: {x: 0, y: 28}
   m_SizeDelta: {x: 25, y: 25}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &1512290484494153654
@@ -183,13 +184,12 @@ RectTransform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 1
   m_Children:
-  - {fileID: 2053895566424894513}
   - {fileID: 5111977612638798382}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -3.7, y: 0}
+  m_AnchoredPosition: {x: 0.7, y: 0}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &-4534427727445899712
@@ -227,8 +227,19 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   target: {fileID: 0}
   worldOffset: {x: 0, y: 3, z: 0}
+  presentationSpace: 0
+  preserveScreenSize: 1
+  worldUnitsPerUiUnit: 0.01
+  visualScale: 1
+  cameraDepthOffset: 0.1
+  dynamicPixelsPerUnit: 10
+  baseSortingOrder: 100
   screenOffset: {x: 0, y: 0}
   stackStepY: 40
+  placeAboveTarget: 0
+  edgeGapPixels: 8
+  stackGapPixels: 6
+  stackPriority: 0
   hideWhenGameplayUIBlocked: 1
 --- !u!114 &936346111718826650
 MonoBehaviour:

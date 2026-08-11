@@ -99,7 +99,6 @@ public class CustomerGroup : MonoBehaviour
 
     [Header("Tip Popup")]
     [SerializeField] private GameObject tipPopupPrefab;
-    [SerializeField] private Vector3 tipPopupOffset = new Vector3(0f, 1.9f, 0f);
 
     private CustomerTypeProfile Profile
     {
@@ -143,7 +142,6 @@ public class CustomerGroup : MonoBehaviour
 
     [Header("Payment UI")]
     [SerializeField] private GameObject moneyBubblePrefab;
-    [SerializeField] private float moneyBubbleOffsetY = 2.2f;
 
     [Header("UI Prefabs")]
     public GameObject orderBubblePrefab;
@@ -152,7 +150,6 @@ public class CustomerGroup : MonoBehaviour
 
     [Header("Customer Thoughts")]
     [SerializeField] private GameObject thoughtBubblePrefab;
-    [SerializeField] private Vector3 thoughtBubbleOffset = new Vector3(0f, 2.8f, 0f);
     [SerializeField] private float thoughtBubbleDuration = 1.5f;
 
     [Header("Mood Face Sprites")]
@@ -162,7 +159,6 @@ public class CustomerGroup : MonoBehaviour
 
     [Header("Line Patience")]
     [SerializeField] private GameObject linePatiencePrefab;
-    [SerializeField] private Vector3 linePatienceOffset = new Vector3(0f, 2.6f, 0f);
     [SerializeField] private float linePatienceSeconds = 60f;
     [SerializeField] private float greetedLinePatienceDrainMultiplier = 0.5f;
 
@@ -187,6 +183,9 @@ public class CustomerGroup : MonoBehaviour
 
     public bool IsTakeout => serviceType == ServiceType.Takeout;
     public TakeoutQueueState CurrentTakeoutQueueState => takeoutQueueState;
+
+    private const float TakeoutDestinationSampleRadius = 2f;
+    private readonly Dictionary<CustomerAgent, Vector3> takeoutMemberDestinations = new();
 
     private GameObject linePatienceInstance;
     private LinePatienceUI linePatienceUI;
@@ -252,9 +251,10 @@ public class CustomerGroup : MonoBehaviour
         "This place is too slow."
     };
 
-    [Header("UI Offsets")]
-    public Vector3 bubbleOffset = new Vector3(0, 2.2f, 0);
-    public Vector3 tableNumberOffset = new Vector3(0, 1.6f, 0);
+    [SerializeField, HideInInspector]
+    private float bubbleEdgeGapPixels = 8f;
+    [SerializeField, HideInInspector] private float bubbleStackGapPixels = 6f;
+    [SerializeField, HideInInspector] private float fallbackVisualHeight = 2.2f;
 
     [Header("Order Timing")]
     public float minOrderDelay = 2f;
@@ -291,7 +291,6 @@ public class CustomerGroup : MonoBehaviour
 
     [Header("Eating UI")]
     [SerializeField] private GameObject eatingBubblePrefab;
-    [SerializeField] private Vector3 eatingBubbleOffset = new Vector3(0f, 2.4f, 0f);
 
     private GameObject eatingBubbleInstance;
 
@@ -331,8 +330,14 @@ public class CustomerGroup : MonoBehaviour
     private Coroutine seatingRoutine;
     private Coroutine thoughtRoutine;
 
-    private Canvas gameplayCanvas;
+    private const int PrimaryBubblePriority = 0;
+    private const int PatienceBubblePriority = 100;
+
     private Transform groupUiAnchor;
+    [SerializeField, HideInInspector] private GroupSpawner bubbleLayoutSource;
+    private readonly List<Renderer> groupUiRenderers = new();
+    private readonly List<UIFollowWorldPoint> activeCustomerBubbles = new();
+    private int cachedRendererMemberCount = -1;
 
     private GameObject orderBubbleInstance;
     private GameObject billBubbleInstance;
@@ -371,7 +376,6 @@ public class CustomerGroup : MonoBehaviour
 
     private void Awake()
     {
-        ResolveCanvas();
         BuildGroupUIAnchor();
         ResolveExitPoint();
 
@@ -391,7 +395,9 @@ public class CustomerGroup : MonoBehaviour
     private void LateUpdate()
     {
         if (groupUiAnchor != null)
-            groupUiAnchor.position = GetMembersCenterWorld();
+            groupUiAnchor.position = GetMembersHeadAnchorWorld();
+
+        ApplyBubbleHeightSetting();
 
         UpdateWaitingStateFromLineTarget();
         UpdateLinePatience();
@@ -404,23 +410,74 @@ public class CustomerGroup : MonoBehaviour
         Debug.Log($"[CustomerGroup] {name} -> {state}");
     }
 
-    private void ResolveCanvas()
-    {
-        if (gameplayCanvas != null) return;
-
-        gameplayCanvas = UIRoot.GameplayCanvasOrNull();
-
-        if (gameplayCanvas == null)
-            gameplayCanvas = FindFirstObjectByType<Canvas>(FindObjectsInactive.Include);
-
-        if (gameplayCanvas == null)
-            Debug.LogError("[CustomerGroup] No Canvas found.");
-    }
-
     private Camera GetFollowCam()
     {
         var cam = UIRoot.GameplayCameraOrNull();
         return cam != null ? cam : Camera.main;
+    }
+
+    public void ConfigureCustomerBubble(UIFollowWorldPoint follow, Camera followCamera = null)
+    {
+        ConfigureCustomerBubble(follow, PrimaryBubblePriority, followCamera);
+    }
+
+    private void ConfigureCustomerBubble(
+        UIFollowWorldPoint follow,
+        int stackPriority,
+        Camera followCamera = null)
+    {
+        if (follow == null || groupUiAnchor == null)
+            return;
+
+        Camera resolvedCamera = followCamera != null ? followCamera : GetFollowCam();
+        follow.enabled = true;
+        follow.InitAboveTarget(
+            groupUiAnchor,
+            Vector3.zero,
+            resolvedCamera,
+            ResolveBubbleOffsetPixels(),
+            stackPriority,
+            bubbleStackGapPixels);
+
+        TrackCustomerBubble(follow);
+    }
+
+    private void TrackCustomerBubble(UIFollowWorldPoint follow)
+    {
+        if (follow != null && !activeCustomerBubbles.Contains(follow))
+            activeCustomerBubbles.Add(follow);
+    }
+
+    private void ApplyBubbleHeightSetting()
+    {
+        float offsetPixels = ResolveBubbleOffsetPixels();
+        for (int i = activeCustomerBubbles.Count - 1; i >= 0; i--)
+        {
+            UIFollowWorldPoint follow = activeCustomerBubbles[i];
+            if (follow == null)
+            {
+                activeCustomerBubbles.RemoveAt(i);
+                continue;
+            }
+
+            follow.SetAboveTargetGap(offsetPixels);
+        }
+    }
+
+    public void SetBubbleLayoutSource(GroupSpawner source)
+    {
+        bubbleLayoutSource = source;
+        ApplyBubbleHeightSetting();
+    }
+
+    private float ResolveBubbleOffsetPixels()
+    {
+        if (bubbleLayoutSource == null)
+            bubbleLayoutSource = GroupSpawner.Instance;
+
+        return bubbleLayoutSource != null
+            ? bubbleLayoutSource.CurrentBubbleOffsetPixels
+            : bubbleEdgeGapPixels;
     }
 
     private void ResolveExitPoint()
@@ -456,7 +513,7 @@ public class CustomerGroup : MonoBehaviour
         GameObject anchor = new GameObject("GroupUIAnchor");
         groupUiAnchor = anchor.transform;
         groupUiAnchor.SetParent(transform, false);
-        groupUiAnchor.position = GetMembersCenterWorld();
+        groupUiAnchor.position = GetMembersCenterWorld() + Vector3.up * fallbackVisualHeight;
     }
 
     public void SetSelected(bool selected)
@@ -494,7 +551,16 @@ public class CustomerGroup : MonoBehaviour
         if (assignedBooth == null)
             yield break;
 
-        Vector3[] seatTargets = new Vector3[members.Count];
+        Vector3 approachCenter = assignedBooth.GetNavigableApproachPosition();
+        Vector3 towardBooth = assignedBooth.transform.position - approachCenter;
+        towardBooth.y = 0f;
+        if (towardBooth.sqrMagnitude < 0.0001f)
+            towardBooth = assignedBooth.transform.forward;
+        towardBooth.Normalize();
+
+        Vector3 right = Vector3.Cross(Vector3.up, towardBooth).normalized;
+        Vector3[] approachTargets = new Vector3[members.Count];
+        int validMemberCount = 0;
 
         for (int i = 0; i < members.Count; i++)
         {
@@ -504,11 +570,19 @@ public class CustomerGroup : MonoBehaviour
             Transform seat = assignedBooth.GetSeat(i);
             if (seat == null) continue;
 
-            seatTargets[i] = seat.position;
-            member.WalkTo(seatTargets[i]);
+            float centeredIndex = i - (members.Count - 1) * 0.5f;
+            Vector3 desiredApproach = approachCenter + right * centeredIndex * 0.45f;
+            if (NavMesh.SamplePosition(desiredApproach, out NavMeshHit hit, 1f, NavMesh.AllAreas))
+                desiredApproach = hit.position;
+
+            approachTargets[i] = desiredApproach;
+            member.WalkTo(desiredApproach);
+            validMemberCount++;
         }
 
-        while (seatedMembers.Count < members.Count)
+        float approachTimeout = 12f;
+        float elapsed = 0f;
+        while (seatedMembers.Count < validMemberCount && elapsed < approachTimeout)
         {
             for (int i = 0; i < members.Count; i++)
             {
@@ -518,7 +592,7 @@ public class CustomerGroup : MonoBehaviour
                 Transform seat = assignedBooth.GetSeat(i);
                 if (seat == null) continue;
 
-                if (member.HasArrived(seatTargets[i]) && SeatAnchor.TryOccupy(seat, member.gameObject))
+                if (member.HasArrived(approachTargets[i]) && SeatAnchor.TryOccupy(seat, member.gameObject))
                 {
                     Quaternion rot = assignedBooth.GetSeatedRotation(seat.position);
                     member.SnapToSeat(seat.position, rot);
@@ -526,7 +600,24 @@ public class CustomerGroup : MonoBehaviour
                 }
             }
 
+            elapsed += Time.deltaTime;
             yield return null;
+        }
+
+        // A partial path must not deadlock the restaurant. The final seat snap is
+        // intentional because booth interiors are carved out of the walkable mesh.
+        for (int i = 0; i < members.Count; i++)
+        {
+            CustomerAgent member = members[i];
+            Transform seat = assignedBooth.GetSeat(i);
+            if (member == null || seat == null || seatedMembers.Contains(member))
+                continue;
+
+            if (!SeatAnchor.TryOccupy(seat, member.gameObject))
+                continue;
+
+            member.SnapToSeat(seat.position, assignedBooth.GetSeatedRotation(seat.position));
+            seatedMembers.Add(member);
         }
 
         SetState(GroupState.Seated);
@@ -863,16 +954,9 @@ public class CustomerGroup : MonoBehaviour
             return;
         }
 
-        ResolveCanvas();
-        if (gameplayCanvas == null)
-        {
-            Debug.LogWarning($"[CustomerGroup] gameplayCanvas missing on {name}");
-            return;
-        }
-
         ClearOrderBubble();
 
-        orderBubbleInstance = Instantiate(orderBubblePrefab, gameplayCanvas.transform);
+        orderBubbleInstance = Instantiate(orderBubblePrefab);
         orderBubbleInstance.name = $"{name}_OrderBubble";
         orderBubbleInstance.SetActive(true);
         orderBubbleInstance.transform.SetAsLastSibling();
@@ -899,8 +983,7 @@ public class CustomerGroup : MonoBehaviour
         var follow = orderBubbleInstance.GetComponentInChildren<UIFollowWorldPoint>(true);
         if (follow != null)
         {
-            follow.enabled = true;
-            follow.Init(groupUiAnchor, bubbleOffset, GetFollowCam());
+            ConfigureCustomerBubble(follow);
         }
         else
         {
@@ -966,20 +1049,14 @@ public class CustomerGroup : MonoBehaviour
     private void SpawnTableNumber()
     {
         if (tableNumberPrefab == null) return;
-        ResolveCanvas();
-        if (gameplayCanvas == null) return;
 
         ClearTableNumber();
 
-        tableNumberInstance = Instantiate(tableNumberPrefab, gameplayCanvas.transform);
-
-        Transform anchor = assignedBooth != null && assignedBooth.tableNumberAnchor != null
-            ? assignedBooth.tableNumberAnchor
-            : groupUiAnchor;
+        tableNumberInstance = Instantiate(tableNumberPrefab);
 
         var follow = tableNumberInstance.GetComponentInChildren<UIFollowWorldPoint>(true);
         if (follow != null)
-            follow.Init(anchor, tableNumberOffset, GetFollowCam());
+            ConfigureCustomerBubble(follow);
 
         var num = tableNumberInstance.GetComponentInChildren<TableNumberUI>(true);
         if (num != null)
@@ -1120,20 +1197,13 @@ public class CustomerGroup : MonoBehaviour
         var money = spawner.SpawnMoney(this, amount, null);
         if (money == null) yield break;
 
-        ResolveCanvas();
-        if (gameplayCanvas == null) yield break;
-
         ClearMoneyBubble();
 
-        moneyBubbleInstance = Instantiate(moneyBubblePrefab, gameplayCanvas.transform);
+        moneyBubbleInstance = Instantiate(moneyBubblePrefab);
 
         var follow = moneyBubbleInstance.GetComponentInChildren<UIFollowWorldPoint>(true);
         if (follow != null)
-        {
-            Vector3 offset = bubbleOffset;
-            offset.y = moneyBubbleOffsetY;
-            follow.Init(groupUiAnchor, offset, GetFollowCam());
-        }
+            ConfigureCustomerBubble(follow);
 
         var ui = moneyBubbleInstance.GetComponentInChildren<MoneyBubbleUI>(true);
         if (ui != null)
@@ -1290,6 +1360,8 @@ public class CustomerGroup : MonoBehaviour
             yield break;
         }
 
+        Vector3 approachPosition = assignedBooth.GetNavigableApproachPosition();
+
         for (int i = 0; i < members.Count; i++)
         {
             var member = members[i];
@@ -1297,8 +1369,8 @@ public class CustomerGroup : MonoBehaviour
 
             member.Unseat();
 
-            if (member.Agent != null) member.Agent.Warp(approach.position);
-            else member.transform.position = approach.position;
+            if (member.Agent != null) member.Agent.Warp(approachPosition);
+            else member.transform.position = approachPosition;
         }
 
         yield return null;
@@ -1309,7 +1381,7 @@ public class CustomerGroup : MonoBehaviour
         if (NavMesh.SamplePosition(baseExit, out hit, 3f, NavMesh.AllAreas))
             baseExit = hit.position;
 
-        Vector3 forward = baseExit - approach.position;
+        Vector3 forward = baseExit - approachPosition;
         forward.y = 0f;
         if (forward.sqrMagnitude < 0.0001f) forward = Vector3.forward;
         forward.Normalize();
@@ -1368,16 +1440,14 @@ public class CustomerGroup : MonoBehaviour
     private void SpawnBillBubble()
     {
         if (billBubblePrefab == null) return;
-        ResolveCanvas();
-        if (gameplayCanvas == null) return;
 
         ClearBillBubble();
 
-        billBubbleInstance = Instantiate(billBubblePrefab, gameplayCanvas.transform);
+        billBubbleInstance = Instantiate(billBubblePrefab);
 
         var follow = billBubbleInstance.GetComponentInChildren<UIFollowWorldPoint>(true);
         if (follow != null)
-            follow.Init(groupUiAnchor, bubbleOffset, GetFollowCam());
+            ConfigureCustomerBubble(follow);
 
         var ui = billBubbleInstance.GetComponentInChildren<BillBubbleUI>(true);
         if (ui != null)
@@ -1387,8 +1457,6 @@ public class CustomerGroup : MonoBehaviour
     private void ShowThought(string[] comments, Sprite faceSprite)
     {
         if (thoughtBubblePrefab == null) return;
-        ResolveCanvas();
-        if (gameplayCanvas == null) return;
 
         string message = GetRandomComment(comments);
         if (string.IsNullOrWhiteSpace(message)) return;
@@ -1398,11 +1466,11 @@ public class CustomerGroup : MonoBehaviour
 
         ClearThoughtBubble();
 
-        thoughtBubbleInstance = Instantiate(thoughtBubblePrefab, gameplayCanvas.transform);
+        thoughtBubbleInstance = Instantiate(thoughtBubblePrefab);
 
         var follow = thoughtBubbleInstance.GetComponentInChildren<UIFollowWorldPoint>(true);
         if (follow != null)
-            follow.Init(groupUiAnchor, thoughtBubbleOffset, GetFollowCam());
+            ConfigureCustomerBubble(follow);
 
         TMP_Text text = thoughtBubbleInstance.GetComponentInChildren<TMP_Text>(true);
         if (text != null)
@@ -1437,8 +1505,6 @@ public class CustomerGroup : MonoBehaviour
     private void ShowCustomThought(string message, Sprite faceSprite)
     {
         if (thoughtBubblePrefab == null) return;
-        ResolveCanvas();
-        if (gameplayCanvas == null) return;
         if (string.IsNullOrWhiteSpace(message)) return;
 
         if (thoughtRoutine != null)
@@ -1446,11 +1512,11 @@ public class CustomerGroup : MonoBehaviour
 
         ClearThoughtBubble();
 
-        thoughtBubbleInstance = Instantiate(thoughtBubblePrefab, gameplayCanvas.transform);
+        thoughtBubbleInstance = Instantiate(thoughtBubblePrefab);
 
         var follow = thoughtBubbleInstance.GetComponentInChildren<UIFollowWorldPoint>(true);
         if (follow != null)
-            follow.Init(groupUiAnchor, thoughtBubbleOffset, GetFollowCam());
+            ConfigureCustomerBubble(follow);
 
         TMP_Text text = thoughtBubbleInstance.GetComponentInChildren<TMP_Text>(true);
         if (text != null)
@@ -1665,6 +1731,141 @@ public class CustomerGroup : MonoBehaviour
         return count > 0 ? sum / count : transform.position;
     }
 
+    private Vector3 GetMembersHeadAnchorWorld()
+    {
+        Vector3 center = GetMembersCenterWorld();
+        Camera followCamera = GetFollowCam();
+        if (followCamera == null)
+            return center + Vector3.up * fallbackVisualHeight;
+
+        if (TryGetHeadAnchorWorld(followCamera, center, out Vector3 headAnchorWorld))
+            return headAnchorWorld;
+
+        RefreshGroupUIRenderers();
+
+        bool foundVisual = false;
+        float minScreenX = float.PositiveInfinity;
+        float maxScreenX = float.NegativeInfinity;
+        float maxScreenY = float.NegativeInfinity;
+
+        for (int i = 0; i < groupUiRenderers.Count; i++)
+        {
+            Renderer visual = groupUiRenderers[i];
+            if (visual == null || !visual.enabled || !visual.gameObject.activeInHierarchy)
+                continue;
+
+            Bounds bounds = visual.bounds;
+            for (int cornerIndex = 0; cornerIndex < 8; cornerIndex++)
+            {
+                Vector3 corner = bounds.center + new Vector3(
+                    (cornerIndex & 1) == 0 ? -bounds.extents.x : bounds.extents.x,
+                    (cornerIndex & 2) == 0 ? -bounds.extents.y : bounds.extents.y,
+                    (cornerIndex & 4) == 0 ? -bounds.extents.z : bounds.extents.z);
+                Vector3 screenPoint = followCamera.WorldToScreenPoint(corner);
+                if (screenPoint.z <= 0f)
+                    continue;
+
+                foundVisual = true;
+                minScreenX = Mathf.Min(minScreenX, screenPoint.x);
+                maxScreenX = Mathf.Max(maxScreenX, screenPoint.x);
+                maxScreenY = Mathf.Max(maxScreenY, screenPoint.y);
+            }
+        }
+
+        Vector3 centerScreen = followCamera.WorldToScreenPoint(center);
+        if (!foundVisual || centerScreen.z <= 0f)
+            return center + Vector3.up * fallbackVisualHeight;
+
+        Vector3 visualTopScreen = new Vector3(
+            (minScreenX + maxScreenX) * 0.5f,
+            maxScreenY,
+            centerScreen.z);
+        return followCamera.ScreenToWorldPoint(visualTopScreen);
+    }
+
+    private bool TryGetHeadAnchorWorld(
+        Camera followCamera,
+        Vector3 groupCenter,
+        out Vector3 headAnchorWorld)
+    {
+        bool foundHead = false;
+        float minScreenX = float.PositiveInfinity;
+        float maxScreenX = float.NegativeInfinity;
+        float maxScreenY = float.NegativeInfinity;
+
+        for (int i = 0; i < members.Count; i++)
+        {
+            CustomerAgent member = members[i];
+            Transform head = member != null ? member.HeadAnchor : null;
+            if (head == null || !head.gameObject.activeInHierarchy)
+                continue;
+
+            Vector3 screenPoint = followCamera.WorldToScreenPoint(head.position);
+            if (screenPoint.z <= 0f)
+                continue;
+
+            foundHead = true;
+            minScreenX = Mathf.Min(minScreenX, screenPoint.x);
+            maxScreenX = Mathf.Max(maxScreenX, screenPoint.x);
+            maxScreenY = Mathf.Max(maxScreenY, screenPoint.y);
+        }
+
+        Vector3 centerScreen = followCamera.WorldToScreenPoint(groupCenter);
+        if (!foundHead || centerScreen.z <= 0f)
+        {
+            headAnchorWorld = default;
+            return false;
+        }
+
+        Vector3 headScreen = new Vector3(
+            (minScreenX + maxScreenX) * 0.5f,
+            maxScreenY,
+            centerScreen.z);
+        headAnchorWorld = followCamera.ScreenToWorldPoint(headScreen);
+        return true;
+    }
+
+    private void RefreshGroupUIRenderers()
+    {
+        if (cachedRendererMemberCount == members.Count && !HasMissingGroupUIRenderer())
+            return;
+
+        groupUiRenderers.Clear();
+        for (int i = 0; i < members.Count; i++)
+        {
+            CustomerAgent member = members[i];
+            if (member == null)
+                continue;
+
+            Renderer[] renderers = member.GetComponentsInChildren<Renderer>(true);
+            for (int rendererIndex = 0; rendererIndex < renderers.Length; rendererIndex++)
+            {
+                Renderer renderer = renderers[rendererIndex];
+                if (renderer is ParticleSystemRenderer ||
+                    renderer is TrailRenderer ||
+                    renderer is LineRenderer)
+                {
+                    continue;
+                }
+
+                groupUiRenderers.Add(renderer);
+            }
+        }
+
+        cachedRendererMemberCount = members.Count;
+    }
+
+    private bool HasMissingGroupUIRenderer()
+    {
+        for (int i = 0; i < groupUiRenderers.Count; i++)
+        {
+            if (groupUiRenderers[i] == null)
+                return true;
+        }
+
+        return false;
+    }
+
     public Vector3 GetCurrentWorldCenter() => GetMembersCenterWorld();
 
     public bool CanBeGreeted()
@@ -1688,17 +1889,14 @@ public class CustomerGroup : MonoBehaviour
     {
         if (eatingBubblePrefab == null) return;
 
-        ResolveCanvas();
-        if (gameplayCanvas == null) return;
-
         ClearEatingBubble();
 
-        eatingBubbleInstance = Instantiate(eatingBubblePrefab, gameplayCanvas.transform);
+        eatingBubbleInstance = Instantiate(eatingBubblePrefab);
         eatingBubbleInstance.name = $"{name}_EatingBubble";
 
         var follow = eatingBubbleInstance.GetComponentInChildren<UIFollowWorldPoint>(true);
         if (follow != null)
-            follow.Init(groupUiAnchor, eatingBubbleOffset, GetFollowCam());
+            ConfigureCustomerBubble(follow);
 
         var ui = eatingBubbleInstance.GetComponentInChildren<EatingBubbleUI>(true);
         if (ui != null)
@@ -1794,6 +1992,7 @@ public class CustomerGroup : MonoBehaviour
 
     private bool CanUseLinePatience()
     {
+        if (IsTakeout) return false;
         if (linePatienceExpired) return false;
         if (hasBeenAssigned) return false;
         if (!hasLineSlotTarget) return false;
@@ -1805,17 +2004,9 @@ public class CustomerGroup : MonoBehaviour
         if (linePatienceInstance != null)
             return;
 
-        ResolveCanvas();
-
         if (linePatiencePrefab == null)
         {
             Debug.LogWarning("[CustomerGroup] linePatiencePrefab is missing on " + name);
-            return;
-        }
-
-        if (gameplayCanvas == null)
-        {
-            Debug.LogWarning("[CustomerGroup] gameplayCanvas is missing on " + name);
             return;
         }
 
@@ -1825,7 +2016,7 @@ public class CustomerGroup : MonoBehaviour
             return;
         }
 
-        linePatienceInstance = Instantiate(linePatiencePrefab, gameplayCanvas.transform);
+        linePatienceInstance = Instantiate(linePatiencePrefab);
         linePatienceInstance.name = name + "_LinePatienceUI";
         linePatienceInstance.SetActive(true);
         linePatienceInstance.transform.SetAsLastSibling();
@@ -1860,7 +2051,14 @@ public class CustomerGroup : MonoBehaviour
         }
 
         linePatienceUI.gameObject.SetActive(true);
-        linePatienceUI.Init(groupUiAnchor, linePatienceOffset, GetFollowCam());
+        linePatienceUI.InitAboveTarget(
+            groupUiAnchor,
+            GetFollowCam(),
+            ResolveBubbleOffsetPixels(),
+            PatienceBubblePriority,
+            bubbleStackGapPixels);
+        TrackCustomerBubble(
+            linePatienceInstance.GetComponentInChildren<UIFollowWorldPoint>(true));
         linePatienceUI.SetProgress(Mathf.Clamp01(linePatienceRemaining / Mathf.Max(1f, linePatienceSeconds)));
 
         Canvas.ForceUpdateCanvases();
@@ -2135,7 +2333,16 @@ public class CustomerGroup : MonoBehaviour
 
     public void SetTakeoutQueueState(TakeoutQueueState value)
     {
+        if (takeoutQueueState == value)
+            return;
+
         takeoutQueueState = value;
+
+        if (value != TakeoutQueueState.AtOrderPoint && value != TakeoutQueueState.WaitingInQueue)
+            return;
+
+        for (int i = 0; i < members.Count; i++)
+            members[i]?.StopAtCurrentPosition();
     }
 
     public void SetDeliveryHighlight(bool active)
@@ -2155,23 +2362,175 @@ public class CustomerGroup : MonoBehaviour
 
     public void MoveToTakeoutPoint(Vector3 worldPoint)
     {
+        MoveToTakeoutPoint(worldPoint, transform.forward, 1.1f, 1f);
+    }
+
+    public void MoveToTakeoutPoint(Vector3 worldPoint, Vector3 forward, float sideSpacing, float rowSpacing)
+    {
+        forward.y = 0f;
+        if (forward.sqrMagnitude < 0.0001f)
+            forward = Vector3.forward;
+
+        forward.Normalize();
+        Vector3 right = Vector3.Cross(Vector3.up, forward).normalized;
+        takeoutMemberDestinations.Clear();
+
         for (int i = 0; i < members.Count; i++)
         {
             var member = members[i];
             if (member == null)
                 continue;
 
-            member.WalkTo(worldPoint);
+            if (member.Agent != null)
+                member.Agent.avoidancePriority = Mathf.Clamp(20 + i, 0, 99);
+
+            Vector3 desiredTarget = GetTakeoutFormationTarget(
+                worldPoint,
+                forward,
+                right,
+                i,
+                members.Count,
+                sideSpacing,
+                rowSpacing);
+
+            if (!TryResolveTakeoutDestination(desiredTarget, worldPoint, out Vector3 resolvedTarget))
+            {
+                member.StopAtCurrentPosition();
+                Debug.LogWarning(
+                    $"[TakeoutQueue] {name} member '{member.name}' could not resolve a NavMesh destination near {desiredTarget}.",
+                    member);
+                continue;
+            }
+
+            if (member.TryWalkTo(resolvedTarget, out Vector3 actualDestination) ||
+                member.TryWalkTo(worldPoint, out actualDestination))
+            {
+                takeoutMemberDestinations[member] = actualDestination;
+                continue;
+            }
+
+            member.StopAtCurrentPosition();
+            Debug.LogWarning(
+                $"[TakeoutQueue] {name} member '{member.name}' has no complete path to its assigned queue position.",
+                member);
         }
     }
 
     public bool HasReachedTakeoutPoint(Vector3 worldPoint, float threshold = 0.6f)
     {
-        Vector3 center = GetMembersCenterWorld();
-        center.y = 0f;
-        worldPoint.y = 0f;
+        return HasReachedTakeoutPoint(worldPoint, transform.forward, 1.1f, 1f, threshold);
+    }
 
-        return Vector3.Distance(center, worldPoint) <= threshold;
+    public bool HasReachedTakeoutPoint(
+        Vector3 worldPoint,
+        Vector3 forward,
+        float sideSpacing,
+        float rowSpacing,
+        float threshold = 0.6f)
+    {
+        forward.y = 0f;
+        if (forward.sqrMagnitude < 0.0001f)
+            forward = Vector3.forward;
+
+        forward.Normalize();
+        Vector3 right = Vector3.Cross(Vector3.up, forward).normalized;
+        int validMembers = 0;
+
+        for (int i = 0; i < members.Count; i++)
+        {
+            CustomerAgent member = members[i];
+            if (member == null)
+                continue;
+
+            validMembers++;
+            Vector3 target;
+            if (!takeoutMemberDestinations.TryGetValue(member, out target))
+            {
+                target = GetTakeoutFormationTarget(
+                    worldPoint,
+                    forward,
+                    right,
+                    i,
+                    members.Count,
+                    sideSpacing,
+                    rowSpacing);
+            }
+
+            Vector3 memberPosition = member.transform.position;
+            memberPosition.y = 0f;
+            target.y = 0f;
+
+            if (!member.HasArrived(target) && Vector3.Distance(memberPosition, target) > threshold)
+                return false;
+        }
+
+        return validMembers > 0;
+    }
+
+    private static Vector3 GetTakeoutFormationTarget(
+        Vector3 center,
+        Vector3 forward,
+        Vector3 right,
+        int index,
+        int memberCount,
+        float sideSpacing,
+        float rowSpacing)
+    {
+        sideSpacing = Mathf.Max(0.5f, sideSpacing);
+        rowSpacing = Mathf.Max(0.5f, rowSpacing);
+
+        if (memberCount <= 1)
+            return center;
+
+        if (memberCount == 2)
+        {
+            float side = index == 0 ? -0.5f : 0.5f;
+            return center + right * side * sideSpacing;
+        }
+
+        if (memberCount == 3)
+        {
+            if (index == 0)
+                return center;
+
+            float side = index == 1 ? -0.5f : 0.5f;
+            return center + right * side * sideSpacing - forward * rowSpacing;
+        }
+
+        int row = index / 2;
+        int column = index % 2;
+        float centeredSide = column == 0 ? -0.5f : 0.5f;
+
+        return center + right * centeredSide * sideSpacing - forward * row * rowSpacing;
+    }
+
+    private static bool TryResolveTakeoutDestination(
+        Vector3 desiredTarget,
+        Vector3 groupCenter,
+        out Vector3 resolvedTarget)
+    {
+        if (NavMesh.SamplePosition(
+                desiredTarget,
+                out NavMeshHit desiredHit,
+                TakeoutDestinationSampleRadius,
+                NavMesh.AllAreas))
+        {
+            resolvedTarget = desiredHit.position;
+            return true;
+        }
+
+        if (NavMesh.SamplePosition(
+                groupCenter,
+                out NavMeshHit centerHit,
+                TakeoutDestinationSampleRadius * 1.5f,
+                NavMesh.AllAreas))
+        {
+            resolvedTarget = centerHit.position;
+            return true;
+        }
+
+        resolvedTarget = desiredTarget;
+        return false;
     }
 
     public void BeginTakeoutOrderFlow(float delay = 0.15f)
@@ -2254,6 +2613,31 @@ public class CustomerGroup : MonoBehaviour
         return true;
     }
 
+    public void FailTakeoutService(string reason)
+    {
+        if (!IsTakeout || leavingRoutineStarted)
+            return;
+
+        Debug.LogWarning($"[TakeoutDelivery] {name} could not be completed: {reason}", this);
+        BecomeUnhappyAndLeave();
+    }
+
+    public void FailTakeoutTravel(string reason)
+    {
+        if (!IsTakeout || leavingRoutineStarted)
+            return;
+
+        Debug.LogWarning($"[TakeoutQueue] {name} could not join the queue: {reason}", this);
+        ReportFinalResult(FinalResult.Neutral);
+        SetState(GroupState.Leaving);
+        ClearOrderBubble();
+        ClearBillBubble();
+        ClearTableNumber();
+        ClearMoneyBubble();
+        ClearEatingBubble();
+        StartLeaving(false);
+    }
+
     public string GetCustomerTypeName()
     {
         if (Profile != null && !string.IsNullOrWhiteSpace(Profile.displayName))
@@ -2287,18 +2671,10 @@ public class CustomerGroup : MonoBehaviour
         if (tipPopupPrefab == null || amount <= 0)
             return;
 
-        ResolveCanvas();
-        if (gameplayCanvas == null)
+        if (groupUiAnchor == null)
             return;
 
-        Transform anchor = assignedBooth != null && assignedBooth.tableNumberAnchor != null
-            ? assignedBooth.tableNumberAnchor
-            : groupUiAnchor;
-
-        if (anchor == null)
-            return;
-
-        GameObject instance = Instantiate(tipPopupPrefab, gameplayCanvas.transform);
+        GameObject instance = Instantiate(tipPopupPrefab);
         instance.name = $"{name}_TipPopup";
 
         RectTransform rootRect = instance.GetComponent<RectTransform>();
@@ -2318,7 +2694,7 @@ public class CustomerGroup : MonoBehaviour
 
         var follow = instance.GetComponentInChildren<UIFollowWorldPoint>(true);
         if (follow != null)
-            follow.Init(anchor, tipPopupOffset, GetFollowCam());
+            ConfigureCustomerBubble(follow);
 
         var ui = instance.GetComponentInChildren<TipPopupUI>(true);
         if (ui != null)

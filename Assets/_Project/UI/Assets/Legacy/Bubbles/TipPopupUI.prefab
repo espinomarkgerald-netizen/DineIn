@@ -29,15 +29,15 @@ RectTransform:
   m_GameObject: {fileID: 170256330689608949}
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0.5, y: 0.5, z: 0.5}
-  m_ConstrainProportionsScale: 1
+  m_LocalScale: {x: 0.1, y: 0.1, z: 0.1}
+  m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 5621810584865830787}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -3.7, y: 0}
+  m_AnchoredPosition: {x: 1.1, y: 31.21}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &4385433507164850096
@@ -75,8 +75,19 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   target: {fileID: 0}
   worldOffset: {x: 0, y: 3, z: 0}
+  presentationSpace: 0
+  preserveScreenSize: 1
+  worldUnitsPerUiUnit: 0.01
+  visualScale: 0.4
+  cameraDepthOffset: 0.1
+  dynamicPixelsPerUnit: 10
+  baseSortingOrder: 100
   screenOffset: {x: 0, y: 0}
   stackStepY: 40
+  placeAboveTarget: 1
+  edgeGapPixels: 8
+  stackGapPixels: 6
+  stackPriority: 0
   hideWhenGameplayUIBlocked: 1
 --- !u!225 &967886294281067758
 CanvasGroup:
@@ -144,7 +155,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -0.000061035156, y: 6.1}
+  m_AnchoredPosition: {x: -0.000061035156, y: 113.2}
   m_SizeDelta: {x: 0, y: -56.49}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &6668241062667289630

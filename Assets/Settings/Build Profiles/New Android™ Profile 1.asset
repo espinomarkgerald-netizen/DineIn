@@ -23,6 +23,10 @@ MonoBehaviour:
   - m_enabled: 1
     m_path: Assets/Scenes/Bootstrap.unity
   - m_enabled: 1
+    m_path: Assets/_Project/Scenes/NewMenu/NewMainMenu.unity
+  - m_enabled: 1
+    m_path: Assets/_Project/Scenes/NewMenu/NewGameMenu.unity
+  - m_enabled: 1
     m_path: Assets/Scenes/MainMenu.unity
   - m_enabled: 0
     m_path: Assets/Scenes/CoreGameplay.unity

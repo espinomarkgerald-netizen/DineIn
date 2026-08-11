@@ -12,7 +12,8 @@ public class GameFlowManager : MonoBehaviour
         None,
         Management,
         Lobby,
-        Kitchen
+        Kitchen,
+        Restaurant
     }
 
     public enum DayHalf
@@ -22,10 +23,28 @@ public class GameFlowManager : MonoBehaviour
         Afternoon
     }
 
+    public enum RestaurantSessionState
+    {
+        None,
+        PreOpen,
+        Running,
+        DayComplete,
+        Endless
+    }
+
     [Header("Scene Names")]
     [SerializeField] private string managementSceneName = "Office";
     [SerializeField] private string lobbySceneName = "Lobby1";
     [SerializeField] private string kitchenSceneName = "Kitchen";
+
+    [Header("Single Restaurant Flow")]
+    [Tooltip("Uses one restaurant scene for the full campaign instead of Office, Lobby, and Kitchen scene transitions.")]
+    [SerializeField] private bool useSingleRestaurantFlow;
+    [SerializeField] private string restaurantSceneName = "Lobby1";
+    [SerializeField, Min(1)] private int campaignDayLimit = 30;
+    [SerializeField, Range(0, 100)] private int campaignApprovalTarget = 40;
+    [SerializeField] private RestaurantSessionState restaurantSessionState = RestaurantSessionState.None;
+    [SerializeField] private bool campaignCompleted;
 
     [Header("Session")]
     [SerializeField] private int currentDay = 1;
@@ -48,8 +67,36 @@ public class GameFlowManager : MonoBehaviour
 
     public bool IsMorning => currentDayHalf == DayHalf.Morning;
     public bool IsAfternoon => currentDayHalf == DayHalf.Afternoon;
+    public bool UsesSingleRestaurantFlow => useSingleRestaurantFlow;
+    public bool CampaignCompleted => campaignCompleted;
+    public bool IsEndlessRestaurantMode => useSingleRestaurantFlow && campaignCompleted;
+    public RestaurantSessionState CurrentRestaurantSessionState => restaurantSessionState;
 
     public event Action<int> OnDayChanged;
+
+    /// <summary>
+    /// Ensures a direct play of the Casual Dining scene has the same persistent
+    /// campaign flow as a scene entered through a menu. This keeps the gameplay
+    /// scene self-contained while legacy scenes can continue using their setup.
+    /// </summary>
+    public static GameFlowManager EnsureSingleRestaurantFlow(string sceneName)
+    {
+        if (string.IsNullOrWhiteSpace(sceneName))
+        {
+            Debug.LogError("[GameFlowManager] Cannot bootstrap Single Restaurant Flow without a scene name.");
+            return Instance;
+        }
+
+        if (Instance == null)
+        {
+            GameObject managerObject = new GameObject("GameFlowManager");
+            Instance = managerObject.AddComponent<GameFlowManager>();
+        }
+
+        Instance.ConfigureSingleRestaurantFlow(sceneName);
+        Instance.EnsureRestaurantDayPrepared();
+        return Instance;
+    }
 
     private void Awake()
     {
@@ -64,6 +111,9 @@ public class GameFlowManager : MonoBehaviour
 
             if (gameOverScreen != null)
                 Instance.gameOverScreen = gameOverScreen;
+
+            if (useSingleRestaurantFlow)
+                Instance.CopySingleRestaurantConfiguration(this);
 
             // Destroy only this component — sibling components on the same GameObject
             // (OfficeStartDayButton, OfficeStartButtons, etc.) must survive.
@@ -84,6 +134,9 @@ public class GameFlowManager : MonoBehaviour
 
     private void Start()
     {
+        if (useSingleRestaurantFlow && SceneManager.GetActiveScene().name == restaurantSceneName)
+            EnsureRestaurantDayPrepared();
+
         NotifyDayChanged();
     }
 
@@ -94,6 +147,13 @@ public class GameFlowManager : MonoBehaviour
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
+        if (useSingleRestaurantFlow && scene.name == restaurantSceneName)
+        {
+            currentPhase = GamePhase.Restaurant;
+            currentDayHalf = DayHalf.None;
+            EnsureRestaurantDayPrepared();
+        }
+
         if (scene.name == lobbySceneName && currentPhase == GamePhase.Lobby)
             ShiftScaler.Instance?.ApplyScaling(currentDay);
 
@@ -103,6 +163,20 @@ public class GameFlowManager : MonoBehaviour
 
     public void StartNewDay()
     {
+        if (useSingleRestaurantFlow)
+        {
+            if (campaignCompleted)
+            {
+                StartEndlessRestaurantDay();
+                return;
+            }
+
+            currentDay = Mathf.Min(currentDay + 1, campaignDayLimit);
+            PrepareRestaurantDay();
+            LoadRestaurantScene();
+            return;
+        }
+
         currentDay++;
         lobbyCompleted = false;
         kitchenCompleted = false;
@@ -133,6 +207,12 @@ public class GameFlowManager : MonoBehaviour
 
     public void StartLobbyShift()
     {
+        if (useSingleRestaurantFlow)
+        {
+            BeginRestaurantDay();
+            return;
+        }
+
         currentDayHalf = DayHalf.Morning;
         currentPhase = GamePhase.Lobby;
         EmployeeManager.Instance?.LockAllSlots();
@@ -142,6 +222,12 @@ public class GameFlowManager : MonoBehaviour
 
     public void ReturnToManagementFromLobby()
     {
+        if (useSingleRestaurantFlow)
+        {
+            CompleteRestaurantDay();
+            return;
+        }
+
         lobbyCompleted = true;
         currentDayHalf = DayHalf.Afternoon;
         currentPhase = GamePhase.Management;
@@ -151,6 +237,12 @@ public class GameFlowManager : MonoBehaviour
 
     public void StartKitchenShift()
     {
+        if (useSingleRestaurantFlow)
+        {
+            BeginRestaurantDay();
+            return;
+        }
+
         currentDayHalf = DayHalf.Afternoon;
         currentPhase = GamePhase.Kitchen;
         GameSaveManager.Instance?.RequestSave();
@@ -159,6 +251,12 @@ public class GameFlowManager : MonoBehaviour
 
     public void ReturnToManagementFromKitchen()
     {
+        if (useSingleRestaurantFlow)
+        {
+            CompleteRestaurantDay();
+            return;
+        }
+
         kitchenCompleted = true;
         currentPhase = GamePhase.Management;
         GameSaveManager.Instance?.RequestSave();
@@ -167,6 +265,12 @@ public class GameFlowManager : MonoBehaviour
 
     public void LoadManagementScene()
     {
+        if (useSingleRestaurantFlow)
+        {
+            BeginRestaurantDay();
+            return;
+        }
+
         currentPhase = GamePhase.Management;
         GameSaveManager.Instance?.RequestSave();
         SceneManager.LoadScene(managementSceneName);
@@ -184,16 +288,25 @@ public class GameFlowManager : MonoBehaviour
 
     public bool CanStartLobby()
     {
+        if (useSingleRestaurantFlow)
+            return true;
+
         return !lobbyCompleted;
     }
 
     public bool CanStartKitchen()
     {
+        if (useSingleRestaurantFlow)
+            return false;
+
         return lobbyCompleted && !kitchenCompleted;
     }
 
     public bool IsDayFullyCompleted()
     {
+        if (useSingleRestaurantFlow)
+            return restaurantSessionState == RestaurantSessionState.DayComplete;
+
         return lobbyCompleted && kitchenCompleted;
     }
 
@@ -204,6 +317,8 @@ public class GameFlowManager : MonoBehaviour
         currentDayHalf = DayHalf.Morning;
         lobbyCompleted = false;
         kitchenCompleted = false;
+        campaignCompleted = false;
+        restaurantSessionState = RestaurantSessionState.None;
 
         MoneyManager.Instance?.ResetToStartingMoney();
         AlienApprovalManager.Instance?.ResetApproval();
@@ -224,12 +339,36 @@ public class GameFlowManager : MonoBehaviour
         GameSaveManager.Instance?.RequestSave();
 
         Debug.Log("[GameFlow] Run fully reset to Day 1.");
+
+        if (useSingleRestaurantFlow)
+        {
+            BeginRestaurantDay();
+            return;
+        }
+
         SceneManager.LoadScene(managementSceneName);
     }
 
     public void StartDay()
     {
+        if (useSingleRestaurantFlow)
+        {
+            BeginRestaurantDay();
+            return;
+        }
+
         StartLobbyShift();
+    }
+
+    /// <summary>Called by GameDayManager after the player confirms the day-start panel.</summary>
+    public void MarkRestaurantServiceStarted()
+    {
+        if (!useSingleRestaurantFlow)
+            return;
+
+        restaurantSessionState = campaignCompleted
+            ? RestaurantSessionState.Endless
+            : RestaurantSessionState.Running;
     }
 
     public void EndOfDayFinance()
@@ -246,6 +385,12 @@ public class GameFlowManager : MonoBehaviour
 
     public void EvaluateEndOfDay()
     {
+        if (useSingleRestaurantFlow)
+        {
+            EvaluateRestaurantDay();
+            return;
+        }
+
         int money = MoneyManager.Instance != null ? MoneyManager.Instance.Money : 0;
         int approval = AlienApprovalManager.Instance != null ? AlienApprovalManager.Instance.Approval : 0;
 
@@ -306,7 +451,7 @@ public class GameFlowManager : MonoBehaviour
         EquipmentShopManager shop = FindObjectOfType<EquipmentShopManager>();
         shop?.InitializeShop();
 
-        if (currentPhase == GamePhase.Lobby)
+        if (currentPhase == GamePhase.Lobby || currentPhase == GamePhase.Restaurant)
             ShiftScaler.Instance?.ApplyScaling(currentDay);
 
         NotifyDayChanged();
@@ -324,6 +469,7 @@ public class GameFlowManager : MonoBehaviour
         data.currentDayHalf = (int)currentDayHalf;
         data.lobbyCompleted = lobbyCompleted;
         data.kitchenCompleted = kitchenCompleted;
+        data.campaignCompleted = campaignCompleted;
     }
 
     public void ApplySaveData(GameSaveData data)
@@ -336,6 +482,16 @@ public class GameFlowManager : MonoBehaviour
         currentDayHalf = (DayHalf)Mathf.Clamp(data.currentDayHalf, 0, Enum.GetValues(typeof(DayHalf)).Length - 1);
         lobbyCompleted = data.lobbyCompleted;
         kitchenCompleted = data.kitchenCompleted;
+        campaignCompleted = data.campaignCompleted;
+
+        if (useSingleRestaurantFlow)
+        {
+            currentPhase = GamePhase.Restaurant;
+            currentDayHalf = DayHalf.None;
+            restaurantSessionState = campaignCompleted
+                ? RestaurantSessionState.Endless
+                : RestaurantSessionState.PreOpen;
+        }
 
         RefreshDayText();
         NotifyDayChanged();
@@ -353,5 +509,156 @@ public class GameFlowManager : MonoBehaviour
             return;
 
         dayText.text = $"Day {currentDay}";
+    }
+
+    /// <summary>
+    /// Starts the one-scene restaurant flow. The scene's GameDayManager presents
+    /// the start panel and begins service after the player confirms it.
+    /// </summary>
+    public void BeginRestaurantDay()
+    {
+        if (!useSingleRestaurantFlow)
+        {
+            StartLobbyShift();
+            return;
+        }
+
+        Time.timeScale = 1f;
+        PrepareRestaurantDay();
+        LoadRestaurantScene();
+    }
+
+    /// <summary>
+    /// Called by the restaurant results screen after all active customers have left.
+    /// It is intentionally the only single-scene path that applies daily finance,
+    /// objectives, approval, and campaign progression.
+    /// </summary>
+    public void CompleteRestaurantDay()
+    {
+        if (!useSingleRestaurantFlow || restaurantSessionState == RestaurantSessionState.DayComplete)
+            return;
+
+        restaurantSessionState = RestaurantSessionState.DayComplete;
+        EndOfDayFinance();
+        EvaluateRestaurantDay();
+    }
+
+    private void EvaluateRestaurantDay()
+    {
+        int money = MoneyManager.Instance != null ? MoneyManager.Instance.Money : 0;
+
+        if (money <= 0)
+        {
+            TriggerGameOver(GameOverReason.Bankruptcy);
+            return;
+        }
+
+        // Endless Casual Dining deliberately no longer changes or checks approval.
+        if (campaignCompleted)
+        {
+            StartEndlessRestaurantDay();
+            return;
+        }
+
+        DailyObjectiveManager.Instance?.EvaluateAndApply();
+
+        int approval = AlienApprovalManager.Instance != null ? AlienApprovalManager.Instance.Approval : 0;
+        if (approval <= 0)
+        {
+            TriggerGameOver(GameOverReason.ApprovalCollapsed);
+            return;
+        }
+
+        if (currentDay >= campaignDayLimit)
+        {
+            if (approval < campaignApprovalTarget)
+            {
+                TriggerGameOver(GameOverReason.EarthConqueredDay30);
+                return;
+            }
+
+            campaignCompleted = true;
+            StartEndlessRestaurantDay();
+            return;
+        }
+
+        StartNewDay();
+    }
+
+    private void StartEndlessRestaurantDay()
+    {
+        Time.timeScale = 1f;
+        PrepareRestaurantDay();
+        restaurantSessionState = RestaurantSessionState.Endless;
+        LoadRestaurantScene();
+    }
+
+    private void EnsureRestaurantDayPrepared()
+    {
+        if (restaurantSessionState != RestaurantSessionState.None)
+            return;
+
+        PrepareRestaurantDay();
+    }
+
+    private void PrepareRestaurantDay()
+    {
+        currentDay = Mathf.Clamp(currentDay, 1, campaignDayLimit);
+        currentPhase = GamePhase.Restaurant;
+        currentDayHalf = DayHalf.None;
+        lobbyCompleted = false;
+        kitchenCompleted = false;
+        restaurantSessionState = campaignCompleted
+            ? RestaurantSessionState.Endless
+            : RestaurantSessionState.PreOpen;
+
+        DailyRevenueTracker.Instance?.ResetForNewDay();
+        DailyFinanceBridge.Instance?.ResetDay();
+        FinanceManager.Instance?.ResetDailyExpenses();
+        EmployeeManager.Instance?.ResetDailyAssignments();
+        ShiftScaler.Instance?.ApplyScaling(currentDay);
+
+        int maxGroupsThisDay = ShiftScaler.Instance != null
+            ? ShiftScaler.Instance.CurrentGroupCount
+            : 5;
+
+        if (!campaignCompleted)
+            DailyObjectiveManager.Instance?.RollObjectivesForDay(currentDay, maxGroupsThisDay);
+        else
+            DailyObjectiveManager.Instance?.ResetForNewDay();
+
+        EquipmentManager.Instance?.UnlockByDay(currentDay);
+        EquipmentShopManager shop = FindFirstObjectByType<EquipmentShopManager>();
+        shop?.InitializeShop();
+        RecipeManager.Instance?.UnlockByDay(currentDay);
+
+        NotifyDayChanged();
+        GameSaveManager.Instance?.RequestSave();
+    }
+
+    private void LoadRestaurantScene()
+    {
+        if (string.IsNullOrWhiteSpace(restaurantSceneName))
+        {
+            Debug.LogError("[GameFlowManager] Single Restaurant Flow has no restaurant scene assigned.");
+            return;
+        }
+
+        SceneManager.LoadScene(restaurantSceneName);
+    }
+
+    private void ConfigureSingleRestaurantFlow(string sceneName)
+    {
+        useSingleRestaurantFlow = true;
+        restaurantSceneName = sceneName;
+        campaignDayLimit = Mathf.Max(1, campaignDayLimit);
+        campaignApprovalTarget = Mathf.Clamp(campaignApprovalTarget, 0, 100);
+    }
+
+    private void CopySingleRestaurantConfiguration(GameFlowManager source)
+    {
+        ConfigureSingleRestaurantFlow(source.restaurantSceneName);
+        campaignDayLimit = source.campaignDayLimit;
+        campaignApprovalTarget = source.campaignApprovalTarget;
     }
 }

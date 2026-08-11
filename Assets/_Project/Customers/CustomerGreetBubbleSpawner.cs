@@ -5,21 +5,15 @@ public class CustomerGreetBubbleSpawner : MonoBehaviour
     public static CustomerGreetBubbleSpawner Instance;
 
     [SerializeField] private GameObject greetBubblePrefab;
-    [SerializeField] private Canvas targetCanvas;
 
     private GameObject currentBubble;
 
     private void Awake()
     {
         Instance = this;
-
-        if (targetCanvas == null)
-            targetCanvas = FindFirstObjectByType<Canvas>();
-
-        Debug.Log("[CustomerGreetBubbleSpawner] Awake. Canvas = " + (targetCanvas != null ? targetCanvas.name : "NULL"));
     }
 
-    public void Show(CustomerGroup group, Transform anchor, Camera cam)
+    public void Show(CustomerGroup group, Camera cam)
     {
         Debug.Log("[CustomerGreetBubbleSpawner] Show called");
 
@@ -35,19 +29,9 @@ public class CustomerGreetBubbleSpawner : MonoBehaviour
             return;
         }
 
-        if (targetCanvas == null)
-        {
-            targetCanvas = FindFirstObjectByType<Canvas>();
-            if (targetCanvas == null)
-            {
-                Debug.LogError("[CustomerGreetBubbleSpawner] No Canvas found");
-                return;
-            }
-        }
-
         Hide();
 
-        currentBubble = Instantiate(greetBubblePrefab, targetCanvas.transform);
+        currentBubble = Instantiate(greetBubblePrefab);
         currentBubble.name = $"{group.name}_GreetBubble";
 
         Debug.Log("[CustomerGreetBubbleSpawner] Bubble instantiated: " + currentBubble.name);
@@ -62,8 +46,7 @@ public class CustomerGreetBubbleSpawner : MonoBehaviour
         var follow = currentBubble.GetComponentInChildren<UIFollowWorldPoint>(true);
         if (follow != null)
         {
-            follow.enabled = true;
-            follow.Init(anchor, group.bubbleOffset, cam);
+            group.ConfigureCustomerBubble(follow, cam);
             Debug.Log("[CustomerGreetBubbleSpawner] UIFollowWorldPoint initialized");
         }
         else

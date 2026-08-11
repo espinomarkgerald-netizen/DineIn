@@ -13,6 +13,14 @@ public class OrderTicketUI : MonoBehaviour
     {
         group = g;
 
+        UIFollowWorldPoint follow = GetComponent<UIFollowWorldPoint>();
+        if (follow != null)
+            follow.enabled = false;
+
+        CanvasGroup canvasGroup = GetComponent<CanvasGroup>();
+        if (canvasGroup != null)
+            canvasGroup.alpha = 1f;
+
         int num = g.currentOrderNumber;
         if (titleText != null) titleText.text = $"ORDER TICKET #{num}";
         if (detailsText != null) detailsText.text = $"{g.chosenFood} + {g.chosenDrink}\nDeliver to cashier.";

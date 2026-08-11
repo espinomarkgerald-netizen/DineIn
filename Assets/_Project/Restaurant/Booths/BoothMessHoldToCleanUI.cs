@@ -21,8 +21,11 @@ public class BoothMessCleanUI : MonoBehaviour, IPointerDownHandler, IPointerUpHa
 
     private Booth booth;
     private bool isHolding;
+    private bool automatedCleaning;
     private float holdTimer;
     private float blockedTimer;
+
+    public bool IsAutomatedCleaning => automatedCleaning && isHolding;
 
     public void Setup(Booth targetBooth, Camera sceneCamera)
     {
@@ -64,7 +67,7 @@ public class BoothMessCleanUI : MonoBehaviour, IPointerDownHandler, IPointerUpHa
         if (!isHolding)
             return;
 
-        if (!CanCurrentPlayerClean(out string blockedReason))
+        if (!automatedCleaning && !CanCurrentPlayerClean(out string blockedReason))
         {
             StopHold(blockedReason);
             return;
@@ -81,6 +84,7 @@ public class BoothMessCleanUI : MonoBehaviour, IPointerDownHandler, IPointerUpHa
             return;
 
         isHolding = false;
+        automatedCleaning = false;
         holdTimer = 0f;
         booth.CleanMess();
         ResetUI();
@@ -108,7 +112,7 @@ public class BoothMessCleanUI : MonoBehaviour, IPointerDownHandler, IPointerUpHa
 
     public void OnPointerDown(PointerEventData eventData)
     {
-        if (booth == null || !booth.IsDirty)
+        if (automatedCleaning || booth == null || !booth.IsDirty)
             return;
 
         if (!CanCurrentPlayerClean(out string blockedReason))
@@ -118,6 +122,7 @@ public class BoothMessCleanUI : MonoBehaviour, IPointerDownHandler, IPointerUpHa
         }
 
         isHolding = true;
+        automatedCleaning = false;
         holdTimer = 0f;
         blockedTimer = 0f;
 
@@ -130,17 +135,51 @@ public class BoothMessCleanUI : MonoBehaviour, IPointerDownHandler, IPointerUpHa
 
     public void OnPointerUp(PointerEventData eventData)
     {
+        if (automatedCleaning)
+            return;
+
         StopHold();
     }
 
     public void OnPointerExit(PointerEventData eventData)
     {
+        if (automatedCleaning)
+            return;
+
         StopHold();
+    }
+
+    public bool BeginAutomatedCleaning()
+    {
+        if (booth == null || !booth.CanCleanMessNow)
+            return false;
+
+        automatedCleaning = true;
+        isHolding = true;
+        holdTimer = 0f;
+        blockedTimer = 0f;
+
+        if (label != null)
+            label.text = "Cleaning...";
+
+        if (radialFill != null)
+            radialFill.value = 0f;
+
+        return true;
+    }
+
+    public void CancelAutomatedCleaning()
+    {
+        if (!automatedCleaning)
+            return;
+
+        ResetUI();
     }
 
     private void StopHold()
     {
         isHolding = false;
+        automatedCleaning = false;
         holdTimer = 0f;
 
         if (label != null)
@@ -153,6 +192,7 @@ public class BoothMessCleanUI : MonoBehaviour, IPointerDownHandler, IPointerUpHa
     private void StopHold(string blockedReason)
     {
         isHolding = false;
+        automatedCleaning = false;
         holdTimer = 0f;
 
         if (label != null)
@@ -167,6 +207,7 @@ public class BoothMessCleanUI : MonoBehaviour, IPointerDownHandler, IPointerUpHa
     private void ShowBlocked(string blockedReason)
     {
         isHolding = false;
+        automatedCleaning = false;
         holdTimer = 0f;
 
         if (label != null)
@@ -181,6 +222,7 @@ public class BoothMessCleanUI : MonoBehaviour, IPointerDownHandler, IPointerUpHa
     private void ResetUI()
     {
         isHolding = false;
+        automatedCleaning = false;
         holdTimer = 0f;
         blockedTimer = 0f;
 
