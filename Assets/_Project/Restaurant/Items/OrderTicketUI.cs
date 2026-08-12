@@ -23,7 +23,7 @@ public class OrderTicketUI : MonoBehaviour
 
         int num = g.currentOrderNumber;
         if (titleText != null) titleText.text = $"ORDER TICKET #{num}";
-        if (detailsText != null) detailsText.text = $"{g.chosenFood} + {g.chosenDrink}\nDeliver to cashier.";
+        if (detailsText != null) detailsText.text = $"{g.GetCurrentOrderSummary()}\nDeliver to cashier.";
 
         // keep it until delivered
     }

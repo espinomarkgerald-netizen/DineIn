@@ -4,6 +4,26 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
+[System.Serializable]
+public class MenuProductToggleBinding
+{
+    public Recipe product;
+    public Toggle toggle;
+    public TMP_Text nameText;
+    public TMP_Text priceText;
+    public TMP_Text availableText;
+    public Image icon;
+}
+
+[System.Serializable]
+public class MenuBundleToggleBinding
+{
+    public string bundleId;
+    public Toggle toggle;
+    public TMP_Text nameText;
+    public TMP_Text priceText;
+}
+
 public class OrderChecklistUI : MonoBehaviour
 {
     public static OrderChecklistUI Instance { get; private set; }
@@ -40,28 +60,6 @@ public class OrderChecklistUI : MonoBehaviour
     [SerializeField] private Toggle chickenBurgerToggle;
     [SerializeField] private Toggle burgerFriesToggle;
 
-    [Header("Sprites")]
-    [SerializeField] private Sprite chickenSprite;
-    [SerializeField] private Sprite friesSprite;
-    [SerializeField] private Sprite burgerSprite;
-    [SerializeField] private Sprite cokeSprite;
-    [SerializeField] private Sprite pineappleSprite;
-    [SerializeField] private Sprite iceTeaSprite;
-
-    [Header("Single Item Prices")]
-    [SerializeField] private int chickenPrice = 299;
-    [SerializeField] private int friesPrice = 79;
-    [SerializeField] private int burgerPrice = 119;
-    [SerializeField] private int cokePrice = 50;
-    [SerializeField] private int pineapplePrice = 50;
-    [SerializeField] private int iceTeaPrice = 50;
-
-    [Header("Bundle Prices")]
-    [SerializeField] private bool useCustomBundlePrices = true;
-    [SerializeField] private int chickenFriesBundlePrice = 349;
-    [SerializeField] private int chickenBurgerBundlePrice = 399;
-    [SerializeField] private int burgerFriesBundlePrice = 179;
-
     [Header("Price Text UI")]
     [SerializeField] private TMP_Text chickenPriceText;
     [SerializeField] private TMP_Text friesPriceText;
@@ -84,22 +82,31 @@ public class OrderChecklistUI : MonoBehaviour
     [SerializeField] private TMP_Text friesAvailableText;
     [SerializeField] private TMP_Text burgerAvailableText;
 
+    [Header("Data-Driven Menu Bindings")]
+    [Tooltip("Optional extensible bindings. Add a row when a new product gets a notepad UI slot. Existing scenes use the legacy slots below automatically.")]
+    [SerializeField] private List<MenuProductToggleBinding> productBindings = new List<MenuProductToggleBinding>();
+    [Tooltip("Optional extensible bundle bindings. bundleId must match an entry in MenuCatalog.")]
+    [SerializeField] private List<MenuBundleToggleBinding> bundleBindings = new List<MenuBundleToggleBinding>();
+
     private CustomerGroup group;
     private Coroutine typingRoutine;
 
     private readonly List<string> requestedContents = new List<string>();
+    private readonly Dictionary<Toggle, Recipe> productByToggle = new Dictionary<Toggle, Recipe>();
+    private readonly Dictionary<Toggle, MenuBundle> bundleByToggle = new Dictionary<Toggle, MenuBundle>();
+    private readonly Dictionary<Toggle, TMP_Text> priceTextByToggle = new Dictionary<Toggle, TMP_Text>();
+    private readonly Dictionary<Toggle, TMP_Text> availableTextByToggle = new Dictionary<Toggle, TMP_Text>();
+
+    private MenuCatalog catalog;
 
     private string cachedOpeningMessage;
     private string cachedCustomerTypeName;
     private Sprite cachedCustomerImage;
 
-    private const string RecipeIDChicken = "01";
-    private const string RecipeIDBurger = "02";
-    private const string RecipeIDFries = "03";
-
     private void OnEnable()
     {
         UnlockManager.OnRecipeUnlocked += HandleRecipeUnlocked;
+        BuildMenuBindings();
         RefreshPriceTexts();
     }
 
@@ -119,19 +126,26 @@ public class OrderChecklistUI : MonoBehaviour
     /// </summary>
     private void RefreshUnlockUI()
     {
-        if (UnlockManager.Instance == null) return;
+        foreach (KeyValuePair<Toggle, Recipe> pair in productByToggle)
+            SetToggleUnlocked(pair.Key, pair.Value != null && pair.Value.IsUnlocked);
 
-        bool chickenUnlocked = UnlockManager.Instance.IsRecipeUnlocked(RecipeIDChicken);
-        bool burgerUnlocked = UnlockManager.Instance.IsRecipeUnlocked(RecipeIDBurger);
-        bool friesUnlocked = UnlockManager.Instance.IsRecipeUnlocked(RecipeIDFries);
+        foreach (KeyValuePair<Toggle, MenuBundle> pair in bundleByToggle)
+        {
+            bool unlocked = pair.Value != null && pair.Value.availableOnMenu;
+            if (unlocked)
+            {
+                for (int i = 0; i < pair.Value.products.Count; i++)
+                {
+                    if (pair.Value.products[i] == null || !pair.Value.products[i].IsUnlocked)
+                    {
+                        unlocked = false;
+                        break;
+                    }
+                }
+            }
 
-        SetToggleUnlocked(chickenToggle, chickenUnlocked);
-        SetToggleUnlocked(burgerToggle, burgerUnlocked);
-        SetToggleUnlocked(friesToggle, friesUnlocked);
-
-        SetToggleUnlocked(chickenFriesToggle, chickenUnlocked && friesUnlocked);
-        SetToggleUnlocked(chickenBurgerToggle, chickenUnlocked && burgerUnlocked);
-        SetToggleUnlocked(burgerFriesToggle, burgerUnlocked && friesUnlocked);
+            SetToggleUnlocked(pair.Key, unlocked);
+        }
     }
 
     private void SetToggleUnlocked(Toggle toggle, bool unlocked)
@@ -155,6 +169,8 @@ public class OrderChecklistUI : MonoBehaviour
 
         Instance = this;
 
+        BuildMenuBindings();
+
         if (confirmButton != null)
         {
             confirmButton.onClick.RemoveListener(Confirm);
@@ -176,6 +192,7 @@ public class OrderChecklistUI : MonoBehaviour
 
     private void OnValidate()
     {
+        BuildMenuBindings();
         RefreshPriceTexts();
     }
 
@@ -183,6 +200,149 @@ public class OrderChecklistUI : MonoBehaviour
     {
         if (Instance == this)
             Instance = null;
+    }
+
+    private void BuildMenuBindings()
+    {
+        catalog = MenuCatalog.Default;
+        productByToggle.Clear();
+        bundleByToggle.Clear();
+        priceTextByToggle.Clear();
+        availableTextByToggle.Clear();
+
+        if (catalog == null)
+            return;
+
+        for (int i = 0; i < productBindings.Count; i++)
+        {
+            MenuProductToggleBinding binding = productBindings[i];
+            if (binding == null || binding.toggle == null || binding.product == null)
+                continue;
+
+            AddProductBinding(
+                binding.toggle,
+                binding.product,
+                binding.priceText,
+                binding.availableText,
+                binding.nameText,
+                binding.icon);
+        }
+
+        for (int i = 0; i < bundleBindings.Count; i++)
+        {
+            MenuBundleToggleBinding binding = bundleBindings[i];
+            if (binding == null || binding.toggle == null)
+                continue;
+
+            MenuBundle bundle = catalog.FindBundle(binding.bundleId);
+            AddBundleBinding(binding.toggle, bundle, binding.priceText, binding.nameText);
+        }
+
+        // Compatibility adapter for the current notepad layout. New UI slots should
+        // use productBindings/bundleBindings so adding a product requires no code.
+        AddLegacyProductBinding(chickenToggle, ItemTypeKitchen.Chicken, chickenPriceText, chickenAvailableText);
+        AddLegacyProductBinding(friesToggle, ItemTypeKitchen.Fries, friesPriceText, friesAvailableText);
+        AddLegacyProductBinding(burgerToggle, ItemTypeKitchen.Burger, burgerPriceText, burgerAvailableText);
+        AddLegacyProductBinding(cokeToggle, ItemTypeKitchen.Coke, cokePriceText, null);
+        AddLegacyProductBinding(pineappleToggle, ItemTypeKitchen.Pineapple, pineapplePriceText, null);
+        AddLegacyProductBinding(iceTeaToggle, ItemTypeKitchen.IcedTea, iceTeaPriceText, null);
+
+        AddLegacyBundleBinding(
+            chickenFriesToggle,
+            chickenFriesBundlePriceText,
+            ItemTypeKitchen.Chicken,
+            ItemTypeKitchen.Fries);
+        AddLegacyBundleBinding(
+            chickenBurgerToggle,
+            chickenBurgerBundlePriceText,
+            ItemTypeKitchen.Chicken,
+            ItemTypeKitchen.Burger);
+        AddLegacyBundleBinding(
+            burgerFriesToggle,
+            burgerFriesBundlePriceText,
+            ItemTypeKitchen.Burger,
+            ItemTypeKitchen.Fries);
+    }
+
+    private void AddLegacyProductBinding(
+        Toggle toggle,
+        ItemTypeKitchen kitchenItem,
+        TMP_Text priceText,
+        TMP_Text availableText)
+    {
+        if (toggle == null || productByToggle.ContainsKey(toggle))
+            return;
+
+        AddProductBinding(toggle, catalog.FindByKitchenItem(kitchenItem), priceText, availableText, null, null);
+    }
+
+    private void AddProductBinding(
+        Toggle toggle,
+        Recipe product,
+        TMP_Text priceText,
+        TMP_Text availableText,
+        TMP_Text nameText,
+        Image icon)
+    {
+        if (toggle == null || product == null)
+            return;
+
+        productByToggle[toggle] = product;
+        if (priceText != null) priceTextByToggle[toggle] = priceText;
+        if (availableText != null) availableTextByToggle[toggle] = availableText;
+        if (nameText == null) nameText = FindLegacyNameText(toggle, priceText, availableText);
+        if (nameText != null) nameText.text = product.DisplayName;
+        if (icon != null) icon.sprite = product.sprite;
+    }
+
+    private void AddLegacyBundleBinding(
+        Toggle toggle,
+        TMP_Text priceText,
+        params ItemTypeKitchen[] kitchenItems)
+    {
+        if (toggle == null || bundleByToggle.ContainsKey(toggle))
+            return;
+
+        List<Recipe> products = new List<Recipe>();
+        for (int i = 0; i < kitchenItems.Length; i++)
+        {
+            Recipe product = catalog.FindByKitchenItem(kitchenItems[i]);
+            if (product != null) products.Add(product);
+        }
+
+        AddBundleBinding(toggle, catalog.FindBundle(products), priceText, null);
+    }
+
+    private void AddBundleBinding(Toggle toggle, MenuBundle bundle, TMP_Text priceText, TMP_Text nameText)
+    {
+        if (toggle == null || bundle == null)
+            return;
+
+        bundleByToggle[toggle] = bundle;
+        if (priceText != null) priceTextByToggle[toggle] = priceText;
+        if (nameText == null) nameText = FindLegacyNameText(toggle, priceText, null);
+        if (nameText != null) nameText.text = bundle.displayName;
+    }
+
+    private static TMP_Text FindLegacyNameText(
+        Toggle toggle,
+        TMP_Text priceText,
+        TMP_Text availableText)
+    {
+        if (toggle == null || toggle.transform.parent == null || toggle.transform.parent.parent == null)
+            return null;
+
+        TMP_Text[] texts = toggle.transform.parent.parent.GetComponentsInChildren<TMP_Text>(true);
+        for (int i = 0; i < texts.Length; i++)
+        {
+            TMP_Text candidate = texts[i];
+            if (candidate == null || candidate == priceText || candidate == availableText)
+                continue;
+
+            return candidate;
+        }
+
+        return null;
     }
 
     public void Open(CustomerGroup g)
@@ -244,25 +404,16 @@ public class OrderChecklistUI : MonoBehaviour
 
     private void RefreshPriceTexts()
     {
-        SetPriceText(chickenPriceText, chickenPrice);
-        SetPriceText(friesPriceText, friesPrice);
-        SetPriceText(burgerPriceText, burgerPrice);
-
-        SetPriceText(cokePriceText, cokePrice);
-        SetPriceText(pineapplePriceText, pineapplePrice);
-        SetPriceText(iceTeaPriceText, iceTeaPrice);
-
-        if (useCustomBundlePrices)
+        foreach (KeyValuePair<Toggle, Recipe> pair in productByToggle)
         {
-            SetPriceText(chickenFriesBundlePriceText, chickenFriesBundlePrice);
-            SetPriceText(chickenBurgerBundlePriceText, chickenBurgerBundlePrice);
-            SetPriceText(burgerFriesBundlePriceText, burgerFriesBundlePrice);
+            if (priceTextByToggle.TryGetValue(pair.Key, out TMP_Text target))
+                SetPriceText(target, pair.Value.sellPrice);
         }
-        else
+
+        foreach (KeyValuePair<Toggle, MenuBundle> pair in bundleByToggle)
         {
-            SetPriceText(chickenFriesBundlePriceText, chickenPrice + friesPrice);
-            SetPriceText(chickenBurgerBundlePriceText, chickenPrice + burgerPrice);
-            SetPriceText(burgerFriesBundlePriceText, burgerPrice + friesPrice);
+            if (priceTextByToggle.TryGetValue(pair.Key, out TMP_Text target))
+                SetPriceText(target, pair.Value.GetPrice());
         }
     }
 
@@ -274,25 +425,14 @@ public class OrderChecklistUI : MonoBehaviour
 
     private void RefreshAvailableStockUI()
     {
-        if (LobbyStockBridge.Instance == null)
+        foreach (KeyValuePair<Toggle, TMP_Text> pair in availableTextByToggle)
         {
-            SetAvailableStockText(chickenAvailableText, 0);
-            SetAvailableStockText(friesAvailableText, 0);
-            SetAvailableStockText(burgerAvailableText, 0);
-            return;
+            int stock = 0;
+            if (LobbyStockBridge.Instance != null && productByToggle.TryGetValue(pair.Key, out Recipe product))
+                stock = LobbyStockBridge.Instance.GetProductStock(product);
+
+            SetAvailableStockText(pair.Value, stock);
         }
-
-        SetAvailableStockText(
-            chickenAvailableText,
-            LobbyStockBridge.Instance.GetFoodStock(CustomerGroup.FoodType.Chicken));
-
-        SetAvailableStockText(
-            friesAvailableText,
-            LobbyStockBridge.Instance.GetFoodStock(CustomerGroup.FoodType.Fries));
-
-        SetAvailableStockText(
-            burgerAvailableText,
-            LobbyStockBridge.Instance.GetFoodStock(CustomerGroup.FoodType.Burger));
     }
 
     private void SetAvailableStockText(TMP_Text textUI, int amount)
@@ -303,17 +443,25 @@ public class OrderChecklistUI : MonoBehaviour
 
     private void RefreshFoodAvailabilityUI()
     {
-        bool chickenAvailable = LobbyStockBridge.Instance == null || LobbyStockBridge.Instance.HasFoodStock(CustomerGroup.FoodType.Chicken);
-        bool friesAvailable = LobbyStockBridge.Instance == null || LobbyStockBridge.Instance.HasFoodStock(CustomerGroup.FoodType.Fries);
-        bool burgerAvailable = LobbyStockBridge.Instance == null || LobbyStockBridge.Instance.HasFoodStock(CustomerGroup.FoodType.Burger);
+        foreach (KeyValuePair<Toggle, Recipe> pair in productByToggle)
+        {
+            bool available = pair.Value.availableOnMenu &&
+                (LobbyStockBridge.Instance == null || LobbyStockBridge.Instance.HasProductStock(pair.Value));
+            SetToggleInteractable(pair.Key, available && pair.Value.IsUnlocked);
+        }
 
-        SetToggleInteractable(chickenToggle, chickenAvailable);
-        SetToggleInteractable(friesToggle, friesAvailable);
-        SetToggleInteractable(burgerToggle, burgerAvailable);
+        foreach (KeyValuePair<Toggle, MenuBundle> pair in bundleByToggle)
+        {
+            bool available = pair.Value.availableOnMenu;
+            for (int i = 0; available && i < pair.Value.products.Count; i++)
+            {
+                Recipe product = pair.Value.products[i];
+                available = product != null && product.IsUnlocked &&
+                    (LobbyStockBridge.Instance == null || LobbyStockBridge.Instance.HasProductStock(product));
+            }
 
-        SetToggleInteractable(chickenFriesToggle, chickenAvailable && friesAvailable);
-        SetToggleInteractable(chickenBurgerToggle, chickenAvailable && burgerAvailable);
-        SetToggleInteractable(burgerFriesToggle, burgerAvailable && friesAvailable);
+            SetToggleInteractable(pair.Key, available);
+        }
     }
 
     private void SetToggleInteractable(Toggle toggle, bool interactable)
@@ -476,40 +624,26 @@ public class OrderChecklistUI : MonoBehaviour
 
     private bool IsDrink(string item)
     {
-        return item == "Coke" || item == "Pineapple" || item == "Ice Tea";
+        Recipe product = catalog != null ? catalog.FindProduct(item) : null;
+        return product != null && product.category == MenuProductCategory.Drink;
     }
 
     private bool IsFoodItem(string item)
     {
-        return item == "Chicken" || item == "Fries" || item == "Burger";
+        Recipe product = catalog != null ? catalog.FindProduct(item) : null;
+        return product != null && product.category == MenuProductCategory.Food;
     }
 
     private Sprite GetSprite(string item)
     {
-        switch (item)
-        {
-            case "Chicken": return chickenSprite;
-            case "Fries": return friesSprite;
-            case "Burger": return burgerSprite;
-            case "Coke": return cokeSprite;
-            case "Pineapple": return pineappleSprite;
-            case "Ice Tea": return iceTeaSprite;
-            default: return null;
-        }
+        Recipe product = catalog != null ? catalog.FindProduct(item) : null;
+        return product != null ? product.sprite : null;
     }
 
     public int GetPriceForItem(string item)
     {
-        switch (item)
-        {
-            case "Chicken": return chickenPrice;
-            case "Fries": return friesPrice;
-            case "Burger": return burgerPrice;
-            case "Coke": return cokePrice;
-            case "Pineapple": return pineapplePrice;
-            case "Ice Tea": return iceTeaPrice;
-            default: return 0;
-        }
+        Recipe product = catalog != null ? catalog.FindProduct(item) : null;
+        return product != null ? product.sellPrice : 0;
     }
 
     public bool TryGetBundleFoodPrice(List<string> contents, out int price)
@@ -531,29 +665,16 @@ public class OrderChecklistUI : MonoBehaviour
         if (foods.Count != 2)
             return false;
 
-        bool hasChicken = foods.Contains("Chicken");
-        bool hasFries = foods.Contains("Fries");
-        bool hasBurger = foods.Contains("Burger");
+        if (catalog == null)
+            return false;
 
-        if (hasChicken && hasFries)
-        {
-            price = useCustomBundlePrices ? chickenFriesBundlePrice : chickenPrice + friesPrice;
-            return true;
-        }
+        List<Recipe> foodProducts = catalog.ResolveProducts(foods);
+        MenuBundle bundle = catalog.FindBundle(foodProducts);
+        if (bundle == null)
+            return false;
 
-        if (hasChicken && hasBurger)
-        {
-            price = useCustomBundlePrices ? chickenBurgerBundlePrice : chickenPrice + burgerPrice;
-            return true;
-        }
-
-        if (hasBurger && hasFries)
-        {
-            price = useCustomBundlePrices ? burgerFriesBundlePrice : burgerPrice + friesPrice;
-            return true;
-        }
-
-        return false;
+        price = bundle.GetPrice();
+        return true;
     }
 
     public int GetFoodTotalFromContents(List<string> contents)
@@ -569,7 +690,7 @@ public class OrderChecklistUI : MonoBehaviour
         {
             string item = contents[i];
 
-            if (item == "Chicken" || item == "Fries" || item == "Burger")
+            if (IsFoodItem(item))
                 total += GetPriceForItem(item);
         }
 
@@ -586,7 +707,7 @@ public class OrderChecklistUI : MonoBehaviour
         {
             string item = contents[i];
 
-            if (item == "Coke" || item == "Pineapple" || item == "Ice Tea")
+            if (IsDrink(item))
                 total += GetPriceForItem(item);
         }
 
@@ -595,7 +716,9 @@ public class OrderChecklistUI : MonoBehaviour
 
     public int GetOrderTotalFromContents(List<string> contents)
     {
-        return GetFoodTotalFromContents(contents) + GetDrinkTotalFromContents(contents);
+        return catalog != null
+            ? catalog.GetOrderTotal(contents)
+            : GetFoodTotalFromContents(contents) + GetDrinkTotalFromContents(contents);
     }
 
     private void Confirm()
@@ -603,7 +726,7 @@ public class OrderChecklistUI : MonoBehaviour
         if (group == null) return;
 
         if (!TryBuildSelection(
-            out List<string> selectedContents,
+            out List<Recipe> selectedProducts,
             out string orderName,
             out int unitPrice,
             out CustomerGroup.FoodType mainFood,
@@ -612,62 +735,29 @@ public class OrderChecklistUI : MonoBehaviour
 
         if (LobbyStockBridge.Instance != null)
         {
-            for (int i = 0; i < selectedContents.Count; i++)
+            int stockMultiplier = Mathf.Max(1, group.Size);
+            if (!LobbyStockBridge.Instance.HasOrderStock(selectedProducts, stockMultiplier))
             {
-                string item = selectedContents[i];
-
-                if (item == "Chicken" &&
-                    !LobbyStockBridge.Instance.HasFoodStock(CustomerGroup.FoodType.Chicken))
-                {
-                    ShowWarning("Chicken is no longer available.");
-                    return;
-                }
-
-                if (item == "Fries" &&
-                    !LobbyStockBridge.Instance.HasFoodStock(CustomerGroup.FoodType.Fries))
-                {
-                    ShowWarning("Fries are no longer available.");
-                    return;
-                }
-
-                if (item == "Burger" &&
-                    !LobbyStockBridge.Instance.HasFoodStock(CustomerGroup.FoodType.Burger))
-                {
-                    ShowWarning("Burger is no longer available.");
-                    return;
-                }
+                ShowWarning("One or more products in this order are no longer available.");
+                RefreshFoodAvailabilityUI();
+                RefreshAvailableStockUI();
+                return;
             }
 
-            int stockMultiplier = Mathf.Max(1, group.Size);
-
-            for (int repeat = 0; repeat < stockMultiplier; repeat++)
+            if (!LobbyStockBridge.Instance.TryUseOrderStock(selectedProducts, stockMultiplier))
             {
-                for (int i = 0; i < selectedContents.Count; i++)
-                {
-                    string item = selectedContents[i];
-
-                    if (item == "Chicken")
-                        LobbyStockBridge.Instance.TryUseFoodStock(CustomerGroup.FoodType.Chicken);
-
-                    if (item == "Fries")
-                        LobbyStockBridge.Instance.TryUseFoodStock(CustomerGroup.FoodType.Fries);
-
-                    if (item == "Burger")
-                        LobbyStockBridge.Instance.TryUseFoodStock(CustomerGroup.FoodType.Burger);
-                }
-
-                LobbyStockBridge.Instance.TryUseDrinkStock(selectedDrink);
+                ShowWarning("Stock changed before the order could be submitted. Please try again.");
+                RefreshFoodAvailabilityUI();
+                RefreshAvailableStockUI();
+                return;
             }
         }
 
         if (group.submittedOrder == null)
             group.submittedOrder = new CustomerGroup.SimpleOrder();
 
-        group.submittedOrder.Clear();
-        group.submittedOrder.name = orderName;
-        group.submittedOrder.unitPrice = unitPrice;
+        group.submittedOrder.SetProducts(selectedProducts, orderName, unitPrice);
         group.submittedOrder.quantity = Mathf.Max(1, group.Size);
-        group.submittedOrder.contents.AddRange(selectedContents);
 
         group.currentOrder.quantity = group.submittedOrder.quantity;
 
@@ -695,265 +785,136 @@ public class OrderChecklistUI : MonoBehaviour
         Close();
     }
 
-    private bool AutoReplaceUnavailableFoods(List<string> selectedContents, out bool replacedAny)
-    {
-        replacedAny = false;
-
-        if (selectedContents == null || selectedContents.Count == 0)
-            return false;
-
-        if (LobbyStockBridge.Instance == null)
-            return true;
-
-        for (int i = 0; i < selectedContents.Count; i++)
-        {
-            string item = selectedContents[i];
-
-            if (!IsFoodItem(item))
-                continue;
-
-            if (HasStockForFoodName(item))
-                continue;
-
-            string replacement = GetReplacementFoodName(item);
-
-            if (string.IsNullOrEmpty(replacement))
-            {
-                ShowWarning("No food ingredients are available for this order.");
-                return false;
-            }
-
-            selectedContents[i] = replacement;
-            replacedAny = true;
-        }
-
-        return true;
-    }
-
-    private void ApplyReplacementToCustomerOrder(List<string> selectedContents, string orderName, int unitPrice)
-    {
-        requestedContents.Clear();
-        requestedContents.AddRange(selectedContents);
-
-        if (group != null && group.currentOrder != null)
-        {
-            group.currentOrder.contents.Clear();
-            group.currentOrder.contents.AddRange(selectedContents);
-            group.currentOrder.name = orderName;
-            group.currentOrder.unitPrice = unitPrice;
-            group.currentOrder.quantity = 1;
-        }
-
-        RefreshRequestedOrderUI();
-    }
-
-    private bool HasStockForFoodName(string item)
-    {
-        if (LobbyStockBridge.Instance == null)
-            return false;
-
-        switch (item)
-        {
-            case "Chicken":
-                return LobbyStockBridge.Instance.HasFoodStock(CustomerGroup.FoodType.Chicken);
-
-            case "Fries":
-                return LobbyStockBridge.Instance.HasFoodStock(CustomerGroup.FoodType.Fries);
-
-            case "Burger":
-                return LobbyStockBridge.Instance.HasFoodStock(CustomerGroup.FoodType.Burger);
-        }
-
-        return false;
-    }
-
-    private string GetReplacementFoodName(string originalItem)
-    {
-        string[] candidates = { "Chicken", "Fries", "Burger" };
-
-        for (int i = 0; i < candidates.Length; i++)
-        {
-            string candidate = candidates[i];
-
-            if (candidate == originalItem)
-                continue;
-
-            if (HasStockForFoodName(candidate))
-                return candidate;
-        }
-
-        return string.Empty;
-    }
-
-    private void RebuildOrderDataFromContents(
-        List<string> contents,
-        CustomerGroup.DrinkType selectedDrink,
-        out string orderName,
-        out int unitPrice,
-        out CustomerGroup.FoodType mainFood)
-    {
-        List<string> foods = new List<string>();
-
-        unitPrice = 0;
-        orderName = string.Empty;
-        mainFood = CustomerGroup.FoodType.Chicken;
-
-        for (int i = 0; i < contents.Count; i++)
-        {
-            string item = contents[i];
-
-            if (IsFoodItem(item))
-                foods.Add(item);
-        }
-
-        unitPrice = GetOrderTotalFromContents(contents);
-
-        if (foods.Count == 1)
-            orderName = foods[0];
-        else if (foods.Count >= 2)
-            orderName = foods[0] + " + " + foods[1];
-        else
-            orderName = "Order";
-
-        if (foods.Count > 0)
-            mainFood = GetFoodTypeFromName(foods[0]);
-    }
-
-    private CustomerGroup.FoodType GetFoodTypeFromName(string item)
-    {
-        switch (item)
-        {
-            case "Chicken":
-                return CustomerGroup.FoodType.Chicken;
-            case "Fries":
-                return CustomerGroup.FoodType.Fries;
-            case "Burger":
-                return CustomerGroup.FoodType.Burger;
-        }
-
-        return CustomerGroup.FoodType.Chicken;
-    }
-
     private bool TryBuildSelection(
-        out List<string> selectedContents,
+        out List<Recipe> selectedProducts,
         out string orderName,
         out int unitPrice,
         out CustomerGroup.FoodType mainFood,
         out CustomerGroup.DrinkType selectedDrink)
     {
-        selectedContents = new List<string>();
+        selectedProducts = new List<Recipe>();
         orderName = string.Empty;
         unitPrice = 0;
         mainFood = CustomerGroup.FoodType.Chicken;
         selectedDrink = CustomerGroup.DrinkType.Coke;
 
-        bool hasSolo =
-            IsOn(chickenToggle) ||
-            IsOn(friesToggle) ||
-            IsOn(burgerToggle);
+        Recipe selectedFood = null;
+        MenuBundle selectedBundle = null;
+        Recipe selectedDrinkProduct = null;
 
-        bool hasBundle =
-            IsOn(chickenFriesToggle) ||
-            IsOn(chickenBurgerToggle) ||
-            IsOn(burgerFriesToggle);
+        foreach (KeyValuePair<Toggle, Recipe> pair in productByToggle)
+        {
+            if (!IsOn(pair.Key)) continue;
 
-        if (hasSolo && hasBundle)
+            if (pair.Value.category == MenuProductCategory.Food)
+                selectedFood = pair.Value;
+            else if (pair.Value.category == MenuProductCategory.Drink)
+                selectedDrinkProduct = pair.Value;
+        }
+
+        foreach (KeyValuePair<Toggle, MenuBundle> pair in bundleByToggle)
+        {
+            if (IsOn(pair.Key))
+                selectedBundle = pair.Value;
+        }
+
+        if (selectedFood != null && selectedBundle != null)
         {
             ShowWarning("You can't check a solo food and a bundle at the same time.");
             return false;
         }
 
-        if (!hasSolo && !hasBundle)
+        if (selectedFood == null && selectedBundle == null)
         {
             ShowWarning("Please select a food or a bundle first.");
             return false;
         }
 
-        if (IsOn(chickenToggle))
+        if (selectedFood != null)
         {
-            orderName = "Chicken";
-            selectedContents.Add("Chicken");
-            unitPrice += GetPriceForItem("Chicken");
-            mainFood = CustomerGroup.FoodType.Chicken;
+            selectedProducts.Add(selectedFood);
+            orderName = selectedFood.DisplayName;
+            mainFood = ToLegacyFoodType(selectedFood);
         }
-        else if (IsOn(friesToggle))
+        else
         {
-            orderName = "Fries";
-            selectedContents.Add("Fries");
-            unitPrice += GetPriceForItem("Fries");
-            mainFood = CustomerGroup.FoodType.Fries;
-        }
-        else if (IsOn(burgerToggle))
-        {
-            orderName = "Burger";
-            selectedContents.Add("Burger");
-            unitPrice += GetPriceForItem("Burger");
-            mainFood = CustomerGroup.FoodType.Burger;
-        }
-        else if (IsOn(chickenFriesToggle))
-        {
-            orderName = "Chicken + Fries";
-            selectedContents.Add("Chicken");
-            selectedContents.Add("Fries");
-            unitPrice += useCustomBundlePrices ? chickenFriesBundlePrice : GetPriceForItem("Chicken") + GetPriceForItem("Fries");
-            mainFood = CustomerGroup.FoodType.Chicken;
-        }
-        else if (IsOn(chickenBurgerToggle))
-        {
-            orderName = "Chicken + Burger";
-            selectedContents.Add("Chicken");
-            selectedContents.Add("Burger");
-            unitPrice += useCustomBundlePrices ? chickenBurgerBundlePrice : GetPriceForItem("Chicken") + GetPriceForItem("Burger");
-            mainFood = CustomerGroup.FoodType.Chicken;
-        }
-        else if (IsOn(burgerFriesToggle))
-        {
-            orderName = "Burger + Fries";
-            selectedContents.Add("Burger");
-            selectedContents.Add("Fries");
-            unitPrice += useCustomBundlePrices ? burgerFriesBundlePrice : GetPriceForItem("Burger") + GetPriceForItem("Fries");
-            mainFood = CustomerGroup.FoodType.Burger;
+            selectedProducts.AddRange(selectedBundle.products);
+            orderName = selectedBundle.displayName;
+            mainFood = ToLegacyFoodType(selectedBundle.products[0]);
         }
 
-        if (IsOn(cokeToggle))
+        if (selectedDrinkProduct == null && group != null && catalog != null)
         {
-            selectedContents.Add("Coke");
-            unitPrice += GetPriceForItem("Coke");
-            selectedDrink = CustomerGroup.DrinkType.Coke;
-        }
-        else if (IsOn(pineappleToggle))
-        {
-            selectedContents.Add("Pineapple");
-            unitPrice += GetPriceForItem("Pineapple");
-            selectedDrink = CustomerGroup.DrinkType.Pineapple;
-        }
-        else if (IsOn(iceTeaToggle))
-        {
-            selectedContents.Add("Ice Tea");
-            unitPrice += GetPriceForItem("Ice Tea");
-            selectedDrink = CustomerGroup.DrinkType.IceTea;
-        }
-        else if (group != null)
-        {
-            selectedDrink = group.chosenDrink;
+            selectedDrinkProduct = FindLegacyDrinkProduct(group.chosenDrink);
         }
 
+        if (selectedDrinkProduct != null)
+        {
+            selectedProducts.Add(selectedDrinkProduct);
+            selectedDrink = ToLegacyDrinkType(selectedDrinkProduct);
+        }
+
+        if (catalog == null)
+        {
+            ShowWarning("The menu catalog could not be loaded.");
+            return false;
+        }
+
+        unitPrice = catalog.GetOrderTotal(catalog.GetProductIds(selectedProducts));
         return true;
+    }
+
+    private Recipe FindLegacyDrinkProduct(CustomerGroup.DrinkType drinkType)
+    {
+        if (catalog == null) return null;
+
+        switch (drinkType)
+        {
+            case CustomerGroup.DrinkType.Pineapple:
+                return catalog.FindByKitchenItem(ItemTypeKitchen.Pineapple);
+            case CustomerGroup.DrinkType.IceTea:
+                return catalog.FindByKitchenItem(ItemTypeKitchen.IcedTea);
+            default:
+                return catalog.FindByKitchenItem(ItemTypeKitchen.Coke);
+        }
+    }
+
+    private static CustomerGroup.FoodType ToLegacyFoodType(Recipe product)
+    {
+        if (product == null) return CustomerGroup.FoodType.Chicken;
+
+        switch (product.kitchenItemType)
+        {
+            case ItemTypeKitchen.Fries:  return CustomerGroup.FoodType.Fries;
+            case ItemTypeKitchen.Burger: return CustomerGroup.FoodType.Burger;
+            default:                     return CustomerGroup.FoodType.Chicken;
+        }
+    }
+
+    private static CustomerGroup.DrinkType ToLegacyDrinkType(Recipe product)
+    {
+        if (product == null) return CustomerGroup.DrinkType.Coke;
+
+        switch (product.kitchenItemType)
+        {
+            case ItemTypeKitchen.Pineapple: return CustomerGroup.DrinkType.Pineapple;
+            case ItemTypeKitchen.IcedTea:   return CustomerGroup.DrinkType.IceTea;
+            default:                        return CustomerGroup.DrinkType.Coke;
+        }
     }
 
     private void BindToggleLogic()
     {
-        BindFoodToggle(chickenToggle);
-        BindFoodToggle(friesToggle);
-        BindFoodToggle(burgerToggle);
+        foreach (KeyValuePair<Toggle, Recipe> pair in productByToggle)
+        {
+            if (pair.Value.category == MenuProductCategory.Food)
+                BindFoodToggle(pair.Key);
+            else
+                BindDrinkToggle(pair.Key);
+        }
 
-        BindFoodToggle(chickenFriesToggle);
-        BindFoodToggle(chickenBurgerToggle);
-        BindFoodToggle(burgerFriesToggle);
-
-        BindDrinkToggle(cokeToggle);
-        BindDrinkToggle(pineappleToggle);
-        BindDrinkToggle(iceTeaToggle);
+        foreach (Toggle toggle in bundleByToggle.Keys)
+            BindFoodToggle(toggle);
     }
 
     private void BindFoodToggle(Toggle toggle)
@@ -992,17 +953,17 @@ public class OrderChecklistUI : MonoBehaviour
 
     private bool IsAnotherFoodToggleOn(Toggle current)
     {
-        Toggle[] all =
+        foreach (KeyValuePair<Toggle, Recipe> pair in productByToggle)
         {
-            chickenToggle, friesToggle, burgerToggle,
-            chickenFriesToggle, chickenBurgerToggle, burgerFriesToggle
-        };
+            if (pair.Key == null || pair.Key == current || pair.Value.category != MenuProductCategory.Food)
+                continue;
+            if (pair.Key.isOn) return true;
+        }
 
-        for (int i = 0; i < all.Length; i++)
+        foreach (Toggle toggle in bundleByToggle.Keys)
         {
-            Toggle t = all[i];
-            if (t == null || t == current) continue;
-            if (t.isOn) return true;
+            if (toggle == null || toggle == current) continue;
+            if (toggle.isOn) return true;
         }
 
         return false;
@@ -1010,16 +971,11 @@ public class OrderChecklistUI : MonoBehaviour
 
     private bool IsAnotherDrinkToggleOn(Toggle current)
     {
-        Toggle[] all =
+        foreach (KeyValuePair<Toggle, Recipe> pair in productByToggle)
         {
-            cokeToggle, pineappleToggle, iceTeaToggle
-        };
-
-        for (int i = 0; i < all.Length; i++)
-        {
-            Toggle t = all[i];
-            if (t == null || t == current) continue;
-            if (t.isOn) return true;
+            if (pair.Key == null || pair.Key == current || pair.Value.category != MenuProductCategory.Drink)
+                continue;
+            if (pair.Key.isOn) return true;
         }
 
         return false;
@@ -1027,17 +983,11 @@ public class OrderChecklistUI : MonoBehaviour
 
     private void ResetToggles()
     {
-        SetToggle(chickenToggle, false);
-        SetToggle(friesToggle, false);
-        SetToggle(burgerToggle, false);
+        foreach (Toggle toggle in productByToggle.Keys)
+            SetToggle(toggle, false);
 
-        SetToggle(chickenFriesToggle, false);
-        SetToggle(chickenBurgerToggle, false);
-        SetToggle(burgerFriesToggle, false);
-
-        SetToggle(cokeToggle, false);
-        SetToggle(pineappleToggle, false);
-        SetToggle(iceTeaToggle, false);
+        foreach (Toggle toggle in bundleByToggle.Keys)
+            SetToggle(toggle, false);
     }
 
     private void SetToggle(Toggle t, bool value)

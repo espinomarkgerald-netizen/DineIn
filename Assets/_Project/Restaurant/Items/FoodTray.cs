@@ -11,6 +11,7 @@ public class FoodTray : MonoBehaviour
     public string orderName;
 
     [Header("Delivered Data")]
+    [SerializeField] private List<string> deliveredProductIds = new List<string>();
     [SerializeField] private CustomerGroup.FoodType deliveredFood1;
     [SerializeField] private CustomerGroup.FoodType deliveredFood2;
     [SerializeField] private CustomerGroup.DrinkType deliveredDrink;
@@ -47,23 +48,16 @@ public class FoodTray : MonoBehaviour
     {
         get
         {
-            List<string> list = new List<string>();
-
-            list.Add(deliveredFood1.ToString());
-
-            if (hasFood2)
-                list.Add(deliveredFood2.ToString());
-
-            if (hasDrink)
+            MenuCatalog catalog = MenuCatalog.Default;
+            if (catalog != null && deliveredProductIds.Count > 0)
             {
-                if (deliveredDrink == CustomerGroup.DrinkType.Coke)
-                    list.Add("Coke");
-                else if (deliveredDrink == CustomerGroup.DrinkType.Pineapple)
-                    list.Add("Pineapple");
-                else if (deliveredDrink == CustomerGroup.DrinkType.IceTea)
-                    list.Add("Ice Tea");
+                List<Recipe> products = catalog.ResolveProducts(deliveredProductIds);
+                return catalog.GetDisplayNames(products);
             }
 
+            List<string> list = new List<string> { deliveredFood1.ToString() };
+            if (hasFood2) list.Add(deliveredFood2.ToString());
+            if (hasDrink) list.Add(deliveredDrink.ToString());
             return list;
         }
     }
@@ -75,6 +69,7 @@ public class FoodTray : MonoBehaviour
 
         hasFood2 = false;
         hasDrink = false;
+        deliveredProductIds.Clear();
         deliveredFood1 = CustomerGroup.FoodType.Chicken;
         deliveredFood2 = CustomerGroup.FoodType.Chicken;
         deliveredDrink = CustomerGroup.DrinkType.Coke;
@@ -84,18 +79,19 @@ public class FoodTray : MonoBehaviour
             if (group.submittedOrder != null && group.submittedOrder.contents != null && group.submittedOrder.contents.Count > 0)
             {
                 orderName = group.submittedOrder.name;
-                ExtractFromContents(group.submittedOrder.contents);
+                SetDeliveredProducts(group.submittedOrder.ResolveProducts());
             }
             else if (group.currentOrder != null)
             {
                 orderName = group.currentOrder.name;
-                ExtractFromContents(group.currentOrder.contents);
+                SetDeliveredProducts(group.currentOrder.ResolveProducts());
             }
             else
             {
                 deliveredFood1 = group.confirmedFood;
                 deliveredDrink = group.confirmedDrink;
                 hasDrink = true;
+                AddLegacyConfirmedProducts(group.confirmedFood, group.confirmedDrink);
             }
         }
 
@@ -108,54 +104,48 @@ public class FoodTray : MonoBehaviour
         SpawnVisuals();
     }
 
-    private void ExtractFromContents(List<string> contents)
+    private void SetDeliveredProducts(IReadOnlyList<Recipe> products)
     {
-        if (contents == null || contents.Count == 0)
+        if (products == null || products.Count == 0)
             return;
 
-        List<CustomerGroup.FoodType> foods = new List<CustomerGroup.FoodType>();
-
-        for (int i = 0; i < contents.Count; i++)
+        int foodCount = 0;
+        for (int i = 0; i < products.Count; i++)
         {
-            string item = contents[i];
+            Recipe product = products[i];
+            if (product == null) continue;
+            deliveredProductIds.Add(product.ProductId);
 
-            if (string.IsNullOrWhiteSpace(item))
-                continue;
-
-            switch (item)
+            if (product.category == MenuProductCategory.Drink)
             {
-                case "Chicken":
-                    foods.Add(CustomerGroup.FoodType.Chicken);
-                    break;
-                case "Fries":
-                    foods.Add(CustomerGroup.FoodType.Fries);
-                    break;
-                case "Burger":
-                    foods.Add(CustomerGroup.FoodType.Burger);
-                    break;
-                case "Coke":
-                    deliveredDrink = CustomerGroup.DrinkType.Coke;
-                    hasDrink = true;
-                    break;
-                case "Pineapple":
-                    deliveredDrink = CustomerGroup.DrinkType.Pineapple;
-                    hasDrink = true;
-                    break;
-                case "Ice Tea":
-                    deliveredDrink = CustomerGroup.DrinkType.IceTea;
-                    hasDrink = true;
-                    break;
+                deliveredDrink = ToLegacyDrinkType(product);
+                hasDrink = true;
+                continue;
             }
-        }
 
-        if (foods.Count > 0)
-            deliveredFood1 = foods[0];
+            if (foodCount == 0)
+                deliveredFood1 = ToLegacyFoodType(product);
+            else if (foodCount == 1)
+            {
+                deliveredFood2 = ToLegacyFoodType(product);
+                hasFood2 = true;
+            }
 
-        if (foods.Count > 1)
-        {
-            deliveredFood2 = foods[1];
-            hasFood2 = true;
+            foodCount++;
         }
+    }
+
+    private void AddLegacyConfirmedProducts(
+        CustomerGroup.FoodType food,
+        CustomerGroup.DrinkType drink)
+    {
+        MenuCatalog catalog = MenuCatalog.Default;
+        if (catalog == null) return;
+
+        Recipe foodProduct = catalog.FindByKitchenItem(ToKitchenItem(food));
+        Recipe drinkProduct = catalog.FindByKitchenItem(ToKitchenItem(drink));
+        if (foodProduct != null) deliveredProductIds.Add(foodProduct.ProductId);
+        if (drinkProduct != null) deliveredProductIds.Add(drinkProduct.ProductId);
     }
 
     private void SpawnVisuals()
@@ -163,6 +153,42 @@ public class FoodTray : MonoBehaviour
         if (spawnedFood1 != null) Destroy(spawnedFood1);
         if (spawnedFood2 != null) Destroy(spawnedFood2);
         if (spawnedDrink != null) Destroy(spawnedDrink);
+
+        MenuCatalog catalog = MenuCatalog.Default;
+        if (catalog != null && deliveredProductIds.Count > 0)
+        {
+            List<Recipe> products = catalog.ResolveProducts(deliveredProductIds);
+            int foodIndex = 0;
+
+            for (int i = 0; i < products.Count; i++)
+            {
+                Recipe product = products[i];
+                if (product == null || product.servingPrefab == null) continue;
+
+                if (product.category == MenuProductCategory.Drink)
+                {
+                    if (drinkAnchor != null)
+                    {
+                        spawnedDrink = Instantiate(product.servingPrefab, drinkAnchor);
+                        ResetLocal(spawnedDrink.transform);
+                    }
+                }
+                else if (foodIndex == 0 && foodAnchor1 != null)
+                {
+                    spawnedFood1 = Instantiate(product.servingPrefab, foodAnchor1);
+                    ResetLocal(spawnedFood1.transform);
+                    foodIndex++;
+                }
+                else if (foodIndex == 1 && foodAnchor2 != null)
+                {
+                    spawnedFood2 = Instantiate(product.servingPrefab, foodAnchor2);
+                    ResetLocal(spawnedFood2.transform);
+                    foodIndex++;
+                }
+            }
+
+            return;
+        }
 
         if (foodAnchor1 != null)
         {
@@ -173,7 +199,6 @@ public class FoodTray : MonoBehaviour
                 ResetLocal(spawnedFood1.transform);
             }
         }
-
         if (hasFood2 && foodAnchor2 != null)
         {
             GameObject prefab = GetFoodPrefab(deliveredFood2);
@@ -214,6 +239,46 @@ public class FoodTray : MonoBehaviour
             case CustomerGroup.DrinkType.Pineapple: return pineapplePrefab;
             case CustomerGroup.DrinkType.IceTea: return iceTeaPrefab;
             default: return null;
+        }
+    }
+
+    private static CustomerGroup.FoodType ToLegacyFoodType(Recipe product)
+    {
+        switch (product.kitchenItemType)
+        {
+            case ItemTypeKitchen.Fries:  return CustomerGroup.FoodType.Fries;
+            case ItemTypeKitchen.Burger: return CustomerGroup.FoodType.Burger;
+            default:                     return CustomerGroup.FoodType.Chicken;
+        }
+    }
+
+    private static CustomerGroup.DrinkType ToLegacyDrinkType(Recipe product)
+    {
+        switch (product.kitchenItemType)
+        {
+            case ItemTypeKitchen.Pineapple: return CustomerGroup.DrinkType.Pineapple;
+            case ItemTypeKitchen.IcedTea:   return CustomerGroup.DrinkType.IceTea;
+            default:                        return CustomerGroup.DrinkType.Coke;
+        }
+    }
+
+    private static ItemTypeKitchen ToKitchenItem(CustomerGroup.FoodType food)
+    {
+        switch (food)
+        {
+            case CustomerGroup.FoodType.Fries:  return ItemTypeKitchen.Fries;
+            case CustomerGroup.FoodType.Burger: return ItemTypeKitchen.Burger;
+            default:                            return ItemTypeKitchen.Chicken;
+        }
+    }
+
+    private static ItemTypeKitchen ToKitchenItem(CustomerGroup.DrinkType drink)
+    {
+        switch (drink)
+        {
+            case CustomerGroup.DrinkType.Pineapple: return ItemTypeKitchen.Pineapple;
+            case CustomerGroup.DrinkType.IceTea:    return ItemTypeKitchen.IcedTea;
+            default:                                return ItemTypeKitchen.Coke;
         }
     }
 

@@ -55,18 +55,6 @@ public class OrderManagerKitchen : MonoBehaviour {
     public List<LiveTicket> activeOrders = new List<LiveTicket>();
     private float spawnTimer = 0f;
 
-    // Prices per ItemTypeKitchen, built once at Start() from RecipeManager while it's
-    // still alive, then kept in memory for the duration of the kitchen shift.
-    private static readonly Dictionary<ItemTypeKitchen, int> FallbackPrices =
-        new Dictionary<ItemTypeKitchen, int> {
-            { ItemTypeKitchen.Burger,   119 },
-            { ItemTypeKitchen.Chicken,  299 },
-            { ItemTypeKitchen.Fries,     79 },
-            { ItemTypeKitchen.Coke,      50 },
-            { ItemTypeKitchen.Pineapple, 50 },
-            { ItemTypeKitchen.IcedTea,   50 },
-        };
-
     private Dictionary<ItemTypeKitchen, int> priceMap;
 
     void Awake() { Instance = this; }
@@ -154,8 +142,8 @@ public class OrderManagerKitchen : MonoBehaviour {
     }
 
     private void SpawnOrder() {
-        List<ItemTypeKitchen> unlockedFood = GetUnlockedItems(foodOptions);
-        List<ItemTypeKitchen> unlockedDrinks = GetUnlockedItems(drinkOptions);
+        List<ItemTypeKitchen> unlockedFood = GetMenuItems(MenuProductCategory.Food, foodOptions);
+        List<ItemTypeKitchen> unlockedDrinks = GetMenuItems(MenuProductCategory.Drink, drinkOptions);
 
         if (unlockedFood.Count == 0 || unlockedDrinks.Count == 0) {
             Debug.LogWarning("[OrderManager] No unlocked food or drink recipes available to spawn an order.");
@@ -164,12 +152,35 @@ public class OrderManagerKitchen : MonoBehaviour {
 
         ItemTypeKitchen randomFood = unlockedFood[Random.Range(0, unlockedFood.Count)];
         ItemTypeKitchen randomDrink = unlockedDrinks[Random.Range(0, unlockedDrinks.Count)];
+        MenuCatalog catalog = MenuCatalog.Default;
+        Recipe foodProduct = catalog != null ? catalog.FindByKitchenItem(randomFood) : null;
+        Recipe drinkProduct = catalog != null ? catalog.FindByKitchenItem(randomDrink) : null;
         LiveTicket newTicket = new LiveTicket();
-        newTicket.ticketName = randomFood.ToString() + " & " + randomDrink.ToString();
+        string foodName = foodProduct != null ? foodProduct.DisplayName : randomFood.ToString();
+        string drinkName = drinkProduct != null ? drinkProduct.DisplayName : randomDrink.ToString();
+        newTicket.ticketName = foodName + " & " + drinkName;
         newTicket.missingItems = new List<ItemTypeKitchen> { randomFood, randomDrink };
         newTicket.completedItems = new List<ItemTypeKitchen>();
         newTicket.timeLeft = timePerOrder;
         activeOrders.Add(newTicket);
+    }
+
+    private List<ItemTypeKitchen> GetMenuItems(
+        MenuProductCategory category,
+        List<ItemTypeKitchen> legacyPool) {
+        MenuCatalog catalog = MenuCatalog.Default;
+        if (catalog == null)
+            return GetUnlockedItems(legacyPool);
+
+        List<ItemTypeKitchen> result = new List<ItemTypeKitchen>();
+        List<Recipe> menuProducts = catalog.GetProducts(category);
+        foreach (Recipe product in menuProducts) {
+            if (product.kitchenItemType != ItemTypeKitchen.None &&
+                !result.Contains(product.kitchenItemType))
+                result.Add(product.kitchenItemType);
+        }
+
+        return result;
     }
 
     /// <summary>Filters a pool of kitchen items to only those with an unlocked recipe.
@@ -220,15 +231,17 @@ public class OrderManagerKitchen : MonoBehaviour {
     }
 
     /// <summary>
-    /// Reads prices from RecipeManager while it may still be alive (called at Start).
-    /// Falls back to hardcoded lobby-matching prices if RecipeManager is absent.
+    /// Reads prices from the shared MenuCatalog at shift start.
     /// </summary>
     private void BuildPriceMap() {
-        priceMap = new Dictionary<ItemTypeKitchen, int>(FallbackPrices);
+        priceMap = new Dictionary<ItemTypeKitchen, int>();
 
-        IReadOnlyList<Recipe> recipes = RecipeManager.AllRecipesStatic;
+        MenuCatalog catalog = MenuCatalog.Default;
+        IReadOnlyList<Recipe> recipes = catalog != null
+            ? catalog.Products
+            : RecipeManager.AllRecipesStatic;
         if (recipes == null || recipes.Count == 0) {
-            Debug.Log("[OrderManagerKitchen] RecipeManager unavailable — using built-in price map.");
+            Debug.LogError("[OrderManagerKitchen] MenuCatalog is unavailable; kitchen orders have no price data.");
             return;
         }
 
@@ -237,7 +250,7 @@ public class OrderManagerKitchen : MonoBehaviour {
                 priceMap[recipe.kitchenItemType] = recipe.sellPrice;
         }
 
-        Debug.Log("[OrderManagerKitchen] Price map built from RecipeManager.");
+        Debug.Log("[OrderManagerKitchen] Price map built from MenuCatalog.");
     }
 
     /// <summary>

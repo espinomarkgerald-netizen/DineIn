@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 public class TutorialCashierOrderRandomizer : MonoBehaviour
 {
@@ -21,16 +22,6 @@ public class TutorialCashierOrderRandomizer : MonoBehaviour
         public int received;
     }
 
-    [Header("Food Sprites")]
-    [SerializeField] private Sprite chickenSprite;
-    [SerializeField] private Sprite friesSprite;
-    [SerializeField] private Sprite burgerSprite;
-
-    [Header("Drink Sprites")]
-    [SerializeField] private Sprite cokeSprite;
-    [SerializeField] private Sprite pineappleSprite;
-    [SerializeField] private Sprite icedTeaSprite;
-
     [Header("Order Numbers")]
     [SerializeField] private int minOrderNumber = 3001;
     [SerializeField] private int maxOrderNumber = 3999;
@@ -43,79 +34,50 @@ public class TutorialCashierOrderRandomizer : MonoBehaviour
         GeneratedOrder order = new GeneratedOrder();
 
         order.orderNumber = Random.Range(minOrderNumber, maxOrderNumber + 1);
-
-        int foodPattern = Random.Range(0, 6);
-        switch (foodPattern)
+        MenuCatalog catalog = MenuCatalog.Default;
+        if (catalog == null)
         {
-            case 0:
-                order.firstFoodName = "Chicken";
-                order.firstFoodSprite = chickenSprite;
-                order.secondFoodName = null;
-                order.secondFoodSprite = null;
-                order.foodTotal = 299;
-                break;
-
-            case 1:
-                order.firstFoodName = "Fries";
-                order.firstFoodSprite = friesSprite;
-                order.secondFoodName = null;
-                order.secondFoodSprite = null;
-                order.foodTotal = 79;
-                break;
-
-            case 2:
-                order.firstFoodName = "Burger";
-                order.firstFoodSprite = burgerSprite;
-                order.secondFoodName = null;
-                order.secondFoodSprite = null;
-                order.foodTotal = 119;
-                break;
-
-            case 3:
-                order.firstFoodName = "Chicken";
-                order.firstFoodSprite = chickenSprite;
-                order.secondFoodName = "Fries";
-                order.secondFoodSprite = friesSprite;
-                order.foodTotal = 349;
-                break;
-
-            case 4:
-                order.firstFoodName = "Chicken";
-                order.firstFoodSprite = chickenSprite;
-                order.secondFoodName = "Burger";
-                order.secondFoodSprite = burgerSprite;
-                order.foodTotal = 399;
-                break;
-
-            default:
-                order.firstFoodName = "Burger";
-                order.firstFoodSprite = burgerSprite;
-                order.secondFoodName = "Fries";
-                order.secondFoodSprite = friesSprite;
-                order.foodTotal = 179;
-                break;
+            Debug.LogError("[TutorialCashierOrderRandomizer] MenuCatalog is missing.");
+            return order;
         }
 
-        int drinkPattern = Random.Range(0, 3);
-        switch (drinkPattern)
+        List<List<Recipe>> mealOptions = new List<List<Recipe>>();
+        List<Recipe> foods = catalog.GetProducts(MenuProductCategory.Food, false);
+        for (int i = 0; i < foods.Count; i++)
+            mealOptions.Add(new List<Recipe> { foods[i] });
+
+        List<MenuBundle> bundles = catalog.GetFoodBundles(false);
+        for (int i = 0; i < bundles.Count; i++)
+            mealOptions.Add(new List<Recipe>(bundles[i].products));
+
+        List<Recipe> drinks = catalog.GetProducts(MenuProductCategory.Drink, false);
+        if (mealOptions.Count == 0 || drinks.Count == 0)
         {
-            case 0:
-                order.drinkName = "Coke";
-                order.drinkSprite = cokeSprite;
-                break;
-
-            case 1:
-                order.drinkName = "Pineapple";
-                order.drinkSprite = pineappleSprite;
-                break;
-
-            default:
-                order.drinkName = "Ice Tea";
-                order.drinkSprite = icedTeaSprite;
-                break;
+            Debug.LogError("[TutorialCashierOrderRandomizer] MenuCatalog has no food or drink options.");
+            return order;
         }
 
-        order.drinkTotal = 50;
+        List<Recipe> selectedMeal = mealOptions[Random.Range(0, mealOptions.Count)];
+        Recipe firstFood = selectedMeal[0];
+        order.firstFoodName = firstFood.DisplayName;
+        order.firstFoodSprite = firstFood.sprite;
+
+        if (selectedMeal.Count > 1)
+        {
+            Recipe secondFood = selectedMeal[1];
+            order.secondFoodName = secondFood.DisplayName;
+            order.secondFoodSprite = secondFood.sprite;
+        }
+
+        MenuBundle selectedBundle = catalog.FindBundle(selectedMeal);
+        order.foodTotal = selectedBundle != null
+            ? selectedBundle.GetPrice()
+            : firstFood.sellPrice;
+
+        Recipe selectedDrink = drinks[Random.Range(0, drinks.Count)];
+        order.drinkName = selectedDrink.DisplayName;
+        order.drinkSprite = selectedDrink.sprite;
+        order.drinkTotal = selectedDrink.sellPrice;
         order.total = order.foodTotal + order.drinkTotal;
         order.received = GetRandomReceivedAmountAbove(order.total);
 

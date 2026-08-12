@@ -49,13 +49,24 @@ public class RecipeManager : MonoBehaviour
     }
 
     /// <summary>Returns the full recipe list for cross-system queries.</summary>
-    public IReadOnlyList<Recipe> AllRecipes => allRecipes;
+    public IReadOnlyList<Recipe> AllRecipes
+    {
+        get
+        {
+            MenuCatalog catalog = MenuCatalog.Default;
+            return catalog != null ? catalog.Products : allRecipes;
+        }
+    }
 
     /// <summary>Static accessor for cross-scene systems that need the recipe list without a direct reference.</summary>
     public static IReadOnlyList<Recipe> AllRecipesStatic
     {
         get
         {
+            MenuCatalog catalog = MenuCatalog.Default;
+            if (catalog != null)
+                return catalog.Products;
+
             // Use Unity's overloaded == to correctly detect destroyed (fake-null) instances.
             if (Instance == null) return null;
             return Instance.allRecipes;
@@ -64,8 +75,14 @@ public class RecipeManager : MonoBehaviour
 
     public void UnlockByDay(int currentDay)
     {
-        foreach (var r in allRecipes)
+        IReadOnlyList<Recipe> recipes = AllRecipes;
+        if (recipes == null || UnlockManager.Instance == null)
+            return;
+
+        foreach (var r in recipes)
         {
+            if (r == null) continue;
+
             if (r.dayToUnlock <= currentDay && !UnlockManager.Instance.IsRecipeUnlocked(r.recipeID))
             {
                 // Pass kitchenItemType so UnlockManager can answer kitchen queries directly.
@@ -86,7 +103,11 @@ public class RecipeManager : MonoBehaviour
             Destroy(child.gameObject);
 
         // Sort: unlocked first
-        var sorted = new List<Recipe>(allRecipes);
+        IReadOnlyList<Recipe> recipes = AllRecipes;
+        if (recipes == null) return;
+
+        var sorted = new List<Recipe>(recipes);
+        sorted.RemoveAll(r => r == null);
         sorted.Sort((a, b) =>
         {
             bool aUnlocked = UnlockManager.Instance.IsRecipeUnlocked(a.recipeID);

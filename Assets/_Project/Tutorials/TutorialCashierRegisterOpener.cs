@@ -59,6 +59,10 @@ public class TutorialCashierRegisterOpener : MonoBehaviour
         if (group == null)
             return 0;
 
+        MenuCatalog catalog = MenuCatalog.Default;
+        if (catalog != null)
+            return catalog.GetOrderTotal(group.GetCurrentOrderProductIds());
+
         List<string> contents = group.GetCurrentOrderContents();
         if (contents == null)
             return 0;
@@ -70,7 +74,7 @@ public class TutorialCashierRegisterOpener : MonoBehaviour
             return food + drink;
         }
 
-        return GetFallbackFoodTotal(contents) + GetFallbackDrinkTotal(contents);
+        return group.currentOrder != null ? group.currentOrder.unitPrice : 0;
     }
 
     private int GetSuggestedReceivedAmount(int total)
@@ -89,76 +93,4 @@ public class TutorialCashierRegisterOpener : MonoBehaviour
         return total;
     }
 
-    private int GetFallbackFoodTotal(List<string> contents)
-    {
-        if (contents == null)
-            return 0;
-
-        List<string> foods = new List<string>();
-
-        for (int i = 0; i < contents.Count; i++)
-        {
-            string item = contents[i];
-            if (item == "Chicken" || item == "Fries" || item == "Burger")
-                foods.Add(item);
-        }
-
-        if (foods.Count == 2)
-        {
-            bool hasChicken = foods.Contains("Chicken");
-            bool hasFries = foods.Contains("Fries");
-            bool hasBurger = foods.Contains("Burger");
-
-            if (hasChicken && hasFries)
-                return 349;
-
-            if (hasChicken && hasBurger)
-                return 399;
-
-            if (hasBurger && hasFries)
-                return 179;
-        }
-
-        int total = 0;
-
-        for (int i = 0; i < foods.Count; i++)
-        {
-            switch (foods[i])
-            {
-                case "Chicken":
-                    total += 299;
-                    break;
-                case "Fries":
-                    total += 79;
-                    break;
-                case "Burger":
-                    total += 119;
-                    break;
-            }
-        }
-
-        return total;
-    }
-
-    private int GetFallbackDrinkTotal(List<string> contents)
-    {
-        if (contents == null)
-            return 0;
-
-        int total = 0;
-
-        for (int i = 0; i < contents.Count; i++)
-        {
-            switch (contents[i])
-            {
-                case "Coke":
-                case "Pineapple":
-                case "Ice Tea":
-                    total += 50;
-                    break;
-            }
-        }
-
-        return total;
-    }
 }

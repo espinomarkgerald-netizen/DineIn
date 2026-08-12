@@ -71,6 +71,9 @@ public class CustomerGroup : MonoBehaviour
         public string name;
         public int quantity = 1;
         public int unitPrice;
+        [Tooltip("Stable menu product IDs. These are the authoritative order contents.")]
+        public List<string> productIds = new List<string>();
+        [Tooltip("Display-name snapshot kept for legacy UI and older saved orders.")]
         public List<string> contents = new List<string>();
 
         public int TotalPrice => unitPrice * Mathf.Max(1, quantity);
@@ -85,7 +88,63 @@ public class CustomerGroup : MonoBehaviour
             name = string.Empty;
             quantity = 1;
             unitPrice = 0;
+            productIds.Clear();
             contents.Clear();
+        }
+
+        public List<Recipe> ResolveProducts(MenuCatalog catalog = null)
+        {
+            catalog ??= MenuCatalog.Default;
+            if (catalog == null)
+                return new List<Recipe>();
+
+            List<Recipe> resolved = productIds.Count > 0
+                ? catalog.ResolveProducts(productIds)
+                : catalog.ResolveProducts(contents);
+
+            // Migrate legacy runtime/saved orders the first time they are read.
+            if (productIds.Count == 0 && resolved.Count > 0)
+                productIds.AddRange(catalog.GetProductIds(resolved));
+
+            if (resolved.Count > 0)
+            {
+                // Refresh the display snapshot so renaming or repricing a product asset
+                // is immediately reflected by orders that already carry stable IDs.
+                contents.Clear();
+                contents.AddRange(catalog.GetDisplayNames(resolved));
+
+                List<Recipe> foods = resolved.FindAll(
+                    product => product.category == MenuProductCategory.Food);
+                MenuBundle bundle = catalog.FindBundle(foods);
+                if (bundle != null)
+                    name = bundle.displayName;
+                else if (foods.Count > 0)
+                    name = foods[0].DisplayName;
+
+                unitPrice = catalog.GetOrderTotal(productIds);
+            }
+
+            return resolved;
+        }
+
+        public void SetProducts(IReadOnlyList<Recipe> products, string orderName, int price)
+        {
+            productIds.Clear();
+            contents.Clear();
+
+            if (products != null)
+            {
+                for (int i = 0; i < products.Count; i++)
+                {
+                    Recipe product = products[i];
+                    if (product == null) continue;
+                    productIds.Add(product.ProductId);
+                    contents.Add(product.DisplayName);
+                }
+            }
+
+            name = orderName;
+            unitPrice = Mathf.Max(0, price);
         }
     }
 
@@ -273,14 +332,8 @@ public class CustomerGroup : MonoBehaviour
     public float minEatSeconds = 3f;
     public float maxEatSeconds = 5f;
 
-    [Header("Legacy Sprites")]
+    [Header("Bill UI")]
     public Sprite billIcon;
-    public Sprite chickenSprite;
-    public Sprite friesSprite;
-    public Sprite burgerSprite;
-    public Sprite cokeSprite;
-    public Sprite pineappleSprite;
-    public Sprite iceTeaSprite;
 
     [Header("Leaving / Exit")]
     public Transform exitPoint;
@@ -747,25 +800,41 @@ public class CustomerGroup : MonoBehaviour
             currentOrder = new SimpleOrder();
 
         currentOrder.Clear();
+        MenuCatalog catalog = MenuCatalog.Default;
+        if (catalog == null)
+        {
+            Debug.LogError("[CustomerGroup] MenuCatalog is missing from a Resources folder.");
+            currentOrder.name = "No Food Available";
+            return;
+        }
 
-        List<int> validOrderTypes = new List<int>();
+        List<List<Recipe>> validMeals = new List<List<Recipe>>();
         bool simpleMealsOnly =
         TutorialManager.Instance != null &&
         TutorialManager.Instance.TutorialStarted &&
         TutorialManager.Instance.CurrentDay == TutorialManager.TutorialDay.Day2Waiter;
 
-        if (HasAllFoods("Chicken")) validOrderTypes.Add(0);
-        if (HasAllFoods("Fries")) validOrderTypes.Add(1);
-        if (HasAllFoods("Burger")) validOrderTypes.Add(2);
+        List<Recipe> foods = catalog.GetProducts(MenuProductCategory.Food);
+        for (int i = 0; i < foods.Count; i++)
+        {
+            if (HasProductStock(foods[i]))
+                validMeals.Add(new List<Recipe> { foods[i] });
+        }
 
         if (!simpleMealsOnly)
         {
-            if (HasAllFoods("Chicken", "Fries")) validOrderTypes.Add(3);
-            if (HasAllFoods("Chicken", "Burger")) validOrderTypes.Add(4);
-            if (HasAllFoods("Burger", "Fries")) validOrderTypes.Add(5);
+            List<MenuBundle> bundles = catalog.GetFoodBundles();
+            for (int i = 0; i < bundles.Count; i++)
+            {
+                if (HasAllProductStock(bundles[i].products))
+                    validMeals.Add(new List<Recipe>(bundles[i].products));
+            }
         }
 
-        if (validOrderTypes.Count == 0)
+        List<Recipe> availableDrinks = catalog.GetProducts(MenuProductCategory.Drink);
+        availableDrinks.RemoveAll(drinkProduct => !HasProductStock(drinkProduct));
+
+        if (validMeals.Count == 0 || availableDrinks.Count == 0)
         {
             currentOrder.name = "No Food Available";
             currentOrder.quantity = 1;
@@ -773,71 +842,26 @@ public class CustomerGroup : MonoBehaviour
             return;
         }
 
-        int random = validOrderTypes[UnityEngine.Random.Range(0, validOrderTypes.Count)];
+        List<Recipe> selectedMeal = validMeals[UnityEngine.Random.Range(0, validMeals.Count)];
+        Recipe selectedDrink = availableDrinks[UnityEngine.Random.Range(0, availableDrinks.Count)];
+        List<Recipe> selectedProducts = new List<Recipe>(selectedMeal) { selectedDrink };
+        MenuBundle selectedBundle = catalog.FindBundle(selectedMeal);
+        string orderName = selectedBundle != null
+            ? selectedBundle.displayName
+            : selectedMeal[0].DisplayName;
 
-        switch (random)
-        {
-            case 0:
-                currentOrder.name = "Chicken";
-                currentOrder.unitPrice = 299;
-                currentOrder.contents.Add("Chicken");
-                break;
-
-            case 1:
-                currentOrder.name = "Fries";
-                currentOrder.unitPrice = 79;
-                currentOrder.contents.Add("Fries");
-                break;
-
-            case 2:
-                currentOrder.name = "Burger";
-                currentOrder.unitPrice = 119;
-                currentOrder.contents.Add("Burger");
-                break;
-
-            case 3:
-                currentOrder.name = "Chicken + Fries";
-                currentOrder.unitPrice = 375;
-                currentOrder.contents.Add("Chicken");
-                currentOrder.contents.Add("Fries");
-                break;
-
-            case 4:
-                currentOrder.name = "Chicken + Burger";
-                currentOrder.unitPrice = 415;
-                currentOrder.contents.Add("Chicken");
-                currentOrder.contents.Add("Burger");
-                break;
-
-            case 5:
-                currentOrder.name = "Burger + Fries";
-                currentOrder.unitPrice = 195;
-                currentOrder.contents.Add("Burger");
-                currentOrder.contents.Add("Fries");
-                break;
-        }
-
-        currentOrder.contents.Add(GetRandomDrinkName());
+        int orderPrice = catalog.GetOrderTotal(catalog.GetProductIds(selectedProducts));
+        currentOrder.SetProducts(selectedProducts, orderName, orderPrice);
         currentOrder.quantity = 1;
-    }
-
-    private string GetRandomDrinkName()
-    {
-        int r = UnityEngine.Random.Range(0, 3);
-
-        switch (r)
-        {
-            case 0: return "Coke";
-            case 1: return "Pineapple";
-            case 2: return "Ice Tea";
-        }
-
-        return "Coke";
     }
 
     private void SyncLegacyOrderFieldsFromCurrentOrder()
     {
-        if (currentOrder == null || currentOrder.contents.Count == 0)
+        List<Recipe> products = currentOrder != null
+            ? currentOrder.ResolveProducts()
+            : new List<Recipe>();
+
+        if (products.Count == 0)
         {
             chosenFood = FoodType.Chicken;
             chosenDrink = DrinkType.Coke;
@@ -846,31 +870,23 @@ public class CustomerGroup : MonoBehaviour
             return;
         }
 
-        if (currentOrder.contents.Contains("Burger"))
-            chosenFood = FoodType.Burger;
-        else if (currentOrder.contents.Contains("Fries"))
-            chosenFood = FoodType.Fries;
-        else
-            chosenFood = FoodType.Chicken;
-
+        bool hasFood = false;
         bool hasDrink = false;
+        chosenFood = FoodType.Chicken;
         chosenDrink = DrinkType.Coke;
 
-        foreach (var item in currentOrder.contents)
+        for (int i = 0; i < products.Count; i++)
         {
-            if (item == "Coke")
+            Recipe product = products[i];
+
+            if (!hasFood && product.category == MenuProductCategory.Food)
             {
-                chosenDrink = DrinkType.Coke;
-                hasDrink = true;
+                chosenFood = ToLegacyFoodType(product);
+                hasFood = true;
             }
-            else if (item == "Pineapple")
+            else if (!hasDrink && product.category == MenuProductCategory.Drink)
             {
-                chosenDrink = DrinkType.Pineapple;
-                hasDrink = true;
-            }
-            else if (item == "Ice Tea")
-            {
-                chosenDrink = DrinkType.IceTea;
+                chosenDrink = ToLegacyDrinkType(product);
                 hasDrink = true;
             }
         }
@@ -884,6 +900,7 @@ public class CustomerGroup : MonoBehaviour
     public string GetCurrentOrderSummary()
     {
         if (currentOrder == null) return "No Order";
+        currentOrder.ResolveProducts();
 
         string result = "";
 
@@ -901,19 +918,25 @@ public class CustomerGroup : MonoBehaviour
     public List<string> GetCurrentOrderContents()
     {
         if (currentOrder == null) return new List<string>();
+        currentOrder.ResolveProducts();
         return new List<string>(currentOrder.contents);
+    }
+
+    public List<string> GetCurrentOrderProductIds()
+    {
+        if (currentOrder == null) return new List<string>();
+        currentOrder.ResolveProducts();
+        return new List<string>(currentOrder.productIds);
     }
 
     private bool CurrentOrderHasDrink()
     {
         if (currentOrder == null) return false;
 
-        for (int i = 0; i < currentOrder.contents.Count; i++)
-        {
-            string item = currentOrder.contents[i];
-            if (item == "Coke" || item == "Pineapple" || item == "Ice Tea")
+        List<Recipe> products = currentOrder.ResolveProducts();
+        for (int i = 0; i < products.Count; i++)
+            if (products[i].category == MenuProductCategory.Drink)
                 return true;
-        }
 
         return false;
     }
@@ -922,6 +945,27 @@ public class CustomerGroup : MonoBehaviour
     {
         if (currentOrder == null || currentOrder.contents == null) return false;
         if (deliveredContents == null) return false;
+
+        MenuCatalog catalog = MenuCatalog.Default;
+        if (catalog != null)
+        {
+            currentOrder.ResolveProducts(catalog);
+            List<Recipe> deliveredProducts = catalog.ResolveProducts(deliveredContents);
+            List<string> deliveredIds = catalog.GetProductIds(deliveredProducts);
+
+            if (currentOrder.productIds.Count != deliveredIds.Count) return false;
+
+            List<string> expectedIds = new List<string>(currentOrder.productIds);
+            expectedIds.Sort(StringComparer.Ordinal);
+            deliveredIds.Sort(StringComparer.Ordinal);
+
+            for (int i = 0; i < expectedIds.Count; i++)
+                if (!string.Equals(expectedIds[i], deliveredIds[i], StringComparison.Ordinal))
+                    return false;
+
+            return true;
+        }
+
         if (currentOrder.contents.Count != deliveredContents.Count) return false;
 
         List<string> expected = new List<string>(currentOrder.contents);
@@ -945,20 +989,14 @@ public class CustomerGroup : MonoBehaviour
 
         int quantity = Mathf.Max(1, currentOrder.quantity);
 
-        if (OrderChecklistUI.Instance != null)
-            return OrderChecklistUI.Instance.GetOrderTotalFromContents(currentOrder.contents) * quantity;
-
-        int total = currentOrder.unitPrice * quantity;
-
-        for (int i = 0; i < currentOrder.contents.Count; i++)
+        MenuCatalog catalog = MenuCatalog.Default;
+        if (catalog != null)
         {
-            string item = currentOrder.contents[i];
-
-            if (item == "Coke" || item == "Pineapple" || item == "Ice Tea")
-                total += 39 * quantity;
+            currentOrder.ResolveProducts(catalog);
+            return catalog.GetOrderTotal(currentOrder.productIds) * quantity;
         }
 
-        return total;
+        return currentOrder.unitPrice * quantity;
     }
 
     private void SpawnOrderBubble()
@@ -1982,38 +2020,52 @@ public class CustomerGroup : MonoBehaviour
             ui.SetBaseText("Eating");
     }
 
-    private bool HasAllFoods(params string[] foods)
+    private bool HasAllProductStock(IReadOnlyList<Recipe> products)
     {
-        if (LobbyStockBridge.Instance == null)
-            return true;
+        if (products == null || products.Count == 0)
+            return false;
 
-        for (int i = 0; i < foods.Length; i++)
+        for (int i = 0; i < products.Count; i++)
         {
-            if (!HasFoodByName(foods[i]))
+            if (!HasProductStock(products[i]))
                 return false;
         }
 
         return true;
     }
 
-    private bool HasFoodByName(string foodName)
+    private bool HasProductStock(Recipe product)
     {
         if (LobbyStockBridge.Instance == null)
             return true;
 
-        switch (foodName)
+        return LobbyStockBridge.Instance.HasProductStock(product);
+    }
+
+    private static FoodType ToLegacyFoodType(Recipe product)
+    {
+        if (product == null)
+            return FoodType.Chicken;
+
+        switch (product.kitchenItemType)
         {
-            case "Chicken":
-                return LobbyStockBridge.Instance.HasFoodStock(FoodType.Chicken);
-
-            case "Fries":
-                return LobbyStockBridge.Instance.HasFoodStock(FoodType.Fries);
-
-            case "Burger":
-                return LobbyStockBridge.Instance.HasFoodStock(FoodType.Burger);
+            case ItemTypeKitchen.Fries:  return FoodType.Fries;
+            case ItemTypeKitchen.Burger: return FoodType.Burger;
+            default:                     return FoodType.Chicken;
         }
+    }
 
-        return false;
+    private static DrinkType ToLegacyDrinkType(Recipe product)
+    {
+        if (product == null)
+            return DrinkType.Coke;
+
+        switch (product.kitchenItemType)
+        {
+            case ItemTypeKitchen.Pineapple: return DrinkType.Pineapple;
+            case ItemTypeKitchen.IcedTea:   return DrinkType.IceTea;
+            default:                        return DrinkType.Coke;
+        }
     }
 
     private void UpdateLinePatience()

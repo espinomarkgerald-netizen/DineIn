@@ -1,0 +1,49 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 42a50358ca6b4d5eb56513c0720939c1, type: 3}
+  m_Name: MenuCatalog
+  m_EditorClassIdentifier: 
+  products:
+  - {fileID: 11400000, guid: edaf5c0e3af958946a66152437a2106c, type: 2}
+  - {fileID: 11400000, guid: dbf95199eafdb55449eeca2f3431c97f, type: 2}
+  - {fileID: 11400000, guid: a6e7e96bc1502504eb53eb9e1ebb2863, type: 2}
+  - {fileID: 11400000, guid: 145e34b7e62455c45aff9dd96c9823f1, type: 2}
+  - {fileID: 11400000, guid: b3c3f4dff704b0a4c800ceda5ac3312d, type: 2}
+  - {fileID: 11400000, guid: c7d97d5365b15b847b62eca0b8cda024, type: 2}
+  foodBundles:
+  - bundleId: bundle-chicken-fries
+    displayName: Chicken + Fries
+    availableOnMenu: 1
+    menuSortOrder: 0
+    products:
+    - {fileID: 11400000, guid: edaf5c0e3af958946a66152437a2106c, type: 2}
+    - {fileID: 11400000, guid: dbf95199eafdb55449eeca2f3431c97f, type: 2}
+    useCustomPrice: 1
+    customPrice: 349
+  - bundleId: bundle-chicken-burger
+    displayName: Chicken + Burger
+    availableOnMenu: 1
+    menuSortOrder: 1
+    products:
+    - {fileID: 11400000, guid: edaf5c0e3af958946a66152437a2106c, type: 2}
+    - {fileID: 11400000, guid: a6e7e96bc1502504eb53eb9e1ebb2863, type: 2}
+    useCustomPrice: 1
+    customPrice: 399
+  - bundleId: bundle-burger-fries
+    displayName: Burger + Fries
+    availableOnMenu: 1
+    menuSortOrder: 2
+    products:
+    - {fileID: 11400000, guid: a6e7e96bc1502504eb53eb9e1ebb2863, type: 2}
+    - {fileID: 11400000, guid: dbf95199eafdb55449eeca2f3431c97f, type: 2}
+    useCustomPrice: 1
+    customPrice: 179

@@ -13,9 +13,13 @@ MonoBehaviour:
   m_Name: Iced Tea
   m_EditorClassIdentifier: 
   recipeID: 05
-  recipeName: Iced Tea
+  recipeName: Ice Tea
+  category: 1
+  availableOnMenu: 1
+  menuSortOrder: 2
   kitchenItemType: 6
   sprite: {fileID: 21300000, guid: 9746789dafebbb841a6edd396858d4b4, type: 3}
+  servingPrefab: {fileID: 1300167156147614845, guid: 9287a000b28d691459a4aea1838209c4, type: 3}
   dayToUnlock: 1
   ingredients:
   - item: {fileID: 11400000, guid: 20abafb43ed2b9a4e88ff9064f655c1f, type: 2}

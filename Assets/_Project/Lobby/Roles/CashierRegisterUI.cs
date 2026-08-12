@@ -49,16 +49,6 @@ public class CashierRegisterUI : MonoBehaviour
     [Header("Confirm")]
     [SerializeField] private Button confirmButton;
 
-    [Header("Food Sprites")]
-    [SerializeField] private Sprite chickenSprite;
-    [SerializeField] private Sprite friesSprite;
-    [SerializeField] private Sprite burgerSprite;
-
-    [Header("Drink Sprites")]
-    [SerializeField] private Sprite cokeSprite;
-    [SerializeField] private Sprite pineappleSprite;
-    [SerializeField] private Sprite icedTeaSprite;
-
     [Header("Input Colors")]
     [SerializeField] private Color normalInputColor = Color.white;
     [SerializeField] private Color wrongInputColor = Color.red;
@@ -475,6 +465,10 @@ public class CashierRegisterUI : MonoBehaviour
             return 0;
 
         int groupSize = Mathf.Max(1, group.Size);
+        MenuCatalog catalog = MenuCatalog.Default;
+
+        if (catalog != null)
+            return catalog.GetOrderTotal(group.GetCurrentOrderProductIds()) * groupSize;
 
         if (OrderChecklistUI.Instance != null)
             return OrderChecklistUI.Instance.GetOrderTotalFromContents(group.GetCurrentOrderContents()) * groupSize;
@@ -541,76 +535,34 @@ public class CashierRegisterUI : MonoBehaviour
 
     private int GetFallbackFoodTotal(List<string> contents)
     {
-        if (contents == null)
+        MenuCatalog catalog = MenuCatalog.Default;
+        if (catalog == null || contents == null)
             return 0;
 
-        List<string> foods = new List<string>();
-
-        for (int i = 0; i < contents.Count; i++)
-        {
-            string item = contents[i];
-            if (item == "Chicken" || item == "Fries" || item == "Burger")
-                foods.Add(item);
-        }
-
-        if (foods.Count == 2)
-        {
-            bool hasChicken = foods.Contains("Chicken");
-            bool hasFries = foods.Contains("Fries");
-            bool hasBurger = foods.Contains("Burger");
-
-            if (hasChicken && hasFries)
-                return 349;
-
-            if (hasChicken && hasBurger)
-                return 399;
-
-            if (hasBurger && hasFries)
-                return 179;
-        }
+        List<Recipe> resolved = catalog.ResolveProducts(contents);
+        List<Recipe> foods = resolved.FindAll(product => product.category == MenuProductCategory.Food);
+        MenuBundle bundle = catalog.FindBundle(foods);
+        if (bundle != null) return bundle.GetPrice();
 
         int total = 0;
-
         for (int i = 0; i < foods.Count; i++)
-        {
-            switch (foods[i])
-            {
-                case "Chicken":
-                    total += 299;
-                    break;
-                case "Fries":
-                    total += 79;
-                    break;
-                case "Burger":
-                    total += 119;
-                    break;
-            }
-        }
+            total += foods[i].sellPrice;
 
         return total;
     }
 
     private int GetFallbackDrinkTotal(List<string> contents)
     {
-        if (contents == null)
+        MenuCatalog catalog = MenuCatalog.Default;
+        if (catalog == null || contents == null)
             return 0;
 
+        List<Recipe> products = catalog.ResolveProducts(contents);
         int total = 0;
-
-        for (int i = 0; i < contents.Count; i++)
+        for (int i = 0; i < products.Count; i++)
         {
-            switch (contents[i])
-            {
-                case "Coke":
-                    total += 50;
-                    break;
-                case "Pineapple":
-                    total += 50;
-                    break;
-                case "Ice Tea":
-                    total += 50;
-                    break;
-            }
+            if (products[i].category == MenuProductCategory.Drink)
+                total += products[i].sellPrice;
         }
 
         return total;
@@ -708,20 +660,17 @@ public class CashierRegisterUI : MonoBehaviour
 
     private bool IsDrink(string itemName)
     {
-        return itemName == "Coke" || itemName == "Pineapple" || itemName == "Ice Tea";
+        Recipe product = MenuCatalog.Default != null
+            ? MenuCatalog.Default.FindProduct(itemName)
+            : null;
+        return product != null && product.category == MenuProductCategory.Drink;
     }
 
     private Sprite GetItemSprite(string itemName)
     {
-        switch (itemName)
-        {
-            case "Chicken": return chickenSprite;
-            case "Fries": return friesSprite;
-            case "Burger": return burgerSprite;
-            case "Coke": return cokeSprite;
-            case "Pineapple": return pineappleSprite;
-            case "Ice Tea": return icedTeaSprite;
-            default: return null;
-        }
+        Recipe product = MenuCatalog.Default != null
+            ? MenuCatalog.Default.FindProduct(itemName)
+            : null;
+        return product != null ? product.sprite : null;
     }
 }

@@ -13,12 +13,16 @@ MonoBehaviour:
   m_Name: Chicken Bucket
   m_EditorClassIdentifier: 
   recipeID: 01
-  recipeName: Chicken Bucket
+  recipeName: Chicken
+  category: 0
+  availableOnMenu: 1
+  menuSortOrder: 0
   kitchenItemType: 2
   sprite: {fileID: 21300000, guid: 0d0d4d6827467064f9e13d7c7fd1f5ea, type: 3}
+  servingPrefab: {fileID: 5217746424564396758, guid: ddfc133f0cb2ceb449415ca391e4ae5c, type: 3}
   dayToUnlock: 2
   ingredients:
   - item: {fileID: 11400000, guid: 70830520795d900449881daee8ed45ad, type: 2}
-    amount: 4
+    amount: 1
   sellPrice: 299
   descriptionText: Chicken na Masarap
