@@ -384,7 +384,7 @@ public class CashierRegisterUI : MonoBehaviour
         sessionConfirmed = true;
         var paidGroup = activeGroup;
 
-        var hands = WaiterHands.Instance;
+        var hands = WaiterHands.ActivePlayerHands;
         if (hands != null)
             hands.ClearMoney();
 

@@ -35,13 +35,49 @@ public class BillBubbleUI : MonoBehaviour
             return;
         }
 
-        var hands = WaiterHands.Instance;
+        if (!RestaurantTaskClaim.TryClaimPlayer(group))
+        {
+            ShowWarning(RestaurantTaskClaim.PlayerHasActiveTask
+                ? "Finish your current task first."
+                : "The waiter is already handling this bill.");
+            return;
+        }
+
+        var hands = WaiterHands.ActivePlayerHands;
+        PlayerMovement movement = RoleManager.Instance.GetActivePlayerMovement();
+        Booth booth = group.assignedBooth;
+        Transform approach = booth != null && booth.approachPoint != null
+            ? booth.approachPoint
+            : booth != null ? booth.transform : null;
 
         if (hands != null && hands.HasBill && hands.holdingBillFor == group)
         {
-            hands.ClearBill();
-            group.ReceiveBillFromWaiter();
-            Destroy(gameObject);
+            if (movement == null || approach == null)
+            {
+                ShowWarning("This table has no reachable service point.");
+                return;
+            }
+
+            group.SetBillTaskClaimedByStaff(true);
+            movement.UI_MoveToAction(
+                approach,
+                2.75f,
+                () =>
+                {
+                    if (group == null || hands == null || !hands.HasBill ||
+                        hands.holdingBillFor != group)
+                        return;
+
+                    hands.ClearBill();
+                    group.ReceiveBillFromWaiter();
+                },
+                () =>
+                {
+                    // Keep ownership while the Manager is physically carrying
+                    // this bill, but restore the Give Bill button for retry.
+                    if (group != null)
+                        group.SetBillTaskClaimedByStaff(false);
+                });
             return;
         }
 
@@ -53,17 +89,45 @@ public class BillBubbleUI : MonoBehaviour
                 ? $"This bill is for table {tableNo}."
                 : "You are already holding a bill.");
 
+            RestaurantTaskClaim.ReleasePlayer(group);
             return;
         }
 
         if (oneRequestOnly && requested)
         {
             ShowWarning("The bill was already requested.");
+            RestaurantTaskClaim.ReleasePlayer(group);
             return;
         }
 
-        group.RequestBillFromCashier();
-        requested = true;
+        if (movement == null || approach == null)
+        {
+            ShowWarning("This table has no reachable service point.");
+            RestaurantTaskClaim.ReleasePlayer(group);
+            return;
+        }
+
+        group.SetBillTaskClaimedByStaff(true);
+        movement.UI_MoveToAction(
+            approach,
+            2.75f,
+            () =>
+            {
+                if (group == null || group.state != CustomerGroup.GroupState.NeedsBill)
+                {
+                    RestaurantTaskClaim.ReleasePlayer(group);
+                    return;
+                }
+
+                group.RequestBillFromCashier();
+                requested = true;
+            },
+            () =>
+            {
+                if (group == null) return;
+                group.SetBillTaskClaimedByStaff(false);
+                RestaurantTaskClaim.ReleasePlayer(group);
+            });
     }
 
     private void ShowWarning(string message)

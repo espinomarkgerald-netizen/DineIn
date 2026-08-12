@@ -54,12 +54,18 @@ public class PlayerMovementAnimation
 
     private bool GetIsCarryingForThisOwner()
     {
-        var hands = WaiterHands.Instance;
-        if (hands == null) return false;
-
-        if (!owner.IsActiveControlledRole())
+        if (owner.GetComponent<ManagerPlayer>() == null && !owner.IsActiveControlledRole())
             return false;
 
-        return hands.HasTray || hands.HasBill || hands.HasMoney;
+        var hands = WaiterHands.For(owner);
+        if (hands == null) return false;
+
+        // Bills and money are small hand props. Only trays use the dedicated
+        // carry idle/walk animation set.
+        if (hands.HasTray)
+            return true;
+
+        BusserHands busserHands = BusserHands.For(owner);
+        return busserHands != null && busserHands.HasTray;
     }
 }

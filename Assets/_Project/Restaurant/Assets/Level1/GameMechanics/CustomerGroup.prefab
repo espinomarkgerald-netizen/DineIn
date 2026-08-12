@@ -258,7 +258,7 @@ MonoBehaviour:
   - No one is assisting us.
   - This place is too slow.
   bubbleEdgeGapPixels: 8
-  bubbleStackGapPixels: 0.1
+  bubbleStackGapPixels: 10
   fallbackVisualHeight: 0.1
   minOrderDelay: 2
   maxOrderDelay: 5

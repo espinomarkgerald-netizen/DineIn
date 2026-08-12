@@ -9,24 +9,26 @@ public class SinkInteractable : MonoBehaviour, IInteractable
 
     public bool CanInteract()
     {
-        bool waiterHasTray = WaiterHands.Instance != null && WaiterHands.Instance.HasTray;
-        bool busserHasTray = BusserHands.Instance != null && BusserHands.Instance.HasTray;
+        bool waiterHasTray = WaiterHands.ActivePlayerHands != null && WaiterHands.ActivePlayerHands.HasTray;
+        bool busserHasTray = BusserHands.ActivePlayerHands != null && BusserHands.ActivePlayerHands.HasTray;
 
         return waiterHasTray || busserHasTray;
     }
 
     public void Interact(PlayerMovement player)
     {
-        if (WaiterHands.Instance != null && WaiterHands.Instance.HasTray)
+        WaiterHands waiterHands = WaiterHands.For(player);
+        if (waiterHands != null && waiterHands.HasTray)
         {
-            WaiterHands.Instance.DisposeTray(true);
+            waiterHands.DisposeTray(true);
             return;
         }
 
-        if (BusserHands.Instance != null && BusserHands.Instance.HasTray)
+        BusserHands busserHands = BusserHands.For(player);
+        if (busserHands != null && busserHands.HasTray)
         {
-            FoodTray cleanedTray = BusserHands.Instance.holdingTray;
-            BusserHands.Instance.DisposeTray(true);
+            FoodTray cleanedTray = busserHands.holdingTray;
+            busserHands.DisposeTray(true);
             NotifyTutorialTrayCleaned(cleanedTray);
             return;
         }

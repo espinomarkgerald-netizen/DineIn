@@ -12,19 +12,20 @@ public class CustomerGroupClickable : MonoBehaviour
 
     private void OnMouseDown()
     {
-        if (group == null || WaiterHands.Instance == null) return;
+        WaiterHands hands = WaiterHands.ActivePlayerHands;
+        if (group == null || hands == null) return;
 
-        if (TakeoutBagInteractable.HasHeldBag)
+        if (TakeoutBagInteractable.PlayerHasHeldBag)
         {
             TakeoutBagInteractable.HeldBag.TryDeliverTo(group);
             return;
         }
 
-        if (WaiterHands.Instance.HasTray)
+        if (hands.HasTray)
         {
             if (group.state != CustomerGroup.GroupState.OrderTaken) return;
 
-            var tray = WaiterHands.Instance.holdingTray;
+            var tray = hands.holdingTray;
             if (tray == null) return;
 
             List<string> deliveredContents = new List<string>();
@@ -32,18 +33,18 @@ public class CustomerGroupClickable : MonoBehaviour
             if (tray.DeliveredContents != null && tray.DeliveredContents.Count > 0)
                 deliveredContents.AddRange(tray.DeliveredContents);
 
-            WaiterHands.Instance.ClearTray();
+            hands.ClearTray();
             Destroy(tray.gameObject);
 
             group.ReceiveFoodFromWaiter(deliveredContents);
             return;
         }
 
-        if (WaiterHands.Instance.HasBill && WaiterHands.Instance.holdingBillFor == group)
+        if (hands.HasBill && hands.holdingBillFor == group)
         {
             if (group.state != CustomerGroup.GroupState.NeedsBill) return;
 
-            WaiterHands.Instance.ClearBill();
+            hands.ClearBill();
             group.ReceiveBillFromWaiter();
 
             Debug.Log($"[Waiter] Delivered bill for #{group.currentOrderNumber}");

@@ -5,6 +5,21 @@ public class TableNumberUI : MonoBehaviour
 {
     [SerializeField] private TMP_Text numberText;
     [SerializeField] private Booth booth;
+    private CustomerGroup group;
+
+    public void SetGroup(CustomerGroup value)
+    {
+        group = value;
+    }
+
+    private void LateUpdate()
+    {
+        // A table number only represents food that is still pending. This
+        // self-check also removes an orphaned UI instance if a delivery event
+        // changed the group state but missed the normal visual cleanup call.
+        if (group == null || group.state != CustomerGroup.GroupState.OrderTaken)
+            Destroy(gameObject);
+    }
 
     public void SetNumber(int number)
     {

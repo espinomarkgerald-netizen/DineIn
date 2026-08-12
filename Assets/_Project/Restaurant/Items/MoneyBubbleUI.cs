@@ -56,7 +56,7 @@ public class MoneyBubbleUI : MonoBehaviour
 
         SetTableNumber(group.currentOrderNumber);
 
-        var hands = WaiterHands.Instance;
+        var hands = WaiterHands.ActivePlayerHands;
         if (hands != null && hands.HasMoney && hands.HeldMoney == money)
         {
             Debug.Log("[MoneyBubbleUI.Update] Money picked up by waiter, removing bubble.", this);
@@ -67,6 +67,10 @@ public class MoneyBubbleUI : MonoBehaviour
     public void Init(int amount, MoneyPickup m)
     {
         money = m;
+        money?.SetBubbleUI(this);
+
+        if (money != null && RestaurantTaskClaim.IsClaimedByBot(money))
+            gameObject.SetActive(false);
 
         string groupName = m != null && m.TargetGroup != null ? m.TargetGroup.name : "null";
         string orderNo = m != null && m.TargetGroup != null ? m.TargetGroup.currentOrderNumber.ToString() : "null";
@@ -93,8 +97,9 @@ public class MoneyBubbleUI : MonoBehaviour
             return;
         }
 
-        tableNumberText.text = number >= 0 ? $"#{number}" : string.Empty;
-        Debug.Log($"[MoneyBubbleUI.SetTableNumber] visible text set to {tableNumberText.text}", this);
+        string nextText = number >= 0 ? $"#{number}" : string.Empty;
+        if (tableNumberText.text != nextText)
+            tableNumberText.text = nextText;
     }
 
     public void RemoveBubble()
@@ -110,10 +115,7 @@ public class MoneyBubbleUI : MonoBehaviour
         if (RoleManager.Instance == null) return;
         if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Waiter)) return;
 
-        var player = RoleManager.Instance.GetActivePlayerMovement();
-        if (player == null) return;
-
-        player.UI_MoveTo(money);
+        money.UI_RequestPickup();
     }
 
     private void OnDestroy()

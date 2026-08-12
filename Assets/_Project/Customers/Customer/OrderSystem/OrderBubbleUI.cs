@@ -159,6 +159,24 @@ public class OrderBubbleUI : MonoBehaviour
             return;
         }
 
+        if (!IsReadyForPlayerOrder(out string stateWarning))
+        {
+            WarningSlideUI.Instance?.Show(stateWarning);
+            return;
+        }
+
+        if (!RestaurantTaskClaim.TryClaimPlayer(group))
+        {
+            WarningSlideUI.Instance?.Show(RestaurantTaskClaim.PlayerHasActiveTask
+                ? "Finish your current task first."
+                : "The waiter is already taking this order.");
+            return;
+        }
+
+        // The offer is now exclusively owned by the Manager. Hide it at once so
+        // neither side can click or process the same order twice.
+        group.SetOrderTaskClaimedByStaff(true);
+
         OrderChecklistUI checklist = OrderChecklistUI.Instance;
         if (checklist == null)
             checklist = FindFirstObjectByType<OrderChecklistUI>(FindObjectsInactive.Include);
@@ -166,9 +184,92 @@ public class OrderBubbleUI : MonoBehaviour
         if (checklist == null)
         {
             Debug.LogError("[OrderBubbleUI] No OrderChecklistUI found in scene.");
+            group.SetOrderTaskClaimedByStaff(false);
+            RestaurantTaskClaim.ReleasePlayer(group);
             return;
         }
 
-        checklist.Open(group);
+        PlayerMovement movement = RoleManager.Instance.GetActivePlayerMovement();
+        Transform approach = ResolveApproachPoint();
+
+        if (movement == null || approach == null)
+        {
+            WarningSlideUI.Instance?.Show(group.IsTakeout
+                ? "This takeout customer is not ready at the counter."
+                : "This table has no reachable service point.");
+            ReleasePlayerClaim();
+            return;
+        }
+
+        movement.UI_MoveToAction(
+            approach,
+            group.IsTakeout ? 2.25f : 2.75f,
+            () =>
+            {
+                if (group != null && IsReadyForPlayerOrder(out _))
+                    checklist.Open(group);
+                else
+                    ReleasePlayerClaim();
+            },
+            ReleasePlayerClaim);
+    }
+
+    private bool IsReadyForPlayerOrder(out string warning)
+    {
+        warning = "This customer is no longer waiting to order.";
+
+        if (group == null || group.state != CustomerGroup.GroupState.ReadyToOrder)
+            return false;
+
+        if (!group.IsTakeout)
+            return true;
+
+        TakeoutFlowManager flow = TakeoutFlowManager.Instance;
+        if (flow != null && flow.ActiveGroup != group)
+        {
+            warning = "Another takeout customer is currently at the counter.";
+            return false;
+        }
+
+        if (group.CurrentTakeoutQueueState != CustomerGroup.TakeoutQueueState.AtOrderPoint)
+        {
+            warning = "This takeout customer has not reached the counter yet.";
+            return false;
+        }
+
+        if (flow != null && flow.CurrentPhase != TakeoutFlowManager.TakeoutPhase.WaitingForOrder)
+        {
+            warning = "This takeout order has already moved to the next step.";
+            return false;
+        }
+
+        return true;
+    }
+
+    private Transform ResolveApproachPoint()
+    {
+        if (group == null)
+            return null;
+
+        if (group.IsTakeout)
+        {
+            TakeoutCustomerInteractable takeoutTarget =
+                group.GetComponent<TakeoutCustomerInteractable>();
+            return takeoutTarget != null ? takeoutTarget.StandPoint : group.UIAnchor;
+        }
+
+        Booth booth = group.assignedBooth;
+        return booth != null && booth.approachPoint != null
+            ? booth.approachPoint
+            : booth != null ? booth.transform : null;
+    }
+
+    private void ReleasePlayerClaim()
+    {
+        if (group == null)
+            return;
+
+        group.SetOrderTaskClaimedByStaff(false);
+        RestaurantTaskClaim.ReleasePlayer(group);
     }
 }

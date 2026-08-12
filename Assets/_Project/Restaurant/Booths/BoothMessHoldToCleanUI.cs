@@ -45,6 +45,12 @@ public class BoothMessCleanUI : MonoBehaviour, IPointerDownHandler, IPointerUpHa
         ResetUI();
     }
 
+    private void OnDisable()
+    {
+        if (!automatedCleaning)
+            RestaurantTaskClaim.ReleasePlayer(booth);
+    }
+
     private void Update()
     {
         if (booth == null)
@@ -87,6 +93,7 @@ public class BoothMessCleanUI : MonoBehaviour, IPointerDownHandler, IPointerUpHa
         automatedCleaning = false;
         holdTimer = 0f;
         booth.CleanMess();
+        RestaurantTaskClaim.Complete(booth);
         ResetUI();
     }
 
@@ -118,6 +125,14 @@ public class BoothMessCleanUI : MonoBehaviour, IPointerDownHandler, IPointerUpHa
         if (!CanCurrentPlayerClean(out string blockedReason))
         {
             ShowBlocked(blockedReason);
+            return;
+        }
+
+        if (!RestaurantTaskClaim.TryClaimPlayer(booth))
+        {
+            ShowBlocked(RestaurantTaskClaim.PlayerHasActiveTask
+                ? "Finish Current Task"
+                : "Busser Is Cleaning");
             return;
         }
 
@@ -178,6 +193,9 @@ public class BoothMessCleanUI : MonoBehaviour, IPointerDownHandler, IPointerUpHa
 
     private void StopHold()
     {
+        if (!automatedCleaning)
+            RestaurantTaskClaim.ReleasePlayer(booth);
+
         isHolding = false;
         automatedCleaning = false;
         holdTimer = 0f;
@@ -191,6 +209,9 @@ public class BoothMessCleanUI : MonoBehaviour, IPointerDownHandler, IPointerUpHa
 
     private void StopHold(string blockedReason)
     {
+        if (!automatedCleaning)
+            RestaurantTaskClaim.ReleasePlayer(booth);
+
         isHolding = false;
         automatedCleaning = false;
         holdTimer = 0f;
@@ -245,6 +266,12 @@ public class BoothMessCleanUI : MonoBehaviour, IPointerDownHandler, IPointerUpHa
 
     private bool CanCurrentPlayerClean(out string blockedReason)
     {
+        if (RestaurantTaskClaim.IsClaimedByBot(booth))
+        {
+            blockedReason = "Busser Is Cleaning";
+            return false;
+        }
+
         if (!IsBusserRoleActive())
         {
             blockedReason = "Busser Only";
@@ -263,14 +290,22 @@ public class BoothMessCleanUI : MonoBehaviour, IPointerDownHandler, IPointerUpHa
 
     private bool IsBusserHandsBusy()
     {
-        if (BusserHands.Instance == null)
+        if (BusserHands.ActivePlayerHands == null)
             return false;
 
-        return BusserHands.Instance.HasTray;
+        return BusserHands.ActivePlayerHands.HasTray;
     }
 
     private bool IsBusserRoleActive()
     {
+        if (ManagerPlayer.Active != null &&
+            ManagerPlayer.Active.Can(ManagerPlayer.Capability.Busser))
+            return true;
+
+        if (RoleManager.Instance != null &&
+            RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Busser))
+            return true;
+
         MonoBehaviour roleManager = FindRoleManager();
         if (roleManager == null)
             return true;

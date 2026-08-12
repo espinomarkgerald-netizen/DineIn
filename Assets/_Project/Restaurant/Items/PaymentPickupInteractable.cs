@@ -43,8 +43,8 @@ public class PaymentPickupInteractable : MonoBehaviour, IInteractable
     public bool CanInteract()
     {
         if (!paymentReady) return false;
-        if (WaiterHands.Instance == null) return false;
-        if (WaiterHands.Instance.HasMoney) return false;
+        if (WaiterHands.ActivePlayerHands == null) return false;
+        if (WaiterHands.ActivePlayerHands.HasMoney) return false;
         return true;
     }
 
@@ -52,8 +52,10 @@ public class PaymentPickupInteractable : MonoBehaviour, IInteractable
     {
         if (!CanInteract()) return;
 
-        WaiterHands.Instance.holdingMoneyFor = group;
-        WaiterHands.Instance.holdingMoneyAmount = amount;
+        WaiterHands hands = WaiterHands.For(player);
+        if (hands == null) return;
+        hands.holdingMoneyFor = group;
+        hands.holdingMoneyAmount = amount;
 
         // optional: if you have a money held visual system, call your PickupMoney() method instead
         // WaiterHands.Instance.PickupMoneyVirtual(group, amount);

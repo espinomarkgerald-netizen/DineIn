@@ -16,6 +16,7 @@ public class LobbyAutonomousService : MonoBehaviour
     [SerializeField] private float counterServiceSeconds = 0.7f;
     [SerializeField] private float cleaningSeconds = 1.2f;
     [SerializeField] private float idlePollSeconds = 0.2f;
+    [SerializeField, Min(0f)] private float managerReactionSeconds = 1f;
 
     [Header("Customer Clearance")]
     [SerializeField, Min(1f)] private float hostCustomerClearance = 2.2f;
@@ -37,7 +38,6 @@ public class LobbyAutonomousService : MonoBehaviour
     private TakeoutFlowManager takeoutFlow;
     private SinkInteractable sink;
     private Transform cashierStation;
-    private readonly HashSet<CustomerGroup> billDeliveredGroups = new HashSet<CustomerGroup>();
 
     private void Awake()
     {
@@ -95,11 +95,20 @@ public class LobbyAutonomousService : MonoBehaviour
 
         PlayerMovement[] movements = FindObjectsByType<PlayerMovement>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
         for (int i = 0; i < movements.Length; i++)
+        {
+            if (movements[i].GetComponent<ManagerPlayer>() != null)
+            {
+                movements[i].enabled = true;
+                movements[i].SetPlayerControlled(true);
+                continue;
+            }
+
             movements[i].enabled = false;
+        }
 
         RoleBasedAssignController[] assigners = FindObjectsByType<RoleBasedAssignController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
         for (int i = 0; i < assigners.Length; i++)
-            assigners[i].enabled = false;
+            assigners[i].enabled = assigners[i].GetComponent<ManagerPlayer>() != null;
 
         HostAssignController[] hostAssigners = FindObjectsByType<HostAssignController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
         for (int i = 0; i < hostAssigners.Length; i++)
@@ -172,9 +181,25 @@ public class LobbyAutonomousService : MonoBehaviour
         if (group == null || group.HasBeenAssigned || group.state != CustomerGroup.GroupState.Waiting)
             return;
 
+        if (!RestaurantTaskClaim.TryClaimBot(group, host, managerReactionSeconds))
+            return;
+
+        if (!group.TryClaimReceptionForBot())
+        {
+            RestaurantTaskClaim.ReleaseBot(group, host);
+            return;
+        }
+
+        CustomerGreetBubbleSpawner.Instance?.Hide();
+
         Booth booth = FindAvailableBooth(group.Size);
         if (booth != null)
-            host.StartTask(SeatGroup(group, booth));
+            host.StartTask(RunReceptionTask(group, host, SeatGroup(group, booth)));
+        else
+        {
+            group.ReleaseBotReceptionTask();
+            RestaurantTaskClaim.ReleaseBot(group, host);
+        }
     }
 
     private void TryStartWaiterTask()
@@ -236,50 +261,54 @@ public class LobbyAutonomousService : MonoBehaviour
             return;
 
         TakeoutBagInteractable takeoutBag = FindReadyTakeoutBag();
-        if (takeoutBag != null)
+        if (takeoutBag != null &&
+            TryStartClaimedTask(waiter, takeoutBag, DeliverTakeoutBag(takeoutBag)))
         {
-            waiter.StartTask(DeliverTakeoutBag(takeoutBag));
             return;
         }
 
         CustomerGroup takeoutPaymentGroup = FindTakeoutPaymentTarget();
-        if (takeoutPaymentGroup != null)
+        if (takeoutPaymentGroup != null &&
+            TryStartClaimedTask(waiter, takeoutPaymentGroup, CompleteTakeoutPaymentAtCashier(takeoutPaymentGroup)))
         {
-            waiter.StartTask(CompleteTakeoutPaymentAtCashier(takeoutPaymentGroup));
             return;
         }
 
         CustomerGroup takeoutOrderGroup = FindTakeoutOrderTarget();
-        if (takeoutOrderGroup != null)
+        if (takeoutOrderGroup != null &&
+            TryStartClaimedTask(waiter, takeoutOrderGroup, TakeTakeoutOrder(takeoutOrderGroup)))
         {
-            waiter.StartTask(TakeTakeoutOrder(takeoutOrderGroup));
             return;
         }
 
         FoodTray readyTray = FindReadyDeliveryTray();
-        if (readyTray != null)
+        if (readyTray != null &&
+            TryStartClaimedTask(waiter, readyTray, DeliverFood(readyTray)))
         {
-            waiter.StartTask(DeliverFood(readyTray));
             return;
         }
 
         MoneyPickup payment = FindPaymentPickup();
-        if (payment != null)
+        if (payment != null &&
+            TryStartClaimedTask(waiter, payment, DeliverPaymentToCashier(payment)))
         {
-            waiter.StartTask(DeliverPaymentToCashier(payment));
             return;
         }
 
         CustomerGroup billGroup = FindBillDeliveryTarget();
-        if (billGroup != null)
+        if (billGroup != null &&
+            TryStartClaimedTask(waiter, billGroup, DeliverBill(billGroup)))
         {
-            waiter.StartTask(DeliverBill(billGroup));
             return;
         }
 
         CustomerGroup orderGroup = FindGroupInState(CustomerGroup.GroupState.ReadyToOrder);
-        if (orderGroup != null)
-            waiter.StartTask(TakeOrder(orderGroup));
+        if (orderGroup != null &&
+            RestaurantTaskClaim.TryClaimBot(orderGroup, waiter, managerReactionSeconds))
+        {
+            SetTaskUiClaimed(orderGroup, true);
+            waiter.StartTask(RunClaimedTask(orderGroup, waiter, TakeOrder(orderGroup)));
+        }
     }
 
     private void TryStartBusserTask()
@@ -288,15 +317,15 @@ public class LobbyAutonomousService : MonoBehaviour
             return;
 
         FoodTray tray = FindCleanupTray();
-        if (tray != null && sink != null)
+        if (tray != null && sink != null &&
+            TryStartClaimedTask(busser, tray, CleanTrayAtSink(tray)))
         {
-            busser.StartTask(CleanTrayAtSink(tray));
             return;
         }
 
         Booth dirtyBooth = FindDirtyBooth();
         if (dirtyBooth != null)
-            busser.StartTask(CleanBooth(dirtyBooth));
+            TryStartClaimedTask(busser, dirtyBooth, CleanBooth(dirtyBooth));
     }
 
     private IEnumerator SeatGroup(CustomerGroup group, Booth booth)
@@ -322,6 +351,69 @@ public class LobbyAutonomousService : MonoBehaviour
 
         if (group != null && booth != null && !group.HasBeenAssigned && booth.IsAvailableFor(group.Size))
             group.AssignToBooth(booth);
+    }
+
+    private IEnumerator RunClaimedTask(
+        UnityEngine.Object target,
+        AutonomousStaffBot owner,
+        IEnumerator task)
+    {
+        yield return task;
+
+        SetTaskUiClaimed(target, false);
+        RestaurantTaskClaim.Complete(target);
+    }
+
+    private IEnumerator RunReceptionTask(
+        CustomerGroup group,
+        AutonomousStaffBot owner,
+        IEnumerator task)
+    {
+        yield return task;
+
+        if (group != null)
+            group.CompleteReceptionTask();
+        RestaurantTaskClaim.Complete(group);
+    }
+
+    private bool TryStartClaimedTask(
+        AutonomousStaffBot owner,
+        UnityEngine.Object target,
+        IEnumerator task)
+    {
+        if (!RestaurantTaskClaim.TryClaimBot(target, owner, managerReactionSeconds))
+            return false;
+
+        SetTaskUiClaimed(target, true);
+        owner.StartTask(RunClaimedTask(target, owner, task));
+        return true;
+    }
+
+    private static void SetTaskUiClaimed(UnityEngine.Object target, bool claimed)
+    {
+        if (target is CustomerGroup group)
+        {
+            if (group.state == CustomerGroup.GroupState.ReadyToOrder)
+                group.SetOrderTaskClaimedByStaff(claimed);
+            if (group.state == CustomerGroup.GroupState.NeedsBill)
+                group.SetBillTaskClaimedByStaff(claimed);
+            return;
+        }
+
+        if (target is FoodTray tray)
+        {
+            tray.GetComponent<FoodTrayInteractable>()?.SetClaimedByStaff(claimed);
+            return;
+        }
+
+        if (target is MoneyPickup payment)
+        {
+            payment.SetClaimedByStaff(claimed);
+            return;
+        }
+
+        if (target is TakeoutBagInteractable bag)
+            bag.SetClaimedByStaff(claimed);
     }
 
     private IEnumerator TakeOrder(CustomerGroup group)
@@ -519,7 +611,7 @@ public class LobbyAutonomousService : MonoBehaviour
                 yield break;
             }
 
-            bag.TryPickup();
+            bag.TryPickupForStaff(WaiterHands.Instance);
             if (TakeoutBagInteractable.HeldBag != bag)
             {
                 AbortTakeoutService(group, bag, "Waiter could not pick up the prepared takeout bag.");
@@ -623,13 +715,12 @@ public class LobbyAutonomousService : MonoBehaviour
         if (dropPoint == null || !hands.TryDeliverTrayTo(group, false))
             yield break;
 
-        tray.transform.SetParent(dropPoint, false);
-        tray.transform.localPosition = Vector3.zero;
-        tray.transform.localRotation = Quaternion.identity;
-
-        Collider trayCollider = tray.GetComponentInChildren<Collider>(true);
-        if (trayCollider != null)
-            trayCollider.enabled = true;
+        WaiterHands.AttachKeepingWorldScale(
+            tray.transform,
+            dropPoint,
+            Vector3.zero,
+            Quaternion.identity);
+        WaiterHands.SetAllColliders(tray.gameObject, true);
 
         tray.GetComponent<FoodTrayInteractable>()?.NotifyDeliveredToTable();
         group.ReceiveFoodFromWaiter(tray.DeliveredContents);
@@ -645,6 +736,22 @@ public class LobbyAutonomousService : MonoBehaviour
 
         if (!hands.HasBill)
         {
+            // A waiter must acknowledge the table in person before requesting
+            // its bill. This prevents state from advancing while the bot is
+            // still across the restaurant or stuck on a path.
+            yield return waiter.MoveWithin(
+                group.assignedBooth.GetNavigableApproachPosition(),
+                boothServiceDistance);
+            if (!waiter.LastMoveSucceeded || group == null ||
+                group.state != CustomerGroup.GroupState.NeedsBill)
+                yield break;
+
+            yield return waiter.FaceTowards(GetGroupCenter(group));
+            yield return waiter.WorkFor(tableServiceSeconds);
+
+            if (group == null || group.state != CustomerGroup.GroupState.NeedsBill)
+                yield break;
+
             billManager?.RequestBill(group);
             BillPaper bill = billManager != null ? billManager.FindBillForGroup(group) : null;
             while (bill == null && group != null && group.state == CustomerGroup.GroupState.NeedsBill)
@@ -684,7 +791,6 @@ public class LobbyAutonomousService : MonoBehaviour
         if (group != null && group.state == CustomerGroup.GroupState.NeedsBill)
         {
             group.ReceiveBillFromWaiter();
-            billDeliveredGroups.Add(group);
             hands.ClearBill();
         }
 
@@ -752,7 +858,6 @@ public class LobbyAutonomousService : MonoBehaviour
         if (register.CompleteAutomatedPayment(paidGroup))
         {
             hands.ClearMoney();
-            billDeliveredGroups.Remove(paidGroup);
         }
 
         waiter.SetCarrying(hands.HasMoney);
@@ -835,7 +940,8 @@ public class LobbyAutonomousService : MonoBehaviour
         CustomerGroup[] groups = FindObjectsByType<CustomerGroup>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
         for (int i = 0; i < groups.Length; i++)
         {
-            if (groups[i] != null && !groups[i].IsTakeout && groups[i].state == state)
+            if (groups[i] != null && !groups[i].IsTakeout && groups[i].state == state &&
+                RestaurantTaskClaim.CanBotStart(groups[i], managerReactionSeconds))
                 return groups[i];
         }
 
@@ -849,7 +955,8 @@ public class LobbyAutonomousService : MonoBehaviour
         {
             CustomerGroup group = groups[i];
             if (group != null && !group.IsTakeout && group.state == CustomerGroup.GroupState.NeedsBill &&
-                !billDeliveredGroups.Contains(group))
+                !group.HasReceivedBill &&
+                RestaurantTaskClaim.CanBotStart(group, managerReactionSeconds))
                 return group;
         }
 
@@ -859,13 +966,19 @@ public class LobbyAutonomousService : MonoBehaviour
     private CustomerGroup FindTakeoutOrderTarget()
     {
         CustomerGroup group = takeoutFlow != null ? takeoutFlow.ActiveGroup : null;
-        return IsTakeoutOrderReady(group) ? group : null;
+        return IsTakeoutOrderReady(group) &&
+               RestaurantTaskClaim.CanBotStart(group, managerReactionSeconds)
+            ? group
+            : null;
     }
 
     private CustomerGroup FindTakeoutPaymentTarget()
     {
         CustomerGroup group = takeoutFlow != null ? takeoutFlow.ActiveGroup : null;
-        return IsTakeoutPaymentReady(group) ? group : null;
+        return IsTakeoutPaymentReady(group) &&
+               RestaurantTaskClaim.CanBotStart(group, managerReactionSeconds)
+            ? group
+            : null;
     }
 
     private TakeoutBagInteractable FindReadyTakeoutBag()
@@ -879,7 +992,8 @@ public class LobbyAutonomousService : MonoBehaviour
             FindObjectsSortMode.None);
         for (int i = 0; i < bags.Length; i++)
         {
-            if (bags[i] != null && bags[i].TargetGroup == target)
+            if (bags[i] != null && bags[i].TargetGroup == target &&
+                RestaurantTaskClaim.CanBotStart(bags[i], managerReactionSeconds))
                 return bags[i];
         }
 
@@ -896,7 +1010,13 @@ public class LobbyAutonomousService : MonoBehaviour
         for (int i = 0; i < trays.Length; i++)
         {
             FoodTray tray = trays[i];
-            if (tray != null && tray.TargetGroup != null && tray.TargetGroup.state == CustomerGroup.GroupState.OrderTaken)
+            FoodTrayInteractable interactable = tray != null
+                ? tray.GetComponent<FoodTrayInteractable>()
+                : null;
+            if (tray != null && interactable != null && interactable.IsDeliveryPickable &&
+                tray.TargetGroup != null &&
+                tray.TargetGroup.state == CustomerGroup.GroupState.OrderTaken &&
+                RestaurantTaskClaim.CanBotStart(tray, managerReactionSeconds))
                 return tray;
         }
 
@@ -915,10 +1035,17 @@ public class LobbyAutonomousService : MonoBehaviour
             if (tray == null)
                 continue;
 
+            FoodTrayInteractable interactable = tray.GetComponent<FoodTrayInteractable>();
+            if (interactable == null || !interactable.IsCleanupPickable)
+                continue;
+
             CustomerGroup group = tray.TargetGroup;
             if (group == null || group.state == CustomerGroup.GroupState.Leaving ||
                 group.state == CustomerGroup.GroupState.AngryLeft || group.state == CustomerGroup.GroupState.UnhappyLeft)
-                return tray;
+            {
+                if (RestaurantTaskClaim.CanBotStart(tray, managerReactionSeconds))
+                    return tray;
+            }
         }
 
         return null;
@@ -930,7 +1057,9 @@ public class LobbyAutonomousService : MonoBehaviour
         for (int i = 0; i < payments.Length; i++)
         {
             MoneyPickup payment = payments[i];
-            if (payment != null && payment.TargetGroup != null && payment.TargetGroup.state == CustomerGroup.GroupState.NeedsBill)
+            if (payment != null && payment.TargetGroup != null &&
+                payment.TargetGroup.state == CustomerGroup.GroupState.NeedsBill &&
+                RestaurantTaskClaim.CanBotStart(payment, managerReactionSeconds))
                 return payment;
         }
 
@@ -942,7 +1071,8 @@ public class LobbyAutonomousService : MonoBehaviour
         Booth[] booths = FindObjectsByType<Booth>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
         for (int i = 0; i < booths.Length; i++)
         {
-            if (booths[i] != null && booths[i].CanCleanMessNow)
+            if (booths[i] != null && booths[i].CanCleanMessNow &&
+                RestaurantTaskClaim.CanBotStart(booths[i], managerReactionSeconds))
                 return booths[i];
         }
 
@@ -1027,6 +1157,13 @@ public class LobbyAutonomousService : MonoBehaviour
         AutonomousStaffBot bot = roleObject.GetComponent<AutonomousStaffBot>();
         if (bot == null)
             bot = roleObject.AddComponent<AutonomousStaffBot>();
+
+        // AutonomousStaffBot is the sole movement/animation owner for staff.
+        // Leaving PlayerMovement enabled makes both components write the agent
+        // and Animator every frame, causing stutter and animation flicker.
+        PlayerMovement legacyPlayerMovement = roleObject.GetComponent<PlayerMovement>();
+        if (legacyPlayerMovement != null)
+            legacyPlayerMovement.enabled = false;
 
         bot.ConfigureHome(homePoint, avoidancePriority);
         return bot;

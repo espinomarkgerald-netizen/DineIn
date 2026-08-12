@@ -9,7 +9,7 @@ public class BoothAssignArrowManager : MonoBehaviour
     [SerializeField] private GameObject arrowPrefab;
 
     [Header("Position")]
-    [SerializeField] private Vector3 worldOffset = new Vector3(0f, 2.3f, 0f);
+    [SerializeField] private Vector3 worldOffset = new Vector3(0f, 0.9f, 0f);
 
     [Header("Arrow Size")]
     [SerializeField] private float arrowScale = 0.7f;

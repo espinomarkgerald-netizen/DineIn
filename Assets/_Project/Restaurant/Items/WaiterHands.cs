@@ -5,6 +5,21 @@ public class WaiterHands : MonoBehaviour
 {
     public static WaiterHands Instance { get; private set; }
 
+    public static WaiterHands ActivePlayerHands
+    {
+        get
+        {
+            if (ManagerPlayer.Active != null)
+            {
+                WaiterHands managerHands = ManagerPlayer.Active.GetComponent<WaiterHands>();
+                if (managerHands != null)
+                    return managerHands;
+            }
+
+            return Instance;
+        }
+    }
+
     public static event Action OnHandsStateChanged;
 
     [Header("Holding")]
@@ -44,13 +59,16 @@ public class WaiterHands : MonoBehaviour
     {
         Debug.Log($"[WaiterHands] Awake on {name} id={GetInstanceID()}");
 
-        if (Instance != null && Instance != this)
+        bool belongsToManager = GetComponent<ManagerPlayer>() != null;
+        if (!belongsToManager && Instance != null && Instance != this)
         {
-            Destroy(gameObject);
+            Debug.LogWarning($"[WaiterHands] Duplicate staff instance ignored on {name}.", this);
+            enabled = false;
             return;
         }
 
-        Instance = this;
+        if (!belongsToManager)
+            Instance = this;
 
         holdingTray = null;
         holdingTicketFor = null;
@@ -81,6 +99,56 @@ public class WaiterHands : MonoBehaviour
             Instance = null;
     }
 
+    public static WaiterHands For(PlayerMovement mover)
+    {
+        if (mover != null)
+        {
+            WaiterHands ownedHands = mover.GetComponent<WaiterHands>();
+            if (ownedHands != null)
+                return ownedHands;
+        }
+
+        return ActivePlayerHands;
+    }
+
+    /// <summary>
+    /// Parents a carried object without inheriting the actor prefab's import
+    /// scale. Manager and bot-held items therefore keep identical world size.
+    /// </summary>
+    public static void AttachKeepingWorldScale(
+        Transform item,
+        Transform parent,
+        Vector3 localPosition,
+        Quaternion localRotation)
+    {
+        if (item == null || parent == null) return;
+
+        Vector3 worldScale = item.lossyScale;
+        item.SetParent(parent, false);
+        item.localPosition = localPosition;
+        item.localRotation = localRotation;
+
+        Vector3 parentScale = parent.lossyScale;
+        item.localScale = new Vector3(
+            SafeDivide(worldScale.x, parentScale.x),
+            SafeDivide(worldScale.y, parentScale.y),
+            SafeDivide(worldScale.z, parentScale.z));
+    }
+
+    public static void SetAllColliders(GameObject target, bool enabled)
+    {
+        if (target == null) return;
+
+        Collider[] colliders = target.GetComponentsInChildren<Collider>(true);
+        for (int i = 0; i < colliders.Length; i++)
+            colliders[i].enabled = enabled;
+    }
+
+    private static float SafeDivide(float value, float divisor)
+    {
+        return Mathf.Abs(divisor) > 0.0001f ? value / divisor : value;
+    }
+
     private void NotifyHandsChanged()
     {
         OnHandsStateChanged?.Invoke();
@@ -94,6 +162,7 @@ public class WaiterHands : MonoBehaviour
 
     public void ClearBill()
     {
+        CustomerGroup completedGroup = holdingBillFor;
         holdingBillFor = null;
 
         if (heldBillPaper != null)
@@ -108,12 +177,16 @@ public class WaiterHands : MonoBehaviour
             billHeldVisualInstance = null;
         }
 
+        RestaurantTaskClaim.Complete(completedGroup);
+
         NotifyHandsChanged();
     }
 
     public void ClearTray()
     {
+        FoodTray completedTray = holdingTray;
         holdingTray = null;
+        RestaurantTaskClaim.Complete(completedTray);
         NotifyHandsChanged();
     }
 
@@ -131,12 +204,12 @@ public class WaiterHands : MonoBehaviour
 
         holdingTray = tray;
 
-        tray.transform.SetParent(parent, false);
-        tray.transform.localPosition = Vector3.zero;
-        tray.transform.localRotation = Quaternion.identity;
-
-        var col = tray.GetComponentInChildren<Collider>(true);
-        if (col != null) col.enabled = false;
+        AttachKeepingWorldScale(
+            tray.transform,
+            parent,
+            Vector3.zero,
+            Quaternion.identity);
+        SetAllColliders(tray.gameObject, false);
 
         NotifyHandsChanged();
         return true;
@@ -146,6 +219,8 @@ public class WaiterHands : MonoBehaviour
     {
         var tray = holdingTray;
         holdingTray = null;
+
+        RestaurantTaskClaim.Complete(tray);
 
         if (destroyObject && tray != null)
             Destroy(tray.gameObject);
@@ -189,16 +264,18 @@ public class WaiterHands : MonoBehaviour
 
         Debug.Log($"[WaiterHands] Picking bill #{paper.orderNumber}. Parent={parent.name} (path: {GetPath(parent)})");
 
-        paper.transform.SetParent(parent, false);
-        paper.transform.localPosition = Vector3.zero;
-        paper.transform.localRotation = Quaternion.identity;
-
-        var col = paper.GetComponentInChildren<Collider>(true);
-        if (col != null) col.enabled = false;
+        AttachKeepingWorldScale(
+            paper.transform,
+            parent,
+            Vector3.zero,
+            Quaternion.identity);
+        SetAllColliders(paper.gameObject, false);
 
         Debug.Log($"[WaiterHands] Bill now child of hand? {paper.transform.IsChildOf(parent)} worldPos={paper.transform.position}");
 
         RefreshBillHeldVisual();
+        if (GetComponent<ManagerPlayer>() != null && holdingBillFor != null)
+            holdingBillFor.SetBillTaskClaimedByStaff(false);
         NotifyHandsChanged();
     }
 
@@ -227,9 +304,13 @@ public class WaiterHands : MonoBehaviour
         if (billHeldVisualPrefab == null) return;
 
         Transform parent = BillHoldPoint;
-        billHeldVisualInstance = Instantiate(billHeldVisualPrefab, parent);
-        billHeldVisualInstance.transform.localPosition = Vector3.zero;
-        billHeldVisualInstance.transform.localRotation = Quaternion.identity;
+        billHeldVisualInstance = Instantiate(billHeldVisualPrefab);
+        AttachKeepingWorldScale(
+            billHeldVisualInstance.transform,
+            parent,
+            Vector3.zero,
+            Quaternion.identity);
+        SetAllColliders(billHeldVisualInstance, false);
     }
 
     public bool TryDeliverTrayTo(CustomerGroup group, bool destroyTrayObject = true)
@@ -248,6 +329,8 @@ public class WaiterHands : MonoBehaviour
 
         var deliveredTray = holdingTray;
         holdingTray = null;
+
+        RestaurantTaskClaim.Complete(deliveredTray);
 
         if (destroyTrayObject && deliveredTray != null)
             Destroy(deliveredTray.gameObject);
@@ -278,12 +361,12 @@ public class WaiterHands : MonoBehaviour
             return;
         }
 
-        money.transform.SetParent(parent, false);
-        money.transform.localPosition = Vector3.zero;
-        money.transform.localRotation = Quaternion.identity;
-
-        var col = money.GetComponentInChildren<Collider>(true);
-        if (col != null) col.enabled = false;
+        AttachKeepingWorldScale(
+            money.transform,
+            parent,
+            Vector3.zero,
+            Quaternion.identity);
+        SetAllColliders(money.gameObject, false);
 
         if (moneyHeldVisualInstance != null)
         {
@@ -293,9 +376,13 @@ public class WaiterHands : MonoBehaviour
 
         if (moneyHeldVisualPrefab != null)
         {
-            moneyHeldVisualInstance = Instantiate(moneyHeldVisualPrefab, parent);
-            moneyHeldVisualInstance.transform.localPosition = Vector3.zero;
-            moneyHeldVisualInstance.transform.localRotation = Quaternion.identity;
+            moneyHeldVisualInstance = Instantiate(moneyHeldVisualPrefab);
+            AttachKeepingWorldScale(
+                moneyHeldVisualInstance.transform,
+                parent,
+                Vector3.zero,
+                Quaternion.identity);
+            SetAllColliders(moneyHeldVisualInstance, false);
         }
 
         NotifyHandsChanged();
@@ -303,6 +390,7 @@ public class WaiterHands : MonoBehaviour
 
     public void ClearMoney()
     {
+        MoneyPickup completedMoney = heldMoney;
         holdingMoneyFor = null;
         holdingMoneyAmount = 0;
 
@@ -317,6 +405,8 @@ public class WaiterHands : MonoBehaviour
             Destroy(moneyHeldVisualInstance);
             moneyHeldVisualInstance = null;
         }
+
+        RestaurantTaskClaim.Complete(completedMoney);
 
         NotifyHandsChanged();
     }

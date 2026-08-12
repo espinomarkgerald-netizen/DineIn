@@ -31,8 +31,8 @@ public class OrderTicketUI : MonoBehaviour
     private void Update()
     {
         // auto-destroy if ticket no longer held (delivered/cancelled)
-        if (WaiterHands.Instance == null) return;
-        if (WaiterHands.Instance.holdingTicketFor != group)
+        if (WaiterHands.ActivePlayerHands == null) return;
+        if (WaiterHands.ActivePlayerHands.holdingTicketFor != group)
             Destroy(gameObject);
     }
 }

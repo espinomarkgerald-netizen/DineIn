@@ -10,7 +10,7 @@ public class ClickToMoveTarget : MonoBehaviour, IInteractable
     public bool CanInteract()
     {
         // ✅ If holding a tray, don't let this "empty" interactable steal the click.
-        if (WaiterHands.Instance != null && WaiterHands.Instance.HasTray)
+        if (WaiterHands.ActivePlayerHands != null && WaiterHands.ActivePlayerHands.HasTray)
             return false;
 
         return true;

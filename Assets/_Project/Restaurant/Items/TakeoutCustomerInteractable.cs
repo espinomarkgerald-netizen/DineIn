@@ -56,7 +56,7 @@ public class TakeoutCustomerInteractable : MonoBehaviour, IInteractable
         if (group == null || !group.IsTakeout)
             return false;
 
-        if (!TakeoutBagInteractable.HasHeldBag)
+        if (!TakeoutBagInteractable.PlayerHasHeldBag)
             return false;
 
         return TakeoutBagInteractable.HeldBag.TargetGroup == group;

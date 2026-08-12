@@ -29,7 +29,9 @@ public class OrderFlowManager : MonoBehaviour
         }
 
         // waiter "holds" the ticket
-        WaiterHands.Instance.holdingTicketFor = group;
+        WaiterHands hands = WaiterHands.ActivePlayerHands;
+        if (hands != null)
+            hands.holdingTicketFor = group;
 
         // spawn ticket UI
         var ui = Instantiate(ticketUiPrefab, gameplayCanvas.transform);

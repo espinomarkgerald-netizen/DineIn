@@ -26,7 +26,7 @@ public class CashierMoneyAutoReceiver : MonoBehaviour
         var player = RoleManager.Instance.GetActivePlayerMovement();
         if (player == null) return;
 
-        var hands = WaiterHands.Instance;
+        var hands = WaiterHands.For(player);
         if (hands == null) return;
         if (!hands.HasMoney) return;
 

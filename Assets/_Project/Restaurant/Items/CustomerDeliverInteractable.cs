@@ -21,7 +21,7 @@ public class CustomerDeliverInteractable : MonoBehaviour, IInteractable
 
     public bool CanInteract()
     {
-        var hands = WaiterHands.Instance;
+        var hands = WaiterHands.ActivePlayerHands;
         if (hands == null || !hands.HasTray) return false;
 
         if (booth == null || booth.CurrentGroup == null) return false;
@@ -38,7 +38,7 @@ public class CustomerDeliverInteractable : MonoBehaviour, IInteractable
     {
         if (!CanInteract()) return;
 
-        var hands = WaiterHands.Instance;
+        var hands = WaiterHands.For(mover);
         var tray = hands.holdingTray;
         var group = booth.CurrentGroup;
 
@@ -60,12 +60,12 @@ public class CustomerDeliverInteractable : MonoBehaviour, IInteractable
         }
         else
         {
-            tray.transform.SetParent(drop, false);
-            tray.transform.localPosition = Vector3.zero;
-            tray.transform.localRotation = Quaternion.identity;
-
-            var col = tray.GetComponentInChildren<Collider>(true);
-            if (col != null) col.enabled = true;
+            WaiterHands.AttachKeepingWorldScale(
+                tray.transform,
+                drop,
+                Vector3.zero,
+                Quaternion.identity);
+            WaiterHands.SetAllColliders(tray.gameObject, true);
         }
 
         if (booth != null)

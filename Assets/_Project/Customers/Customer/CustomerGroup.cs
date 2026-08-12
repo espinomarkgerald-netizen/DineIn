@@ -8,6 +8,13 @@ using UnityEngine.UI;
 
 public class CustomerGroup : MonoBehaviour
 {
+    public enum ReceptionTaskOwner
+    {
+        None,
+        Player,
+        Receptionist
+    }
+
     public enum GroupState
     {
         Spawning,
@@ -343,6 +350,7 @@ public class CustomerGroup : MonoBehaviour
     private GameObject billBubbleInstance;
     private GameObject tableNumberInstance;
     private GameObject moneyBubbleInstance;
+    private bool hasReceivedBill;
     private GameObject thoughtBubbleInstance;
 
     public bool HasBeenAssigned => hasBeenAssigned;
@@ -351,6 +359,11 @@ public class CustomerGroup : MonoBehaviour
     private int pendingPaymentAmount;
 
     [HideInInspector] public bool hasBeenGreeted = false;
+    [SerializeField, HideInInspector] private ReceptionTaskOwner receptionTaskOwner;
+
+    public ReceptionTaskOwner CurrentReceptionTaskOwner => receptionTaskOwner;
+    public bool IsReceptionClaimedByPlayer => receptionTaskOwner == ReceptionTaskOwner.Player;
+    public bool IsReceptionClaimedByBot => receptionTaskOwner == ReceptionTaskOwner.Receptionist;
 
     public void SetOrderPause(bool paused) => isOrderPaused = paused;
 
@@ -376,6 +389,7 @@ public class CustomerGroup : MonoBehaviour
 
     private void Awake()
     {
+        receptionTaskOwner = ReceptionTaskOwner.None;
         BuildGroupUIAnchor();
         ResolveExitPoint();
 
@@ -387,6 +401,7 @@ public class CustomerGroup : MonoBehaviour
 
     private void OnDestroy()
     {
+        RestaurantTaskClaim.Complete(this);
         NotifyLeftLineIfNeeded();
         ClearLinePatienceUI();
         CleanupOnLeave();
@@ -1061,6 +1076,7 @@ public class CustomerGroup : MonoBehaviour
         var num = tableNumberInstance.GetComponentInChildren<TableNumberUI>(true);
         if (num != null)
         {
+            num.SetGroup(this);
             num.SetNumber(currentOrderNumber);
             num.SetBooth(assignedBooth);
         }
@@ -1154,6 +1170,8 @@ public class CustomerGroup : MonoBehaviour
     {
         if (state != GroupState.NeedsBill) return;
 
+        hasReceivedBill = true;
+        RestaurantTaskClaim.Complete(this);
         ClearBillBubble();
         GameDayManager.Instance?.RegisterBillDelivered();
         StartCoroutine(SpawnMoneyBubbleAfterDelay());
@@ -1174,6 +1192,7 @@ public class CustomerGroup : MonoBehaviour
         yield return new WaitForSeconds(eat);
 
         ClearEatingBubble();
+        hasReceivedBill = false;
         SetState(GroupState.NeedsBill);
         SpawnBillBubble();
     }
@@ -1194,7 +1213,10 @@ public class CustomerGroup : MonoBehaviour
         var spawner = assignedBooth.GetComponent<BoothMoneySpawner>();
         if (spawner == null) yield break;
 
-        var money = spawner.SpawnMoney(this, amount, null);
+        Transform paymentApproach = assignedBooth.approachPoint != null
+            ? assignedBooth.approachPoint
+            : assignedBooth.transform;
+        var money = spawner.SpawnMoney(this, amount, paymentApproach);
         if (money == null) yield break;
 
         ClearMoneyBubble();
@@ -1731,6 +1753,28 @@ public class CustomerGroup : MonoBehaviour
         return count > 0 ? sum / count : transform.position;
     }
 
+    public void RestoreOrderBubbleIfWaiting()
+    {
+        if (state == GroupState.ReadyToOrder && orderBubbleInstance == null)
+            SpawnOrderBubble();
+    }
+
+    public bool HasReceivedBill => hasReceivedBill;
+
+    public void SetOrderTaskClaimedByStaff(bool claimed)
+    {
+        if (orderBubbleInstance != null)
+            orderBubbleInstance.SetActive(!claimed);
+        else if (!claimed)
+            RestoreOrderBubbleIfWaiting();
+    }
+
+    public void SetBillTaskClaimedByStaff(bool claimed)
+    {
+        if (billBubbleInstance != null)
+            billBubbleInstance.SetActive(!claimed);
+    }
+
     private Vector3 GetMembersHeadAnchorWorld()
     {
         Vector3 center = GetMembersCenterWorld();
@@ -1876,6 +1920,41 @@ public class CustomerGroup : MonoBehaviour
     public void MarkGreeted()
     {
         hasBeenGreeted = true;
+    }
+
+    public bool TryClaimReceptionForPlayer()
+    {
+        if (hasBeenAssigned || receptionTaskOwner == ReceptionTaskOwner.Receptionist)
+            return false;
+
+        receptionTaskOwner = ReceptionTaskOwner.Player;
+        return true;
+    }
+
+    public bool TryClaimReceptionForBot()
+    {
+        if (hasBeenAssigned || receptionTaskOwner == ReceptionTaskOwner.Player)
+            return false;
+
+        receptionTaskOwner = ReceptionTaskOwner.Receptionist;
+        return true;
+    }
+
+    public void ReleasePlayerReceptionTask()
+    {
+        if (receptionTaskOwner == ReceptionTaskOwner.Player)
+            receptionTaskOwner = ReceptionTaskOwner.None;
+    }
+
+    public void ReleaseBotReceptionTask()
+    {
+        if (receptionTaskOwner == ReceptionTaskOwner.Receptionist)
+            receptionTaskOwner = ReceptionTaskOwner.None;
+    }
+
+    public void CompleteReceptionTask()
+    {
+        receptionTaskOwner = ReceptionTaskOwner.None;
     }
 
     private void ClearEatingBubble()

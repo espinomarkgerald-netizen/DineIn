@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public class MoneyPickup : MonoBehaviour, IInteractable
+public class MoneyPickup : MonoBehaviour, IInteractable, ICancelableTaskTarget
 {
     [Header("Runtime")]
     [SerializeField] private CustomerGroup targetGroup;
@@ -42,6 +42,12 @@ public class MoneyPickup : MonoBehaviour, IInteractable
         bubbleUI = ui;
     }
 
+    public void SetClaimedByStaff(bool claimed)
+    {
+        if (bubbleUI != null)
+            bubbleUI.gameObject.SetActive(!claimed);
+    }
+
     public float GetInteractRadius()
     {
         return interactRadius;
@@ -52,25 +58,88 @@ public class MoneyPickup : MonoBehaviour, IInteractable
         if (RoleManager.Instance == null) return false;
         if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Waiter)) return false;
         if (targetGroup == null) return false;
-        if (WaiterHands.Instance == null) return false;
+        if (RestaurantTaskClaim.IsClaimedByBot(this)) return false;
+        if (WaiterHands.ActivePlayerHands == null) return false;
 
-        return !WaiterHands.Instance.HasMoney;
+        return !WaiterHands.ActivePlayerHands.HasMoney;
     }
 
     public void Interact(PlayerMovement mover)
     {
-        TryPickup();
+        TryPickup(mover);
     }
 
-    public bool TryPickup()
+    public void UI_RequestPickup()
     {
-        if (!CanInteract()) return false;
+        if (RoleManager.Instance == null) return;
 
-        var hands = WaiterHands.Instance;
-        if (hands == null) return false;
-        if (hands.HasMoney) return false;
+        PlayerMovement mover = RoleManager.Instance.GetActivePlayerMovement();
+        if (mover == null) return;
+
+        if (mover.IsTaskLocked)
+        {
+            WarningSlideUI.Instance?.Show("Finish your current task first.");
+            return;
+        }
+
+        if (RestaurantTaskClaim.IsClaimedByBot(this))
+        {
+            WarningSlideUI.Instance?.Show("The waiter is already collecting this payment.");
+            return;
+        }
+
+        if (!CanInteract())
+            return;
+
+        if (!RestaurantTaskClaim.TryClaimPlayer(this))
+        {
+            WarningSlideUI.Instance?.Show(RestaurantTaskClaim.PlayerHasActiveTask
+                ? "Finish your current task first."
+                : "The waiter is already collecting this payment.");
+            return;
+        }
+
+        SetClaimedByStaff(true);
+        mover.LockTask(this);
+        mover.UI_MoveTo(this);
+    }
+
+    public bool TryPickup(PlayerMovement mover = null)
+    {
+        if (RestaurantTaskClaim.IsClaimedByBot(this))
+        {
+            WarningSlideUI.Instance?.Show("The waiter is already collecting this payment.");
+            return false;
+        }
+
+        if (!CanInteract())
+        {
+            RestaurantTaskClaim.ReleasePlayer(this);
+            return false;
+        }
+
+        if (!RestaurantTaskClaim.TryClaimPlayer(this))
+        {
+            WarningSlideUI.Instance?.Show(RestaurantTaskClaim.PlayerHasActiveTask
+                ? "Finish your current task first."
+                : "The waiter is already collecting this payment.");
+            return false;
+        }
+
+        var hands = WaiterHands.For(mover);
+        if (hands == null || hands.HasMoney)
+        {
+            RestaurantTaskClaim.ReleasePlayer(this);
+            return false;
+        }
 
         hands.PickupMoney(this);
+
+        if (!hands.HasMoney || hands.HeldMoney != this)
+        {
+            RestaurantTaskClaim.ReleasePlayer(this);
+            return false;
+        }
 
         if (disableColliderWhileHeld && cachedCol != null)
             cachedCol.enabled = false;
@@ -82,6 +151,13 @@ public class MoneyPickup : MonoBehaviour, IInteractable
         return true;
     }
 
+    public void OnTaskCancelled()
+    {
+        RestaurantTaskClaim.ReleasePlayer(this);
+        if (bubbleUI != null)
+            bubbleUI.gameObject.SetActive(true);
+    }
+
     public bool Matches(CustomerGroup group)
     {
         return group != null && targetGroup == group;
@@ -89,6 +165,7 @@ public class MoneyPickup : MonoBehaviour, IInteractable
 
     private void OnDestroy()
     {
+        RestaurantTaskClaim.Complete(this);
         if (bubbleUI != null)
             bubbleUI.RemoveBubble();
     }

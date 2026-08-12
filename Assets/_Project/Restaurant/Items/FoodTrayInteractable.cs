@@ -26,9 +26,11 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
     private bool pickupRequested;
     private bool pendingCleanup;
     private bool uiHiddenUntilStateChange;
+    private bool claimedByStaff;
 
-    public Transform StandPoint => pickupPoint != null ? pickupPoint : transform;
+    public Transform StandPoint => ResolveStandPoint();
     public bool AutoReturnHome => false;
+    public bool IsDeliveryPickable => mode == TrayMode.Delivery;
     public bool IsCleanupPickable => mode == TrayMode.Cleanup;
 
     private void Awake()
@@ -46,6 +48,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
 
     private void OnDestroy()
     {
+        RestaurantTaskClaim.Complete(tray);
         if (queueOwner != null)
             queueOwner.Unregister(this);
 
@@ -57,11 +60,44 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
         return interactRadius;
     }
 
+    private Transform ResolveStandPoint()
+    {
+        if (mode == TrayMode.Cleanup)
+        {
+            // A used tray is sitting on a non-walkable tabletop. Use the same
+            // booth approach point as the autonomous busser instead of trying
+            // to path the Manager to the tray's elevated world position.
+            Booth sourceBooth = GetComponentInParent<Booth>();
+            if (sourceBooth == null && tray != null && tray.TargetGroup != null)
+                sourceBooth = tray.TargetGroup.assignedBooth;
+
+            if (sourceBooth != null)
+            {
+                if (sourceBooth.approachPoint != null)
+                    return sourceBooth.approachPoint;
+
+                return sourceBooth.transform;
+            }
+        }
+
+        return pickupPoint != null ? pickupPoint : transform;
+    }
+
     public void OnTaskCancelled()
     {
+        RestaurantTaskClaim.ReleasePlayer(tray);
         pickupRequested = false;
         uiHiddenUntilStateChange = false;
         RefreshUI();
+    }
+
+    public void SetClaimedByStaff(bool claimed)
+    {
+        claimedByStaff = claimed;
+        if (claimed)
+            HideUI();
+        else
+            RefreshUI();
     }
 
     public void SetDeliveryPickable(TrayPickupQueue queue)
@@ -107,6 +143,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
     {
         if (mode == TrayMode.None) return false;
         if (tray == null) return false;
+        if (RestaurantTaskClaim.IsClaimedByBot(tray)) return false;
         if (RoleManager.Instance == null) return false;
 
         if (mode == TrayMode.Delivery)
@@ -114,8 +151,8 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
             if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Waiter))
                 return false;
 
-            if (WaiterHands.Instance == null) return false;
-            if (WaiterHands.Instance.HasTray || WaiterHands.Instance.HasBill) return false;
+            if (WaiterHands.ActivePlayerHands == null) return false;
+            if (WaiterHands.ActivePlayerHands.HasTray || WaiterHands.ActivePlayerHands.HasBill) return false;
 
             if (queueOwner != null && !queueOwner.IsNext(this))
                 return false;
@@ -125,8 +162,8 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
             if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Busser))
                 return false;
 
-            if (BusserHands.Instance == null) return false;
-            if (BusserHands.Instance.HasTray) return false;
+            if (BusserHands.ActivePlayerHands == null) return false;
+            if (BusserHands.ActivePlayerHands.HasTray) return false;
         }
 
         return true;
@@ -135,6 +172,15 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
     public void Interact(PlayerMovement mover)
     {
         if (!CanInteractWithWarning())
+        {
+            RestaurantTaskClaim.ReleasePlayer(tray);
+            pickupRequested = false;
+            uiHiddenUntilStateChange = false;
+            RefreshUI();
+            return;
+        }
+
+        if (!TryClaimForPlayer())
         {
             pickupRequested = false;
             uiHiddenUntilStateChange = false;
@@ -146,16 +192,19 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
 
         if (mode == TrayMode.Delivery)
         {
-            if (WaiterHands.Instance == null)
+            WaiterHands waiterHands = WaiterHands.For(mover);
+            if (waiterHands == null)
             {
+                RestaurantTaskClaim.ReleasePlayer(tray);
                 pickupRequested = false;
                 uiHiddenUntilStateChange = false;
                 RefreshUI();
                 return;
             }
 
-            if (!WaiterHands.Instance.PickupTray(tray))
+            if (!waiterHands.PickupTray(tray))
             {
+                RestaurantTaskClaim.ReleasePlayer(tray);
                 Debug.Log("[FoodTrayInteractable] Waiter pickup failed: " + name);
                 pickupRequested = false;
                 uiHiddenUntilStateChange = false;
@@ -168,16 +217,19 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
         }
         else if (mode == TrayMode.Cleanup)
         {
-            if (BusserHands.Instance == null)
+            BusserHands busserHands = BusserHands.For(mover);
+            if (busserHands == null)
             {
+                RestaurantTaskClaim.ReleasePlayer(tray);
                 pickupRequested = false;
                 uiHiddenUntilStateChange = false;
                 RefreshUI();
                 return;
             }
 
-            if (!BusserHands.Instance.PickupTray(tray))
+            if (!busserHands.PickupTray(tray))
             {
+                RestaurantTaskClaim.ReleasePlayer(tray);
                 Debug.Log("[FoodTrayInteractable] Busser pickup failed: " + name);
                 pickupRequested = false;
                 uiHiddenUntilStateChange = false;
@@ -208,8 +260,15 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
         if (!CanInteractWithWarning()) return;
         if (RoleManager.Instance == null) return;
 
+        if (!TryClaimForPlayer())
+            return;
+
         var mover = RoleManager.Instance.GetActivePlayerMovement();
-        if (mover == null) return;
+        if (mover == null)
+        {
+            RestaurantTaskClaim.ReleasePlayer(tray);
+            return;
+        }
 
         pickupRequested = true;
         uiHiddenUntilStateChange = true;
@@ -232,6 +291,14 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
         if (tray == null) return false;
         if (RoleManager.Instance == null) return false;
 
+        if (RestaurantTaskClaim.IsClaimedByBot(tray))
+        {
+            ShowWarning(mode == TrayMode.Cleanup
+                ? "The busser is already collecting this tray."
+                : "The waiter is already collecting this order.");
+            return false;
+        }
+
         if (mode == TrayMode.Delivery)
         {
             if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Waiter))
@@ -240,15 +307,15 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
                 return false;
             }
 
-            if (WaiterHands.Instance == null) return false;
+            if (WaiterHands.ActivePlayerHands == null) return false;
 
-            if (WaiterHands.Instance.HasBill)
+            if (WaiterHands.ActivePlayerHands.HasBill)
             {
                 ShowWarning("You are already carrying a bill.");
                 return false;
             }
 
-            if (WaiterHands.Instance.HasTray)
+            if (WaiterHands.ActivePlayerHands.HasTray)
             {
                 ShowWarning("You are already carrying a tray.");
                 return false;
@@ -268,9 +335,9 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
                 return false;
             }
 
-            if (BusserHands.Instance == null) return false;
+            if (BusserHands.ActivePlayerHands == null) return false;
 
-            if (BusserHands.Instance.HasTray)
+            if (BusserHands.ActivePlayerHands.HasTray)
             {
                 ShowWarning("You are already carrying a tray.");
                 return false;
@@ -278,6 +345,19 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
         }
 
         return CanInteract();
+    }
+
+    private bool TryClaimForPlayer()
+    {
+        if (RestaurantTaskClaim.TryClaimPlayer(tray))
+            return true;
+
+        ShowWarning(RestaurantTaskClaim.PlayerHasActiveTask
+            ? "Finish your current task first."
+            : mode == TrayMode.Cleanup
+                ? "The busser is already collecting this tray."
+                : "The waiter is already collecting this order.");
+        return false;
     }
 
     private void CheckCleanupState()
@@ -311,6 +391,12 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
 
     private void RefreshUI()
     {
+        if (claimedByStaff || (tray != null && RestaurantTaskClaim.IsClaimedByBot(tray)))
+        {
+            HideUI();
+            return;
+        }
+
         if (pickupRequested)
         {
             HideUI();
@@ -337,7 +423,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
                 return;
             }
 
-            if (WaiterHands.Instance == null || WaiterHands.Instance.HasTray || WaiterHands.Instance.HasBill)
+            if (WaiterHands.ActivePlayerHands == null || WaiterHands.ActivePlayerHands.HasTray || WaiterHands.ActivePlayerHands.HasBill)
             {
                 HideUI();
                 return;
@@ -357,7 +443,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
                 return;
             }
 
-            if (BusserHands.Instance == null || BusserHands.Instance.HasTray)
+            if (BusserHands.ActivePlayerHands == null || BusserHands.ActivePlayerHands.HasTray)
             {
                 HideUI();
                 return;

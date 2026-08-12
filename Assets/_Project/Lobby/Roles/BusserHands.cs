@@ -5,6 +5,21 @@ public class BusserHands : MonoBehaviour
 {
     public static BusserHands Instance { get; private set; }
 
+    public static BusserHands ActivePlayerHands
+    {
+        get
+        {
+            if (ManagerPlayer.Active != null)
+            {
+                BusserHands managerHands = ManagerPlayer.Active.GetComponent<BusserHands>();
+                if (managerHands != null)
+                    return managerHands;
+            }
+
+            return Instance;
+        }
+    }
+
     public static event Action OnHandsStateChanged;
 
     [Header("Holding")]
@@ -20,14 +35,16 @@ public class BusserHands : MonoBehaviour
     {
         Debug.Log($"[BusserHands] Awake on {name} id={GetInstanceID()}");
 
-        if (Instance != null && Instance != this)
+        bool belongsToManager = GetComponent<ManagerPlayer>() != null;
+        if (!belongsToManager && Instance != null && Instance != this)
         {
-            Debug.LogWarning($"[BusserHands] Duplicate instance destroyed on {name}");
-            Destroy(gameObject);
+            Debug.LogWarning($"[BusserHands] Duplicate staff instance ignored on {name}");
+            enabled = false;
             return;
         }
 
-        Instance = this;
+        if (!belongsToManager)
+            Instance = this;
         holdingTray = null;
 
         NotifyHandsChanged();
@@ -39,6 +56,18 @@ public class BusserHands : MonoBehaviour
             Instance = null;
     }
 
+    public static BusserHands For(PlayerMovement mover)
+    {
+        if (mover != null)
+        {
+            BusserHands ownedHands = mover.GetComponent<BusserHands>();
+            if (ownedHands != null)
+                return ownedHands;
+        }
+
+        return ActivePlayerHands;
+    }
+
     private void NotifyHandsChanged()
     {
         OnHandsStateChanged?.Invoke();
@@ -47,7 +76,9 @@ public class BusserHands : MonoBehaviour
     public void ClearTray()
     {
         Debug.Log("[BusserHands] ClearTray");
+        FoodTray completedTray = holdingTray;
         holdingTray = null;
+        RestaurantTaskClaim.Complete(completedTray);
         NotifyHandsChanged();
     }
 
@@ -74,13 +105,12 @@ public class BusserHands : MonoBehaviour
 
         holdingTray = tray;
 
-        tray.transform.SetParent(parent, false);
-        tray.transform.localPosition = Vector3.zero;
-        tray.transform.localRotation = Quaternion.identity;
-
-        var col = tray.GetComponentInChildren<Collider>(true);
-        if (col != null)
-            col.enabled = false;
+        WaiterHands.AttachKeepingWorldScale(
+            tray.transform,
+            parent,
+            Vector3.zero,
+            Quaternion.identity);
+        WaiterHands.SetAllColliders(tray.gameObject, false);
 
         Debug.Log($"[BusserHands] PickupTray success: {tray.name}");
 
@@ -92,6 +122,8 @@ public class BusserHands : MonoBehaviour
     {
         var tray = holdingTray;
         holdingTray = null;
+
+        RestaurantTaskClaim.Complete(tray);
 
         if (destroyObject && tray != null)
             Destroy(tray.gameObject);

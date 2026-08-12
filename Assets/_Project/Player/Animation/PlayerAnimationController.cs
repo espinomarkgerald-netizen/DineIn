@@ -18,6 +18,8 @@ public class PlayerAnimationController : MonoBehaviour
     private NavMeshAgent agent;
     private PhotonView photonView;
     private float smoothedSpeed;
+    private bool hasSpeed;
+    private bool hasIsMoving;
 
     private void Awake()
     {
@@ -26,6 +28,17 @@ public class PlayerAnimationController : MonoBehaviour
 
         if (animator == null)
             animator = GetComponentInChildren<Animator>(true);
+
+        if (animator != null)
+        {
+            foreach (AnimatorControllerParameter parameter in animator.parameters)
+            {
+                if (parameter.name == speedParam && parameter.type == AnimatorControllerParameterType.Float)
+                    hasSpeed = true;
+                else if (parameter.name == "IsMoving" && parameter.type == AnimatorControllerParameterType.Bool)
+                    hasIsMoving = true;
+            }
+        }
     }
 
     private void Start()
@@ -55,6 +68,9 @@ public class PlayerAnimationController : MonoBehaviour
             Time.deltaTime * animationSmooth
         );
 
-        animator.SetFloat(speedParam, smoothedSpeed);
+        if (hasSpeed)
+            animator.SetFloat(speedParam, smoothedSpeed);
+        if (hasIsMoving)
+            animator.SetBool("IsMoving", targetSpeed > 0.01f);
     }
 }

@@ -22,7 +22,7 @@ public class WaiterAssignController : MonoBehaviour
         
         if (RoleManager.Instance == null || !RoleManager.Instance.IsActiveRole(gameObject))
             return;
-        if (WaiterHands.Instance != null && WaiterHands.Instance.HasTray)
+        if (WaiterHands.ActivePlayerHands != null && WaiterHands.ActivePlayerHands.HasTray)
             return;
 
         // Mobile

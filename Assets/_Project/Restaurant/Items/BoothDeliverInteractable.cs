@@ -49,7 +49,7 @@ public class BoothDeliverInteractable : MonoBehaviour, IInteractable
         if (RoleManager.Instance == null) return false;
         if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Waiter)) return false;
 
-        var hands = WaiterHands.Instance;
+        var hands = WaiterHands.ActivePlayerHands;
         if (hands == null || !hands.HasTray) return false;
 
         if (booth == null) return false;
@@ -67,7 +67,7 @@ public class BoothDeliverInteractable : MonoBehaviour, IInteractable
         if (RoleManager.Instance == null) return false;
         if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Waiter)) return false;
 
-        var hands = WaiterHands.Instance;
+        var hands = WaiterHands.ActivePlayerHands;
         if (hands == null || !hands.HasTray) return false;
 
         if (booth == null) return false;
@@ -83,7 +83,7 @@ public class BoothDeliverInteractable : MonoBehaviour, IInteractable
     {
         if (!CanAttemptInteract()) return;
 
-        var hands = WaiterHands.Instance;
+        var hands = WaiterHands.For(mover);
         var group = booth.CurrentGroup;
         var tray = hands.holdingTray;
 
@@ -112,12 +112,12 @@ public class BoothDeliverInteractable : MonoBehaviour, IInteractable
         bool ok = hands.TryDeliverTrayTo(group, destroyTrayObject: false);
         if (!ok) return;
 
-        tray.transform.SetParent(tableFoodSpawn, false);
-        tray.transform.localPosition = Vector3.zero;
-        tray.transform.localRotation = Quaternion.identity;
-
-        var col = tray.GetComponentInChildren<Collider>(true);
-        if (col != null) col.enabled = true;
+        WaiterHands.AttachKeepingWorldScale(
+            tray.transform,
+            tableFoodSpawn,
+            Vector3.zero,
+            Quaternion.identity);
+        WaiterHands.SetAllColliders(tray.gameObject, true);
 
         var trayInteractable = tray.GetComponent<FoodTrayInteractable>();
         if (trayInteractable != null)

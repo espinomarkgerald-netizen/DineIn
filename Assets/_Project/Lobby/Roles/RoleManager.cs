@@ -220,6 +220,12 @@ public class RoleManager : MonoBehaviour
 
     public bool IsActiveRole(GameObject obj)
     {
+        if (ManagerPlayer.Active != null && obj == ManagerPlayer.Active.gameObject)
+            return true;
+
+        if (!enabled)
+            return false;
+
         return activeRole == obj;
     }
 
@@ -238,11 +244,23 @@ public class RoleManager : MonoBehaviour
 
     public bool IsActiveRoleType(StaffRole.Role role)
     {
+        if (ManagerPlayer.Active != null && ManagerPlayer.Active.CanPerform(role))
+            return true;
+
+        if (!enabled)
+            return false;
+
         return ActiveRoleType() == role;
     }
 
     public PlayerMovement GetActivePlayerMovement()
     {
+        if (ManagerPlayer.Active != null)
+            return ManagerPlayer.Active.Movement;
+
+        if (!enabled)
+            return null;
+
         if (activeRole == null) return null;
         return activeRole.GetComponent<PlayerMovement>();
     }
@@ -270,9 +288,9 @@ public class RoleManager : MonoBehaviour
         if (busserButton != null) busserButton.gameObject.SetActive(false);
         if (currentRoleText != null) currentRoleText.gameObject.SetActive(false);
 
-        if (Instance == this)
-            Instance = null;
-
+        // Keep the compatibility service discoverable. Runtime interaction code
+        // uses it to resolve the independent Manager even though role switching
+        // and this MonoBehaviour's Update lifecycle are disabled.
         enabled = false;
     }
 }

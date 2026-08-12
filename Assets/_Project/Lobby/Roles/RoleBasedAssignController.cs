@@ -21,11 +21,13 @@ public class RoleBasedAssignController : MonoBehaviour
 
     private CustomerGroup selectedGroup;
     private StaffRole staffRole;
+    private ManagerPlayer managerPlayer;
     private LobbyLineManager lineManager;
 
     private void Awake()
     {
         staffRole = GetComponent<StaffRole>();
+        managerPlayer = GetComponent<ManagerPlayer>();
 
         if (agent == null)
             agent = GetComponent<NavMeshAgent>();
@@ -35,15 +37,18 @@ public class RoleBasedAssignController : MonoBehaviour
 
     private void Update()
     {
-        if (RoleManager.Instance == null || !RoleManager.Instance.IsActiveRole(gameObject))
+        bool isManager = managerPlayer != null && managerPlayer.isActiveAndEnabled;
+        bool isLegacyActiveRole = RoleManager.Instance != null &&
+                                  RoleManager.Instance.IsActiveRole(gameObject);
+        if (!isManager && !isLegacyActiveRole)
             return;
 
-        if (staffRole == null)
+        if (!isManager && staffRole == null)
             return;
 
-        if (staffRole.role == StaffRole.Role.Waiter)
+        if (staffRole != null && staffRole.role == StaffRole.Role.Waiter)
         {
-            if (WaiterHands.Instance != null && WaiterHands.Instance.HasTray)
+            if (WaiterHands.ActivePlayerHands != null && WaiterHands.ActivePlayerHands.HasTray)
                 return;
         }
 
@@ -86,6 +91,12 @@ public class RoleBasedAssignController : MonoBehaviour
 
         System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
 
+        if (managerPlayer != null && managerPlayer.Can(ManagerPlayer.Capability.Host))
+        {
+            HandleHostTap(hits, cam);
+            return;
+        }
+
         switch (staffRole.role)
         {
             case StaffRole.Role.Host:
@@ -120,6 +131,22 @@ public class RoleBasedAssignController : MonoBehaviour
 
                 if (!CanHostSelectGroup(group))
                     return;
+
+                // Selecting a waiting group only reveals the offer. Ownership
+                // begins when the player presses Greet, so the receptionist may
+                // take over after the one-second response window if they do not.
+                if (group.IsReceptionClaimedByBot || RestaurantTaskClaim.IsClaimedByBot(group))
+                {
+                    ShowWarning("The receptionist is already helping this group.");
+                    return;
+                }
+
+                if (RestaurantTaskClaim.PlayerHasActiveTask &&
+                    !RestaurantTaskClaim.IsClaimedByPlayer(group))
+                {
+                    ShowWarning("Finish your current task first.");
+                    return;
+                }
 
                 CustomerGreetBubbleSpawner.Instance?.Show(
                     group,
@@ -249,9 +276,13 @@ public class RoleBasedAssignController : MonoBehaviour
     public void BeginAssignFromBubble(CustomerGroup group)
     {
         if (group == null) return;
-        if (RoleManager.Instance == null) return;
-        if (!RoleManager.Instance.IsActiveRole(gameObject)) return;
-        if (staffRole == null || staffRole.role != StaffRole.Role.Host) return;
+        bool managerCanHost = managerPlayer != null &&
+                              managerPlayer.Can(ManagerPlayer.Capability.Host);
+        bool legacyHost = RoleManager.Instance != null &&
+                          RoleManager.Instance.IsActiveRole(gameObject) &&
+                          staffRole != null &&
+                          staffRole.role == StaffRole.Role.Host;
+        if (!managerCanHost && !legacyHost) return;
 
         if (BoothAssignArrowManager.Instance == null)
         {
@@ -293,29 +324,74 @@ public class RoleBasedAssignController : MonoBehaviour
             return;
         }
 
-        if (agent != null && booth.approachPoint != null)
-            agent.SetDestination(booth.approachPoint.position);
+        // The choice has been made. Remove the indicator immediately while
+        // the Manager walks to the booth and completes the seating action.
+        BoothAssignArrowManager.Instance?.HideAll();
 
-        void HandleSeated(CustomerGroup g)
+        void CompleteAssignment()
         {
-            if (g != group) return;
+            if (group == null || booth == null || group.HasBeenAssigned ||
+                !booth.IsAvailableFor(group.Size))
+            {
+                ShowWarning("That table is no longer available.");
+                RestaurantTaskClaim.ReleasePlayer(group);
+                BoothAssignArrowManager.Instance?.HideAll();
+                return;
+            }
+
+            void HandleSeated(CustomerGroup g)
+            {
+                if (g != group) return;
+
+                group.OnGroupSeated -= HandleSeated;
+
+                if (booth != null)
+                    booth.SpawnMenuBook();
+            }
 
             group.OnGroupSeated -= HandleSeated;
+            group.OnGroupSeated += HandleSeated;
 
-            if (booth != null)
-                booth.SpawnMenuBook();
+            group.AssignToBooth(booth);
+            group.CompleteReceptionTask();
+            RestaurantTaskClaim.Complete(group);
+
+            group.SetSelected(false);
+            selectedGroup = null;
+
+            CustomerGreetBubbleSpawner.Instance?.Hide();
+            BoothAssignArrowManager.Instance?.HideAll();
         }
 
-        group.OnGroupSeated -= HandleSeated;
-        group.OnGroupSeated += HandleSeated;
+        if (managerPlayer != null && managerPlayer.Movement != null)
+        {
+            Transform approach = booth.approachPoint != null
+                ? booth.approachPoint
+                : booth.transform;
 
-        group.AssignToBooth(booth);
+            managerPlayer.Movement.UI_MoveToAction(
+                approach,
+                2.75f,
+                CompleteAssignment,
+                () =>
+                {
+                    if (group != null)
+                    {
+                        group.SetSelected(false);
+                        group.ReleasePlayerReceptionTask();
+                        RestaurantTaskClaim.ReleasePlayer(group);
+                    }
 
-        group.SetSelected(false);
-        selectedGroup = null;
+                    selectedGroup = null;
+                    BoothAssignArrowManager.Instance?.HideAll();
+                });
+            return;
+        }
 
-        CustomerGreetBubbleSpawner.Instance?.Hide();
-        BoothAssignArrowManager.Instance?.HideAll();
+        if (agent != null && agent.isOnNavMesh && booth.approachPoint != null)
+            agent.SetDestination(booth.approachPoint.position);
+
+        CompleteAssignment();
     }
 
     private void ShowWarning(string message)

@@ -223,7 +223,14 @@ public class OrderChecklistUI : MonoBehaviour
         }
 
         if (group != null)
+        {
             group.SetOrderPause(false);
+            if (group.state == CustomerGroup.GroupState.ReadyToOrder)
+            {
+                RestaurantTaskClaim.ReleasePlayer(group);
+                group.SetOrderTaskClaimedByStaff(false);
+            }
+        }
 
         group = null;
         requestedContents.Clear();
@@ -665,6 +672,7 @@ public class OrderChecklistUI : MonoBehaviour
         group.currentOrder.quantity = group.submittedOrder.quantity;
 
         group.TakeOrderFromWaiter(mainFood, selectedDrink);
+        RestaurantTaskClaim.Complete(group);
 
         if (group.IsTakeout)
         {

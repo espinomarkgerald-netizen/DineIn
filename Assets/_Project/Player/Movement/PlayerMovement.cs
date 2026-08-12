@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using UnityEngine;
 using UnityEngine.AI;
@@ -6,6 +7,70 @@ using UnityEngine.EventSystems;
 [RequireComponent(typeof(NavMeshAgent))]
 public class PlayerMovement : MonoBehaviour
 {
+    private sealed class DeferredInteraction : IInteractable, ICancelableTaskTarget
+    {
+        private readonly Transform standPoint;
+        private readonly float interactRadius;
+        private Action onArrived;
+        private Action onCancelled;
+        private bool finished;
+
+        public DeferredInteraction(
+            Transform targetStandPoint,
+            float targetInteractRadius,
+            Action arrived,
+            Action cancelled)
+        {
+            standPoint = targetStandPoint;
+            interactRadius = Mathf.Max(0.25f, targetInteractRadius);
+            onArrived = arrived;
+            onCancelled = cancelled;
+        }
+
+        public Transform StandPoint => standPoint;
+        public bool AutoReturnHome => false;
+        public bool CanInteract() => !finished && standPoint != null;
+        public float GetInteractRadius() => interactRadius;
+
+        public void Interact(PlayerMovement mover)
+        {
+            if (finished) return;
+            finished = true;
+            Action callback = onArrived;
+            Action recovery = onCancelled;
+            onArrived = null;
+            onCancelled = null;
+
+            try
+            {
+                callback?.Invoke();
+            }
+            catch (Exception exception)
+            {
+                Debug.LogException(exception);
+                recovery?.Invoke();
+            }
+        }
+
+        public void OnTaskCancelled()
+        {
+            if (finished) return;
+            finished = true;
+            Action callback = onCancelled;
+            onArrived = null;
+            onCancelled = null;
+
+            try
+            {
+                callback?.Invoke();
+            }
+            catch (Exception exception)
+            {
+                Debug.LogException(exception);
+            }
+        }
+    }
+
     public enum State
     {
         IdleAtHome,
@@ -16,7 +81,7 @@ public class PlayerMovement : MonoBehaviour
 
     [Header("Click / Move")]
     [SerializeField] private float rayDistance = 300f;
-    [SerializeField] private LayerMask clickMask;
+    [SerializeField] private LayerMask clickMask = ~0;
     [SerializeField] private float tapThreshold = 10f;
 
     [Header("Arrival")]
@@ -65,6 +130,7 @@ public class PlayerMovement : MonoBehaviour
     private IInteractable lockedTarget;
 
     private float defaultStoppingDistance;
+    private int destinationIssuedFrame = -1;
 
     public NavMeshAgent Agent => agent;
     public Animator Animator => animator;
@@ -179,6 +245,15 @@ public class PlayerMovement : MonoBehaviour
         if (taskLocked)
             return;
 
+        if (activeCam == null)
+        {
+            activeCam = PlayerSetup.FindActiveSceneCamera();
+            if (activeCam == null)
+                activeCam = Camera.main;
+            if (activeCam == null)
+                return;
+        }
+
         RegisterCommand();
 
         Ray ray = activeCam.ScreenPointToRay(screenPos);
@@ -187,10 +262,11 @@ public class PlayerMovement : MonoBehaviour
 
         System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
 
-        bool isCarryingTray = WaiterHands.Instance != null && WaiterHands.Instance.HasTray;
-        bool isCarryingBill = WaiterHands.Instance != null && WaiterHands.Instance.HasBill;
-        bool isCarryingMoney = WaiterHands.Instance != null && WaiterHands.Instance.HasMoney;
-        bool isCarryingBag = TakeoutBagInteractable.HasHeldBag;
+        WaiterHands ownedHands = WaiterHands.For(this);
+        bool isCarryingTray = ownedHands != null && ownedHands.HasTray;
+        bool isCarryingBill = ownedHands != null && ownedHands.HasBill;
+        bool isCarryingMoney = ownedHands != null && ownedHands.HasMoney;
+        bool isCarryingBag = TakeoutBagInteractable.PlayerHasHeldBag;
 
         IInteractable bestTarget = null;
         RaycastHit bestHit = default;
@@ -321,13 +397,12 @@ public class PlayerMovement : MonoBehaviour
         interactFired = false;
 
         state = State.MovingToTarget;
-        agent.isStopped = false;
-        agent.ResetPath();
 
         float targetRadius = Mathf.Max(0f, target.GetInteractRadius());
         agent.stoppingDistance = Mathf.Max(defaultStoppingDistance, targetRadius * interactStopMultiplier);
 
-        agent.SetDestination(currentDestination);
+        if (!TryStartPath(currentDestination))
+            FailCurrentMove("That task cannot be reached from here.");
     }
 
     private void TickArrival()
@@ -349,7 +424,19 @@ public class PlayerMovement : MonoBehaviour
 
         if (!agent.hasPath)
         {
-            HandleArrival();
+            // SetDestination may not expose its path until the following frame.
+            // Do not reject a valid UI-triggered interaction during that handoff.
+            if (Time.frameCount <= destinationIssuedFrame + 1)
+                return;
+
+            FailCurrentMove("That task cannot be reached from here.");
+            return;
+        }
+
+        if (agent.pathStatus != NavMeshPathStatus.PathComplete)
+        {
+            if (agent.velocity.sqrMagnitude <= 0.01f)
+                FailCurrentMove("That task cannot be reached from here.");
             return;
         }
 
@@ -395,6 +482,13 @@ public class PlayerMovement : MonoBehaviour
 
         var target = currentTarget;
         target.Interact(this);
+
+        // Some interactions intentionally chain into a second destination
+        // (for example, a busser picks up a dirty tray and immediately walks to
+        // the sink). Do not let completion of the first target cancel that move.
+        if (state == State.MovingToTarget && currentTarget != null &&
+            !ReferenceEquals(currentTarget, target))
+            return;
 
         if (target.AutoReturnHome)
         {
@@ -485,11 +579,9 @@ public class PlayerMovement : MonoBehaviour
         interactFired = false;
 
         state = State.ReturningHome;
-
-        agent.isStopped = false;
-        agent.ResetPath();
         agent.stoppingDistance = defaultStoppingDistance;
-        agent.SetDestination(currentDestination);
+        if (!TryStartPath(currentDestination))
+            FailCurrentMove(null);
     }
 
     public void GoHomeImmediate()
@@ -523,6 +615,38 @@ public class PlayerMovement : MonoBehaviour
         MoveToInteractable(target, stand, worldPos);
     }
 
+    /// <summary>
+    /// Runs a UI-selected interaction only after the Manager has physically
+    /// reached its booth/customer approach point.
+    /// </summary>
+    public bool UI_MoveToAction(
+        Transform standPoint,
+        float interactRadius,
+        Action onArrived,
+        Action onCancelled = null)
+    {
+        if (standPoint == null || onArrived == null)
+            return false;
+
+        if (taskLocked)
+        {
+            onCancelled?.Invoke();
+            return false;
+        }
+
+        NotifyTaskCancelled();
+
+        DeferredInteraction interaction = new DeferredInteraction(
+            standPoint,
+            interactRadius,
+            onArrived,
+            onCancelled);
+
+        LockTask(interaction);
+        UI_MoveTo(interaction);
+        return currentTarget == interaction && state == State.MovingToTarget;
+    }
+
     public void UI_MoveToPoint(Vector3 worldPoint)
     {
         if (taskLocked)
@@ -538,10 +662,9 @@ public class PlayerMovement : MonoBehaviour
         interactFired = false;
 
         state = State.MovingToTarget;
-        agent.isStopped = false;
-        agent.ResetPath();
         agent.stoppingDistance = defaultStoppingDistance;
-        agent.SetDestination(currentDestination);
+        if (!TryStartPath(currentDestination))
+            FailCurrentMove("That destination cannot be reached.");
     }
 
     public void LockTask(IInteractable target)
@@ -593,7 +716,7 @@ public class PlayerMovement : MonoBehaviour
 
     private void ForceStopAgent()
     {
-        if (agent == null) return;
+        if (agent == null || !agent.enabled || !agent.isOnNavMesh) return;
 
         agent.isStopped = true;
         agent.ResetPath();
@@ -604,6 +727,78 @@ public class PlayerMovement : MonoBehaviour
             animator.SetFloat("Speed", 0f);
             animator.SetBool("IsMoving", false);
         }
+    }
+
+    private bool TryStartPath(Vector3 requestedDestination)
+    {
+        if (agent == null || !agent.enabled)
+            return false;
+
+        if (!agent.isOnNavMesh &&
+            NavMesh.SamplePosition(transform.position, out NavMeshHit startHit, 3f, agent.areaMask))
+        {
+            agent.Warp(startHit.position);
+        }
+
+        if (!agent.isOnNavMesh)
+        {
+            Debug.LogWarning($"[PlayerMovement] {name} is not on an active NavMesh.", this);
+            return false;
+        }
+
+        // Booth/item anchors are often authored at tabletop or UI height.
+        // Resolve their X/Z against the Manager's current NavMesh floor so an
+        // elevated interaction point does not falsely report as unreachable.
+        Vector3 floorProbe = requestedDestination;
+        floorProbe.y = agent.nextPosition.y;
+
+        if (!NavMesh.SamplePosition(
+                floorProbe,
+                out NavMeshHit hit,
+                3f,
+                agent.areaMask))
+        {
+            Debug.LogWarning(
+                $"[PlayerMovement] No walkable point found near {requestedDestination}.",
+                this);
+            return false;
+        }
+
+        NavMeshPath path = new NavMeshPath();
+        if (!agent.CalculatePath(hit.position, path) ||
+            path.status != NavMeshPathStatus.PathComplete)
+        {
+            Debug.LogWarning(
+                $"[PlayerMovement] No complete path found to {hit.position}.",
+                this);
+            return false;
+        }
+
+        currentDestination = hit.position;
+        agent.isStopped = false;
+        agent.ResetPath();
+        bool accepted = agent.SetDestination(currentDestination);
+        destinationIssuedFrame = accepted ? Time.frameCount : -1;
+        return accepted;
+    }
+
+    private void FailCurrentMove(string warning)
+    {
+        NotifyTaskCancelled();
+        UnlockTask();
+        currentTarget = null;
+        currentStandPoint = null;
+        destinationIssuedFrame = -1;
+        interactFired = false;
+        state = State.IdleAtHome;
+
+        if (agent != null)
+            agent.stoppingDistance = defaultStoppingDistance;
+
+        ForceStopAgent();
+
+        if (!string.IsNullOrEmpty(warning))
+            WarningSlideUI.Instance?.Show(warning);
     }
 
     private float GetPlanarDistanceToCurrentTarget()

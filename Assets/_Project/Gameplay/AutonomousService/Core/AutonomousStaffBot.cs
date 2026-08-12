@@ -172,6 +172,18 @@ public class AutonomousStaffBot : MonoBehaviour
 
     public void SetCarrying(bool value)
     {
+        // The lobby carry controller is exclusively the two-handed tray pose.
+        // Bills, money and bags remain attached to their hand anchors while the
+        // bot keeps its normal idle/walk animation.
+        WaiterHands waiterHands = GetComponent<WaiterHands>();
+        BusserHands busserHands = GetComponent<BusserHands>();
+        if (waiterHands != null || busserHands != null)
+        {
+            carrying = (waiterHands != null && waiterHands.HasTray) ||
+                       (busserHands != null && busserHands.HasTray);
+            return;
+        }
+
         carrying = value;
     }
 

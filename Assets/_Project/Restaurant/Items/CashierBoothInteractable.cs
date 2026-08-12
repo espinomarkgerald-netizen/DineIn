@@ -63,7 +63,7 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
 
     public bool CanInteract()
     {
-        var hands = WaiterHands.Instance;
+        var hands = WaiterHands.ActivePlayerHands;
         if (hands == null) return false;
 
         if (hands.HasMoney) return true;
@@ -83,7 +83,7 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
             return;
         }
 
-        var hands = WaiterHands.Instance;
+        var hands = WaiterHands.For(player);
         if (hands == null) return;
 
         // Money must win over ticket here so payment auto-open never accidentally
@@ -162,7 +162,7 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
         var mover = RoleManager.Instance.GetActivePlayerMovement();
         if (mover == null) return;
 
-        var hands = WaiterHands.Instance;
+        var hands = WaiterHands.ActivePlayerHands;
         if (hands == null) return;
 
         if (!hands.HasMoney)
@@ -296,7 +296,7 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
 
     private bool TryPickupClosestBillPaper()
     {
-        var hands = WaiterHands.Instance;
+        var hands = WaiterHands.ActivePlayerHands;
         if (hands == null || hands.HasBill) return false;
 
         var bills = GetAllBills();
@@ -343,7 +343,7 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
 
     private bool TryPickupBillForGroup(CustomerGroup target)
     {
-        var hands = WaiterHands.Instance;
+        var hands = WaiterHands.ActivePlayerHands;
         if (hands == null || hands.HasBill) return false;
         if (target == null) return false;
 

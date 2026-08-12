@@ -21,12 +21,15 @@ public class TakeoutBagInteractable : MonoBehaviour
     [SerializeField] private List<string> deliveredContents = new();
 
     private bool isHeld;
+    private bool heldByPlayer;
     private GameObject uiInstance;
+    private bool claimedByStaff;
 
     public CustomerGroup TargetGroup => targetGroup;
     public int OrderNumber => orderNumber;
     public List<string> DeliveredContents => new(deliveredContents);
     public static bool HasHeldBag => HeldBag != null;
+    public static bool PlayerHasHeldBag => HeldBag != null && HeldBag.heldByPlayer;
 
     private void Awake()
     {
@@ -43,6 +46,7 @@ public class TakeoutBagInteractable : MonoBehaviour
 
     private void OnDestroy()
     {
+        RestaurantTaskClaim.Complete(this);
         HideUI();
     }
 
@@ -69,31 +73,57 @@ public class TakeoutBagInteractable : MonoBehaviour
     /// <summary>Picks up the bag and attaches it to the waiter's hold point.</summary>
     public void TryPickup()
     {
+        WaiterHands hands = WaiterHands.ActivePlayerHands;
+        if (hands == null)
+            return;
+
+        if (!TryPickupInternal(hands, true))
+            return;
+    }
+
+    /// <summary>Autonomous waiter entry point; never redirects into Manager hands.</summary>
+    public bool TryPickupForStaff(WaiterHands hands)
+    {
+        return TryPickupInternal(hands, false);
+    }
+
+    private bool TryPickupInternal(WaiterHands hands, bool playerInitiated)
+    {
         if (isHeld || HeldBag != null)
-            return;
+            return false;
 
-        if (WaiterHands.Instance == null)
-            return;
+        if (hands == null)
+            return false;
 
-        if (WaiterHands.Instance.HasTray || WaiterHands.Instance.HasBill ||
-            WaiterHands.Instance.HasMoney || WaiterHands.Instance.HasTicket)
-            return;
+        if (hands.HasTray || hands.HasBill || hands.HasMoney || hands.HasTicket)
+            return false;
+
+        if (playerInitiated && !RestaurantTaskClaim.TryClaimPlayer(this))
+        {
+            WarningSlideUI.Instance?.Show(RestaurantTaskClaim.PlayerHasActiveTask
+                ? "Finish your current task first."
+                : "The waiter is already collecting this takeout order.");
+            return false;
+        }
 
         isHeld = true;
+        heldByPlayer = playerInitiated;
         HeldBag = this;
 
         HideUI();
 
-        Transform holdPoint = WaiterHands.Instance.TrayHoldPoint;
-        transform.SetParent(holdPoint, false);
-        transform.localPosition = holdLocalPosition;
-        transform.localEulerAngles = holdLocalEulerAngles;
+        Transform holdPoint = hands.TrayHoldPoint;
+        WaiterHands.AttachKeepingWorldScale(
+            transform,
+            holdPoint,
+            holdLocalPosition,
+            Quaternion.Euler(holdLocalEulerAngles));
 
-        if (clickCollider != null)
-            clickCollider.enabled = false;
+        WaiterHands.SetAllColliders(gameObject, false);
 
         // Highlight the target customer so the waiter knows where to deliver.
         ShowDeliveryHighlight();
+        return true;
     }
 
     /// <summary>
@@ -130,6 +160,8 @@ public class TakeoutBagInteractable : MonoBehaviour
         TakeoutBagInteractable bag = HeldBag;
         HeldBag = null;
         bag.isHeld = false;
+        bag.heldByPlayer = false;
+        RestaurantTaskClaim.Complete(bag);
 
         // Remove the delivery highlight from the target customer.
         bag.ClearDeliveryHighlight();
@@ -140,8 +172,7 @@ public class TakeoutBagInteractable : MonoBehaviour
             return;
         }
 
-        if (bag.clickCollider != null)
-            bag.clickCollider.enabled = true;
+        WaiterHands.SetAllColliders(bag.gameObject, true);
     }
 
     private void ShowDeliveryHighlight()
@@ -166,14 +197,21 @@ public class TakeoutBagInteractable : MonoBehaviour
 
     private void RefreshUI()
     {
+        if (claimedByStaff || RestaurantTaskClaim.IsClaimedByBot(this))
+        {
+            HideUI();
+            return;
+        }
+
         if (isHeld)
         {
             HideUI();
             return;
         }
 
-        if (WaiterHands.Instance == null || WaiterHands.Instance.HasTray || WaiterHands.Instance.HasBill ||
-            WaiterHands.Instance.HasMoney || WaiterHands.Instance.HasTicket || HasHeldBag)
+        WaiterHands hands = WaiterHands.ActivePlayerHands;
+        if (hands == null || hands.HasTray || hands.HasBill ||
+            hands.HasMoney || hands.HasTicket || HasHeldBag)
         {
             HideUI();
             return;
@@ -186,6 +224,15 @@ public class TakeoutBagInteractable : MonoBehaviour
         }
 
         ShowUI();
+    }
+
+    public void SetClaimedByStaff(bool claimed)
+    {
+        claimedByStaff = claimed;
+        if (claimed)
+            HideUI();
+        else
+            RefreshUI();
     }
 
     private void ShowUI()

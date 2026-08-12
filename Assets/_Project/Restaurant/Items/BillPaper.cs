@@ -50,7 +50,7 @@ public class BillPaper : MonoBehaviour, IInteractable, ICancelableTaskTarget
 
     private void Update()
     {
-        if (IsHeldByWaiter())
+        if (IsHeldByAnyWaiter())
         {
             if (!isPickedUp)
                 isPickedUp = true;
@@ -85,18 +85,19 @@ public class BillPaper : MonoBehaviour, IInteractable, ICancelableTaskTarget
     public bool CanInteract()
     {
         if (isPickedUp) return false;
-        if (IsHeldByWaiter()) return false;
+        if (IsHeldByAnyWaiter()) return false;
         if (targetGroup == null) return false;
+        if (RestaurantTaskClaim.IsClaimedByBot(targetGroup)) return false;
         if (RoleManager.Instance == null) return false;
         if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Waiter)) return false;
-        if (WaiterHands.Instance == null) return false;
+        if (WaiterHands.ActivePlayerHands == null) return false;
 
-        return !WaiterHands.Instance.HasBill;
+        return !WaiterHands.ActivePlayerHands.HasBill;
     }
 
     public void Interact(PlayerMovement mover)
     {
-        TryPickup();
+        TryPickup(mover);
     }
 
     public void UI_Pickup()
@@ -104,23 +105,46 @@ public class BillPaper : MonoBehaviour, IInteractable, ICancelableTaskTarget
         if (!CanPickupWithWarning()) return;
         if (RoleManager.Instance == null) return;
 
+        if (!RestaurantTaskClaim.TryClaimPlayer(targetGroup))
+        {
+            ShowWarning(RestaurantTaskClaim.PlayerHasActiveTask
+                ? "Finish your current task first."
+                : "The waiter is already handling this bill.");
+            return;
+        }
+
         var mover = RoleManager.Instance.GetActivePlayerMovement();
-        if (mover == null) return;
+        if (mover == null)
+        {
+            RestaurantTaskClaim.ReleasePlayer(targetGroup);
+            return;
+        }
 
         pickupRequested = true;
         RefreshPickupUI();
         mover.UI_MoveTo(this);
     }
 
-    public bool TryPickup()
+    public bool TryPickup(PlayerMovement mover = null)
     {
         if (isPickedUp) return false;
-        if (IsHeldByWaiter()) return false;
+        if (IsHeldByAnyWaiter()) return false;
         if (!CanPickupWithWarning()) return false;
 
-        var hands = WaiterHands.Instance;
-        if (hands == null) return false;
-        if (hands.HasBill) return false;
+        if (!RestaurantTaskClaim.TryClaimPlayer(targetGroup))
+        {
+            ShowWarning(RestaurantTaskClaim.PlayerHasActiveTask
+                ? "Finish your current task first."
+                : "The waiter is already handling this bill.");
+            return false;
+        }
+
+        var hands = WaiterHands.For(mover);
+        if (hands == null || hands.HasBill)
+        {
+            RestaurantTaskClaim.ReleasePlayer(targetGroup);
+            return false;
+        }
 
         hands.PickupBillPaper(this);
 
@@ -144,9 +168,15 @@ public class BillPaper : MonoBehaviour, IInteractable, ICancelableTaskTarget
     private bool CanPickupWithWarning()
     {
         if (isPickedUp) return false;
-        if (IsHeldByWaiter()) return false;
+        if (IsHeldByAnyWaiter()) return false;
         if (targetGroup == null) return false;
         if (RoleManager.Instance == null) return false;
+
+        if (RestaurantTaskClaim.IsClaimedByBot(targetGroup))
+        {
+            ShowWarning("The waiter is already handling this bill.");
+            return false;
+        }
 
         if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Waiter))
         {
@@ -154,12 +184,12 @@ public class BillPaper : MonoBehaviour, IInteractable, ICancelableTaskTarget
             return false;
         }
 
-        if (WaiterHands.Instance == null) return false;
+        if (WaiterHands.ActivePlayerHands == null) return false;
 
-        if (WaiterHands.Instance.HasBill)
+        if (WaiterHands.ActivePlayerHands.HasBill)
         {
-            int tableNo = WaiterHands.Instance.holdingBillFor != null
-                ? WaiterHands.Instance.holdingBillFor.currentOrderNumber
+            int tableNo = WaiterHands.ActivePlayerHands.holdingBillFor != null
+                ? WaiterHands.ActivePlayerHands.holdingBillFor.currentOrderNumber
                 : -1;
 
             ShowWarning(tableNo >= 0
@@ -178,7 +208,8 @@ public class BillPaper : MonoBehaviour, IInteractable, ICancelableTaskTarget
             spawnPickupUiOnInit &&
             !pickupRequested &&
             !isPickedUp &&
-            !IsHeldByWaiter();
+            !IsHeldByAnyWaiter() &&
+            !RestaurantTaskClaim.IsClaimedByBot(targetGroup);
 
         if (shouldShow)
         {
@@ -192,16 +223,20 @@ public class BillPaper : MonoBehaviour, IInteractable, ICancelableTaskTarget
         }
     }
 
-    private bool IsHeldByWaiter()
+    private bool IsHeldByAnyWaiter()
     {
-        if (WaiterHands.Instance == null)
+        return IsHeldBy(WaiterHands.ActivePlayerHands) ||
+               IsHeldBy(WaiterHands.Instance);
+    }
+
+    private bool IsHeldBy(WaiterHands hands)
+    {
+        if (hands == null)
             return false;
 
-        var holdPoint = WaiterHands.Instance.BillHoldPoint;
-        if (holdPoint == null)
-            return false;
-
-        return transform == holdPoint || transform.IsChildOf(holdPoint);
+        Transform holdPoint = hands.BillHoldPoint;
+        return holdPoint != null &&
+               (transform == holdPoint || transform.IsChildOf(holdPoint));
     }
 
     private void SpawnPickupUI()
@@ -241,13 +276,18 @@ public class BillPaper : MonoBehaviour, IInteractable, ICancelableTaskTarget
 
     public void OnTaskCancelled()
     {
-        if (isPickedUp || IsHeldByWaiter())
+        if (isPickedUp || IsHeldByAnyWaiter())
             return;
 
+        RestaurantTaskClaim.ReleasePlayer(targetGroup);
         pickupRequested = false;
         RefreshPickupUI();
     }
 
     private void OnDisable() => ClearPickupUI();
-    private void OnDestroy() => ClearPickupUI();
+    private void OnDestroy()
+    {
+        RestaurantTaskClaim.ReleasePlayer(targetGroup);
+        ClearPickupUI();
+    }
 }

@@ -40,7 +40,7 @@ public class CustomerGreetBubbleUI : MonoBehaviour
         }
         else
         {
-            label.text = "Assign to Table";
+            label.text = "Seat Table";
             icon.sprite = assignSprite;
         }
     }
@@ -51,12 +51,98 @@ public class CustomerGreetBubbleUI : MonoBehaviour
 
         if (!group.hasBeenGreeted)
         {
+            if (!RestaurantTaskClaim.TryClaimPlayer(group))
+            {
+                ShowClaimWarning();
+                return;
+            }
+
+            if (!group.TryClaimReceptionForPlayer())
+            {
+                RestaurantTaskClaim.ReleasePlayer(group);
+                ShowClaimWarning();
+                return;
+            }
+
+            ManagerPlayer movementManager = ManagerPlayer.Active;
+            if (movementManager != null && movementManager.Movement != null)
+            {
+                CustomerGroup targetGroup = group;
+                Transform greetingStandPoint = FindClosestCustomer(
+                    targetGroup,
+                    movementManager.transform.position);
+
+                if (greetingStandPoint == null)
+                {
+                    targetGroup.ReleasePlayerReceptionTask();
+                    RestaurantTaskClaim.ReleasePlayer(targetGroup);
+                    ShowClaimWarning();
+                    return;
+                }
+
+                CustomerGreetBubbleSpawner.Instance?.SetVisibleAndRefresh(targetGroup, false);
+
+                movementManager.Movement.UI_MoveToAction(
+                    greetingStandPoint,
+                    3.4f,
+                    () =>
+                    {
+                        if (targetGroup == null) return;
+
+                        // Preserve the original, proven greet flow: mark the
+                        // group, then refresh this same action into Seat Table.
+                        targetGroup.MarkGreeted();
+                        HostSpeechBubbleSpawner.Instance?.HideImmediate();
+                        CustomerGreetBubbleSpawner.Instance?.SetVisibleAndRefresh(targetGroup, true);
+                        Debug.Log($"Greeted group: {targetGroup.name}");
+                    },
+                    () =>
+                    {
+                        if (targetGroup == null) return;
+                        targetGroup.ReleasePlayerReceptionTask();
+                        RestaurantTaskClaim.ReleasePlayer(targetGroup);
+                        CustomerGreetBubbleSpawner.Instance?.SetVisibleAndRefresh(targetGroup, true);
+                    });
+                return;
+            }
+
             group.MarkGreeted();
-            ShowHostGreetingBubble();
+            HostSpeechBubbleSpawner.Instance?.HideImmediate();
             Refresh();
 
             Debug.Log($"Greeted group: {group.name}");
             return;
+        }
+
+        if (!group.IsReceptionClaimedByPlayer)
+        {
+            // Recover safely if scripts were reloaded between Greet and Assign:
+            // the greeted state lives on the group, so the same player can
+            // re-establish ownership as long as the receptionist did not take it.
+            if (!RestaurantTaskClaim.TryClaimPlayer(group) ||
+                !group.TryClaimReceptionForPlayer())
+            {
+                RestaurantTaskClaim.ReleasePlayer(group);
+                ShowClaimWarning();
+                return;
+            }
+        }
+        else if (!RestaurantTaskClaim.TryClaimPlayer(group))
+        {
+            ShowClaimWarning();
+            return;
+        }
+
+        ManagerPlayer manager = ManagerPlayer.Active;
+        if (manager != null && manager.Can(ManagerPlayer.Capability.Host))
+        {
+            RoleBasedAssignController managerController = manager.GetComponent<RoleBasedAssignController>();
+            if (managerController != null)
+            {
+                managerController.BeginAssignFromBubble(group);
+                HostSpeechBubbleSpawner.Instance?.HideImmediate();
+                return;
+            }
         }
 
         RoleBasedAssignController[] controllers = FindObjectsByType<RoleBasedAssignController>(FindObjectsSortMode.None);
@@ -76,59 +162,39 @@ public class CustomerGreetBubbleUI : MonoBehaviour
         }
 
         Debug.LogWarning("No active host RoleBasedAssignController found for assign action.");
+        group.ReleasePlayerReceptionTask();
+        RestaurantTaskClaim.ReleasePlayer(group);
     }
 
-    private void ShowHostGreetingBubble()
+    private void ShowClaimWarning()
     {
-        RoleBasedAssignController[] controllers = FindObjectsByType<RoleBasedAssignController>(FindObjectsSortMode.None);
+        WarningSlideUI.Instance?.Show(RestaurantTaskClaim.PlayerHasActiveTask
+            ? "Finish your current task first."
+            : "The receptionist is already helping this group.");
+    }
 
-        for (int i = 0; i < controllers.Length; i++)
+    private static Transform FindClosestCustomer(CustomerGroup targetGroup, Vector3 from)
+    {
+        if (targetGroup == null || targetGroup.members == null)
+            return null;
+
+        Transform closest = null;
+        float closestDistance = float.PositiveInfinity;
+
+        for (int i = 0; i < targetGroup.members.Count; i++)
         {
-            var controller = controllers[i];
-            if (controller == null) continue;
+            CustomerAgent member = targetGroup.members[i];
+            if (member == null || !member.gameObject.activeInHierarchy)
+                continue;
 
-            var staffRole = controller.GetComponent<StaffRole>();
-            if (staffRole == null) continue;
-            if (staffRole.role != StaffRole.Role.Host) continue;
-            if (RoleManager.Instance != null && !RoleManager.Instance.IsActiveRole(controller.gameObject)) continue;
+            float distance = (member.transform.position - from).sqrMagnitude;
+            if (distance >= closestDistance)
+                continue;
 
-            Transform anchor = controller.transform;
-
-            HostSpeechBubbleAnchor speechAnchor = controller.GetComponentInChildren<HostSpeechBubbleAnchor>(true);
-            if (speechAnchor != null)
-                anchor = speechAnchor.transform;
-
-            int count = 0;
-
-            if (group.members != null && group.members.Count > 0)
-                count = group.members.Count;
-            else
-                count = group.Size;
-
-            HostSpeechBubbleSpawner.Instance?.ShowForHostGroup(anchor, Camera.main, count);
-            return;
+            closest = member.transform;
+            closestDistance = distance;
         }
 
-        Debug.LogWarning("No active host found for greeting bubble.");
-    }
-
-    private int GetGroupSize()
-    {
-        if (group == null) return 0;
-
-        if (group.members != null && group.members.Count > 0)
-            return group.members.Count;
-
-        return group.Size;
-    }
-
-    private string GetGreetingLabel()
-    {
-        int count = GetGroupSize();
-
-        if (count <= 0)
-            return "Greet Customer";
-
-        return $"Good day, table for {count}?";
+        return closest;
     }
 }
