@@ -76,11 +76,11 @@ public class DailyObjectiveManager : MonoBehaviour
     
 
     [Header("Grade → Approval Delta")]
-    [SerializeField] private int gradeS_Bonus   =  5;
-    [SerializeField] private int gradeA_Bonus   =  3;
-    [SerializeField] private int gradeB_Bonus   =  1;
-    [SerializeField] private int gradeC_Bonus   =  0;
-    [SerializeField] private int gradeF_Penalty = -8;
+    [SerializeField] private int gradeS_Bonus   =  2;
+    [SerializeField] private int gradeA_Bonus   =  1;
+    [SerializeField] private int gradeB_Bonus   =  0;
+    [SerializeField] private int gradeC_Bonus   = -2;
+    [SerializeField] private int gradeF_Penalty = -10;
 
     /// <summary>The three active objectives for the current day. Set by RollObjectivesForDay().</summary>
     public ObjectiveDefinition ActiveMandatory  { get; private set; }
@@ -109,6 +109,42 @@ public class DailyObjectiveManager : MonoBehaviour
 
     private int angryDeparturesToday;
     private int currentDay;
+
+    public void EnsureDefaultObjectives()
+    {
+        if (mandatoryPool.Count == 0)
+        {
+            mandatoryPool.Add(new ObjectiveDefinition
+            {
+                type = ObjectiveType.MinRevenue,
+                descriptionTemplate = "Earn at least {0} today",
+                baseTargetValue = 3500,
+                scalingPerDay = 0.25f
+            });
+        }
+
+        if (secondaryPool.Count == 0)
+        {
+            secondaryPool.Add(new ObjectiveDefinition
+            {
+                type = ObjectiveType.MaxAngryDepartures,
+                descriptionTemplate = "No more than {0} alien groups leave angry",
+                baseTargetValue = 2,
+                scalingPerDay = 0f
+            });
+        }
+
+        if (bonusPool.Count == 0)
+        {
+            bonusPool.Add(new ObjectiveDefinition
+            {
+                type = ObjectiveType.MinGroupsServed,
+                descriptionTemplate = "Serve at least {0} alien groups",
+                baseTargetValue = 2,
+                scalingPerDay = 0.1f
+            });
+        }
+    }
 
     private void Awake()
     {

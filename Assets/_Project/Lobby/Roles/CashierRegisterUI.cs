@@ -65,6 +65,23 @@ public class CashierRegisterUI : MonoBehaviour
     private bool isOpen;
     private bool buttonsBound;
 
+    private RectTransform compactFoodRoot;
+    private RectTransform compactDrinkRoot;
+
+    // The Lobby1 Food/Drink rows are 230 px wide. Keep a dedicated price
+    // column and a visible gap so a full four-person order cannot collide
+    // with, or render outside, its row.
+    private const float CompactItemsWidth = 136f;
+    private const float CompactItemsHeight = 36f;
+    private const float CompactMaxCellWidth = 48f;
+    private const float CompactPriceWidth = 82f;
+
+    private sealed class CompactOrderLine
+    {
+        public readonly List<Recipe> products = new List<Recipe>();
+        public int quantity = 1;
+    }
+
     // Tracks whether this register session ended with a successful Confirm().
     // Set to true by Confirm(), reset to false by OpenForPayment() and CloseRegister().
     // Used to detect abandoned sessions for cash error tracking.
@@ -464,19 +481,7 @@ public class CashierRegisterUI : MonoBehaviour
         if (group == null)
             return 0;
 
-        int groupSize = Mathf.Max(1, group.Size);
-        MenuCatalog catalog = MenuCatalog.Default;
-
-        if (catalog != null)
-            return catalog.GetOrderTotal(group.GetCurrentOrderProductIds()) * groupSize;
-
-        if (OrderChecklistUI.Instance != null)
-            return OrderChecklistUI.Instance.GetOrderTotalFromContents(group.GetCurrentOrderContents()) * groupSize;
-
-        if (group.currentOrder != null)
-            return group.currentOrder.unitPrice * Mathf.Max(1, group.currentOrder.quantity);
-
-        return 0;
+        return group.GetCurrentOrderTotal();
     }
 
     private void RefreshOrderDisplay()
@@ -484,6 +489,7 @@ public class CashierRegisterUI : MonoBehaviour
         if (activeGroup == null || activeGroup.currentOrder == null)
         {
             SetText(tableNumberText, "-");
+            ClearCompactOrderPictures();
             SetFoodDisplay(null, null, 0);
             SetDrinkDisplay(null, 0);
             return;
@@ -491,81 +497,267 @@ public class CashierRegisterUI : MonoBehaviour
 
         SetText(tableNumberText, activeGroup.currentOrderNumber.ToString());
 
-        List<string> contents = activeGroup.GetCurrentOrderContents();
-
-        string firstFood = null;
-        string secondFood = null;
-        string drink = null;
-
-        for (int i = 0; i < contents.Count; i++)
-        {
-            string item = contents[i];
-
-            if (IsDrink(item))
-            {
-                if (string.IsNullOrEmpty(drink))
-                    drink = item;
-            }
-            else
-            {
-                if (string.IsNullOrEmpty(firstFood))
-                    firstFood = item;
-                else if (string.IsNullOrEmpty(secondFood))
-                    secondFood = item;
-            }
-        }
-
-        int foodPrice = 0;
-        int drinkPrice = 0;
-
-        if (OrderChecklistUI.Instance != null)
-        {
-            foodPrice = OrderChecklistUI.Instance.GetFoodTotalFromContents(contents);
-            drinkPrice = OrderChecklistUI.Instance.GetDrinkTotalFromContents(contents);
-        }
-        else
-        {
-            foodPrice = GetFallbackFoodTotal(contents);
-            drinkPrice = GetFallbackDrinkTotal(contents);
-        }
-
-        SetFoodDisplay(GetItemSprite(firstFood), GetItemSprite(secondFood), foodPrice);
-        SetDrinkDisplay(GetItemSprite(drink), drinkPrice);
+        int foodPrice = activeGroup.GetCurrentOrderCategoryTotal(MenuProductCategory.Food);
+        int drinkPrice = activeGroup.GetCurrentOrderCategoryTotal(MenuProductCategory.Drink);
+        RebuildCompactOrderPictures(foodPrice, drinkPrice);
     }
 
-    private int GetFallbackFoodTotal(List<string> contents)
+    private void RebuildCompactOrderPictures(int foodPrice, int drinkPrice)
     {
-        MenuCatalog catalog = MenuCatalog.Default;
-        if (catalog == null || contents == null)
-            return 0;
+        EnsureCompactOrderRoots();
 
-        List<Recipe> resolved = catalog.ResolveProducts(contents);
-        List<Recipe> foods = resolved.FindAll(product => product.category == MenuProductCategory.Food);
-        MenuBundle bundle = catalog.FindBundle(foods);
-        if (bundle != null) return bundle.GetPrice();
+        // These serialized images belonged to the old two-food/one-drink display.
+        // Keep them as layout anchors, but let the quantity-aware strip render all
+        // current order lines instead.
+        if (foodImage != null) foodImage.enabled = false;
+        if (foodImage2 != null) foodImage2.enabled = false;
+        if (drinkImage != null) drinkImage.enabled = false;
 
-        int total = 0;
-        for (int i = 0; i < foods.Count; i++)
-            total += foods[i].sellPrice;
+        List<CompactOrderLine> foodLines = BuildCompactOrderLines(MenuProductCategory.Food);
+        List<CompactOrderLine> drinkLines = BuildCompactOrderLines(MenuProductCategory.Drink);
 
-        return total;
+        PopulateCompactOrderRoot(compactFoodRoot, foodLines);
+        PopulateCompactOrderRoot(compactDrinkRoot, drinkLines);
+
+        SetText(foodPriceText, foodLines.Count > 0 ? FormatMoney(foodPrice) : string.Empty);
+        SetText(drinkPriceText, drinkLines.Count > 0 ? FormatMoney(drinkPrice) : string.Empty);
     }
 
-    private int GetFallbackDrinkTotal(List<string> contents)
+    private List<CompactOrderLine> BuildCompactOrderLines(MenuProductCategory category)
     {
-        MenuCatalog catalog = MenuCatalog.Default;
-        if (catalog == null || contents == null)
-            return 0;
+        List<CompactOrderLine> result = new List<CompactOrderLine>();
+        if (activeGroup == null)
+            return result;
 
-        List<Recipe> products = catalog.ResolveProducts(contents);
-        int total = 0;
-        for (int i = 0; i < products.Count; i++)
+        MenuCatalog catalog = MenuCatalog.Default;
+        if (catalog == null)
+            return result;
+
+        IReadOnlyList<CustomerGroup.OrderLine> sourceLines = activeGroup.GetCurrentOrderLines();
+        if (sourceLines.Count > 0)
         {
-            if (products[i].category == MenuProductCategory.Drink)
-                total += products[i].sellPrice;
+            for (int i = 0; i < sourceLines.Count; i++)
+            {
+                CustomerGroup.OrderLine sourceLine = sourceLines[i];
+                if (sourceLine == null)
+                    continue;
+
+                List<Recipe> products = sourceLine.ResolveProducts(catalog);
+                CompactOrderLine displayLine = new CompactOrderLine
+                {
+                    quantity = Mathf.Max(1, sourceLine.quantity)
+                };
+
+                for (int p = 0; p < products.Count; p++)
+                {
+                    Recipe product = products[p];
+                    if (product != null && product.category == category)
+                        displayLine.products.Add(product);
+                }
+
+                if (displayLine.products.Count > 0)
+                    result.Add(displayLine);
+            }
+
+            return result;
         }
 
-        return total;
+        // Compatibility for older runtime orders that predate quantity-aware lines.
+        List<Recipe> legacyProducts = activeGroup.currentOrder.ResolveProducts(catalog);
+        for (int i = 0; i < legacyProducts.Count; i++)
+        {
+            Recipe product = legacyProducts[i];
+            if (product == null || product.category != category)
+                continue;
+
+            CompactOrderLine existing = result.Find(
+                line => line.products.Count == 1 && line.products[0] != null &&
+                    line.products[0].ProductId == product.ProductId);
+
+            if (existing != null)
+            {
+                existing.quantity++;
+                continue;
+            }
+
+            CompactOrderLine newLine = new CompactOrderLine();
+            newLine.products.Add(product);
+            result.Add(newLine);
+        }
+
+        return result;
+    }
+
+    private void EnsureCompactOrderRoots()
+    {
+        RectTransform foodContainer = foodImage != null
+            ? foodImage.rectTransform.parent as RectTransform
+            : foodPriceText != null ? foodPriceText.rectTransform.parent as RectTransform : null;
+        RectTransform drinkContainer = drinkImage != null
+            ? drinkImage.rectTransform.parent as RectTransform
+            : drinkPriceText != null ? drinkPriceText.rectTransform.parent as RectTransform : null;
+
+        if (compactFoodRoot == null && foodContainer != null)
+            compactFoodRoot = CreateCompactOrderRoot("Quantity-Aware Food Pictures", foodContainer);
+        if (compactDrinkRoot == null && drinkContainer != null)
+            compactDrinkRoot = CreateCompactOrderRoot("Quantity-Aware Drink Pictures", drinkContainer);
+
+        ConfigureCompactPriceText(foodPriceText, foodContainer);
+        ConfigureCompactPriceText(drinkPriceText, drinkContainer);
+    }
+
+    private static RectTransform CreateCompactOrderRoot(string objectName, RectTransform parent)
+    {
+        GameObject rootObject = new GameObject(
+            objectName, typeof(RectTransform), typeof(RectMask2D));
+        rootObject.layer = parent.gameObject.layer;
+
+        RectTransform rect = rootObject.GetComponent<RectTransform>();
+        rect.SetParent(parent, false);
+        rect.anchorMin = new Vector2(0f, 0.5f);
+        rect.anchorMax = new Vector2(0f, 0.5f);
+        rect.pivot = new Vector2(0f, 0.5f);
+        rect.anchoredPosition = new Vector2(3f, 0f);
+        rect.sizeDelta = new Vector2(CompactItemsWidth, CompactItemsHeight);
+        rect.localScale = Vector3.one;
+        return rect;
+    }
+
+    private static void ConfigureCompactPriceText(TMP_Text priceText, RectTransform container)
+    {
+        if (priceText == null || container == null)
+            return;
+
+        RectTransform rect = priceText.rectTransform;
+        if (rect.parent != container)
+            rect.SetParent(container, false);
+
+        rect.anchorMin = new Vector2(1f, 0.5f);
+        rect.anchorMax = new Vector2(1f, 0.5f);
+        rect.pivot = new Vector2(1f, 0.5f);
+        rect.anchoredPosition = new Vector2(-3f, 0f);
+        rect.sizeDelta = new Vector2(CompactPriceWidth, CompactItemsHeight);
+        rect.localScale = Vector3.one;
+        priceText.alignment = TextAlignmentOptions.MidlineRight;
+        priceText.fontSize = 14f;
+        priceText.enableAutoSizing = true;
+        priceText.fontSizeMin = 8f;
+        priceText.fontSizeMax = 14f;
+        priceText.margin = Vector4.zero;
+        priceText.textWrappingMode = TextWrappingModes.NoWrap;
+        priceText.overflowMode = TextOverflowModes.Truncate;
+        rect.SetAsLastSibling();
+    }
+
+    private static void PopulateCompactOrderRoot(
+        RectTransform root,
+        IReadOnlyList<CompactOrderLine> lines)
+    {
+        if (root == null)
+            return;
+
+        ClearCompactRoot(root);
+        int count = lines != null ? lines.Count : 0;
+        root.gameObject.SetActive(count > 0);
+        if (count == 0)
+            return;
+
+        float cellWidth = Mathf.Min(CompactMaxCellWidth, CompactItemsWidth / count);
+        for (int i = 0; i < count; i++)
+        {
+            CompactOrderLine line = lines[i];
+            if (line == null || line.products.Count == 0)
+                continue;
+
+            GameObject cellObject = new GameObject($"Order Item {i + 1}", typeof(RectTransform));
+            cellObject.layer = root.gameObject.layer;
+            RectTransform cell = cellObject.GetComponent<RectTransform>();
+            cell.SetParent(root, false);
+            cell.anchorMin = new Vector2(0f, 0.5f);
+            cell.anchorMax = new Vector2(0f, 0.5f);
+            cell.pivot = new Vector2(0f, 0.5f);
+            cell.anchoredPosition = new Vector2(i * cellWidth, 0f);
+            cell.sizeDelta = new Vector2(cellWidth, CompactItemsHeight);
+
+            float pictureWidth = Mathf.Max(4f, cellWidth - 12f);
+            float iconSize = Mathf.Min(24f, pictureWidth / line.products.Count);
+            float iconsWidth = iconSize * line.products.Count;
+            float startX = Mathf.Max(0f, (pictureWidth - iconsWidth) * 0.5f);
+
+            for (int p = 0; p < line.products.Count; p++)
+            {
+                Recipe product = line.products[p];
+                GameObject iconObject = new GameObject(
+                    product != null ? product.DisplayName : $"Picture {p + 1}",
+                    typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+                iconObject.layer = cellObject.layer;
+
+                RectTransform iconRect = iconObject.GetComponent<RectTransform>();
+                iconRect.SetParent(cell, false);
+                iconRect.anchorMin = new Vector2(0f, 0.5f);
+                iconRect.anchorMax = new Vector2(0f, 0.5f);
+                iconRect.pivot = new Vector2(0f, 0.5f);
+                iconRect.anchoredPosition = new Vector2(startX + p * iconSize, 0f);
+                iconRect.sizeDelta = new Vector2(iconSize, iconSize);
+
+                Image image = iconObject.GetComponent<Image>();
+                image.sprite = product != null ? product.sprite : null;
+                image.preserveAspect = true;
+                image.raycastTarget = false;
+                image.enabled = image.sprite != null;
+            }
+
+            GameObject quantityObject = new GameObject(
+                "Quantity", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+            quantityObject.layer = cellObject.layer;
+            RectTransform quantityRect = quantityObject.GetComponent<RectTransform>();
+            quantityRect.SetParent(cell, false);
+            quantityRect.anchorMin = new Vector2(1f, 0f);
+            quantityRect.anchorMax = new Vector2(1f, 0f);
+            quantityRect.pivot = new Vector2(1f, 0f);
+            quantityRect.anchoredPosition = Vector2.zero;
+            quantityRect.sizeDelta = new Vector2(Mathf.Min(20f, cellWidth), 15f);
+
+            TextMeshProUGUI quantityText = quantityObject.GetComponent<TextMeshProUGUI>();
+            quantityText.text = $"x{Mathf.Max(1, line.quantity)}";
+            quantityText.fontSize = 11f;
+            quantityText.enableAutoSizing = true;
+            quantityText.fontSizeMin = 7f;
+            quantityText.fontSizeMax = 11f;
+            quantityText.fontStyle = FontStyles.Bold;
+            quantityText.alignment = TextAlignmentOptions.BottomRight;
+            quantityText.color = Color.white;
+            quantityText.raycastTarget = false;
+            quantityText.textWrappingMode = TextWrappingModes.NoWrap;
+            quantityText.overflowMode = TextOverflowModes.Truncate;
+
+            UnityEngine.UI.Outline outline =
+                quantityObject.AddComponent<UnityEngine.UI.Outline>();
+            outline.effectColor = new Color(0f, 0f, 0f, 0.85f);
+            outline.effectDistance = new Vector2(1f, -1f);
+        }
+    }
+
+    private void ClearCompactOrderPictures()
+    {
+        ClearCompactRoot(compactFoodRoot);
+        ClearCompactRoot(compactDrinkRoot);
+        if (compactFoodRoot != null) compactFoodRoot.gameObject.SetActive(false);
+        if (compactDrinkRoot != null) compactDrinkRoot.gameObject.SetActive(false);
+    }
+
+    private static void ClearCompactRoot(RectTransform root)
+    {
+        if (root == null)
+            return;
+
+        for (int i = root.childCount - 1; i >= 0; i--)
+        {
+            Transform child = root.GetChild(i);
+            child.gameObject.SetActive(false);
+            child.SetParent(null, false);
+            Destroy(child.gameObject);
+        }
     }
 
     private void RefreshTotalsDisplay()
@@ -595,6 +787,7 @@ public class CashierRegisterUI : MonoBehaviour
     {
         Debug.Log($"[CashierRegisterUI] ResetDisplay called", this);
         SetText(tableNumberText, "-");
+        ClearCompactOrderPictures();
         SetFoodDisplay(null, null, 0);
         SetDrinkDisplay(null, 0);
 
@@ -658,19 +851,4 @@ public class CashierRegisterUI : MonoBehaviour
         return value.ToString("N2");
     }
 
-    private bool IsDrink(string itemName)
-    {
-        Recipe product = MenuCatalog.Default != null
-            ? MenuCatalog.Default.FindProduct(itemName)
-            : null;
-        return product != null && product.category == MenuProductCategory.Drink;
-    }
-
-    private Sprite GetItemSprite(string itemName)
-    {
-        Recipe product = MenuCatalog.Default != null
-            ? MenuCatalog.Default.FindProduct(itemName)
-            : null;
-        return product != null ? product.sprite : null;
-    }
 }

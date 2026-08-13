@@ -14,9 +14,14 @@ public class MoneyPickup : MonoBehaviour, IInteractable, ICancelableTaskTarget
 
     private Collider cachedCol;
     private MoneyBubbleUI bubbleUI;
+    private bool isPickedUp;
 
     public CustomerGroup TargetGroup => targetGroup;
     public int Amount => amount;
+    public bool IsPickedUp => isPickedUp;
+    public bool IsAvailableForCollection =>
+        !isPickedUp && targetGroup != null && amount > 0 &&
+        targetGroup.state == CustomerGroup.GroupState.NeedsBill;
 
     public Transform StandPoint => standPoint != null ? standPoint : transform;
     public bool AutoReturnHome => autoReturnHome;
@@ -32,6 +37,7 @@ public class MoneyPickup : MonoBehaviour, IInteractable, ICancelableTaskTarget
         amount = moneyAmount;
         standPoint = useStandPoint;
         bubbleUI = ui;
+        isPickedUp = false;
 
         if (cachedCol != null)
             cachedCol.enabled = true;
@@ -40,12 +46,28 @@ public class MoneyPickup : MonoBehaviour, IInteractable, ICancelableTaskTarget
     public void SetBubbleUI(MoneyBubbleUI ui)
     {
         bubbleUI = ui;
+        bubbleUI?.SetClaimedByStaff(RestaurantTaskClaim.IsClaimedByBot(this));
     }
 
     public void SetClaimedByStaff(bool claimed)
     {
+        bubbleUI?.SetClaimedByStaff(claimed);
+    }
+
+    public void NotifyPickedUp()
+    {
+        if (isPickedUp)
+            return;
+
+        isPickedUp = true;
+
+        if (disableColliderWhileHeld && cachedCol != null)
+            cachedCol.enabled = false;
+
         if (bubbleUI != null)
-            bubbleUI.gameObject.SetActive(!claimed);
+            bubbleUI.RemoveBubble();
+
+        bubbleUI = null;
     }
 
     public float GetInteractRadius()
@@ -57,7 +79,7 @@ public class MoneyPickup : MonoBehaviour, IInteractable, ICancelableTaskTarget
     {
         if (RoleManager.Instance == null) return false;
         if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Waiter)) return false;
-        if (targetGroup == null) return false;
+        if (!IsAvailableForCollection) return false;
         if (RestaurantTaskClaim.IsClaimedByBot(this)) return false;
         if (WaiterHands.ActivePlayerHands == null) return false;
 
@@ -141,21 +163,13 @@ public class MoneyPickup : MonoBehaviour, IInteractable, ICancelableTaskTarget
             return false;
         }
 
-        if (disableColliderWhileHeld && cachedCol != null)
-            cachedCol.enabled = false;
-
-        if (bubbleUI != null)
-            bubbleUI.RemoveBubble();
-
-        bubbleUI = null;
         return true;
     }
 
     public void OnTaskCancelled()
     {
         RestaurantTaskClaim.ReleasePlayer(this);
-        if (bubbleUI != null)
-            bubbleUI.gameObject.SetActive(true);
+        SetClaimedByStaff(false);
     }
 
     public bool Matches(CustomerGroup group)

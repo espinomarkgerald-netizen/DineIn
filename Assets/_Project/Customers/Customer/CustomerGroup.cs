@@ -66,6 +66,116 @@ public class CustomerGroup : MonoBehaviour
     }
 
     [Serializable]
+    public class OrderLine
+    {
+        [Tooltip("Stable Recipe product ID or MenuCatalog bundle ID.")]
+        public string itemId;
+        public bool isBundle;
+        public string displayName;
+        public int quantity = 1;
+        public int unitPrice;
+        [Tooltip("Resolved product IDs for one copy of this line.")]
+        public List<string> productIds = new List<string>();
+
+        public int TotalPrice => Mathf.Max(0, unitPrice) * Mathf.Max(1, quantity);
+
+        public void SetProduct(Recipe product, int lineQuantity = 1)
+        {
+            productIds ??= new List<string>();
+            itemId = product != null ? product.ProductId : string.Empty;
+            isBundle = false;
+            displayName = product != null ? product.DisplayName : string.Empty;
+            quantity = Mathf.Max(1, lineQuantity);
+            unitPrice = product != null ? Mathf.Max(0, product.sellPrice) : 0;
+            productIds.Clear();
+            if (product != null)
+                productIds.Add(product.ProductId);
+        }
+
+        public void SetBundle(MenuBundle bundle, int lineQuantity = 1)
+        {
+            productIds ??= new List<string>();
+            itemId = bundle != null ? bundle.bundleId : string.Empty;
+            isBundle = true;
+            displayName = bundle != null ? bundle.displayName : string.Empty;
+            quantity = Mathf.Max(1, lineQuantity);
+            unitPrice = bundle != null ? bundle.GetPrice() : 0;
+            productIds.Clear();
+
+            if (bundle == null)
+                return;
+
+            for (int i = 0; i < bundle.products.Count; i++)
+            {
+                Recipe product = bundle.products[i];
+                if (product != null)
+                    productIds.Add(product.ProductId);
+            }
+        }
+
+        public List<Recipe> ResolveProducts(MenuCatalog catalog = null)
+        {
+            catalog ??= MenuCatalog.Default;
+            if (catalog == null)
+                return new List<Recipe>();
+
+            productIds ??= new List<string>();
+
+            List<Recipe> resolved = new List<Recipe>();
+            if (isBundle)
+            {
+                MenuBundle bundle = catalog.FindBundle(itemId);
+                if (bundle != null)
+                {
+                    displayName = bundle.displayName;
+                    unitPrice = bundle.GetPrice();
+                    resolved.AddRange(bundle.products);
+                }
+            }
+            else
+            {
+                Recipe product = catalog.FindProduct(itemId);
+                if (product != null)
+                {
+                    displayName = product.DisplayName;
+                    unitPrice = Mathf.Max(0, product.sellPrice);
+                    resolved.Add(product);
+                }
+            }
+
+            if (resolved.Count == 0 && productIds.Count > 0)
+                resolved.AddRange(catalog.ResolveProducts(productIds));
+
+            productIds.Clear();
+            productIds.AddRange(catalog.GetProductIds(resolved));
+            quantity = Mathf.Max(1, quantity);
+            return resolved;
+        }
+
+        public bool IsDrink(MenuCatalog catalog = null)
+        {
+            List<Recipe> products = ResolveProducts(catalog);
+            return products.Count > 0 &&
+                products[0].category == MenuProductCategory.Drink;
+        }
+
+        public OrderLine Clone()
+        {
+            return new OrderLine
+            {
+                itemId = itemId,
+                isBundle = isBundle,
+                displayName = displayName,
+                quantity = quantity,
+                unitPrice = unitPrice,
+                productIds = productIds != null
+                    ? new List<string>(productIds)
+                    : new List<string>()
+            };
+        }
+    }
+
+    [Serializable]
     public class SimpleOrder
     {
         public string name;
@@ -75,6 +185,8 @@ public class CustomerGroup : MonoBehaviour
         public List<string> productIds = new List<string>();
         [Tooltip("Display-name snapshot kept for legacy UI and older saved orders.")]
         public List<string> contents = new List<string>();
+        [Tooltip("Quantity-aware menu lines. Bundle lines preserve their MenuCatalog bundle ID.")]
+        public List<OrderLine> lines = new List<OrderLine>();
 
         public int TotalPrice => unitPrice * Mathf.Max(1, quantity);
 
@@ -85,11 +197,15 @@ public class CustomerGroup : MonoBehaviour
 
         public void Clear()
         {
+            productIds ??= new List<string>();
+            contents ??= new List<string>();
+            lines ??= new List<OrderLine>();
             name = string.Empty;
             quantity = 1;
             unitPrice = 0;
             productIds.Clear();
             contents.Clear();
+            lines.Clear();
         }
 
         public List<Recipe> ResolveProducts(MenuCatalog catalog = null)
@@ -97,6 +213,40 @@ public class CustomerGroup : MonoBehaviour
             catalog ??= MenuCatalog.Default;
             if (catalog == null)
                 return new List<Recipe>();
+
+            productIds ??= new List<string>();
+            contents ??= new List<string>();
+            lines ??= new List<OrderLine>();
+
+            if (lines != null && lines.Count > 0)
+            {
+                List<Recipe> lineProducts = new List<Recipe>();
+                productIds.Clear();
+                contents.Clear();
+                unitPrice = 0;
+
+                for (int i = 0; i < lines.Count; i++)
+                {
+                    OrderLine line = lines[i];
+                    if (line == null)
+                        continue;
+
+                    List<Recipe> products = line.ResolveProducts(catalog);
+                    int lineQuantity = Mathf.Max(1, line.quantity);
+                    unitPrice += line.TotalPrice;
+
+                    for (int copy = 0; copy < lineQuantity; copy++)
+                    {
+                        lineProducts.AddRange(products);
+                        productIds.AddRange(catalog.GetProductIds(products));
+                        contents.AddRange(catalog.GetDisplayNames(products));
+                    }
+                }
+
+                quantity = 1;
+                name = lines.Count == 1 ? lines[0].displayName : "Group Order";
+                return lineProducts;
+            }
 
             List<Recipe> resolved = productIds.Count > 0
                 ? catalog.ResolveProducts(productIds)
@@ -129,8 +279,12 @@ public class CustomerGroup : MonoBehaviour
 
         public void SetProducts(IReadOnlyList<Recipe> products, string orderName, int price)
         {
+            productIds ??= new List<string>();
+            contents ??= new List<string>();
+            lines ??= new List<OrderLine>();
             productIds.Clear();
             contents.Clear();
+            lines.Clear();
 
             if (products != null)
             {
@@ -145,6 +299,29 @@ public class CustomerGroup : MonoBehaviour
 
             name = orderName;
             unitPrice = Mathf.Max(0, price);
+        }
+
+        public void SetLines(IReadOnlyList<OrderLine> orderLines, MenuCatalog catalog = null)
+        {
+            lines ??= new List<OrderLine>();
+            productIds ??= new List<string>();
+            contents ??= new List<string>();
+            lines.Clear();
+            productIds.Clear();
+            contents.Clear();
+            name = string.Empty;
+            unitPrice = 0;
+            if (orderLines != null)
+            {
+                for (int i = 0; i < orderLines.Count; i++)
+                {
+                    if (orderLines[i] != null)
+                        lines.Add(orderLines[i].Clone());
+                }
+            }
+
+            quantity = 1;
+            ResolveProducts(catalog);
         }
     }
 
@@ -374,6 +551,10 @@ public class CustomerGroup : MonoBehaviour
     public int Size => members.Count;
 
     private bool hasConfirmedOrder;
+    private bool isPlayerReviewingOrder;
+
+    public bool HasConfirmedOrder => hasConfirmedOrder;
+    public bool IsPlayerReviewingOrder => isPlayerReviewingOrder;
     private bool hasBeenAssigned;
     private bool cleanupDone;
     private bool boothSeatsCleared;
@@ -419,6 +600,25 @@ public class CustomerGroup : MonoBehaviour
     public bool IsReceptionClaimedByBot => receptionTaskOwner == ReceptionTaskOwner.Receptionist;
 
     public void SetOrderPause(bool paused) => isOrderPaused = paused;
+
+    public bool BeginPlayerOrderReview()
+    {
+        if (state != GroupState.ReadyToOrder || hasConfirmedOrder)
+            return false;
+
+        if (isPlayerReviewingOrder)
+            return true;
+
+        isPlayerReviewingOrder = true;
+        isOrderPaused = true;
+        return true;
+    }
+
+    public void EndPlayerOrderReview()
+    {
+        isPlayerReviewingOrder = false;
+        isOrderPaused = false;
+    }
 
     public void SetCustomerType(CustomerType type)
     {
@@ -786,6 +986,7 @@ public class CustomerGroup : MonoBehaviour
     private void ResetOrderFlags()
     {
         hasConfirmedOrder = false;
+        isPlayerReviewingOrder = false;
         receivedWrongOrder = false;
         waitingForRemake = false;
         angryResultLocked = false;
@@ -808,7 +1009,7 @@ public class CustomerGroup : MonoBehaviour
             return;
         }
 
-        List<List<Recipe>> validMeals = new List<List<Recipe>>();
+        List<OrderLine> validMeals = new List<OrderLine>();
         bool simpleMealsOnly =
         TutorialManager.Instance != null &&
         TutorialManager.Instance.TutorialStarted &&
@@ -818,7 +1019,11 @@ public class CustomerGroup : MonoBehaviour
         for (int i = 0; i < foods.Count; i++)
         {
             if (HasProductStock(foods[i]))
-                validMeals.Add(new List<Recipe> { foods[i] });
+            {
+                OrderLine line = new OrderLine();
+                line.SetProduct(foods[i]);
+                validMeals.Add(line);
+            }
         }
 
         if (!simpleMealsOnly)
@@ -827,7 +1032,11 @@ public class CustomerGroup : MonoBehaviour
             for (int i = 0; i < bundles.Count; i++)
             {
                 if (HasAllProductStock(bundles[i].products))
-                    validMeals.Add(new List<Recipe>(bundles[i].products));
+                {
+                    OrderLine line = new OrderLine();
+                    line.SetBundle(bundles[i]);
+                    validMeals.Add(line);
+                }
             }
         }
 
@@ -842,17 +1051,72 @@ public class CustomerGroup : MonoBehaviour
             return;
         }
 
-        List<Recipe> selectedMeal = validMeals[UnityEngine.Random.Range(0, validMeals.Count)];
-        Recipe selectedDrink = availableDrinks[UnityEngine.Random.Range(0, availableDrinks.Count)];
-        List<Recipe> selectedProducts = new List<Recipe>(selectedMeal) { selectedDrink };
-        MenuBundle selectedBundle = catalog.FindBundle(selectedMeal);
-        string orderName = selectedBundle != null
-            ? selectedBundle.displayName
-            : selectedMeal[0].DisplayName;
+        int dinerCount = Mathf.Max(1, Size);
+        int generationAttempts = Mathf.Max(16, dinerCount * 16);
+        List<OrderLine> generatedLines = null;
 
-        int orderPrice = catalog.GetOrderTotal(catalog.GetProductIds(selectedProducts));
-        currentOrder.SetProducts(selectedProducts, orderName, orderPrice);
-        currentOrder.quantity = 1;
+        for (int attempt = 0; attempt < generationAttempts; attempt++)
+        {
+            List<OrderLine> mealLines = new List<OrderLine>();
+            List<OrderLine> drinkLines = new List<OrderLine>();
+            List<Recipe> allProducts = new List<Recipe>();
+
+            for (int memberIndex = 0; memberIndex < dinerCount; memberIndex++)
+            {
+                OrderLine meal = validMeals[UnityEngine.Random.Range(0, validMeals.Count)];
+                AddOrIncrementOrderLine(mealLines, meal);
+                allProducts.AddRange(meal.ResolveProducts(catalog));
+
+                Recipe drink = availableDrinks[UnityEngine.Random.Range(0, availableDrinks.Count)];
+                OrderLine drinkLine = new OrderLine();
+                drinkLine.SetProduct(drink);
+                AddOrIncrementOrderLine(drinkLines, drinkLine);
+                allProducts.Add(drink);
+            }
+
+            if (LobbyStockBridge.Instance != null &&
+                !LobbyStockBridge.Instance.HasOrderStock(allProducts))
+            {
+                continue;
+            }
+
+            generatedLines = mealLines;
+            generatedLines.AddRange(drinkLines);
+            break;
+        }
+
+        if (generatedLines == null || generatedLines.Count == 0)
+        {
+            currentOrder.name = "No Food Available";
+            currentOrder.quantity = 1;
+            currentOrder.unitPrice = 0;
+            return;
+        }
+
+        currentOrder.SetLines(generatedLines, catalog);
+    }
+
+    private static void AddOrIncrementOrderLine(
+        List<OrderLine> destination,
+        OrderLine source)
+    {
+        if (destination == null || source == null)
+            return;
+
+        for (int i = 0; i < destination.Count; i++)
+        {
+            OrderLine existing = destination[i];
+            if (existing == null || existing.isBundle != source.isBundle)
+                continue;
+
+            if (string.Equals(existing.itemId, source.itemId, StringComparison.OrdinalIgnoreCase))
+            {
+                existing.quantity += Mathf.Max(1, source.quantity);
+                return;
+            }
+        }
+
+        destination.Add(source.Clone());
     }
 
     private void SyncLegacyOrderFieldsFromCurrentOrder()
@@ -902,6 +1166,19 @@ public class CustomerGroup : MonoBehaviour
         if (currentOrder == null) return "No Order";
         currentOrder.ResolveProducts();
 
+        if (currentOrder.lines != null && currentOrder.lines.Count > 0)
+        {
+            List<string> lineSummaries = new List<string>();
+            for (int i = 0; i < currentOrder.lines.Count; i++)
+            {
+                OrderLine line = currentOrder.lines[i];
+                if (line != null)
+                    lineSummaries.Add($"{Mathf.Max(1, line.quantity)}x {line.displayName}");
+            }
+
+            return string.Join(", ", lineSummaries);
+        }
+
         string result = "";
 
         for (int i = 0; i < currentOrder.contents.Count; i++)
@@ -913,6 +1190,15 @@ public class CustomerGroup : MonoBehaviour
         }
 
         return result;
+    }
+
+    public IReadOnlyList<OrderLine> GetCurrentOrderLines()
+    {
+        if (currentOrder == null)
+            return Array.Empty<OrderLine>();
+
+        currentOrder.ResolveProducts();
+        return currentOrder.lines ?? (IReadOnlyList<OrderLine>)Array.Empty<OrderLine>();
     }
 
     public List<string> GetCurrentOrderContents()
@@ -983,9 +1269,13 @@ public class CustomerGroup : MonoBehaviour
         return true;
     }
 
-    private int GetOrderTotal()
+    public int GetCurrentOrderTotal()
     {
         if (currentOrder == null) return 0;
+
+        currentOrder.ResolveProducts();
+        if (currentOrder.lines != null && currentOrder.lines.Count > 0)
+            return currentOrder.unitPrice;
 
         int quantity = Mathf.Max(1, currentOrder.quantity);
 
@@ -997,6 +1287,53 @@ public class CustomerGroup : MonoBehaviour
         }
 
         return currentOrder.unitPrice * quantity;
+    }
+
+    public int GetCurrentOrderCategoryTotal(MenuProductCategory category)
+    {
+        if (currentOrder == null)
+            return 0;
+
+        MenuCatalog catalog = MenuCatalog.Default;
+        currentOrder.ResolveProducts(catalog);
+
+        if (currentOrder.lines != null && currentOrder.lines.Count > 0)
+        {
+            int total = 0;
+            for (int i = 0; i < currentOrder.lines.Count; i++)
+            {
+                OrderLine line = currentOrder.lines[i];
+                if (line == null)
+                    continue;
+
+                bool isDrink = line.IsDrink(catalog);
+                if ((category == MenuProductCategory.Drink && isDrink) ||
+                    (category == MenuProductCategory.Food && !isDrink))
+                {
+                    total += line.TotalPrice;
+                }
+            }
+
+            return total;
+        }
+
+        List<Recipe> products = currentOrder.ResolveProducts(catalog);
+        if (category == MenuProductCategory.Food && catalog != null)
+        {
+            List<Recipe> foods = products.FindAll(
+                product => product != null && product.category == MenuProductCategory.Food);
+            return catalog.GetOrderTotal(catalog.GetProductIds(foods)) *
+                Mathf.Max(1, currentOrder.quantity);
+        }
+
+        int legacyTotal = 0;
+        for (int i = 0; i < products.Count; i++)
+        {
+            if (products[i] != null && products[i].category == category)
+                legacyTotal += Mathf.Max(0, products[i].sellPrice);
+        }
+
+        return legacyTotal * Mathf.Max(1, currentOrder.quantity);
     }
 
     private void SpawnOrderBubble()
@@ -1060,9 +1397,54 @@ public class CustomerGroup : MonoBehaviour
         Debug.Log($"[CustomerGroup] Spawned order alert bubble for {name} | order={GetCurrentOrderSummary()}");
     }
 
-    public void TakeOrderFromWaiter(FoodType food, DrinkType drink)
+    public bool TakeOrderFromWaiter(FoodType food, DrinkType drink)
     {
-        if (state != GroupState.ReadyToOrder) return;
+        if (state != GroupState.ReadyToOrder || hasConfirmedOrder)
+            return false;
+
+        if (isPlayerReviewingOrder)
+        {
+            Debug.LogWarning(
+                $"[CustomerGroup] Automated order attempt ignored for {name} while the player is reviewing the notepad.",
+                this);
+            return false;
+        }
+
+        if (LobbyStockBridge.Instance != null)
+        {
+            List<Recipe> products = currentOrder != null
+                ? currentOrder.ResolveProducts()
+                : new List<Recipe>();
+
+            if (products.Count == 0 ||
+                !LobbyStockBridge.Instance.TryUseOrderStock(products))
+            {
+                Debug.LogWarning(
+                    $"[CustomerGroup] Automated order for {name} could not reserve its full quantity from stock.",
+                    this);
+                return false;
+            }
+        }
+
+        return CompleteOrderTaking(food, drink, spawnTicket: true);
+    }
+
+    public bool ConfirmPlayerReviewedOrder(FoodType food, DrinkType drink)
+    {
+        if (!isPlayerReviewingOrder || state != GroupState.ReadyToOrder)
+            return false;
+
+        isPlayerReviewingOrder = false;
+        isOrderPaused = false;
+        // Manager-assisted notepad orders go straight to the kitchen after
+        // confirmation. They do not create a cashier ticket for the player.
+        return CompleteOrderTaking(food, drink, spawnTicket: false);
+    }
+
+    private bool CompleteOrderTaking(FoodType food, DrinkType drink, bool spawnTicket)
+    {
+        if (state != GroupState.ReadyToOrder)
+            return false;
 
         ConfirmOrder(food, drink);
 
@@ -1083,13 +1465,15 @@ public class CustomerGroup : MonoBehaviour
         if (IsTakeout)
         {
             TakeoutFlowManager.Instance?.NotifyOrderTaken(this);
-            return;
+            return true;
         }
 
         SpawnTableNumber();
 
-        if (OrderFlowManager.Instance != null)
+        if (spawnTicket && OrderFlowManager.Instance != null)
             OrderFlowManager.Instance.SpawnTicket(this);
+
+        return true;
     }
 
     public void ConfirmOrder(FoodType food, DrinkType drink)
@@ -1132,7 +1516,8 @@ public class CustomerGroup : MonoBehaviour
 
     public void ReceiveFoodFromWaiter(List<string> deliveredContents)
     {
-        if (state != GroupState.OrderTaken) return;
+        if (state != GroupState.OrderTaken || !hasConfirmedOrder || isPlayerReviewingOrder)
+            return;
 
         bool isCorrectOrder = IsCorrectDeliveredOrder(deliveredContents);
 
@@ -1197,6 +1582,8 @@ public class CustomerGroup : MonoBehaviour
             assignedBooth.ClearMenuBook();
 
         ClearTableNumber();
+        hasConfirmedOrder = false;
+        isPlayerReviewingOrder = false;
         SetState(GroupState.ReadyToOrder);
         ShowThought(angryComments, angryFaceSprite);
 
@@ -1243,7 +1630,7 @@ public class CustomerGroup : MonoBehaviour
         if (moneyBubblePrefab == null) yield break;
         if (assignedBooth == null) yield break;
 
-        int total = GetOrderTotal();
+        int total = GetCurrentOrderTotal();
         int amount = GetCustomerPaymentAmount(total);
 
         pendingPaymentAmount = amount;
@@ -2015,9 +2402,8 @@ public class CustomerGroup : MonoBehaviour
         if (follow != null)
             ConfigureCustomerBubble(follow);
 
-        var ui = eatingBubbleInstance.GetComponentInChildren<EatingBubbleUI>(true);
-        if (ui != null)
-            ui.SetBaseText("Eating");
+        // EatingBubbleUI owns the exact historical live "Eating" presentation
+        // and per-letter animation. Do not override its text or timing here.
     }
 
     private bool HasAllProductStock(IReadOnlyList<Recipe> products)

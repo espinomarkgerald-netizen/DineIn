@@ -318,6 +318,10 @@ public class WaiterHands : MonoBehaviour
         if (group == null || holdingTray == null)
             return false;
 
+        if (group.state != CustomerGroup.GroupState.OrderTaken ||
+            !group.HasConfirmedOrder || group.IsPlayerReviewingOrder)
+            return false;
+
         if (!holdingTray.Matches(group))
         {
             WarningSlideUI.Instance?.Show($"This order is for table {holdingTray.orderNumber}.");
@@ -343,6 +347,7 @@ public class WaiterHands : MonoBehaviour
     {
         if (money == null) return;
         if (HasMoney) return;
+        if (!money.IsAvailableForCollection) return;
 
         var tg = money.TargetGroup;
         var amt = money.Amount;
@@ -350,16 +355,16 @@ public class WaiterHands : MonoBehaviour
         if (tg == null) return;
         if (amt <= 0) return;
 
-        holdingMoneyFor = tg;
-        holdingMoneyAmount = amt;
-        heldMoney = money;
-
         Transform parent = MoneyHoldPoint;
         if (parent == null)
         {
             Debug.LogError("[WaiterHands] MoneyHoldPoint is NULL.");
             return;
         }
+
+        holdingMoneyFor = tg;
+        holdingMoneyAmount = amt;
+        heldMoney = money;
 
         AttachKeepingWorldScale(
             money.transform,
@@ -384,6 +389,11 @@ public class WaiterHands : MonoBehaviour
                 Quaternion.identity);
             SetAllColliders(moneyHeldVisualInstance, false);
         }
+
+        // Both manager-controlled and autonomous waiters use this method. The
+        // pickup owns the one-time transition that disables its collider and
+        // removes the world-space bubble.
+        money.NotifyPickedUp();
 
         NotifyHandsChanged();
     }

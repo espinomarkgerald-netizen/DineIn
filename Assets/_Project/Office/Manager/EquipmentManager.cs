@@ -58,10 +58,41 @@ public class EquipmentManager : MonoBehaviour
                 link.gameObject.SetActive(true);
         }
 
+        GameSaveManager.Instance?.RequestSave();
+
         return true;
     }
 
     public bool Purchased(string itemID) => purchased.Contains(itemID);
+
+    public void Configure(List<Equipment> configuredEquipment)
+    {
+        allEquipment = configuredEquipment != null
+            ? new List<Equipment>(configuredEquipment)
+            : new List<Equipment>();
+    }
+
+    public void FillSaveData(GameSaveData data)
+    {
+        if (data == null)
+            return;
+
+        data.purchasedEquipmentIDs.Clear();
+        data.purchasedEquipmentIDs.AddRange(purchased);
+    }
+
+    public void ApplySaveData(GameSaveData data)
+    {
+        purchased.Clear();
+        if (data?.purchasedEquipmentIDs == null)
+            return;
+
+        foreach (string itemID in data.purchasedEquipmentIDs)
+        {
+            if (!string.IsNullOrWhiteSpace(itemID))
+                purchased.Add(itemID);
+        }
+    }
 
     /// <summary>
     /// Clears all purchase records and deactivates every EquipmentLink in the

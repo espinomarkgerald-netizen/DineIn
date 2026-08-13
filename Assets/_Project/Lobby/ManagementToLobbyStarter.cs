@@ -50,14 +50,12 @@ public class ManagementToLobbyStarter : MonoBehaviour
             if (employee == null)
                 continue;
 
-            if (employee.assignedSlot == null)
+            if (!employee.assigned)
                 continue;
 
-            string roleName = employee.role.ToString();
-
-            if (roleName == "Chef")
+            if (employee.role == EmployeeRole.Chef)
                 chef = employee;
-            else if (roleName == "Barista")
+            else if (employee.role == EmployeeRole.Barista)
                 barista = employee;
         }
 

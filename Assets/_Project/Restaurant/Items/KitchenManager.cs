@@ -78,6 +78,14 @@ public class KitchenManager : MonoBehaviour
             return false;
         }
 
+        if (!group.HasConfirmedOrder || group.IsPlayerReviewingOrder)
+        {
+            Debug.LogWarning(
+                $"[KitchenManager] ProcessOrder ignored for {group.name} because its order is not fully confirmed.",
+                group);
+            return false;
+        }
+
         if (completedOrders.Contains(orderNo))
         {
             Debug.LogWarning($"[KitchenManager] Order #{orderNo} already finished spawning. Duplicate call ignored.");
@@ -236,6 +244,10 @@ public class KitchenManager : MonoBehaviour
             return false;
 
         if (group.currentOrderNumber != orderNo)
+            return false;
+
+        if (group.state != CustomerGroup.GroupState.OrderTaken ||
+            !group.HasConfirmedOrder || group.IsPlayerReviewingOrder)
             return false;
 
         if (completedOrders.Contains(orderNo))

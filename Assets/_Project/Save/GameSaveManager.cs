@@ -18,6 +18,10 @@ public class GameSaveManager : MonoBehaviour
 
     public bool IsApplyingSave { get; private set; }
 
+#if UNITY_EDITOR
+    public bool SuppressWritesForTests { get; set; }
+#endif
+
     private string SavePath => Path.Combine(Application.persistentDataPath, saveFileName);
 
     private bool hasAutoLoaded;
@@ -86,6 +90,16 @@ public class GameSaveManager : MonoBehaviour
 
     public void RequestSave()
     {
+#if UNITY_EDITOR
+        if (SuppressWritesForTests)
+            return;
+#endif
+        // Other managers can request a save from Awake while this manager is
+        // waiting to auto-load in Start. Never overwrite the existing file with
+        // scene defaults during that bootstrap window.
+        if (autoLoadOnStart && !hasAutoLoaded)
+            return;
+
         if (IsApplyingSave)
             return;
 
@@ -94,6 +108,13 @@ public class GameSaveManager : MonoBehaviour
 
     public void SaveGame()
     {
+#if UNITY_EDITOR
+        if (SuppressWritesForTests)
+            return;
+#endif
+        if (autoLoadOnStart && !hasAutoLoaded)
+            return;
+
         GameSaveData data = new GameSaveData();
 
         if (GameFlowManager.Instance != null)
@@ -110,6 +131,15 @@ public class GameSaveManager : MonoBehaviour
 
         if (InventoryManager.Instance != null)
             InventoryManager.Instance.FillSaveData(data);
+
+        if (MenuAvailabilityManager.Instance != null)
+            MenuAvailabilityManager.Instance.FillSaveData(data);
+
+        if (EquipmentManager.Instance != null)
+            EquipmentManager.Instance.FillSaveData(data);
+
+        if (EmployeeManager.Instance != null)
+            EmployeeManager.Instance.FillSaveData(data);
 
         string json = JsonUtility.ToJson(data, true);
         File.WriteAllText(SavePath, json);
@@ -129,6 +159,8 @@ public class GameSaveManager : MonoBehaviour
         }
 
         string json = File.ReadAllText(SavePath);
+        bool requiresFiniteInventoryMigration =
+            !json.Contains("\"inventorySystemVersion\"");
         GameSaveData data = JsonUtility.FromJson<GameSaveData>(json);
 
         if (data == null)
@@ -145,7 +177,20 @@ public class GameSaveManager : MonoBehaviour
                 UnlockManager.Instance.ApplySaveData(data);
 
             if (InventoryManager.Instance != null)
+            {
                 InventoryManager.Instance.ApplySaveData(data);
+                if (requiresFiniteInventoryMigration)
+                    InventoryManager.Instance.EnsureStarterStockForFiniteInventory();
+            }
+
+            if (MenuAvailabilityManager.Instance != null)
+                MenuAvailabilityManager.Instance.ApplySaveData(data);
+
+            if (EquipmentManager.Instance != null)
+                EquipmentManager.Instance.ApplySaveData(data);
+
+            if (EmployeeManager.Instance != null)
+                EmployeeManager.Instance.ApplySaveData(data);
 
             if (MoneyManager.Instance != null)
                 MoneyManager.Instance.ApplySaveData(data);
@@ -165,6 +210,12 @@ public class GameSaveManager : MonoBehaviour
         Debug.Log("[GameSaveManager] Loaded money: " + data.money);
         Debug.Log("[GameSaveManager] Loaded day: " + data.currentDay);
         Debug.Log("[GameSaveManager] Loaded approval: " + data.approval);
+
+        if (requiresFiniteInventoryMigration)
+        {
+            Debug.Log("[GameSaveManager] Migrated the save to finite restaurant stock.");
+            SaveGame();
+        }
     }
 
     public void DeleteSave()

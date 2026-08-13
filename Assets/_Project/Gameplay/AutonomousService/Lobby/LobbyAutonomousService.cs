@@ -16,7 +16,10 @@ public class LobbyAutonomousService : MonoBehaviour
     [SerializeField] private float counterServiceSeconds = 0.7f;
     [SerializeField] private float cleaningSeconds = 1.2f;
     [SerializeField] private float idlePollSeconds = 0.2f;
+    [Tooltip("How often dynamic restaurant objects are refreshed for bot task searches.")]
+    [SerializeField, Min(0.2f)] private float sceneQueryRefreshSeconds = 0.5f;
     [SerializeField, Min(0f)] private float managerReactionSeconds = 1f;
+    [SerializeField, Min(6f)] private float paymentTravelTimeoutSeconds = 20f;
 
     [Header("Customer Clearance")]
     [SerializeField, Min(1f)] private float hostCustomerClearance = 2.2f;
@@ -37,7 +40,14 @@ public class LobbyAutonomousService : MonoBehaviour
     private BillManager billManager;
     private TakeoutFlowManager takeoutFlow;
     private SinkInteractable sink;
+    private CashierRegisterUI cashierRegister;
     private Transform cashierStation;
+    private Booth[] cachedBooths = System.Array.Empty<Booth>();
+    private CustomerGroup[] cachedGroups = System.Array.Empty<CustomerGroup>();
+    private TakeoutBagInteractable[] cachedTakeoutBags = System.Array.Empty<TakeoutBagInteractable>();
+    private FoodTray[] cachedFoodTrays = System.Array.Empty<FoodTray>();
+    private MoneyPickup[] cachedPayments = System.Array.Empty<MoneyPickup>();
+    private float nextSceneQueryTime;
 
     private void Awake()
     {
@@ -67,6 +77,7 @@ public class LobbyAutonomousService : MonoBehaviour
         billManager = FindFirstObjectByType<BillManager>();
         takeoutFlow = FindFirstObjectByType<TakeoutFlowManager>();
         sink = FindFirstObjectByType<SinkInteractable>();
+        cashierRegister = FindFirstObjectByType<CashierRegisterUI>(FindObjectsInactive.Include);
         takeoutFlow?.SetAutomatedService(true);
 
         GameObject hostObject = ResolveRoleObject(roleManager != null ? roleManager.host : null, "Host");
@@ -82,6 +93,7 @@ public class LobbyAutonomousService : MonoBehaviour
             ? cashierBooth.StandPoint
             : FindStation(cashierObject != null ? cashierObject.transform : null, "CashierStation");
         KeepCharacterStationary(cashierObject);
+        RefreshSceneQueryCache(true);
         ConfigureIdlePresentation();
 
         if (host == null || waiter == null || cashierObject == null || busser == null)
@@ -124,7 +136,7 @@ public class LobbyAutonomousService : MonoBehaviour
 
     private void ConfigureIdlePresentation()
     {
-        Booth[] booths = FindObjectsByType<Booth>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        Booth[] booths = cachedBooths;
         List<Transform> boothTargets = new List<Transform>(booths.Length);
         for (int i = 0; i < booths.Length; i++)
         {
@@ -163,6 +175,7 @@ public class LobbyAutonomousService : MonoBehaviour
         {
             if (GameDayManager.Instance != null && GameDayManager.Instance.ServiceActive)
             {
+                RefreshSceneQueryCache(false);
                 TryStartHostTask();
                 TryStartWaiterTask();
                 TryStartBusserTask();
@@ -170,6 +183,19 @@ public class LobbyAutonomousService : MonoBehaviour
 
             yield return wait;
         }
+    }
+
+    private void RefreshSceneQueryCache(bool force)
+    {
+        if (!force && Time.unscaledTime < nextSceneQueryTime)
+            return;
+
+        nextSceneQueryTime = Time.unscaledTime + Mathf.Max(0.2f, sceneQueryRefreshSeconds);
+        cachedBooths = FindObjectsByType<Booth>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        cachedGroups = FindObjectsByType<CustomerGroup>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        cachedTakeoutBags = FindObjectsByType<TakeoutBagInteractable>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        cachedFoodTrays = FindObjectsByType<FoodTray>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        cachedPayments = FindObjectsByType<MoneyPickup>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
     }
 
     private void TryStartHostTask()
@@ -260,6 +286,20 @@ public class LobbyAutonomousService : MonoBehaviour
         if (!AreWaiterHandsFree(hands))
             return;
 
+        // A seated group that has already finished its meal should not be
+        // starved by newly arriving takeout work, orders, or prepared trays.
+        // Reserve its payment first so the booth can finish and turn over.
+        MoneyPickup payment = FindPendingPaymentPickup();
+        if (payment != null)
+        {
+            TryStartClaimedTask(waiter, payment, DeliverPaymentToCashier(payment));
+
+            // A pending payment has the highest waiter priority. During the
+            // manager's short reaction window, reserve the waiter instead of
+            // starting a lower-priority order that can starve this payment.
+            return;
+        }
+
         TakeoutBagInteractable takeoutBag = FindReadyTakeoutBag();
         if (takeoutBag != null &&
             TryStartClaimedTask(waiter, takeoutBag, DeliverTakeoutBag(takeoutBag)))
@@ -284,13 +324,6 @@ public class LobbyAutonomousService : MonoBehaviour
         FoodTray readyTray = FindReadyDeliveryTray();
         if (readyTray != null &&
             TryStartClaimedTask(waiter, readyTray, DeliverFood(readyTray)))
-        {
-            return;
-        }
-
-        MoneyPickup payment = FindPaymentPickup();
-        if (payment != null &&
-            TryStartClaimedTask(waiter, payment, DeliverPaymentToCashier(payment)))
         {
             return;
         }
@@ -359,6 +392,16 @@ public class LobbyAutonomousService : MonoBehaviour
         IEnumerator task)
     {
         yield return task;
+
+        // A player can begin reviewing an order while a waiter coroutine that
+        // was already moving toward the table is winding down. Preserve the
+        // player's lock instead of letting bot cleanup re-open the bubble and
+        // remove the active player claim.
+        if (target is CustomerGroup reviewingGroup && reviewingGroup.IsPlayerReviewingOrder)
+        {
+            RestaurantTaskClaim.ReleaseBot(target, owner);
+            yield break;
+        }
 
         SetTaskUiClaimed(target, false);
         RestaurantTaskClaim.Complete(target);
@@ -430,10 +473,12 @@ public class LobbyAutonomousService : MonoBehaviour
         yield return waiter.FaceTowards(GetGroupCenter(group));
         yield return waiter.WorkFor(tableServiceSeconds);
 
-        if (group == null || group.state != CustomerGroup.GroupState.ReadyToOrder || WaiterHands.Instance == null)
+        if (group == null || group.state != CustomerGroup.GroupState.ReadyToOrder ||
+            group.IsPlayerReviewingOrder || WaiterHands.Instance == null)
             yield break;
 
-        group.TakeOrderFromWaiter(group.chosenFood, group.chosenDrink);
+        if (!group.TakeOrderFromWaiter(group.chosenFood, group.chosenDrink))
+            yield break;
         WaiterHands.Instance.holdingTicketFor = group;
         waiter.SetCarrying(true);
 
@@ -496,8 +541,8 @@ public class LobbyAutonomousService : MonoBehaviour
         if (!IsTakeoutOrderReady(group) || !AreWaiterHandsFree(hands))
             yield break;
 
-        group.TakeOrderFromWaiter(group.chosenFood, group.chosenDrink);
-        if (group == null || group.state != CustomerGroup.GroupState.OrderTaken)
+        if (!group.TakeOrderFromWaiter(group.chosenFood, group.chosenDrink) ||
+            group == null || group.state != CustomerGroup.GroupState.OrderTaken)
             yield break;
 
         hands.holdingTicketFor = group;
@@ -553,7 +598,7 @@ public class LobbyAutonomousService : MonoBehaviour
 
         waiter.SetCarrying(false);
 
-        CashierRegisterUI register = CashierRegisterUI.Instance;
+        CashierRegisterUI register = ResolveCashierRegister();
         if (register == null)
         {
             Debug.LogError("[LobbyAutonomousService] CashierRegisterUI is required for automated takeout payment.", this);
@@ -708,8 +753,16 @@ public class LobbyAutonomousService : MonoBehaviour
         yield return waiter.FaceTowards(GetGroupCenter(group));
         yield return waiter.WorkFor(tableServiceSeconds);
 
-        if (tray == null || group == null || group.assignedBooth == null || hands.holdingTray != tray)
+        if (tray == null || group == null || group.assignedBooth == null ||
+            group.state != CustomerGroup.GroupState.OrderTaken ||
+            !group.HasConfirmedOrder || group.IsPlayerReviewingOrder ||
+            hands.holdingTray != tray)
+        {
+            if (hands.holdingTray == tray)
+                hands.DisposeTray(true);
+            waiter.SetCarrying(false);
             yield break;
+        }
 
         Transform dropPoint = FindTableFoodSpawn(group.assignedBooth);
         if (dropPoint == null || !hands.TryDeliverTrayTo(group, false))
@@ -801,7 +854,7 @@ public class LobbyAutonomousService : MonoBehaviour
     {
         CustomerGroup group = payment != null ? payment.TargetGroup : null;
         WaiterHands hands = WaiterHands.Instance;
-        CashierRegisterUI register = CashierRegisterUI.Instance;
+        CashierRegisterUI register = ResolveCashierRegister();
 
         if (payment == null || group == null || hands == null || register == null || hands.HasMoney ||
             group.state != CustomerGroup.GroupState.NeedsBill || group.assignedBooth == null)
@@ -810,9 +863,26 @@ public class LobbyAutonomousService : MonoBehaviour
         Booth paymentBooth = group.assignedBooth;
         yield return waiter.MoveWithin(
             paymentBooth.GetNavigableApproachPosition(),
-            boothServiceDistance);
+            boothServiceDistance,
+            -1f,
+            paymentTravelTimeoutSeconds);
         if (!waiter.LastMoveSucceeded)
+        {
+            // Dynamic customer congestion can occasionally keep the waiter a
+            // fraction outside the booth interaction radius even with a valid
+            // NavMesh path. Finish this already-claimed payment after the long
+            // timeout so it cannot block the table forever.
+            hands.PickupMoney(payment);
+            if (hands.HasMoney && hands.HeldMoney == payment)
+            {
+                TryCompleteHeldPayment(
+                    hands,
+                    register,
+                    "payment booth was not reachable before the timeout");
+            }
+
             yield break;
+        }
 
         yield return waiter.FaceTowards(GetGroupCenter(group));
         yield return waiter.WorkFor(tableServiceSeconds);
@@ -833,7 +903,7 @@ public class LobbyAutonomousService : MonoBehaviour
             yield break;
 
         if (register == null)
-            register = CashierRegisterUI.Instance;
+            register = ResolveCashierRegister();
 
         if (register == null)
         {
@@ -847,20 +917,64 @@ public class LobbyAutonomousService : MonoBehaviour
             yield return waiter.MoveWithin(
                 cashierStation.position,
                 counterServiceDistance,
-                2f);
+                2f,
+                paymentTravelTimeoutSeconds);
             if (!waiter.LastMoveSucceeded)
+            {
+                TryCompleteHeldPayment(
+                    hands,
+                    register,
+                    "cashier stand point was not reachable before the timeout");
                 yield break;
+            }
         }
 
         yield return waiter.WorkFor(counterServiceSeconds);
 
-        CustomerGroup paidGroup = hands.holdingMoneyFor;
-        if (register.CompleteAutomatedPayment(paidGroup))
-        {
-            hands.ClearMoney();
-        }
+        TryCompleteHeldPayment(hands, register, null);
 
         waiter.SetCarrying(hands.HasMoney);
+    }
+
+    private bool TryCompleteHeldPayment(
+        WaiterHands hands,
+        CashierRegisterUI register,
+        string fallbackReason)
+    {
+        if (hands == null || register == null || !hands.HasMoney ||
+            hands.holdingMoneyFor == null)
+        {
+            return false;
+        }
+
+        CustomerGroup paidGroup = hands.holdingMoneyFor;
+        if (!register.CompleteAutomatedPayment(paidGroup))
+            return false;
+
+        hands.ClearMoney();
+        waiter.SetCarrying(false);
+
+        if (!string.IsNullOrEmpty(fallbackReason))
+        {
+            Debug.LogWarning(
+                $"[LobbyAutonomousService] Completed {paidGroup.name}'s held payment " +
+                $"through fallback because the {fallbackReason}.",
+                this);
+        }
+
+        return true;
+    }
+
+    private CashierRegisterUI ResolveCashierRegister()
+    {
+        if (cashierRegister == null)
+        {
+            cashierRegister = CashierRegisterUI.Instance != null
+                ? CashierRegisterUI.Instance
+                : FindFirstObjectByType<CashierRegisterUI>(FindObjectsInactive.Include);
+        }
+
+        return cashierRegister;
     }
 
     private IEnumerator CleanTrayAtSink(FoodTray tray)
@@ -925,7 +1039,7 @@ public class LobbyAutonomousService : MonoBehaviour
 
     private Booth FindAvailableBooth(int groupSize)
     {
-        Booth[] booths = FindObjectsByType<Booth>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        Booth[] booths = cachedBooths;
         for (int i = 0; i < booths.Length; i++)
         {
             if (booths[i] != null && booths[i].IsAvailableFor(groupSize))
@@ -937,10 +1051,11 @@ public class LobbyAutonomousService : MonoBehaviour
 
     private CustomerGroup FindGroupInState(CustomerGroup.GroupState state)
     {
-        CustomerGroup[] groups = FindObjectsByType<CustomerGroup>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        CustomerGroup[] groups = cachedGroups;
         for (int i = 0; i < groups.Length; i++)
         {
             if (groups[i] != null && !groups[i].IsTakeout && groups[i].state == state &&
+                !groups[i].IsPlayerReviewingOrder &&
                 RestaurantTaskClaim.CanBotStart(groups[i], managerReactionSeconds))
                 return groups[i];
         }
@@ -950,7 +1065,7 @@ public class LobbyAutonomousService : MonoBehaviour
 
     private CustomerGroup FindBillDeliveryTarget()
     {
-        CustomerGroup[] groups = FindObjectsByType<CustomerGroup>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        CustomerGroup[] groups = cachedGroups;
         for (int i = 0; i < groups.Length; i++)
         {
             CustomerGroup group = groups[i];
@@ -966,7 +1081,7 @@ public class LobbyAutonomousService : MonoBehaviour
     private CustomerGroup FindTakeoutOrderTarget()
     {
         CustomerGroup group = takeoutFlow != null ? takeoutFlow.ActiveGroup : null;
-        return IsTakeoutOrderReady(group) &&
+        return IsTakeoutOrderReady(group) && !group.IsPlayerReviewingOrder &&
                RestaurantTaskClaim.CanBotStart(group, managerReactionSeconds)
             ? group
             : null;
@@ -987,9 +1102,7 @@ public class LobbyAutonomousService : MonoBehaviour
         if (!IsTakeoutBagDeliveryReady(target))
             return null;
 
-        TakeoutBagInteractable[] bags = FindObjectsByType<TakeoutBagInteractable>(
-            FindObjectsInactive.Exclude,
-            FindObjectsSortMode.None);
+        TakeoutBagInteractable[] bags = cachedTakeoutBags;
         for (int i = 0; i < bags.Length; i++)
         {
             if (bags[i] != null && bags[i].TargetGroup == target &&
@@ -1006,7 +1119,7 @@ public class LobbyAutonomousService : MonoBehaviour
             (WaiterHands.Instance.HasTray || WaiterHands.Instance.HasBill || WaiterHands.Instance.HasMoney))
             return null;
 
-        FoodTray[] trays = FindObjectsByType<FoodTray>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        FoodTray[] trays = cachedFoodTrays;
         for (int i = 0; i < trays.Length; i++)
         {
             FoodTray tray = trays[i];
@@ -1028,7 +1141,7 @@ public class LobbyAutonomousService : MonoBehaviour
         if (BusserHands.Instance != null && BusserHands.Instance.HasTray)
             return null;
 
-        FoodTray[] trays = FindObjectsByType<FoodTray>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        FoodTray[] trays = cachedFoodTrays;
         for (int i = 0; i < trays.Length; i++)
         {
             FoodTray tray = trays[i];
@@ -1051,16 +1164,18 @@ public class LobbyAutonomousService : MonoBehaviour
         return null;
     }
 
-    private MoneyPickup FindPaymentPickup()
+    private MoneyPickup FindPendingPaymentPickup()
     {
-        MoneyPickup[] payments = FindObjectsByType<MoneyPickup>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        MoneyPickup[] payments = cachedPayments;
         for (int i = 0; i < payments.Length; i++)
         {
             MoneyPickup payment = payments[i];
-            if (payment != null && payment.TargetGroup != null &&
-                payment.TargetGroup.state == CustomerGroup.GroupState.NeedsBill &&
-                RestaurantTaskClaim.CanBotStart(payment, managerReactionSeconds))
+            if (payment != null && payment.IsAvailableForCollection &&
+                !RestaurantTaskClaim.IsClaimedByPlayer(payment) &&
+                !RestaurantTaskClaim.IsClaimedByBot(payment))
+            {
                 return payment;
+            }
         }
 
         return null;
@@ -1068,7 +1183,7 @@ public class LobbyAutonomousService : MonoBehaviour
 
     private Booth FindDirtyBooth()
     {
-        Booth[] booths = FindObjectsByType<Booth>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        Booth[] booths = cachedBooths;
         for (int i = 0; i < booths.Length; i++)
         {
             if (booths[i] != null && booths[i].CanCleanMessNow &&

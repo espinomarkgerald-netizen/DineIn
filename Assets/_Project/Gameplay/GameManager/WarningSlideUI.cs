@@ -49,6 +49,14 @@ public class WarningSlideUI : MonoBehaviour
         if (canvasGroup == null && panel != null)
             canvasGroup = panel.gameObject.AddComponent<CanvasGroup>();
 
+        if (canvasGroup != null)
+        {
+            // This is a notification, not an input surface. Keeping raycasts off
+            // lets the authored root remain active so the singleton initializes.
+            canvasGroup.interactable = false;
+            canvasGroup.blocksRaycasts = false;
+        }
+
         if (panel != null)
         {
             panel.anchorMin = new Vector2(0.5f, 0f);

@@ -173,6 +173,16 @@ public class OrderBubbleUI : MonoBehaviour
             return;
         }
 
+        // Lock the order immediately, including while the player walks to the
+        // table. Otherwise an autonomous waiter already polling this group can
+        // finish its take-order coroutine before the notepad appears.
+        if (!group.BeginPlayerOrderReview())
+        {
+            RestaurantTaskClaim.ReleasePlayer(group);
+            WarningSlideUI.Instance?.Show("This customer is no longer waiting to order.");
+            return;
+        }
+
         // The offer is now exclusively owned by the Manager. Hide it at once so
         // neither side can click or process the same order twice.
         group.SetOrderTaskClaimedByStaff(true);
@@ -184,6 +194,7 @@ public class OrderBubbleUI : MonoBehaviour
         if (checklist == null)
         {
             Debug.LogError("[OrderBubbleUI] No OrderChecklistUI found in scene.");
+            group.EndPlayerOrderReview();
             group.SetOrderTaskClaimedByStaff(false);
             RestaurantTaskClaim.ReleasePlayer(group);
             return;
@@ -269,6 +280,7 @@ public class OrderBubbleUI : MonoBehaviour
         if (group == null)
             return;
 
+        group.EndPlayerOrderReview();
         group.SetOrderTaskClaimedByStaff(false);
         RestaurantTaskClaim.ReleasePlayer(group);
     }

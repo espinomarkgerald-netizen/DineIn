@@ -61,7 +61,7 @@ rotation caused by `MoveTo(Transform)`.
 | `StartTask` | Starts one task only when the character is not already busy. |
 | `MoveTo(Transform)` | Moves to an authored point and adopts that point's rotation on arrival. |
 | `MoveTo(Vector3)` | Moves to a world position without forcing an arrival rotation. |
-| `MoveWithin` | Routes toward a sampled NavMesh point but measures service arrival against the original authored marker. Interaction travel is capped at six seconds so a bad sample cannot reserve the waiter for an entire customer phase. |
+| `MoveWithin` | Routes toward a sampled NavMesh point but measures service arrival against the original authored marker. Interaction travel defaults to a six-second cap, with a per-task override for longer valid routes such as dine-in payment collection. |
 | `LastMoveSucceeded` | Reports whether the latest NavMesh move actually reached its destination; task interactions must check it before changing item state. |
 | `FaceTowards` | Smoothly turns the character toward a customer or world target. |
 | `WorkFor` | Holds the working state for a slightly randomized duration. |
@@ -85,7 +85,7 @@ and Busser enable this randomized idle layer in the current pass.
 | --- | --- | --- |
 | `TryStartHostTask` | Host | Finds the front waiting group and an available booth. |
 | `SeatGroup` | Host | Stops at `hostCustomerClearance` outside the group, greets them, walks to the booth, and assigns seating without entering the customer cluster. |
-| `TryStartWaiterTask` | Waiter | Prioritizes held items, takeout bag delivery, takeout payment/order, then dine-in food, payment, bills, and orders. |
+| `TryStartWaiterTask` | Waiter | Prioritizes held items, ready takeout bag delivery, dine-in payment, takeout payment/order, then dine-in food, bills, and orders. Finished tables cannot be starved by newly arriving work. |
 | `TakeOrder` | Waiter | Faces the table, records the order, carries the ticket to the cashier station, and starts kitchen processing. |
 | `ProcessDineInOrderAtCashier` | Waiter | Completes a held dine-in ticket at the cashier and can be retried without losing the customer's order. |
 | `TakeTakeoutOrder` | Waiter | Walks to the front takeout customer, records the order, and carries its ticket to the cashier station. |
@@ -93,8 +93,8 @@ and Busser enable this randomized idle layer in the current pass.
 | `DeliverTakeoutBag` | Waiter | Collects the matching kitchen bag, returns to the front customer, and completes the existing queue departure flow. |
 | `DeliverFood` | Waiter | Collects the matching tray, faces the group, and serves the correct booth. |
 | `DeliverBill` | Waiter | Collects one printed bill, delivers it, and blocks duplicate delivery. |
-| `DeliverPaymentToCashier` | Waiter | Walks to the paying group's booth, confirms arrival, faces the group, and only then collects its money. |
-| `CompleteHeldPaymentAtCashier` | Waiter | Returns money to the cashier station and requests validated payment completion. |
+| `DeliverPaymentToCashier` | Waiter | Walks to the paying group's booth with the serialized payment-route timeout, confirms arrival, faces the group, and only then collects its money. |
+| `CompleteHeldPaymentAtCashier` | Waiter | Returns money to the cashier station with the same payment-route allowance and requests validated payment completion. |
 | `TryStartBusserTask` | Busser | Prioritizes used trays before dirty empty booths. |
 | `CleanTrayAtSink` | Busser | Walks to the tray's source booth, confirms arrival before pickup, then carries it to the sink and records cleanup. It does not erase a separate customer mess. |
 | `CleanBooth` | Busser | Faces an empty dirty booth and starts its existing visible hold-to-clean controller. |

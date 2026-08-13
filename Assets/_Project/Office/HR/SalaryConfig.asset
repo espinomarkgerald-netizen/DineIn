@@ -25,4 +25,8 @@ MonoBehaviour:
     baseSalary: 150
   - role: 5
     baseSalary: 120
+  - role: 7
+    baseSalary: 150
+  - role: 8
+    baseSalary: 120
   salaryPerStar: 50

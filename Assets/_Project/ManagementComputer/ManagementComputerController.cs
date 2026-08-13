@@ -1,0 +1,941 @@
+using System;
+using System.Collections.Generic;
+using System.Text;
+using TMPro;
+using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.UI;
+
+public enum ManagementComputerApp
+{
+    Dashboard,
+    Staff,
+    Menu,
+    Restock,
+    Equipment,
+    Finances,
+    Objectives
+}
+
+/// <summary>
+/// Controls the Lobby1 manager computer. App content is populated from the
+/// existing ScriptableObject/managers and every repeated entry is a prefab row.
+/// </summary>
+public sealed class ManagementComputerController : MonoBehaviour, IPointerClickHandler
+{
+    [Header("Desktop")]
+    [SerializeField] private GameObject desktopRoot;
+    [SerializeField] private Button[] appButtons;
+    [SerializeField] private Button startShiftButton;
+    [SerializeField] private TMP_Text startShiftLabel;
+    [SerializeField] private Button exitButton;
+    [SerializeField] private TMP_Text dayStatusText;
+    [SerializeField] private TMP_Text moneyStatusText;
+    [SerializeField] private TMP_Text approvalStatusText;
+    [SerializeField] private TMP_Text clockStatusText;
+    [SerializeField] private TMP_Text desktopHintText;
+
+    [Header("App Window")]
+    [SerializeField] private ManagementComputerWindow appWindow;
+    [SerializeField] private ManagementComputerRowUI rowPrefab;
+    [SerializeField] private ManagementComputerHRPanel hrPanelPrefab;
+
+    private ManagerPlayer activeManager;
+    private ManagementComputerStation activeStation;
+    private MainCameraController cameraController;
+    private Vector3 savedCameraTarget;
+    private bool savedCameraEnabled;
+    private bool pendingWarningConfirmation;
+    private float nextStatusRefresh;
+    private ScrollRect fallbackDragScroll;
+    private Scrollbar fallbackDragScrollbar;
+    private PointerEventData fallbackDragPointer;
+    private bool fallbackDragStarted;
+    private bool fallbackConsumedRelease;
+
+    public bool IsOpen => desktopRoot != null && desktopRoot.activeSelf;
+    public ManagementComputerWindow AppWindow => appWindow;
+
+    public void ConfigureReferences(
+        GameObject configuredDesktopRoot,
+        Button[] configuredAppButtons,
+        Button configuredStartShiftButton,
+        TMP_Text configuredStartShiftLabel,
+        Button configuredExitButton,
+        TMP_Text configuredDayStatus,
+        TMP_Text configuredMoneyStatus,
+        TMP_Text configuredApprovalStatus,
+        TMP_Text configuredClockStatus,
+        TMP_Text configuredDesktopHint,
+        ManagementComputerWindow configuredWindow,
+        ManagementComputerRowUI configuredRowPrefab,
+        ManagementComputerHRPanel configuredHRPanelPrefab)
+    {
+        desktopRoot = configuredDesktopRoot;
+        appButtons = configuredAppButtons;
+        startShiftButton = configuredStartShiftButton;
+        startShiftLabel = configuredStartShiftLabel;
+        exitButton = configuredExitButton;
+        dayStatusText = configuredDayStatus;
+        moneyStatusText = configuredMoneyStatus;
+        approvalStatusText = configuredApprovalStatus;
+        clockStatusText = configuredClockStatus;
+        desktopHintText = configuredDesktopHint;
+        appWindow = configuredWindow;
+        rowPrefab = configuredRowPrefab;
+        hrPanelPrefab = configuredHRPanelPrefab;
+    }
+
+    private void Awake()
+    {
+        WireButtons();
+        if (appWindow != null)
+            appWindow.Initialize(CloseApp);
+
+        if (desktopRoot != null)
+            desktopRoot.SetActive(false);
+    }
+
+    private void OnDestroy()
+    {
+        if (MoneyManager.Instance != null)
+            MoneyManager.Instance.OnMoneyChanged -= OnMoneyChanged;
+    }
+
+    private void Update()
+    {
+        if (!IsOpen)
+            return;
+
+        if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            if (appWindow != null && appWindow.gameObject.activeSelf)
+                CloseApp();
+            else
+                CloseComputer();
+        }
+
+        if (Time.unscaledTime >= nextStatusRefresh)
+        {
+            nextStatusRefresh = Time.unscaledTime + 0.5f;
+            RefreshStatusBar();
+        }
+
+        fallbackConsumedRelease = false;
+        RouteScrollingWhenCanvasDepthIsInvalid();
+        RoutePointerReleaseWhenCanvasDepthIsInvalid();
+    }
+
+    private void RouteScrollingWhenCanvasDepthIsInvalid()
+    {
+        Vector2 position = Input.mousePosition;
+        Vector2 wheel = Input.mouseScrollDelta;
+
+        if (Input.touchCount == 0 && wheel.sqrMagnitude > 0.001f)
+        {
+            ScrollRect scroll = FindTopmostScrollableAt(position);
+            if (scroll != null)
+            {
+                // Move normalized positions directly because Unity's
+                // ScrollRect event path is the part blocked by this modal.
+                if (scroll.horizontal && !scroll.vertical)
+                {
+                    float amount = Mathf.Abs(wheel.x) > Mathf.Abs(wheel.y) ? wheel.x : wheel.y;
+                    scroll.horizontalNormalizedPosition = Mathf.Clamp01(
+                        scroll.horizontalNormalizedPosition - amount * 0.12f);
+                }
+                else if (scroll.vertical)
+                {
+                    scroll.verticalNormalizedPosition = Mathf.Clamp01(
+                        scroll.verticalNormalizedPosition + wheel.y * 0.12f);
+                }
+            }
+        }
+
+        bool pressed;
+        bool held;
+        bool released;
+        if (Input.touchCount > 0)
+        {
+            Touch touch = Input.GetTouch(0);
+            position = touch.position;
+            pressed = touch.phase == TouchPhase.Began;
+            held = touch.phase == TouchPhase.Moved || touch.phase == TouchPhase.Stationary;
+            released = touch.phase == TouchPhase.Ended || touch.phase == TouchPhase.Canceled;
+        }
+        else
+        {
+            pressed = Input.GetMouseButtonDown(0);
+            held = Input.GetMouseButton(0);
+            released = Input.GetMouseButtonUp(0);
+        }
+
+        if (pressed)
+            BeginFallbackDrag(position);
+
+        if (held && fallbackDragPointer != null)
+            ContinueFallbackDrag(position);
+
+        if (released && fallbackDragPointer != null)
+            EndFallbackDrag(position);
+    }
+
+    private void BeginFallbackDrag(Vector2 position)
+    {
+        fallbackDragScrollbar = FindTopmostScrollbarAt(position);
+        fallbackDragScroll = fallbackDragScrollbar == null
+            ? FindTopmostScrollableAt(position)
+            : null;
+
+        if (fallbackDragScrollbar == null && fallbackDragScroll == null)
+            return;
+
+        fallbackDragPointer = CreatePointerEvent(position);
+        fallbackDragPointer.pressPosition = position;
+        fallbackDragPointer.pointerPress = fallbackDragScrollbar != null
+            ? fallbackDragScrollbar.gameObject
+            : fallbackDragScroll.gameObject;
+        fallbackDragStarted = false;
+
+        if (fallbackDragScrollbar != null)
+            ExecuteEvents.Execute(fallbackDragScrollbar.gameObject, fallbackDragPointer,
+                ExecuteEvents.pointerDownHandler);
+        else
+            fallbackDragScroll.OnInitializePotentialDrag(fallbackDragPointer);
+    }
+
+    private void ContinueFallbackDrag(Vector2 position)
+    {
+        Vector2 previous = fallbackDragPointer.position;
+        fallbackDragPointer.position = position;
+        fallbackDragPointer.delta = position - previous;
+
+        if (!fallbackDragStarted &&
+            (position - fallbackDragPointer.pressPosition).sqrMagnitude >= 16f)
+        {
+            fallbackDragStarted = true;
+            fallbackDragPointer.dragging = true;
+            if (fallbackDragScroll != null)
+                fallbackDragScroll.OnBeginDrag(fallbackDragPointer);
+        }
+
+        if (!fallbackDragStarted)
+            return;
+
+        if (fallbackDragScrollbar != null)
+            ExecuteEvents.Execute(fallbackDragScrollbar.gameObject, fallbackDragPointer,
+                ExecuteEvents.dragHandler);
+        else
+            fallbackDragScroll.OnDrag(fallbackDragPointer);
+    }
+
+    private void EndFallbackDrag(Vector2 position)
+    {
+        fallbackDragPointer.delta = position - fallbackDragPointer.position;
+        fallbackDragPointer.position = position;
+
+        if (fallbackDragScrollbar != null)
+        {
+            ExecuteEvents.Execute(fallbackDragScrollbar.gameObject, fallbackDragPointer,
+                ExecuteEvents.pointerUpHandler);
+            fallbackConsumedRelease = true;
+        }
+        else if (fallbackDragStarted && fallbackDragScroll != null)
+        {
+            fallbackDragScroll.OnEndDrag(fallbackDragPointer);
+            fallbackConsumedRelease = true;
+        }
+
+        fallbackDragScroll = null;
+        fallbackDragScrollbar = null;
+        fallbackDragPointer = null;
+        fallbackDragStarted = false;
+    }
+
+    private void RoutePointerReleaseWhenCanvasDepthIsInvalid()
+    {
+        Vector2 position;
+        bool released;
+
+        if (Input.touchCount > 0)
+        {
+            Touch touch = Input.GetTouch(0);
+            position = touch.position;
+            released = touch.phase == TouchPhase.Ended;
+        }
+        else
+        {
+            position = Input.mousePosition;
+            released = Input.GetMouseButtonUp(0);
+        }
+
+        if (!released || fallbackConsumedRelease)
+            return;
+
+        Button target = FindTopmostButtonAt(position);
+        // A valid Graphic depth means Unity's normal EventSystem will dispatch
+        // the click. Only route the known Unity 6 inactive-modal failure case.
+        if (target == null ||
+            (target.targetGraphic != null && target.targetGraphic.depth >= 0))
+            return;
+
+        InvokeFallbackButton(target, position);
+    }
+
+    /// <summary>
+    /// Fallback dispatcher for Unity 6 scenes where graphics under a modal that
+    /// was inactive during canvas rebuild can retain depth -1. The full-screen
+    /// desktop background still receives the pointer, then routes the click to
+    /// the topmost interactable Button under that screen position.
+    /// </summary>
+    public void OnPointerClick(PointerEventData eventData)
+    {
+        if (!IsOpen || eventData == null ||
+            eventData.button != PointerEventData.InputButton.Left || desktopRoot == null)
+            return;
+
+        Button target = FindTopmostButtonAt(eventData.position);
+        if (target == null)
+            return;
+
+        InvokeFallbackButton(target, eventData.position);
+        eventData.Use();
+    }
+
+    private static void InvokeFallbackButton(Button target, Vector2 screenPosition)
+    {
+        if (target == null)
+            return;
+
+        if (EventSystem.current == null)
+        {
+            target.onClick.Invoke();
+            return;
+        }
+
+        PointerEventData pointer = new PointerEventData(EventSystem.current)
+        {
+            position = screenPosition,
+            button = PointerEventData.InputButton.Left,
+            pointerPress = target.gameObject,
+            pointerEnter = target.gameObject
+        };
+        ExecuteEvents.Execute(target.gameObject, pointer, ExecuteEvents.pointerUpHandler);
+        ExecuteEvents.Execute(target.gameObject, pointer, ExecuteEvents.pointerClickHandler);
+    }
+
+    private static PointerEventData CreatePointerEvent(Vector2 screenPosition)
+    {
+        return new PointerEventData(EventSystem.current)
+        {
+            position = screenPosition,
+            button = PointerEventData.InputButton.Left
+        };
+    }
+
+    private ScrollRect FindTopmostScrollableAt(Vector2 screenPosition)
+    {
+        ScrollRect[] scrolls = desktopRoot.GetComponentsInChildren<ScrollRect>(false);
+        ScrollRect best = null;
+
+        for (int i = 0; i < scrolls.Length; i++)
+        {
+            ScrollRect candidate = scrolls[i];
+            if (candidate == null || !candidate.isActiveAndEnabled || candidate.content == null)
+                continue;
+
+            RectTransform rect = candidate.viewport != null
+                ? candidate.viewport
+                : candidate.transform as RectTransform;
+            if (rect == null || !RectTransformUtility.RectangleContainsScreenPoint(
+                    rect, screenPosition, null))
+                continue;
+
+            RectTransform viewport = candidate.viewport != null
+                ? candidate.viewport
+                : candidate.transform as RectTransform;
+            bool canMoveHorizontally = candidate.horizontal &&
+                candidate.content.rect.width > viewport.rect.width + 1f;
+            bool canMoveVertically = candidate.vertical &&
+                candidate.content.rect.height > viewport.rect.height + 1f;
+            if (!canMoveHorizontally && !canMoveVertically)
+                continue;
+
+            best = candidate;
+        }
+
+        return best;
+    }
+
+    private Scrollbar FindTopmostScrollbarAt(Vector2 screenPosition)
+    {
+        Scrollbar[] scrollbars = desktopRoot.GetComponentsInChildren<Scrollbar>(false);
+        Scrollbar best = null;
+
+        for (int i = 0; i < scrollbars.Length; i++)
+        {
+            Scrollbar candidate = scrollbars[i];
+            if (candidate == null || !candidate.IsActive() || !candidate.IsInteractable())
+                continue;
+
+            RectTransform rect = candidate.transform as RectTransform;
+            if (rect != null && RectTransformUtility.RectangleContainsScreenPoint(
+                    rect, screenPosition, null))
+                best = candidate;
+        }
+
+        return best;
+    }
+
+    private Button FindTopmostButtonAt(Vector2 screenPosition)
+    {
+        Button[] buttons = desktopRoot.GetComponentsInChildren<Button>(false);
+        Button best = null;
+
+        for (int i = 0; i < buttons.Length; i++)
+        {
+            Button candidate = buttons[i];
+            if (candidate == null || !candidate.IsActive() || !candidate.IsInteractable())
+                continue;
+
+            RectTransform rect = candidate.transform as RectTransform;
+            if (rect == null || !RectTransformUtility.RectangleContainsScreenPoint(
+                    rect, screenPosition, null))
+                continue;
+
+            // GetComponentsInChildren follows rendered hierarchy order. Keeping
+            // the last match makes modal-window controls win over desktop apps.
+            best = candidate;
+        }
+
+        return best;
+    }
+
+    public void OpenComputer(ManagerPlayer manager, ManagementComputerStation station)
+    {
+        if (desktopRoot == null || IsOpen)
+            return;
+
+        activeManager = manager;
+        activeStation = station;
+        pendingWarningConfirmation = false;
+
+        if (activeManager != null)
+            activeManager.SetExternalInputSuppressed(true);
+
+        cameraController = FindFirstObjectByType<MainCameraController>();
+        if (cameraController != null)
+        {
+            savedCameraTarget = cameraController.GetRigTargetPosition();
+            savedCameraEnabled = cameraController.enabled;
+            if (station != null)
+                cameraController.SetRigTargetPosition(station.transform.position, true);
+            cameraController.enabled = false;
+        }
+
+        desktopRoot.SetActive(true);
+        CloseApp();
+        RefreshStatusBar();
+
+        if (MoneyManager.Instance != null)
+        {
+            MoneyManager.Instance.OnMoneyChanged -= OnMoneyChanged;
+            MoneyManager.Instance.OnMoneyChanged += OnMoneyChanged;
+        }
+    }
+
+    public void CloseComputer()
+    {
+        if (!IsOpen)
+            return;
+
+        if (MoneyManager.Instance != null)
+            MoneyManager.Instance.OnMoneyChanged -= OnMoneyChanged;
+
+        CloseApp();
+        desktopRoot.SetActive(false);
+
+        if (cameraController != null)
+        {
+            cameraController.enabled = savedCameraEnabled;
+            cameraController.SetRigTargetPosition(savedCameraTarget, true);
+        }
+
+        if (activeManager != null)
+            activeManager.SetExternalInputSuppressed(false);
+
+        activeManager = null;
+        activeStation = null;
+        cameraController = null;
+    }
+
+    public void OpenApp(int appIndex)
+    {
+        if (!Enum.IsDefined(typeof(ManagementComputerApp), appIndex) || appWindow == null)
+            return;
+
+        pendingWarningConfirmation = false;
+        appWindow.ClearRows();
+
+        ManagementComputerApp app = (ManagementComputerApp)appIndex;
+        appWindow.Open(GetAppTitle(app));
+
+        switch (app)
+        {
+            case ManagementComputerApp.Dashboard: PopulateDashboard(); break;
+            case ManagementComputerApp.Staff: PopulateStaff(); break;
+            case ManagementComputerApp.Menu: PopulateMenu(); break;
+            case ManagementComputerApp.Restock: PopulateRestock(); break;
+            case ManagementComputerApp.Equipment: PopulateEquipment(); break;
+            case ManagementComputerApp.Finances: PopulateFinances(); break;
+            case ManagementComputerApp.Objectives: PopulateObjectives(); break;
+        }
+    }
+
+    public void CloseApp()
+    {
+        pendingWarningConfirmation = false;
+        if (appWindow != null)
+        {
+            appWindow.ClearRows();
+            appWindow.Close();
+        }
+    }
+
+    private void WireButtons()
+    {
+        if (appButtons != null)
+        {
+            for (int i = 0; i < appButtons.Length; i++)
+            {
+                if (appButtons[i] == null)
+                    continue;
+
+                int captured = i;
+                appButtons[i].onClick.RemoveAllListeners();
+                appButtons[i].onClick.AddListener(() => OpenApp(captured));
+            }
+        }
+
+        if (startShiftButton != null)
+        {
+            startShiftButton.onClick.RemoveAllListeners();
+            startShiftButton.onClick.AddListener(TryStartShift);
+        }
+
+        if (exitButton != null)
+        {
+            exitButton.onClick.RemoveAllListeners();
+            exitButton.onClick.AddListener(CloseComputer);
+        }
+    }
+
+    private void PopulateDashboard()
+    {
+        int day = CurrentDay;
+        int menuCount = 0;
+        MenuCatalog catalog = MenuCatalog.Default;
+        if (catalog != null)
+        {
+            foreach (Recipe product in catalog.Products)
+            {
+                if (MenuAvailabilityManager.IsProductAvailable(product) && product.IsUnlocked)
+                    menuCount++;
+            }
+        }
+
+        AddRow(null, "Restaurant status", IsShiftActive ? "Service is currently running" : "Pre-opening management phase",
+            IsShiftActive ? "OPEN" : "CLOSED", string.Empty, null, false);
+        AddRow(null, "Today's menu", "Products available to the notepad, customers, kitchen and bar",
+            menuCount.ToString(), "OPEN MENU", () => OpenApp((int)ManagementComputerApp.Menu));
+        AddRow(null, "Scheduled staff", "One employee can be scheduled for each role",
+            (EmployeeManager.Instance != null ? EmployeeManager.Instance.AssignedEmployeeCount : 0).ToString(),
+            "OPEN STAFF", () => OpenApp((int)ManagementComputerApp.Staff));
+        AddRow(null, "Inventory", "Ingredient stock shared with restaurant orders",
+            InventoryManager.Instance != null ? InventoryManager.Instance.Items.Count + " items" : "Unavailable",
+            "RESTOCK", () => OpenApp((int)ManagementComputerApp.Restock));
+
+        appWindow.SetMessage($"Day {day} setup. Changes lock when the shift starts.");
+    }
+
+    private void PopulateStaff()
+    {
+        EmployeeManager manager = EmployeeManager.Instance;
+        if (manager == null)
+        {
+            appWindow.SetMessage("Employee system is unavailable.", true);
+            return;
+        }
+
+        manager.EnsureEmployeesGenerated();
+        bool editable = !IsShiftActive && !manager.SlotsLocked;
+
+        if (hrPanelPrefab == null)
+        {
+            appWindow.SetMessage("The HR board prefab is missing.", true);
+            return;
+        }
+
+        ManagementComputerHRPanel panel = Instantiate(hrPanelPrefab, appWindow.Content);
+        panel.name = "HRBoard";
+        panel.Bind(manager, editable);
+
+        appWindow.SetMessage(editable
+            ? "Hire applicants, keep up to three workers per role, and choose one active worker for the shift."
+            : "HR decisions are locked while the shift is running.");
+    }
+
+    private void PopulateMenu()
+    {
+        MenuCatalog catalog = MenuCatalog.Default;
+        if (catalog == null)
+        {
+            appWindow.SetMessage("MenuCatalog could not be loaded from Resources.", true);
+            return;
+        }
+
+        bool editable = !IsShiftActive && MenuAvailabilityManager.Instance != null;
+        foreach (Recipe product in catalog.Products)
+        {
+            if (product == null)
+                continue;
+
+            Recipe captured = product;
+            bool available = MenuAvailabilityManager.IsProductAvailable(product);
+            bool unlocked = product.IsUnlocked;
+            string details = product.category + "  •  Unlock day " + product.dayToUnlock;
+            string action = !product.availableOnMenu ? "AUTHOR OFF" : available ? "REMOVE" : "ADD";
+
+            AddRow(product.sprite, product.DisplayName, details, "₱" + product.sellPrice, action,
+                () =>
+                {
+                    MenuAvailabilityManager.Instance.SetProductAvailable(captured, !available);
+                    PopulateAgain(ManagementComputerApp.Menu);
+                }, editable && unlocked && product.availableOnMenu);
+        }
+
+        appWindow.SetMessage(editable
+            ? "Menu changes immediately update customer orders and the notepad. Bundles hide when a required product is removed."
+            : "The menu is read-only while service is active.");
+    }
+
+    private void PopulateRestock()
+    {
+        InventoryManager inventory = InventoryManager.Instance;
+        if (inventory == null || inventory.Items == null)
+        {
+            appWindow.SetMessage("Inventory system is unavailable.", true);
+            return;
+        }
+
+        // Ingredient deliveries remain available during service so the player
+        // can recover from an unexpected stock-out mid-shift.
+        bool editable = true;
+        foreach (ItemData item in inventory.Items)
+        {
+            if (item == null)
+                continue;
+
+            ItemData captured = item;
+            bool unlocked = item.dayToUnlock <= CurrentDay ||
+                (UnlockManager.Instance != null && UnlockManager.Instance.IsIngredientUnlocked(item));
+            AddRow(item.sprite, item.displayName,
+                item.unitsPerBox + " units per box  •  Unlock day " + item.dayToUnlock,
+                "Stock " + inventory.GetStock(item.itemType),
+                "BUY ₱" + item.boxCost,
+                () => BuyIngredientBox(captured),
+                editable && unlocked && MoneyManager.Instance != null && MoneyManager.Instance.HasEnough(item.boxCost));
+        }
+
+        appWindow.SetMessage("Each purchase adds one full box to the shared raw-food inventory. Restocking remains available during service.");
+    }
+
+    private void PopulateEquipment()
+    {
+        EquipmentManager manager = EquipmentManager.Instance;
+        if (manager == null || manager.AllEquipment == null)
+        {
+            appWindow.SetMessage("Equipment system is unavailable.", true);
+            return;
+        }
+
+        bool editable = !IsShiftActive;
+        foreach (Equipment equipment in manager.AllEquipment)
+        {
+            if (equipment == null)
+                continue;
+
+            Equipment captured = equipment;
+            bool purchased = manager.Purchased(equipment.itemID);
+            bool unlocked = equipment.dayToUnlock <= CurrentDay ||
+                (UnlockManager.Instance != null && UnlockManager.Instance.IsEquipmentUnlocked(equipment.itemID));
+            AddRow(equipment.sprite, equipment.displayName,
+                "Unlock day " + equipment.dayToUnlock,
+                purchased ? "OWNED" : "₱" + equipment.cost,
+                purchased ? "PURCHASED" : "BUY",
+                () =>
+                {
+                    manager.Purchase(captured.itemID);
+                    PopulateAgain(ManagementComputerApp.Equipment);
+                }, editable && unlocked && !purchased && MoneyManager.Instance != null && MoneyManager.Instance.HasEnough(equipment.cost));
+        }
+
+        appWindow.SetMessage(editable
+            ? "Purchased equipment persists and activates matching equipment links."
+            : "Equipment purchases are locked while service is active.");
+    }
+
+    private void PopulateFinances()
+    {
+        DailyFinanceBridge bridge = DailyFinanceBridge.Instance;
+        DailyRevenueTracker revenue = DailyRevenueTracker.Instance;
+        EmployeeManager employees = EmployeeManager.Instance;
+        int payroll = employees != null && employees.salaryConfig != null ? employees.CalculateTotalPayroll() : 0;
+
+        AddRow(null, "Cash balance", "Available for restocking and equipment", MoneyText, string.Empty, null, false);
+        AddRow(null, "Revenue today", "Completed customer payments", "₱" + (bridge != null ? bridge.EarnedToday : 0), string.Empty, null, false);
+        AddRow(null, "Ingredient purchases", "Boxes purchased during management", "₱" + (revenue != null ? revenue.IngredientCost : 0), string.Empty, null, false);
+        AddRow(null, "Scheduled payroll", "Deducted during end-of-day settlement", "₱" + payroll, string.Empty, null, false);
+
+        IReadOnlyList<string> transactions = MoneyManager.Instance != null
+            ? MoneyManager.Instance.TransactionLog
+            : null;
+        if (transactions != null)
+        {
+            for (int i = transactions.Count - 1, shown = 0; i >= 0 && shown < 8; i--, shown++)
+                AddRow(null, "Transaction", transactions[i], string.Empty, string.Empty, null, false);
+        }
+
+        appWindow.SetMessage("Live financial overview. The latest eight wallet transactions are shown below.");
+    }
+
+    private void PopulateObjectives()
+    {
+        DailyObjectiveManager objectives = DailyObjectiveManager.Instance;
+        if (objectives == null)
+        {
+            appWindow.SetMessage("Objective system is unavailable.", true);
+            return;
+        }
+
+        objectives.EnsureDefaultObjectives();
+        if (objectives.ActiveMandatory == null)
+        {
+            int maxGroups = GameDayManager.Instance != null ? GameDayManager.Instance.MaxCustomersThisShift : 5;
+            objectives.RollObjectivesForDay(CurrentDay, maxGroups);
+        }
+
+        AddObjectiveRow("MANDATORY", objectives.ActiveMandatory);
+        AddObjectiveRow("SECONDARY", objectives.ActiveSecondary);
+        AddObjectiveRow("BONUS", objectives.ActiveBonus);
+
+        if (objectives.HasPreviousDayResult)
+        {
+            AddRow(null, "Previous result", "Day " + objectives.LastResultDay,
+                objectives.LastGrade.ToString(), string.Empty, null, false);
+        }
+
+        appWindow.SetMessage("Alien demands are evaluated automatically at the end of the shift.");
+    }
+
+    private void AddObjectiveRow(string label, ObjectiveDefinition objective)
+    {
+        string description = objective != null ? objective.GetDescription(CurrentDay) : "Not configured";
+        AddRow(null, label, description, string.Empty, string.Empty, null, false);
+    }
+
+    private void BuyIngredientBox(ItemData item)
+    {
+        if (item == null || MoneyManager.Instance == null || InventoryManager.Instance == null)
+            return;
+
+        bool purchased = DailyFinanceBridge.Instance != null
+            ? DailyFinanceBridge.Instance.SpendMoney(item.boxCost, item.displayName + " restock")
+            : MoneyManager.Instance.Spend(item.boxCost, item.displayName + " restock");
+        if (!purchased)
+            return;
+
+        InventoryManager.Instance.AddStock(item.itemType, Mathf.Max(1, item.unitsPerBox));
+        DailyRevenueTracker.Instance?.RecordIngredientCost(item.boxCost);
+        GameSaveManager.Instance?.RequestSave();
+        PopulateAgain(ManagementComputerApp.Restock);
+    }
+
+    public void TryStartShift()
+    {
+        if (GameDayManager.Instance == null)
+        {
+            ShowDesktopHint("Shift controller not found.", true);
+            return;
+        }
+
+        if (IsShiftActive)
+        {
+            ShowDesktopHint("The shift is already running.");
+            return;
+        }
+
+        List<string> warnings = CollectStartWarnings(out bool hasUsableMenu);
+        if (!hasUsableMenu)
+        {
+            OpenApp((int)ManagementComputerApp.Menu);
+            appWindow.SetMessage("Add at least one unlocked food or drink before starting the shift.", true);
+            return;
+        }
+
+        if (warnings.Count > 0 && !pendingWarningConfirmation)
+        {
+            pendingWarningConfirmation = true;
+            OpenApp((int)ManagementComputerApp.Dashboard);
+            pendingWarningConfirmation = true;
+            appWindow.SetMessage("START WARNINGS\n• " + string.Join("\n• ", warnings), true);
+            appWindow.SetFooter("START ANYWAY", StartShiftConfirmed);
+            return;
+        }
+
+        StartShiftConfirmed();
+    }
+
+    private void StartShiftConfirmed()
+    {
+        EmployeeManager.Instance?.LockAllSlots();
+
+        int payroll = EmployeeManager.Instance != null && EmployeeManager.Instance.salaryConfig != null
+            ? EmployeeManager.Instance.CalculateTotalPayroll()
+            : 0;
+        int ingredientSpend = DailyRevenueTracker.Instance != null
+            ? DailyRevenueTracker.Instance.IngredientCost
+            : 0;
+        DailyFinanceBridge.Instance?.SetDailyCosts(payroll, 0, 0, ingredientSpend);
+
+        DailyObjectiveManager objectives = DailyObjectiveManager.Instance;
+        if (objectives != null && objectives.ActiveMandatory == null)
+        {
+            objectives.EnsureDefaultObjectives();
+            objectives.RollObjectivesForDay(CurrentDay,
+                GameDayManager.Instance != null ? GameDayManager.Instance.MaxCustomersThisShift : 5);
+        }
+
+        GameSaveManager.Instance?.RequestSave();
+        CloseComputer();
+        GameDayManager.Instance.ShowShiftIntro();
+    }
+
+    private List<string> CollectStartWarnings(out bool hasUsableMenu)
+    {
+        List<string> warnings = new List<string>();
+        hasUsableMenu = false;
+
+        MenuCatalog catalog = MenuCatalog.Default;
+        if (catalog != null)
+        {
+            foreach (Recipe product in catalog.Products)
+            {
+                if (!MenuAvailabilityManager.IsProductAvailable(product) || !product.IsUnlocked)
+                    continue;
+
+                hasUsableMenu = true;
+                if (InventoryManager.Instance == null || product.ingredients == null)
+                    continue;
+
+                foreach (RecipeIngredient ingredient in product.ingredients)
+                {
+                    if (ingredient?.item != null &&
+                        InventoryManager.Instance.IsTracked(ingredient.item.itemType) &&
+                        InventoryManager.Instance.GetStock(ingredient.item.itemType) < ingredient.amount)
+                    {
+                        warnings.Add("Low stock for " + product.DisplayName);
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (EmployeeManager.Instance != null && EmployeeManager.Instance.AssignedEmployeeCount == 0)
+            warnings.Add("No staff are scheduled; the manager and default service bots will cover the shift");
+
+        if (EquipmentManager.Instance != null && EquipmentManager.Instance.AllEquipment != null &&
+            EquipmentManager.Instance.AllEquipment.Count > 0)
+        {
+            bool ownsEquipment = false;
+            foreach (Equipment equipment in EquipmentManager.Instance.AllEquipment)
+            {
+                if (equipment != null && EquipmentManager.Instance.Purchased(equipment.itemID))
+                {
+                    ownsEquipment = true;
+                    break;
+                }
+            }
+
+            if (!ownsEquipment)
+                warnings.Add("No optional equipment has been purchased");
+        }
+
+        return warnings;
+    }
+
+    private void AddRow(Sprite icon, string title, string details, string value, string action,
+        UnityEngine.Events.UnityAction callback, bool enabled = true)
+    {
+        if (rowPrefab == null || appWindow == null || appWindow.Content == null)
+            return;
+
+        ManagementComputerRowUI row = Instantiate(rowPrefab, appWindow.Content);
+        row.gameObject.SetActive(true);
+        row.Bind(icon, title, details, value, action, callback, enabled);
+    }
+
+    private void PopulateAgain(ManagementComputerApp app)
+    {
+        OpenApp((int)app);
+        RefreshStatusBar();
+    }
+
+    private void RefreshStatusBar()
+    {
+        if (dayStatusText != null) dayStatusText.text = "DAY " + CurrentDay;
+        if (moneyStatusText != null) moneyStatusText.text = MoneyText;
+        if (approvalStatusText != null)
+            approvalStatusText.text = "APPROVAL " + (AlienApprovalManager.Instance != null ? AlienApprovalManager.Instance.Approval : 0) + "%";
+        if (clockStatusText != null)
+        {
+            clockStatusText.text = GameDayManager.Instance != null
+                ? GameDayManager.Instance.FormattedGameTime
+                : DateTime.Now.ToString("h:mm tt");
+        }
+
+        bool active = IsShiftActive;
+        if (startShiftLabel != null) startShiftLabel.text = active ? "SHIFT RUNNING" : "START SHIFT";
+        if (startShiftButton != null) startShiftButton.interactable = !active;
+    }
+
+    private void OnMoneyChanged(int _) => RefreshStatusBar();
+
+    private void ShowDesktopHint(string message, bool warning = false)
+    {
+        if (desktopHintText == null)
+            return;
+
+        desktopHintText.text = message;
+        desktopHintText.color = warning ? new Color(1f, 0.55f, 0.5f) : Color.white;
+    }
+
+    private string GetAppTitle(ManagementComputerApp app)
+    {
+        switch (app)
+        {
+            case ManagementComputerApp.Dashboard: return "Manager Dashboard";
+            case ManagementComputerApp.Staff: return "Staff Scheduler";
+            case ManagementComputerApp.Menu: return "Menu Editor";
+            case ManagementComputerApp.Restock: return "Ingredient Restock";
+            case ManagementComputerApp.Equipment: return "Equipment Store";
+            case ManagementComputerApp.Finances: return "Finance Report";
+            case ManagementComputerApp.Objectives: return "Alien Demands";
+            default: return "Management";
+        }
+    }
+
+    private int CurrentDay => GameFlowManager.Instance != null ? GameFlowManager.Instance.CurrentDay : 1;
+    private bool IsShiftActive => GameDayManager.Instance != null && GameDayManager.Instance.ServiceActive;
+    private string MoneyText => "₱" + (MoneyManager.Instance != null ? MoneyManager.Instance.Money : 0);
+}

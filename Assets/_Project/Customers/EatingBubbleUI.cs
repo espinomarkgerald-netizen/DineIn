@@ -3,11 +3,16 @@ using UnityEngine;
 
 public class EatingBubbleUI : MonoBehaviour
 {
+    // Legacy visual contract: this is the original single-mesh animation.
+    // Keep its timing and motion unchanged; only the bounds guard below is a
+    // permitted safety fix for TMP glyphs outside mesh 0.
     [SerializeField] private TMP_Text label;
-    [SerializeField] private string baseText = "Eating";
-    [SerializeField] private float bounceHeight = 8f;
-    [SerializeField] private float bounceSpeed = 8f;
-    [SerializeField] private float letterDelay = 0.12f;
+    // Although the prefab once serialized "Eating..", CustomerGroup always
+    // changed the live bubble to this exact text before the bounds bug.
+    private const string LegacyText = "Eating";
+    private const float LegacyBounceHeight = 8f;
+    private const float LegacyBounceSpeed = 5f;
+    private const float LegacyLetterDelay = 0.08f;
 
     private Mesh mesh;
     private Vector3[] baseVertices;
@@ -18,7 +23,10 @@ public class EatingBubbleUI : MonoBehaviour
         if (label == null)
             label = GetComponentInChildren<TMP_Text>(true);
 
-        SetBaseText(baseText);
+        if (label != null)
+            label.text = LegacyText;
+
+        PrepareText();
     }
 
     private void OnEnable()
@@ -43,7 +51,7 @@ public class EatingBubbleUI : MonoBehaviour
         for (int i = 0; i < vertices.Length; i++)
             vertices[i] = baseVertices[i];
 
-        float time = Time.time * bounceSpeed;
+        float time = Time.time * LegacyBounceSpeed;
 
         for (int i = 0; i < textInfo.characterCount; i++)
         {
@@ -53,8 +61,15 @@ public class EatingBubbleUI : MonoBehaviour
 
             int vertexIndex = charInfo.vertexIndex;
 
-            float charTime = time - (i * letterDelay);
-            float bounce = Mathf.Max(0f, Mathf.Sin(charTime)) * bounceHeight;
+            // Preserve the original single-mesh animation exactly. Some TMP
+            // fallback glyphs report an index outside mesh 0; ignoring only
+            // that invalid quad prevents the exception without changing the
+            // timing or submission path for the original animated letters.
+            if (vertexIndex < 0 || vertexIndex + 3 >= vertices.Length)
+                continue;
+
+            float charTime = time - (i * LegacyLetterDelay);
+            float bounce = Mathf.Max(0f, Mathf.Sin(charTime)) * LegacyBounceHeight;
             Vector3 offset = new Vector3(0f, bounce, 0f);
 
             vertices[vertexIndex + 0] += offset;
@@ -65,17 +80,6 @@ public class EatingBubbleUI : MonoBehaviour
 
         mesh.vertices = vertices;
         label.canvasRenderer.SetMesh(mesh);
-    }
-
-    public void SetBaseText(string text)
-    {
-        baseText = text;
-
-        if (label == null)
-            return;
-
-        label.text = baseText;
-        PrepareText();
     }
 
     private void PrepareText()

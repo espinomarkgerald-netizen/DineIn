@@ -51,7 +51,11 @@ public class InventoryManager : MonoBehaviour
                 continue;
 
             if (!inventory.ContainsKey(item.itemType))
-                inventory[item.itemType] = 0;
+            {
+                // A new restaurant starts with one box of every configured
+                // ingredient. Existing save data still replaces these values.
+                inventory[item.itemType] = Mathf.Max(1, item.unitsPerBox);
+            }
         }
 
         UpdateInspectorInventory();
@@ -110,6 +114,13 @@ public class InventoryManager : MonoBehaviour
 
     public List<ItemData> Items => items;
 
+    public void ConfigureItems(List<ItemData> configuredItems)
+    {
+        items = configuredItems != null ? new List<ItemData>(configuredItems) : new List<ItemData>();
+        inventory.Clear();
+        InitializeInventory();
+    }
+
     public void ResetStock()
     {
         foreach (var key in inventory.Keys.ToArray())
@@ -119,6 +130,33 @@ public class InventoryManager : MonoBehaviour
 
         foreach (var kvp in inventory)
             OnStockChanged?.Invoke(kvp.Key, kvp.Value);
+    }
+
+    /// <summary>
+    /// One-time compatibility migration for saves created before restaurant
+    /// products consumed inventory. Only empty items receive one starter box.
+    /// </summary>
+    public void EnsureStarterStockForFiniteInventory()
+    {
+        if (items == null)
+            return;
+
+        List<ItemType> changedItems = new List<ItemType>();
+        foreach (ItemData item in items)
+        {
+            if (item == null)
+                continue;
+
+            if (!inventory.TryGetValue(item.itemType, out int current) || current <= 0)
+            {
+                inventory[item.itemType] = Mathf.Max(1, item.unitsPerBox);
+                changedItems.Add(item.itemType);
+            }
+        }
+
+        UpdateInspectorInventory();
+        for (int i = 0; i < changedItems.Count; i++)
+            OnStockChanged?.Invoke(changedItems[i], inventory[changedItems[i]]);
     }
 
     public void FillSaveData(GameSaveData data)

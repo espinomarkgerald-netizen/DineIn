@@ -6,12 +6,16 @@ public class AlienApprovalManager : MonoBehaviour
     public static AlienApprovalManager Instance { get; private set; }
 
     [Header("Starting Approval (0-100)")]
-    [SerializeField] private int startingApproval = 50;
+    [SerializeField] private int startingApproval = 45;
 
     [Header("Approval Deltas Per Group Result")]
-    [SerializeField] private int happyDelta = 3;
-    [SerializeField] private int neutralDelta = 0;
-    [SerializeField] private int angryDelta = -6;
+    [SerializeField] private int happyDelta = 1;
+    [SerializeField] private int neutralDelta = -1;
+    [SerializeField] private int angryDelta = -8;
+    [Tooltip("Positive approval earned from customer results is capped per day. Penalties are never capped.")]
+    [SerializeField, Min(0)] private int maxPositiveGroupApprovalPerDay = 5;
+
+    private int positiveGroupApprovalEarnedToday;
 
     public int Approval { get; private set; }
 
@@ -39,6 +43,14 @@ public class AlienApprovalManager : MonoBehaviour
             CustomerGroup.FinalResult.Angry => angryDelta,
             _ => 0
         };
+
+        if (delta > 0)
+        {
+            int remainingGain = Mathf.Max(0,
+                maxPositiveGroupApprovalPerDay - positiveGroupApprovalEarnedToday);
+            delta = Mathf.Min(delta, remainingGain);
+            positiveGroupApprovalEarnedToday += delta;
+        }
 
         if (result == CustomerGroup.FinalResult.Angry)
             DailyObjectiveManager.Instance?.RegisterAngryDeparture();
@@ -75,8 +87,14 @@ public class AlienApprovalManager : MonoBehaviour
     public void ResetApproval()
     {
         Approval = Mathf.Clamp(startingApproval, 0, 100);
+        positiveGroupApprovalEarnedToday = 0;
         OnApprovalChanged?.Invoke(Approval);
         GameSaveManager.Instance?.RequestSave();
+    }
+
+    public void BeginNewDay()
+    {
+        positiveGroupApprovalEarnedToday = 0;
     }
 
     public bool TrySetApprovalDebug(int value)

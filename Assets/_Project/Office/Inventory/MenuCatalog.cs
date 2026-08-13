@@ -125,7 +125,7 @@ public class MenuCatalog : ScriptableObject
         for (int i = 0; i < products.Count; i++)
         {
             Recipe product = products[i];
-            if (product == null || !product.availableOnMenu || product.category != category)
+            if (!MenuAvailabilityManager.IsProductAvailable(product) || product.category != category)
                 continue;
 
             if (requireUnlocked && !product.IsUnlocked)
@@ -145,14 +145,14 @@ public class MenuCatalog : ScriptableObject
         for (int i = 0; i < foodBundles.Count; i++)
         {
             MenuBundle bundle = foodBundles[i];
-            if (bundle == null || !bundle.availableOnMenu || bundle.products.Count == 0)
+            if (!MenuAvailabilityManager.IsBundleAvailable(bundle))
                 continue;
 
             bool valid = true;
             for (int p = 0; p < bundle.products.Count; p++)
             {
                 Recipe product = bundle.products[p];
-                if (product == null || !product.availableOnMenu ||
+                if (!MenuAvailabilityManager.IsProductAvailable(product) ||
                     product.category != MenuProductCategory.Food ||
                     (requireUnlocked && !product.IsUnlocked))
                 {
@@ -174,7 +174,7 @@ public class MenuCatalog : ScriptableObject
         for (int i = 0; i < foodBundles.Count; i++)
         {
             MenuBundle bundle = foodBundles[i];
-            if (bundle != null && bundle.availableOnMenu && bundle.ContainsSameProducts(foodProducts))
+            if (MenuAvailabilityManager.IsBundleAvailable(bundle) && bundle.ContainsSameProducts(foodProducts))
                 return bundle;
         }
 

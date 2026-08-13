@@ -10,13 +10,12 @@ public class MoneyBubbleUI : MonoBehaviour
 
     private MoneyPickup money;
     private bool isRemoving;
+    private bool claimedByStaff;
 
     private void Awake()
     {
         if (button == null)
             button = GetComponentInChildren<Button>(true);
-
-        Debug.Log($"[MoneyBubbleUI.Awake] name={name}", this);
     }
 
     private void Update()
@@ -25,14 +24,12 @@ public class MoneyBubbleUI : MonoBehaviour
 
         if (money == null)
         {
-            Debug.Log("[MoneyBubbleUI.Update] money is null, removing bubble.", this);
             RemoveBubble();
             return;
         }
 
         if (!money.gameObject.activeInHierarchy)
         {
-            Debug.Log("[MoneyBubbleUI.Update] money object inactive, removing bubble.", this);
             RemoveBubble();
             return;
         }
@@ -40,7 +37,6 @@ public class MoneyBubbleUI : MonoBehaviour
         CustomerGroup group = money.TargetGroup;
         if (group == null)
         {
-            Debug.Log("[MoneyBubbleUI.Update] TargetGroup is null, removing bubble.", this);
             RemoveBubble();
             return;
         }
@@ -49,33 +45,20 @@ public class MoneyBubbleUI : MonoBehaviour
             group.state == CustomerGroup.GroupState.AngryLeft ||
             group.state == CustomerGroup.GroupState.UnhappyLeft)
         {
-            Debug.Log($"[MoneyBubbleUI.Update] Group {group.name} is leaving, removing bubble.", this);
             RemoveBubble();
             return;
         }
 
         SetTableNumber(group.currentOrderNumber);
 
-        var hands = WaiterHands.ActivePlayerHands;
-        if (hands != null && hands.HasMoney && hands.HeldMoney == money)
-        {
-            Debug.Log("[MoneyBubbleUI.Update] Money picked up by waiter, removing bubble.", this);
+        if (money.IsPickedUp)
             RemoveBubble();
-        }
     }
 
     public void Init(int amount, MoneyPickup m)
     {
         money = m;
         money?.SetBubbleUI(this);
-
-        if (money != null && RestaurantTaskClaim.IsClaimedByBot(money))
-            gameObject.SetActive(false);
-
-        string groupName = m != null && m.TargetGroup != null ? m.TargetGroup.name : "null";
-        string orderNo = m != null && m.TargetGroup != null ? m.TargetGroup.currentOrderNumber.ToString() : "null";
-
-        Debug.Log($"[MoneyBubbleUI.Init] amount={amount}, group={groupName}, currentOrderNumber={orderNo}", this);
 
         if (amountText != null)
             amountText.text = amount.ToString();
@@ -87,6 +70,20 @@ public class MoneyBubbleUI : MonoBehaviour
             button.onClick.RemoveAllListeners();
             button.onClick.AddListener(OnClickCollect);
         }
+
+        SetClaimedByStaff(
+            money != null && RestaurantTaskClaim.IsClaimedByBot(money));
+    }
+
+    public void SetClaimedByStaff(bool claimed)
+    {
+        claimedByStaff = claimed;
+
+        // Ownership is a hard visible/hidden state. Do not use the Button's
+        // disabled transition here: its ColorBlock fades the whole bubble and
+        // makes an owned task look like it is flickering.
+        if (gameObject.activeSelf == claimed)
+            gameObject.SetActive(!claimed);
     }
 
     public void SetTableNumber(int number)
@@ -111,6 +108,7 @@ public class MoneyBubbleUI : MonoBehaviour
 
     private void OnClickCollect()
     {
+        if (claimedByStaff) return;
         if (money == null) return;
         if (RoleManager.Instance == null) return;
         if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Waiter)) return;

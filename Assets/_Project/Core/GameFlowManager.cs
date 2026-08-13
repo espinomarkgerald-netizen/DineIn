@@ -185,6 +185,7 @@ public class GameFlowManager : MonoBehaviour
 
         DailyRevenueTracker.Instance?.ResetForNewDay();
         DailyFinanceBridge.Instance?.ResetDay();
+        AlienApprovalManager.Instance?.BeginNewDay();
         FinanceManager.Instance?.ResetDailyExpenses();
         EmployeeManager.Instance?.ResetDailyAssignments();
 
@@ -614,6 +615,7 @@ public class GameFlowManager : MonoBehaviour
 
         DailyRevenueTracker.Instance?.ResetForNewDay();
         DailyFinanceBridge.Instance?.ResetDay();
+        AlienApprovalManager.Instance?.BeginNewDay();
         FinanceManager.Instance?.ResetDailyExpenses();
         EmployeeManager.Instance?.ResetDailyAssignments();
         ShiftScaler.Instance?.ApplyScaling(currentDay);

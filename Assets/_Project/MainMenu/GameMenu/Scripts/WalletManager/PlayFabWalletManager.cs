@@ -66,6 +66,8 @@ public class PlayFabWalletManager : MonoBehaviour
     // ========================================================
 
     private Coroutine pollCoroutine;
+    private int pendingNormalMoneyDelta;
+    private bool normalMoneyChangeInFlight;
 
     private void Awake()
     {
@@ -169,6 +171,9 @@ public class PlayFabWalletManager : MonoBehaviour
             return;
         }
 
+        if (normalMoneyChangeInFlight)
+            return;
+
         IsRefreshing = true;
 
         if (verboseLogging)
@@ -197,6 +202,7 @@ public class PlayFabWalletManager : MonoBehaviour
                     Debug.Log("PlayFabWalletManager: GetUserInventory succeeded. GC=" + gc + ", NM=" + nm);
 
                 OnWalletUpdated?.Invoke(GoldCoins, NormalMoney);
+                ProcessPendingNormalMoneyChange();
             },
             error =>
             {
@@ -211,6 +217,72 @@ public class PlayFabWalletManager : MonoBehaviour
     public bool HasEnoughGoldCoins(int amount)
     {
         return HasLoadedWallet && GoldCoins >= amount;
+    }
+
+    /// <summary>
+    /// Queues restaurant income or spending against the same PlayFab Normal
+    /// Money balance used by GameMenu. Deltas are serialized through one
+    /// request at a time so rapid customer payments cannot overwrite each
+    /// other's returned balance.
+    /// </summary>
+    public void ChangeNormalMoney(int delta)
+    {
+        if (delta == 0)
+            return;
+
+        pendingNormalMoneyDelta += delta;
+        ProcessPendingNormalMoneyChange();
+    }
+
+    private void ProcessPendingNormalMoneyChange()
+    {
+        if (normalMoneyChangeInFlight || pendingNormalMoneyDelta == 0 ||
+            !HasLoadedWallet || PlayFabAuthManager.Instance == null ||
+            !PlayFabAuthManager.Instance.IsLoggedIn)
+            return;
+
+        int delta = pendingNormalMoneyDelta;
+        pendingNormalMoneyDelta = 0;
+        normalMoneyChangeInFlight = true;
+
+        Action<ModifyUserVirtualCurrencyResult> onSuccess = result =>
+        {
+            normalMoneyChangeInFlight = false;
+            NormalMoney = Mathf.Max(0, result.Balance);
+            OnWalletUpdated?.Invoke(GoldCoins, NormalMoney);
+            ProcessPendingNormalMoneyChange();
+        };
+
+        Action<PlayFabError> onFailure = error =>
+        {
+            normalMoneyChangeInFlight = false;
+            pendingNormalMoneyDelta += delta;
+            Debug.LogWarning("PlayFabWalletManager: Normal Money sync failed: " +
+                             error.GenerateErrorReport());
+        };
+
+        if (delta > 0)
+        {
+            PlayFabClientAPI.AddUserVirtualCurrency(
+                new AddUserVirtualCurrencyRequest
+                {
+                    VirtualCurrency = moneyCurrencyCode,
+                    Amount = delta
+                },
+                onSuccess,
+                onFailure);
+        }
+        else
+        {
+            PlayFabClientAPI.SubtractUserVirtualCurrency(
+                new SubtractUserVirtualCurrencyRequest
+                {
+                    VirtualCurrency = moneyCurrencyCode,
+                    Amount = -delta
+                },
+                onSuccess,
+                onFailure);
+        }
     }
 
     // ================= POLLING =================

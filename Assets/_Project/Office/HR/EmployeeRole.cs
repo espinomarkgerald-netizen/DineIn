@@ -4,7 +4,10 @@ public enum EmployeeRole
     Waiter,
     Cashier,
     Busser,
+    // Kept at their original numeric values so old saves remain readable.
     PrepCook,
     LineCook,
-    Assembler
+    Assembler,
+    Chef,
+    Barista
 }

@@ -28,6 +28,8 @@ public sealed class ManagerPlayer : MonoBehaviour
     [SerializeField] private bool canChef = true;
     [SerializeField] private bool canBarista = true;
 
+    private bool externalInputSuppressed;
+
     public PlayerMovement Movement { get; private set; }
 
     private void Awake()
@@ -55,7 +57,7 @@ public sealed class ManagerPlayer : MonoBehaviour
     private void OnEnable()
     {
         if (Movement != null)
-            Movement.SetPlayerControlled(true);
+            Movement.SetPlayerControlled(!externalInputSuppressed);
     }
 
     private void LateUpdate()
@@ -65,12 +67,12 @@ public sealed class ManagerPlayer : MonoBehaviour
         if (Movement != null)
         {
             Movement.enabled = true;
-            Movement.SetPlayerControlled(true);
+            Movement.SetPlayerControlled(!externalInputSuppressed);
         }
 
         RoleBasedAssignController seating = GetComponent<RoleBasedAssignController>();
         if (seating != null)
-            seating.enabled = true;
+            seating.enabled = !externalInputSuppressed;
     }
 
     private void OnDestroy()
@@ -103,6 +105,25 @@ public sealed class ManagerPlayer : MonoBehaviour
             case StaffRole.Role.Busser: return canBusser;
             default: return false;
         }
+    }
+
+    /// <summary>
+    /// Temporarily releases gameplay input while a full-screen manager tool is open.
+    /// </summary>
+    public void SetExternalInputSuppressed(bool suppressed)
+    {
+        externalInputSuppressed = suppressed;
+
+        if (Movement != null)
+        {
+            Movement.SetPlayerControlled(!suppressed);
+            if (suppressed)
+                Movement.StopForRoleSwitch();
+        }
+
+        RoleBasedAssignController seating = GetComponent<RoleBasedAssignController>();
+        if (seating != null)
+            seating.enabled = !suppressed;
     }
 
     private void ConfigureLobbyInputFromHost()

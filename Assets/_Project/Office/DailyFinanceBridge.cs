@@ -14,6 +14,11 @@ public class DailyFinanceBridge : MonoBehaviour
     [SerializeField] private int totalRequiredEarningsToday;
     [SerializeField] private int earnedToday;
 
+    [Header("Daily Sales Quota")]
+    [SerializeField, Min(0)] private int baseSalesQuota = 3500;
+    [Tooltip("0.25 makes each day add 25% of the Day 1 quota.")]
+    [SerializeField, Min(0f)] private float quotaGrowthPerDay = 0.25f;
+
     public int EmployeeCostToday => employeeCostToday;
     public int MarketingCostToday => marketingCostToday;
     public int BillsCostToday => billsCostToday;
@@ -41,7 +46,7 @@ public class DailyFinanceBridge : MonoBehaviour
         billsCostToday = 0;
         ingredientCostToday = 0;
 
-        totalRequiredEarningsToday = 0;
+        totalRequiredEarningsToday = CalculateSalesQuota();
         earnedToday = 0;
     }
 
@@ -52,11 +57,7 @@ public class DailyFinanceBridge : MonoBehaviour
         billsCostToday = Mathf.Max(0, billsCost);
         ingredientCostToday = Mathf.Max(0, ingredientCost);
 
-        totalRequiredEarningsToday =
-            employeeCostToday +
-            marketingCostToday +
-            billsCostToday +
-            ingredientCostToday;
+        RefreshRequiredEarnings();
     }
 
     public void AddEarnings(int amount, string description = "Daily Earnings")
@@ -84,11 +85,7 @@ public class DailyFinanceBridge : MonoBehaviour
             return false;
 
         ingredientCostToday += amount;
-        totalRequiredEarningsToday =
-            employeeCostToday +
-            marketingCostToday +
-            billsCostToday +
-            ingredientCostToday;
+        RefreshRequiredEarnings();
 
         return true;
     }
@@ -99,5 +96,20 @@ public class DailyFinanceBridge : MonoBehaviour
             return 0f;
 
         return Mathf.Clamp01((float)earnedToday / totalRequiredEarningsToday);
+    }
+
+    private void RefreshRequiredEarnings()
+    {
+        int operatingCosts = employeeCostToday + marketingCostToday +
+                             billsCostToday + ingredientCostToday;
+        totalRequiredEarningsToday = Mathf.Max(operatingCosts, CalculateSalesQuota());
+    }
+
+    private int CalculateSalesQuota()
+    {
+        int day = GameFlowManager.Instance != null
+            ? Mathf.Max(1, GameFlowManager.Instance.CurrentDay)
+            : 1;
+        return Mathf.RoundToInt(baseSalesQuota * (1f + quotaGrowthPerDay * (day - 1)));
     }
 }

@@ -57,6 +57,7 @@ public class RoleSlot : MonoBehaviour
 
         // Assign new
         assignedEmployee              = employee;
+        employee.hired               = true;
         employee.assigned             = true;
         employee.currentSlot          = this;
         employee.assignedSlot         = this;

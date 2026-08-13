@@ -21,21 +21,49 @@ public class EmployeeGenerator : MonoBehaviour
 
         List<string> usedNames = new List<string>();
 
-        foreach (EmployeeRole role in System.Enum.GetValues(typeof(EmployeeRole)))
+        foreach (EmployeeRole role in EmployeeRoleCatalog.LobbyRoles)
+            GenerateForRole(role, employeesPerRole, usedNames);
+
+        foreach (EmployeeRole role in EmployeeRoleCatalog.KitchenRoles)
+            GenerateForRole(role, employeesPerRole, usedNames);
+    }
+
+    public EmployeeData GenerateApplicant(EmployeeRole role, IEnumerable<string> unavailableNames)
+    {
+        List<string> usedNames = unavailableNames != null
+            ? new List<string>(unavailableNames)
+            : new List<string>();
+        EmployeeData employee = CreateEmployee(role, usedNames);
+        employees.Add(employee);
+        return employee;
+    }
+
+    private void GenerateForRole(EmployeeRole role, int count, List<string> usedNames)
+    {
+        for (int i = 0; i < count; i++)
         {
-            List<int> starPool = BuildShuffledStarPool();
-
-            for (int i = 0; i < employeesPerRole; i++)
-            {
-                string name = PickName(usedNames);
-                usedNames.Add(name);
-
-                int stars = starPool[i % starPool.Count];
-
-                EmployeeData newEmployee = new EmployeeData(name, stars, role);
-                employees.Add(newEmployee);
-            }
+            EmployeeData employee = CreateEmployee(role, usedNames);
+            usedNames.Add(employee.employeeName);
+            employees.Add(employee);
         }
+    }
+
+    private EmployeeData CreateEmployee(EmployeeRole role, List<string> usedNames)
+    {
+        List<int> starPool = BuildShuffledStarPool();
+        int stars = starPool[Random.Range(0, starPool.Count)];
+        EmployeeData employee = new EmployeeData(PickName(usedNames), stars, role)
+        {
+            hired = false,
+            speed = Random.Range(72 + stars * 5, 106 + stars * 10),
+            accuracy = Random.Range(60 + stars * 5, 76 + stars * 5),
+            reliability = Random.Range(60 + stars * 5, 76 + stars * 5)
+        };
+        employee.speed = Mathf.Clamp(employee.speed, 50, 200);
+        employee.accuracy = Mathf.Clamp(employee.accuracy, 50, 100);
+        employee.reliability = Mathf.Clamp(employee.reliability, 50, 100);
+        employee.performanceMultiplier = Mathf.Lerp(0.9f, 1.15f, (stars - 1f) / 4f);
+        return employee;
     }
 
     /// <summary>Returns a shuffled list of star values between minStars and maxStars.</summary>

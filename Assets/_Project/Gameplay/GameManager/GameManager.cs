@@ -21,44 +21,61 @@ public class GameDayManager : MonoBehaviour
     [Tooltip("Uses the four Lobby staff as bots and disables manual role switching in this scene.")]
     [SerializeField] private bool enableAutonomousServiceBots;
     [SerializeField] private bool autoStartServiceWhenBotsEnabled = true;
+    [Tooltip("Keeps restaurant service paused until the manager starts the shift from the computer.")]
+    [SerializeField] private bool useManagementComputerForDayStart;
 
-    [Header("Shift Settings")]
-    [SerializeField] private float shiftLengthMinutes = 4f;
+    [Header("Restaurant Clock")]
+    [SerializeField, Range(0, 23)] private int openingHour = 10;
+    [SerializeField, Range(1, 24)] private int closingHour = 18;
+    [Tooltip("One real minute equals one in-game hour when this is 60.")]
+    [SerializeField, Min(1f)] private float realSecondsPerGameHour = 60f;
+    [SerializeField, Min(0f)] private float maxClosingGraceSeconds = 120f;
 
     [Header("Spawn Settings")]
     [SerializeField] private int maxCustomersToSpawn = 12;
     [SerializeField] private int maxGroupsPerMinute = 2;
     [SerializeField] private float spawnIntervalMin = 6f;
     [SerializeField] private float spawnIntervalMax = 12f;
+    [Tooltip("How often a blocked customer spawn is retried. This prevents a full-frame retry loop.")]
+    [SerializeField, Min(0.25f)] private float blockedSpawnRetrySeconds = 1f;
+    [Tooltip("Limits simultaneous customer groups while still allowing the full daily total to spawn.")]
+    [SerializeField, Min(1)] private int maxConcurrentGroups = 8;
+    [SerializeField, Min(1)] private int rushMaxConcurrentGroups = 10;
+
+    [Header("Rush Hour")]
+    [Tooltip("Rush hour begins when this many real seconds remain in the shift.")]
+    [SerializeField, Min(0f)] private float rushStartTimeRemainingSeconds = 240f;
+    [SerializeField, Range(0.1f, 1f)] private float rushSpawnIntervalMultiplier = 0.4f;
+    [SerializeField, Min(0)] private int rushAdditionalGroupsPerMinute = 2;
 
     [Header("Spawn Difficulty Scaling")]
     [Tooltip("X = normalized day (0 = Day 1, 1 = max day). Y = max customer groups to spawn.")]
     [SerializeField] private AnimationCurve maxCustomersCurve = new AnimationCurve(
-        new Keyframe(0f, 4f),
-        new Keyframe(0.25f, 7f),
-        new Keyframe(0.6f, 10f),
-        new Keyframe(1f, 14f));
+        new Keyframe(0f, 18f),
+        new Keyframe(0.25f, 24f),
+        new Keyframe(0.6f, 32f),
+        new Keyframe(1f, 42f));
 
     [Tooltip("X = normalized day. Y = max groups allowed per minute.")]
     [SerializeField] private AnimationCurve groupsPerMinuteCurve = new AnimationCurve(
-        new Keyframe(0f, 1f),
-        new Keyframe(0.25f, 1f),
-        new Keyframe(0.6f, 2f),
-        new Keyframe(1f, 3f));
+        new Keyframe(0f, 2f),
+        new Keyframe(0.25f, 3f),
+        new Keyframe(0.6f, 4f),
+        new Keyframe(1f, 5f));
 
     [Tooltip("X = normalized day. Y = minimum seconds between spawns.")]
     [SerializeField] private AnimationCurve spawnIntervalMinCurve = new AnimationCurve(
-        new Keyframe(0f, 60f),
-        new Keyframe(0.25f, 40f),
-        new Keyframe(0.6f, 20f),
-        new Keyframe(1f, 8f));
+        new Keyframe(0f, 35f),
+        new Keyframe(0.25f, 28f),
+        new Keyframe(0.6f, 18f),
+        new Keyframe(1f, 10f));
 
     [Tooltip("X = normalized day. Y = maximum seconds between spawns.")]
     [SerializeField] private AnimationCurve spawnIntervalMaxCurve = new AnimationCurve(
-        new Keyframe(0f, 90f),
-        new Keyframe(0.25f, 60f),
-        new Keyframe(0.6f, 35f),
-        new Keyframe(1f, 14f));
+        new Keyframe(0f, 50f),
+        new Keyframe(0.25f, 42f),
+        new Keyframe(0.6f, 30f),
+        new Keyframe(1f, 18f));
 
     [Tooltip("The day number that counts as the difficulty ceiling (1 = disabled, scales up to this day).")]
     [SerializeField] private int maxScalingDay = 20;
@@ -106,6 +123,8 @@ public class GameDayManager : MonoBehaviour
     [SerializeField] private GameObject resultsPanel;
     [SerializeField] private TMP_Text resultsTitleText;
     [SerializeField] private TMP_Text resultsSummaryText;
+    [SerializeField] private TMP_Text resultsCustomersText;
+    [SerializeField] private TMP_Text resultsCashText;
     [SerializeField] private TMP_Text resultsStarsText;
     [SerializeField] private Image star1;
     [SerializeField] private Image star2;
@@ -150,6 +169,8 @@ public class GameDayManager : MonoBehaviour
     private float angryBarVisual;
     private float neutralBarVisual;
     private bool warnedLastMinute;
+    private bool rushAnnounced;
+    private Coroutine panelAnimationRoutine;
 
     public bool ShiftRunning => shiftRunning;
     public bool ServiceActive => shiftRunning || closingOut;
@@ -158,9 +179,17 @@ public class GameDayManager : MonoBehaviour
     public int NeutralCustomers => neutralCustomers;
     public int AngryCustomers => angryCustomers;
     public int CustomersServed => happyCustomers + neutralCustomers + angryCustomers;
-    public float ShiftLengthSeconds => Mathf.Max(1f, shiftLengthMinutes * 60f);
+    public float ShiftLengthSeconds =>
+        Mathf.Max(1f, (closingHour - openingHour) * realSecondsPerGameHour);
+    public float CurrentGameHour => Mathf.Clamp(
+        openingHour + (ShiftLengthSeconds - timeRemaining) / realSecondsPerGameHour,
+        openingHour,
+        closingHour);
+    public string FormattedGameTime => FormatClock(CurrentGameHour);
     public int CashErrors => cashErrors;
     public int TipsEarned => tipsEarned;
+    public int MaxCustomersThisShift => maxCustomersToSpawn;
+    public bool UsesManagementComputerForDayStart => useManagementComputerForDayStart;
 
     private void Awake()
     {
@@ -172,14 +201,16 @@ public class GameDayManager : MonoBehaviour
 
         Instance = this;
 
+        if (GetComponent<LobbyPauseMenu>() == null)
+            gameObject.AddComponent<LobbyPauseMenu>();
+
         if (bootstrapSingleRestaurantFlow)
             GameFlowManager.EnsureSingleRestaurantFlow(restaurantSceneName);
 
         if (enableAutonomousServiceBots && GetComponent<LobbyAutonomousService>() == null)
             gameObject.AddComponent<LobbyAutonomousService>();
 
-        if (resultsPanel != null)
-            resultsPanel.SetActive(false);
+        SetPanelVisible(resultsPanel, false);
 
         ResolveManagerComponents();
         ValidateSettings();
@@ -187,11 +218,8 @@ public class GameDayManager : MonoBehaviour
 
     private void Start()
     {
-        if (resultsPanel != null)
-            resultsPanel.SetActive(false);
-
-        if (dayIntroPanel != null)
-            dayIntroPanel.SetActive(false);
+        SetPanelVisible(resultsPanel, false);
+        SetPanelVisible(dayIntroPanel, false);
 
         if (playButton != null)
         {
@@ -208,10 +236,18 @@ public class GameDayManager : MonoBehaviour
         SubscribeToDayChanges();
         ApplyCurrentDayConfiguration();
 
+        // Pre-opening HUD and computer clock both begin at the restaurant's
+        // authored opening time, even before the intro panel is confirmed.
+        timeRemaining = ShiftLengthSeconds;
+
         RefreshUI();
         SetupMoodBars(true);
 
-        if (enableAutonomousServiceBots && autoStartServiceWhenBotsEnabled)
+        if (useManagementComputerForDayStart)
+        {
+            SetPanelVisible(dayIntroPanel, false);
+        }
+        else if (enableAutonomousServiceBots && autoStartServiceWhenBotsEnabled)
             StartShift();
         else
             ShowShiftIntro();
@@ -240,7 +276,13 @@ public class GameDayManager : MonoBehaviour
         if (!warnedLastMinute && timeRemaining <= 60f)
         {
             warnedLastMinute = true;
-            ShowWarning("Last minute. Finish remaining customers.");
+            ShowWarning("5:00 PM — last hour. Finish the remaining customers.");
+        }
+
+        if (!rushAnnounced && timeRemaining <= rushStartTimeRemainingSeconds)
+        {
+            rushAnnounced = true;
+            ShowWarning("Rush hour has started. Expect customers more frequently.");
         }
 
         if (timeRemaining <= 0f)
@@ -309,8 +351,10 @@ public class GameDayManager : MonoBehaviour
 
     private void ValidateSettings()
     {
-        if (shiftLengthMinutes <= 0f)
-            shiftLengthMinutes = 4f;
+        openingHour = Mathf.Clamp(openingHour, 0, 23);
+        closingHour = Mathf.Clamp(closingHour, openingHour + 1, 24);
+        realSecondsPerGameHour = Mathf.Max(1f, realSecondsPerGameHour);
+        maxClosingGraceSeconds = Mathf.Max(0f, maxClosingGraceSeconds);
 
         if (maxCustomersToSpawn < 0)
             maxCustomersToSpawn = 0;
@@ -371,40 +415,33 @@ public class GameDayManager : MonoBehaviour
 
     public void ShowShiftIntro()
     {
-        if (resultsPanel != null)
-            resultsPanel.SetActive(false);
+        if (!shiftRunning && !closingOut)
+            timeRemaining = ShiftLengthSeconds;
 
-        if (dayIntroPanel != null)
-            dayIntroPanel.SetActive(true);
+        SetPanelVisible(resultsPanel, false);
+        SetPanelVisible(dayIntroPanel, true);
+        AnimatePanelIn(dayIntroPanel);
 
         bool singleRestaurantFlow = GameFlowManager.Instance != null &&
                                     GameFlowManager.Instance.UsesSingleRestaurantFlow;
 
         if (dayIntroTitleText != null)
+        {
+            int day = GameFlowManager.Instance != null ? GameFlowManager.Instance.CurrentDay : 1;
             dayIntroTitleText.text = singleRestaurantFlow && GameFlowManager.Instance.IsEndlessRestaurantMode
                 ? "Continue Service"
-                : "Start Day";
+                : $"Day {day}";
+        }
 
-        int minutes = Mathf.FloorToInt(ShiftLengthSeconds / 60f);
-        int seconds = Mathf.FloorToInt(ShiftLengthSeconds % 60f);
 
         if (dayIntroSummaryLeftText != null)
         {
             StringBuilder sb = new StringBuilder();
-            sb.AppendLine("<b>Shift Info</b>");
-            if (singleRestaurantFlow)
-            {
-                sb.AppendLine("Restaurant: Casual Dining");
-                sb.AppendLine(GameFlowManager.Instance.IsEndlessRestaurantMode
-                    ? "Mode: Endless Service"
-                    : "Mode: Campaign Service");
-            }
-            else
-            {
-                sb.AppendLine("Department: Lobby");
-                sb.AppendLine("Phase: First Half");
-            }
-            sb.AppendLine("Length: " + minutes.ToString("00") + ":" + seconds.ToString("00"));
+            sb.AppendLine("<b>Restaurant Hours</b>");
+            sb.AppendLine($"{FormatClock(openingHour)} – {FormatClock(closingHour)}");
+            sb.AppendLine("1 real minute = 1 in-game hour");
+            sb.AppendLine();
+            sb.AppendLine("Prepare stock and staff, then press PLAY to open.");
             dayIntroSummaryLeftText.text = sb.ToString().TrimEnd();
         }
 
@@ -444,16 +481,18 @@ public class GameDayManager : MonoBehaviour
 
     private IEnumerator StartShiftRoutine()
     {
-        if (dayIntroPanel != null)
-            dayIntroPanel.SetActive(false);
+        SetPanelVisible(dayIntroPanel, false);
 
-        yield return new WaitForSeconds(0.2f);
+        yield return new WaitForSecondsRealtime(0.2f);
 
         StartShift();
     }
 
     public void StartShift()
     {
+        if (shiftRunning || closingOut)
+            return;
+
         ResolveManagerComponents();
         ApplyDifficultyScaling();
         ApplyTakeoutUnlock();
@@ -465,11 +504,8 @@ public class GameDayManager : MonoBehaviour
         closingOut = false;
         GameFlowManager.Instance?.MarkRestaurantServiceStarted();
 
-        if (resultsPanel != null)
-            resultsPanel.SetActive(false);
-
-        if (dayIntroPanel != null)
-            dayIntroPanel.SetActive(false);
+        SetPanelVisible(resultsPanel, false);
+        SetPanelVisible(dayIntroPanel, false);
 
         if (spawnRoutine != null)
             StopCoroutine(spawnRoutine);
@@ -478,7 +514,7 @@ public class GameDayManager : MonoBehaviour
 
         RefreshUI();
         SetupMoodBars(true);
-        ShowWarning("Shift started. Keep customers satisfied.");
+        ShowWarning($"Doors open at {FormatClock(openingHour)}. Keep customers satisfied.");
     }
 
     /// <summary>
@@ -529,8 +565,13 @@ public class GameDayManager : MonoBehaviour
 
     private IEnumerator ShowResultsWhenClear()
     {
-        while (FindObjectsByType<CustomerGroup>(FindObjectsSortMode.None).Length > 0)
+        float waited = 0f;
+        while (FindObjectsByType<CustomerGroup>(FindObjectsSortMode.None).Length > 0 &&
+               waited < maxClosingGraceSeconds)
+        {
             yield return new WaitForSeconds(1f);
+            waited += 1f;
+        }
 
         closingOut = false;
         ShowResults();
@@ -582,6 +623,7 @@ public class GameDayManager : MonoBehaviour
         angryBarVisual = 0f;
         neutralBarVisual = 0f;
         warnedLastMinute = false;
+        rushAnnounced = false;
 
         SetupMoodBars(true);
     }
@@ -589,24 +631,27 @@ public class GameDayManager : MonoBehaviour
     private IEnumerator SpawnCustomersRoutine()
     {
         yield return new WaitForSeconds(1f);
+        WaitForSeconds blockedSpawnWait = new WaitForSeconds(Mathf.Max(0.25f, blockedSpawnRetrySeconds));
 
         while (shiftRunning)
         {
             bool canSpawnMoreShift = groupsSpawnedThisShift < maxCustomersToSpawn;
-            bool canSpawnThisMinute = groupsSpawnedThisMinute < maxGroupsPerMinute;
+            bool canSpawnThisMinute = groupsSpawnedThisMinute < CurrentGroupsPerMinuteLimit;
 
             if (canSpawnMoreShift && canSpawnThisMinute)
             {
                 bool spawned = TrySpawnCustomerGroup();
                 if (spawned)
                 {
-                    float delay = Random.Range(spawnIntervalMin, spawnIntervalMax);
+                    float intervalMultiplier = IsRushHour ? rushSpawnIntervalMultiplier : 1f;
+                    float delay = Random.Range(spawnIntervalMin, spawnIntervalMax) * intervalMultiplier;
                     yield return new WaitForSeconds(delay);
                     continue;
                 }
             }
 
-            yield return null;
+            // Avoid retrying every rendered frame while the lobby or minute is full.
+            yield return blockedSpawnWait;
         }
     }
 
@@ -622,6 +667,15 @@ public class GameDayManager : MonoBehaviour
 
         Debug.Log($"[GameDayManager] Takeout {(shouldEnable ? "ENABLED" : "DISABLED")} (current day: {currentDay}, unlock day: {takeoutUnlockDay}).");
     }
+
+
+    private bool IsRushHour => shiftRunning &&
+                               rushStartTimeRemainingSeconds > 0f &&
+                               timeRemaining <= rushStartTimeRemainingSeconds;
+
+    private int CurrentGroupsPerMinuteLimit => IsRushHour
+        ? maxGroupsPerMinute + rushAdditionalGroupsPerMinute
+        : maxGroupsPerMinute;
 
     private void ApplyCustomerTypeUnlocks()
     {
@@ -662,7 +716,7 @@ public class GameDayManager : MonoBehaviour
         Debug.Log($"[GameDayManager] Customer type {type} {(enabled ? "ENABLED" : "DISABLED")}.");
     }
 
-    private const float StopSpawnTimeRemainingSeconds = 60f;
+    private const float StopSpawnTimeRemainingSeconds = 15f;
 
     private bool TrySpawnCustomerGroup()
     {
@@ -675,7 +729,13 @@ public class GameDayManager : MonoBehaviour
         if (groupsSpawnedThisShift >= maxCustomersToSpawn)
             return false;
 
-        if (groupsSpawnedThisMinute >= maxGroupsPerMinute)
+        if (groupsSpawnedThisMinute >= CurrentGroupsPerMinuteLimit)
+            return false;
+
+        int concurrentLimit = IsRushHour
+            ? Mathf.Max(maxConcurrentGroups, rushMaxConcurrentGroups)
+            : maxConcurrentGroups;
+        if (FindObjectsByType<CustomerGroup>(FindObjectsInactive.Exclude, FindObjectsSortMode.None).Length >= concurrentLimit)
             return false;
 
         if (groupSpawner == null)
@@ -713,11 +773,7 @@ public class GameDayManager : MonoBehaviour
         }
 
         if (timerText != null)
-        {
-            int minutes = Mathf.FloorToInt(timeRemaining / 60f);
-            int seconds = Mathf.FloorToInt(timeRemaining % 60f);
-            timerText.text = $"{minutes:00}:{seconds:00}";
-        }
+            timerText.text = FormattedGameTime;
 
         if (progressBar != null)
             progressBar.value = CalculateProgress01();
@@ -737,7 +793,8 @@ public class GameDayManager : MonoBehaviour
         }
 
         progressMoneyText.text =
-            $"₱{DailyFinanceBridge.Instance.EarnedToday}";
+            $"₱{DailyFinanceBridge.Instance.EarnedToday} / " +
+            $"₱{DailyFinanceBridge.Instance.TotalRequiredEarningsToday}";
     }
 
     private float CalculateProgress01()
@@ -750,8 +807,7 @@ public class GameDayManager : MonoBehaviour
 
     private void ShowResults()
     {
-        if (resultsPanel != null)
-            resultsPanel.SetActive(true);
+        SetPanelVisible(resultsPanel, true);
 
         bool singleRestaurantFlow = GameFlowManager.Instance != null &&
                                     GameFlowManager.Instance.UsesSingleRestaurantFlow;
@@ -789,12 +845,36 @@ public class GameDayManager : MonoBehaviour
             resultsSummaryText.text = sb.ToString().TrimEnd();
         }
 
+        int dayRevenue = DailyFinanceBridge.Instance != null
+            ? DailyFinanceBridge.Instance.EarnedToday
+            : 0;
+        if (resultsSummaryText != null)
+        {
+            resultsSummaryText.text =
+                $"<b>REVENUE</b>\n₱{dayRevenue}\n\n" +
+                $"<b>ORDERS</b>\n{ordersProcessed} processed\n{foodDelivered} served";
+        }
+
+        if (resultsCustomersText != null)
+        {
+            resultsCustomersText.text =
+                $"<b>CUSTOMERS</b>\nHappy: {happyCustomers}\nNeutral: {neutralCustomers}\nAngry: {angryCustomers}";
+        }
+
+        if (resultsCashText != null)
+        {
+            string cashStatus = cashErrors == 0
+                ? "No cash errors"
+                : cashErrors + " cash error" + (cashErrors == 1 ? string.Empty : "s");
+            resultsCashText.text =
+                $"<b>CASH & TIPS</b>\n{cashStatus}\nTips: ₱{tipsEarned}";
+        }
+
         if (resultsStarsText != null)
             resultsStarsText.text = GetShiftStatusText();
 
-        if (star1 != null) star1.gameObject.SetActive(false);
-        if (star2 != null) star2.gameObject.SetActive(false);
-        if (star3 != null) star3.gameObject.SetActive(false);
+        int earnedStars = CalculateEarnedStars();
+        PrepareResultStars(earnedStars);
 
         if (resultsActionButton != null)
         {
@@ -807,6 +887,79 @@ public class GameDayManager : MonoBehaviour
                     : "Back to Management";
             }
         }
+
+        AnimateResults(earnedStars);
+    }
+
+    private int CalculateEarnedStars()
+    {
+        if (CustomersServed <= 0)
+            return 0;
+
+        float happyRatio = (float)happyCustomers / CustomersServed;
+        if (happyRatio >= 0.8f && cashErrors == 0)
+            return 3;
+        if (happyRatio >= 0.55f && cashErrors <= 1)
+            return 2;
+        return 1;
+    }
+
+    private void PrepareResultStars(int earnedStars)
+    {
+        Image[] stars = { star1, star2, star3 };
+        Transform starRoot = null;
+        for (int i = 0; i < stars.Length; i++)
+        {
+            if (stars[i] == null)
+                continue;
+
+            if (starRoot == null)
+                starRoot = stars[i].transform.parent;
+            bool earned = i < earnedStars;
+            stars[i].gameObject.SetActive(earned);
+            stars[i].preserveAspect = true;
+            stars[i].transform.localScale = earned ? Vector3.zero : Vector3.one;
+        }
+
+        if (starRoot != null)
+            starRoot.gameObject.SetActive(true);
+    }
+
+    private void AnimateResults(int earnedStars)
+    {
+        if (panelAnimationRoutine != null)
+            StopCoroutine(panelAnimationRoutine);
+
+        panelAnimationRoutine = StartCoroutine(AnimateResultsRoutine(earnedStars));
+    }
+
+    private IEnumerator AnimateResultsRoutine(int earnedStars)
+    {
+        yield return AnimatePanelRoutine(resultsPanel);
+
+        Image[] stars = { star1, star2, star3 };
+        for (int i = 0; i < Mathf.Min(earnedStars, stars.Length); i++)
+        {
+            Image star = stars[i];
+            if (star == null)
+                continue;
+
+            float elapsed = 0f;
+            const float duration = 0.24f;
+            while (elapsed < duration)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                float t = Mathf.Clamp01(elapsed / duration);
+                float overshoot = 1f + Mathf.Sin(t * Mathf.PI) * 0.2f;
+                star.transform.localScale = Vector3.one * (t * overshoot);
+                yield return null;
+            }
+
+            star.transform.localScale = Vector3.one;
+            yield return new WaitForSecondsRealtime(0.08f);
+        }
+
+        panelAnimationRoutine = null;
     }
 
     private string GetShiftStatusText()
@@ -825,74 +978,74 @@ public class GameDayManager : MonoBehaviour
 
     public void RegisterGroupSeated()
     {
-        if (!shiftRunning) return;
+        if (!ServiceActive) return;
         groupsSeated++;
         RefreshUI();
     }
 
     public void RegisterOrderTaken()
     {
-        if (!shiftRunning) return;
+        if (!ServiceActive) return;
         ordersTaken++;
         RefreshUI();
     }
 
     public void RegisterOrderProcessed()
     {
-        if (!shiftRunning) return;
+        if (!ServiceActive) return;
         ordersProcessed++;
         RefreshUI();
     }
 
     public void RegisterFoodDelivered()
     {
-        if (!shiftRunning) return;
+        if (!ServiceActive) return;
         foodDelivered++;
         RefreshUI();
     }
 
     public void RegisterBillDelivered()
     {
-        if (!shiftRunning) return;
+        if (!ServiceActive) return;
         billsDelivered++;
         RefreshUI();
     }
 
     public void RegisterTrayCleaned()
     {
-        if (!shiftRunning) return;
+        if (!ServiceActive) return;
         traysCleaned++;
         RefreshUI();
     }
 
     public void RegisterPaymentCompleted()
     {
-        if (!shiftRunning) return;
+        if (!ServiceActive) return;
         paymentsCompleted++;
         RefreshUI();
     }
 
     public void RegisterHappyCustomer()
     {
-        if (!shiftRunning) return;
+        if (!ServiceActive) return;
         happyCustomers++;
     }
 
     public void RegisterNeutralCustomer()
     {
-        if (!shiftRunning) return;
+        if (!ServiceActive) return;
         neutralCustomers++;
     }
 
     public void RegisterAngryCustomer()
     {
-        if (!shiftRunning) return;
+        if (!ServiceActive) return;
         angryCustomers++;
     }
 
     public void RegisterTip(int amount)
     {
-        if (!shiftRunning) return;
+        if (!ServiceActive) return;
         if (amount <= 0) return;
 
         tipsEarned += amount;
@@ -911,13 +1064,95 @@ public class GameDayManager : MonoBehaviour
         WarningSlideUI.Instance?.Show(message);
     }
 
+    private static string FormatClock(float hourValue)
+    {
+        int totalMinutes = Mathf.RoundToInt(hourValue * 60f);
+        totalMinutes = Mathf.Clamp(totalMinutes, 0, 24 * 60);
+        int hour24 = (totalMinutes / 60) % 24;
+        int minute = totalMinutes % 60;
+        string suffix = hour24 < 12 ? "AM" : "PM";
+        int hour12 = hour24 % 12;
+        if (hour12 == 0)
+            hour12 = 12;
+        return $"{hour12}:{minute:00} {suffix}";
+    }
+
+    private static GameObject GetPanelPresentationRoot(GameObject panel)
+    {
+        if (panel == null)
+            return null;
+
+        Transform current = panel.transform;
+        while (current.parent != null && current.parent.GetComponent<Canvas>() == null)
+            current = current.parent;
+        return current.gameObject;
+    }
+
+    private static void SetPanelVisible(GameObject panel, bool visible)
+    {
+        GameObject root = GetPanelPresentationRoot(panel);
+        if (root == null)
+            return;
+
+        if (visible)
+        {
+            root.SetActive(true);
+            if (panel != root)
+                panel.SetActive(true);
+        }
+        else
+        {
+            root.SetActive(false);
+        }
+    }
+
+    private void AnimatePanelIn(GameObject panel)
+    {
+        if (panelAnimationRoutine != null)
+            StopCoroutine(panelAnimationRoutine);
+        panelAnimationRoutine = StartCoroutine(AnimatePanelRoutine(panel));
+    }
+
+    private IEnumerator AnimatePanelRoutine(GameObject panel)
+    {
+        GameObject root = GetPanelPresentationRoot(panel);
+        if (root == null)
+            yield break;
+
+        CanvasGroup group = root.GetComponent<CanvasGroup>();
+        if (group == null)
+            group = root.AddComponent<CanvasGroup>();
+
+        RectTransform rect = root.transform as RectTransform;
+        Vector3 finalScale = Vector3.one;
+        group.alpha = 0f;
+        if (rect != null)
+            rect.localScale = finalScale * 0.88f;
+
+        float elapsed = 0f;
+        const float duration = 0.28f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / duration));
+            group.alpha = t;
+            if (rect != null)
+                rect.localScale = Vector3.LerpUnclamped(finalScale * 0.88f, finalScale, t);
+            yield return null;
+        }
+
+        group.alpha = 1f;
+        if (rect != null)
+            rect.localScale = finalScale;
+    }
+
     /// <summary>
     /// Records a failed cash-handling session — the register was closed without a
     /// correct Confirm (group left, or session timed out before correct change was given).
     /// </summary>
     public void RegisterCashError()
     {
-        if (!shiftRunning)
+        if (!ServiceActive)
             return;
 
         cashErrors++;

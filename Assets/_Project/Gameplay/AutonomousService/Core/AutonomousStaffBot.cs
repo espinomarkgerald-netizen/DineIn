@@ -213,14 +213,17 @@ public class AutonomousStaffBot : MonoBehaviour
     public IEnumerator MoveWithin(
         Vector3 destination,
         float acceptedDistance,
-        float sampleRadius = -1f)
+        float sampleRadius = -1f,
+        float travelTimeoutSeconds = -1f)
     {
         yield return MoveToInternal(
             destination,
             StaffState.MovingToTask,
             sampleRadius,
             Mathf.Max(arrivalDistance, acceptedDistance),
-            maxInteractionTravelSeconds);
+            travelTimeoutSeconds > 0f
+                ? travelTimeoutSeconds
+                : maxInteractionTravelSeconds);
     }
 
     public IEnumerator FaceTowards(Vector3 worldPosition)
