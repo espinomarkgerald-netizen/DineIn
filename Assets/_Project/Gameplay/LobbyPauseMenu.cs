@@ -16,6 +16,9 @@ public sealed class LobbyPauseMenu : MonoBehaviour
 
     private void Awake()
     {
+        paused = false;
+        previousTimeScale = 1f;
+        Time.timeScale = 1f;
         BuildUI();
     }
 
@@ -118,7 +121,7 @@ public sealed class LobbyPauseMenu : MonoBehaviour
 
     private void Pause()
     {
-        if (paused)
+        if (paused || Time.timeScale <= 0f)
             return;
 
         paused = true;

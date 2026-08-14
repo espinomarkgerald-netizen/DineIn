@@ -432,11 +432,13 @@ public class GameFlowManager : MonoBehaviour
         GameOverScreen screen = GameOverScreen.Instance != null ? GameOverScreen.Instance : gameOverScreen;
 
         if (screen != null)
+        {
             screen.Show(reason, approval, money, currentDay);
-        else
-            Debug.LogWarning("[GameFlowManager] No GameOverScreen found. Assign it in the Inspector or ensure it is present in the Kitchen scene.");
+            Time.timeScale = 0f;
+            return;
+        }
 
-        Time.timeScale = 0f;
+        Debug.LogWarning("[GameFlowManager] No GameOverScreen found. Continuing without pausing the simulation.");
     }
 
     public bool TrySetCurrentDayDebug(int day)

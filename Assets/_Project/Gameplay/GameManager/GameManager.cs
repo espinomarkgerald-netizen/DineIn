@@ -493,6 +493,8 @@ public class GameDayManager : MonoBehaviour
         if (shiftRunning || closingOut)
             return;
 
+        Time.timeScale = 1f;
+
         ResolveManagerComponents();
         ApplyDifficultyScaling();
         ApplyTakeoutUnlock();

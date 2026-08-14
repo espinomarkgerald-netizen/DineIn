@@ -64,6 +64,9 @@ public class AutonomousStaffBot : MonoBehaviour
 
     private void Awake()
     {
+        if (GetComponent<BuildRigPoseCorrector>() == null)
+            gameObject.AddComponent<BuildRigPoseCorrector>();
+
         fallbackHomePosition = transform.position;
         fallbackHomeRotation = transform.rotation;
         agent = GetComponent<NavMeshAgent>();

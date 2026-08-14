@@ -15,9 +15,16 @@ public class DailyFinanceBridge : MonoBehaviour
     [SerializeField] private int earnedToday;
 
     [Header("Daily Sales Quota")]
-    [SerializeField, Min(0)] private int baseSalesQuota = 3500;
-    [Tooltip("0.25 makes each day add 25% of the Day 1 quota.")]
-    [SerializeField, Min(0f)] private float quotaGrowthPerDay = 0.25f;
+    [Tooltip("Day 1 target. Bots should be able to make progress, while the manager secures the win.")]
+    [SerializeField, Min(0)] private int dayOneSalesQuota = 4500;
+    [Tooltip("Day 2 target. This is deliberately above the observed bots-only revenue.")]
+    [SerializeField, Min(0)] private int dayTwoSalesQuota = 7500;
+    [Tooltip("Flat daily increase from Day 3 through the difficulty ceiling.")]
+    [SerializeField, Min(0)] private int quotaIncreasePerDayThroughCeiling = 500;
+    [Tooltip("The last day of the fixed progression. Later days grow more slowly.")]
+    [SerializeField, Min(2)] private int quotaDifficultyCeilingDay = 20;
+    [Tooltip("Growth applied after the difficulty ceiling. Keep this low because customer volume stops scaling.")]
+    [SerializeField, Range(0f, 0.1f)] private float postCeilingQuotaGrowth = 0.04f;
 
     public int EmployeeCostToday => employeeCostToday;
     public int MarketingCostToday => marketingCostToday;
@@ -110,6 +117,19 @@ public class DailyFinanceBridge : MonoBehaviour
         int day = GameFlowManager.Instance != null
             ? Mathf.Max(1, GameFlowManager.Instance.CurrentDay)
             : 1;
-        return Mathf.RoundToInt(baseSalesQuota * (1f + quotaGrowthPerDay * (day - 1)));
+
+        if (day == 1)
+            return dayOneSalesQuota;
+
+        int ceilingDay = Mathf.Max(2, quotaDifficultyCeilingDay);
+        int fixedProgressionDay = Mathf.Min(day, ceilingDay);
+        int quotaAtCeiling = dayTwoSalesQuota +
+                             (fixedProgressionDay - 2) * quotaIncreasePerDayThroughCeiling;
+
+        if (day <= ceilingDay)
+            return quotaAtCeiling;
+
+        float lateDayMultiplier = Mathf.Pow(postCeilingQuotaGrowth + 1f, day - ceilingDay);
+        return Mathf.RoundToInt(quotaAtCeiling * lateDayMultiplier);
     }
 }

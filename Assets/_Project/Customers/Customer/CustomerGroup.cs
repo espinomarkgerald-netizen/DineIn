@@ -643,6 +643,7 @@ public class CustomerGroup : MonoBehaviour
     private void Awake()
     {
         receptionTaskOwner = ReceptionTaskOwner.None;
+        isOrderPaused = false;
         BuildGroupUIAnchor();
         ResolveExitPoint();
 
@@ -914,7 +915,7 @@ public class CustomerGroup : MonoBehaviour
         if (currentOrder == null || currentOrder.contents == null ||
             currentOrder.contents.Count == 0 || currentOrder.name == "No Food Available")
         {
-            BecomeUnhappyAndLeave();
+            WarnAndLeaveForMissingStock();
             yield break;
         }
 
@@ -1422,6 +1423,7 @@ public class CustomerGroup : MonoBehaviour
                 Debug.LogWarning(
                     $"[CustomerGroup] Automated order for {name} could not reserve its full quantity from stock.",
                     this);
+                WarnAndLeaveForMissingStock();
                 return false;
             }
         }
@@ -1720,6 +1722,20 @@ public class CustomerGroup : MonoBehaviour
         ClearMoneyBubble();
         ClearEatingBubble();
 
+        StartLeaving(false);
+    }
+
+    private void WarnAndLeaveForMissingStock()
+    {
+        WarningSlideUI.Instance?.Show(
+            "No stocked food and drinks are available. This group is leaving.");
+        ShowThought(unhappyComments, unhappyFaceSprite);
+        SetState(GroupState.UnhappyLeft);
+        ClearOrderBubble();
+        ClearBillBubble();
+        ClearTableNumber();
+        ClearMoneyBubble();
+        ClearEatingBubble();
         StartLeaving(false);
     }
 

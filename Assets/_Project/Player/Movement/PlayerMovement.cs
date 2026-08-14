@@ -147,6 +147,9 @@ public class PlayerMovement : MonoBehaviour
 
     private void Awake()
     {
+        if (GetComponent<BuildRigPoseCorrector>() == null)
+            gameObject.AddComponent<BuildRigPoseCorrector>();
+
         agent = GetComponent<NavMeshAgent>();
 
         if (animator == null)

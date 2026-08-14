@@ -51,6 +51,7 @@ public class LobbyAutonomousService : MonoBehaviour
 
     private void Awake()
     {
+        LobbyRuntimeNavMeshBootstrap.EnsureLobbyNavMesh();
         roleManager = FindFirstObjectByType<RoleManager>(FindObjectsInactive.Include);
         DisableManualRoleControl();
     }

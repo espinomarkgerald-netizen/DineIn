@@ -80,8 +80,7 @@ public class AlienApprovalManager : MonoBehaviour
         if (Approval >= 80) return 2;
         if (Approval >= 60) return 0;
         if (Approval >= 40) return -1;
-        if (Approval >= 20) return -2;
-        return -99;
+        return -2;
     }
 
     public void ResetApproval()
