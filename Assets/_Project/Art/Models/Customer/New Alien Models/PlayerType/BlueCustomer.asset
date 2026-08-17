@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: BlueCustomer
   m_EditorClassIdentifier: 
   displayName: Messy
-  customerImage: {fileID: 21300000, guid: 472d28449dd3caa4a926177395fdb513, type: 3}
+  customerImage: {fileID: 21300000, guid: 00a9d60325584aa40bf0699682e6e0d9, type: 3}
   openingMessages:
   - We usually take our time while eating.
   - We usually take our time while eating.

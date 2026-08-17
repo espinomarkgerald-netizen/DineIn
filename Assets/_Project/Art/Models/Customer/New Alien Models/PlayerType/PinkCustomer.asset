@@ -10,15 +10,15 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 140633127913287428aff3eb3ff345e5, type: 3}
-  m_Name: GreenCustomer
+  m_Name: PinkCustomer
   m_EditorClassIdentifier: 
-  displayName: Regular
-  customerImage: {fileID: 21300000, guid: e8c745e215bd2824fb7ff3ffbaedb235, type: 3}
+  displayName: VIP
+  customerImage: {fileID: 21300000, guid: e4325db48a4061c479803d171413d4a1, type: 3}
   openingMessages:
-  - We're just here for a nice meal.
-  - We're just looking forward to a good meal.
-  orderPatienceMultiplier: 1
-  linePatienceMultiplier: 1
+  - Please be quick with us and I'll give you tip.
+  - Don't keep us waiting and I'll give you tip.
+  orderPatienceMultiplier: 3
+  linePatienceMultiplier: 3
   eatDurationMultiplier: 1
-  tipAmount: 0
+  tipAmount: 100
   isMessy: 0
