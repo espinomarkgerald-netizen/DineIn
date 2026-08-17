@@ -21,7 +21,7 @@ EditorBuildSettings:
     path: Assets/Scenes/CoreGameplay.unity
     guid: 99c9720ab356a0642a771bea13969a05
   - enabled: 1
-    path: Assets/_Project/Scenes/RoleBased/Office.unity
+    path: Assets/_Project/Scenes/RoleBased/RestockScene.unity
     guid: 5e7ae3e0ae71a1f4db40a7f87dda949b
   - enabled: 1
     path: Assets/_Project/Scenes/RoleBased/Lobby1.unity
