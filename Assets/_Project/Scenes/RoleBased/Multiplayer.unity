@@ -9991,7 +9991,9 @@ MonoBehaviour:
     blocksGameplay: 1
   - target: {fileID: 23184226}
     blocksGameplay: 1
-  debugBlocking: 1
+  - target: {fileID: 3787831}
+    blocksGameplay: 1
+  debugBlocking: 0
 --- !u!1 &785107338
 GameObject:
   m_ObjectHideFlags: 0
@@ -15132,8 +15134,8 @@ MonoBehaviour:
   m_UiScaleMode: 1
   m_ReferencePixelsPerUnit: 100
   m_ScaleFactor: 1
-  m_ReferenceResolution: {x: 800, y: 600}
-  m_ScreenMatchMode: 0
+  m_ReferenceResolution: {x: 800, y: 450}
+  m_ScreenMatchMode: 1
   m_MatchWidthOrHeight: 0
   m_PhysicalUnit: 3
   m_FallbackScreenDPI: 96
@@ -27740,8 +27742,8 @@ MonoBehaviour:
   m_UiScaleMode: 1
   m_ReferencePixelsPerUnit: 100
   m_ScaleFactor: 1
-  m_ReferenceResolution: {x: 800, y: 600}
-  m_ScreenMatchMode: 0
+  m_ReferenceResolution: {x: 800, y: 450}
+  m_ScreenMatchMode: 1
   m_MatchWidthOrHeight: 0
   m_PhysicalUnit: 3
   m_FallbackScreenDPI: 96
@@ -30040,6 +30042,7 @@ MonoBehaviour:
   drinkContentRoot: {fileID: 205583286}
   foodScrollRect: {fileID: 852011002}
   drinkScrollRect: {fileID: 1449817409}
+  menuEntryPrefab: {fileID: 5530247932279118021, guid: 4d17af034dbfe3544819cfc2ec383fd9, type: 3}
   foodPanel: {fileID: 852010999}
   drinkPanel: {fileID: 1449817405}
   foodTabButton: {fileID: 848146886}
@@ -30050,7 +30053,7 @@ MonoBehaviour:
   typeSpeed: 0.02
   tutorialHint: {fileID: 0}
   menuStyle:
-    entryHeight: 92
+    entryHeight: 132
     entryBackgroundSprite: {fileID: -5177388603050735206, guid: c63c29f7cc02b0b4590894ee34419ab6, type: 3}
     entryColor: {r: 0.404, g: 0.667, b: 0.808, a: 1}
     disabledColor: {r: 0.46, g: 0.49, b: 0.52, a: 0.9}

@@ -123,7 +123,7 @@ public class BoothDeliverInteractable : MonoBehaviour, IInteractable
         if (trayInteractable != null)
             trayInteractable.NotifyDeliveredToTable();
 
-        group.ReceiveFoodFromWaiter(tray.DeliveredContents);
+        group.ReceiveFoodFromWaiter(tray.DeliveredContents, tray);
 
         Debug.Log($"[BoothDeliver] Delivered tray #{group.currentOrderNumber} to {booth.name}");
     }

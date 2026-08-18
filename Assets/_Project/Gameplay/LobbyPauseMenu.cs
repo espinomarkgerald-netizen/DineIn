@@ -28,6 +28,17 @@ public sealed class LobbyPauseMenu : MonoBehaviour
             Time.timeScale = 1f;
     }
 
+    private void LateUpdate()
+    {
+        if (paused || pauseButton == null)
+            return;
+
+        bool loading = SceneLoader.Instance != null && SceneLoader.Instance.IsLoading;
+        bool shouldShow = !loading && !GameplayUIBlocker.IsBlocked();
+        if (pauseButton.gameObject.activeSelf != shouldShow)
+            pauseButton.gameObject.SetActive(shouldShow);
+    }
+
     private void BuildUI()
     {
         GameObject prefab = Resources.Load<GameObject>(PausePrefabResourceName);

@@ -123,8 +123,14 @@ public class InventoryManager : MonoBehaviour
 
     public void ResetStock()
     {
+        SetAllStock(0);
+    }
+
+    public void SetAllStock(int amount)
+    {
+        amount = Mathf.Max(0, amount);
         foreach (var key in inventory.Keys.ToArray())
-            inventory[key] = 0;
+            inventory[key] = amount;
 
         UpdateInspectorInventory();
 

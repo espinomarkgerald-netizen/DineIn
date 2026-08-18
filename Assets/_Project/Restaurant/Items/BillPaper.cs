@@ -97,7 +97,8 @@ public class BillPaper : MonoBehaviour, IInteractable, ICancelableTaskTarget
 
     public void Interact(PlayerMovement mover)
     {
-        TryPickup(mover);
+        if (!TryPickup(mover))
+            RecoverFailedPickup();
     }
 
     public void UI_Pickup()
@@ -122,6 +123,7 @@ public class BillPaper : MonoBehaviour, IInteractable, ICancelableTaskTarget
 
         pickupRequested = true;
         RefreshPickupUI();
+        mover.LockTask(this);
         mover.UI_MoveTo(this);
     }
 
@@ -147,6 +149,12 @@ public class BillPaper : MonoBehaviour, IInteractable, ICancelableTaskTarget
         }
 
         hands.PickupBillPaper(this);
+
+        if (!hands.HasBill || hands.holdingBillFor != targetGroup || !IsHeldBy(hands))
+        {
+            RecoverFailedPickup();
+            return false;
+        }
 
         if (disableColliderWhileHeld && cachedCol != null)
             cachedCol.enabled = false;
@@ -275,6 +283,11 @@ public class BillPaper : MonoBehaviour, IInteractable, ICancelableTaskTarget
     }
 
     public void OnTaskCancelled()
+    {
+        RecoverFailedPickup();
+    }
+
+    private void RecoverFailedPickup()
     {
         if (isPickedUp || IsHeldByAnyWaiter())
             return;

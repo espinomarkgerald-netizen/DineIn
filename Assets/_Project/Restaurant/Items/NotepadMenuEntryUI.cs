@@ -8,7 +8,7 @@ using UnityEngine.UI;
 [Serializable]
 public class NotepadMenuVisualStyle
 {
-    public float entryHeight = 92f;
+    public float entryHeight = 132f;
     public Sprite entryBackgroundSprite;
     public Color entryColor = new Color(0.404f, 0.667f, 0.808f, 1f);
     public Color disabledColor = new Color(0.46f, 0.49f, 0.52f, 0.9f);
@@ -147,11 +147,11 @@ public sealed class NotepadMenuEntryUI : MonoBehaviour
         root.layer = parent != null ? parent.gameObject.layer : 5;
         RectTransform rect = root.GetComponent<RectTransform>();
         rect.SetParent(parent, false);
-        rect.sizeDelta = new Vector2(450f, visualStyle.entryHeight);
+        rect.sizeDelta = new Vector2(450f, Mathf.Max(132f, visualStyle.entryHeight));
 
         LayoutElement layout = root.GetComponent<LayoutElement>();
-        layout.minHeight = visualStyle.entryHeight;
-        layout.preferredHeight = visualStyle.entryHeight;
+        layout.minHeight = Mathf.Max(132f, visualStyle.entryHeight);
+        layout.preferredHeight = Mathf.Max(132f, visualStyle.entryHeight);
         layout.flexibleWidth = 1f;
 
         NotepadMenuEntryUI view = root.GetComponent<NotepadMenuEntryUI>();
@@ -427,48 +427,48 @@ public sealed class NotepadMenuEntryUI : MonoBehaviour
 
         iconRoot = CreateRect("Icons", transform);
         ConfigureRect(iconRoot, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
-            new Vector2(0f, 0.5f), new Vector2(12f, 0f), new Vector2(112f, 74f));
+            new Vector2(0f, 0.5f), new Vector2(12f, 0f), new Vector2(112f, 106f));
 
         nameText = CreateText("Name", transform, style.nameFontSize, FontStyles.Bold,
             TextAlignmentOptions.MidlineLeft, style.primaryTextColor);
         ConfigureRect(nameText.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
-            new Vector2(0f, 0.5f), new Vector2(132f, 11f), new Vector2(205f, 42f));
+            new Vector2(0f, 0.5f), new Vector2(132f, 32f), new Vector2(190f, 42f));
 
         statusText = CreateText("Status", transform, style.detailFontSize, FontStyles.Italic,
             TextAlignmentOptions.MidlineLeft, style.secondaryTextColor);
         ConfigureRect(statusText.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
-            new Vector2(0f, 0.5f), new Vector2(132f, -24f), new Vector2(205f, 26f));
+            new Vector2(0f, 0.5f), new Vector2(132f, 0f), new Vector2(180f, 28f));
 
         priceText = CreateText("Price", transform, style.detailFontSize, FontStyles.Bold,
             TextAlignmentOptions.MidlineRight, style.primaryTextColor);
         ConfigureRect(priceText.rectTransform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
-            new Vector2(1f, 0.5f), new Vector2(-48f, 14f), new Vector2(95f, 28f));
+            new Vector2(1f, 0.5f), new Vector2(-16f, 38f), new Vector2(105f, 30f));
 
         stockText = CreateText("Stock", transform, style.detailFontSize, FontStyles.Normal,
             TextAlignmentOptions.MidlineRight, style.secondaryTextColor);
         ConfigureRect(stockText.rectTransform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
-            new Vector2(1f, 0.5f), new Vector2(-144f, -17f), new Vector2(96f, 26f));
+            new Vector2(1f, 0.5f), new Vector2(-16f, 0f), new Vector2(105f, 28f));
 
         decreaseButton = CreateQuantityButton("Decrease Quantity", transform, "−");
         ConfigureRect(decreaseButton.GetComponent<RectTransform>(),
             new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
-            new Vector2(-92f, -18f), new Vector2(30f, 30f));
+            new Vector2(-116f, -36f), new Vector2(44f, 44f));
 
         quantityText = CreateText("Selected Quantity", transform, style.detailFontSize,
             FontStyles.Bold, TextAlignmentOptions.Center, style.primaryTextColor);
         ConfigureRect(quantityText.rectTransform,
             new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
-            new Vector2(-48f, -18f), new Vector2(50f, 30f));
+            new Vector2(-64f, -36f), new Vector2(48f, 44f));
         quantityText.text = "x0";
 
         increaseButton = CreateQuantityButton("Increase Quantity", transform, "+");
         ConfigureRect(increaseButton.GetComponent<RectTransform>(),
             new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
-            new Vector2(-8f, -18f), new Vector2(30f, 30f));
+            new Vector2(-12f, -36f), new Vector2(44f, 44f));
 
         RectTransform markRect = CreateRect("Selected", transform);
         ConfigureRect(markRect, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
-            new Vector2(0f, 0.5f), new Vector2(3f, 0f), new Vector2(6f, 66f));
+            new Vector2(0f, 0.5f), new Vector2(3f, 0f), new Vector2(6f, 106f));
         selectionMark = markRect.gameObject.AddComponent<Image>();
         selectionMark.color = style.selectedColor;
         selectionMark.raycastTarget = false;
@@ -708,7 +708,7 @@ public sealed class NotepadMenuEntryUI : MonoBehaviour
             return;
 
         int count = products.Count;
-        float iconSize = count <= 1 ? 72f : Mathf.Clamp(104f / count, 30f, 50f);
+        float iconSize = count <= 1 ? 88f : Mathf.Clamp(104f / count, 30f, 50f);
         float spacing = count <= 1 ? 0f : 4f;
         float totalWidth = count * iconSize + (count - 1) * spacing;
         float start = -totalWidth * 0.5f + iconSize * 0.5f;
@@ -788,7 +788,7 @@ public sealed class NotepadMenuEntryUI : MonoBehaviour
         Button button = rect.gameObject.AddComponent<Button>();
         button.targetGraphic = image;
 
-        TMP_Text text = CreateText("Label", rect, 19f, FontStyles.Bold,
+        TMP_Text text = CreateText("Label", rect, 24f, FontStyles.Bold,
             TextAlignmentOptions.Center, Color.white);
         ConfigureRect(text.rectTransform, Vector2.zero, Vector2.one,
             new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);

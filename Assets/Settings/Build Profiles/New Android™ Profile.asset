@@ -17,7 +17,7 @@ MonoBehaviour:
   m_Subtarget: 0
   m_PlatformId: b9b35072a6f44c2e863f17467ea3dc13
   m_PlatformBuildProfile:
-    rid: 3989119777449967699
+    rid: 6951471360629276784
   m_OverrideGlobalSceneList: 1
   m_Scenes:
   - m_enabled: 1
@@ -29,14 +29,14 @@ MonoBehaviour:
   - m_enabled: 1
     m_path: Assets/_Project/Scenes/RoleBased/Lobby1.unity
   - m_enabled: 1
-    m_path: Assets/_Project/Scenes/RoleBased/Office.unity
+    m_path: Assets/_Project/Scenes/RoleBased/RestockScene.unity
   m_ScriptingDefines: []
   m_PlayerSettingsYaml:
     m_Settings: []
   references:
     version: 2
     RefIds:
-    - rid: 3989119777449967699
+    - rid: 6951471360629276784
       type: {class: AndroidPlatformBuildSettings, ns: UnityEditor.Android, asm: UnityEditor.Android.Extensions}
       data:
         m_Development: 0

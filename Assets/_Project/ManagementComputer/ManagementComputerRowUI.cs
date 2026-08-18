@@ -13,6 +13,8 @@ public sealed class ManagementComputerRowUI : MonoBehaviour
     [SerializeField] private Button actionButton;
     [SerializeField] private TMP_Text actionLabel;
 
+    private bool cardPresentation;
+
     public void ConfigureReferences(
         Image configuredIcon,
         TMP_Text configuredTitle,
@@ -59,5 +61,157 @@ public sealed class ManagementComputerRowUI : MonoBehaviour
         }
 
         if (actionLabel != null) actionLabel.text = action ?? string.Empty;
+        ApplyActionState(!string.IsNullOrWhiteSpace(action));
+    }
+
+    public void ApplyPresentation(bool asCard)
+    {
+        cardPresentation = asCard;
+
+        LayoutElement layout = GetComponent<LayoutElement>();
+        RectTransform root = transform as RectTransform;
+        float height = asCard ? 190f : 128f;
+        if (layout != null)
+        {
+            layout.minHeight = height;
+            layout.preferredHeight = height;
+            layout.flexibleWidth = 1f;
+        }
+        if (root != null)
+            root.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, height);
+
+        if (asCard)
+            ApplyCardLayout();
+        else
+            ApplyWideRowLayout(true);
+    }
+
+    private void ApplyCardLayout()
+    {
+        SetFixed(icon != null ? icon.rectTransform : null,
+            new Vector2(0f, 1f), new Vector2(0.5f, 0.5f),
+            new Vector2(44f, -44f), new Vector2(60f, 60f));
+        SetTopStretch(titleText != null ? titleText.rectTransform : null,
+            84f, 16f, 12f, 32f);
+        SetTopStretch(valueText != null ? valueText.rectTransform : null,
+            84f, 16f, 46f, 26f);
+        SetTopStretch(detailsText != null ? detailsText.rectTransform : null,
+            16f, 16f, 80f, 42f);
+        SetBottomStretch(actionButton != null
+                ? actionButton.transform as RectTransform
+                : null,
+            14f, 14f, 12f, 50f);
+
+        ConfigureAutosizing(titleText, 19f, 25f, TextWrappingModes.NoWrap);
+        ConfigureAutosizing(detailsText, 14f, 18f, TextWrappingModes.Normal);
+        ConfigureAutosizing(valueText, 16f, 22f, TextWrappingModes.NoWrap);
+        ConfigureAutosizing(actionLabel, 17f, 22f, TextWrappingModes.NoWrap);
+    }
+
+    private void ApplyWideRowLayout(bool hasAction)
+    {
+        SetFixed(icon != null ? icon.rectTransform : null,
+            new Vector2(0f, 0.5f), new Vector2(0.5f, 0.5f),
+            new Vector2(52f, 0f), new Vector2(78f, 78f));
+
+        float textRight = hasAction ? 356f : 188f;
+        SetStretch(titleText != null ? titleText.rectTransform : null,
+            104f, textRight, 62f, 10f);
+        SetStretch(detailsText != null ? detailsText.rectTransform : null,
+            104f, textRight, 12f, 66f);
+
+        SetFixed(valueText != null ? valueText.rectTransform : null,
+            new Vector2(1f, 0.5f), new Vector2(0.5f, 0.5f),
+            new Vector2(hasAction ? -270f : -92f, 0f), new Vector2(150f, 88f));
+        SetFixed(actionButton != null
+                ? actionButton.transform as RectTransform
+                : null,
+            new Vector2(1f, 0.5f), new Vector2(0.5f, 0.5f),
+            new Vector2(-96f, 0f), new Vector2(168f, 76f));
+
+        ConfigureAutosizing(titleText, 19f, 26f, TextWrappingModes.NoWrap);
+        ConfigureAutosizing(detailsText, 14f, 18f, TextWrappingModes.Normal);
+        ConfigureAutosizing(valueText, 16f, 22f, TextWrappingModes.Normal);
+        ConfigureAutosizing(actionLabel, 17f, 22f, TextWrappingModes.NoWrap);
+    }
+
+    private void ApplyActionState(bool hasAction)
+    {
+        if (!cardPresentation)
+            ApplyWideRowLayout(hasAction);
+    }
+
+    private static void ConfigureAutosizing(
+        TMP_Text text,
+        float minimum,
+        float maximum,
+        TextWrappingModes wrapping)
+    {
+        if (text == null) return;
+        text.enableAutoSizing = true;
+        text.fontSizeMin = minimum;
+        text.fontSizeMax = maximum;
+        text.textWrappingMode = wrapping;
+        text.overflowMode = TextOverflowModes.Ellipsis;
+    }
+
+    private static void SetFixed(
+        RectTransform rect,
+        Vector2 anchor,
+        Vector2 pivot,
+        Vector2 position,
+        Vector2 size)
+    {
+        if (rect == null) return;
+        rect.anchorMin = anchor;
+        rect.anchorMax = anchor;
+        rect.pivot = pivot;
+        rect.anchoredPosition = position;
+        rect.sizeDelta = size;
+    }
+
+    private static void SetTopStretch(
+        RectTransform rect,
+        float left,
+        float right,
+        float top,
+        float height)
+    {
+        if (rect == null) return;
+        rect.anchorMin = new Vector2(0f, 1f);
+        rect.anchorMax = new Vector2(1f, 1f);
+        rect.pivot = new Vector2(0.5f, 1f);
+        rect.anchoredPosition = new Vector2((left - right) * 0.5f, -top);
+        rect.sizeDelta = new Vector2(-(left + right), height);
+    }
+
+    private static void SetBottomStretch(
+        RectTransform rect,
+        float left,
+        float right,
+        float bottom,
+        float height)
+    {
+        if (rect == null) return;
+        rect.anchorMin = new Vector2(0f, 0f);
+        rect.anchorMax = new Vector2(1f, 0f);
+        rect.pivot = new Vector2(0.5f, 0f);
+        rect.anchoredPosition = new Vector2((left - right) * 0.5f, bottom);
+        rect.sizeDelta = new Vector2(-(left + right), height);
+    }
+
+    private static void SetStretch(
+        RectTransform rect,
+        float left,
+        float right,
+        float bottom,
+        float top)
+    {
+        if (rect == null) return;
+        rect.anchorMin = Vector2.zero;
+        rect.anchorMax = Vector2.one;
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.offsetMin = new Vector2(left, bottom);
+        rect.offsetMax = new Vector2(-right, -top);
     }
 }

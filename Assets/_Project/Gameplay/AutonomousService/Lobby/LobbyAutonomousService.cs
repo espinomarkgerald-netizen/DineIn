@@ -51,7 +51,6 @@ public class LobbyAutonomousService : MonoBehaviour
 
     private void Awake()
     {
-        LobbyRuntimeNavMeshBootstrap.EnsureLobbyNavMesh();
         roleManager = FindFirstObjectByType<RoleManager>(FindObjectsInactive.Include);
         DisableManualRoleControl();
     }
@@ -376,14 +375,14 @@ public class LobbyAutonomousService : MonoBehaviour
         yield return host.FaceTowards(groupCenter);
         yield return host.WorkFor(greetingSeconds);
 
-        if (group == null || booth == null || group.HasBeenAssigned || !booth.IsAvailableFor(group.Size))
+        if (group == null || booth == null || !group.CanBeSeated || !booth.IsAvailableFor(group.Size))
             yield break;
 
         yield return host.MoveTo(booth.GetNavigableApproachPosition());
         yield return host.FaceTowards(GetGroupCenter(group));
         yield return host.WorkFor(greetingSeconds);
 
-        if (group != null && booth != null && !group.HasBeenAssigned && booth.IsAvailableFor(group.Size))
+        if (group != null && booth != null && group.CanBeSeated && booth.IsAvailableFor(group.Size))
             group.AssignToBooth(booth);
     }
 
@@ -777,7 +776,7 @@ public class LobbyAutonomousService : MonoBehaviour
         WaiterHands.SetAllColliders(tray.gameObject, true);
 
         tray.GetComponent<FoodTrayInteractable>()?.NotifyDeliveredToTable();
-        group.ReceiveFoodFromWaiter(tray.DeliveredContents);
+        group.ReceiveFoodFromWaiter(tray.DeliveredContents, tray);
         waiter.SetCarrying(false);
     }
 

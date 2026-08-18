@@ -263,14 +263,39 @@ public class RoleBasedAssignController : MonoBehaviour
     private void SelectGroup(CustomerGroup group)
     {
         if (selectedGroup != null)
+        {
+            selectedGroup.OnGroupLeftLine -= HandleSelectedGroupLeftLine;
             selectedGroup.SetSelected(false);
+        }
 
         selectedGroup = group;
         selectedGroup.SetSelected(true);
+        selectedGroup.OnGroupLeftLine -= HandleSelectedGroupLeftLine;
+        selectedGroup.OnGroupLeftLine += HandleSelectedGroupLeftLine;
 
         CustomerGreetBubbleSpawner.Instance?.Hide();
 
         Debug.Log($"Selected group: {group.name}");
+    }
+
+    private void HandleSelectedGroupLeftLine(CustomerGroup group)
+    {
+        if (group != selectedGroup)
+            return;
+
+        ClearSelectedGroup(group);
+        CustomerGreetBubbleSpawner.Instance?.Hide();
+        BoothAssignArrowManager.Instance?.HideAll();
+    }
+
+    private void ClearSelectedGroup(CustomerGroup group)
+    {
+        if (selectedGroup == null || (group != null && selectedGroup != group))
+            return;
+
+        selectedGroup.OnGroupLeftLine -= HandleSelectedGroupLeftLine;
+        selectedGroup.SetSelected(false);
+        selectedGroup = null;
     }
 
     public void BeginAssignFromBubble(CustomerGroup group)
@@ -306,6 +331,16 @@ public class RoleBasedAssignController : MonoBehaviour
     {
         if (group == null || booth == null) return;
 
+        if (!group.CanBeSeated)
+        {
+            ShowWarning("This group is already leaving.");
+            group.ReleasePlayerReceptionTask();
+            RestaurantTaskClaim.ReleasePlayer(group);
+            ClearSelectedGroup(group);
+            BoothAssignArrowManager.Instance?.HideAll();
+            return;
+        }
+
         if (booth.CurrentGroup != null)
         {
             ShowWarning("That table is already occupied.");
@@ -330,11 +365,16 @@ public class RoleBasedAssignController : MonoBehaviour
 
         void CompleteAssignment()
         {
-            if (group == null || booth == null || group.HasBeenAssigned ||
+            if (group == null || booth == null || !group.CanBeSeated ||
                 !booth.IsAvailableFor(group.Size))
             {
                 ShowWarning("That table is no longer available.");
-                RestaurantTaskClaim.ReleasePlayer(group);
+                if (group != null)
+                {
+                    group.ReleasePlayerReceptionTask();
+                    RestaurantTaskClaim.ReleasePlayer(group);
+                }
+                ClearSelectedGroup(group);
                 BoothAssignArrowManager.Instance?.HideAll();
                 return;
             }
@@ -356,8 +396,7 @@ public class RoleBasedAssignController : MonoBehaviour
             group.CompleteReceptionTask();
             RestaurantTaskClaim.Complete(group);
 
-            group.SetSelected(false);
-            selectedGroup = null;
+            ClearSelectedGroup(group);
 
             CustomerGreetBubbleSpawner.Instance?.Hide();
             BoothAssignArrowManager.Instance?.HideAll();
@@ -382,7 +421,7 @@ public class RoleBasedAssignController : MonoBehaviour
                         RestaurantTaskClaim.ReleasePlayer(group);
                     }
 
-                    selectedGroup = null;
+                    ClearSelectedGroup(group);
                     BoothAssignArrowManager.Instance?.HideAll();
                 });
             return;

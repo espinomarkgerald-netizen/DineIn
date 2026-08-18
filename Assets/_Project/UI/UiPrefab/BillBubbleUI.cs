@@ -55,6 +55,7 @@ public class BillBubbleUI : MonoBehaviour
             if (movement == null || approach == null)
             {
                 ShowWarning("This table has no reachable service point.");
+                RecoverInvalidBillTask(hands);
                 return;
             }
 
@@ -66,7 +67,10 @@ public class BillBubbleUI : MonoBehaviour
                 {
                     if (group == null || hands == null || !hands.HasBill ||
                         hands.holdingBillFor != group)
+                    {
+                        RecoverInvalidBillTask(hands);
                         return;
+                    }
 
                     hands.ClearBill();
                     group.ReceiveBillFromWaiter();
@@ -115,7 +119,7 @@ public class BillBubbleUI : MonoBehaviour
             {
                 if (group == null || group.state != CustomerGroup.GroupState.NeedsBill)
                 {
-                    RestaurantTaskClaim.ReleasePlayer(group);
+                    RecoverInvalidBillTask();
                     return;
                 }
 
@@ -128,6 +132,32 @@ public class BillBubbleUI : MonoBehaviour
                 group.SetBillTaskClaimedByStaff(false);
                 RestaurantTaskClaim.ReleasePlayer(group);
             });
+    }
+
+    private void RecoverInvalidBillTask(WaiterHands hands = null)
+    {
+        if (group == null)
+        {
+            // A destroyed group compares null in Unity even though its paper
+            // can still be parented to the hand. Clear that stale reference so
+            // future bill pickups are not silently rejected.
+            if (hands != null && !hands.HasBill)
+                hands.ClearBill();
+            return;
+        }
+
+        bool carryingThisBill = hands != null && hands.HasBill &&
+                                hands.holdingBillFor == group;
+        if (carryingThisBill)
+            hands.ClearBill();
+        else
+            RestaurantTaskClaim.ReleasePlayer(group);
+
+        if (group.state == CustomerGroup.GroupState.NeedsBill)
+        {
+            requested = false;
+            group.SetBillTaskClaimedByStaff(false);
+        }
     }
 
     private void ShowWarning(string message)

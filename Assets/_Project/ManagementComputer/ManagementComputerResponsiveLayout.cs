@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.UI;
 
 /// <summary>
 /// Keeps the management desktop inside the device safe area and switches the
@@ -21,6 +22,7 @@ public sealed class ManagementComputerResponsiveLayout : MonoBehaviour
 
     public RectTransform SafeAreaRoot => safeAreaRoot;
     public RectTransform AppWindow => appWindow;
+    public RectTransform[] AppButtons => appButtons;
 
     public void ConfigureReferences(
         RectTransform configuredSafeAreaRoot,
@@ -52,6 +54,17 @@ public sealed class ManagementComputerResponsiveLayout : MonoBehaviour
 
     public void RefreshLayout()
     {
+        RectTransform rootRect = transform as RectTransform;
+        if (rootRect != null)
+        {
+            rootRect.anchorMin = Vector2.zero;
+            rootRect.anchorMax = Vector2.one;
+            rootRect.pivot = new Vector2(0.5f, 0.5f);
+            rootRect.offsetMin = Vector2.zero;
+            rootRect.offsetMax = Vector2.zero;
+            rootRect.localScale = Vector3.one;
+        }
+
         if (safeAreaRoot == null || Screen.width <= 0 || Screen.height <= 0)
             return;
 
@@ -68,7 +81,6 @@ public sealed class ManagementComputerResponsiveLayout : MonoBehaviour
         bool compact = safeAspect < compactAspectThreshold;
         ApplyWindowAnchors(compact);
 
-        RectTransform rootRect = transform as RectTransform;
         Vector2 rootSize = rootRect != null ? rootRect.rect.size : Vector2.zero;
         Vector2 logicalSafeSize = new Vector2(
             rootSize.x * safe.width / Screen.width,
@@ -99,12 +111,19 @@ public sealed class ManagementComputerResponsiveLayout : MonoBehaviour
         if (safeWidth <= 0f || safeHeight <= 0f)
             return;
 
+        const int columns = 2;
         const float gap = 16f;
+        const float labelSpace = 44f;
+        const float bottomMargin = 28f;
         float availableWidth = compact ? safeWidth * 0.92f : safeWidth * 0.27f;
-        float buttonWidth = Mathf.Clamp((availableWidth - gap * 3f) * 0.5f, 150f, compact ? 300f : 220f);
-        float buttonHeight = Mathf.Clamp(safeHeight * 0.08f, 68f, 88f);
         float left = compact ? safeWidth * 0.04f : 24f;
         float top = compact ? 92f : 82f;
+        int rows = Mathf.CeilToInt(appButtons.Length / (float)columns);
+        float maxFromWidth = (availableWidth - gap * (columns - 1)) / columns;
+        float maxFromHeight = rows > 0
+            ? (safeHeight - top - bottomMargin - gap * (rows - 1) - labelSpace * rows) / rows
+            : 150f;
+        float buttonSize = Mathf.Clamp(Mathf.Min(maxFromWidth, maxFromHeight), 56f, 150f);
 
         for (int i = 0; i < appButtons.Length; i++)
         {
@@ -112,14 +131,18 @@ public sealed class ManagementComputerResponsiveLayout : MonoBehaviour
             if (button == null)
                 continue;
 
-            int column = i % 2;
-            int row = i / 2;
+            int column = i % columns;
+            int row = i / columns;
             button.anchorMin = button.anchorMax = new Vector2(0f, 1f);
             button.pivot = new Vector2(0.5f, 0.5f);
-            button.sizeDelta = new Vector2(buttonWidth, buttonHeight);
+            button.sizeDelta = Vector2.one * buttonSize;
             button.anchoredPosition = new Vector2(
-                left + buttonWidth * 0.5f + column * (buttonWidth + gap),
-                -(top + buttonHeight * 0.5f + row * (buttonHeight + gap)));
+                left + buttonSize * 0.5f + column * (buttonSize + gap),
+                -(top + buttonSize * 0.5f + row * (buttonSize + labelSpace + gap)));
+
+            Image icon = button.GetComponent<Image>();
+            if (icon != null)
+                icon.preserveAspect = true;
         }
     }
 }

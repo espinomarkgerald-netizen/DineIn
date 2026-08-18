@@ -1,0 +1,42 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7b4aa86cda914b348a4efbc3b15c8607, type: 3}
+  m_Name: AlienAnimationSettings
+  m_EditorClassIdentifier: 
+  walkingSpeedRange: {x: 0.93, y: 1.07}
+  sittingSpeedRange: {x: 0.96, y: 1.04}
+  eatingSpeedRange: {x: 0.88, y: 1.12}
+  speedBlend: 5
+  breathingCyclesPerSecond: 0.28
+  breathingChestDegrees: 1.05
+  idleHeadSwayDegrees: 1.1
+  eatingCycleSeconds: 1.65
+  armReachWeight: 0.302
+  torsoLeanDegrees: 10.1
+  chewHeadDegrees: 4.63
+  chewJawDegrees: 4.5
+  foodForward: 0.32
+  foodHeight: 0.12
+  foodSideOffset: 0.06
+  handLiftArc: 0.055
+  mouthForward: 0.075
+  mouthDown: 0.045
+  alternateHands: 1
+  particleMaterial: {fileID: 2100000, guid: c8d75a9c4b2e4e498cf08c1b3a37f028, type: 2}
+  particlesPerBite: 12
+  particleLifetime: 0.75
+  particleSpeed: 0.34
+  particleSize: 0.13
+  particleGravity: 0.18
+  particleSpawnRadius: 0.025
+  crumbColorA: {r: 1, g: 0.76, b: 0.2, a: 1}
+  crumbColorB: {r: 1, g: 0.96, b: 0.66, a: 1}

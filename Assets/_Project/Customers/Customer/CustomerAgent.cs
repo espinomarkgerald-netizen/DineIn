@@ -6,6 +6,7 @@ public class CustomerAgent : MonoBehaviour
 {
     public NavMeshAgent Agent { get; private set; }
     public bool IsSeated { get; private set; }
+    public bool IsEating { get; private set; }
     public Transform HeadAnchor => ResolveHeadAnchor();
 
     [Header("Arrival Tuning")]
@@ -21,6 +22,8 @@ public class CustomerAgent : MonoBehaviour
     [SerializeField] private string speedParam = "Speed";
     [SerializeField] private string sittingParam = "IsSitting";
     [SerializeField] private float animationDamp = 8f;
+    [Tooltip("Optional override. When empty, Resources/AlienAnimationSettings is shared by every alien.")]
+    [SerializeField] private AlienAnimationSettings animationSettings;
 
     private bool useIdleFacing;
     private Vector3 idleFacingForward = Vector3.forward;
@@ -29,6 +32,7 @@ public class CustomerAgent : MonoBehaviour
     private Vector3 activeDestination;
     private int destinationIssuedFrame = -1;
     private Transform headAnchor;
+    private AlienProceduralAnimation proceduralAnimation;
 
     private void Awake()
     {
@@ -38,6 +42,23 @@ public class CustomerAgent : MonoBehaviour
 
         if (animator == null)
             animator = GetComponentInChildren<Animator>();
+
+        if (animator != null)
+        {
+            if (animationSettings == null)
+                animationSettings = AlienAnimationSettings.LoadGlobal();
+
+            proceduralAnimation = new AlienProceduralAnimation(
+                this,
+                animator,
+                animationSettings);
+        }
+    }
+
+    private void OnDestroy()
+    {
+        proceduralAnimation?.Dispose();
+        proceduralAnimation = null;
     }
 
     private Transform ResolveHeadAnchor()
@@ -79,6 +100,7 @@ public class CustomerAgent : MonoBehaviour
     {
         UpdateMovementCompletion();
         UpdateAnimation();
+        proceduralAnimation?.Update(Time.deltaTime);
 
         if (!IsSeated && useIdleFacing && Agent != null)
         {
@@ -100,6 +122,11 @@ public class CustomerAgent : MonoBehaviour
         }
     }
 
+    private void LateUpdate()
+    {
+        proceduralAnimation?.LateUpdate();
+    }
+
     private void UpdateAnimation()
     {
         if (animator == null || Agent == null) return;
@@ -115,6 +142,25 @@ public class CustomerAgent : MonoBehaviour
 
         animator.SetFloat(speedParam, currentAnimSpeed);
         animator.SetBool(sittingParam, IsSeated);
+        proceduralAnimation?.SetState(
+            IsSeated,
+            IsEating,
+            !IsSeated && currentAnimSpeed > 0.05f);
+    }
+
+    public void SetEating(bool eating)
+    {
+        SetEating(eating, null, 0);
+    }
+
+    public void SetEating(bool eating, FoodTray foodSource, int dinerIndex)
+    {
+        IsEating = eating;
+        proceduralAnimation?.SetFoodSource(eating ? foodSource : null, dinerIndex);
+        proceduralAnimation?.SetState(
+            IsSeated,
+            IsEating,
+            !IsSeated && currentAnimSpeed > 0.05f);
     }
 
     public void WalkTo(Vector3 worldPos)
@@ -278,6 +324,8 @@ public class CustomerAgent : MonoBehaviour
 
         if (animator != null)
             animator.SetBool(sittingParam, true);
+
+        proceduralAnimation?.SetState(true, IsEating, false);
     }
 
     public void Unseat()
@@ -285,6 +333,7 @@ public class CustomerAgent : MonoBehaviour
         if (Agent == null) return;
 
         IsSeated = false;
+        IsEating = false;
         hasActiveDestination = false;
         currentAnimSpeed = 0f;
 
@@ -305,5 +354,7 @@ public class CustomerAgent : MonoBehaviour
 
         if (animator != null)
             animator.SetBool(sittingParam, false);
+
+        proceduralAnimation?.SetState(false, false, false);
     }
 }

@@ -52,6 +52,8 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
     private PointerEventData fallbackDragPointer;
     private bool fallbackDragStarted;
     private bool fallbackConsumedRelease;
+    private int lastFallbackButtonFrame = -1;
+    private bool currentAppUsesCards;
 
     public bool IsOpen => desktopRoot != null && desktopRoot.activeSelf;
     public ManagementComputerWindow AppWindow => appWindow;
@@ -302,10 +304,16 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         eventData.Use();
     }
 
-    private static void InvokeFallbackButton(Button target, Vector2 screenPosition)
+    private void InvokeFallbackButton(Button target, Vector2 screenPosition)
     {
-        if (target == null)
+        if (target == null || lastFallbackButtonFrame == Time.frameCount)
             return;
+
+        // In the Unity 6 depth -1 case, both Update's raw-input fallback and
+        // the desktop background's pointer handler can see the same release.
+        // Process that physical click only once, even if the first callback
+        // refreshes the applicant list underneath the pointer.
+        lastFallbackButtonFrame = Time.frameCount;
 
         if (EventSystem.current == null)
         {
@@ -479,6 +487,8 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
 
         ManagementComputerApp app = (ManagementComputerApp)appIndex;
         appWindow.Open(GetAppTitle(app));
+        currentAppUsesCards = UsesCardLayout(app);
+        appWindow.SetContentLayout(currentAppUsesCards);
 
         switch (app)
         {
@@ -490,6 +500,8 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
             case ManagementComputerApp.Finances: PopulateFinances(); break;
             case ManagementComputerApp.Objectives: PopulateObjectives(); break;
         }
+
+        appWindow.RefreshContentLayout();
     }
 
     public void CloseApp()
@@ -882,12 +894,24 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
 
         ManagementComputerRowUI row = Instantiate(rowPrefab, appWindow.Content);
         row.gameObject.SetActive(true);
+        row.ApplyPresentation(currentAppUsesCards);
         row.Bind(icon, title, details, value, action, callback, enabled);
+    }
+
+    private static bool UsesCardLayout(ManagementComputerApp app)
+    {
+        return app == ManagementComputerApp.Dashboard ||
+               app == ManagementComputerApp.Menu ||
+               app == ManagementComputerApp.Restock;
     }
 
     private void PopulateAgain(ManagementComputerApp app)
     {
+        float scrollPosition = appWindow != null
+            ? appWindow.VerticalNormalizedPosition
+            : 1f;
         OpenApp((int)app);
+        appWindow?.RestoreVerticalNormalizedPositionNextFrame(scrollPosition);
         RefreshStatusBar();
     }
 

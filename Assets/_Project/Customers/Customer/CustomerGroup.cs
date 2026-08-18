@@ -535,6 +535,7 @@ public class CustomerGroup : MonoBehaviour
     private bool angryResultLocked;
     private bool firstDeliveryCompleted;
     private int wrongDeliveryCount;
+    private FoodTray activeFoodTray;
 
     [HideInInspector] public Booth assignedBooth;
 
@@ -588,6 +589,12 @@ public class CustomerGroup : MonoBehaviour
     private GameObject thoughtBubbleInstance;
 
     public bool HasBeenAssigned => hasBeenAssigned;
+    public bool CanBeSeated =>
+        !IsTakeout &&
+        !linePatienceExpired &&
+        !hasBeenAssigned &&
+        !leavingRoutineStarted &&
+        (state == GroupState.Waiting || state == GroupState.WalkingToLobby);
     public Transform UIAnchor => groupUiAnchor;
 
     private int pendingPaymentAmount;
@@ -675,8 +682,24 @@ public class CustomerGroup : MonoBehaviour
     private void SetState(GroupState newState)
     {
         if (state == newState) return;
+
+        bool eatingVisualChanged =
+            (state == GroupState.Eating) != (newState == GroupState.Eating);
         state = newState;
+
+        if (eatingVisualChanged)
+            SetMembersEating(state == GroupState.Eating);
+
         Debug.Log($"[CustomerGroup] {name} -> {state}");
+    }
+
+    private void SetMembersEating(bool eating)
+    {
+        for (int i = 0; i < members.Count; i++)
+            members[i]?.SetEating(eating, eating ? activeFoodTray : null, i);
+
+        if (!eating)
+            activeFoodTray = null;
     }
 
     private Camera GetFollowCam()
@@ -794,7 +817,7 @@ public class CustomerGroup : MonoBehaviour
 
     public void AssignToBooth(Booth booth)
     {
-        if (booth == null || hasBeenAssigned) return;
+        if (booth == null || !CanBeSeated) return;
 
         hasBeenAssigned = true;
         hasLineSlotTarget = false;
@@ -1516,7 +1539,9 @@ public class CustomerGroup : MonoBehaviour
         SpawnOrderBubble();
     }
 
-    public void ReceiveFoodFromWaiter(List<string> deliveredContents)
+    public void ReceiveFoodFromWaiter(
+        List<string> deliveredContents,
+        FoodTray sourceTray = null)
     {
         if (state != GroupState.OrderTaken || !hasConfirmedOrder || isPlayerReviewingOrder)
             return;
@@ -1537,8 +1562,9 @@ public class CustomerGroup : MonoBehaviour
         }
 
         waitingForRemake = false;
+        activeFoodTray = sourceTray;
         SetState(GroupState.Eating);
-        SpawnEatingBubble();
+        ClearEatingBubble();
 
         GameDayManager.Instance?.RegisterFoodDelivered();
         StartCoroutine(EatThenNeedBill());
@@ -1744,6 +1770,8 @@ public class CustomerGroup : MonoBehaviour
         if (leavingRoutineStarted) return;
         leavingRoutineStarted = true;
 
+        CancelOutstandingGroupTask();
+
         NotifyTrayGroupLeaving();
 
         NotifyLeftLineIfNeeded();
@@ -1808,32 +1836,22 @@ public class CustomerGroup : MonoBehaviour
         if (IsTakeout)
             yield break;
 
-        if (assignedBooth == null)
+        Vector3 departurePosition = GetMembersCenterWorld();
+
+        if (assignedBooth != null)
         {
-            CleanupOnLeave();
-            Destroy(gameObject);
-            yield break;
-        }
+            departurePosition = assignedBooth.GetNavigableApproachPosition();
 
-        Transform approach = assignedBooth.approachPoint;
-        if (approach == null)
-        {
-            CleanupOnLeave();
-            Destroy(gameObject);
-            yield break;
-        }
+            for (int i = 0; i < members.Count; i++)
+            {
+                var member = members[i];
+                if (member == null) continue;
 
-        Vector3 approachPosition = assignedBooth.GetNavigableApproachPosition();
+                member.Unseat();
 
-        for (int i = 0; i < members.Count; i++)
-        {
-            var member = members[i];
-            if (member == null) continue;
-
-            member.Unseat();
-
-            if (member.Agent != null) member.Agent.Warp(approachPosition);
-            else member.transform.position = approachPosition;
+                if (member.Agent != null) member.Agent.Warp(departurePosition);
+                else member.transform.position = departurePosition;
+            }
         }
 
         yield return null;
@@ -1844,7 +1862,7 @@ public class CustomerGroup : MonoBehaviour
         if (NavMesh.SamplePosition(baseExit, out hit, 3f, NavMesh.AllAreas))
             baseExit = hit.position;
 
-        Vector3 forward = baseExit - approachPosition;
+        Vector3 forward = baseExit - departurePosition;
         forward.y = 0f;
         if (forward.sqrMagnitude < 0.0001f) forward = Vector3.forward;
         forward.Normalize();
@@ -1868,13 +1886,15 @@ public class CustomerGroup : MonoBehaviour
             if (NavMesh.SamplePosition(targets[i], out hit, 2f, NavMesh.AllAreas))
                 targets[i] = hit.position;
 
-            member.WalkTo(targets[i]);
+            if (member.TryWalkTo(targets[i], out Vector3 resolvedTarget))
+                targets[i] = resolvedTarget;
         }
 
-        float timeout = 12f;
-        float t = 0f;
+        const float departureTimeout = 12f;
+        float elapsed = 0f;
+        float repathTimer = 0f;
 
-        while (t < timeout)
+        while (elapsed < departureTimeout)
         {
             bool allArrived = true;
 
@@ -1892,8 +1912,38 @@ public class CustomerGroup : MonoBehaviour
 
             if (allArrived) break;
 
-            t += Time.deltaTime;
+            elapsed += Time.deltaTime;
+            repathTimer += Time.deltaTime;
+            if (repathTimer >= 2f)
+            {
+                repathTimer = 0f;
+                for (int i = 0; i < members.Count; i++)
+                {
+                    var member = members[i];
+                    if (member == null || member.HasArrived(targets[i]))
+                        continue;
+
+                    if (member.TryWalkTo(targets[i], out Vector3 resolvedTarget))
+                        targets[i] = resolvedTarget;
+                }
+            }
+
             yield return null;
+        }
+
+        // Never remove a customer away from the exit. If navigation remained
+        // unavailable after several retries, place only the failed members on
+        // their sampled exit targets before completing the leave flow.
+        for (int i = 0; i < members.Count; i++)
+        {
+            var member = members[i];
+            if (member == null || member.HasArrived(targets[i]))
+                continue;
+
+            bool warped = member.Agent != null && member.Agent.enabled &&
+                          member.Agent.Warp(targets[i]);
+            if (!warped)
+                member.transform.position = targets[i];
         }
 
         CleanupOnLeave();
@@ -2355,7 +2405,7 @@ public class CustomerGroup : MonoBehaviour
 
     public bool CanBeGreeted()
     {
-        return state == GroupState.Waiting || state == GroupState.WalkingToLobby;
+        return CanBeSeated;
     }
 
     public void MarkGreeted()
@@ -2365,7 +2415,7 @@ public class CustomerGroup : MonoBehaviour
 
     public bool TryClaimReceptionForPlayer()
     {
-        if (hasBeenAssigned || receptionTaskOwner == ReceptionTaskOwner.Receptionist)
+        if (!CanBeSeated || receptionTaskOwner == ReceptionTaskOwner.Receptionist)
             return false;
 
         receptionTaskOwner = ReceptionTaskOwner.Player;
@@ -2374,7 +2424,7 @@ public class CustomerGroup : MonoBehaviour
 
     public bool TryClaimReceptionForBot()
     {
-        if (hasBeenAssigned || receptionTaskOwner == ReceptionTaskOwner.Player)
+        if (!CanBeSeated || receptionTaskOwner == ReceptionTaskOwner.Player)
             return false;
 
         receptionTaskOwner = ReceptionTaskOwner.Receptionist;
@@ -2403,23 +2453,6 @@ public class CustomerGroup : MonoBehaviour
         if (eatingBubbleInstance == null) return;
         Destroy(eatingBubbleInstance);
         eatingBubbleInstance = null;
-    }
-
-    private void SpawnEatingBubble()
-    {
-        if (eatingBubblePrefab == null) return;
-
-        ClearEatingBubble();
-
-        eatingBubbleInstance = Instantiate(eatingBubblePrefab);
-        eatingBubbleInstance.name = $"{name}_EatingBubble";
-
-        var follow = eatingBubbleInstance.GetComponentInChildren<UIFollowWorldPoint>(true);
-        if (follow != null)
-            ConfigureCustomerBubble(follow);
-
-        // EatingBubbleUI owns the exact historical live "Eating" presentation
-        // and per-letter animation. Do not override its text or timing here.
     }
 
     private bool HasAllProductStock(IReadOnlyList<Recipe> products)
@@ -2633,13 +2666,29 @@ public class CustomerGroup : MonoBehaviour
         ClearMoneyBubble();
         ClearEatingBubble();
 
-        StartCoroutine(LeaveAfterDelay(2f));
+        StartLeaving(false);
     }
 
-    private IEnumerator LeaveAfterDelay(float delay)
+    private void CancelOutstandingGroupTask()
     {
-        yield return new WaitForSeconds(delay);
-        StartLeaving(false);
+        bool claimedByPlayer = IsReceptionClaimedByPlayer ||
+                               RestaurantTaskClaim.IsClaimedByPlayer(this);
+
+        if (claimedByPlayer)
+        {
+            PlayerMovement movement = ManagerPlayer.Active != null
+                ? ManagerPlayer.Active.Movement
+                : RoleManager.Instance != null
+                    ? RoleManager.Instance.GetActivePlayerMovement()
+                    : null;
+
+            if (movement != null && movement.IsTaskLocked)
+                movement.CancelLockedTask();
+        }
+
+        receptionTaskOwner = ReceptionTaskOwner.None;
+        RestaurantTaskClaim.Complete(this);
+        SetSelected(false);
     }
 
     private void NotifyLeftLineIfNeeded()

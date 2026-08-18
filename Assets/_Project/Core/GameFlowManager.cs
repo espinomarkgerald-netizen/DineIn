@@ -71,6 +71,7 @@ public class GameFlowManager : MonoBehaviour
     public bool CampaignCompleted => campaignCompleted;
     public bool IsEndlessRestaurantMode => useSingleRestaurantFlow && campaignCompleted;
     public RestaurantSessionState CurrentRestaurantSessionState => restaurantSessionState;
+    public bool RestaurantDayHasTerminalOutcome => TryGetRestaurantDayOutcome(out _);
 
     public event Action<int> OnDayChanged;
 
@@ -196,7 +197,7 @@ public class GameFlowManager : MonoBehaviour
         DailyObjectiveManager.Instance?.RollObjectivesForDay(currentDay, maxGroupsThisShift);
 
         EquipmentManager.Instance?.UnlockByDay(currentDay);
-        EquipmentShopManager shop = FindObjectOfType<EquipmentShopManager>();
+        EquipmentShopManager shop = FindFirstObjectByType<EquipmentShopManager>();
         shop?.InitializeShop();
 
         RecipeManager.Instance?.UnlockByDay(currentDay);
@@ -430,6 +431,8 @@ public class GameFlowManager : MonoBehaviour
         int approval = AlienApprovalManager.Instance != null ? AlienApprovalManager.Instance.Approval : 0;
 
         GameOverScreen screen = GameOverScreen.Instance != null ? GameOverScreen.Instance : gameOverScreen;
+        if (screen == null)
+            screen = GameOverScreen.CreateRuntimeFallback();
 
         if (screen != null)
         {
@@ -438,7 +441,7 @@ public class GameFlowManager : MonoBehaviour
             return;
         }
 
-        Debug.LogWarning("[GameFlowManager] No GameOverScreen found. Continuing without pausing the simulation.");
+        Debug.LogError("[GameFlowManager] Could not create a GameOverScreen. The run cannot present its outcome.");
     }
 
     public bool TrySetCurrentDayDebug(int day)
@@ -451,7 +454,7 @@ public class GameFlowManager : MonoBehaviour
         EquipmentManager.Instance?.UnlockByDay(currentDay);
         RecipeManager.Instance?.UnlockByDay(currentDay);
 
-        EquipmentShopManager shop = FindObjectOfType<EquipmentShopManager>();
+        EquipmentShopManager shop = FindFirstObjectByType<EquipmentShopManager>();
         shop?.InitializeShop();
 
         if (currentPhase == GamePhase.Lobby || currentPhase == GamePhase.Restaurant)
@@ -538,12 +541,100 @@ public class GameFlowManager : MonoBehaviour
     /// </summary>
     public void CompleteRestaurantDay()
     {
+        if (!useSingleRestaurantFlow)
+            return;
+
+        FinalizeRestaurantDayForResults();
+        if (restaurantSessionState != RestaurantSessionState.DayComplete)
+            return;
+
+        EvaluateRestaurantDay();
+    }
+
+    /// <summary>
+    /// Applies payroll, expenses, and objective approval before the Day Report
+    /// is populated. This lets that existing panel present the real final
+    /// result, including a terminal outcome, instead of changing state only
+    /// after its button has already been pressed.
+    /// </summary>
+    public void FinalizeRestaurantDayForResults()
+    {
         if (!useSingleRestaurantFlow || restaurantSessionState == RestaurantSessionState.DayComplete)
             return;
 
         restaurantSessionState = RestaurantSessionState.DayComplete;
         EndOfDayFinance();
-        EvaluateRestaurantDay();
+
+        if (!campaignCompleted)
+            DailyObjectiveManager.Instance?.EvaluateAndApply();
+
+        GameSaveManager.Instance?.RequestSave();
+    }
+
+    public bool TryGetRestaurantDayOutcome(out GameOverReason reason)
+    {
+        reason = default;
+        if (!useSingleRestaurantFlow || campaignCompleted)
+            return false;
+
+        int money = MoneyManager.Instance != null ? MoneyManager.Instance.Money : 0;
+        if (money <= 0)
+        {
+            reason = GameOverReason.Bankruptcy;
+            return true;
+        }
+
+        int approval = AlienApprovalManager.Instance != null ? AlienApprovalManager.Instance.Approval : 0;
+        if (approval <= 0)
+        {
+            reason = GameOverReason.ApprovalCollapsed;
+            return true;
+        }
+
+        if (currentDay < campaignDayLimit)
+            return false;
+
+        reason = approval >= campaignApprovalTarget
+            ? GameOverReason.EarthSaved
+            : GameOverReason.EarthConqueredDay30;
+        return true;
+    }
+
+    /// <summary>
+    /// Paid recovery preserves the restaurant and all earned unlocks. It only
+    /// restores the failed survival resource and moves the campaign forward;
+    /// Day 30 losses replay Day 30 so the ending can still be improved.
+    /// </summary>
+    public bool ContinueRestaurantCampaignAfterRecovery()
+    {
+        if (!TryGetRestaurantDayOutcome(out GameOverReason reason) ||
+            reason == GameOverReason.EarthSaved)
+            return false;
+
+        if (MoneyManager.Instance != null && MoneyManager.Instance.Money <= 0)
+            MoneyManager.Instance.ResetToStartingMoney();
+
+        int minimumApproval = currentDay >= campaignDayLimit
+            ? Mathf.Max(30, campaignApprovalTarget)
+            : 30;
+        int currentApproval = AlienApprovalManager.Instance != null
+            ? AlienApprovalManager.Instance.Approval
+            : 0;
+        AlienApprovalManager.Instance?.RestoreApprovalForContinue(
+            Mathf.Max(currentApproval, minimumApproval));
+
+        Time.timeScale = 1f;
+        if (currentDay >= campaignDayLimit)
+        {
+            PrepareRestaurantDay();
+            LoadRestaurantScene();
+        }
+        else
+        {
+            StartNewDay();
+        }
+
+        return true;
     }
 
     private void EvaluateRestaurantDay()
@@ -562,8 +653,6 @@ public class GameFlowManager : MonoBehaviour
             StartEndlessRestaurantDay();
             return;
         }
-
-        DailyObjectiveManager.Instance?.EvaluateAndApply();
 
         int approval = AlienApprovalManager.Instance != null ? AlienApprovalManager.Instance.Approval : 0;
         if (approval <= 0)

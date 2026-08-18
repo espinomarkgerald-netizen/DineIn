@@ -75,6 +75,7 @@ public class OrderChecklistUI : MonoBehaviour
     private Coroutine typingRoutine;
     private bool unlockEventSubscribed;
     private LobbyStockBridge subscribedStockBridge;
+    private bool refreshingResponsiveLayout;
 
     private string cachedOpeningMessage;
     private string cachedCustomerTypeName;
@@ -102,6 +103,7 @@ public class OrderChecklistUI : MonoBehaviour
         }
 
         Instance = this;
+        RefreshResponsiveLayout();
         catalog = MenuCatalog.Default;
         ResolveUIReferences();
         ResolveNotepadFont();
@@ -117,6 +119,7 @@ public class OrderChecklistUI : MonoBehaviour
 
     private void OnEnable()
     {
+        RefreshResponsiveLayout();
         SubscribeToUnlocks();
         SubscribeToStock();
         RefreshMenuAvailability();
@@ -141,6 +144,47 @@ public class OrderChecklistUI : MonoBehaviour
         typeSpeed = Mathf.Max(0f, typeSpeed);
         if (menuStyle == null)
             menuStyle = new NotepadMenuVisualStyle();
+    }
+
+    private void OnRectTransformDimensionsChange()
+    {
+        if (isActiveAndEnabled)
+            RefreshResponsiveLayout();
+    }
+
+    /// <summary>
+    /// The notepad artwork was authored at half scale. Keep that authored scale,
+    /// but expand its stretched rect so the rendered background still reaches
+    /// every edge of wider, taller, and mobile canvases.
+    /// </summary>
+    private void RefreshResponsiveLayout()
+    {
+        if (refreshingResponsiveLayout)
+            return;
+
+        RectTransform root = transform as RectTransform;
+        RectTransform parent = root != null ? root.parent as RectTransform : null;
+        if (root == null || parent == null)
+            return;
+
+        Vector2 parentSize = parent.rect.size;
+        if (parentSize.x <= 0f || parentSize.y <= 0f)
+            return;
+
+        float scaleX = Mathf.Max(0.001f, Mathf.Abs(root.localScale.x));
+        float scaleY = Mathf.Max(0.001f, Mathf.Abs(root.localScale.y));
+        Vector2 requiredSizeDelta = new Vector2(
+            parentSize.x / scaleX - parentSize.x,
+            parentSize.y / scaleY - parentSize.y);
+
+        refreshingResponsiveLayout = true;
+        root.anchorMin = Vector2.zero;
+        root.anchorMax = Vector2.one;
+        root.pivot = new Vector2(0.5f, 0.5f);
+        root.anchoredPosition = Vector2.zero;
+        if ((root.sizeDelta - requiredSizeDelta).sqrMagnitude > 0.01f)
+            root.sizeDelta = requiredSizeDelta;
+        refreshingResponsiveLayout = false;
     }
 
     public void Open(CustomerGroup customerGroup)

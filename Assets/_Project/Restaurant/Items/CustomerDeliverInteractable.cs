@@ -75,7 +75,7 @@ public class CustomerDeliverInteractable : MonoBehaviour, IInteractable
         if (trayInteractable != null)
             trayInteractable.NotifyDeliveredToTable();
 
-        group.ReceiveFoodFromWaiter(tray.DeliveredContents);
+        group.ReceiveFoodFromWaiter(tray.DeliveredContents, tray);
 
         if (TutorialManager.Instance != null)
             TutorialManager.Instance.RegisterFoodDeliveredToTable(tray);

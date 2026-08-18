@@ -88,7 +88,8 @@ public class MoneyPickup : MonoBehaviour, IInteractable, ICancelableTaskTarget
 
     public void Interact(PlayerMovement mover)
     {
-        TryPickup(mover);
+        if (!TryPickup(mover))
+            RecoverFailedPickup();
     }
 
     public void UI_RequestPickup()
@@ -168,8 +169,13 @@ public class MoneyPickup : MonoBehaviour, IInteractable, ICancelableTaskTarget
 
     public void OnTaskCancelled()
     {
+        RecoverFailedPickup();
+    }
+
+    private void RecoverFailedPickup()
+    {
         RestaurantTaskClaim.ReleasePlayer(this);
-        SetClaimedByStaff(false);
+        SetClaimedByStaff(RestaurantTaskClaim.IsClaimedByBot(this));
     }
 
     public bool Matches(CustomerGroup group)

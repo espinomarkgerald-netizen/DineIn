@@ -33,6 +33,8 @@ public class SceneLoader : MonoBehaviour
     private TMPro.TextMeshProUGUI progressText;
     private bool isLoading = false;
 
+    public bool IsLoading => isLoading;
+
     private void Awake()
     {
         // --- Strict singleton guard ---

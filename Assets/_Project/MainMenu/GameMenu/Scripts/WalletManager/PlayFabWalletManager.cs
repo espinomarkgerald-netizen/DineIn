@@ -68,6 +68,9 @@ public class PlayFabWalletManager : MonoBehaviour
     private Coroutine pollCoroutine;
     private int pendingNormalMoneyDelta;
     private bool normalMoneyChangeInFlight;
+    private bool goldCoinSpendInFlight;
+
+    public bool IsGoldCoinSpendInFlight => goldCoinSpendInFlight;
 
     private void Awake()
     {
@@ -217,6 +220,189 @@ public class PlayFabWalletManager : MonoBehaviour
     public bool HasEnoughGoldCoins(int amount)
     {
         return HasLoadedWallet && GoldCoins >= amount;
+    }
+
+    /// <summary>
+    /// Atomically spends premium currency through PlayFab. Callers only apply
+    /// the purchased recovery after onSuccess, so a network/server failure can
+    /// never grant the continue without charging its GC cost.
+    /// </summary>
+    public void TrySpendGoldCoins(int amount, Action onSuccess, Action<string> onFailure)
+    {
+        if (amount <= 0)
+        {
+            onFailure?.Invoke("Invalid Gold Coin amount.");
+            return;
+        }
+
+        if (goldCoinSpendInFlight)
+        {
+            onFailure?.Invoke("A Gold Coin purchase is already processing.");
+            return;
+        }
+
+        if (PlayFabAuthManager.Instance == null || !PlayFabAuthManager.Instance.IsLoggedIn)
+        {
+            onFailure?.Invoke("Sign in to use Gold Coins.");
+            return;
+        }
+
+        if (!HasLoadedWallet)
+        {
+            RefreshWallet();
+            onFailure?.Invoke("Gold Coin balance is still loading.");
+            return;
+        }
+
+        if (GoldCoins < amount)
+        {
+            onFailure?.Invoke("Not enough Gold Coins.");
+            return;
+        }
+
+        goldCoinSpendInFlight = true;
+        PlayFabClientAPI.SubtractUserVirtualCurrency(
+            new SubtractUserVirtualCurrencyRequest
+            {
+                VirtualCurrency = goldCurrencyCode,
+                Amount = amount
+            },
+            result =>
+            {
+                goldCoinSpendInFlight = false;
+                GoldCoins = Mathf.Max(0, result.Balance);
+                OnWalletUpdated?.Invoke(GoldCoins, NormalMoney);
+                onSuccess?.Invoke();
+            },
+            error =>
+            {
+                goldCoinSpendInFlight = false;
+                Debug.LogWarning("PlayFabWalletManager: Gold Coin spend failed: " +
+                                 error.GenerateErrorReport());
+                RefreshWallet();
+                onFailure?.Invoke(error.ErrorMessage);
+            });
+    }
+
+    public void TrySetGoldCoinsDebug(int value, Action<int> onSuccess, Action<string> onFailure)
+    {
+        if (!CanUseDebugCurrencyCommands())
+        {
+            onFailure?.Invoke("Gold Coin debug commands require the Editor or a Development Build.");
+            return;
+        }
+
+        if (value < 0)
+        {
+            onFailure?.Invoke("Gold Coin balance cannot be negative.");
+            return;
+        }
+
+        if (!TryValidateDebugWallet(onFailure))
+            return;
+
+        ModifyGoldCoinsDebug(value - GoldCoins, onSuccess, onFailure);
+    }
+
+    public void TryAddGoldCoinsDebug(int amount, Action<int> onSuccess, Action<string> onFailure)
+    {
+        if (!CanUseDebugCurrencyCommands())
+        {
+            onFailure?.Invoke("Gold Coin debug commands require the Editor or a Development Build.");
+            return;
+        }
+
+        if (amount < 0)
+        {
+            onFailure?.Invoke("Use a non-negative Gold Coin amount.");
+            return;
+        }
+
+        if (!TryValidateDebugWallet(onFailure))
+            return;
+
+        ModifyGoldCoinsDebug(amount, onSuccess, onFailure);
+    }
+
+    private bool TryValidateDebugWallet(Action<string> onFailure)
+    {
+        if (goldCoinSpendInFlight)
+        {
+            onFailure?.Invoke("A Gold Coin change is already processing.");
+            return false;
+        }
+
+        if (PlayFabAuthManager.Instance == null || !PlayFabAuthManager.Instance.IsLoggedIn)
+        {
+            onFailure?.Invoke("Sign in before changing Gold Coins.");
+            return false;
+        }
+
+        if (!HasLoadedWallet)
+        {
+            RefreshWallet();
+            onFailure?.Invoke("Gold Coin balance is loading. Try again in a moment.");
+            return false;
+        }
+
+        return true;
+    }
+
+    private void ModifyGoldCoinsDebug(
+        int delta,
+        Action<int> onSuccess,
+        Action<string> onFailure)
+    {
+        if (delta == 0)
+        {
+            onSuccess?.Invoke(GoldCoins);
+            return;
+        }
+
+        goldCoinSpendInFlight = true;
+        Action<ModifyUserVirtualCurrencyResult> success = result =>
+        {
+            goldCoinSpendInFlight = false;
+            GoldCoins = Mathf.Max(0, result.Balance);
+            OnWalletUpdated?.Invoke(GoldCoins, NormalMoney);
+            onSuccess?.Invoke(GoldCoins);
+        };
+        Action<PlayFabError> failure = error =>
+        {
+            goldCoinSpendInFlight = false;
+            Debug.LogWarning("PlayFabWalletManager: GC debug change failed: " +
+                             error.GenerateErrorReport());
+            RefreshWallet();
+            onFailure?.Invoke(error.ErrorMessage);
+        };
+
+        if (delta > 0)
+        {
+            PlayFabClientAPI.AddUserVirtualCurrency(
+                new AddUserVirtualCurrencyRequest
+                {
+                    VirtualCurrency = goldCurrencyCode,
+                    Amount = delta
+                },
+                success,
+                failure);
+        }
+        else
+        {
+            PlayFabClientAPI.SubtractUserVirtualCurrency(
+                new SubtractUserVirtualCurrencyRequest
+                {
+                    VirtualCurrency = goldCurrencyCode,
+                    Amount = -delta
+                },
+                success,
+                failure);
+        }
+    }
+
+    private static bool CanUseDebugCurrencyCommands()
+    {
+        return Application.isEditor || Debug.isDebugBuild;
     }
 
     /// <summary>

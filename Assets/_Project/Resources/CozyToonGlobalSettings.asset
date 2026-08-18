@@ -1,0 +1,65 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6a2d9804b6aa4eb4b823eb3c1e275d71, type: 3}
+  m_Name: CozyToonGlobalSettings
+  m_EditorClassIdentifier: Assembly-CSharp::DineIn.Rendering.CozyToonGlobalSettings
+  toonShader: {fileID: 4800000, guid: e384b3496b744db282425942591eb128, type: 3}
+  toonEnabled: 0
+  previewInEditMode: 0
+  shadowColor: {r: 0.48, g: 0.55, b: 0.7, a: 1}
+  shadowTintStrength: 1
+  shadowBrightness: 0.406
+  deepShadowBrightness: 0.52
+  shadowThreshold: 0.701
+  deepShadowThreshold: 0
+  lightTint: {r: 1, g: 0.96, b: 0.82, a: 1}
+  lightTintStrength: 1
+  highlightThreshold: 1
+  bandSoftness: 0.232
+  ambientColor: {r: 1, g: 1, b: 1, a: 1}
+  ambientStrength: 0
+  sceneLightColorInfluence: 0.549
+  useSceneFog: 0
+  paletteGradeEnabled: 1
+  saturation: 1.147
+  warmth: -0.098
+  rimEnabled: 1
+  rimColor: {r: 1, g: 0.86, b: 0.62, a: 1}
+  rimIntensity: 0.237
+  rimPower: 2.81
+  specularEnabled: 1
+  specularColor: {r: 1, g: 0.94, b: 0.78, a: 1}
+  specularIntensity: 0.346
+  specularSize: 0.164
+  outlineEnabled: 0
+  outlineColor: {r: 0, g: 0, b: 0, a: 0.82}
+  outlineWidth: 0
+  rescanInterval: 4.63
+  includeInactiveRenderers: 1
+  includeTransparentMaterials: 0
+  excludedLayers:
+    serializedVersion: 2
+    m_Bits: 32
+  excludedObjectNameFragments:
+  - Canvas
+  - UI
+  - VFX
+  - Particle
+  - Effect
+  excludedShaderNameFragments:
+  - TextMeshPro
+  - UI/
+  - Sprites/
+  - Particles/
+  - Skybox/
+  - Hidden/
+  - QuickOutline

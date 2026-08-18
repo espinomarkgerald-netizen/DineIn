@@ -43,6 +43,63 @@ public class FoodTray : MonoBehaviour
 
     public CustomerGroup TargetGroup => targetGroup;
 
+    public bool TryGetFoodBitePosition(int dinerIndex, int biteIndex, out Vector3 position)
+    {
+        GameObject first = spawnedFood1;
+        GameObject second = spawnedFood2;
+        int foodCount = (first != null ? 1 : 0) + (second != null ? 1 : 0);
+
+        if (foodCount > 0)
+        {
+            int choice = ((dinerIndex + biteIndex) % foodCount + foodCount) % foodCount;
+            GameObject food = first != null && (choice == 0 || second == null)
+                ? first
+                : second;
+
+            if (food != null)
+            {
+                Renderer[] renderers = food.GetComponentsInChildren<Renderer>(true);
+                bool hasBounds = false;
+                Bounds combinedBounds = default;
+                for (int i = 0; i < renderers.Length; i++)
+                {
+                    Renderer foodRenderer = renderers[i];
+                    if (foodRenderer == null) continue;
+
+                    if (!hasBounds)
+                    {
+                        combinedBounds = foodRenderer.bounds;
+                        hasBounds = true;
+                    }
+                    else
+                    {
+                        combinedBounds.Encapsulate(foodRenderer.bounds);
+                    }
+                }
+
+                if (hasBounds)
+                {
+                    position = combinedBounds.center +
+                               Vector3.up * (combinedBounds.extents.y * 0.45f);
+                    return true;
+                }
+
+                position = food.transform.position;
+                return true;
+            }
+        }
+
+        Transform fallbackAnchor = foodAnchor1 != null ? foodAnchor1 : foodAnchor2;
+        if (fallbackAnchor != null)
+        {
+            position = fallbackAnchor.position;
+            return true;
+        }
+
+        position = default;
+        return false;
+    }
+
     // ✅ NEW: unified delivered contents
     public List<string> DeliveredContents
     {

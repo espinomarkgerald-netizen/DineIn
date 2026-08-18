@@ -6,16 +6,19 @@ public class AlienApprovalManager : MonoBehaviour
     public static AlienApprovalManager Instance { get; private set; }
 
     [Header("Starting Approval (0-100)")]
-    [SerializeField] private int startingApproval = 45;
+    [SerializeField] private int startingApproval = 30;
 
     [Header("Approval Deltas Per Group Result")]
     [SerializeField] private int happyDelta = 1;
     [SerializeField] private int neutralDelta = -1;
     [SerializeField] private int angryDelta = -8;
-    [Tooltip("Positive approval earned from customer results is capped per day. Penalties are never capped.")]
+    [Tooltip("Positive approval earned from customer results is capped per day.")]
     [SerializeField, Min(0)] private int maxPositiveGroupApprovalPerDay = 5;
+    [Tooltip("Limits customer-result losses in one day. Objective penalties still apply, so a new 30% run survives one bad learning day but repeated bad days can still end it.")]
+    [SerializeField, Min(0)] private int maxNegativeGroupApprovalPerDay = 15;
 
     private int positiveGroupApprovalEarnedToday;
+    private int negativeGroupApprovalLostToday;
 
     public int Approval { get; private set; }
 
@@ -51,6 +54,14 @@ public class AlienApprovalManager : MonoBehaviour
             delta = Mathf.Min(delta, remainingGain);
             positiveGroupApprovalEarnedToday += delta;
         }
+        else if (delta < 0)
+        {
+            int remainingLoss = Mathf.Max(0,
+                maxNegativeGroupApprovalPerDay - negativeGroupApprovalLostToday);
+            int appliedLoss = Mathf.Min(-delta, remainingLoss);
+            delta = -appliedLoss;
+            negativeGroupApprovalLostToday += appliedLoss;
+        }
 
         if (result == CustomerGroup.FinalResult.Angry)
             DailyObjectiveManager.Instance?.RegisterAngryDeparture();
@@ -58,8 +69,7 @@ public class AlienApprovalManager : MonoBehaviour
         Approval = Mathf.Clamp(Approval + delta, 0, 100);
         OnApprovalChanged?.Invoke(Approval);
 
-        if (Approval <= 0)
-            GameFlowManager.Instance?.TriggerGameOver(GameOverReason.ApprovalCollapsed);
+        TriggerImmediateGameOverForLegacyFlow();
 
         GameSaveManager.Instance?.RequestSave();
     }
@@ -69,8 +79,7 @@ public class AlienApprovalManager : MonoBehaviour
         Approval = Mathf.Clamp(Approval + delta, 0, 100);
         OnApprovalChanged?.Invoke(Approval);
 
-        if (Approval <= 0)
-            GameFlowManager.Instance?.TriggerGameOver(GameOverReason.ApprovalCollapsed);
+        TriggerImmediateGameOverForLegacyFlow();
 
         GameSaveManager.Instance?.RequestSave();
     }
@@ -87,6 +96,7 @@ public class AlienApprovalManager : MonoBehaviour
     {
         Approval = Mathf.Clamp(startingApproval, 0, 100);
         positiveGroupApprovalEarnedToday = 0;
+        negativeGroupApprovalLostToday = 0;
         OnApprovalChanged?.Invoke(Approval);
         GameSaveManager.Instance?.RequestSave();
     }
@@ -94,6 +104,16 @@ public class AlienApprovalManager : MonoBehaviour
     public void BeginNewDay()
     {
         positiveGroupApprovalEarnedToday = 0;
+        negativeGroupApprovalLostToday = 0;
+    }
+
+    public void RestoreApprovalForContinue(int approval)
+    {
+        Approval = Mathf.Clamp(approval, 1, 100);
+        positiveGroupApprovalEarnedToday = 0;
+        negativeGroupApprovalLostToday = 0;
+        OnApprovalChanged?.Invoke(Approval);
+        GameSaveManager.Instance?.RequestSave();
     }
 
     public bool TrySetApprovalDebug(int value)
@@ -104,8 +124,7 @@ public class AlienApprovalManager : MonoBehaviour
         Approval = value;
         OnApprovalChanged?.Invoke(Approval);
 
-        if (Approval <= 0)
-            GameFlowManager.Instance?.TriggerGameOver(GameOverReason.ApprovalCollapsed);
+        TriggerImmediateGameOverForLegacyFlow();
 
         GameSaveManager.Instance?.RequestSave();
         return true;
@@ -127,7 +146,13 @@ public class AlienApprovalManager : MonoBehaviour
         Approval = Mathf.Clamp(data.approval, 0, 100);
         OnApprovalChanged?.Invoke(Approval);
 
-        if (Approval <= 0)
-            GameFlowManager.Instance?.TriggerGameOver(GameOverReason.ApprovalCollapsed);
+        TriggerImmediateGameOverForLegacyFlow();
+    }
+
+    private void TriggerImmediateGameOverForLegacyFlow()
+    {
+        GameFlowManager flow = GameFlowManager.Instance;
+        if (Approval <= 0 && flow != null && !flow.UsesSingleRestaurantFlow)
+            flow.TriggerGameOver(GameOverReason.ApprovalCollapsed);
     }
 }

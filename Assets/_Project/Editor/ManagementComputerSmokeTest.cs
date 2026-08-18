@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -138,23 +139,22 @@ public static class ManagementComputerSmokeTest
         Assert(responsiveLayouts.Length == 1,
             "Lobby1 must contain exactly one responsive management desktop, found " + responsiveLayouts.Length);
         ManagementComputerResponsiveLayout responsive = responsiveLayouts[0];
-        VerifyResponsiveCanvas(responsive);
 
         controller.OpenComputer(manager, station);
         Assert(controller.IsOpen, "Desktop did not open");
         Assert(!manager.Movement.IsPlayerControlled(), "Manager gameplay input remained active behind the desktop");
         responsive.RefreshLayout();
         Canvas.ForceUpdateCanvases();
+        VerifyResponsiveCanvas(responsive);
 
-        Button pointerTestButton = FindNamedComponent<Button>(
-            responsive.SafeAreaRoot, "AppButton_0");
+        Button pointerTestButton = GetAppButton(responsive, 0);
         VerifyRealPointerClick(pointerTestButton, controller);
         controller.CloseApp();
         VerifyActiveControlBounds(responsive);
 
         for (int i = 0; i < Enum.GetValues(typeof(ManagementComputerApp)).Length; i++)
         {
-            Button appButton = FindNamedComponent<Button>(responsive.SafeAreaRoot, "AppButton_" + i);
+            Button appButton = GetAppButton(responsive, i);
             Assert(appButton != null && appButton.interactable,
                 "App button " + i + " is missing or not interactable");
             appButton.onClick.Invoke();
@@ -179,9 +179,11 @@ public static class ManagementComputerSmokeTest
                 ManagementComputerHRPanel hrPanel =
                     controller.AppWindow.Content.GetComponentInChildren<ManagementComputerHRPanel>(false);
                 Assert(hrPanel != null, "Staff app did not populate the prefab-backed HR board");
-                VerifyHRBoard(hrPanel, EmployeeManager.Instance);
+                VerifyHRBoard(hrPanel, EmployeeManager.Instance, controller);
             }
         }
+
+        VerifyScrollPreservation(controller, responsive);
 
         Button closeButton = FindNamedComponent<Button>(responsive.SafeAreaRoot, "WindowCloseButton");
         Assert(closeButton != null && closeButton.interactable, "App window close button is not usable");
@@ -204,7 +206,7 @@ public static class ManagementComputerSmokeTest
         Assert(startButton != null && startButton.interactable, "Start Shift button is not usable");
         startButton.onClick.Invoke();
 
-        if (!GameDayManager.Instance.ServiceActive)
+        if (controller.IsOpen && !GameDayManager.Instance.ServiceActive)
         {
             Button confirm = controller.AppWindow.FooterButton;
             Assert(confirm != null && confirm.gameObject.activeInHierarchy,
@@ -265,8 +267,17 @@ public static class ManagementComputerSmokeTest
         };
         List<RaycastResult> hits = new List<RaycastResult>();
         EventSystem.current.RaycastAll(pointer, hits);
-        Assert(hits.Count > 0,
-            "The computer canvas returned no UI raycast at the Dashboard button");
+
+        // Unity 6 can keep this reactivated modal's graphics at depth -1. In
+        // that known case there is deliberately no GraphicRaycaster hit and
+        // the controller's position-based fallback owns the release.
+        if (hits.Count == 0)
+        {
+            controller.OnPointerClick(pointer);
+            Assert(controller.AppWindow.gameObject.activeSelf,
+                "The depth -1 pointer fallback did not open Dashboard");
+            return;
+        }
 
         RaycastResult first = hits[0];
         Button hitButton = first.gameObject.GetComponentInParent<Button>();
@@ -347,7 +358,10 @@ public static class ManagementComputerSmokeTest
         return product;
     }
 
-    private static void VerifyHRBoard(ManagementComputerHRPanel panel, EmployeeManager manager)
+    private static void VerifyHRBoard(
+        ManagementComputerHRPanel panel,
+        EmployeeManager manager,
+        ManagementComputerController controller)
     {
         Assert(panel.LobbyTab != null && panel.KitchenTab != null,
             "HR department tabs are missing");
@@ -392,15 +406,21 @@ public static class ManagementComputerSmokeTest
 
         kitchenSections = GetActiveRoleSections(panel);
         actionSection = Array.Find(kitchenSections, section => section.Role == actionSection.Role);
-        ManagementEmployeeCardUI applicantCard =
-            actionSection.ApplicantContent.GetComponentInChildren<ManagementEmployeeCardUI>(false);
+        ManagementEmployeeCardUI[] applicantCards =
+            actionSection.ApplicantContent.GetComponentsInChildren<ManagementEmployeeCardUI>(false);
+        ManagementEmployeeCardUI applicantCard = applicantCards.Length > 0
+            ? applicantCards[applicantCards.Length / 2]
+            : null;
         Assert(applicantCard != null && applicantCard.Employee != null && !applicantCard.Employee.hired,
             "Applicant rail has no applicant card");
         Assert(applicantCard.PrimaryButton != null && applicantCard.PrimaryButton.interactable,
             "Applicant Hire action is not interactable");
         EmployeeData hired = applicantCard.Employee;
-        applicantCard.PrimaryButton.onClick.Invoke();
+        int hiredCountBefore = manager.GetHiredCount(hired.role);
+        InvokeDuplicateFallbackRelease(applicantCard.PrimaryButton, controller);
         Assert(hired.hired && manager.allEmployees.Contains(hired), "Hire action did not move applicant into employment");
+        Assert(manager.GetHiredCount(hired.role) == hiredCountBefore + 1,
+            "One Hire click hired more than one applicant");
         Assert(manager.GetAssignedEmployee(hired.role) != null,
             "Hiring into an empty role did not assign an active employee");
 
@@ -418,6 +438,79 @@ public static class ManagementComputerSmokeTest
         Canvas.ForceUpdateCanvases();
         Assert(panel.CurrentDepartment == EmployeeDepartment.Lobby,
             "Lobby department tab did not restore the lobby view");
+    }
+
+    private static void InvokeDuplicateFallbackRelease(
+        Button targetButton,
+        ManagementComputerController controller)
+    {
+        Assert(targetButton != null && controller != null,
+            "Hire fallback pointer test is missing its button or controller");
+        Assert(EventSystem.current != null,
+            "Hire fallback pointer test requires an active EventSystem");
+
+        FieldInfo frameField = typeof(ManagementComputerController).GetField(
+            "lastFallbackButtonFrame", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert(frameField != null, "Fallback click frame guard is missing");
+        frameField.SetValue(controller, -1);
+
+        RectTransform rect = targetButton.transform as RectTransform;
+        Assert(rect != null, "Hire button has no RectTransform");
+        Vector2 screenPoint = RectTransformUtility.WorldToScreenPoint(
+            null, rect.TransformPoint(rect.rect.center));
+
+        PointerEventData firstRelease = new PointerEventData(EventSystem.current)
+        {
+            position = screenPoint,
+            button = PointerEventData.InputButton.Left
+        };
+        PointerEventData duplicateRelease = new PointerEventData(EventSystem.current)
+        {
+            position = screenPoint,
+            button = PointerEventData.InputButton.Left
+        };
+
+        controller.OnPointerClick(firstRelease);
+        controller.OnPointerClick(duplicateRelease);
+    }
+
+    private static void VerifyScrollPreservation(
+        ManagementComputerController controller,
+        ManagementComputerResponsiveLayout responsive)
+    {
+        MoneyManager.Instance.SetMoney(
+            Mathf.Max(MoneyManager.Instance.Money, 100000),
+            "Management computer scroll smoke test");
+
+        Button restockButton = GetAppButton(responsive, (int)ManagementComputerApp.Restock);
+        Assert(restockButton != null && restockButton.interactable,
+            "Restock app button is unavailable for scroll testing");
+        restockButton.onClick.Invoke();
+        Canvas.ForceUpdateCanvases();
+        LayoutRebuilder.ForceRebuildLayoutImmediate(controller.AppWindow.Content);
+
+        ScrollRect scroll = controller.AppWindow.GetComponentInChildren<ScrollRect>(true);
+        Assert(scroll != null, "Restock app has no vertical ScrollRect");
+        scroll.StopMovement();
+        scroll.verticalNormalizedPosition = 0.35f;
+        float expectedPosition = scroll.verticalNormalizedPosition;
+        Assert(expectedPosition < 0.95f,
+            "Restock content does not overflow enough to exercise scroll preservation");
+
+        ManagementComputerRowUI[] rows =
+            controller.AppWindow.Content.GetComponentsInChildren<ManagementComputerRowUI>(false);
+        Button action = null;
+        for (int i = 0; i < rows.Length && action == null; i++)
+        {
+            Button candidate = rows[i].GetComponentInChildren<Button>(false);
+            if (candidate != null && candidate.interactable)
+                action = candidate;
+        }
+
+        Assert(action != null, "Restock app has no usable purchase action for scroll testing");
+        action.onClick.Invoke();
+        Assert(Mathf.Abs(controller.AppWindow.VerticalNormalizedPosition - expectedPosition) < 0.02f,
+            "Restock refresh reset the vertical scroll position");
     }
 
     private static ManagementHRRoleSectionUI[] GetActiveRoleSections(ManagementComputerHRPanel panel) =>
@@ -483,6 +576,19 @@ public static class ManagementComputerSmokeTest
         Assert(Mathf.Abs(scaler.matchWidthOrHeight - 0.5f) < 0.001f,
             "Management computer canvas must balance width and height scaling");
 
+        Assert(responsive.AppButtons != null &&
+               responsive.AppButtons.Length == Enum.GetValues(typeof(ManagementComputerApp)).Length,
+            "Responsive desktop app-button references are incomplete");
+        foreach (RectTransform appButton in responsive.AppButtons)
+        {
+            Assert(appButton != null, "Responsive desktop has a missing app-button reference");
+            Assert(Mathf.Abs(appButton.rect.width - appButton.rect.height) < 0.5f,
+                appButton.name + " icon is not square");
+            Image icon = appButton.GetComponent<Image>();
+            Assert(icon != null && icon.preserveAspect,
+                appButton.name + " icon does not preserve its sprite aspect ratio");
+        }
+
         Vector2Int[] supportedScreens =
         {
             new Vector2Int(1280, 720),
@@ -507,12 +613,32 @@ public static class ManagementComputerSmokeTest
         Vector2 anchorMin = compact ? new Vector2(0.035f, 0.12f) : new Vector2(0.30f, 0.12f);
         Vector2 anchorMax = compact ? new Vector2(0.965f, 0.92f) : new Vector2(0.97f, 0.92f);
         Vector2 windowSize = Vector2.Scale(logicalSize, anchorMax - anchorMin) - new Vector2(20f, 20f);
-        float logicalButtonHeight = Mathf.Clamp(logicalSize.y * 0.08f, 68f, 88f);
+        const int columns = 2;
+        const int rows = 4;
+        const float gap = 16f;
+        const float labelSpace = 44f;
+        float availableWidth = compact ? logicalSize.x * 0.92f : logicalSize.x * 0.27f;
+        float top = compact ? 92f : 82f;
+        float maxFromWidth = (availableWidth - gap * (columns - 1)) / columns;
+        float maxFromHeight =
+            (logicalSize.y - top - 28f - gap * (rows - 1) - labelSpace * rows) / rows;
+        float logicalButtonSize = Mathf.Clamp(Mathf.Min(maxFromWidth, maxFromHeight), 56f, 150f);
 
         Assert(windowSize.x >= 650f && windowSize.y >= 500f,
             $"Responsive app window is too small at {screen.x}x{screen.y}: {windowSize}");
-        Assert(logicalButtonHeight * scale >= 44f,
+        Assert(logicalButtonSize * scale >= 44f,
             $"Desktop touch targets fall below 44 screen pixels at {screen.x}x{screen.y}");
+    }
+
+    private static Button GetAppButton(
+        ManagementComputerResponsiveLayout responsive,
+        int index)
+    {
+        RectTransform[] appButtons = responsive != null ? responsive.AppButtons : null;
+        if (appButtons == null || index < 0 || index >= appButtons.Length || appButtons[index] == null)
+            return null;
+
+        return appButtons[index].GetComponent<Button>();
     }
 
     private static void VerifyActiveControlBounds(ManagementComputerResponsiveLayout responsive)

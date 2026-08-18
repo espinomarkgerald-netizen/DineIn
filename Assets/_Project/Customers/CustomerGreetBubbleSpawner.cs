@@ -35,6 +35,8 @@ public class CustomerGreetBubbleSpawner : MonoBehaviour
 
         currentGroup = group;
         currentCamera = cam;
+        currentGroup.OnGroupLeftLine -= HandleCurrentGroupLeftLine;
+        currentGroup.OnGroupLeftLine += HandleCurrentGroupLeftLine;
 
         currentBubble = Instantiate(greetBubblePrefab);
         currentBubble.name = $"{group.name}_GreetBubble";
@@ -112,6 +114,9 @@ public class CustomerGreetBubbleSpawner : MonoBehaviour
 
     public void Hide()
     {
+        if (currentGroup != null)
+            currentGroup.OnGroupLeftLine -= HandleCurrentGroupLeftLine;
+
         if (currentBubble != null)
         {
             Destroy(currentBubble);
@@ -119,5 +124,11 @@ public class CustomerGreetBubbleSpawner : MonoBehaviour
         }
 
         currentGroup = null;
+    }
+
+    private void HandleCurrentGroupLeftLine(CustomerGroup group)
+    {
+        if (group == currentGroup)
+            Hide();
     }
 }

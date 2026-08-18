@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using System.Text;
 using TMPro;
 using UnityEngine;
@@ -132,6 +133,10 @@ public class GameDayManager : MonoBehaviour
     [SerializeField] private Button resultsActionButton;
     [SerializeField] private TMP_Text resultsActionButtonText;
 
+    [Header("Results Recovery")]
+    [SerializeField, Min(1)] private int continueGoldCoinCost = 500;
+    [SerializeField] private string goldCoinStoreUrl = "https://dine-in-website.vercel.app/";
+
     [Header("Takeout Unlock")]
     [SerializeField] private int takeoutUnlockDay = 20;
 
@@ -166,11 +171,25 @@ public class GameDayManager : MonoBehaviour
     [SerializeField] private int cashErrors;
 
     private Coroutine spawnRoutine;
+    private Coroutine closingResultsRoutine;
     private float angryBarVisual;
     private float neutralBarVisual;
     private bool warnedLastMinute;
     private bool rushAnnounced;
     private Coroutine panelAnimationRoutine;
+    private Coroutine storeRedirectRoutine;
+    private Button resultsContinueButton;
+    private TMP_Text resultsContinueButtonText;
+    private RectTransform resultsActionRect;
+    private readonly Dictionary<RectTransform, ResultsRectLayout> authoredResultsLayout =
+        new Dictionary<RectTransform, ResultsRectLayout>();
+    private Vector2Int resultsLayoutScreenSize = new Vector2Int(-1, -1);
+    private Rect resultsLayoutSafeArea = new Rect(-1f, -1f, -1f, -1f);
+    private bool resultsHaveOutcome;
+    private GameOverReason currentResultsOutcome;
+    private bool continuePurchaseArmed;
+    private float continuePurchaseConfirmUntil;
+    private PlayFabWalletManager resultsWallet;
 
     public bool ShiftRunning => shiftRunning;
     public bool ServiceActive => shiftRunning || closingOut;
@@ -211,6 +230,9 @@ public class GameDayManager : MonoBehaviour
             gameObject.AddComponent<LobbyAutonomousService>();
 
         SetPanelVisible(resultsPanel, false);
+
+        CacheResultsButtonLayout();
+        CacheAuthoredResultsLayout();
 
         ResolveManagerComponents();
         ValidateSettings();
@@ -256,6 +278,8 @@ public class GameDayManager : MonoBehaviour
     private void Update()
     {
         UpdateMoodBarsSmooth();
+        UpdateContinuePurchaseConfirmation();
+        RefreshResultsResponsiveLayout();
 
         if (!shiftRunning)
             return;
@@ -296,6 +320,12 @@ public class GameDayManager : MonoBehaviour
 
         if (resultsActionButton != null)
             resultsActionButton.onClick.RemoveListener(OnResultsActionPressed);
+
+        if (resultsContinueButton != null)
+            resultsContinueButton.onClick.RemoveListener(OnContinueWithGoldCoinsPressed);
+
+        if (resultsWallet != null)
+            resultsWallet.OnWalletUpdated -= HandleResultsWalletUpdated;
 
         if (GameFlowManager.Instance != null)
             GameFlowManager.Instance.OnDayChanged -= HandleDayChanged;
@@ -562,7 +592,9 @@ public class GameDayManager : MonoBehaviour
         }
 
         ShowWarning("Shift ended. Waiting for remaining customers.");
-        StartCoroutine(ShowResultsWhenClear());
+        if (closingResultsRoutine != null)
+            StopCoroutine(closingResultsRoutine);
+        closingResultsRoutine = StartCoroutine(ShowResultsWhenClear());
     }
 
     private IEnumerator ShowResultsWhenClear()
@@ -576,7 +608,32 @@ public class GameDayManager : MonoBehaviour
         }
 
         closingOut = false;
+        closingResultsRoutine = null;
         ShowResults();
+    }
+
+    public bool EndDayNowDebug()
+    {
+        if (!Application.isEditor && !Debug.isDebugBuild)
+            return false;
+
+        if (spawnRoutine != null)
+        {
+            StopCoroutine(spawnRoutine);
+            spawnRoutine = null;
+        }
+
+        if (closingResultsRoutine != null)
+        {
+            StopCoroutine(closingResultsRoutine);
+            closingResultsRoutine = null;
+        }
+
+        shiftRunning = false;
+        closingOut = false;
+        timeRemaining = 0f;
+        ShowResults();
+        return true;
     }
 
     public void RestartShift()
@@ -588,6 +645,13 @@ public class GameDayManager : MonoBehaviour
     {
         if (GameFlowManager.Instance != null && GameFlowManager.Instance.UsesSingleRestaurantFlow)
         {
+            if (resultsHaveOutcome && currentResultsOutcome != GameOverReason.EarthSaved)
+            {
+                Time.timeScale = 1f;
+                GameFlowManager.Instance.ResetRun();
+                return;
+            }
+
             GameFlowManager.Instance.CompleteRestaurantDay();
             return;
         }
@@ -809,88 +873,823 @@ public class GameDayManager : MonoBehaviour
 
     private void ShowResults()
     {
+        GameFlowManager flow = GameFlowManager.Instance;
+        bool singleRestaurantFlow = flow != null && flow.UsesSingleRestaurantFlow;
+        if (singleRestaurantFlow)
+            flow.FinalizeRestaurantDayForResults();
+
+        resultsHaveOutcome = singleRestaurantFlow &&
+                             flow.TryGetRestaurantDayOutcome(out currentResultsOutcome);
+        continuePurchaseArmed = false;
+
         SetPanelVisible(resultsPanel, true);
-
-        bool singleRestaurantFlow = GameFlowManager.Instance != null &&
-                                    GameFlowManager.Instance.UsesSingleRestaurantFlow;
-
-        if (resultsTitleText != null)
-            resultsTitleText.text = singleRestaurantFlow ? "Day Report" : "Half-Day Report";
-
-        if (resultsSummaryText != null)
-        {
-            StringBuilder sb = new StringBuilder();
-
-            int earned = 0;
-            if (DailyFinanceBridge.Instance != null)
-                earned = DailyFinanceBridge.Instance.EarnedToday;
-
-            sb.AppendLine("<b>REVENUE</b>");
-            sb.AppendLine("₱" + earned);
-            sb.AppendLine();
-            sb.AppendLine("<b>CUSTOMERS</b>");
-            sb.AppendLine("😊 " + happyCustomers + "   😐 " + neutralCustomers + "   😡 " + angryCustomers);
-            sb.AppendLine();
-            sb.AppendLine("<b>CASH HANDLING</b>");
-            if (cashErrors == 0)
-                sb.AppendLine("✓ No errors");
-            else
-                sb.AppendLine("⚠ " + cashErrors + " error" + (cashErrors == 1 ? "" : "s"));
-
-            if (tipsEarned > 0)
-            {
-                sb.AppendLine();
-                sb.AppendLine("<b>TIPS</b>");
-                sb.AppendLine("₱" + tipsEarned);
-            }
-
-            resultsSummaryText.text = sb.ToString().TrimEnd();
-        }
 
         int dayRevenue = DailyFinanceBridge.Instance != null
             ? DailyFinanceBridge.Instance.EarnedToday
             : 0;
+        int targetRevenue = DailyFinanceBridge.Instance != null
+            ? DailyFinanceBridge.Instance.TotalRequiredEarningsToday
+            : 0;
+
+        if (resultsHaveOutcome)
+            PopulateOutcomeResults(dayRevenue, targetRevenue);
+        else
+            PopulateStandardResults(singleRestaurantFlow, dayRevenue, targetRevenue);
+
+        int earnedStars = CalculateEarnedStars();
+        PrepareResultStars(earnedStars);
+        ConfigureResultsActions(singleRestaurantFlow);
+        RefreshResultsResponsiveLayout(true);
+
+        AnimateResults(earnedStars);
+    }
+
+    private void PopulateStandardResults(bool singleRestaurantFlow, int revenue, int targetRevenue)
+    {
+        int day = GameFlowManager.Instance != null ? GameFlowManager.Instance.CurrentDay : 1;
+        int approval = AlienApprovalManager.Instance != null ? AlienApprovalManager.Instance.Approval : 0;
+        int revenueGap = Mathf.Max(0, targetRevenue - revenue);
+
+        if (resultsTitleText != null)
+            resultsTitleText.text = singleRestaurantFlow ? $"Day {day} Report" : "Half-Day Report";
+
         if (resultsSummaryText != null)
         {
+            string revenueResult = revenueGap == 0
+                ? "Target reached"
+                : $"Need ₱{revenueGap} more";
             resultsSummaryText.text =
-                $"<b>REVENUE</b>\n₱{dayRevenue}\n\n" +
-                $"<b>ORDERS</b>\n{ordersProcessed} processed\n{foodDelivered} served";
+                $"<b>REVENUE</b>\n₱{revenue} / ₱{targetRevenue}\n{revenueResult}\n\n" +
+                $"<b>ORDERS</b>\n{ordersProcessed} processed • {foodDelivered} served";
         }
 
         if (resultsCustomersText != null)
         {
             resultsCustomersText.text =
-                $"<b>CUSTOMERS</b>\nHappy: {happyCustomers}\nNeutral: {neutralCustomers}\nAngry: {angryCustomers}";
+                $"<b>CUSTOMERS</b>\nHappy {happyCustomers} • Neutral {neutralCustomers}\nAngry {angryCustomers}\n\n" +
+                $"<b>WORK ON NEXT</b>\n{GetMostUsefulImprovement(revenueGap)}";
         }
 
         if (resultsCashText != null)
         {
             string cashStatus = cashErrors == 0
-                ? "No cash errors"
-                : cashErrors + " cash error" + (cashErrors == 1 ? string.Empty : "s");
+                ? "Perfect cash handling"
+                : $"Fix {cashErrors} cash error{(cashErrors == 1 ? string.Empty : "s")}";
+            string objectiveResult = GetObjectiveResultSummary();
             resultsCashText.text =
-                $"<b>CASH & TIPS</b>\n{cashStatus}\nTips: ₱{tipsEarned}";
+                $"<b>APPROVAL</b>\n{approval}%\n{objectiveResult}\n\n" +
+                $"<b>CASH & TIPS</b>\n{cashStatus} • ₱{tipsEarned} tips";
         }
 
         if (resultsStarsText != null)
-            resultsStarsText.text = GetShiftStatusText();
+            resultsStarsText.text = $"{GetShiftStatusText()}  •  Approval {approval}%";
+    }
 
-        int earnedStars = CalculateEarnedStars();
-        PrepareResultStars(earnedStars);
+    private void PopulateOutcomeResults(int revenue, int targetRevenue)
+    {
+        bool savedEarth = currentResultsOutcome == GameOverReason.EarthSaved;
+        int day = GameFlowManager.Instance != null ? GameFlowManager.Instance.CurrentDay : 1;
+        int approval = AlienApprovalManager.Instance != null ? AlienApprovalManager.Instance.Approval : 0;
 
-        if (resultsActionButton != null)
+        if (resultsTitleText != null)
         {
-            resultsActionButton.gameObject.SetActive(true);
-
-            if (resultsActionButtonText != null)
-            {
-                resultsActionButtonText.text = singleRestaurantFlow
-                    ? (GameFlowManager.Instance.IsEndlessRestaurantMode ? "Continue Service" : "Start Next Day")
-                    : "Back to Management";
-            }
+            resultsTitleText.text = savedEarth
+                ? "Earth Is Safe!"
+                : currentResultsOutcome == GameOverReason.Bankruptcy
+                    ? "Restaurant Bankrupt"
+                    : "Game Over";
         }
 
-        AnimateResults(earnedStars);
+        if (resultsSummaryText != null)
+        {
+            string reason = currentResultsOutcome switch
+            {
+                GameOverReason.Bankruptcy => "Funds reached ₱0 after expenses.",
+                GameOverReason.ApprovalCollapsed => "Alien approval reached 0%.",
+                GameOverReason.EarthSaved => "You completed Day 30 with enough approval.",
+                GameOverReason.EarthConqueredDay30 => "Day 30 ended below the 40% approval target.",
+                _ => "The campaign has ended."
+            };
+            resultsSummaryText.text =
+                $"<b>{(savedEarth ? "CAMPAIGN COMPLETE" : "WHY THE RUN ENDED")}</b>\n{reason}\n\n" +
+                $"<b>FINAL DAY</b>\nDay {day} • ₱{revenue} / ₱{targetRevenue}";
+        }
+
+        if (resultsCustomersText != null)
+        {
+            resultsCustomersText.text =
+                $"<b>LAST SHIFT</b>\nHappy {happyCustomers} • Neutral {neutralCustomers}\nAngry {angryCustomers} • Cash errors {cashErrors}\n\n" +
+                $"<b>{(savedEarth ? "WHAT WORKED" : "TRY NEXT RUN")}</b>\n" +
+                GetMostUsefulImprovement(Mathf.Max(0, targetRevenue - revenue));
+        }
+
+        if (resultsCashText != null)
+        {
+            resultsCashText.text = savedEarth
+                ? $"<b>FINAL APPROVAL</b>\n{approval}%\n\n<b>NEXT</b>\nContinue with your restaurant in Endless Service."
+                : $"<b>FREE RESTART</b>\nReturns to Day 1 and 30% approval.\n" +
+                  "Staff, stock, money, purchases and unlocks restart.\nYour restaurant itself stays.\n\n" +
+                  $"<b>CONTINUE • {continueGoldCoinCost} GC</b>\nKeep this run, restaurant and unlocks.";
+        }
+
+        if (resultsStarsText != null)
+        {
+            resultsStarsText.text = savedEarth
+                ? $"CAMPAIGN COMPLETE  •  Approval {approval}%"
+                : $"RUN ENDED  •  Approval {approval}%";
+        }
+    }
+
+    private string GetMostUsefulImprovement(int revenueGap)
+    {
+        if (CustomersServed <= 0)
+            return "Seat and fully serve at least one group.";
+
+        float angryRatio = angryCustomers / (float)CustomersServed;
+        if (angryRatio >= 0.2f)
+            return "Reduce waits: greet, serve food and collect bills sooner.";
+
+        if (cashErrors > 0)
+            return "Finish every payment and return the exact change.";
+
+        if (revenueGap > 0)
+            return "Serve more groups and complete every customer payment.";
+
+        if (neutralCustomers > happyCustomers)
+            return "Deliver food and bills faster to turn neutral guests happy.";
+
+        return "Keep your service speed and accurate cash handling.";
+    }
+
+    private static string GetObjectiveResultSummary()
+    {
+        DailyObjectiveManager objectives = DailyObjectiveManager.Instance;
+        if (objectives == null || !objectives.HasPreviousDayResult)
+            return "Objective not scored";
+
+        return $"Objective grade: {objectives.LastGrade}";
+    }
+
+    private string GetResultsActionLabel(bool singleRestaurantFlow)
+    {
+        if (!singleRestaurantFlow || GameFlowManager.Instance == null)
+            return "Back to Management";
+
+        if (GameFlowManager.Instance.IsEndlessRestaurantMode)
+            return "Continue Service";
+
+        if (!resultsHaveOutcome)
+            return "Start Next Day";
+
+        return currentResultsOutcome == GameOverReason.EarthSaved
+            ? "Continue Endless"
+            : "Restart Day 1";
+    }
+
+    private void CacheResultsButtonLayout()
+    {
+        if (resultsActionButton == null)
+            return;
+
+        resultsActionRect = resultsActionButton.transform as RectTransform;
+        ConfigureResultsText(resultsActionButtonText, 10f, 22f,
+            TextAlignmentOptions.Center, false);
+    }
+
+    private void ConfigureResultsActions(bool singleRestaurantFlow)
+    {
+        if (resultsActionButton == null)
+            return;
+
+        resultsActionButton.gameObject.SetActive(true);
+        resultsActionButton.interactable = true;
+        if (resultsActionButtonText != null)
+            resultsActionButtonText.text = GetResultsActionLabel(singleRestaurantFlow);
+
+        bool showPaidContinue = resultsHaveOutcome &&
+                                currentResultsOutcome != GameOverReason.EarthSaved;
+        if (!showPaidContinue)
+        {
+            RestoreSingleResultsButtonLayout();
+            if (resultsContinueButton != null)
+                resultsContinueButton.gameObject.SetActive(false);
+            return;
+        }
+
+        EnsureContinueButton();
+        if (resultsContinueButton == null)
+            return;
+
+        resultsContinueButton.gameObject.SetActive(true);
+        LayoutRecoveryButtons();
+        BindResultsWallet();
+        RefreshContinueButtonState();
+    }
+
+    private void EnsureContinueButton()
+    {
+        if (resultsContinueButton != null || resultsActionButton == null)
+            return;
+
+        GameObject clone = Instantiate(
+            resultsActionButton.gameObject,
+            resultsActionButton.transform.parent,
+            false);
+        clone.name = "ContinueWithGoldCoinsButton";
+        resultsContinueButton = clone.GetComponent<Button>();
+        if (resultsContinueButton == null)
+        {
+            Destroy(clone);
+            return;
+        }
+
+        resultsContinueButton.onClick.RemoveAllListeners();
+        resultsContinueButton.onClick.AddListener(OnContinueWithGoldCoinsPressed);
+        resultsContinueButtonText = clone.GetComponentInChildren<TMP_Text>(true);
+        if (resultsContinueButtonText != null)
+            ConfigureResultsText(resultsContinueButtonText, 9f, 20f,
+                TextAlignmentOptions.Center, false);
+    }
+
+    private void LayoutRecoveryButtons()
+    {
+        if (resultsActionRect == null || resultsContinueButton == null)
+            return;
+
+        RectTransform continueRect = resultsContinueButton.transform as RectTransform;
+        if (continueRect == null)
+            return;
+
+        bool portrait = IsResultsLayoutPortrait();
+        SetResultsRect(resultsActionRect,
+            portrait ? new Vector2(0.04f, 0.035f) : new Vector2(0.08f, 0.055f),
+            portrait ? new Vector2(0.49f, 0.16f) : new Vector2(0.475f, 0.185f),
+            new Vector2(4f, 3f), new Vector2(-4f, -3f));
+        SetResultsRect(continueRect,
+            portrait ? new Vector2(0.51f, 0.035f) : new Vector2(0.525f, 0.055f),
+            portrait ? new Vector2(0.96f, 0.16f) : new Vector2(0.92f, 0.185f),
+            new Vector2(4f, 3f), new Vector2(-4f, -3f));
+    }
+
+    private void RestoreSingleResultsButtonLayout()
+    {
+        if (resultsActionRect == null)
+            return;
+
+        bool portrait = IsResultsLayoutPortrait();
+        if (!portrait && TryRestoreAuthoredResultsRect(resultsActionRect))
+            return;
+
+        SetResultsRect(resultsActionRect,
+            portrait ? new Vector2(0.17f, 0.035f) : new Vector2(0.34f, 0.055f),
+            portrait ? new Vector2(0.83f, 0.16f) : new Vector2(0.66f, 0.185f),
+            new Vector2(4f, 3f), new Vector2(-4f, -3f));
+    }
+
+    /// <summary>
+    /// Converts the original fixed 500x350 report into a safe-area layout. Every
+    /// visual type owns a separate normalized region, so longer localized/runtime
+    /// copy can shrink or ellipsize without covering the stars or action buttons.
+    /// </summary>
+    private void RefreshResultsResponsiveLayout(bool force = false)
+    {
+        if (resultsPanel == null || !resultsPanel.activeInHierarchy ||
+            Screen.width <= 0 || Screen.height <= 0)
+        {
+            return;
+        }
+
+        Rect safeArea = Screen.safeArea;
+        if (!force &&
+            resultsLayoutScreenSize.x == Screen.width &&
+            resultsLayoutScreenSize.y == Screen.height &&
+            resultsLayoutSafeArea == safeArea)
+        {
+            return;
+        }
+
+        resultsLayoutScreenSize = new Vector2Int(Screen.width, Screen.height);
+        resultsLayoutSafeArea = safeArea;
+
+        RectTransform presentationRoot =
+            GetPanelPresentationRoot(resultsPanel)?.transform as RectTransform;
+        RectTransform panelRect = resultsPanel.transform as RectTransform;
+        RectTransform backgroundRect =
+            resultsTitleText != null ? resultsTitleText.rectTransform.parent as RectTransform : null;
+        if (presentationRoot == null || panelRect == null || backgroundRect == null)
+            return;
+
+        presentationRoot.anchorMin = new Vector2(
+            safeArea.xMin / Screen.width,
+            safeArea.yMin / Screen.height);
+        presentationRoot.anchorMax = new Vector2(
+            safeArea.xMax / Screen.width,
+            safeArea.yMax / Screen.height);
+        presentationRoot.offsetMin = Vector2.zero;
+        presentationRoot.offsetMax = Vector2.zero;
+        presentationRoot.localScale = Vector3.one;
+
+        if (panelRect != presentationRoot)
+            SetResultsRect(panelRect, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+
+        bool portrait = IsResultsLayoutPortrait();
+        if (portrait)
+        {
+            SetResultsRect(backgroundRect,
+                new Vector2(0.025f, 0.02f), new Vector2(0.975f, 0.98f),
+                Vector2.zero, Vector2.zero);
+            LayoutResultsHeader(backgroundRect, true);
+            LayoutResultsStars(backgroundRect, true);
+            LayoutResultsColumns(backgroundRect, true);
+            LayoutResultsDecorations(backgroundRect);
+        }
+        else
+        {
+            RestoreAuthoredResultsLayout();
+        }
+
+        if (resultsContinueButton != null && resultsContinueButton.gameObject.activeSelf)
+            LayoutRecoveryButtons();
+        else
+            RestoreSingleResultsButtonLayout();
+
+        ConfigureResultsText(resultsTitleText, 20f, 40f,
+            TextAlignmentOptions.Center, false);
+        ConfigureResultsText(resultsStarsText, 10f, 23f,
+            TextAlignmentOptions.Center, true);
+        ConfigureResultsText(resultsSummaryText, 9f, 21f,
+            TextAlignmentOptions.TopLeft, true);
+        ConfigureResultsText(resultsCustomersText, 9f, 21f,
+            TextAlignmentOptions.TopLeft, true);
+        ConfigureResultsText(resultsCashText, 9f, 21f,
+            TextAlignmentOptions.TopLeft, true);
+        ConfigureResultsText(resultsActionButtonText, 10f, 22f,
+            TextAlignmentOptions.Center, false);
+        ConfigureResultsText(resultsContinueButtonText, 9f, 20f,
+            TextAlignmentOptions.Center, false);
+
+        Canvas.ForceUpdateCanvases();
+        LayoutRebuilder.ForceRebuildLayoutImmediate(backgroundRect);
+        ForceResultsTextUpdate();
+    }
+
+    private void CacheAuthoredResultsLayout()
+    {
+        authoredResultsLayout.Clear();
+        RectTransform background =
+            resultsTitleText != null ? resultsTitleText.rectTransform.parent as RectTransform : null;
+        if (background == null)
+            return;
+
+        RectTransform[] rects = background.GetComponentsInChildren<RectTransform>(true);
+        foreach (RectTransform rect in rects)
+        {
+            if (rect != null)
+                authoredResultsLayout[rect] = ResultsRectLayout.Capture(rect);
+        }
+    }
+
+    private void RestoreAuthoredResultsLayout()
+    {
+        foreach (KeyValuePair<RectTransform, ResultsRectLayout> entry in authoredResultsLayout)
+        {
+            if (entry.Key != null)
+                entry.Value.Apply(entry.Key);
+        }
+    }
+
+    private bool TryRestoreAuthoredResultsRect(RectTransform rect)
+    {
+        if (rect == null || !authoredResultsLayout.TryGetValue(rect, out ResultsRectLayout layout))
+            return false;
+
+        layout.Apply(rect);
+        return true;
+    }
+
+    private readonly struct ResultsRectLayout
+    {
+        private readonly Vector2 anchorMin;
+        private readonly Vector2 anchorMax;
+        private readonly Vector2 offsetMin;
+        private readonly Vector2 offsetMax;
+        private readonly Vector2 pivot;
+        private readonly Vector3 localScale;
+
+        private ResultsRectLayout(RectTransform rect)
+        {
+            anchorMin = rect.anchorMin;
+            anchorMax = rect.anchorMax;
+            offsetMin = rect.offsetMin;
+            offsetMax = rect.offsetMax;
+            pivot = rect.pivot;
+            localScale = rect.localScale;
+        }
+
+        public static ResultsRectLayout Capture(RectTransform rect)
+        {
+            return new ResultsRectLayout(rect);
+        }
+
+        public void Apply(RectTransform rect)
+        {
+            rect.anchorMin = anchorMin;
+            rect.anchorMax = anchorMax;
+            rect.offsetMin = offsetMin;
+            rect.offsetMax = offsetMax;
+            rect.pivot = pivot;
+            rect.localScale = localScale;
+        }
+
+        public Vector3 LocalScale => localScale;
+    }
+
+    private void LayoutResultsHeader(RectTransform backgroundRect, bool portrait)
+    {
+        if (resultsTitleText != null)
+        {
+            SetResultsRect(resultsTitleText.rectTransform,
+                portrait ? new Vector2(0.06f, 0.89f) : new Vector2(0.07f, 0.85f),
+                portrait ? new Vector2(0.94f, 0.97f) : new Vector2(0.93f, 0.955f),
+                new Vector2(4f, 2f), new Vector2(-4f, -2f));
+        }
+
+        if (resultsStarsText != null)
+        {
+            SetResultsRect(resultsStarsText.rectTransform,
+                portrait ? new Vector2(0.07f, 0.82f) : new Vector2(0.08f, 0.775f),
+                portrait ? new Vector2(0.93f, 0.89f) : new Vector2(0.92f, 0.845f),
+                new Vector2(4f, 2f), new Vector2(-4f, -2f));
+        }
+    }
+
+    private void LayoutResultsStars(RectTransform backgroundRect, bool portrait)
+    {
+        RectTransform starsRoot = star1 != null ? star1.rectTransform.parent as RectTransform : null;
+        if (starsRoot == null)
+            return;
+
+        for (int layerIndex = 0; layerIndex < backgroundRect.childCount; layerIndex++)
+        {
+            RectTransform layer = backgroundRect.GetChild(layerIndex) as RectTransform;
+            if (layer == null || !IsResultsStarLayer(layer, starsRoot))
+                continue;
+
+            SetResultsRect(layer,
+                portrait ? new Vector2(0.19f, 0.695f) : new Vector2(0.29f, 0.575f),
+                portrait ? new Vector2(0.81f, 0.815f) : new Vector2(0.71f, 0.77f),
+                Vector2.zero, Vector2.zero);
+
+            for (int starIndex = 0; starIndex < layer.childCount; starIndex++)
+            {
+                Image star = layer.GetChild(starIndex).GetComponent<Image>();
+                if (star == null)
+                    continue;
+
+                float minX = starIndex / 3f;
+                float maxX = (starIndex + 1) / 3f;
+                SetResultsRect(star.rectTransform,
+                    new Vector2(minX, 0f), new Vector2(maxX, 1f),
+                    new Vector2(5f, 2f), new Vector2(-5f, -2f));
+                star.preserveAspect = true;
+            }
+        }
+    }
+
+    private static bool IsResultsStarLayer(RectTransform candidate, RectTransform earnedStarsRoot)
+    {
+        if (candidate == earnedStarsRoot)
+            return true;
+        if (candidate.childCount != 3)
+            return false;
+
+        for (int i = 0; i < candidate.childCount; i++)
+        {
+            if (candidate.GetChild(i).GetComponent<Image>() == null)
+                return false;
+        }
+
+        return true;
+    }
+
+    private void LayoutResultsColumns(RectTransform backgroundRect, bool portrait)
+    {
+        RectTransform columnsRoot =
+            resultsSummaryText != null ? resultsSummaryText.rectTransform.parent as RectTransform : null;
+        if (columnsRoot == null)
+            return;
+
+        LayoutGroup authoredLayout = columnsRoot.GetComponent<LayoutGroup>();
+        if (authoredLayout != null)
+            authoredLayout.enabled = false;
+
+        SetResultsRect(columnsRoot,
+            portrait ? new Vector2(0.055f, 0.18f) : new Vector2(0.045f, 0.235f),
+            portrait ? new Vector2(0.945f, 0.69f) : new Vector2(0.955f, 0.57f),
+            Vector2.zero, Vector2.zero);
+
+        if (portrait)
+        {
+            SetColumnRect(resultsSummaryText, new Vector2(0f, 0.70f), Vector2.one);
+            SetColumnRect(resultsCustomersText, new Vector2(0f, 0.40f), new Vector2(1f, 0.68f));
+            SetColumnRect(resultsCashText, Vector2.zero, new Vector2(1f, 0.38f));
+            return;
+        }
+
+        SetColumnRect(resultsSummaryText, Vector2.zero, new Vector2(0.315f, 1f));
+        SetColumnRect(resultsCustomersText, new Vector2(0.342f, 0f), new Vector2(0.658f, 1f));
+        SetColumnRect(resultsCashText, new Vector2(0.685f, 0f), Vector2.one);
+    }
+
+    private static void LayoutResultsDecorations(RectTransform backgroundRect)
+    {
+        SetNamedResultsRect(backgroundRect, "Header Surface",
+            new Vector2(0.025f, 0.69f), new Vector2(0.975f, 0.97f));
+        SetNamedResultsRect(backgroundRect, "Gold Section Divider",
+            new Vector2(0.055f, 0.688f), new Vector2(0.945f, 0.694f));
+        SetNamedResultsRect(backgroundRect, "Report Card - Revenue And Orders",
+            new Vector2(0.045f, 0.532f), new Vector2(0.955f, 0.688f));
+        SetNamedResultsRect(backgroundRect, "Report Card - Customers And Coaching",
+            new Vector2(0.045f, 0.38f), new Vector2(0.955f, 0.528f));
+        SetNamedResultsRect(backgroundRect, "Report Card - Approval Cash And Recovery",
+            new Vector2(0.045f, 0.175f), new Vector2(0.955f, 0.376f));
+    }
+
+    private static void SetNamedResultsRect(
+        RectTransform parent,
+        string childName,
+        Vector2 anchorMin,
+        Vector2 anchorMax)
+    {
+        if (parent == null)
+            return;
+
+        Transform child = parent.Find(childName);
+        if (child is RectTransform rect)
+        {
+            SetResultsRect(rect, anchorMin, anchorMax,
+                new Vector2(4f, 3f), new Vector2(-4f, -3f));
+        }
+    }
+
+    private static void SetColumnRect(TMP_Text text, Vector2 anchorMin, Vector2 anchorMax)
+    {
+        if (text == null)
+            return;
+
+        SetResultsRect(text.rectTransform, anchorMin, anchorMax,
+            new Vector2(3f, 3f), new Vector2(-3f, -3f));
+    }
+
+    private bool IsResultsLayoutPortrait()
+    {
+        Rect safeArea = Screen.safeArea;
+        return safeArea.height > safeArea.width * 1.05f;
+    }
+
+    private static void SetResultsRect(
+        RectTransform rect,
+        Vector2 anchorMin,
+        Vector2 anchorMax,
+        Vector2 offsetMin,
+        Vector2 offsetMax)
+    {
+        if (rect == null)
+            return;
+
+        rect.anchorMin = anchorMin;
+        rect.anchorMax = anchorMax;
+        rect.offsetMin = offsetMin;
+        rect.offsetMax = offsetMax;
+        rect.anchoredPosition = Vector2.zero;
+    }
+
+    private static void ConfigureResultsText(
+        TMP_Text text,
+        float minSize,
+        float maxSize,
+        TextAlignmentOptions alignment,
+        bool wrap)
+    {
+        if (text == null)
+            return;
+
+        text.enableAutoSizing = true;
+        text.fontSizeMin = minSize;
+        text.fontSizeMax = maxSize;
+        text.alignment = alignment;
+        text.textWrappingMode = wrap ? TextWrappingModes.Normal : TextWrappingModes.NoWrap;
+        text.overflowMode = TextOverflowModes.Ellipsis;
+        text.raycastTarget = false;
+        text.margin = new Vector4(2f, 2f, 2f, 2f);
+    }
+
+    private void ForceResultsTextUpdate()
+    {
+        TMP_Text[] texts =
+        {
+            resultsTitleText,
+            resultsStarsText,
+            resultsSummaryText,
+            resultsCustomersText,
+            resultsCashText,
+            resultsActionButtonText,
+            resultsContinueButtonText
+        };
+
+        foreach (TMP_Text text in texts)
+        {
+            if (text != null && text.gameObject.activeInHierarchy)
+                text.ForceMeshUpdate(true, true);
+        }
+    }
+
+    private void BindResultsWallet()
+    {
+        PlayFabWalletManager wallet = PlayFabWalletManager.Instance;
+        if (resultsWallet != wallet)
+        {
+            if (resultsWallet != null)
+                resultsWallet.OnWalletUpdated -= HandleResultsWalletUpdated;
+
+            resultsWallet = wallet;
+            if (resultsWallet != null)
+                resultsWallet.OnWalletUpdated += HandleResultsWalletUpdated;
+        }
+
+        if (resultsWallet != null && !resultsWallet.HasLoadedWallet && !resultsWallet.IsRefreshing)
+            resultsWallet.RefreshWallet();
+    }
+
+    private void HandleResultsWalletUpdated(int _, int __)
+    {
+        RefreshContinueButtonState();
+    }
+
+    private void RefreshContinueButtonState()
+    {
+        if (resultsContinueButton == null || !resultsContinueButton.gameObject.activeSelf)
+            return;
+
+        bool spending = resultsWallet != null && resultsWallet.IsGoldCoinSpendInFlight;
+        resultsContinueButton.interactable = !spending;
+
+        if (resultsContinueButtonText == null)
+            return;
+
+        if (spending)
+        {
+            resultsContinueButtonText.text = "PROCESSING...";
+            return;
+        }
+
+        if (continuePurchaseArmed)
+        {
+            resultsContinueButtonText.text = $"CONFIRM • {continueGoldCoinCost} GC";
+            return;
+        }
+
+        if (resultsWallet == null)
+        {
+            resultsContinueButtonText.text = $"GET {continueGoldCoinCost} GC";
+            return;
+        }
+
+        if (!resultsWallet.HasLoadedWallet)
+        {
+            resultsContinueButtonText.text = "CHECK GC / STORE";
+            return;
+        }
+
+        resultsContinueButtonText.text = resultsWallet.GoldCoins >= continueGoldCoinCost
+            ? $"CONTINUE • {continueGoldCoinCost} GC"
+            : $"GET GC • {resultsWallet.GoldCoins}/{continueGoldCoinCost}";
+    }
+
+    private void OnContinueWithGoldCoinsPressed()
+    {
+        if (!resultsHaveOutcome || currentResultsOutcome == GameOverReason.EarthSaved)
+            return;
+
+        BindResultsWallet();
+        if (resultsWallet == null)
+        {
+            RedirectToGoldCoinStore("Connect your account and get Gold Coins to continue this run.");
+            return;
+        }
+
+        if (!resultsWallet.HasLoadedWallet)
+        {
+            if (!resultsWallet.IsRefreshing)
+                resultsWallet.RefreshWallet();
+            SetResultsPrompt("Checking your Gold Coin balance...");
+            RefreshContinueButtonState();
+            return;
+        }
+
+        if (!resultsWallet.HasEnoughGoldCoins(continueGoldCoinCost))
+        {
+            RedirectToGoldCoinStore(
+                $"You need {continueGoldCoinCost} GC to continue. Opening the Gold Coin store...");
+            return;
+        }
+
+        if (!continuePurchaseArmed)
+        {
+            continuePurchaseArmed = true;
+            continuePurchaseConfirmUntil = Time.unscaledTime + 8f;
+            int day = GameFlowManager.Instance != null ? GameFlowManager.Instance.CurrentDay : 1;
+            SetResultsPrompt(
+                $"Confirm {continueGoldCoinCost} GC: keep Day {day}, your restaurant and all unlocks. Click again to pay.");
+            RefreshContinueButtonState();
+            return;
+        }
+
+        continuePurchaseArmed = false;
+        if (resultsActionButton != null)
+            resultsActionButton.interactable = false;
+        RefreshContinueButtonState();
+        SetResultsPrompt($"Processing {continueGoldCoinCost} GC continue...");
+
+        resultsWallet.TrySpendGoldCoins(
+            continueGoldCoinCost,
+            () =>
+            {
+                GameFlowManager flow = GameFlowManager.Instance;
+                if (flow == null || !flow.ContinueRestaurantCampaignAfterRecovery())
+                {
+                    Debug.LogError("[GameDayManager] GC was charged, but restaurant recovery could not start.");
+                    SetResultsPrompt("Recovery could not start. Please contact support; your wallet was refreshed.");
+                    if (resultsActionButton != null)
+                        resultsActionButton.interactable = true;
+                    RefreshContinueButtonState();
+                }
+            },
+            error =>
+            {
+                SetResultsPrompt("Continue failed: " + error);
+                if (resultsActionButton != null)
+                    resultsActionButton.interactable = true;
+                RefreshContinueButtonState();
+            });
+    }
+
+    private void UpdateContinuePurchaseConfirmation()
+    {
+        if (!continuePurchaseArmed || Time.unscaledTime <= continuePurchaseConfirmUntil)
+            return;
+
+        continuePurchaseArmed = false;
+        SetOutcomeStatusText();
+        RefreshContinueButtonState();
+    }
+
+    private void RedirectToGoldCoinStore(string message)
+    {
+        continuePurchaseArmed = false;
+        SetResultsPrompt(message);
+        RefreshContinueButtonState();
+
+        if (NotificationPopupController.Instance != null)
+        {
+            NotificationPopupController.Instance.Show(
+                message,
+                NotificationPopupController.PopupType.Info,
+                2f);
+        }
+
+        if (storeRedirectRoutine != null)
+            StopCoroutine(storeRedirectRoutine);
+        storeRedirectRoutine = StartCoroutine(OpenGoldCoinStoreRoutine());
+    }
+
+    private IEnumerator OpenGoldCoinStoreRoutine()
+    {
+        yield return new WaitForSecondsRealtime(1f);
+
+        if (string.IsNullOrWhiteSpace(goldCoinStoreUrl))
+            Debug.LogError("[GameDayManager] Gold Coin store URL is empty.");
+        else
+            Application.OpenURL(goldCoinStoreUrl);
+
+        storeRedirectRoutine = null;
+    }
+
+    private void SetResultsPrompt(string message)
+    {
+        if (resultsStarsText != null)
+            resultsStarsText.text = message;
+    }
+
+    private void SetOutcomeStatusText()
+    {
+        if (resultsStarsText == null || !resultsHaveOutcome)
+            return;
+
+        int approval = AlienApprovalManager.Instance != null ? AlienApprovalManager.Instance.Approval : 0;
+        resultsStarsText.text = currentResultsOutcome == GameOverReason.EarthSaved
+            ? $"CAMPAIGN COMPLETE  •  Approval {approval}%"
+            : $"RUN ENDED  •  Approval {approval}%";
     }
 
     private int CalculateEarnedStars()
@@ -920,7 +1719,8 @@ public class GameDayManager : MonoBehaviour
             bool earned = i < earnedStars;
             stars[i].gameObject.SetActive(earned);
             stars[i].preserveAspect = true;
-            stars[i].transform.localScale = earned ? Vector3.zero : Vector3.one;
+            Vector3 authoredScale = GetAuthoredResultsScale(stars[i].rectTransform);
+            stars[i].transform.localScale = earned ? Vector3.zero : authoredScale;
         }
 
         if (starRoot != null)
@@ -946,6 +1746,7 @@ public class GameDayManager : MonoBehaviour
             if (star == null)
                 continue;
 
+            Vector3 finalScale = GetAuthoredResultsScale(star.rectTransform);
             float elapsed = 0f;
             const float duration = 0.24f;
             while (elapsed < duration)
@@ -953,15 +1754,22 @@ public class GameDayManager : MonoBehaviour
                 elapsed += Time.unscaledDeltaTime;
                 float t = Mathf.Clamp01(elapsed / duration);
                 float overshoot = 1f + Mathf.Sin(t * Mathf.PI) * 0.2f;
-                star.transform.localScale = Vector3.one * (t * overshoot);
+                star.transform.localScale = finalScale * (t * overshoot);
                 yield return null;
             }
 
-            star.transform.localScale = Vector3.one;
+            star.transform.localScale = finalScale;
             yield return new WaitForSecondsRealtime(0.08f);
         }
 
         panelAnimationRoutine = null;
+    }
+
+    private Vector3 GetAuthoredResultsScale(RectTransform rect)
+    {
+        return rect != null && authoredResultsLayout.TryGetValue(rect, out ResultsRectLayout layout)
+            ? layout.LocalScale
+            : Vector3.one;
     }
 
     private string GetShiftStatusText()
