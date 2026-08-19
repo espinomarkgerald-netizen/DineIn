@@ -17,33 +17,33 @@ MonoBehaviour:
   previewInEditMode: 0
   shadowColor: {r: 0.48, g: 0.55, b: 0.7, a: 1}
   shadowTintStrength: 1
-  shadowBrightness: 0.406
-  deepShadowBrightness: 0.52
+  shadowBrightness: 0.186
+  deepShadowBrightness: 0.42
   shadowThreshold: 0.701
-  deepShadowThreshold: 0
+  deepShadowThreshold: 0.15
   lightTint: {r: 1, g: 0.96, b: 0.82, a: 1}
   lightTintStrength: 1
   highlightThreshold: 1
   bandSoftness: 0.232
   ambientColor: {r: 1, g: 1, b: 1, a: 1}
   ambientStrength: 0
-  sceneLightColorInfluence: 0.549
+  sceneLightColorInfluence: 0.539
   useSceneFog: 0
   paletteGradeEnabled: 1
-  saturation: 1.147
-  warmth: -0.098
+  saturation: 0.64
+  warmth: -0.44
   rimEnabled: 1
   rimColor: {r: 1, g: 0.86, b: 0.62, a: 1}
-  rimIntensity: 0.237
-  rimPower: 2.81
+  rimIntensity: 0.53
+  rimPower: 5.27
   specularEnabled: 1
   specularColor: {r: 1, g: 0.94, b: 0.78, a: 1}
-  specularIntensity: 0.346
-  specularSize: 0.164
+  specularIntensity: 0.77
+  specularSize: 0.255
   outlineEnabled: 0
   outlineColor: {r: 0, g: 0, b: 0, a: 0.82}
   outlineWidth: 0
-  rescanInterval: 4.63
+  rescanInterval: 5.22
   includeInactiveRenderers: 1
   includeTransparentMaterials: 0
   excludedLayers:
