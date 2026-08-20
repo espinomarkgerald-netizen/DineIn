@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 using TMPro;
@@ -23,6 +24,8 @@ public enum ManagementComputerApp
 /// </summary>
 public sealed class ManagementComputerController : MonoBehaviour, IPointerClickHandler
 {
+    private const string CatalogUIConfigResource = "ManagementComputerCatalogUIConfig";
+
     [Header("Desktop")]
     [SerializeField] private GameObject desktopRoot;
     [SerializeField] private Button[] appButtons;
@@ -39,6 +42,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
     [SerializeField] private ManagementComputerWindow appWindow;
     [SerializeField] private ManagementComputerRowUI rowPrefab;
     [SerializeField] private ManagementComputerHRPanel hrPanelPrefab;
+    [SerializeField] private ManagementComputerCatalogUIConfig catalogUIConfig;
 
     private ManagerPlayer activeManager;
     private ManagementComputerStation activeStation;
@@ -54,6 +58,8 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
     private bool fallbackConsumedRelease;
     private int lastFallbackButtonFrame = -1;
     private bool currentAppUsesCards;
+    private bool restockOrderCommitInProgress;
+    private Coroutine canvasRefreshRoutine;
 
     public bool IsOpen => desktopRoot != null && desktopRoot.activeSelf;
     public ManagementComputerWindow AppWindow => appWindow;
@@ -274,6 +280,14 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         if (!released || fallbackConsumedRelease)
             return;
 
+        TMP_InputField input = FindTopmostInputFieldAt(position);
+        if (input != null &&
+            (input.targetGraphic == null || input.targetGraphic.depth < 0))
+        {
+            ActivateInputField(input);
+            return;
+        }
+
         Button target = FindTopmostButtonAt(position);
         // A valid Graphic depth means Unity's normal EventSystem will dispatch
         // the click. Only route the known Unity 6 inactive-modal failure case.
@@ -295,6 +309,14 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         if (!IsOpen || eventData == null ||
             eventData.button != PointerEventData.InputButton.Left || desktopRoot == null)
             return;
+
+        TMP_InputField input = FindTopmostInputFieldAt(eventData.position);
+        if (input != null)
+        {
+            ActivateInputField(input);
+            eventData.Use();
+            return;
+        }
 
         Button target = FindTopmostButtonAt(eventData.position);
         if (target == null)
@@ -419,11 +441,41 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         return best;
     }
 
+    private TMP_InputField FindTopmostInputFieldAt(Vector2 screenPosition)
+    {
+        TMP_InputField[] inputs = desktopRoot.GetComponentsInChildren<TMP_InputField>(false);
+        TMP_InputField best = null;
+        for (int i = 0; i < inputs.Length; i++)
+        {
+            TMP_InputField candidate = inputs[i];
+            if (candidate == null || !candidate.IsActive() || !candidate.IsInteractable())
+                continue;
+
+            RectTransform rect = candidate.transform as RectTransform;
+            if (rect != null && RectTransformUtility.RectangleContainsScreenPoint(
+                    rect, screenPosition, null))
+                best = candidate;
+        }
+        return best;
+    }
+
+    private static void ActivateInputField(TMP_InputField input)
+    {
+        if (input == null)
+            return;
+
+        if (EventSystem.current != null)
+            EventSystem.current.SetSelectedGameObject(input.gameObject);
+        input.Select();
+        input.ActivateInputField();
+    }
+
     public void OpenComputer(ManagerPlayer manager, ManagementComputerStation station)
     {
         if (desktopRoot == null || IsOpen)
             return;
 
+        RestockFlowCoordinator.Instance?.EnsureLobbyUIInputReady();
         activeManager = manager;
         activeStation = station;
         pendingWarningConfirmation = false;
@@ -442,8 +494,14 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         }
 
         desktopRoot.SetActive(true);
+        ResetComputerInputState();
         CloseApp();
         RefreshStatusBar();
+
+        Canvas.ForceUpdateCanvases();
+        if (canvasRefreshRoutine != null)
+            StopCoroutine(canvasRefreshRoutine);
+        canvasRefreshRoutine = StartCoroutine(RefreshComputerCanvasNextFrame());
 
         if (MoneyManager.Instance != null)
         {
@@ -462,6 +520,13 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
 
         CloseApp();
         desktopRoot.SetActive(false);
+        ResetFallbackInputState();
+
+        if (canvasRefreshRoutine != null)
+        {
+            StopCoroutine(canvasRefreshRoutine);
+            canvasRefreshRoutine = null;
+        }
 
         if (cameraController != null)
         {
@@ -477,6 +542,50 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         cameraController = null;
     }
 
+    private void ResetComputerInputState()
+    {
+        ResetFallbackInputState();
+
+        Canvas hostCanvas = GetComponent<Canvas>();
+        if (hostCanvas != null)
+            hostCanvas.enabled = true;
+        GraphicRaycaster hostRaycaster = GetComponent<GraphicRaycaster>();
+        if (hostRaycaster != null)
+            hostRaycaster.enabled = true;
+
+        Canvas desktopCanvas = desktopRoot.GetComponent<Canvas>();
+        if (desktopCanvas != null)
+            desktopCanvas.enabled = true;
+        GraphicRaycaster desktopRaycaster = desktopRoot.GetComponent<GraphicRaycaster>();
+        if (desktopRaycaster != null)
+            desktopRaycaster.enabled = true;
+
+        if (EventSystem.current != null)
+            EventSystem.current.SetSelectedGameObject(null);
+    }
+
+    private void ResetFallbackInputState()
+    {
+        fallbackDragScroll = null;
+        fallbackDragScrollbar = null;
+        fallbackDragPointer = null;
+        fallbackDragStarted = false;
+        fallbackConsumedRelease = false;
+        lastFallbackButtonFrame = -1;
+    }
+
+    private IEnumerator RefreshComputerCanvasNextFrame()
+    {
+        yield return null;
+        canvasRefreshRoutine = null;
+        if (!IsOpen)
+            yield break;
+
+        Canvas.ForceUpdateCanvases();
+        if (appWindow != null && appWindow.gameObject.activeSelf)
+            appWindow.RefreshContentLayout();
+    }
+
     public void OpenApp(int appIndex)
     {
         if (!Enum.IsDefined(typeof(ManagementComputerApp), appIndex) || appWindow == null)
@@ -489,6 +598,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         appWindow.Open(GetAppTitle(app));
         currentAppUsesCards = UsesCardLayout(app);
         appWindow.SetContentLayout(currentAppUsesCards);
+        appWindow.SetEmbeddedPanelLayout(UsesEmbeddedCatalogLayout(app));
 
         switch (app)
         {
@@ -606,29 +716,25 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
             return;
         }
 
-        bool editable = !IsShiftActive && MenuAvailabilityManager.Instance != null;
-        foreach (Recipe product in catalog.Products)
+        ManagementComputerCatalogUIConfig config = GetCatalogUIConfig();
+        if (config == null || config.CatalogPanelPrefab == null)
         {
-            if (product == null)
-                continue;
-
-            Recipe captured = product;
-            bool available = MenuAvailabilityManager.IsProductAvailable(product);
-            bool unlocked = product.IsUnlocked;
-            string details = product.category + "  •  Unlock day " + product.dayToUnlock;
-            string action = !product.availableOnMenu ? "AUTHOR OFF" : available ? "REMOVE" : "ADD";
-
-            AddRow(product.sprite, product.DisplayName, details, "₱" + product.sellPrice, action,
-                () =>
-                {
-                    MenuAvailabilityManager.Instance.SetProductAvailable(captured, !available);
-                    PopulateAgain(ManagementComputerApp.Menu);
-                }, editable && unlocked && product.availableOnMenu);
+            appWindow.SetMessage(
+                "The editable Menu/Restock catalog prefab is missing. Run Tools > Dine In > Create Missing Management Catalog Prefabs.",
+                true);
+            return;
         }
 
-        appWindow.SetMessage(editable
-            ? "Menu changes immediately update customer orders and the notepad. Bundles hide when a required product is removed."
-            : "The menu is read-only while service is active.");
+        ManagementComputerCatalogPanelUI panel = Instantiate(
+            config.CatalogPanelPrefab,
+            appWindow.Content);
+        panel.gameObject.SetActive(true);
+        panel.BindMenu(
+            catalog.Products,
+            !IsShiftActive && MenuAvailabilityManager.Instance != null,
+            SetMenuAvailability,
+            SetMenuPrice);
+        appWindow.SetMessage(string.Empty);
     }
 
     private void PopulateRestock()
@@ -640,26 +746,26 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
             return;
         }
 
-        // Ingredient deliveries remain available during service so the player
-        // can recover from an unexpected stock-out mid-shift.
-        bool editable = true;
-        foreach (ItemData item in inventory.Items)
+        ManagementComputerCatalogUIConfig config = GetCatalogUIConfig();
+        if (config == null || config.CatalogPanelPrefab == null || config.StorageConfig == null)
         {
-            if (item == null)
-                continue;
-
-            ItemData captured = item;
-            bool unlocked = item.dayToUnlock <= CurrentDay ||
-                (UnlockManager.Instance != null && UnlockManager.Instance.IsIngredientUnlocked(item));
-            AddRow(item.sprite, item.displayName,
-                item.unitsPerBox + " units per box  •  Unlock day " + item.dayToUnlock,
-                "Stock " + inventory.GetStock(item.itemType),
-                "BUY ₱" + item.boxCost,
-                () => BuyIngredientBox(captured),
-                editable && unlocked && MoneyManager.Instance != null && MoneyManager.Instance.HasEnough(item.boxCost));
+            appWindow.SetMessage(
+                "The Restock catalog or restaurant storage configuration is missing.",
+                true);
+            return;
         }
 
-        appWindow.SetMessage("Each purchase adds one full box to the shared raw-food inventory. Restocking remains available during service.");
+        ManagementComputerCatalogPanelUI panel = Instantiate(
+            config.CatalogPanelPrefab,
+            appWindow.Content);
+        panel.gameObject.SetActive(true);
+        panel.BindRestock(
+            inventory.Items,
+            config.StorageConfig,
+            RestockOrderManager.EnsureInstance(),
+            GetExpectedCustomers(),
+            ConfirmRestockOrder);
+        appWindow.SetMessage(string.Empty);
     }
 
     private void PopulateEquipment()
@@ -756,21 +862,80 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         AddRow(null, label, description, string.Empty, string.Empty, null, false);
     }
 
-    private void BuyIngredientBox(ItemData item)
+    private bool ConfirmRestockOrder(IReadOnlyList<RestockCartLine> cart)
     {
-        if (item == null || MoneyManager.Instance == null || InventoryManager.Instance == null)
-            return;
+        if (restockOrderCommitInProgress || cart == null || cart.Count == 0 ||
+            MoneyManager.Instance == null)
+            return false;
 
-        bool purchased = DailyFinanceBridge.Instance != null
-            ? DailyFinanceBridge.Instance.SpendMoney(item.boxCost, item.displayName + " restock")
-            : MoneyManager.Instance.Spend(item.boxCost, item.displayName + " restock");
-        if (!purchased)
-            return;
+        restockOrderCommitInProgress = true;
+        try
+        {
+            List<RestockCartLine> sanitized = new List<RestockCartLine>();
+            int totalCost = 0;
+            for (int i = 0; i < cart.Count; i++)
+            {
+                RestockCartLine source = cart[i];
+                if (source?.item == null || source.quantity <= 0)
+                    continue;
 
-        InventoryManager.Instance.AddStock(item.itemType, Mathf.Max(1, item.unitsPerBox));
-        DailyRevenueTracker.Instance?.RecordIngredientCost(item.boxCost);
-        GameSaveManager.Instance?.RequestSave();
-        PopulateAgain(ManagementComputerApp.Restock);
+                RestockCartLine line = new RestockCartLine
+                {
+                    item = source.item,
+                    quantity = Mathf.Max(0, source.quantity)
+                };
+                sanitized.Add(line);
+                totalCost += line.LineCost;
+            }
+
+            if (sanitized.Count == 0 || totalCost <= 0 ||
+                !MoneyManager.Instance.HasEnough(totalCost))
+                return false;
+
+            RestockOrderManager orders = RestockOrderManager.EnsureInstance();
+            ManagementComputerCatalogUIConfig config = GetCatalogUIConfig();
+            if (orders == null || config?.StorageConfig == null)
+                return false;
+
+            bool spent = DailyFinanceBridge.Instance != null
+                ? DailyFinanceBridge.Instance.SpendMoney(totalCost, "Restock delivery order")
+                : MoneyManager.Instance.Spend(totalCost, "Restock delivery order");
+            if (!spent)
+                return false;
+
+            string orderID = orders.CreateOrder(
+                config.StorageConfig.RestaurantID,
+                sanitized,
+                totalCost);
+            if (string.IsNullOrWhiteSpace(orderID))
+            {
+                // This path is defensive: validation above guarantees a valid
+                // order, but never leave the wallet charged without a ledger row.
+                MoneyManager.Instance.Earn(totalCost, "Restock order rollback");
+                return false;
+            }
+
+            DailyRevenueTracker.Instance?.RecordIngredientCost(totalCost);
+            GameSaveManager.Instance?.RequestSave();
+            RefreshStatusBar();
+            return true;
+        }
+        finally
+        {
+            restockOrderCommitInProgress = false;
+        }
+    }
+
+    private bool SetMenuAvailability(Recipe product, bool available)
+    {
+        return MenuAvailabilityManager.Instance != null &&
+               MenuAvailabilityManager.Instance.SetProductAvailable(product, available);
+    }
+
+    private bool SetMenuPrice(Recipe product, int price)
+    {
+        return MenuAvailabilityManager.Instance != null &&
+               MenuAvailabilityManager.Instance.SetProductPrice(product, price);
     }
 
     public void TryStartShift()
@@ -900,8 +1065,12 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
 
     private static bool UsesCardLayout(ManagementComputerApp app)
     {
-        return app == ManagementComputerApp.Dashboard ||
-               app == ManagementComputerApp.Menu ||
+        return app == ManagementComputerApp.Equipment;
+    }
+
+    private static bool UsesEmbeddedCatalogLayout(ManagementComputerApp app)
+    {
+        return app == ManagementComputerApp.Menu ||
                app == ManagementComputerApp.Restock;
     }
 
@@ -913,6 +1082,25 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         OpenApp((int)app);
         appWindow?.RestoreVerticalNormalizedPositionNextFrame(scrollPosition);
         RefreshStatusBar();
+    }
+
+    private ManagementComputerCatalogUIConfig GetCatalogUIConfig()
+    {
+        if (catalogUIConfig == null)
+            catalogUIConfig = Resources.Load<ManagementComputerCatalogUIConfig>(
+                CatalogUIConfigResource);
+        return catalogUIConfig;
+    }
+
+    private int GetExpectedCustomers()
+    {
+        if (GameDayManager.Instance != null && GameDayManager.Instance.MaxCustomersThisShift > 0)
+            return GameDayManager.Instance.MaxCustomersThisShift;
+
+        ManagementComputerCatalogUIConfig config = GetCatalogUIConfig();
+        return config?.StorageConfig != null
+            ? config.StorageConfig.ExpectedCustomers
+            : 10;
     }
 
     private void RefreshStatusBar()

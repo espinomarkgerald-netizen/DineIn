@@ -18,7 +18,7 @@ public class OrderManager : MonoBehaviour
         }
 
         // Add money
-        MoneyManager.Instance.Earn(recipe.sellPrice);
+        MoneyManager.Instance.Earn(recipe.EffectiveSellPrice);
 
         return true;
     }

@@ -12,10 +12,10 @@ public sealed class ManagementComputerResponsiveLayout : MonoBehaviour
     [SerializeField] private RectTransform appWindow;
     [SerializeField] private RectTransform[] appButtons;
     [SerializeField, Min(0.5f)] private float compactAspectThreshold = 1.25f;
-    [SerializeField] private Vector2 landscapeWindowMin = new Vector2(0.30f, 0.12f);
-    [SerializeField] private Vector2 landscapeWindowMax = new Vector2(0.97f, 0.92f);
-    [SerializeField] private Vector2 compactWindowMin = new Vector2(0.035f, 0.12f);
-    [SerializeField] private Vector2 compactWindowMax = new Vector2(0.965f, 0.92f);
+    [SerializeField] private Vector2 landscapeWindowMin = new Vector2(0.15f, 0.055f);
+    [SerializeField] private Vector2 landscapeWindowMax = new Vector2(0.985f, 0.955f);
+    [SerializeField] private Vector2 compactWindowMin = new Vector2(0.015f, 0.045f);
+    [SerializeField] private Vector2 compactWindowMax = new Vector2(0.985f, 0.955f);
 
     private Vector2Int lastScreenSize;
     private Rect lastSafeArea;

@@ -110,7 +110,7 @@ public class WarningSlideUI : MonoBehaviour
     private IEnumerator ShowRoutine()
     {
         yield return Animate(hiddenPosition, shownPosition, 0f, 1f, slideInDuration);
-        yield return new WaitForSeconds(stayDuration);
+        yield return new WaitForSecondsRealtime(stayDuration);
         yield return Animate(shownPosition, hiddenPosition, 1f, 0f, slideOutDuration);
         showRoutine = null;
     }
@@ -132,7 +132,7 @@ public class WarningSlideUI : MonoBehaviour
 
         while (t < duration)
         {
-            t += Time.deltaTime;
+            t += Time.unscaledDeltaTime;
             float k = Mathf.Clamp01(t / duration);
             k = Mathf.SmoothStep(0f, 1f, k);
 

@@ -9,6 +9,13 @@ public class InventorySaveEntry
 }
 
 [Serializable]
+public class MenuPriceOverrideSaveEntry
+{
+    public string productID;
+    public int price;
+}
+
+[Serializable]
 public class EmployeeSaveEntry
 {
     public string employeeName;
@@ -48,6 +55,8 @@ public class GameSaveData
 
     public List<InventorySaveEntry> inventoryStocks = new List<InventorySaveEntry>();
     public List<string> disabledMenuProductIDs = new List<string>();
+    public List<MenuPriceOverrideSaveEntry> menuPriceOverrides = new List<MenuPriceOverrideSaveEntry>();
+    public List<RestockOrderSaveData> restockOrders = new List<RestockOrderSaveData>();
     public List<string> purchasedEquipmentIDs = new List<string>();
     public List<EmployeeSaveEntry> employees = new List<EmployeeSaveEntry>();
 }

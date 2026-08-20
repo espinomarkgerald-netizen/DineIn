@@ -687,8 +687,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 0.4
-  m_fontSizeBase: 0.4
+  m_fontSize: 0.2
+  m_fontSizeBase: 0.2
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -963,8 +963,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 0.4
-  m_fontSizeBase: 0.4
+  m_fontSize: 0.2
+  m_fontSizeBase: 0.2
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -1443,6 +1443,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: ae51c4101c3d45b438975d24511b9db2, type: 3}
       insertIndex: -1
       addedObject: {fileID: 3949707235277299585}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: ae51c4101c3d45b438975d24511b9db2, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 8304462275831254295}
   m_SourcePrefab: {fileID: 100100000, guid: ae51c4101c3d45b438975d24511b9db2, type: 3}
 --- !u!4 &7081235809662432299 stripped
 Transform:
@@ -1497,3 +1500,23 @@ MonoBehaviour:
   validGhostColor: {r: 0.2, g: 1, b: 0.2, a: 0.35}
   invalidGhostColor: {r: 1, g: 0.15, b: 0.15, a: 0.35}
   interactionUIRoot: {fileID: 8916646122326117995}
+--- !u!114 &8304462275831254295
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7570070349438791313}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8cb5e12d36e30144db0250f456cdd432, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  item: {fileID: 0}
+  itemNameTexts:
+  - {fileID: 7576001803269563810}
+  - {fileID: 1709492158407280974}
+  itemIcons:
+  - {fileID: 5862151882040081512}
+  - {fileID: 8922524725196030070}
+  labelReferencesConfigured: 1

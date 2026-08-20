@@ -6,6 +6,7 @@ using System.Reflection;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.AI;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -70,7 +71,7 @@ public static class ManagementComputerSmokeTest
 
             string result = SessionState.GetString(ResultKey, "Smoke test did not finish.");
             if (result == "PASS")
-                Debug.Log("[ManagementComputerSmokeTest] PASS — responsive management UI, HR departments, horizontal role rails, employee cards, Hire/Fire actions, all apps, and shift flow passed.");
+                Debug.Log("[ManagementComputerSmokeTest] PASS — responsive management UI, prefab-backed Menu/Restock catalogs, reviewed delivery checkout, HR departments, all apps, and shift flow passed.");
             else
                 Debug.LogError("[ManagementComputerSmokeTest] FAIL\n" + result);
 
@@ -132,6 +133,7 @@ public static class ManagementComputerSmokeTest
             "TapOutlineSelector mask does not include ManagementTerminal");
         VerifyTerminalRaycast(station, manager.Movement, terminalLayer);
         Assert(station.CanInteract(), "Computer station cannot be interacted with before opening");
+        VerifyRestockWorldInteractions(manager, selector);
 
         ManagementComputerResponsiveLayout[] responsiveLayouts =
             UnityEngine.Object.FindObjectsByType<ManagementComputerResponsiveLayout>(
@@ -164,15 +166,58 @@ public static class ManagementComputerSmokeTest
             Assert(controller.AppWindow.Content.childCount > 0, "App index " + i + " populated no prefab rows");
 
             ScrollRect scroll = controller.AppWindow.GetComponentInChildren<ScrollRect>(true);
-            Assert(scroll != null && scroll.vertical && !scroll.horizontal,
-                "App window does not have a usable vertical scroll view");
+            bool isCatalog =
+                i == (int)ManagementComputerApp.Menu ||
+                i == (int)ManagementComputerApp.Restock;
+            bool expectsPortraitCards = i == (int)ManagementComputerApp.Equipment;
+            Assert(scroll != null, "App window has no ScrollRect for index " + i);
+            Assert(isCatalog
+                    ? !scroll.horizontal && !scroll.vertical
+                    : expectsPortraitCards
+                        ? scroll.horizontal && !scroll.vertical
+                        : scroll.vertical && !scroll.horizontal,
+                "App window has the wrong scroll direction for index " + i);
             Assert(scroll.viewport != null && scroll.content != null && scroll.verticalScrollbar != null,
                 "App window scroll view references are incomplete");
 
-            RectTransform firstRow = controller.AppWindow.Content.GetChild(0) as RectTransform;
+            RectTransform firstRow = GetFirstActiveChild(controller.AppWindow.Content);
             Assert(firstRow != null, "First app entry is not a RectTransform");
             Assert(firstRow.rect.width <= controller.AppWindow.Content.rect.width + 1f,
                 "Prefab row overflowed its scroll content");
+            if (isCatalog)
+            {
+                ManagementComputerCatalogPanelUI catalogPanel =
+                    controller.AppWindow.Content.GetComponentInChildren<ManagementComputerCatalogPanelUI>(false);
+                Assert(catalogPanel != null,
+                    "Menu/Restock did not instantiate the editable catalog panel prefab");
+
+                ManagementComputerCatalogCardUI[] cards =
+                    catalogPanel.GetComponentsInChildren<ManagementComputerCatalogCardUI>(false);
+                Assert(cards.Length > 0, "Menu/Restock catalog populated no portrait cards");
+                RectTransform cardRect = cards[0].transform as RectTransform;
+                Assert(cardRect != null && cardRect.rect.height > cardRect.rect.width,
+                    "Menu/Restock catalog did not use portrait cards");
+
+                Button cardAction = i == (int)ManagementComputerApp.Restock
+                    ? cards[0].PlusButton
+                    : cards[0].GetComponent<Button>();
+                Assert(cardAction != null &&
+                       ((RectTransform)cardAction.transform).rect.height >= 44f,
+                    "Menu/Restock has a primary touch target smaller than 44 pixels");
+
+                ScrollRect[] nestedScrolls = catalogPanel.GetComponentsInChildren<ScrollRect>(true);
+                Assert(Array.Exists(nestedScrolls, nested => nested.vertical && !nested.horizontal),
+                    "Menu/Restock catalog has no vertical content scroll");
+            }
+            else if (expectsPortraitCards)
+            {
+                Assert(firstRow.rect.height > firstRow.rect.width,
+                    "App index " + i + " did not use portrait cards");
+                Button cardAction = firstRow.GetComponentInChildren<Button>(false);
+                Assert(cardAction != null &&
+                       ((RectTransform)cardAction.transform).rect.height >= 44f,
+                    "App index " + i + " has a card action smaller than the mobile target");
+            }
 
             if (i == (int)ManagementComputerApp.Staff)
             {
@@ -183,7 +228,7 @@ public static class ManagementComputerSmokeTest
             }
         }
 
-        VerifyScrollPreservation(controller, responsive);
+        VerifyRestockCheckout(controller, responsive);
 
         Button closeButton = FindNamedComponent<Button>(responsive.SafeAreaRoot, "WindowCloseButton");
         Assert(closeButton != null && closeButton.interactable, "App window close button is not usable");
@@ -474,47 +519,199 @@ public static class ManagementComputerSmokeTest
         controller.OnPointerClick(duplicateRelease);
     }
 
-    private static void VerifyScrollPreservation(
+    private static void VerifyRestockCheckout(
         ManagementComputerController controller,
         ManagementComputerResponsiveLayout responsive)
     {
         MoneyManager.Instance.SetMoney(
             Mathf.Max(MoneyManager.Instance.Money, 100000),
-            "Management computer scroll smoke test");
+            "Management computer checkout smoke test");
+
+        // This play-mode test is transient and save writes are suppressed. Start
+        // from known capacity so a real player's pending deliveries cannot make
+        // the checkout test nondeterministic.
+        RestockOrderManager orders = RestockOrderManager.EnsureInstance();
+        Assert(orders != null, "Restock order ledger is unavailable");
+        orders.ApplySaveData(new GameSaveData());
+        InventoryManager.Instance.SetAllStock(0);
 
         Button restockButton = GetAppButton(responsive, (int)ManagementComputerApp.Restock);
         Assert(restockButton != null && restockButton.interactable,
-            "Restock app button is unavailable for scroll testing");
+            "Restock app button is unavailable for checkout testing");
         restockButton.onClick.Invoke();
         Canvas.ForceUpdateCanvases();
         LayoutRebuilder.ForceRebuildLayoutImmediate(controller.AppWindow.Content);
 
-        ScrollRect scroll = controller.AppWindow.GetComponentInChildren<ScrollRect>(true);
-        Assert(scroll != null, "Restock app has no vertical ScrollRect");
-        scroll.StopMovement();
-        scroll.verticalNormalizedPosition = 0.35f;
-        float expectedPosition = scroll.verticalNormalizedPosition;
-        Assert(expectedPosition < 0.95f,
-            "Restock content does not overflow enough to exercise scroll preservation");
+        ManagementComputerCatalogPanelUI panel =
+            controller.AppWindow.Content.GetComponentInChildren<ManagementComputerCatalogPanelUI>(false);
+        Assert(panel != null, "Restock app did not instantiate its catalog prefab");
 
-        ManagementComputerRowUI[] rows =
-            controller.AppWindow.Content.GetComponentsInChildren<ManagementComputerRowUI>(false);
-        Button action = null;
-        for (int i = 0; i < rows.Length && action == null; i++)
+        ManagementComputerCatalogCardUI selectedCard = null;
+        ManagementComputerCatalogCardUI[] cards =
+            panel.GetComponentsInChildren<ManagementComputerCatalogCardUI>(false);
+        for (int i = 0; i < cards.Length; i++)
         {
-            Button candidate = rows[i].GetComponentInChildren<Button>(false);
-            if (candidate != null && candidate.interactable)
-                action = candidate;
+            if (cards[i].BoundItem != null && cards[i].PlusButton != null &&
+                cards[i].PlusButton.interactable)
+            {
+                selectedCard = cards[i];
+                break;
+            }
         }
 
-        Assert(action != null, "Restock app has no usable purchase action for scroll testing");
-        action.onClick.Invoke();
-        Assert(Mathf.Abs(controller.AppWindow.VerticalNormalizedPosition - expectedPosition) < 0.02f,
-            "Restock refresh reset the vertical scroll position");
+        Assert(selectedCard != null, "Restock app has no usable quantity action");
+        ItemData item = selectedCard.BoundItem;
+        int moneyBefore = MoneyManager.Instance.Money;
+        int stockBefore = InventoryManager.Instance.GetStock(item.itemType);
+        int orderCountBefore = orders.Orders.Count;
+        int pendingBefore = orders.GetPendingContainers(item);
+
+        selectedCard.PlusButton.onClick.Invoke();
+        Assert(panel.GetComponentsInChildren<ManagementComputerCheckoutLineUI>(false).Length == 1,
+            "Adding one container did not create one reusable cart line");
+
+        Button primary = FindNamedComponent<Button>(panel.transform, "Primary");
+        Assert(primary != null && primary.interactable,
+            "Restock checkout button is missing or disabled after adding an item");
+        primary.onClick.Invoke();
+        Assert(MoneyManager.Instance.Money == moneyBefore,
+            "Opening order review spent money before ORDER NOW");
+        Assert(primary.interactable, "ORDER NOW is unavailable in review mode");
+
+        primary.onClick.Invoke();
+        Assert(orders.Orders.Count == orderCountBefore + 1,
+            "ORDER NOW did not create exactly one delivery order");
+        Assert(MoneyManager.Instance.Money == moneyBefore - item.boxCost,
+            "ORDER NOW did not spend the exact container cost once");
+        Assert(InventoryManager.Instance.GetStock(item.itemType) == stockBefore,
+            "Ordered stock became usable before truck delivery and storage");
+        Assert(orders.GetPendingContainers(item) == pendingBefore + 1,
+            "Placed container was not reserved in pending delivery counts");
+
+        primary.onClick.Invoke();
+        Assert(orders.Orders.Count == orderCountBefore + 1,
+            "Repeated checkout input created a duplicate delivery order");
+
+        RestockOrderSaveData createdOrder = orders.Orders[orders.Orders.Count - 1];
+        createdOrder.deliveryReadyUtcTicks = DateTime.UtcNow.AddSeconds(-1d).Ticks;
+        MethodInfo tickDeliveries = typeof(RestockOrderManager).GetMethod(
+            "TickDeliveries",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert(tickDeliveries != null, "Delivery scheduler is unavailable");
+        tickDeliveries.Invoke(orders, null);
+        Assert(createdOrder.state == RestockOrderState.Delivered,
+            "Paid order did not arrive after its delivery time");
+        Assert(InventoryManager.Instance.GetStock(item.itemType) == stockBefore,
+            "Truck arrival granted usable stock before collection and storage");
+
+        Assert(orders.CollectDeliveredOrders(),
+            "Delivered order could not be collected into the restock hotbar");
+        Assert(!orders.CollectDeliveredOrders(),
+            "The same delivered order could be collected twice");
+        Assert(orders.GetHotbarContainers(item) == 1,
+            "Collected box was not represented exactly once in the hotbar");
+
+        Assert(orders.TryStoreOneContainer(item, item.requiredStorage, out string storageMessage),
+            "Collected box could not be stored: " + storageMessage);
+        Assert(InventoryManager.Instance.GetStock(item.itemType) ==
+               stockBefore + Mathf.Max(1, item.unitsPerBox),
+            "Shelf placement did not add exactly one container of usable stock");
+        Assert(createdOrder.state == RestockOrderState.Stored,
+            "Order did not finish after its final physical box was stored");
+        Assert(!orders.TryStoreOneContainer(item, item.requiredStorage, out _),
+            "The same stored box granted inventory twice");
+    }
+
+    private static void VerifyRestockWorldInteractions(
+        ManagerPlayer manager,
+        TapOutlineSelector selector)
+    {
+        int interactionLayer = LayerMask.NameToLayer("Interactable ");
+        Assert(interactionLayer >= 0, "The Interactable layer is missing");
+        Assert(MaskContains(manager.Movement, "clickMask", interactionLayer),
+            "Manager PlayerMovement does not scan the Interactable layer");
+        Assert(selector != null && MaskContains(selector, "selectableMask", interactionLayer),
+            "TapOutlineSelector does not scan the Interactable layer");
+
+        RestockTruckInteractable truck =
+            UnityEngine.Object.FindFirstObjectByType<RestockTruckInteractable>();
+        Assert(truck != null, "The delivery truck was not created in Lobby1");
+        Assert(truck.gameObject.layer == interactionLayer,
+            "The delivery truck is outside the player's click mask");
+        Assert(truck.GetComponent<Collider>() != null,
+            "The delivery truck has no click collider");
+        Assert(truck.GetComponent<Outline>() != null,
+            "The delivery truck has no booth-style outline");
+        AssertReachable(manager, truck, "delivery truck");
+
+        RestockStockRoomEntrance[] roomTargets =
+            UnityEngine.Object.FindObjectsByType<RestockStockRoomEntrance>(
+                FindObjectsInactive.Exclude,
+                FindObjectsSortMode.None);
+        RestockStockRoomEntrance dry = Array.Find(
+            roomTargets,
+            target => target != null && target.StorageType == RestockStorageType.Dry);
+        RestockStockRoomEntrance freezer = Array.Find(
+            roomTargets,
+            target => target != null && target.StorageType == RestockStorageType.Frozen);
+        Assert(dry != null, "Lobby has no Dry Storage interaction");
+        Assert(freezer != null, "Lobby has no Walk-in Freezer interaction");
+        VerifyRoomEntrance(manager, dry, interactionLayer, "dry-storage entrance");
+        VerifyRoomEntrance(manager, freezer, interactionLayer, "walk-in-freezer entrance");
+    }
+
+    private static void VerifyRoomEntrance(
+        ManagerPlayer manager,
+        RestockStockRoomEntrance entrance,
+        int interactionLayer,
+        string label)
+    {
+        Assert(entrance.gameObject.layer == interactionLayer,
+            label + " is outside the player's click mask");
+        Assert(entrance.GetComponent<Collider>() != null,
+            label + " has no click collider");
+        Assert(entrance.GetComponent<Outline>() != null,
+            label + " has no booth-style outline");
+        AssertReachable(manager, entrance, label);
+    }
+
+    private static void AssertReachable(
+        ManagerPlayer manager,
+        IInteractable target,
+        string label)
+    {
+        Assert(manager != null && target != null && target.StandPoint != null,
+            label + " has no valid approach point");
+        NavMeshPath path = new NavMeshPath();
+        bool found = NavMesh.CalculatePath(
+            manager.transform.position,
+            target.StandPoint.position,
+            NavMesh.AllAreas,
+            path);
+        Assert(found && path.status == NavMeshPathStatus.PathComplete,
+            "The player cannot reach the " + label +
+            " (player=" + manager.transform.position.ToString("F2") +
+            ", target=" + target.StandPoint.position.ToString("F2") +
+            ", found=" + found + ", status=" + path.status + ")");
     }
 
     private static ManagementHRRoleSectionUI[] GetActiveRoleSections(ManagementComputerHRPanel panel) =>
         panel.SectionsRoot.GetComponentsInChildren<ManagementHRRoleSectionUI>(false);
+
+    private static RectTransform GetFirstActiveChild(RectTransform parent)
+    {
+        if (parent == null)
+            return null;
+
+        for (int i = 0; i < parent.childCount; i++)
+        {
+            RectTransform child = parent.GetChild(i) as RectTransform;
+            if (child != null && child.gameObject.activeSelf)
+                return child;
+        }
+
+        return null;
+    }
 
     private static void VerifyRoleRails(ManagementHRRoleSectionUI[] sections)
     {

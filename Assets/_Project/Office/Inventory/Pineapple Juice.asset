@@ -12,9 +12,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 13584ed6afc92734f8aea60ecc3d8b1f, type: 3}
   m_Name: Pineapple Juice
   m_EditorClassIdentifier: 
+  itemID: pineapple-mix
   itemType: 7
   displayName: "Pineapple Mix \u2013 20"
   unitsPerBox: 20
+  requiredStorage: 0
+  containerType: 0
+  worldContainerPrefab: {fileID: 7163686026178324243, guid: 29f19047587c15147b51a21bd3a31c76, type: 3}
+  gridFootprint: {x: 1, y: 1}
   boxCost: 150
+  averageUsagePerCustomer: 0.2
+  shelfLifeDays: 7
+  wrongStorageSpoilageMultiplier: 4
   sprite: {fileID: 21300000, guid: a128577fa7c156c4a90b4d0537692668, type: 3}
   dayToUnlock: 1

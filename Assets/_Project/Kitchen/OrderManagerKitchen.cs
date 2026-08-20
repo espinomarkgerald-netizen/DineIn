@@ -247,7 +247,7 @@ public class OrderManagerKitchen : MonoBehaviour {
 
         foreach (Recipe recipe in recipes) {
             if (recipe.kitchenItemType != ItemTypeKitchen.None)
-                priceMap[recipe.kitchenItemType] = recipe.sellPrice;
+                priceMap[recipe.kitchenItemType] = recipe.EffectiveSellPrice;
         }
 
         Debug.Log("[OrderManagerKitchen] Price map built from MenuCatalog.");

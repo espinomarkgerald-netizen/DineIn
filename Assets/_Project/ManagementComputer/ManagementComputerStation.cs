@@ -10,6 +10,19 @@ public sealed class ManagementComputerStation : MonoBehaviour, IInteractable
     public Transform StandPoint => standPoint != null ? standPoint : transform;
     public bool AutoReturnHome => false;
 
+    private void Awake()
+    {
+        if (controller == null)
+            controller = FindFirstObjectByType<ManagementComputerController>();
+
+        BoxCollider clickCollider = GetComponent<BoxCollider>();
+        if (clickCollider == null)
+            clickCollider = gameObject.AddComponent<BoxCollider>();
+
+        clickCollider.enabled = true;
+        clickCollider.isTrigger = true;
+    }
+
     public void Configure(ManagementComputerController configuredController, Transform configuredStandPoint)
     {
         controller = configuredController;
@@ -18,7 +31,10 @@ public sealed class ManagementComputerStation : MonoBehaviour, IInteractable
 
     public bool CanInteract()
     {
-        return enabled && controller != null && !controller.IsOpen && ManagerPlayer.Active != null;
+        if (controller == null)
+            controller = FindFirstObjectByType<ManagementComputerController>();
+
+        return isActiveAndEnabled && controller != null && !controller.IsOpen;
     }
 
     public void Interact(PlayerMovement mover)

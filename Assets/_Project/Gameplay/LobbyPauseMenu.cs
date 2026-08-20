@@ -157,7 +157,7 @@ public sealed class LobbyPauseMenu : MonoBehaviour
     {
         paused = false;
         Time.timeScale = 1f;
-        GameSaveManager.Instance?.SaveGame();
+        GameSaveManager.Instance?.RestoreDayStartCheckpoint();
 
         if (SceneLoader.Instance != null)
             SceneLoader.Instance.LoadScene(GameMenuSceneName);

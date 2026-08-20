@@ -68,8 +68,30 @@ public class DraggableStorageBox : MonoBehaviour
     {
         FindCamera();
 
+        // Authored boxes created before the restock flow had no explicit shelf
+        // mask. Treat zero as "all shelves" so placed deliveries stay movable.
+        if (shelfGridLayer.value == 0)
+            shelfGridLayer = ~0;
+
         if (interactionUIRoot != null)
             interactionUIRoot.SetActive(false);
+    }
+
+    public bool TryPlaceInitially(ShelfGrid grid, int column, int row)
+    {
+        if (grid == null || !grid.PlaceObject(gameObject, column, row))
+            return false;
+
+        currentGrid = grid;
+        currentColumn = column;
+        currentRow = row;
+        previousGrid = null;
+        previousColumn = -1;
+        previousRow = -1;
+        startingPosition = grid.GetCellWorldPosition(column, row) + placementOffset;
+        startingRotation = transform.rotation;
+        transform.position = startingPosition;
+        return true;
     }
 
     private void FindCamera()

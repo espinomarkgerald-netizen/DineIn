@@ -1,0 +1,16 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1aeccfc23f4020c49959e40b74de08e5, type: 3}
+  m_Name: ManagementComputerCatalogUIConfig
+  m_EditorClassIdentifier: 
+  catalogPanelPrefab: {fileID: 8409411074060220108, guid: 8cb634ab747f7104c95bffd446086517, type: 3}
+  storageConfig: {fileID: 11400000, guid: d3351c800304292488aa3861d54935e2, type: 2}

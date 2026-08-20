@@ -72,12 +72,12 @@ public class TutorialCashierOrderRandomizer : MonoBehaviour
         MenuBundle selectedBundle = catalog.FindBundle(selectedMeal);
         order.foodTotal = selectedBundle != null
             ? selectedBundle.GetPrice()
-            : firstFood.sellPrice;
+            : firstFood.EffectiveSellPrice;
 
         Recipe selectedDrink = drinks[Random.Range(0, drinks.Count)];
         order.drinkName = selectedDrink.DisplayName;
         order.drinkSprite = selectedDrink.sprite;
-        order.drinkTotal = selectedDrink.sellPrice;
+        order.drinkTotal = selectedDrink.EffectiveSellPrice;
         order.total = order.foodTotal + order.drinkTotal;
         order.received = GetRandomReceivedAmountAbove(order.total);
 

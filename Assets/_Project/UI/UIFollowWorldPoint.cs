@@ -21,6 +21,8 @@ public class UIFollowWorldPoint : MonoBehaviour
     [SerializeField] private bool preserveScreenSize = true;
     [SerializeField, Min(0.01f)] private float worldUnitsPerUiUnit = 0.01f;
     [SerializeField, Min(0.1f)] private float visualScale = 1f;
+    [SerializeField, Min(1f)] private float mobileVisualScale = 1.8f;
+    [SerializeField, Min(0f)] private float mobileSafeAreaPadding = 18f;
     [SerializeField, Min(0f)] private float cameraDepthOffset = 0.1f;
     [SerializeField, Min(1f)] private float dynamicPixelsPerUnit = 10f;
     [SerializeField] private int baseSortingOrder = 100;
@@ -243,10 +245,33 @@ public class UIFollowWorldPoint : MonoBehaviour
             : ResolveStandardCameraOffset(scale);
         Vector3 depthOffset = -cam.transform.forward * cameraDepthOffset;
 
-        rect.SetPositionAndRotation(
-            anchorPosition + cameraSpaceOffset + depthOffset,
-            cam.transform.rotation);
+        Vector3 worldPosition = anchorPosition + cameraSpaceOffset + depthOffset;
+        if (Application.isMobilePlatform)
+            worldPosition = ClampWorldPositionToSafeArea(worldPosition, anchorPosition);
+
+        rect.SetPositionAndRotation(worldPosition, cam.transform.rotation);
         rect.localScale = authoredScale * scale;
+    }
+
+    private Vector3 ClampWorldPositionToSafeArea(Vector3 worldPosition, Vector3 anchorPosition)
+    {
+        Vector3 screen = cam.WorldToScreenPoint(worldPosition);
+        if (screen.z <= 0f)
+            return worldPosition;
+
+        Rect safe = Screen.safeArea;
+        float minX = safe.xMin + mobileSafeAreaPadding;
+        float maxX = safe.xMax - mobileSafeAreaPadding;
+        float minY = safe.yMin + mobileSafeAreaPadding;
+        float maxY = safe.yMax - mobileSafeAreaPadding;
+        Vector2 clamped = new Vector2(
+            Mathf.Clamp(screen.x, minX, maxX),
+            Mathf.Clamp(screen.y, minY, maxY));
+        Vector2 delta = clamped - new Vector2(screen.x, screen.y);
+        float unitsPerPixel = ResolveWorldUnitsPerScreenPixel(anchorPosition);
+        return worldPosition +
+               cam.transform.right * (delta.x * unitsPerPixel) +
+               cam.transform.up * (delta.y * unitsPerPixel);
     }
 
     private Vector3 ResolveStandardCameraOffset(float scale)
@@ -270,10 +295,12 @@ public class UIFollowWorldPoint : MonoBehaviour
 
     private float ResolveWorldScale(Vector3 anchorPosition)
     {
+        float platformScale = Application.isMobilePlatform ? mobileVisualScale : 1f;
         if (!preserveScreenSize)
-            return worldUnitsPerUiUnit * visualScale;
+            return worldUnitsPerUiUnit * visualScale * platformScale;
 
-        return ResolveWorldUnitsPerScreenPixel(anchorPosition) * sourceCanvasScaleFactor * visualScale;
+        return ResolveWorldUnitsPerScreenPixel(anchorPosition) * sourceCanvasScaleFactor *
+               visualScale * platformScale;
     }
 
     private float ResolveWorldUnitsPerScreenPixel(Vector3 anchorPosition)

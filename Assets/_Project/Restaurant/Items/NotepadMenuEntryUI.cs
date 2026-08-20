@@ -8,7 +8,7 @@ using UnityEngine.UI;
 [Serializable]
 public class NotepadMenuVisualStyle
 {
-    public float entryHeight = 132f;
+    public float entryHeight = 218f;
     public Sprite entryBackgroundSprite;
     public Color entryColor = new Color(0.404f, 0.667f, 0.808f, 1f);
     public Color disabledColor = new Color(0.46f, 0.49f, 0.52f, 0.9f);
@@ -79,6 +79,7 @@ public sealed class NotepadMenuEntryUI : MonoBehaviour
     private int expectedQuantity;
     private Coroutine feedbackAnimation;
     private bool feedbackPending;
+    private Vector2 authoredCardSize;
 
     public EntryKind Kind { get; private set; }
     public Recipe Product { get; private set; }
@@ -88,6 +89,9 @@ public sealed class NotepadMenuEntryUI : MonoBehaviour
         : MenuProductCategory.Food;
     public bool IsOn => toggle != null && toggle.isOn;
     public int SelectedQuantity => selectedQuantity;
+    public Vector2 AuthoredCardSize => authoredCardSize.x > 0f && authoredCardSize.y > 0f
+        ? authoredCardSize
+        : GetCurrentCardSize();
     public string DisplayName => Kind == EntryKind.Bundle
         ? Bundle != null ? Bundle.displayName : "Missing Bundle"
         : Product != null ? Product.DisplayName : "Missing Product";
@@ -100,6 +104,7 @@ public sealed class NotepadMenuEntryUI : MonoBehaviour
 
     private void Awake()
     {
+        CaptureAuthoredCardSize();
         ResolvePrefabReferences();
         if (HasRequiredReferences())
         {
@@ -129,7 +134,6 @@ public sealed class NotepadMenuEntryUI : MonoBehaviour
 
         view.CapturePrefabStyle();
         view.BindControls();
-        view.StretchToContainer();
         return view;
     }
 
@@ -147,16 +151,19 @@ public sealed class NotepadMenuEntryUI : MonoBehaviour
         root.layer = parent != null ? parent.gameObject.layer : 5;
         RectTransform rect = root.GetComponent<RectTransform>();
         rect.SetParent(parent, false);
-        rect.sizeDelta = new Vector2(450f, Mathf.Max(132f, visualStyle.entryHeight));
+        rect.sizeDelta = new Vector2(174f, Mathf.Max(218f, visualStyle.entryHeight));
 
         LayoutElement layout = root.GetComponent<LayoutElement>();
-        layout.minHeight = Mathf.Max(132f, visualStyle.entryHeight);
-        layout.preferredHeight = Mathf.Max(132f, visualStyle.entryHeight);
-        layout.flexibleWidth = 1f;
+        layout.minWidth = 174f;
+        layout.preferredWidth = 174f;
+        layout.minHeight = Mathf.Max(218f, visualStyle.entryHeight);
+        layout.preferredHeight = Mathf.Max(218f, visualStyle.entryHeight);
+        layout.flexibleWidth = 0f;
 
         NotepadMenuEntryUI view = root.GetComponent<NotepadMenuEntryUI>();
         view.BuildVisuals(visualStyle);
         view.StretchToContainer();
+        view.CaptureAuthoredCardSize();
         return view;
     }
 
@@ -166,10 +173,9 @@ public sealed class NotepadMenuEntryUI : MonoBehaviour
         if (rect == null)
             return;
 
-        rect.anchorMin = new Vector2(0f, rect.anchorMin.y);
-        rect.anchorMax = new Vector2(1f, rect.anchorMax.y);
-        rect.anchoredPosition = new Vector2(0f, rect.anchoredPosition.y);
-        rect.sizeDelta = new Vector2(0f, rect.sizeDelta.y);
+        rect.anchorMin = rect.anchorMax = new Vector2(0f, 1f);
+        rect.pivot = new Vector2(0f, 1f);
+        rect.sizeDelta = new Vector2(174f, 218f);
     }
 
     public void Bind(Recipe product)
@@ -180,7 +186,7 @@ public sealed class NotepadMenuEntryUI : MonoBehaviour
         gameObject.name = product != null ? $"Product - {product.DisplayName}" : "Product - Missing";
 
         nameText.text = product != null ? product.DisplayName : "Missing Product";
-        priceText.text = product != null ? FormatPrice(product.sellPrice) : string.Empty;
+        priceText.text = product != null ? FormatPrice(product.EffectiveSellPrice) : string.Empty;
 
         List<Recipe> products = new List<Recipe>();
         if (product != null)
@@ -249,7 +255,9 @@ public sealed class NotepadMenuEntryUI : MonoBehaviour
         availableQuantity = Mathf.Max(0, stock);
         bool inStock = availableQuantity > 0;
         canSelect = unlocked && available && inStock;
-        toggle.interactable = canSelect;
+        // The card body is display-only. Quantity can only be changed with the
+        // explicit minus and plus buttons, which avoids accidental mobile taps.
+        toggle.interactable = false;
         if (decreaseButton != null)
             decreaseButton.interactable = canSelect && selectedQuantity > 0;
         if (increaseButton != null)
@@ -266,7 +274,10 @@ public sealed class NotepadMenuEntryUI : MonoBehaviour
         statusText.color = style.secondaryTextColor;
         selectionMark.color = style.selectedColor;
         selectionMark.enabled = selectedQuantity > 0;
-        stockText.text = $"x{Mathf.Max(0, stock)}";
+        // Stock is intentionally shown once in the Products Availability area.
+        // Keeping it off the order card prevents it being confused with the
+        // quantity the customer requested through the - / quantity / + controls.
+        stockText.text = string.Empty;
 
         if (!available)
             statusText.text = "Unavailable";
@@ -275,7 +286,7 @@ public sealed class NotepadMenuEntryUI : MonoBehaviour
         else if (!inStock)
             statusText.text = "Out of stock";
         else
-            statusText.text = string.Empty;
+            statusText.text = GetCardSubtitle();
 
         ApplyReviewAppearance();
     }
@@ -413,7 +424,8 @@ public sealed class NotepadMenuEntryUI : MonoBehaviour
 
         toggle = GetComponent<Toggle>();
         toggle.targetGraphic = background;
-        toggle.transition = Selectable.Transition.ColorTint;
+        toggle.transition = Selectable.Transition.None;
+        toggle.interactable = false;
         toggle.colors = new ColorBlock
         {
             normalColor = Color.white,
@@ -476,7 +488,106 @@ public sealed class NotepadMenuEntryUI : MonoBehaviour
         toggle.graphic = selectionMark;
 
         ApplyFont(style.fontAsset);
+        ApplyFallbackCardLayout();
         BindControls();
+    }
+
+    private void ApplyFallbackCardLayout()
+    {
+        const float cardWidth = 174f;
+        const float cardHeight = 218f;
+        LayoutElement layout = GetComponent<LayoutElement>();
+        RectTransform root = transform as RectTransform;
+        if (layout != null)
+        {
+            layout.minWidth = cardWidth;
+            layout.preferredWidth = cardWidth;
+            layout.minHeight = cardHeight;
+            layout.preferredHeight = cardHeight;
+            layout.flexibleWidth = 0f;
+        }
+        if (root != null)
+        {
+            root.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, cardWidth);
+            root.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, cardHeight);
+        }
+
+        ConfigureRect(iconRoot, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+            new Vector2(0.5f, 1f), new Vector2(0f, -8f), new Vector2(112f, 78f));
+        ConfigureRect(nameText.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f),
+            new Vector2(0.5f, 1f), new Vector2(0f, -88f), new Vector2(-20f, 29f));
+        ConfigureRect(statusText.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f),
+            new Vector2(0.5f, 1f), new Vector2(0f, -118f), new Vector2(-20f, 21f));
+        ConfigureRect(priceText.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f),
+            new Vector2(0.5f, 1f), new Vector2(0f, -140f), new Vector2(-22f, 19f));
+        ConfigureRect(decreaseButton.transform as RectTransform,
+            new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(0f, 0f),
+            new Vector2(12f, 12f), new Vector2(46f, 46f));
+        ConfigureRect(quantityText.rectTransform,
+            new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+            new Vector2(0f, 12f), new Vector2(54f, 46f));
+        ConfigureRect(increaseButton.transform as RectTransform,
+            new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(1f, 0f),
+            new Vector2(-12f, 12f), new Vector2(46f, 46f));
+        ConfigureRect(selectionMark.rectTransform,
+            new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 0.5f),
+            new Vector2(3f, 0f), new Vector2(6f, -10f));
+
+        nameText.alignment = TextAlignmentOptions.Center;
+        statusText.alignment = TextAlignmentOptions.Center;
+        priceText.alignment = TextAlignmentOptions.Center;
+        stockText.gameObject.SetActive(false);
+
+        ConfigureText(nameText, 16f, 21f, TextWrappingModes.NoWrap);
+        ConfigureText(statusText, 12f, 15f, TextWrappingModes.NoWrap);
+        ConfigureText(priceText, 14f, 18f, TextWrappingModes.NoWrap);
+        ConfigureText(quantityText, 17f, 21f, TextWrappingModes.NoWrap);
+    }
+
+    private void CaptureAuthoredCardSize()
+    {
+        authoredCardSize = GetCurrentCardSize();
+    }
+
+    private Vector2 GetCurrentCardSize()
+    {
+        RectTransform rect = transform as RectTransform;
+        if (rect == null)
+            return new Vector2(174f, 218f);
+
+        Vector2 size = rect.rect.size;
+        if (size.x <= 0f)
+            size.x = Mathf.Abs(rect.sizeDelta.x);
+        if (size.y <= 0f)
+            size.y = Mathf.Abs(rect.sizeDelta.y);
+
+        return new Vector2(
+            Mathf.Max(1f, size.x),
+            Mathf.Max(1f, size.y));
+    }
+
+    private string GetCardSubtitle()
+    {
+        if (Kind == EntryKind.Bundle)
+            return "Combo";
+
+        return Product != null && Product.category == MenuProductCategory.Drink
+            ? "Drink"
+            : "Menu item";
+    }
+
+    private static void ConfigureText(
+        TMP_Text text,
+        float minimum,
+        float maximum,
+        TextWrappingModes wrapping)
+    {
+        if (text == null) return;
+        text.enableAutoSizing = true;
+        text.fontSizeMin = minimum;
+        text.fontSizeMax = maximum;
+        text.textWrappingMode = wrapping;
+        text.overflowMode = TextOverflowModes.Ellipsis;
     }
 
     private void BindControls()
@@ -495,8 +606,8 @@ public sealed class NotepadMenuEntryUI : MonoBehaviour
 
         if (toggle != null)
         {
-            toggle.onValueChanged.RemoveListener(HandleToggleChanged);
-            toggle.onValueChanged.AddListener(HandleToggleChanged);
+            toggle.transition = Selectable.Transition.None;
+            toggle.interactable = false;
         }
     }
 
@@ -688,11 +799,6 @@ public sealed class NotepadMenuEntryUI : MonoBehaviour
         StopFeedbackAnimation();
     }
 
-    private void HandleToggleChanged(bool value)
-    {
-        ApplyQuantity(value ? Mathf.Max(1, selectedQuantity) : 0, true);
-    }
-
     private void SetIcons(IReadOnlyList<Recipe> products)
     {
         for (int i = iconRoot.childCount - 1; i >= 0; i--)
@@ -708,7 +814,7 @@ public sealed class NotepadMenuEntryUI : MonoBehaviour
             return;
 
         int count = products.Count;
-        float iconSize = count <= 1 ? 88f : Mathf.Clamp(104f / count, 30f, 50f);
+        float iconSize = count <= 1 ? 68f : Mathf.Clamp(86f / count, 26f, 40f);
         float spacing = count <= 1 ? 0f : 4f;
         float totalWidth = count * iconSize + (count - 1) * spacing;
         float start = -totalWidth * 0.5f + iconSize * 0.5f;

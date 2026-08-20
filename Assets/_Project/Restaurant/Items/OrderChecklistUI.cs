@@ -184,7 +184,28 @@ public class OrderChecklistUI : MonoBehaviour
         root.anchoredPosition = Vector2.zero;
         if ((root.sizeDelta - requiredSizeDelta).sqrMagnitude > 0.01f)
             root.sizeDelta = requiredSizeDelta;
+
+        ApplyCustomerMessageBounds();
+        FinalizeMenuLayout(foodContentRoot, foodScrollRect);
+        FinalizeMenuLayout(drinkContentRoot, drinkScrollRect);
         refreshingResponsiveLayout = false;
+    }
+
+    private void ApplyCustomerMessageBounds()
+    {
+        if (customerMessageText == null)
+            return;
+
+        RectTransform messageRect = customerMessageText.rectTransform;
+        messageRect.sizeDelta = new Vector2(280f, 150f);
+        customerMessageText.margin = Vector4.zero;
+        customerMessageText.enableAutoSizing = true;
+        customerMessageText.fontSizeMin = 14f;
+        customerMessageText.fontSizeMax = 20f;
+        customerMessageText.textWrappingMode = TextWrappingModes.Normal;
+        customerMessageText.overflowMode = TextOverflowModes.Ellipsis;
+        customerMessageText.alignment = TextAlignmentOptions.MidlineLeft;
+        customerMessageText.raycastTarget = false;
     }
 
     public void Open(CustomerGroup customerGroup)
@@ -257,7 +278,7 @@ public class OrderChecklistUI : MonoBehaviour
     {
         EnsureCatalog();
         Recipe product = catalog != null ? catalog.FindProduct(item) : null;
-        return product != null ? product.sellPrice : 0;
+        return product != null ? product.EffectiveSellPrice : 0;
     }
 
     public bool TryGetBundleFoodPrice(List<string> contents, out int price)
@@ -303,7 +324,7 @@ public class OrderChecklistUI : MonoBehaviour
         for (int i = 0; i < products.Count; i++)
         {
             if (products[i].category == MenuProductCategory.Food)
-                total += Mathf.Max(0, products[i].sellPrice);
+                total += products[i].EffectiveSellPrice;
         }
 
         return total;
@@ -323,7 +344,7 @@ public class OrderChecklistUI : MonoBehaviour
         for (int i = 0; i < products.Count; i++)
         {
             if (products[i].category == MenuProductCategory.Drink)
-                total += Mathf.Max(0, products[i].sellPrice);
+                total += products[i].EffectiveSellPrice;
         }
 
         return total;
@@ -446,8 +467,8 @@ public class OrderChecklistUI : MonoBehaviour
         ClearChildren(foodContentRoot);
         ClearChildren(drinkContentRoot);
         ClearChildren(availableItemsRoot);
-        EnsureMenuLayout(foodContentRoot);
-        EnsureMenuLayout(drinkContentRoot);
+        EnsureMenuLayout(foodContentRoot, foodScrollRect);
+        EnsureMenuLayout(drinkContentRoot, drinkScrollRect);
 
         if (catalog == null)
         {
@@ -464,18 +485,17 @@ public class OrderChecklistUI : MonoBehaviour
         List<MenuBundle> bundles = catalog.GetFoodBundles(false);
         List<Recipe> drinks = catalog.GetProducts(MenuProductCategory.Drink, false);
 
-        if (foods.Count > 0)
-            CreateSectionHeader(foodContentRoot, "Solos");
         for (int i = 0; i < foods.Count; i++)
             CreateProductEntry(foodContentRoot, foods[i]);
 
-        if (bundles.Count > 0)
-            CreateSectionHeader(foodContentRoot, "Deals");
         for (int i = 0; i < bundles.Count; i++)
             CreateBundleEntry(foodContentRoot, bundles[i]);
 
         for (int i = 0; i < drinks.Count; i++)
             CreateProductEntry(drinkContentRoot, drinks[i]);
+
+        FinalizeMenuLayout(foodContentRoot, foodScrollRect);
+        FinalizeMenuLayout(drinkContentRoot, drinkScrollRect);
 
         RebuildAvailableItems(foods);
         RefreshMenuAvailability();
@@ -1618,41 +1638,115 @@ public class OrderChecklistUI : MonoBehaviour
         rect.localScale = Vector3.one;
     }
 
-    private static void EnsureMenuLayout(RectTransform root)
+    private static void EnsureMenuLayout(RectTransform root, ScrollRect scrollRect)
     {
         if (root == null)
             return;
 
         VerticalLayoutGroup layout = root.GetComponent<VerticalLayoutGroup>();
-        if (layout == null)
-        {
-            layout = root.gameObject.AddComponent<VerticalLayoutGroup>();
-            layout.padding = new RectOffset(0, 0, 10, 0);
-            layout.spacing = 10f;
-            layout.childAlignment = TextAnchor.UpperCenter;
-            layout.childControlWidth = true;
-            layout.childControlHeight = false;
-            layout.childForceExpandWidth = true;
-            layout.childForceExpandHeight = false;
-        }
+        if (layout != null)
+            layout.enabled = false;
 
-        layout.childControlWidth = true;
-        layout.childControlHeight = true;
-        layout.childForceExpandWidth = true;
-        layout.childForceExpandHeight = false;
+        GridLayoutGroup grid = root.GetComponent<GridLayoutGroup>();
+        if (grid != null)
+            grid.enabled = false;
 
-        // The content stretches with its ScrollRect while leaving an editable
-        // strip on the right for the vertical scrollbar.
-        root.anchorMin = new Vector2(0f, 1f);
-        root.anchorMax = new Vector2(1f, 1f);
-        root.pivot = new Vector2(0.5f, 1f);
-        root.anchoredPosition = new Vector2(-10f, 0f);
-        root.sizeDelta = new Vector2(-52f, root.sizeDelta.y);
+        root.anchorMin = root.anchorMax = new Vector2(0f, 1f);
+        root.pivot = new Vector2(0f, 1f);
+        root.anchoredPosition = Vector2.zero;
 
         ContentSizeFitter fitter = root.GetComponent<ContentSizeFitter>();
-        if (fitter == null)
-            fitter = root.gameObject.AddComponent<ContentSizeFitter>();
-        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+        if (fitter != null)
+            fitter.enabled = false;
+
+        if (scrollRect != null)
+        {
+            scrollRect.horizontal = false;
+            scrollRect.vertical = true;
+            scrollRect.verticalNormalizedPosition = 1f;
+            if (scrollRect.verticalScrollbar != null)
+                scrollRect.verticalScrollbar.gameObject.SetActive(true);
+        }
+    }
+
+    private static void FinalizeMenuLayout(RectTransform root, ScrollRect scrollRect)
+    {
+        if (root == null)
+            return;
+
+        Rect viewport = GetMenuViewportRect(scrollRect, root);
+        const float padding = 12f;
+        const float spacing = 12f;
+
+        Vector2 authoredCardSize = GetAuthoredCardSize(root);
+        float cardWidth = authoredCardSize.x;
+        float cardHeight = authoredCardSize.y;
+
+        float availableWidth = Mathf.Max(cardWidth, viewport.width - padding * 2f);
+        int columnCount = Mathf.Clamp(
+            Mathf.FloorToInt((availableWidth + spacing) / (cardWidth + spacing)),
+            1,
+            3);
+        float gridWidth = columnCount * cardWidth + Mathf.Max(0, columnCount - 1) * spacing;
+        float horizontalInset = Mathf.Max(padding, (viewport.width - gridWidth) * 0.5f);
+
+        int itemCount = 0;
+        for (int i = 0; i < root.childCount; i++)
+        {
+            RectTransform card = root.GetChild(i) as RectTransform;
+            if (card == null)
+                continue;
+
+            int column = itemCount % columnCount;
+            int row = itemCount / columnCount;
+            card.anchorMin = card.anchorMax = new Vector2(0f, 1f);
+            card.pivot = new Vector2(0f, 1f);
+            card.anchoredPosition = new Vector2(
+                horizontalInset + column * (cardWidth + spacing),
+                -padding - row * (cardHeight + spacing));
+            card.sizeDelta = new Vector2(cardWidth, cardHeight);
+            card.localScale = Vector3.one;
+
+            itemCount++;
+        }
+
+        int rowCount = Mathf.CeilToInt(itemCount / (float)columnCount);
+        float requiredHeight = padding * 2f +
+                               rowCount * cardHeight +
+                               Mathf.Max(0, rowCount - 1) * spacing;
+        root.sizeDelta = new Vector2(
+            viewport.width,
+            Mathf.Max(viewport.height, requiredHeight));
+    }
+
+    private static Vector2 GetAuthoredCardSize(RectTransform root)
+    {
+        for (int i = 0; i < root.childCount; i++)
+        {
+            NotepadMenuEntryUI entry = root.GetChild(i).GetComponent<NotepadMenuEntryUI>();
+            if (entry == null)
+                continue;
+
+            Vector2 size = entry.AuthoredCardSize;
+            if (size.x > 0f && size.y > 0f)
+                return size;
+        }
+
+        return new Vector2(174f, 218f);
+    }
+
+    private static Rect GetMenuViewportRect(ScrollRect scrollRect, RectTransform fallback)
+    {
+        if (scrollRect != null)
+        {
+            if (scrollRect.viewport != null)
+                return scrollRect.viewport.rect;
+
+            if (scrollRect.transform is RectTransform scrollRectTransform)
+                return scrollRectTransform.rect;
+        }
+
+        return fallback != null ? fallback.rect : new Rect(0f, 0f, 600f, 400f);
     }
 
     private void CreateSectionHeader(RectTransform parent, string title)

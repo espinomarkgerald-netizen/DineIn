@@ -2,6 +2,9 @@ using UnityEngine;
 
 public class ShelfGrid : MonoBehaviour
 {
+    [Header("Storage")]
+    [SerializeField] private RestockStorageType storageType = RestockStorageType.Dry;
+
     [Header("Grid Size")]
     [Min(1)] public int columns = 4;
     [Min(1)] public int rows = 1;
@@ -18,9 +21,16 @@ public class ShelfGrid : MonoBehaviour
 
     private GameObject[,] occupiedCells;
 
+    public RestockStorageType StorageType => storageType;
+
     private void Awake()
     {
         occupiedCells = new GameObject[columns, rows];
+    }
+
+    public void ConfigureStorageType(RestockStorageType configuredType)
+    {
+        storageType = configuredType;
     }
 
     public Vector3 GetCellWorldPosition(int column, int row)

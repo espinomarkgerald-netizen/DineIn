@@ -12,9 +12,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 13584ed6afc92734f8aea60ecc3d8b1f, type: 3}
   m_Name: Buns
   m_EditorClassIdentifier: 
+  itemID: buns
   itemType: 2
   displayName: "Burger Buns \xD720"
   unitsPerBox: 20
+  requiredStorage: 0
+  containerType: 1
+  worldContainerPrefab: {fileID: 7570070349438791313, guid: d3fcbda821d55cb4bb2077bcc8ff52fb, type: 3}
+  gridFootprint: {x: 1, y: 1}
   boxCost: 100
+  averageUsagePerCustomer: 1.1
+  shelfLifeDays: 7
+  wrongStorageSpoilageMultiplier: 4
   sprite: {fileID: 21300000, guid: e8eff8963df23aa47a0aeb126d9020d6, type: 3}
   dayToUnlock: 1

@@ -13,7 +13,18 @@ public sealed class ManagementComputerRowUI : MonoBehaviour
     [SerializeField] private Button actionButton;
     [SerializeField] private TMP_Text actionLabel;
 
+    [Header("Editor Preview")]
+    [SerializeField] private bool previewPortraitCard = true;
+
     private bool cardPresentation;
+
+#if UNITY_EDITOR
+    private void OnValidate()
+    {
+        if (!Application.isPlaying)
+            ApplyPresentation(previewPortraitCard);
+    }
+#endif
 
     public void ConfigureReferences(
         Image configuredIcon,
@@ -70,12 +81,14 @@ public sealed class ManagementComputerRowUI : MonoBehaviour
 
         LayoutElement layout = GetComponent<LayoutElement>();
         RectTransform root = transform as RectTransform;
-        float height = asCard ? 190f : 128f;
+        float height = asCard ? 228f : 148f;
         if (layout != null)
         {
             layout.minHeight = height;
             layout.preferredHeight = height;
-            layout.flexibleWidth = 1f;
+            layout.minWidth = asCard ? 176f : -1f;
+            layout.preferredWidth = asCard ? 190f : -1f;
+            layout.flexibleWidth = asCard ? 0f : 1f;
         }
         if (root != null)
             root.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, height);
@@ -89,30 +102,38 @@ public sealed class ManagementComputerRowUI : MonoBehaviour
     private void ApplyCardLayout()
     {
         SetFixed(icon != null ? icon.rectTransform : null,
-            new Vector2(0f, 1f), new Vector2(0.5f, 0.5f),
-            new Vector2(44f, -44f), new Vector2(60f, 60f));
+            new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f),
+            new Vector2(0f, -43f), new Vector2(74f, 74f));
         SetTopStretch(titleText != null ? titleText.rectTransform : null,
-            84f, 16f, 12f, 32f);
+            12f, 12f, 82f, 30f);
         SetTopStretch(valueText != null ? valueText.rectTransform : null,
-            84f, 16f, 46f, 26f);
-        SetTopStretch(detailsText != null ? detailsText.rectTransform : null,
-            16f, 16f, 80f, 42f);
+            12f, 12f, 111f, 25f);
+        SetStretch(detailsText != null ? detailsText.rectTransform : null,
+            12f, 12f, 62f, 136f);
         SetBottomStretch(actionButton != null
                 ? actionButton.transform as RectTransform
                 : null,
-            14f, 14f, 12f, 50f);
+            12f, 12f, 10f, 46f);
 
-        ConfigureAutosizing(titleText, 19f, 25f, TextWrappingModes.NoWrap);
-        ConfigureAutosizing(detailsText, 14f, 18f, TextWrappingModes.Normal);
-        ConfigureAutosizing(valueText, 16f, 22f, TextWrappingModes.NoWrap);
-        ConfigureAutosizing(actionLabel, 17f, 22f, TextWrappingModes.NoWrap);
+        if (titleText != null) titleText.alignment = TextAlignmentOptions.Center;
+        if (detailsText != null) detailsText.alignment = TextAlignmentOptions.Center;
+        if (valueText != null) valueText.alignment = TextAlignmentOptions.Center;
+
+        ConfigureAutosizing(titleText, 16f, 21f, TextWrappingModes.NoWrap);
+        ConfigureAutosizing(detailsText, 12f, 16f, TextWrappingModes.Normal);
+        ConfigureAutosizing(valueText, 14f, 18f, TextWrappingModes.NoWrap);
+        ConfigureAutosizing(actionLabel, 15f, 20f, TextWrappingModes.NoWrap);
     }
 
     private void ApplyWideRowLayout(bool hasAction)
     {
+        if (titleText != null) titleText.alignment = TextAlignmentOptions.MidlineLeft;
+        if (detailsText != null) detailsText.alignment = TextAlignmentOptions.MidlineLeft;
+        if (valueText != null) valueText.alignment = TextAlignmentOptions.Center;
+
         SetFixed(icon != null ? icon.rectTransform : null,
             new Vector2(0f, 0.5f), new Vector2(0.5f, 0.5f),
-            new Vector2(52f, 0f), new Vector2(78f, 78f));
+            new Vector2(58f, 0f), new Vector2(88f, 88f));
 
         float textRight = hasAction ? 356f : 188f;
         SetStretch(titleText != null ? titleText.rectTransform : null,
@@ -129,10 +150,10 @@ public sealed class ManagementComputerRowUI : MonoBehaviour
             new Vector2(1f, 0.5f), new Vector2(0.5f, 0.5f),
             new Vector2(-96f, 0f), new Vector2(168f, 76f));
 
-        ConfigureAutosizing(titleText, 19f, 26f, TextWrappingModes.NoWrap);
-        ConfigureAutosizing(detailsText, 14f, 18f, TextWrappingModes.Normal);
-        ConfigureAutosizing(valueText, 16f, 22f, TextWrappingModes.Normal);
-        ConfigureAutosizing(actionLabel, 17f, 22f, TextWrappingModes.NoWrap);
+        ConfigureAutosizing(titleText, 20f, 28f, TextWrappingModes.NoWrap);
+        ConfigureAutosizing(detailsText, 15f, 20f, TextWrappingModes.Normal);
+        ConfigureAutosizing(valueText, 17f, 23f, TextWrappingModes.Normal);
+        ConfigureAutosizing(actionLabel, 18f, 24f, TextWrappingModes.NoWrap);
     }
 
     private void ApplyActionState(bool hasAction)

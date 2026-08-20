@@ -23,6 +23,9 @@ public class GameSaveManager : MonoBehaviour
 #endif
 
     private string SavePath => Path.Combine(Application.persistentDataPath, saveFileName);
+    private string DayCheckpointPath => Path.Combine(
+        Application.persistentDataPath,
+        Path.GetFileNameWithoutExtension(saveFileName) + "_day_start.json");
 
     private bool hasAutoLoaded;
 
@@ -115,6 +118,58 @@ public class GameSaveManager : MonoBehaviour
         if (autoLoadOnStart && !hasAutoLoaded)
             return;
 
+        if (GameFlowManager.Instance != null &&
+            GameFlowManager.Instance.HasUnfinishedRestaurantDay &&
+            File.Exists(DayCheckpointPath))
+        {
+            Debug.Log("[GameSaveManager] Unfinished day active; preserving the day-start checkpoint.");
+            return;
+        }
+
+        GameSaveData data = CaptureCurrentData();
+
+        WriteSaveData(SavePath, data);
+    }
+
+    public void CaptureDayStartCheckpoint()
+    {
+#if UNITY_EDITOR
+        if (SuppressWritesForTests)
+            return;
+#endif
+        if ((autoLoadOnStart && !hasAutoLoaded) || IsApplyingSave)
+            return;
+
+        GameSaveData data = CaptureCurrentData();
+        string json = JsonUtility.ToJson(data, true);
+        File.WriteAllText(SavePath, json);
+        File.WriteAllText(DayCheckpointPath, json);
+        Debug.Log($"[GameSaveManager] Captured Day {data.currentDay} start checkpoint.");
+    }
+
+    public bool RestoreDayStartCheckpoint()
+    {
+        if (!File.Exists(DayCheckpointPath))
+            return false;
+
+        GameSaveData data = ReadSaveData(DayCheckpointPath);
+        if (data == null)
+            return false;
+
+        ApplySaveData(data, true, false);
+        WriteSaveData(SavePath, data);
+        Debug.Log($"[GameSaveManager] Restored Day {data.currentDay} start checkpoint.");
+        return true;
+    }
+
+    public void CommitDayCheckpoint()
+    {
+        if (File.Exists(DayCheckpointPath))
+            File.Delete(DayCheckpointPath);
+    }
+
+    private GameSaveData CaptureCurrentData()
+    {
         GameSaveData data = new GameSaveData();
 
         if (GameFlowManager.Instance != null)
@@ -141,13 +196,37 @@ public class GameSaveManager : MonoBehaviour
         if (EmployeeManager.Instance != null)
             EmployeeManager.Instance.FillSaveData(data);
 
-        string json = JsonUtility.ToJson(data, true);
-        File.WriteAllText(SavePath, json);
+        if (RestockOrderManager.Instance != null)
+            RestockOrderManager.Instance.FillSaveData(data);
 
-        Debug.Log("[GameSaveManager] Game saved to: " + SavePath);
+        return data;
+    }
+
+    private void WriteSaveData(string path, GameSaveData data)
+    {
+        string json = JsonUtility.ToJson(data, true);
+        File.WriteAllText(path, json);
+
+        Debug.Log("[GameSaveManager] Game saved to: " + path);
         Debug.Log("[GameSaveManager] Saved money: " + data.money);
         Debug.Log("[GameSaveManager] Saved day: " + data.currentDay);
         Debug.Log("[GameSaveManager] Saved approval: " + data.approval);
+    }
+
+    private static GameSaveData ReadSaveData(string path)
+    {
+        if (string.IsNullOrEmpty(path) || !File.Exists(path))
+            return null;
+
+        try
+        {
+            return JsonUtility.FromJson<GameSaveData>(File.ReadAllText(path));
+        }
+        catch (System.Exception exception)
+        {
+            Debug.LogError($"[GameSaveManager] Could not read save data from {path}: {exception.Message}");
+            return null;
+        }
     }
 
     public void LoadGame()
@@ -155,10 +234,14 @@ public class GameSaveManager : MonoBehaviour
         if (!HasSave())
         {
             Debug.Log("[GameSaveManager] No save file found — using defaults.");
+            if (GameFlowManager.Instance != null &&
+                GameFlowManager.Instance.HasUnfinishedRestaurantDay)
+                CaptureDayStartCheckpoint();
             return;
         }
 
-        string json = File.ReadAllText(SavePath);
+        string loadPath = File.Exists(DayCheckpointPath) ? DayCheckpointPath : SavePath;
+        string json = File.ReadAllText(loadPath);
         bool requiresFiniteInventoryMigration =
             !json.Contains("\"inventorySystemVersion\"");
         GameSaveData data = JsonUtility.FromJson<GameSaveData>(json);
@@ -169,6 +252,29 @@ public class GameSaveManager : MonoBehaviour
             return;
         }
 
+        ApplySaveData(data, false, requiresFiniteInventoryMigration);
+
+        Debug.Log("[GameSaveManager] Game loaded from: " + loadPath);
+        Debug.Log("[GameSaveManager] Loaded money: " + data.money);
+        Debug.Log("[GameSaveManager] Loaded day: " + data.currentDay);
+        Debug.Log("[GameSaveManager] Loaded approval: " + data.approval);
+
+        if (requiresFiniteInventoryMigration)
+        {
+            Debug.Log("[GameSaveManager] Migrated the save to finite restaurant stock.");
+            SaveGame();
+        }
+
+        if (GameFlowManager.Instance != null &&
+            GameFlowManager.Instance.HasUnfinishedRestaurantDay)
+            CaptureDayStartCheckpoint();
+    }
+
+    private void ApplySaveData(
+        GameSaveData data,
+        bool reconcileMoney,
+        bool migrateFiniteInventory)
+    {
         IsApplyingSave = true;
 
         try
@@ -179,7 +285,7 @@ public class GameSaveManager : MonoBehaviour
             if (InventoryManager.Instance != null)
             {
                 InventoryManager.Instance.ApplySaveData(data);
-                if (requiresFiniteInventoryMigration)
+                if (migrateFiniteInventory)
                     InventoryManager.Instance.EnsureStarterStockForFiniteInventory();
             }
 
@@ -192,8 +298,15 @@ public class GameSaveManager : MonoBehaviour
             if (EmployeeManager.Instance != null)
                 EmployeeManager.Instance.ApplySaveData(data);
 
+            RestockOrderManager.EnsureInstance()?.ApplySaveData(data);
+
             if (MoneyManager.Instance != null)
-                MoneyManager.Instance.ApplySaveData(data);
+            {
+                if (reconcileMoney)
+                    MoneyManager.Instance.SetMoney(data.money, "Unfinished Day Rollback");
+                else
+                    MoneyManager.Instance.ApplySaveData(data);
+            }
 
             if (AlienApprovalManager.Instance != null)
                 AlienApprovalManager.Instance.ApplySaveData(data);
@@ -206,24 +319,17 @@ public class GameSaveManager : MonoBehaviour
             IsApplyingSave = false;
         }
 
-        Debug.Log("[GameSaveManager] Game loaded from: " + SavePath);
-        Debug.Log("[GameSaveManager] Loaded money: " + data.money);
-        Debug.Log("[GameSaveManager] Loaded day: " + data.currentDay);
-        Debug.Log("[GameSaveManager] Loaded approval: " + data.approval);
-
-        if (requiresFiniteInventoryMigration)
-        {
-            Debug.Log("[GameSaveManager] Migrated the save to finite restaurant stock.");
-            SaveGame();
-        }
     }
 
     public void DeleteSave()
     {
-        if (!HasSave())
+        if (!HasSave() && !File.Exists(DayCheckpointPath))
             return;
 
-        File.Delete(SavePath);
+        if (File.Exists(SavePath))
+            File.Delete(SavePath);
+        if (File.Exists(DayCheckpointPath))
+            File.Delete(DayCheckpointPath);
         Debug.Log("[GameSaveManager] Save deleted.");
     }
 }

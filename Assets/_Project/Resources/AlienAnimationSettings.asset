@@ -31,6 +31,7 @@ MonoBehaviour:
   mouthForward: 0.075
   mouthDown: 0.045
   alternateHands: 1
+  bitePieceSize: 0.055
   particleMaterial: {fileID: 2100000, guid: c8d75a9c4b2e4e498cf08c1b3a37f028, type: 2}
   particlesPerBite: 12
   particleLifetime: 0.75

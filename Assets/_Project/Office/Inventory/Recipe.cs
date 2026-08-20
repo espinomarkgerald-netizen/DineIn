@@ -50,6 +50,7 @@ public class Recipe : ScriptableObject
 
     public string ProductId => recipeID;
     public string DisplayName => recipeName;
+    public int EffectiveSellPrice => MenuAvailabilityManager.GetProductPrice(this);
 
     public bool IsUnlocked
     {

@@ -71,6 +71,9 @@ public class GameFlowManager : MonoBehaviour
     public bool CampaignCompleted => campaignCompleted;
     public bool IsEndlessRestaurantMode => useSingleRestaurantFlow && campaignCompleted;
     public RestaurantSessionState CurrentRestaurantSessionState => restaurantSessionState;
+    public bool HasUnfinishedRestaurantDay => useSingleRestaurantFlow &&
+        (restaurantSessionState == RestaurantSessionState.PreOpen ||
+         restaurantSessionState == RestaurantSessionState.Running);
     public bool RestaurantDayHasTerminalOutcome => TryGetRestaurantDayOutcome(out _);
 
     public event Action<int> OnDayChanged;
@@ -563,6 +566,7 @@ public class GameFlowManager : MonoBehaviour
             return;
 
         restaurantSessionState = RestaurantSessionState.DayComplete;
+        GameSaveManager.Instance?.CommitDayCheckpoint();
         EndOfDayFinance();
 
         if (!campaignCompleted)
@@ -726,7 +730,7 @@ public class GameFlowManager : MonoBehaviour
         RecipeManager.Instance?.UnlockByDay(currentDay);
 
         NotifyDayChanged();
-        GameSaveManager.Instance?.RequestSave();
+        GameSaveManager.Instance?.CaptureDayStartCheckpoint();
     }
 
     private void LoadRestaurantScene()

@@ -52,10 +52,13 @@ public sealed class AlienAnimationSettings : ScriptableObject
     [Tooltip("When enabled, customers may swap hands between bites.")]
     public bool alternateHands = true;
 
+    [Tooltip("Visible bite size as a fraction of hips-to-head height.")]
+    [Range(0.01f, 0.15f)] public float bitePieceSize = 0.055f;
+
     [Header("Eating Particles")]
     [Tooltip("Shared transparent material used by automatic bite particles.")]
     public Material particleMaterial;
-    [Range(0, 12)] public int particlesPerBite = 5;
+    [Range(0, 16)] public int particlesPerBite = 8;
     [Min(0.05f)] public float particleLifetime = 0.48f;
     [Min(0f)] public float particleSpeed = 0.42f;
     [Tooltip("Particle size as a fraction of hips-to-head height.")]

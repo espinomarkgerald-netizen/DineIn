@@ -30,7 +30,7 @@ public class GameDayManager : MonoBehaviour
     [SerializeField, Range(1, 24)] private int closingHour = 18;
     [Tooltip("One real minute equals one in-game hour when this is 60.")]
     [SerializeField, Min(1f)] private float realSecondsPerGameHour = 60f;
-    [SerializeField, Min(0f)] private float maxClosingGraceSeconds = 120f;
+    [SerializeField, Min(0f)] private float maxClosingGraceSeconds = 5f;
 
     [Header("Spawn Settings")]
     [SerializeField] private int maxCustomersToSpawn = 12;
@@ -506,6 +506,13 @@ public class GameDayManager : MonoBehaviour
 
     public void ConfirmStartShift()
     {
+        RestockFlowCoordinator restock = RestockFlowCoordinator.Instance;
+        if (restock != null && restock.TryShowStartReminder(
+                () => StartCoroutine(StartShiftRoutine())))
+        {
+            return;
+        }
+
         StartCoroutine(StartShiftRoutine());
     }
 
@@ -897,9 +904,9 @@ public class GameDayManager : MonoBehaviour
             PopulateStandardResults(singleRestaurantFlow, dayRevenue, targetRevenue);
 
         int earnedStars = CalculateEarnedStars();
-        PrepareResultStars(earnedStars);
         ConfigureResultsActions(singleRestaurantFlow);
         RefreshResultsResponsiveLayout(true);
+        PrepareResultStars(earnedStars);
 
         AnimateResults(earnedStars);
     }

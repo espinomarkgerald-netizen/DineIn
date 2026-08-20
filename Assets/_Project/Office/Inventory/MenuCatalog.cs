@@ -24,7 +24,7 @@ public class MenuBundle
         for (int i = 0; i < products.Count; i++)
         {
             if (products[i] != null)
-                total += Mathf.Max(0, products[i].sellPrice);
+                total += products[i].EffectiveSellPrice;
         }
 
         return total;
@@ -209,7 +209,7 @@ public class MenuCatalog : ScriptableObject
             if (product.category == MenuProductCategory.Food)
                 foods.Add(product);
             else
-                total += Mathf.Max(0, product.sellPrice);
+                total += product.EffectiveSellPrice;
         }
 
         MenuBundle bundle = FindBundle(foods);
@@ -218,7 +218,7 @@ public class MenuCatalog : ScriptableObject
         else
         {
             for (int i = 0; i < foods.Count; i++)
-                total += Mathf.Max(0, foods[i].sellPrice);
+                total += foods[i].EffectiveSellPrice;
         }
 
         return total;

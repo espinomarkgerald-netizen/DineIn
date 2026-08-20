@@ -86,7 +86,7 @@ public class CustomerGroup : MonoBehaviour
             isBundle = false;
             displayName = product != null ? product.DisplayName : string.Empty;
             quantity = Mathf.Max(1, lineQuantity);
-            unitPrice = product != null ? Mathf.Max(0, product.sellPrice) : 0;
+            unitPrice = product != null ? product.EffectiveSellPrice : 0;
             productIds.Clear();
             if (product != null)
                 productIds.Add(product.ProductId);
@@ -138,7 +138,7 @@ public class CustomerGroup : MonoBehaviour
                 if (product != null)
                 {
                     displayName = product.DisplayName;
-                    unitPrice = Mathf.Max(0, product.sellPrice);
+                    unitPrice = product.EffectiveSellPrice;
                     resolved.Add(product);
                 }
             }
@@ -1354,7 +1354,7 @@ public class CustomerGroup : MonoBehaviour
         for (int i = 0; i < products.Count; i++)
         {
             if (products[i] != null && products[i].category == category)
-                legacyTotal += Mathf.Max(0, products[i].sellPrice);
+                legacyTotal += products[i].EffectiveSellPrice;
         }
 
         return legacyTotal * Mathf.Max(1, currentOrder.quantity);

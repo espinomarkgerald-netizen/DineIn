@@ -33,6 +33,7 @@ internal sealed class AlienProceduralAnimation
     private Transform rightHand;
 
     private ParticleSystem eatingParticles;
+    private GameObject bitePiece;
     private FoodTray foodSource;
     private int dinerIndex;
     private int cachedFoodCycle = int.MinValue;
@@ -81,7 +82,11 @@ internal sealed class AlienProceduralAnimation
         isMoving = !seated && moving;
 
         if (!isEating)
+        {
             lastParticleCycle = int.MinValue;
+            if (bitePiece != null)
+                bitePiece.SetActive(false);
+        }
     }
 
     public void SetFoodSource(FoodTray source, int memberIndex)
@@ -220,6 +225,7 @@ internal sealed class AlienProceduralAnimation
         Transform hand = rightHandCycle ? rightHand : leftHand;
         float armWeight = settings.armReachWeight * reachEnvelope * eatingBlend;
         ApplyCcdArm(upperArm, lowerArm, hand, handTarget, armWeight);
+        UpdateBitePiece(hand, bodyHeight, phase, lift);
 
         UpdateParticlePosition(mouth);
         if (phase >= BiteParticleStart && phase <= BiteParticleEnd &&
@@ -351,10 +357,63 @@ internal sealed class AlienProceduralAnimation
         if (particles == null)
             return;
 
-        particles.transform.position = mouthPosition;
+        particles.transform.position = mouthPosition + owner.transform.forward * 0.03f;
         if (!particles.isPlaying)
             particles.Play(false);
-        particles.Emit(count);
+
+        float bodyHeight = ResolveBodyHeight();
+        for (int i = 0; i < count; i++)
+        {
+            ParticleSystem.EmitParams emit = new ParticleSystem.EmitParams
+            {
+                position = particles.transform.position,
+                velocity = owner.transform.forward * Random.Range(0.08f, 0.22f) +
+                           owner.transform.up * Random.Range(0.12f, 0.34f) +
+                           owner.transform.right * Random.Range(-0.18f, 0.18f),
+                startLifetime = Mathf.Max(0.15f, settings.particleLifetime),
+                startSize = Mathf.Max(0.025f, settings.particleSize * bodyHeight),
+                startColor = Color.Lerp(settings.crumbColorA, settings.crumbColorB, Random.value)
+            };
+            particles.Emit(emit, 1);
+        }
+    }
+
+    private void UpdateBitePiece(Transform hand, float bodyHeight, float phase, float lift)
+    {
+        bool visible = hand != null && phase >= 0.24f && phase < BiteParticleStart && lift > 0.02f;
+        if (!visible)
+        {
+            if (bitePiece != null)
+                bitePiece.SetActive(false);
+            return;
+        }
+
+        if (bitePiece == null)
+        {
+            bitePiece = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            bitePiece.name = "Visible Food Bite";
+            bitePiece.transform.SetParent(owner.transform, true);
+            Collider collider = bitePiece.GetComponent<Collider>();
+            if (collider != null)
+                collider.enabled = false;
+
+            Renderer biteRenderer = bitePiece.GetComponent<Renderer>();
+            if (biteRenderer != null)
+            {
+                biteRenderer.sharedMaterial = GetParticleMaterial();
+                MaterialPropertyBlock properties = new MaterialPropertyBlock();
+                properties.SetColor("_BaseColor", settings.crumbColorA);
+                properties.SetColor("_Color", settings.crumbColorA);
+                biteRenderer.SetPropertyBlock(properties);
+                biteRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                biteRenderer.receiveShadows = false;
+            }
+        }
+
+        float size = Mathf.Max(0.015f, bodyHeight * settings.bitePieceSize);
+        bitePiece.SetActive(true);
+        bitePiece.transform.position = hand.position + owner.transform.forward * (size * 0.35f);
+        bitePiece.transform.localScale = Vector3.one * size;
     }
 
     private ParticleSystem GetOrCreateParticles()
@@ -370,6 +429,7 @@ internal sealed class AlienProceduralAnimation
         main.loop = false;
         main.playOnAwake = false;
         main.simulationSpace = ParticleSystemSimulationSpace.World;
+        main.cullingMode = ParticleSystemCullingMode.AlwaysSimulate;
         main.maxParticles = 24;
         main.startLifetime = Mathf.Max(0.05f, settings.particleLifetime);
         main.startSpeed = Mathf.Max(0f, settings.particleSpeed);
@@ -409,6 +469,9 @@ internal sealed class AlienProceduralAnimation
         renderer.renderMode = ParticleSystemRenderMode.Billboard;
         renderer.sharedMaterial = GetParticleMaterial();
         renderer.sortingOrder = 2;
+        renderer.sortingFudge = 1f;
+        renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        renderer.receiveShadows = false;
 
         eatingParticles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
 

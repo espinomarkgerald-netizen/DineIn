@@ -149,6 +149,10 @@ public class PlayerMovement : MonoBehaviour
     {
         agent = GetComponent<NavMeshAgent>();
 
+        int managementTerminalLayer = LayerMask.NameToLayer("ManagementTerminal");
+        if (managementTerminalLayer >= 0)
+            clickMask |= 1 << managementTerminalLayer;
+
         if (animator == null)
             animator = GetComponentInChildren<Animator>(true);
 
@@ -516,6 +520,7 @@ public class PlayerMovement : MonoBehaviour
         currentTarget = null;
         currentStandPoint = null;
         agent.stoppingDistance = defaultStoppingDistance;
+        state = State.IdleAtHome;
 
         if (returnRoutine != null)
         {
