@@ -9,6 +9,16 @@ public class InventorySaveEntry
 }
 
 [Serializable]
+public class InventoryStockBatchSaveEntry
+{
+    public string batchID;
+    public ItemType itemType;
+    public int unitsRemaining;
+    public int receivedDay;
+    public int expiresDay;
+}
+
+[Serializable]
 public class MenuPriceOverrideSaveEntry
 {
     public string productID;
@@ -37,7 +47,7 @@ public class GameSaveData
 {
     // Version 1 introduced finite restaurant ingredient stock. The save manager
     // uses the serialized presence of this field to migrate older saves once.
-    public int inventorySystemVersion = 1;
+    public int inventorySystemVersion = 2;
 
     public int currentDay = 1;
     public int currentPhase = 0;
@@ -54,6 +64,8 @@ public class GameSaveData
     public List<int> unlockedKitchenItems = new List<int>();
 
     public List<InventorySaveEntry> inventoryStocks = new List<InventorySaveEntry>();
+    public List<InventoryStockBatchSaveEntry> inventoryStockBatches =
+        new List<InventoryStockBatchSaveEntry>();
     public List<string> disabledMenuProductIDs = new List<string>();
     public List<MenuPriceOverrideSaveEntry> menuPriceOverrides = new List<MenuPriceOverrideSaveEntry>();
     public List<RestockOrderSaveData> restockOrders = new List<RestockOrderSaveData>();

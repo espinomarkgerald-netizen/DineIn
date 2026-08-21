@@ -256,7 +256,24 @@ public sealed class RestockOrderManager : MonoBehaviour
         RestockStorageType shelfStorage,
         out string message)
     {
+        return TryStoreOneContainer(
+            item,
+            shelfStorage,
+            out message,
+            out _,
+            out _);
+    }
+
+    public bool TryStoreOneContainer(
+        ItemData item,
+        RestockStorageType shelfStorage,
+        out string message,
+        out string stockBatchID,
+        out int expiresDay)
+    {
         message = string.Empty;
+        stockBatchID = string.Empty;
+        expiresDay = 0;
         if (item == null)
         {
             message = "That delivery item is missing.";
@@ -292,9 +309,15 @@ public sealed class RestockOrderManager : MonoBehaviour
                     continue;
 
                 line.storedContainers++;
-                InventoryManager.Instance.AddStock(
-                    item.itemType,
-                    Mathf.Max(1, item.unitsPerBox));
+                int currentDay = GameFlowManager.Instance != null
+                    ? Mathf.Max(1, GameFlowManager.Instance.CurrentDay)
+                    : 1;
+                InventoryManager.Instance.AddStockBatch(
+                    item,
+                    Mathf.Max(1, item.unitsPerBox),
+                    currentDay,
+                    out stockBatchID,
+                    out expiresDay);
                 RefreshStoredState(order);
                 OrdersChanged?.Invoke();
                 GameSaveManager.Instance?.RequestSave();

@@ -31,6 +31,11 @@ public class DraggableStorageBox : MonoBehaviour
 
     [Header("Box Interaction UI")]
     [SerializeField] private GameObject interactionUIRoot;
+    [SerializeField] private Button keepButton;
+    [SerializeField] private Button throwAwayButton;
+    [SerializeField] private Outline selectionOutline;
+    [SerializeField] private Color selectionColor = new Color(0.18f, 0.82f, 1f, 1f);
+    [SerializeField, Range(0f, 10f)] private float selectionWidth = 4f;
 
     private bool pointerHeld;
     private bool isDragging;
@@ -75,6 +80,20 @@ public class DraggableStorageBox : MonoBehaviour
 
         if (interactionUIRoot != null)
             interactionUIRoot.SetActive(false);
+
+        ResolveInteractionControls();
+        SetSelectionVisible(false);
+    }
+
+    private void OnEnable()
+    {
+        ResetPointerState();
+    }
+
+    private void OnDisable()
+    {
+        ResetPointerState();
+        HideInteractionUI();
     }
 
     public bool TryPlaceInitially(ShelfGrid grid, int column, int row)
@@ -91,6 +110,7 @@ public class DraggableStorageBox : MonoBehaviour
         startingPosition = grid.GetCellWorldPosition(column, row) + placementOffset;
         startingRotation = transform.rotation;
         transform.position = startingPosition;
+        Physics.SyncTransforms();
         return true;
     }
 
@@ -336,8 +356,9 @@ public class DraggableStorageBox : MonoBehaviour
             return;
 
         pointerHeld = false;
+        bool completedDrag = isDragging;
 
-        if (isDragging)
+        if (completedDrag)
         {
             EndDrag(
                 screenPosition);
@@ -350,6 +371,10 @@ public class DraggableStorageBox : MonoBehaviour
             // Simple click / tap.
             ShowInteractionUI();
         }
+
+
+        isDragging = false;
+        activeFingerId = -1;
     }
 
     // =========================================================
@@ -708,6 +733,8 @@ public class DraggableStorageBox : MonoBehaviour
 
         transform.rotation =
             startingRotation;
+
+        Physics.SyncTransforms();
     }
 
     private void ReturnToPreviousPosition()
@@ -717,6 +744,8 @@ public class DraggableStorageBox : MonoBehaviour
 
         transform.rotation =
             startingRotation;
+
+        Physics.SyncTransforms();
 
         if (previousGrid != null)
         {
@@ -743,14 +772,98 @@ public class DraggableStorageBox : MonoBehaviour
 
     public void ShowInteractionUI()
     {
+        ResolveInteractionControls();
+        RestockStorageContainer identity = GetComponent<RestockStorageContainer>();
+        identity?.TryResolveLegacyItem();
+        identity?.RefreshExpiryState();
         if (interactionUIRoot != null)
             interactionUIRoot.SetActive(true);
+        SetSelectionVisible(true);
     }
 
     public void HideInteractionUI()
     {
         if (interactionUIRoot != null)
             interactionUIRoot.SetActive(false);
+        SetSelectionVisible(false);
+    }
+
+    public void ThrowAway()
+    {
+        ResetPointerState();
+        RestockStorageContainer identity = GetComponent<RestockStorageContainer>();
+        if (identity == null || (!identity.TryResolveLegacyItem() && identity.Item == null))
+        {
+            RestockFlowCoordinator.Instance?.ShowMessage(
+                "This storage container has no ingredient assigned, so no stock was removed.");
+            HideInteractionUI();
+            return;
+        }
+
+        int discarded = identity.DiscardTrackedStock();
+        string itemName = identity.Item != null ? identity.Item.displayName : "item";
+        if (currentGrid != null)
+            currentGrid.RemoveObject(gameObject, currentColumn, currentRow);
+
+        HideInteractionUI();
+        RestockFlowCoordinator.Instance?.ShowMessage(discarded > 0
+            ? $"Threw away {itemName}. {discarded} stock removed."
+            : $"Threw away the empty {itemName} container. No stock remained to deduct.");
+        Destroy(gameObject);
+    }
+
+    private void ResolveInteractionControls()
+    {
+        if (interactionUIRoot != null)
+        {
+            Button[] buttons = interactionUIRoot.GetComponentsInChildren<Button>(true);
+            for (int i = 0; i < buttons.Length; i++)
+            {
+                Button button = buttons[i];
+                if (button == null)
+                    continue;
+                if (keepButton == null && button.name == "KeepButton")
+                    keepButton = button;
+                else if (throwAwayButton == null && button.name == "ThrowAwayButton")
+                    throwAwayButton = button;
+            }
+        }
+
+        if (keepButton != null)
+        {
+            keepButton.onClick.RemoveListener(HideInteractionUI);
+            keepButton.onClick.AddListener(HideInteractionUI);
+        }
+
+        if (throwAwayButton != null)
+        {
+            throwAwayButton.onClick.RemoveListener(ThrowAway);
+            throwAwayButton.onClick.AddListener(ThrowAway);
+        }
+
+        if (selectionOutline == null)
+            selectionOutline = GetComponent<Outline>();
+        if (selectionOutline == null)
+        {
+            selectionOutline = gameObject.AddComponent<Outline>();
+            selectionOutline.OutlineMode = Outline.Mode.OutlineAll;
+        }
+        selectionOutline.OutlineColor = selectionColor;
+        selectionOutline.OutlineWidth = selectionWidth;
+    }
+
+    private void SetSelectionVisible(bool visible)
+    {
+        if (selectionOutline != null)
+            selectionOutline.enabled = visible;
+    }
+
+    private void ResetPointerState()
+    {
+        pointerHeld = false;
+        isDragging = false;
+        activeFingerId = -1;
+        HideGhost();
     }
 
     private void OnDestroy()

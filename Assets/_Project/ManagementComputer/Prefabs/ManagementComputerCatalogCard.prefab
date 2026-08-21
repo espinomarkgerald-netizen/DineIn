@@ -784,7 +784,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 218, y: 274}
+  m_SizeDelta: {x: 250, y: 300}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &7568849595767278731
 CanvasRenderer:
@@ -881,10 +881,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_IgnoreLayout: 0
-  m_MinWidth: 188
-  m_MinHeight: 236
-  m_PreferredWidth: 218
-  m_PreferredHeight: 274
+  m_MinWidth: 204
+  m_MinHeight: 248
+  m_PreferredWidth: 250
+  m_PreferredHeight: 300
   m_FlexibleWidth: -1
   m_FlexibleHeight: -1
   m_LayoutPriority: 1
@@ -914,6 +914,8 @@ MonoBehaviour:
   normalColor: {r: 0.96, g: 0.97, b: 1, a: 1}
   selectedColor: {r: 0.72, g: 0.93, b: 1, a: 1}
   lockedColor: {r: 0.82, g: 0.84, b: 0.88, a: 1}
+  stockAccentColor: {r: 0.08, g: 0.55, b: 0.3, a: 1}
+  expiryWarningColor: {r: 0.82, g: 0.12, b: 0.12, a: 1}
 --- !u!1 &3394977858515396002
 GameObject:
   m_ObjectHideFlags: 0

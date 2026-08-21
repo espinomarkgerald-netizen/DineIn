@@ -36,6 +36,19 @@ public class UIElementAnimator : MonoBehaviour
         SetupEvents();
     }
 
+    private void OnDisable()
+    {
+        if (scaleRoutine != null)
+            StopCoroutine(scaleRoutine);
+        if (bounceRoutine != null)
+            StopCoroutine(bounceRoutine);
+
+        scaleRoutine = null;
+        bounceRoutine = null;
+        if (rect != null)
+            rect.localScale = originalScale;
+    }
+
     void SetupEvents()
     {
         EventTrigger trigger = GetComponent<EventTrigger>();
@@ -67,6 +80,9 @@ public class UIElementAnimator : MonoBehaviour
 
     void StartScale(Vector3 target)
     {
+        if (!isActiveAndEnabled || rect == null)
+            return;
+
         if (scaleRoutine != null)
             StopCoroutine(scaleRoutine);
 
@@ -77,7 +93,7 @@ public class UIElementAnimator : MonoBehaviour
     {
         while (Vector3.Distance(rect.localScale, target) > 0.01f)
         {
-            rect.localScale = Vector3.Lerp(rect.localScale, target, Time.deltaTime * scaleSpeed);
+            rect.localScale = Vector3.Lerp(rect.localScale, target, Time.unscaledDeltaTime * scaleSpeed);
             yield return null;
         }
 
@@ -86,6 +102,9 @@ public class UIElementAnimator : MonoBehaviour
 
     void StartBounce()
     {
+        if (!isActiveAndEnabled || rect == null)
+            return;
+
         if (bounceRoutine != null)
             StopCoroutine(bounceRoutine);
 
@@ -111,7 +130,7 @@ public class UIElementAnimator : MonoBehaviour
 
         while (t < 1f)
         {
-            t += Time.deltaTime / duration;
+            t += Time.unscaledDeltaTime / Mathf.Max(0.001f, duration);
             float eased = 1f - Mathf.Pow(1f - t, 3f);
             rect.localScale = Vector3.LerpUnclamped(from, to, eased);
             yield return null;

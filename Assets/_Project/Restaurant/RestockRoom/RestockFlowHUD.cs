@@ -55,6 +55,7 @@ public sealed class RestockFlowHUD : MonoBehaviour
     private Coroutine returnRoutine;
     private Coroutine notificationRoutine;
     private Action startAnyway;
+    private CanvasGroup hotbarInputGroup;
 
     public RectTransform HotbarRect => hotbarRoot != null
         ? hotbarRoot.transform as RectTransform
@@ -105,6 +106,8 @@ public sealed class RestockFlowHUD : MonoBehaviour
     private void Awake()
     {
         ResolveOptionalReferences();
+        MakeTooltipInputTransparent();
+        SetHotbarInteraction(false);
 
         if (holdRoot != null)
             holdRoot.SetActive(false);
@@ -203,6 +206,7 @@ public sealed class RestockFlowHUD : MonoBehaviour
     {
         roomController = null;
         inRestockRoom = false;
+        SetHotbarInteraction(false);
         RebuildHotbar();
     }
 
@@ -211,6 +215,7 @@ public sealed class RestockFlowHUD : MonoBehaviour
         roomController = controller;
         inRestockRoom = true;
         activeRoom = room;
+        SetHotbarInteraction(true);
         RebuildHotbar();
     }
 
@@ -218,6 +223,35 @@ public sealed class RestockFlowHUD : MonoBehaviour
     {
         activeRoom = room;
         RefreshRemainingText();
+    }
+
+    private void SetHotbarInteraction(bool enabled)
+    {
+        HideTooltip();
+        selectedSlot = null;
+        draggedSlot = null;
+        worldDragStarted = false;
+
+        if (hotbarRoot != null)
+        {
+            if (hotbarInputGroup == null)
+                hotbarInputGroup = hotbarRoot.GetComponent<CanvasGroup>();
+            if (hotbarInputGroup == null)
+                hotbarInputGroup = hotbarRoot.AddComponent<CanvasGroup>();
+
+            hotbarInputGroup.alpha = 1f;
+            hotbarInputGroup.blocksRaycasts = enabled;
+        }
+
+        for (int i = 0; i < slots.Count; i++)
+        {
+            RestockHotbarSlotUI slot = slots[i];
+            if (slot == null)
+                continue;
+            slot.SetDragging(false);
+            slot.SetSelected(false);
+            slot.RestoreVisualState();
+        }
     }
 
     public void RequestPickupAnimation()
@@ -283,22 +317,26 @@ public sealed class RestockFlowHUD : MonoBehaviour
 
     public void HandleSlotClicked(RestockHotbarSlotUI slot)
     {
-        if (slot == null || slot.Item == null)
+        if (!inRestockRoom || slot == null || slot.Item == null)
             return;
 
         SelectSlot(slot);
         ShowTooltip(slot.Item);
-        if (!inRestockRoom)
-            RestockFlowCoordinator.Instance?.GuideToStorage(slot.Item.requiredStorage);
-        else
-            SetRoomMessage(
-                "Drag " + slot.Item.displayName + " out of the hotbar and onto a " +
-                StorageLabel(slot.Item.requiredStorage) + " shelf.",
-                false);
+        SetRoomMessage(
+            "Drag " + slot.Item.displayName + " out of the hotbar and onto a " +
+            StorageLabel(slot.Item.requiredStorage) + " shelf.",
+            false);
     }
 
     public void HandleSlotHover(RestockHotbarSlotUI slot, bool entered)
     {
+        if (!inRestockRoom)
+        {
+            slot?.RestoreVisualState();
+            HideTooltip();
+            return;
+        }
+
         if (entered && slot != null)
             ShowTooltip(slot.Item);
         else if (selectedSlot == null || selectedSlot != slot)
@@ -307,17 +345,11 @@ public sealed class RestockFlowHUD : MonoBehaviour
 
     public void HandleSlotDragBegin(RestockHotbarSlotUI slot, PointerEventData eventData)
     {
-        if (slot == null || slot.Item == null)
+        if (!inRestockRoom || roomController == null || slot == null || slot.Item == null)
             return;
 
         SelectSlot(slot);
         ShowTooltip(slot.Item);
-        if (!inRestockRoom || roomController == null)
-        {
-            RestockFlowCoordinator.Instance?.GuideToStorage(slot.Item.requiredStorage);
-            return;
-        }
-
         draggedSlot = slot;
         draggedSlot.SetDragging(true);
         worldDragStarted = false;
@@ -434,6 +466,25 @@ public sealed class RestockFlowHUD : MonoBehaviour
     {
         if (tooltipRoot != null)
             tooltipRoot.SetActive(false);
+    }
+
+    private void MakeTooltipInputTransparent()
+    {
+        if (tooltipRoot == null)
+            return;
+
+        Graphic[] graphics = tooltipRoot.GetComponentsInChildren<Graphic>(true);
+        for (int i = 0; i < graphics.Length; i++)
+        {
+            if (graphics[i] != null)
+                graphics[i].raycastTarget = false;
+        }
+
+        CanvasGroup group = tooltipRoot.GetComponent<CanvasGroup>();
+        if (group == null)
+            group = tooltipRoot.AddComponent<CanvasGroup>();
+        group.interactable = false;
+        group.blocksRaycasts = false;
     }
 
     private void RefreshRemainingText()

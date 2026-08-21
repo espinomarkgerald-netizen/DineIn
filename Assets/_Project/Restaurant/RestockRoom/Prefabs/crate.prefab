@@ -1500,6 +1500,11 @@ MonoBehaviour:
   validGhostColor: {r: 0.2, g: 1, b: 0.2, a: 0.35}
   invalidGhostColor: {r: 1, g: 0.15, b: 0.15, a: 0.35}
   interactionUIRoot: {fileID: 8916646122326117995}
+  keepButton: {fileID: 4673781196379048996}
+  throwAwayButton: {fileID: 1793975125602895435}
+  selectionOutline: {fileID: 0}
+  selectionColor: {r: 0.18, g: 0.82, b: 1, a: 1}
+  selectionWidth: 4
 --- !u!114 &8304462275831254295
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1520,3 +1525,5 @@ MonoBehaviour:
   - {fileID: 5862151882040081512}
   - {fileID: 8922524725196030070}
   labelReferencesConfigured: 1
+  expiredLabel: EXPIRED
+  expiredLabelColor: {r: 0.94, g: 0.16, b: 0.16, a: 1}

@@ -50,6 +50,7 @@ public sealed class RestockRoomController
         if (authoredEmptyHotbar != null)
             authoredEmptyHotbar.SetActive(false);
         WireButtons();
+        RefreshStorageContainers();
         SwitchToRoom(requestedRoom);
         hud?.SetRestockContext(this, activeRoom);
         hud?.SetRoomMessage(
@@ -225,7 +226,9 @@ public sealed class RestockRoomController
         if (!RestockOrderManager.Instance.TryStoreOneContainer(
                 item,
                 grid.StorageType,
-                out string result))
+                out string result,
+                out string batchID,
+                out int expiresDay))
         {
             grid.RemoveObject(box, column, row);
             Object.Destroy(box);
@@ -233,6 +236,9 @@ public sealed class RestockRoomController
             coordinator?.ShowMessage(result);
             return false;
         }
+
+
+        identity.Bind(item, batchID, expiresDay);
 
         hud?.SetRoomMessage(result, false);
         return true;
@@ -278,6 +284,27 @@ public sealed class RestockRoomController
                     ? RestockStorageType.Frozen
                     : RestockStorageType.Dry);
                 grids.Add(grid);
+            }
+        }
+    }
+
+    private void RefreshStorageContainers()
+    {
+        if (!scene.IsValid() || !scene.isLoaded)
+            return;
+
+        GameObject[] roots = scene.GetRootGameObjects();
+        for (int r = 0; r < roots.Length; r++)
+        {
+            RestockStorageContainer[] containers =
+                roots[r].GetComponentsInChildren<RestockStorageContainer>(true);
+            for (int i = 0; i < containers.Length; i++)
+            {
+                RestockStorageContainer container = containers[i];
+                if (container == null)
+                    continue;
+                container.TryResolveLegacyItem();
+                container.RefreshExpiryState();
             }
         }
     }

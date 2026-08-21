@@ -80,15 +80,35 @@ public sealed class RestockHotbarSlotUI : MonoBehaviour,
             canvasGroup.alpha = dragging ? 0.45f : 1f;
     }
 
+    public void RestoreVisualState()
+    {
+        if (canvasGroup != null)
+            canvasGroup.alpha = 1f;
+        if (icon != null)
+            icon.enabled = icon.sprite != null;
+        if (transform.localScale.sqrMagnitude < 0.01f)
+            SetSelected(selectedBorder != null && selectedBorder.activeSelf);
+    }
+
     public void OnPointerClick(PointerEventData eventData)
     {
         if (!eventData.dragging)
             owner?.HandleSlotClicked(this);
     }
 
-    public void OnPointerEnter(PointerEventData eventData) => owner?.HandleSlotHover(this, true);
+    public void OnPointerEnter(PointerEventData eventData)
+    {
+        if (eventData == null || !eventData.dragging)
+            RestoreVisualState();
+        owner?.HandleSlotHover(this, true);
+    }
     public void OnPointerExit(PointerEventData eventData) => owner?.HandleSlotHover(this, false);
     public void OnBeginDrag(PointerEventData eventData) => owner?.HandleSlotDragBegin(this, eventData);
     public void OnDrag(PointerEventData eventData) => owner?.HandleSlotDrag(this, eventData);
     public void OnEndDrag(PointerEventData eventData) => owner?.HandleSlotDragEnd(this, eventData);
+
+    private void OnDisable()
+    {
+        RestoreVisualState();
+    }
 }

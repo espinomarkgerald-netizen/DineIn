@@ -22,6 +22,8 @@ public sealed class ManagementComputerCatalogCardUI : MonoBehaviour
     [SerializeField] private Color normalColor = new Color(0.96f, 0.97f, 1f, 1f);
     [SerializeField] private Color selectedColor = new Color(0.72f, 0.93f, 1f, 1f);
     [SerializeField] private Color lockedColor = new Color(0.82f, 0.84f, 0.88f, 1f);
+    [SerializeField] private Color stockAccentColor = new Color(0.08f, 0.55f, 0.30f, 1f);
+    [SerializeField] private Color expiryWarningColor = new Color(0.82f, 0.12f, 0.12f, 1f);
 
     public ItemData BoundItem { get; private set; }
     public Recipe BoundProduct { get; private set; }
@@ -100,9 +102,7 @@ public sealed class ManagementComputerCatalogCardUI : MonoBehaviour
         SetText(metaText, item != null
             ? $"{Mathf.Max(1, item.unitsPerBox)} units • {item.requiredStorage}"
             : string.Empty);
-        SetText(statusText, !unlocked
-            ? "Unlocks Day " + (item != null ? item.dayToUnlock : 1)
-            : $"Stock {Mathf.Max(0, currentStock)} • Pending {Mathf.Max(0, pendingContainers)}\nRecommended {Mathf.Max(0, recommendedContainers)} boxes");
+        SetRestockStatus(item, currentStock, unlocked);
         SetText(priceText, item != null ? "₱" + Mathf.Max(0, item.boxCost) + " / box" : "₱0");
 
         if (quantityRoot != null)
@@ -133,6 +133,51 @@ public sealed class ManagementComputerCatalogCardUI : MonoBehaviour
 
         if (background != null)
             background.color = unlocked ? normalColor : lockedColor;
+    }
+
+    private void SetRestockStatus(ItemData item, int currentStock, bool unlocked)
+    {
+        if (statusText == null)
+            return;
+
+        if (!unlocked)
+        {
+            statusText.color = expiryWarningColor;
+            statusText.text = "Unlocks Day " + (item != null ? item.dayToUnlock : 1);
+            return;
+        }
+
+        int stock = Mathf.Max(0, currentStock);
+        statusText.color = stock > 0 ? stockAccentColor : expiryWarningColor;
+        if (item == null || InventoryManager.Instance == null || stock <= 0)
+        {
+            statusText.text = stock > 0 ? "IN STOCK  " + stock : "OUT OF STOCK";
+            return;
+        }
+
+        int day = GameFlowManager.Instance != null
+            ? Mathf.Max(1, GameFlowManager.Instance.CurrentDay)
+            : 1;
+        int expired = InventoryManager.Instance.GetExpiredStock(item.itemType, day);
+        int fresh = InventoryManager.Instance.GetFreshStock(item.itemType, day);
+        int freshExpiryDay = InventoryManager.Instance.GetNextFreshExpiryDay(item.itemType, day);
+        string stockColor = ColorUtility.ToHtmlStringRGB(stockAccentColor);
+        string expiredColor = ColorUtility.ToHtmlStringRGB(expiryWarningColor);
+
+        statusText.color = Color.white;
+        statusText.text = "<color=#" + stockColor + "><b>IN STOCK  " + stock + "</b></color>";
+        if (fresh > 0)
+        {
+            statusText.text += "\n<color=#" + stockColor + ">FRESH " + fresh +
+                               (freshExpiryDay > 0 ? " • Expires Day " + freshExpiryDay : string.Empty) +
+                               "</color>";
+        }
+
+        if (expired > 0)
+        {
+            statusText.text += "\n<color=#" + expiredColor + "><b>EXPIRED " + expired +
+                               " • THROW AWAY</b></color>";
+        }
     }
 
     private void SetIcon(Sprite sprite)

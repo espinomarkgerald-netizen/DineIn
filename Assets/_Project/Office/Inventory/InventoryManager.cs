@@ -11,6 +11,8 @@ public class InventoryManager : MonoBehaviour
     [SerializeField] private List<ItemData> items;
 
     private Dictionary<ItemType, int> inventory = new Dictionary<ItemType, int>();
+    private readonly List<InventoryStockBatchSaveEntry> stockBatches =
+        new List<InventoryStockBatchSaveEntry>();
 
     [Header("Inspector-Friendly Stock")]
     [SerializeField] private List<InventoryEntry> inspectorInventory = new List<InventoryEntry>();
@@ -54,7 +56,9 @@ public class InventoryManager : MonoBehaviour
             {
                 // A new restaurant starts with one box of every configured
                 // ingredient. Existing save data still replaces these values.
-                inventory[item.itemType] = Mathf.Max(1, item.unitsPerBox);
+                int amount = Mathf.Max(1, item.unitsPerBox);
+                inventory[item.itemType] = amount;
+                CreateBatch(item, amount, CurrentDay, out _, out _);
             }
         }
 
@@ -80,11 +84,39 @@ public class InventoryManager : MonoBehaviour
         if (amount <= 0)
             return;
 
+        ItemData item = FindItem(type);
+        if (item != null)
+        {
+            AddStockBatch(item, amount, CurrentDay, out _, out _);
+            return;
+        }
+
         if (!inventory.ContainsKey(type))
             inventory[type] = 0;
 
         inventory[type] += amount;
         OnStockChanged?.Invoke(type, inventory[type]);
+        UpdateInspectorInventory();
+    }
+
+    public void AddStockBatch(
+        ItemData item,
+        int amount,
+        int receivedDay,
+        out string batchID,
+        out int expiresDay)
+    {
+        batchID = string.Empty;
+        expiresDay = 0;
+        if (item == null || amount <= 0)
+            return;
+
+        if (!inventory.ContainsKey(item.itemType))
+            inventory[item.itemType] = 0;
+
+        inventory[item.itemType] += amount;
+        CreateBatch(item, amount, receivedDay, out batchID, out expiresDay);
+        OnStockChanged?.Invoke(item.itemType, inventory[item.itemType]);
         UpdateInspectorInventory();
     }
 
@@ -97,6 +129,7 @@ public class InventoryManager : MonoBehaviour
             return false;
 
         inventory[type] -= amount;
+        ConsumeBatches(type, amount);
         OnStockChanged?.Invoke(type, inventory[type]);
         UpdateInspectorInventory();
         return true;
@@ -114,10 +147,132 @@ public class InventoryManager : MonoBehaviour
 
     public List<ItemData> Items => items;
 
+    public bool HasExpiredStock(int currentDay)
+    {
+        for (int i = 0; i < stockBatches.Count; i++)
+        {
+            InventoryStockBatchSaveEntry batch = stockBatches[i];
+            if (batch != null && batch.unitsRemaining > 0 && batch.expiresDay <= currentDay)
+                return true;
+        }
+
+        return false;
+    }
+
+    public int GetExpiredStock(ItemType type, int currentDay)
+    {
+        int total = 0;
+        for (int i = 0; i < stockBatches.Count; i++)
+        {
+            InventoryStockBatchSaveEntry batch = stockBatches[i];
+            if (batch != null && batch.itemType == type &&
+                batch.expiresDay <= currentDay)
+                total += Mathf.Max(0, batch.unitsRemaining);
+        }
+
+        return total;
+    }
+
+    public int GetNextExpiryDay(ItemType type)
+    {
+        int result = int.MaxValue;
+        for (int i = 0; i < stockBatches.Count; i++)
+        {
+            InventoryStockBatchSaveEntry batch = stockBatches[i];
+            if (batch != null && batch.itemType == type && batch.unitsRemaining > 0)
+                result = Mathf.Min(result, batch.expiresDay);
+        }
+
+        return result == int.MaxValue ? 0 : result;
+    }
+
+    public int GetFreshStock(ItemType type, int currentDay)
+    {
+        return Mathf.Max(0, GetStock(type) - GetExpiredStock(type, currentDay));
+    }
+
+    public int GetNextFreshExpiryDay(ItemType type, int currentDay)
+    {
+        int result = int.MaxValue;
+        for (int i = 0; i < stockBatches.Count; i++)
+        {
+            InventoryStockBatchSaveEntry batch = stockBatches[i];
+            if (batch != null && batch.itemType == type &&
+                batch.unitsRemaining > 0 && batch.expiresDay > currentDay)
+            {
+                result = Mathf.Min(result, batch.expiresDay);
+            }
+        }
+
+        return result == int.MaxValue ? 0 : result;
+    }
+
+    public bool TryGetBatch(
+        string batchID,
+        out InventoryStockBatchSaveEntry result)
+    {
+        result = null;
+        if (string.IsNullOrWhiteSpace(batchID))
+            return false;
+
+        for (int i = 0; i < stockBatches.Count; i++)
+        {
+            InventoryStockBatchSaveEntry batch = stockBatches[i];
+            if (batch != null && string.Equals(
+                    batch.batchID,
+                    batchID,
+                    StringComparison.Ordinal))
+            {
+                result = batch;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public int DiscardContainerStock(
+        ItemType type,
+        int maximumUnits,
+        string batchID = null)
+    {
+        if (maximumUnits <= 0 || GetStock(type) <= 0)
+            return 0;
+
+        int discarded;
+        if (!string.IsNullOrWhiteSpace(batchID))
+        {
+            if (!TryGetBatch(batchID, out InventoryStockBatchSaveEntry batch) ||
+                batch.itemType != type)
+                return 0;
+
+            discarded = Mathf.Min(
+                Mathf.Min(maximumUnits, batch.unitsRemaining),
+                GetStock(type));
+            batch.unitsRemaining -= discarded;
+        }
+        else
+        {
+            discarded = Mathf.Min(maximumUnits, GetStock(type));
+            ConsumeBatches(type, discarded);
+        }
+
+        if (discarded <= 0)
+            return 0;
+
+        inventory[type] = Mathf.Max(0, inventory[type] - discarded);
+        RemoveEmptyBatches();
+        OnStockChanged?.Invoke(type, inventory[type]);
+        UpdateInspectorInventory();
+        GameSaveManager.Instance?.RequestSave();
+        return discarded;
+    }
+
     public void ConfigureItems(List<ItemData> configuredItems)
     {
         items = configuredItems != null ? new List<ItemData>(configuredItems) : new List<ItemData>();
         inventory.Clear();
+        stockBatches.Clear();
         InitializeInventory();
     }
 
@@ -129,8 +284,14 @@ public class InventoryManager : MonoBehaviour
     public void SetAllStock(int amount)
     {
         amount = Mathf.Max(0, amount);
+        stockBatches.Clear();
         foreach (var key in inventory.Keys.ToArray())
+        {
             inventory[key] = amount;
+            ItemData item = FindItem(key);
+            if (item != null && amount > 0)
+                CreateBatch(item, amount, CurrentDay, out _, out _);
+        }
 
         UpdateInspectorInventory();
 
@@ -155,7 +316,9 @@ public class InventoryManager : MonoBehaviour
 
             if (!inventory.TryGetValue(item.itemType, out int current) || current <= 0)
             {
-                inventory[item.itemType] = Mathf.Max(1, item.unitsPerBox);
+                int amount = Mathf.Max(1, item.unitsPerBox);
+                inventory[item.itemType] = amount;
+                CreateBatch(item, amount, CurrentDay, out _, out _);
                 changedItems.Add(item.itemType);
             }
         }
@@ -171,6 +334,8 @@ public class InventoryManager : MonoBehaviour
             return;
 
         data.inventoryStocks.Clear();
+        data.inventoryStockBatches.Clear();
+        data.inventorySystemVersion = 2;
 
         foreach (var kvp in inventory)
         {
@@ -180,6 +345,16 @@ public class InventoryManager : MonoBehaviour
                 stock = kvp.Value
             });
         }
+
+
+        for (int i = 0; i < stockBatches.Count; i++)
+        {
+            InventoryStockBatchSaveEntry batch = stockBatches[i];
+            if (batch == null || batch.unitsRemaining <= 0)
+                continue;
+
+            data.inventoryStockBatches.Add(CloneBatch(batch));
+        }
     }
 
     public void ApplySaveData(GameSaveData data)
@@ -188,6 +363,7 @@ public class InventoryManager : MonoBehaviour
             return;
 
         inventory.Clear();
+        stockBatches.Clear();
 
         if (items != null)
         {
@@ -209,9 +385,131 @@ public class InventoryManager : MonoBehaviour
             }
         }
 
+
+        if (data.inventoryStockBatches != null)
+        {
+            for (int i = 0; i < data.inventoryStockBatches.Count; i++)
+            {
+                InventoryStockBatchSaveEntry source = data.inventoryStockBatches[i];
+                if (source == null || source.unitsRemaining <= 0)
+                    continue;
+
+                stockBatches.Add(CloneBatch(source));
+            }
+        }
+
+        ReconcileBatchesToInventory(Mathf.Max(1, data.currentDay));
+
         UpdateInspectorInventory();
 
         foreach (var kvp in inventory)
             OnStockChanged?.Invoke(kvp.Key, kvp.Value);
+    }
+
+    private int CurrentDay => GameFlowManager.Instance != null
+        ? Mathf.Max(1, GameFlowManager.Instance.CurrentDay)
+        : 1;
+
+    private ItemData FindItem(ItemType type)
+    {
+        if (items == null)
+            return null;
+        for (int i = 0; i < items.Count; i++)
+        {
+            if (items[i] != null && items[i].itemType == type)
+                return items[i];
+        }
+
+        return null;
+    }
+
+    private void CreateBatch(
+        ItemData item,
+        int amount,
+        int receivedDay,
+        out string batchID,
+        out int expiresDay)
+    {
+        receivedDay = Mathf.Max(1, receivedDay);
+        batchID = Guid.NewGuid().ToString("N");
+        expiresDay = receivedDay + Mathf.Max(1, Mathf.CeilToInt(item.shelfLifeDays));
+        stockBatches.Add(new InventoryStockBatchSaveEntry
+        {
+            batchID = batchID,
+            itemType = item.itemType,
+            unitsRemaining = Mathf.Max(0, amount),
+            receivedDay = receivedDay,
+            expiresDay = expiresDay
+        });
+    }
+
+    private void ConsumeBatches(ItemType type, int amount)
+    {
+        if (amount <= 0)
+            return;
+
+        stockBatches.Sort((a, b) =>
+        {
+            int aExpiry = a != null ? a.expiresDay : int.MaxValue;
+            int bExpiry = b != null ? b.expiresDay : int.MaxValue;
+            return aExpiry.CompareTo(bExpiry);
+        });
+
+        int remaining = amount;
+        for (int i = 0; i < stockBatches.Count && remaining > 0; i++)
+        {
+            InventoryStockBatchSaveEntry batch = stockBatches[i];
+            if (batch == null || batch.itemType != type || batch.unitsRemaining <= 0)
+                continue;
+
+            int used = Mathf.Min(remaining, batch.unitsRemaining);
+            batch.unitsRemaining -= used;
+            remaining -= used;
+        }
+
+        RemoveEmptyBatches();
+    }
+
+    private void ReconcileBatchesToInventory(int currentDay)
+    {
+        foreach (KeyValuePair<ItemType, int> entry in inventory)
+        {
+            int batchUnits = 0;
+            for (int i = 0; i < stockBatches.Count; i++)
+            {
+                InventoryStockBatchSaveEntry batch = stockBatches[i];
+                if (batch != null && batch.itemType == entry.Key)
+                    batchUnits += Mathf.Max(0, batch.unitsRemaining);
+            }
+
+            int missing = Mathf.Max(0, entry.Value - batchUnits);
+            ItemData item = FindItem(entry.Key);
+            if (missing > 0 && item != null)
+                CreateBatch(item, missing, currentDay, out _, out _);
+            else if (batchUnits > entry.Value)
+                ConsumeBatches(entry.Key, batchUnits - entry.Value);
+        }
+
+        RemoveEmptyBatches();
+    }
+
+    private void RemoveEmptyBatches()
+    {
+        stockBatches.RemoveAll(batch => batch == null || batch.unitsRemaining <= 0);
+    }
+
+    private static InventoryStockBatchSaveEntry CloneBatch(
+        InventoryStockBatchSaveEntry source)
+    {
+        return new InventoryStockBatchSaveEntry
+        {
+            batchID = string.IsNullOrWhiteSpace(source.batchID)
+                ? Guid.NewGuid().ToString("N")
+                : source.batchID,
+            itemType = source.itemType,
+            unitsRemaining = Mathf.Max(0, source.unitsRemaining),
+            receivedDay = Mathf.Max(1, source.receivedDay),
+            expiresDay = Mathf.Max(1, source.expiresDay)
+        };
     }
 }

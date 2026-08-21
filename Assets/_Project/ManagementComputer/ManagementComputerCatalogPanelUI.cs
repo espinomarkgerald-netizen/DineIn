@@ -47,10 +47,10 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
     [SerializeField] private ManagementComputerCheckoutLineUI checkoutLinePrefab;
 
     [Header("Responsive Card Grid")]
-    [SerializeField] private Vector2 preferredCardSize = new Vector2(218f, 274f);
+    [SerializeField] private Vector2 preferredCardSize = new Vector2(250f, 300f);
     [SerializeField, Min(1)] private int preferredColumns = 2;
     [SerializeField, Min(0f)] private float cardSpacing = 12f;
-    [SerializeField, Min(220f)] private float rightRailPreferredWidth = 320f;
+    [SerializeField, Min(220f)] private float rightRailPreferredWidth = 380f;
 
     private readonly List<Recipe> menuProducts = new List<Recipe>();
     private readonly Dictionary<Recipe, ManagementComputerCatalogCardUI> menuCards =
@@ -72,6 +72,7 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
     private bool reviewMode;
     private bool committingOrder;
     private Vector2 lastPanelSize;
+    private InventoryManager subscribedInventory;
 
     public void ConfigureReferences(
         TMP_Text configuredContext,
@@ -144,6 +145,7 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
     {
         if (orderManager != null)
             orderManager.OrdersChanged -= HandleOrdersChanged;
+        UnsubscribeInventory();
     }
 
     public void BindMenu(
@@ -152,6 +154,7 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
         Func<Recipe, bool, bool> availabilitySetter,
         Func<Recipe, int, bool> priceSetter)
     {
+        UnsubscribeInventory();
         SetMode(menu: true);
         menuEditable = editable;
         setMenuAvailability = availabilitySetter;
@@ -181,6 +184,7 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
         int configuredExpectedCustomers,
         Func<IReadOnlyList<RestockCartLine>, bool> orderConfirmation)
     {
+        SubscribeInventory();
         SetMode(menu: false);
         storageConfig = configuredStorage;
         confirmOrder = orderConfirmation;
@@ -706,6 +710,27 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
             RefreshRestockView();
     }
 
+    private void HandleStockChanged(ItemType _, int __)
+    {
+        if (isActiveAndEnabled && restockCartRoot != null && restockCartRoot.activeSelf)
+            RefreshRestockView();
+    }
+
+    private void SubscribeInventory()
+    {
+        UnsubscribeInventory();
+        subscribedInventory = InventoryManager.Instance;
+        if (subscribedInventory != null)
+            subscribedInventory.OnStockChanged += HandleStockChanged;
+    }
+
+    private void UnsubscribeInventory()
+    {
+        if (subscribedInventory != null)
+            subscribedInventory.OnStockChanged -= HandleStockChanged;
+        subscribedInventory = null;
+    }
+
     private void ApplyResponsiveLayout()
     {
         RectTransform root = transform as RectTransform;
@@ -715,9 +740,9 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
         lastPanelSize = root.rect.size;
         float width = Mathf.Max(480f, lastPanelSize.x);
         float railWidth = Mathf.Clamp(
-            width * 0.30f,
-            250f,
-            Mathf.Max(250f, rightRailPreferredWidth));
+            width * 0.34f,
+            300f,
+            Mathf.Max(300f, rightRailPreferredWidth));
         if (rightRailLayout != null)
             rightRailLayout.preferredWidth = railWidth;
 
@@ -730,11 +755,14 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
             : 1;
         float usableWidth = estimatedLeftWidth - cardGrid.padding.left - cardGrid.padding.right -
                             Mathf.Max(0, columns - 1) * cardSpacing;
-        float cardWidth = Mathf.Clamp(usableWidth / columns, 188f, preferredCardSize.x);
+        float cardWidth = Mathf.Clamp(
+            usableWidth / columns,
+            204f,
+            preferredCardSize.x * 1.35f);
         float cardHeight = Mathf.Clamp(
             cardWidth * (preferredCardSize.y / Mathf.Max(1f, preferredCardSize.x)),
-            236f,
-            preferredCardSize.y);
+            248f,
+            preferredCardSize.y * 1.12f);
         cardGrid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
         cardGrid.constraintCount = columns;
         cardGrid.cellSize = new Vector2(cardWidth, cardHeight);

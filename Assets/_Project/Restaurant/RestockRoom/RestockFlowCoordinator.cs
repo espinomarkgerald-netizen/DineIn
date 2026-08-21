@@ -47,9 +47,12 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
         "Today's forecast: at least {0} customer groups. Review supplies and prepare the restaurant using the management computer before opening.";
     [SerializeField, TextArea] private string deliveryArrivedMessage =
         "Your order has arrived! Go to the delivery truck and hold to collect it.";
+    [SerializeField, TextArea] private string expiredStockWarningMessage =
+        "Some of your stocks are expired. Throw them away in the stock room.";
 
     private RestockFlowHUD hud;
     private GameObject truck;
+    private RestockTruckOffscreenIndicator truckIndicator;
     private RestockStockRoomEntrance dryEntrance;
     private RestockStockRoomEntrance freezerEntrance;
     private Scene lobbyScene;
@@ -65,12 +68,14 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
     private bool roomOpen;
     private float previousTimeScale = 1f;
     private static int lastForecastDayShown = int.MinValue;
+    private static int lastExpiredStockWarningDay = int.MinValue;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetStatics()
     {
         Instance = null;
         lastForecastDayShown = int.MinValue;
+        lastExpiredStockWarningDay = int.MinValue;
     }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
@@ -163,6 +168,7 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
         CreateLobbyInteractables();
         ShowPendingDeliveryNotices();
         ShowDayForecastOnce();
+        ShowExpiredStockWarningOnce();
     }
 
     public void OpenTruckCollection()
@@ -372,17 +378,48 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
 
         if (truck == null)
         {
-            RestockTruckInteractable prefab = Resources.Load<RestockTruckInteractable>(
-                "RestockFlow/RestockDeliveryTruck");
-            if (prefab != null)
+            RestockTruckInteractable authoredTruck = FindAuthoredTruckInteractable();
+            GameObject authoredMarker = authoredTruck == null
+                ? FindAuthoredTruckMarker()
+                : authoredTruck.gameObject;
+            Vector3 parkedPosition = authoredMarker != null
+                ? authoredMarker.transform.position
+                : FindNearbyNavMeshPoint(origin + truckOffsetFromPlayer, origin);
+            Quaternion parkedRotation = authoredMarker != null
+                ? authoredMarker.transform.rotation
+                : Quaternion.identity;
+
+            if (authoredTruck != null)
             {
-                Vector3 position = FindNearbyNavMeshPoint(origin + truckOffsetFromPlayer, origin);
-                truck = Instantiate(prefab.gameObject, position, Quaternion.identity);
-                truck.name = "Restock Delivery Truck";
-                SceneManager.MoveGameObjectToScene(truck, lobbyScene);
-                ConfigureInteractionPresentation(truck);
-                SnapStandPointToNavMesh(truck.GetComponent<RestockTruckInteractable>());
+                truck = authoredTruck.gameObject;
             }
+            else
+            {
+                RestockTruckInteractable prefab = Resources.Load<RestockTruckInteractable>(
+                    "RestockFlow/RestockDeliveryTruck");
+                if (prefab != null)
+                {
+                    truck = Instantiate(prefab.gameObject, parkedPosition, parkedRotation);
+                    truck.name = "Restock Delivery Truck";
+                    SceneManager.MoveGameObjectToScene(truck, lobbyScene);
+                    if (authoredMarker != null)
+                        authoredMarker.SetActive(false);
+                }
+            }
+        }
+
+        RestockTruckInteractable truckInteractable = truck != null
+            ? truck.GetComponent<RestockTruckInteractable>()
+            : null;
+        if (truckInteractable != null)
+        {
+            Vector3 parkedPosition = truck.transform.position;
+            Quaternion parkedRotation = truck.transform.rotation;
+            ConfigureInteractionPresentation(truck);
+            SnapStandPointToNavMesh(truckInteractable);
+            if (!truckInteractable.ParkingConfigured)
+                truckInteractable.ConfigureParkingPose(parkedPosition, parkedRotation);
+            EnsureTruckIndicator(truckInteractable);
         }
 
         if (dryEntrance == null)
@@ -398,6 +435,59 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
                 RestockStorageType.Frozen,
                 origin + freezerEntranceOffsetFromPlayer,
                 origin);
+    }
+
+    private RestockTruckInteractable FindAuthoredTruckInteractable()
+    {
+        if (!lobbyScene.IsValid() || !lobbyScene.isLoaded)
+            return null;
+
+        GameObject[] roots = lobbyScene.GetRootGameObjects();
+        for (int r = 0; r < roots.Length; r++)
+        {
+            RestockTruckInteractable[] candidates =
+                roots[r].GetComponentsInChildren<RestockTruckInteractable>(true);
+            if (candidates.Length > 0)
+                return candidates[0];
+        }
+
+        return null;
+    }
+
+    private GameObject FindAuthoredTruckMarker()
+    {
+        if (!lobbyScene.IsValid() || !lobbyScene.isLoaded)
+            return null;
+
+        GameObject[] roots = lobbyScene.GetRootGameObjects();
+        for (int i = 0; i < roots.Length; i++)
+        {
+            GameObject candidate = roots[i];
+            if (candidate != null && candidate.name == "DeliveryTruck")
+                return candidate;
+        }
+
+        return null;
+    }
+
+    private void EnsureTruckIndicator(RestockTruckInteractable target)
+    {
+        if (target == null)
+            return;
+
+        if (truckIndicator == null)
+        {
+            RestockTruckOffscreenIndicator prefab =
+                Resources.Load<RestockTruckOffscreenIndicator>(
+                    "RestockFlow/RestockTruckOffscreenIndicator");
+            if (prefab != null)
+            {
+                truckIndicator = Instantiate(prefab, transform);
+                truckIndicator.name = "Restock Truck Offscreen Indicator";
+            }
+        }
+
+        truckIndicator?.Bind(target);
     }
 
     private RestockStockRoomEntrance CreateEntrance(
@@ -480,6 +570,26 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
                 ? Mathf.Max(1, ShiftScaler.Instance.CurrentGroupCount)
                 : 1;
         ShowMessage(string.Format(dayForecastTemplate, groups));
+    }
+
+    private void ShowExpiredStockWarningOnce()
+    {
+        int day = GameFlowManager.Instance != null
+            ? Mathf.Max(1, GameFlowManager.Instance.CurrentDay)
+            : 1;
+        if (lastExpiredStockWarningDay == day ||
+            InventoryManager.Instance == null ||
+            !InventoryManager.Instance.HasExpiredStock(day))
+            return;
+
+        lastExpiredStockWarningDay = day;
+        StartCoroutine(ShowExpiredStockWarningAfterForecast());
+    }
+
+    private IEnumerator ShowExpiredStockWarningAfterForecast()
+    {
+        yield return new WaitForSecondsRealtime(2.4f);
+        ShowMessage(expiredStockWarningMessage);
     }
 
     private static void EnsureLobbyWarningUI()

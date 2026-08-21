@@ -25,7 +25,7 @@ public class WorldSpaceUIFaceCamera : MonoBehaviour
         // making it feel like a screen-space UI.
         Quaternion cameraFacingRotation =
             Quaternion.LookRotation(
-                -targetCamera.transform.forward,
+                targetCamera.transform.forward,
                 targetCamera.transform.up
             );
 

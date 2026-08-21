@@ -60,16 +60,16 @@ public static class ManagementComputerCatalogPrefabInstaller
 
         GameObject root = CreateUIObject("ManagementComputerCatalogCard", null);
         RectTransform rootRect = root.GetComponent<RectTransform>();
-        rootRect.sizeDelta = new Vector2(218f, 274f);
+        rootRect.sizeDelta = new Vector2(250f, 300f);
         Image background = AddImage(root, new Color(0.96f, 0.97f, 1f, 1f));
         Button cardButton = root.AddComponent<Button>();
         cardButton.targetGraphic = background;
         cardButton.navigation = new Navigation { mode = Navigation.Mode.None };
         LayoutElement cardLayout = root.AddComponent<LayoutElement>();
-        cardLayout.minWidth = 188f;
-        cardLayout.preferredWidth = 218f;
-        cardLayout.minHeight = 236f;
-        cardLayout.preferredHeight = 274f;
+        cardLayout.minWidth = 204f;
+        cardLayout.preferredWidth = 250f;
+        cardLayout.minHeight = 248f;
+        cardLayout.preferredHeight = 300f;
 
         Image icon = CreateImage("Icon", root.transform, null, Color.white);
         SetTopFixed(icon.rectTransform, 0.5f, 12f, 76f, 76f);
@@ -82,7 +82,7 @@ public static class ManagementComputerCatalogPrefabInstaller
         SetTopStretch(meta.rectTransform, 10f, 10f, 119f, 23f);
         meta.alignment = TextAlignmentOptions.Center;
 
-        TMP_Text status = CreateText("Status", root.transform, "Stock 0\nRecommended 1 box", 13f, FontStyles.Normal, Ink);
+        TMP_Text status = CreateText("Status", root.transform, "OUT OF STOCK\nExpires Day 8", 13f, FontStyles.Normal, Ink);
         SetTopStretch(status.rectTransform, 10f, 10f, 143f, 49f);
         status.alignment = TextAlignmentOptions.Center;
         status.textWrappingMode = TextWrappingModes.Normal;
@@ -219,7 +219,7 @@ public static class ManagementComputerCatalogPrefabInstaller
         GridLayoutGroup grid = cardContent.gameObject.AddComponent<GridLayoutGroup>();
         grid.padding = new RectOffset(10, 10, 10, 10);
         grid.spacing = new Vector2(12f, 12f);
-        grid.cellSize = new Vector2(218f, 274f);
+        grid.cellSize = new Vector2(250f, 300f);
         grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
         grid.constraintCount = 2;
         grid.startAxis = GridLayoutGroup.Axis.Horizontal;

@@ -2704,10 +2704,10 @@ MonoBehaviour:
   secondaryCartButton: {fileID: 7589314404763164566}
   secondaryCartLabel: {fileID: 1077932116353029775}
   checkoutLinePrefab: {fileID: 93543098479877575, guid: 67b7813df2a4398479ca3e21199b50a0, type: 3}
-  preferredCardSize: {x: 218, y: 274}
+  preferredCardSize: {x: 250, y: 300}
   preferredColumns: 2
   cardSpacing: 12
-  rightRailPreferredWidth: 320
+  rightRailPreferredWidth: 380
 --- !u!1 &6107761787093993135
 GameObject:
   m_ObjectHideFlags: 0
