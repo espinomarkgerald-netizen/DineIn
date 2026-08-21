@@ -13,6 +13,7 @@ public sealed class RestockIrisGraphic : MaskableGraphic
 
     private float opening = 1f;
     private Coroutine routine;
+    private int animationVersion;
 
     public void Close(Action completed)
     {
@@ -26,6 +27,7 @@ public sealed class RestockIrisGraphic : MaskableGraphic
 
     public void ForceOpen()
     {
+        animationVersion++;
         if (routine != null)
         {
             StopCoroutine(routine);
@@ -68,36 +70,60 @@ public sealed class RestockIrisGraphic : MaskableGraphic
 
     private void Animate(float from, float to, Action completed)
     {
+        animationVersion++;
+        int version = animationVersion;
         if (routine != null)
+        {
             StopCoroutine(routine);
+            routine = null;
+        }
         gameObject.SetActive(true);
         raycastTarget = true;
-        routine = StartCoroutine(AnimateRoutine(from, to, completed));
+        routine = StartCoroutine(AnimateRoutine(from, to, completed, version));
     }
 
-    private IEnumerator AnimateRoutine(float from, float to, Action completed)
+    private IEnumerator AnimateRoutine(float from, float to, Action completed, int version)
     {
-        float elapsed = 0f;
-        while (elapsed < duration)
+        float animationDuration = Mathf.Max(0.01f, duration);
+        double startedAt = Time.realtimeSinceStartupAsDouble;
+        while (version == animationVersion)
         {
-            elapsed += Time.unscaledDeltaTime;
-            float normalized = Mathf.Clamp01(elapsed / duration);
+            double elapsed = Time.realtimeSinceStartupAsDouble - startedAt;
+            float normalized = Mathf.Clamp01((float)(elapsed / animationDuration));
             float t = easing != null && easing.length > 0
                 ? Mathf.Clamp01(easing.Evaluate(normalized))
                 : normalized;
             opening = Mathf.Lerp(from, to, t);
             SetVerticesDirty();
+
+            if (normalized >= 1f)
+                break;
             yield return null;
         }
+
+        if (version != animationVersion)
+            yield break;
 
         opening = to;
         SetVerticesDirty();
         routine = null;
         if (to >= 0.999f)
-        {
             raycastTarget = false;
-            gameObject.SetActive(false);
+
+        try
+        {
+            completed?.Invoke();
         }
-        completed?.Invoke();
+        catch (Exception exception)
+        {
+            Debug.LogError("[RestockIris] Transition callback failed; releasing the screen blocker.");
+            Debug.LogException(exception);
+            ForceOpen();
+        }
+
+        // A completion callback may immediately start the opposite animation.
+        // Do not let the finishing coroutine deactivate that new transition.
+        if (version == animationVersion && to >= 0.999f)
+            gameObject.SetActive(false);
     }
 }

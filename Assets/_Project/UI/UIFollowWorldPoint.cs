@@ -61,6 +61,11 @@ public class UIFollowWorldPoint : MonoBehaviour
         canvasGroup = GetComponent<CanvasGroup>();
         if (canvasGroup == null)
             canvasGroup = gameObject.AddComponent<CanvasGroup>();
+
+        // Prefabs and scene-authored placeholders do not have a target during
+        // Awake. Hide them immediately so they cannot render at their authored
+        // canvas size for a frame before Init/LateUpdate positions them.
+        SetVisible(false);
     }
 
     public void Init(Transform followTarget, Vector3 offset, Camera followCam)

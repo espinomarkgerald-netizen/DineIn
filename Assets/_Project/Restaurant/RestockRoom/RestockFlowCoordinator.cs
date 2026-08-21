@@ -36,6 +36,7 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
 
     private const string LobbySceneName = "Lobby1";
     private const string RestockSceneName = "RestockScene";
+    private const float TransitionReleaseSafetySeconds = 1.25f;
 
     [Header("Lobby Placement")]
     [SerializeField] private Vector3 truckOffsetFromPlayer = new Vector3(5f, 0f, 3f);
@@ -58,6 +59,8 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
     private Scene lobbyScene;
     private Scene restockScene;
     private readonly List<BehaviourState> lobbyBehaviourStates = new List<BehaviourState>();
+    private readonly List<BehaviourState> lobbyInputModuleStates = new List<BehaviourState>();
+    private readonly List<BehaviourState> lobbyEventSystemStates = new List<BehaviourState>();
     private readonly List<RendererState> lobbyRendererStates = new List<RendererState>();
     private readonly List<AudioState> lobbyAudioStates = new List<AudioState>();
     private readonly List<GameObject> restockRoots = new List<GameObject>();
@@ -67,6 +70,8 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
     private bool loading;
     private bool roomOpen;
     private float previousTimeScale = 1f;
+    private Coroutine transitionReleaseRoutine;
+    private int transitionGeneration;
     private static int lastForecastDayShown = int.MinValue;
     private static int lastExpiredStockWarningDay = int.MinValue;
 
@@ -136,9 +141,12 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
 
     private void OnDestroy()
     {
+        CancelTransitionReleaseSafety();
+        hud?.ReleaseTransitionInputBlocker();
         if (roomOpen)
         {
             RestoreLobby();
+            RestoreLobbyInputOwnership();
             Time.timeScale = previousTimeScale;
         }
         if (Instance == this)
@@ -208,7 +216,7 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
 
         requestedRoom = room;
         EnsureHud();
-        hud?.PlayClose(() => StartCoroutine(OpenRestockRoomRoutine()));
+        PlayCloseThen(() => StartCoroutine(OpenRestockRoomRoutine()));
     }
 
     public void ExitRestockRoom()
@@ -217,7 +225,8 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
             return;
 
         loading = true;
-        hud?.PlayClose(CloseRestockRoomNow);
+        EnsureHud();
+        PlayCloseThen(CloseRestockRoomNow);
     }
 
     public bool TryShowStartReminder(Action startAnyway)
@@ -290,7 +299,7 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
                 RestoreLobby();
                 Time.timeScale = previousTimeScale;
                 loading = false;
-                hud?.PlayOpen();
+                RevealCurrentScene();
                 ShowMessage("RestockScene could not be loaded.");
                 yield break;
             }
@@ -313,34 +322,36 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
             RestoreLobby();
             Time.timeScale = previousTimeScale;
             loading = false;
-            hud?.PlayOpen();
+            RevealCurrentScene();
             yield break;
         }
 
         SceneManager.SetActiveScene(restockScene);
+        TakeRestockInputOwnership();
         roomController = new RestockRoomController(restockScene, hud, this);
         roomController.Activate(requestedRoom);
         roomOpen = true;
         loading = false;
-        hud?.PlayOpen();
+        RevealCurrentScene();
     }
 
     private void CloseRestockRoomNow()
     {
-        roomController?.Deactivate();
+        RunExitStep(() => roomController?.Deactivate(), "deactivate the restock room");
         roomController = null;
-        HideRestockRoots();
+        RunExitStep(HideRestockRoots, "hide the restock scene");
 
         if (lobbyScene.IsValid() && lobbyScene.isLoaded)
-            SceneManager.SetActiveScene(lobbyScene);
+            RunExitStep(() => SceneManager.SetActiveScene(lobbyScene), "activate the lobby scene");
 
-        RestoreLobby();
-        ReactivateLobbyInputModules();
+        RunExitStep(RestoreLobby, "restore the lobby presentation");
+        RunExitStep(RestoreLobbyInputOwnership, "restore lobby input ownership");
+        RunExitStep(ReactivateLobbyInputModules, "reactivate lobby UI input");
         Time.timeScale = previousTimeScale;
         roomOpen = false;
         loading = false;
-        hud?.SetLobbyContext();
-        hud?.PlayOpen();
+        RunExitStep(() => hud?.SetLobbyContext(), "restore the lobby HUD");
+        RevealCurrentScene();
 
         int remaining = RestockOrderManager.Instance != null
             ? RestockOrderManager.Instance.HotbarContainerCount
@@ -348,6 +359,93 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
         if (remaining > 0)
             ShowMessage(remaining + " delivered box" + (remaining == 1 ? string.Empty : "es") +
                         " still need shelf space.");
+    }
+
+    private void PlayCloseThen(Action completed)
+    {
+        CancelTransitionReleaseSafety();
+        transitionGeneration++;
+
+        if (hud == null)
+        {
+            completed?.Invoke();
+            return;
+        }
+
+        bool callbackInvoked = false;
+        Action guardedCompletion = () =>
+        {
+            if (callbackInvoked)
+                return;
+            callbackInvoked = true;
+            completed?.Invoke();
+        };
+
+        try
+        {
+            hud.PlayClose(guardedCompletion);
+        }
+        catch (Exception exception)
+        {
+            Debug.LogError("[RestockFlow] Iris close failed; continuing the scene transition.");
+            Debug.LogException(exception);
+            hud.ReleaseTransitionInputBlocker();
+            guardedCompletion();
+        }
+    }
+
+    private void RevealCurrentScene()
+    {
+        CancelTransitionReleaseSafety();
+        int generation = ++transitionGeneration;
+
+        if (hud == null)
+            return;
+
+        try
+        {
+            hud.PlayOpen();
+            transitionReleaseRoutine = StartCoroutine(
+                ReleaseTransitionBlockerAfterDelay(generation));
+        }
+        catch (Exception exception)
+        {
+            Debug.LogError("[RestockFlow] Iris open failed; releasing the screen blocker immediately.");
+            Debug.LogException(exception);
+            hud.ReleaseTransitionInputBlocker();
+        }
+    }
+
+    private IEnumerator ReleaseTransitionBlockerAfterDelay(int generation)
+    {
+        yield return new WaitForSecondsRealtime(TransitionReleaseSafetySeconds);
+        transitionReleaseRoutine = null;
+
+        if (generation == transitionGeneration)
+            hud?.ReleaseTransitionInputBlocker();
+    }
+
+    private void CancelTransitionReleaseSafety()
+    {
+        transitionGeneration++;
+        if (transitionReleaseRoutine == null)
+            return;
+
+        StopCoroutine(transitionReleaseRoutine);
+        transitionReleaseRoutine = null;
+    }
+
+    private static void RunExitStep(Action step, string description)
+    {
+        try
+        {
+            step?.Invoke();
+        }
+        catch (Exception exception)
+        {
+            Debug.LogError("[RestockFlow] Failed to " + description + "; continuing lobby recovery.");
+            Debug.LogException(exception);
+        }
     }
 
     private void EnsureHud()
@@ -797,6 +895,126 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
         }
 
         return false;
+    }
+
+    private void TakeRestockInputOwnership()
+    {
+        lobbyInputModuleStates.Clear();
+        lobbyEventSystemStates.Clear();
+
+        if (lobbyScene.IsValid() && lobbyScene.isLoaded)
+        {
+            GameObject[] lobbyRoots = lobbyScene.GetRootGameObjects();
+            for (int r = 0; r < lobbyRoots.Length; r++)
+            {
+                EventSystem[] systems = lobbyRoots[r].GetComponentsInChildren<EventSystem>(true);
+                for (int i = 0; i < systems.Length; i++)
+                {
+                    EventSystem system = systems[i];
+                    if (system == null)
+                        continue;
+
+                    lobbyEventSystemStates.Add(new BehaviourState
+                    {
+                        behaviour = system,
+                        enabled = system.enabled
+                    });
+
+                    BaseInputModule[] modules = system.GetComponents<BaseInputModule>();
+                    for (int m = 0; m < modules.Length; m++)
+                    {
+                        BaseInputModule module = modules[m];
+                        if (module == null)
+                            continue;
+
+                        lobbyInputModuleStates.Add(new BehaviourState
+                        {
+                            behaviour = module,
+                            enabled = module.enabled
+                        });
+                    }
+                }
+            }
+        }
+
+        // Disable the previous EventSystem first. Disable its input modules
+        // before enabling Restock's modules because both scenes use the same
+        // InputActionAsset and the last enabled module must own those actions.
+        SetBehaviourStatesEnabled(lobbyEventSystemStates, false);
+        SetBehaviourStatesEnabled(lobbyInputModuleStates, false);
+
+        EventSystem restockSystem = null;
+        GameObject[] restockSceneRoots = restockScene.GetRootGameObjects();
+        for (int r = 0; r < restockSceneRoots.Length; r++)
+        {
+            BaseInputModule[] modules =
+                restockSceneRoots[r].GetComponentsInChildren<BaseInputModule>(true);
+            for (int i = 0; i < modules.Length; i++)
+            {
+                if (modules[i] != null)
+                    modules[i].enabled = true;
+            }
+
+            EventSystem[] systems =
+                restockSceneRoots[r].GetComponentsInChildren<EventSystem>(true);
+            for (int i = 0; i < systems.Length; i++)
+            {
+                EventSystem system = systems[i];
+                if (system == null)
+                    continue;
+
+                system.enabled = true;
+                if (system.gameObject.activeInHierarchy && restockSystem == null)
+                    restockSystem = system;
+            }
+        }
+
+        if (restockSystem != null)
+        {
+            EventSystem.current = restockSystem;
+            restockSystem.UpdateModules();
+            restockSystem.SetSelectedGameObject(null);
+        }
+        else
+        {
+            Debug.LogWarning(
+                "[RestockFlow] RestockScene has no active EventSystem; keeping Lobby UI input as a fallback.");
+            RestoreLobbyInputOwnership();
+            ReactivateLobbyInputModules();
+        }
+    }
+
+    private void RestoreLobbyInputOwnership()
+    {
+        // Restock roots are hidden before this method, which disables their
+        // shared UI actions. Restore Lobby's modules last so pointer actions
+        // are guaranteed to be enabled for the visible scene.
+        RestoreBehaviourStates(lobbyInputModuleStates);
+        RestoreBehaviourStates(lobbyEventSystemStates);
+        lobbyInputModuleStates.Clear();
+        lobbyEventSystemStates.Clear();
+    }
+
+    private static void SetBehaviourStatesEnabled(
+        List<BehaviourState> states,
+        bool enabled)
+    {
+        for (int i = 0; i < states.Count; i++)
+        {
+            Behaviour behaviour = states[i].behaviour;
+            if (behaviour != null)
+                behaviour.enabled = enabled;
+        }
+    }
+
+    private static void RestoreBehaviourStates(List<BehaviourState> states)
+    {
+        for (int i = 0; i < states.Count; i++)
+        {
+            BehaviourState state = states[i];
+            if (state.behaviour != null)
+                state.behaviour.enabled = state.enabled;
+        }
     }
 
     private void ReactivateLobbyInputModules()

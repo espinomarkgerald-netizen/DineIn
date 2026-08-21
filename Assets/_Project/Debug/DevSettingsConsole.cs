@@ -497,14 +497,18 @@ public class DevSettingsConsole : MonoBehaviour
         if (Application.isEditor)
             return allowToggleInEditor;
 
-        return Debug.isDebugBuild &&
-               (Application.platform == RuntimePlatform.WindowsPlayer ||
-                Application.platform == RuntimePlatform.OSXPlayer ||
-                Application.platform == RuntimePlatform.LinuxPlayer);
+        return IsDesktopPlayer();
     }
 
     private static bool CanExecuteCommands()
     {
-        return Application.isEditor || Debug.isDebugBuild;
+        return Application.isEditor || IsDesktopPlayer();
+    }
+
+    private static bool IsDesktopPlayer()
+    {
+        return Application.platform == RuntimePlatform.WindowsPlayer ||
+               Application.platform == RuntimePlatform.OSXPlayer ||
+               Application.platform == RuntimePlatform.LinuxPlayer;
     }
 }
