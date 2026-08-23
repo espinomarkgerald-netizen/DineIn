@@ -23,6 +23,6 @@ MonoBehaviour:
   boxCost: 300
   averageUsagePerCustomer: 0.8
   shelfLifeDays: 7
-  wrongStorageSpoilageMultiplier: 4
+  wrongStorageSpoilageMultiplier: 3
   sprite: {fileID: 21300000, guid: 3b46d40ad4565644693f1700e602d8de, type: 3}
   dayToUnlock: 1

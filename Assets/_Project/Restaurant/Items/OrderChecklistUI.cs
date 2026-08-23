@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 /// <summary>
@@ -94,6 +95,23 @@ public class OrderChecklistUI : MonoBehaviour
         public bool IsCorrect => messages.Count == 0;
     }
 
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void InstallInactiveLayoutRefresh()
+    {
+        SceneManager.sceneLoaded -= RefreshInactiveNotepadsAfterSceneLoad;
+        SceneManager.sceneLoaded += RefreshInactiveNotepadsAfterSceneLoad;
+    }
+
+    private static void RefreshInactiveNotepadsAfterSceneLoad(Scene _, LoadSceneMode __)
+    {
+        Canvas.ForceUpdateCanvases();
+        OrderChecklistUI[] notepads = FindObjectsByType<OrderChecklistUI>(
+            FindObjectsInactive.Include,
+            FindObjectsSortMode.None);
+        for (int i = 0; i < notepads.Length; i++)
+            notepads[i]?.RefreshResponsiveLayout();
+    }
+
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -103,6 +121,8 @@ public class OrderChecklistUI : MonoBehaviour
         }
 
         Instance = this;
+        Canvas.willRenderCanvases -= EnsureResponsiveCoverage;
+        Canvas.willRenderCanvases += EnsureResponsiveCoverage;
         RefreshResponsiveLayout();
         catalog = MenuCatalog.Default;
         ResolveUIReferences();
@@ -133,6 +153,7 @@ public class OrderChecklistUI : MonoBehaviour
 
     private void OnDestroy()
     {
+        Canvas.willRenderCanvases -= EnsureResponsiveCoverage;
         UnsubscribeFromUnlocks();
         UnsubscribeFromStock();
         if (Instance == this)
@@ -149,6 +170,21 @@ public class OrderChecklistUI : MonoBehaviour
     private void OnRectTransformDimensionsChange()
     {
         if (isActiveAndEnabled)
+            RefreshResponsiveLayout();
+    }
+
+    private void EnsureResponsiveCoverage()
+    {
+        RectTransform root = transform as RectTransform;
+        RectTransform parent = root != null ? root.parent as RectTransform : null;
+        if (root == null || parent == null || parent.rect.width <= 0f || parent.rect.height <= 0f)
+            return;
+
+        float renderedWidth = root.rect.width * Mathf.Abs(root.localScale.x);
+        float renderedHeight = root.rect.height * Mathf.Abs(root.localScale.y);
+        bool stretched = root.anchorMin == Vector2.zero && root.anchorMax == Vector2.one;
+        if (!stretched || renderedWidth + 0.5f < parent.rect.width ||
+            renderedHeight + 0.5f < parent.rect.height)
             RefreshResponsiveLayout();
     }
 

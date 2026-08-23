@@ -735,6 +735,17 @@ public class DraggableStorageBox : MonoBehaviour
             startingRotation;
 
         Physics.SyncTransforms();
+        RestockStorageContainer identity = GetComponent<RestockStorageContainer>();
+        if (identity != null)
+        {
+            identity.UpdateStorageEnvironment(grid.StorageType);
+            RestockOrderManager.Instance?.RegisterPhysicalContainer(
+                identity,
+                grid,
+                column,
+                row,
+                transform.eulerAngles.y);
+        }
     }
 
     private void ReturnToPreviousPosition()
@@ -801,6 +812,7 @@ public class DraggableStorageBox : MonoBehaviour
         }
 
         int discarded = identity.DiscardTrackedStock();
+        RestockOrderManager.Instance?.RemovePhysicalContainer(identity.ContainerID);
         string itemName = identity.Item != null ? identity.Item.displayName : "item";
         if (currentGrid != null)
             currentGrid.RemoveObject(gameObject, currentColumn, currentRow);

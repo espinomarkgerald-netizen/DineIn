@@ -21,6 +21,8 @@ public static class LobbyDayLoopSmokeTest
     {
         None,
         WaitingForLobby,
+        WaitingForNewspaperCapture,
+        WaitingForNewspaperScreenshot,
         WaitingForShift,
         WaitingForResults,
         WaitingForNextDay
@@ -34,6 +36,16 @@ public static class LobbyDayLoopSmokeTest
     {
         EditorApplication.playModeStateChanged -= OnPlayModeChanged;
         EditorApplication.playModeStateChanged += OnPlayModeChanged;
+
+        string projectRoot = Directory.GetParent(Application.dataPath)?.FullName;
+        string requestPath = !string.IsNullOrWhiteSpace(projectRoot)
+            ? Path.Combine(projectRoot, "Temp", "RunLobbyDayLoopSmokeTest.request")
+            : string.Empty;
+        if (!string.IsNullOrWhiteSpace(requestPath) && File.Exists(requestPath))
+        {
+            File.Delete(requestPath);
+            EditorApplication.delayCall += Run;
+        }
     }
 
     [MenuItem("Tools/Dine In/Run Lobby1 Day Loop Smoke Test %#F8")]
@@ -83,6 +95,16 @@ public static class LobbyDayLoopSmokeTest
                 case Phase.WaitingForShift:
                     if (Elapsed >= 0.6d)
                         ValidateShiftAndEnd();
+                    break;
+
+                case Phase.WaitingForNewspaperCapture:
+                    if (Elapsed >= 0.9d)
+                        CaptureOpenNewspaper();
+                    break;
+
+                case Phase.WaitingForNewspaperScreenshot:
+                    if (Elapsed >= 0.5d)
+                        CloseNewspaperAndStartShift();
                     break;
 
                 case Phase.WaitingForResults:
@@ -143,6 +165,53 @@ public static class LobbyDayLoopSmokeTest
         Button playButton = GetField<Button>(GameDayManager.Instance, "playButton");
         Assert(playButton != null && playButton.gameObject.activeInHierarchy && playButton.interactable,
             "The day intro Play button is not usable.");
+
+        CasualDiningPolishManager polish = CasualDiningPolishManager.Instance;
+        Assert(polish != null && polish.GetIssueForDay(startingDay) != null,
+            "Today's newspaper issue was not prepared before opening.");
+        playButton.onClick.Invoke();
+        Assert(!GameDayManager.Instance.ShiftRunning,
+            "The shift started before the player viewed today's newspaper.");
+        DailyNewspaperPresenter newspaper = UnityEngine.Object.FindFirstObjectByType<DailyNewspaperPresenter>();
+        Assert(newspaper != null && newspaper.IsOpen,
+            "The unread newspaper gate did not open today's issue.");
+        RectTransform paper = newspaper.GetComponentsInChildren<RectTransform>(true)
+            .FirstOrDefault(rect => rect.name == "Newspaper Paper");
+        Assert(paper != null && paper.rect.height > paper.rect.width &&
+               paper.rect.width <= 760.5f && paper.rect.height <= 940.5f,
+            "The daily newspaper is not using the required portrait layout.");
+        Text article = newspaper.GetComponentsInChildren<Text>(true)
+            .FirstOrDefault(text => text.name == "Article Content");
+        Assert(article != null && article.supportRichText &&
+               article.text.Contains("◎ APPROVAL WATCH") &&
+               article.text.Contains("₱ MARKET WATCH"),
+            "The newspaper is missing its icon-first, scan-friendly information hierarchy.");
+        SetPhase(Phase.WaitingForNewspaperCapture);
+    }
+
+    private static void CaptureOpenNewspaper()
+    {
+        DailyNewspaperPresenter newspaper =
+            UnityEngine.Object.FindFirstObjectByType<DailyNewspaperPresenter>();
+        Assert(newspaper != null && newspaper.IsOpen,
+            "The newspaper closed before the settled layout could be captured.");
+        string projectRoot = Directory.GetParent(Application.dataPath)?.FullName ?? Application.dataPath;
+        ScreenCapture.CaptureScreenshot(Path.Combine(projectRoot, "Temp", "DailyNewspaperPortrait.png"));
+        SetPhase(Phase.WaitingForNewspaperScreenshot);
+    }
+
+    private static void CloseNewspaperAndStartShift()
+    {
+        CasualDiningPolishManager polish = CasualDiningPolishManager.Instance;
+        DailyNewspaperPresenter newspaper =
+            UnityEngine.Object.FindFirstObjectByType<DailyNewspaperPresenter>();
+        Assert(polish != null && newspaper != null && newspaper.IsOpen,
+            "The newspaper closed before visual validation completed.");
+        polish.MarkCurrentIssueViewed();
+        newspaper.CloseImmediately();
+        Button playButton = GetField<Button>(GameDayManager.Instance, "playButton");
+        Assert(playButton != null && playButton.interactable,
+            "The shift start button became unusable after reading the newspaper.");
         playButton.onClick.Invoke();
         SetPhase(Phase.WaitingForShift);
     }
@@ -468,7 +537,8 @@ public static class LobbyDayLoopSmokeTest
     private static void Pass()
     {
         Finish("PASS: finite stock decrement and zero warning, shared button animations, " +
-               "10 AM-6 PM clock, full-screen notepad, enlarged non-overlapping responsive results, " +
+               "10 AM-6 PM clock, portrait icon-first newspaper, full-screen notepad, " +
+               "enlarged non-overlapping responsive results, " +
                "next-day reload, dynamic game-over copy, " +
                "the 500 GC recovery option, and the new developer commands passed.", false);
     }

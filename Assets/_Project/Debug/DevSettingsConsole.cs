@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using TMPro;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 public class DevSettingsConsole : MonoBehaviour
@@ -26,7 +27,7 @@ public class DevSettingsConsole : MonoBehaviour
     [SerializeField] private string invalidCommandMessage = "ERROR: Invalid command.";
     [SerializeField] private string commandFailedMessage = "ERROR: Command failed.";
     [SerializeField] private string developmentBuildOnlyMessage =
-        "ERROR: Dev codes require the Unity Editor or a Development Build.";
+        "ERROR: Dev codes are available only in the Unity Editor or desktop PC builds.";
 
     [Header("Behavior")]
     [SerializeField] private KeyCode toggleKey = KeyCode.F10;
@@ -62,7 +63,7 @@ public class DevSettingsConsole : MonoBehaviour
 
     private void Update()
     {
-        if (CanUsePcToggle() && Input.GetKeyDown(toggleKey))
+        if (CanUsePcToggle() && WasTogglePressedThisFrame())
         {
             if (panelRoot != null && panelRoot.activeSelf)
                 ClosePanel();
@@ -498,6 +499,15 @@ public class DevSettingsConsole : MonoBehaviour
             return allowToggleInEditor;
 
         return IsDesktopPlayer();
+    }
+
+    private bool WasTogglePressedThisFrame()
+    {
+        bool legacyPressed = Input.GetKeyDown(toggleKey);
+        bool inputSystemPressed = toggleKey == KeyCode.F10 &&
+                                  Keyboard.current != null &&
+                                  Keyboard.current.f10Key.wasPressedThisFrame;
+        return legacyPressed || inputSystemPressed;
     }
 
     private static bool CanExecuteCommands()

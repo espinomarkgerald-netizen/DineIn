@@ -20,8 +20,12 @@ public class EmployeeManager : MonoBehaviour
     [Header("HR Roster")]
     [SerializeField, Min(1)] private int maxHiredPerRole = 3;
     [SerializeField, Min(1)] private int targetApplicantsPerRole = 3;
+    [SerializeField, Min(1)] private int applicantNextRefreshDay = 8;
+
+    private bool applicantPoolsInitialized;
 
     public int MaxHiredPerRole => maxHiredPerRole;
+    public int ApplicantNextRefreshDay => applicantNextRefreshDay;
 
     /// <summary>True once the lobby shift starts; prevents reassignment for the rest of the day.</summary>
     public bool SlotsLocked { get; private set; }
@@ -66,6 +70,13 @@ public class EmployeeManager : MonoBehaviour
 
         generator.GenerateEmployees();
         allEmployees = generator.employees;
+        for (int i = 0; i < allEmployees.Count; i++)
+            allEmployees[i]?.EnsureIdentity();
+        int currentDay = GameFlowManager.Instance != null
+            ? Mathf.Max(1, GameFlowManager.Instance.CurrentDay)
+            : 1;
+        applicantNextRefreshDay = currentDay + 7;
+        applicantPoolsInitialized = true;
 
         // Clear role groups
         foreach (var group in employeesByRole)
@@ -86,7 +97,19 @@ public class EmployeeManager : MonoBehaviour
             GenerateEmployees();
 
         MigrateLegacyKitchenRoles();
-        EnsureApplicantPools();
+        for (int i = 0; i < allEmployees.Count; i++)
+            allEmployees[i]?.EnsureIdentity();
+
+        if (!applicantPoolsInitialized)
+        {
+            EnsureApplicantPools();
+            applicantPoolsInitialized = true;
+        }
+
+        int day = GameFlowManager.Instance != null
+            ? Mathf.Max(1, GameFlowManager.Instance.CurrentDay)
+            : 1;
+        RefreshApplicantsIfDue(day, 7);
     }
 
     /// <summary>Assigns one employee to their role for the coming shift.</summary>
@@ -139,7 +162,6 @@ public class EmployeeManager : MonoBehaviour
                 AssignEmployeeForDay(replacement);
         }
 
-        EnsureApplicantPool(role);
         GameSaveManager.Instance?.RequestSave();
         return true;
     }
@@ -151,7 +173,6 @@ public class EmployeeManager : MonoBehaviour
 
         EmployeeRole role = employee.role;
         RemoveEmployee(employee);
-        EnsureApplicantPool(role);
         GameSaveManager.Instance?.RequestSave();
         return true;
     }
@@ -202,6 +223,7 @@ public class EmployeeManager : MonoBehaviour
             return;
 
         data.employees.Clear();
+        data.employeeApplicantNextRefreshDay = Mathf.Max(1, applicantNextRefreshDay);
         foreach (EmployeeData employee in allEmployees)
         {
             if (employee == null)
@@ -209,6 +231,7 @@ public class EmployeeManager : MonoBehaviour
 
             data.employees.Add(new EmployeeSaveEntry
             {
+                employeeID = employee.EmployeeID,
                 employeeName = employee.employeeName,
                 stars = employee.stars,
                 role = employee.role,
@@ -220,7 +243,15 @@ public class EmployeeManager : MonoBehaviour
                 useManualSalary = employee.useManualSalary,
                 manualSalary = employee.manualSalary,
                 performanceMultiplier = employee.performanceMultiplier,
-                bonusFlat = employee.bonusFlat
+                bonusFlat = employee.bonusFlat,
+                experience = employee.experience,
+                roleExperience = employee.roleExperience,
+                daysEmployed = employee.daysEmployed,
+                daysWorked = employee.daysWorked,
+                recentPerformance = employee.recentPerformance,
+                previousPerformance = employee.previousPerformance,
+                traitID = employee.traitID,
+                lastPromotionDay = employee.lastPromotionDay
             });
         }
     }
@@ -245,13 +276,34 @@ public class EmployeeManager : MonoBehaviour
                 useManualSalary = entry.useManualSalary,
                 manualSalary = entry.manualSalary,
                 performanceMultiplier = entry.performanceMultiplier <= 0f ? 1f : entry.performanceMultiplier,
-                bonusFlat = entry.bonusFlat
+                bonusFlat = entry.bonusFlat,
+                experience = Mathf.Max(0, entry.experience),
+                roleExperience = Mathf.Max(0, entry.roleExperience),
+                daysEmployed = Mathf.Max(0, entry.daysEmployed),
+                daysWorked = Mathf.Max(0, entry.daysWorked),
+                recentPerformance = entry.recentPerformance > 0
+                    ? Mathf.Clamp(entry.recentPerformance, 0, 100)
+                    : 75,
+                previousPerformance = entry.previousPerformance > 0
+                    ? Mathf.Clamp(entry.previousPerformance, 0, 100)
+                    : 75,
+                traitID = entry.traitID,
+                lastPromotionDay = Mathf.Max(0, entry.lastPromotionDay)
             };
+            employee.RestoreIdentity(entry.employeeID);
             allEmployees.Add(employee);
         }
 
+        applicantNextRefreshDay = data.employeeApplicantNextRefreshDay > 0
+            ? data.employeeApplicantNextRefreshDay
+            : Mathf.Max(1, data.currentDay) + 7;
+        applicantPoolsInitialized = HasApplicantForEverySupportedRole();
         RebuildRoleGroups();
-        EnsureApplicantPools();
+        if (!applicantPoolsInitialized)
+        {
+            EnsureApplicantPools();
+            applicantPoolsInitialized = true;
+        }
     }
 
     private void RebuildRoleGroups()
@@ -337,6 +389,131 @@ public class EmployeeManager : MonoBehaviour
         return total;
     }
 
+    public void RefreshApplicantsIfDue(int currentDay, int refreshIntervalDays)
+    {
+        currentDay = Mathf.Max(1, currentDay);
+        refreshIntervalDays = Mathf.Max(1, refreshIntervalDays);
+        if (allEmployees == null || allEmployees.Count == 0 || generator == null)
+            return;
+
+        if (applicantNextRefreshDay <= 0)
+            applicantNextRefreshDay = currentDay + refreshIntervalDays;
+        if (currentDay < applicantNextRefreshDay)
+            return;
+
+        allEmployees.RemoveAll(employee => employee != null && !employee.hired);
+        generator.employees.RemoveAll(employee => employee != null && !employee.hired);
+        applicantPoolsInitialized = false;
+        EnsureApplicantPools();
+        applicantPoolsInitialized = true;
+        applicantNextRefreshDay = currentDay + refreshIntervalDays;
+        GameSaveManager.Instance?.RequestSave();
+    }
+
+    public void ApplyDailyProgression(
+        DailyRestaurantSnapshotSaveData snapshot,
+        CasualDiningPolishSettings settings)
+    {
+        if (snapshot == null || settings == null || allEmployees == null)
+            return;
+
+        for (int i = 0; i < allEmployees.Count; i++)
+        {
+            EmployeeData employee = allEmployees[i];
+            if (employee == null || !employee.hired)
+                continue;
+
+            employee.EnsureIdentity();
+            employee.daysEmployed++;
+            if (!employee.assigned)
+                continue;
+
+            employee.daysWorked++;
+            employee.previousPerformance = employee.recentPerformance;
+            employee.recentPerformance = CalculateRolePerformance(employee.role, snapshot);
+            int earned = Mathf.Max(1,
+                settings.baseExperiencePerShift + employee.recentPerformance / 10);
+            if (employee.traitID == "fast-learner")
+                earned = Mathf.CeilToInt(earned * 1.15f);
+            employee.experience += earned;
+            employee.roleExperience += earned;
+
+            while (employee.stars < 5)
+            {
+                int threshold = Mathf.Max(10,
+                    settings.firstPromotionExperience +
+                    Mathf.Max(0, employee.stars - 1) * settings.promotionExperienceGrowth);
+                if (employee.experience < threshold)
+                    break;
+
+                employee.experience -= threshold;
+                employee.stars++;
+                employee.lastPromotionDay = snapshot.day;
+                ApplyPromotionStats(employee, settings.statPointsPerPromotion);
+            }
+        }
+    }
+
+    private static int CalculateRolePerformance(
+        EmployeeRole role,
+        DailyRestaurantSnapshotSaveData snapshot)
+    {
+        int arrivals = Mathf.Max(1, snapshot.groupsArrived);
+        int orders = Mathf.Max(1, snapshot.ordersCompleted + snapshot.ordersFailed);
+        float score = role switch
+        {
+            EmployeeRole.Host =>
+                snapshot.groupsSeated * 100f / arrivals -
+                snapshot.unaccommodated * 12f - snapshot.waitedTooLong * 5f,
+            EmployeeRole.Waiter =>
+                snapshot.ordersCompleted * 100f / orders -
+                snapshot.wrongOrders * 15f - snapshot.orderFailures * 4f,
+            EmployeeRole.Cashier =>
+                95f - snapshot.paymentErrors * 20f,
+            EmployeeRole.Busser =>
+                90f - snapshot.dirtyTableDelays * 18f,
+            EmployeeRole.Chef =>
+                snapshot.ordersCompleted * 100f / orders -
+                snapshot.orderFailures * 7f - snapshot.stockoutRefusals * 3f,
+            EmployeeRole.Barista =>
+                snapshot.ordersCompleted * 100f / orders -
+                snapshot.orderFailures * 6f - snapshot.wrongOrders * 5f,
+            _ => 75f
+        };
+        return Mathf.Clamp(Mathf.RoundToInt(score), 35, 100);
+    }
+
+    private static void ApplyPromotionStats(EmployeeData employee, int points)
+    {
+        points = Mathf.Clamp(points, 0, 10);
+        employee.EnsureTrait();
+        switch (employee.traitID)
+        {
+            case "fast-worker":
+                employee.speed = Mathf.Clamp(employee.speed + points * 2, 50, 200);
+                employee.reliability = Mathf.Clamp(employee.reliability + points, 50, 100);
+                break;
+            case "careful":
+                employee.accuracy = Mathf.Clamp(employee.accuracy + points, 50, 100);
+                employee.speed = Mathf.Clamp(employee.speed + points, 50, 200);
+                break;
+            case "dependable":
+                employee.reliability = Mathf.Clamp(employee.reliability + points, 50, 100);
+                employee.accuracy = Mathf.Clamp(employee.accuracy + points, 50, 100);
+                break;
+            default:
+                employee.speed = Mathf.Clamp(employee.speed + points, 50, 200);
+                employee.accuracy = Mathf.Clamp(employee.accuracy + points, 50, 100);
+                employee.reliability = Mathf.Clamp(employee.reliability + points, 50, 100);
+                break;
+        }
+
+        employee.performanceMultiplier = Mathf.Clamp(
+            employee.performanceMultiplier + 0.025f,
+            0.85f,
+            1.35f);
+    }
+
     private void MigrateLegacyKitchenRoles()
     {
         bool changed = false;
@@ -366,6 +543,23 @@ public class EmployeeManager : MonoBehaviour
             EnsureApplicantPool(role);
     }
 
+    private bool HasApplicantForEverySupportedRole()
+    {
+        foreach (EmployeeRole role in EmployeeRoleCatalog.LobbyRoles)
+        {
+            if (!allEmployees.Exists(employee =>
+                    employee != null && !employee.hired && employee.role == role))
+                return false;
+        }
+        foreach (EmployeeRole role in EmployeeRoleCatalog.KitchenRoles)
+        {
+            if (!allEmployees.Exists(employee =>
+                    employee != null && !employee.hired && employee.role == role))
+                return false;
+        }
+        return true;
+    }
+
     private void EnsureApplicantPool(EmployeeRole role)
     {
         if (generator == null)
@@ -388,6 +582,7 @@ public class EmployeeManager : MonoBehaviour
             }
 
             EmployeeData generated = generator.GenerateApplicant(role, names);
+            generated.EnsureIdentity();
             if (!allEmployees.Contains(generated))
                 allEmployees.Add(generated);
             applicantCount++;
@@ -419,6 +614,8 @@ public class EmployeeManager : MonoBehaviour
             group.employees.Clear();
 
         SlotsLocked = false;
+        applicantPoolsInitialized = false;
+        applicantNextRefreshDay = 8;
 
         RoleSlot[] allSlots = FindObjectsByType<RoleSlot>(FindObjectsInactive.Include, FindObjectsSortMode.None);
         foreach (var slot in allSlots)

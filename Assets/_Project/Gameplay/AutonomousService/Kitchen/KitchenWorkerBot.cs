@@ -34,7 +34,18 @@ public class KitchenWorkerBot : MonoBehaviour
 
     private void OnEnable()
     {
+        ConfigureEmployeePerformance();
         BindKitchenManager();
+    }
+
+    private void ConfigureEmployeePerformance()
+    {
+        if (staffBot == null || EmployeeManager.Instance == null)
+            return;
+        EmployeeRole role = name.ToLowerInvariant().Contains("barista")
+            ? EmployeeRole.Barista
+            : EmployeeRole.Chef;
+        staffBot.ConfigurePerformance(EmployeeManager.Instance.GetAssignedEmployee(role));
     }
 
     private void OnDisable()

@@ -74,6 +74,8 @@ public class GameFlowManager : MonoBehaviour
     public bool HasUnfinishedRestaurantDay => useSingleRestaurantFlow &&
         (restaurantSessionState == RestaurantSessionState.PreOpen ||
          restaurantSessionState == RestaurantSessionState.Running);
+    public bool HasRunningRestaurantDay => useSingleRestaurantFlow &&
+        restaurantSessionState == RestaurantSessionState.Running;
     public bool RestaurantDayHasTerminalOutcome => TryGetRestaurantDayOutcome(out _);
 
     public event Action<int> OnDayChanged;
@@ -317,6 +319,7 @@ public class GameFlowManager : MonoBehaviour
 
     public void ResetRun()
     {
+        GameSaveManager.Instance?.CommitDayCheckpoint();
         currentDay = 1;
         currentPhase = GamePhase.Management;
         currentDayHalf = DayHalf.Morning;
@@ -334,7 +337,9 @@ public class GameFlowManager : MonoBehaviour
         DailyFinanceBridge.Instance?.ResetDay();
 
         InventoryManager.Instance?.ResetStock();
+        RestockOrderManager.EnsureInstance()?.ClearAll();
         EmployeeManager.Instance?.ClearAllEmployees();
+        CasualDiningPolishManager.EnsureInstance()?.ResetRun();
         EquipmentManager.Instance?.ResetPurchases();
         UnlockManager.Instance?.ResetAll();
 
@@ -371,6 +376,9 @@ public class GameFlowManager : MonoBehaviour
         if (!useSingleRestaurantFlow)
             return;
 
+        // Preparation choices must persist normally. The rollback checkpoint is
+        // captured only when service begins, after those choices are complete.
+        GameSaveManager.Instance?.CaptureDayStartCheckpoint();
         restaurantSessionState = campaignCompleted
             ? RestaurantSessionState.Endless
             : RestaurantSessionState.Running;
@@ -463,6 +471,7 @@ public class GameFlowManager : MonoBehaviour
         if (currentPhase == GamePhase.Lobby || currentPhase == GamePhase.Restaurant)
             ShiftScaler.Instance?.ApplyScaling(currentDay);
 
+        CasualDiningPolishManager.EnsureInstance()?.PrepareDay(currentDay, campaignCompleted);
         NotifyDayChanged();
         GameSaveManager.Instance?.RequestSave();
         return true;
@@ -571,6 +580,8 @@ public class GameFlowManager : MonoBehaviour
 
         if (!campaignCompleted)
             DailyObjectiveManager.Instance?.EvaluateAndApply();
+
+        CasualDiningPolishManager.EnsureInstance()?.FinalizeDay(currentDay);
 
         GameSaveManager.Instance?.RequestSave();
     }
@@ -729,8 +740,9 @@ public class GameFlowManager : MonoBehaviour
         shop?.InitializeShop();
         RecipeManager.Instance?.UnlockByDay(currentDay);
 
+        CasualDiningPolishManager.EnsureInstance()?.PrepareDay(currentDay, campaignCompleted);
+
         NotifyDayChanged();
-        GameSaveManager.Instance?.CaptureDayStartCheckpoint();
     }
 
     private void LoadRestaurantScene()

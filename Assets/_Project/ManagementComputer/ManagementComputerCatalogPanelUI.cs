@@ -410,6 +410,7 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
                 GetCurrentStock(item),
                 orderManager != null ? orderManager.GetPendingContainers(item) : 0,
                 GetRecommendedContainers(item),
+                expectedCustomers,
                 requested,
                 unlocked,
                 unlocked && GetAvailableCapacity(item.requiredStorage) > 0,
@@ -686,7 +687,8 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
         foreach (KeyValuePair<ItemData, int> entry in cart)
         {
             if (entry.Key != null)
-                total += Mathf.Max(0, entry.Value) * Mathf.Max(0, entry.Key.boxCost);
+                total += Mathf.Max(0, entry.Value) *
+                         CasualDiningPolishManager.GetCurrentBoxCostOrBase(entry.Key);
         }
         return total;
     }

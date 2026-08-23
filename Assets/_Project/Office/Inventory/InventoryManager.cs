@@ -18,6 +18,7 @@ public class InventoryManager : MonoBehaviour
     [SerializeField] private List<InventoryEntry> inspectorInventory = new List<InventoryEntry>();
 
     public event Action<ItemType, int> OnStockChanged;
+    public int DiscardedUnitsToday { get; private set; }
 
     private void Awake()
     {
@@ -261,11 +262,44 @@ public class InventoryManager : MonoBehaviour
             return 0;
 
         inventory[type] = Mathf.Max(0, inventory[type] - discarded);
+        DiscardedUnitsToday += discarded;
         RemoveEmptyBatches();
         OnStockChanged?.Invoke(type, inventory[type]);
         UpdateInspectorInventory();
         GameSaveManager.Instance?.RequestSave();
         return discarded;
+    }
+
+    public void ResetDiscardedUnitsForNewDay()
+    {
+        DiscardedUnitsToday = 0;
+    }
+
+    public bool UpdateBatchStorage(
+        string batchID,
+        RestockStorageType storageType,
+        bool wrongStorage,
+        float wrongStorageMultiplier)
+    {
+        if (!TryGetBatch(batchID, out InventoryStockBatchSaveEntry batch))
+            return false;
+
+        int currentDay = CurrentDay;
+        if (wrongStorage && !batch.wrongStorage)
+        {
+            int remainingDays = Mathf.Max(1, batch.expiresDay - currentDay);
+            int acceleratedDays = Mathf.Max(1,
+                Mathf.CeilToInt(remainingDays / Mathf.Max(1f, wrongStorageMultiplier)));
+            batch.expiresDay = Mathf.Min(batch.expiresDay, currentDay + acceleratedDays);
+        }
+
+        bool changed = batch.currentStorage != storageType ||
+                       batch.wrongStorage != wrongStorage;
+        batch.currentStorage = storageType;
+        batch.wrongStorage = wrongStorage;
+        if (changed)
+            GameSaveManager.Instance?.RequestSave();
+        return true;
     }
 
     public void ConfigureItems(List<ItemData> configuredItems)
@@ -336,6 +370,7 @@ public class InventoryManager : MonoBehaviour
         data.inventoryStocks.Clear();
         data.inventoryStockBatches.Clear();
         data.inventorySystemVersion = 2;
+        data.discardedUnitsToday = Mathf.Max(0, DiscardedUnitsToday);
 
         foreach (var kvp in inventory)
         {
@@ -364,6 +399,7 @@ public class InventoryManager : MonoBehaviour
 
         inventory.Clear();
         stockBatches.Clear();
+        DiscardedUnitsToday = Mathf.Max(0, data.discardedUnitsToday);
 
         if (items != null)
         {
@@ -394,7 +430,15 @@ public class InventoryManager : MonoBehaviour
                 if (source == null || source.unitsRemaining <= 0)
                     continue;
 
-                stockBatches.Add(CloneBatch(source));
+                InventoryStockBatchSaveEntry clone = CloneBatch(source);
+                if (data.saveSchemaVersion < 3)
+                {
+                    ItemData legacyItem = FindItem(clone.itemType);
+                    if (legacyItem != null)
+                        clone.currentStorage = legacyItem.requiredStorage;
+                    clone.wrongStorage = false;
+                }
+                stockBatches.Add(clone);
             }
         }
 
@@ -439,7 +483,9 @@ public class InventoryManager : MonoBehaviour
             itemType = item.itemType,
             unitsRemaining = Mathf.Max(0, amount),
             receivedDay = receivedDay,
-            expiresDay = expiresDay
+            expiresDay = expiresDay,
+            wrongStorage = false,
+            currentStorage = item.requiredStorage
         });
     }
 
@@ -509,7 +555,9 @@ public class InventoryManager : MonoBehaviour
             itemType = source.itemType,
             unitsRemaining = Mathf.Max(0, source.unitsRemaining),
             receivedDay = Mathf.Max(1, source.receivedDay),
-            expiresDay = Mathf.Max(1, source.expiresDay)
+            expiresDay = Mathf.Max(1, source.expiresDay),
+            wrongStorage = source.wrongStorage,
+            currentStorage = source.currentStorage
         };
     }
 }

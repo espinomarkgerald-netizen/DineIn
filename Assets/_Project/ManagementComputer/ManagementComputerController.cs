@@ -677,6 +677,13 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
             InventoryManager.Instance != null ? InventoryManager.Instance.Items.Count + " items" : "Unavailable",
             "RESTOCK", () => OpenApp((int)ManagementComputerApp.Restock));
 
+        CasualDiningPolishManager polish = CasualDiningPolishManager.EnsureInstance();
+        AddRow(null, "Restaurant rating", "Operational quality, separate from Alien Approval",
+            polish.RestaurantStars.ToString("0.0") + " / 5",
+            "READ NEWS", polish.OpenCurrentIssue);
+        AddRow(null, "Latest alien review", polish.GetLatestReviewText(),
+            string.Empty, string.Empty, null, false);
+
         appWindow.SetMessage($"Day {day} setup. Changes lock when the shift starts.");
     }
 
@@ -940,6 +947,12 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
 
     public void TryStartShift()
     {
+        if (!CasualDiningPolishManager.EnsureInstance().TryAllowStartShift())
+        {
+            ShowDesktopHint("Read today's Galactic Gazette before opening the restaurant.", true);
+            return;
+        }
+
         if (GameDayManager.Instance == null)
         {
             ShowDesktopHint("Shift controller not found.", true);

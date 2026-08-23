@@ -54,6 +54,9 @@ public class AutonomousStaffBot : MonoBehaviour
     private float happyIdleEndTime;
     private float happyIdleDuration;
     private bool playingHappyIdle;
+    private float baseAgentSpeed;
+    private float workSpeedMultiplier = 1f;
+    private float reactionTimeMultiplier = 1f;
 
     private static readonly int IdleStateHash = Animator.StringToHash("Base Layer.idle");
     private static readonly int HappyIdleStateHash = Animator.StringToHash("Base Layer.Happy Idle");
@@ -67,6 +70,7 @@ public class AutonomousStaffBot : MonoBehaviour
         fallbackHomePosition = transform.position;
         fallbackHomeRotation = transform.rotation;
         agent = GetComponent<NavMeshAgent>();
+        baseAgentSpeed = agent != null ? Mathf.Max(0.1f, agent.speed) : 3.5f;
         animator = GetComponentInChildren<Animator>(true);
         idleLookRotation = fallbackHomeRotation;
         happyIdleDuration = ResolveHappyIdleDuration();
@@ -152,6 +156,25 @@ public class AutonomousStaffBot : MonoBehaviour
 
         if (agent != null)
             agent.avoidancePriority = Mathf.Clamp(avoidancePriority, 0, 99);
+    }
+
+    public void ConfigurePerformance(EmployeeData employee)
+    {
+        if (employee == null)
+        {
+            workSpeedMultiplier = 1f;
+            reactionTimeMultiplier = 1f;
+            if (agent != null)
+                agent.speed = baseAgentSpeed;
+            return;
+        }
+
+        float speed = Mathf.Clamp(employee.speed / 100f, 0.80f, 1.25f);
+        float reliability01 = Mathf.InverseLerp(50f, 100f, employee.reliability);
+        workSpeedMultiplier = speed;
+        reactionTimeMultiplier = Mathf.Lerp(1.20f, 0.82f, reliability01);
+        if (agent != null)
+            agent.speed = baseAgentSpeed * speed;
     }
 
     public void ConfigureIdlePresentation(params Transform[] lookTargets)
@@ -254,7 +277,7 @@ public class AutonomousStaffBot : MonoBehaviour
         float duration = Random.Range(
             Mathf.Max(0f, seconds - variance),
             Mathf.Max(0f, seconds + variance)
-        );
+        ) / Mathf.Max(0.8f, workSpeedMultiplier);
 
         if (duration > 0f)
             yield return new WaitForSeconds(duration);
@@ -521,7 +544,7 @@ public class AutonomousStaffBot : MonoBehaviour
         float reactionDelay = Random.Range(
             Mathf.Min(reactionDelayRange.x, reactionDelayRange.y),
             Mathf.Max(reactionDelayRange.x, reactionDelayRange.y)
-        );
+        ) * reactionTimeMultiplier;
 
         if (reactionDelay > 0f)
             yield return new WaitForSeconds(reactionDelay);

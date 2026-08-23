@@ -65,9 +65,14 @@ public sealed class ManagementComputerHRPanel : MonoBehaviour
         bool lobby = department == EmployeeDepartment.Lobby;
         if (departmentTitle != null) departmentTitle.text = lobby ? "LOBBY DEPARTMENT" : "KITCHEN DEPARTMENT";
         if (departmentDescription != null)
-            departmentDescription.text = lobby
+        {
+            string refresh = manager != null
+                ? " • New applicants on Day " + manager.ApplicantNextRefreshDay
+                : string.Empty;
+            departmentDescription.text = (lobby
                 ? "Front-of-house service roles"
-                : "Kitchen staffing is limited to Chef and Barista";
+                : "Kitchen staffing is limited to Chef and Barista") + refresh;
+        }
         SetTabVisual(lobbyTab, lobbyTabLabel, lobby);
         SetTabVisual(kitchenTab, kitchenTabLabel, !lobby);
 

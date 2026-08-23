@@ -87,9 +87,12 @@ public sealed class ManagementEmployeeCardUI : MonoBehaviour
                 : "☆☆☆☆☆";
         if (statsText != null)
             statsText.text = employee != null
-                ? $"SPEED  {employee.speed}%\nACCURACY  {employee.accuracy}%\nRELIABILITY  {employee.reliability}%"
+                ? $"SPEED  {employee.speed}%\nACCURACY  {employee.accuracy}%\nRELIABILITY  {employee.reliability}%" +
+                  $"\nPERFORMANCE  {employee.recentPerformance}%\nROLE XP  {employee.roleExperience}"
                 : "Hire an applicant to fill this role.";
-        if (proText != null) proText.text = employee != null ? "+ " + employee.GetPrimaryPro() : "+ Open position";
+        if (proText != null) proText.text = employee != null
+            ? "+ " + employee.GetTraitLabel() + " • " + employee.GetPrimaryPro()
+            : "+ Open position";
         if (conText != null) conText.text = employee != null ? "− " + employee.GetPrimaryCon() : string.Empty;
         if (salaryText != null)
             salaryText.text = employee != null && salaryConfig != null

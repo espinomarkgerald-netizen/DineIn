@@ -90,6 +90,7 @@ public sealed class ManagementComputerCatalogCardUI : MonoBehaviour
         int currentStock,
         int pendingContainers,
         int recommendedContainers,
+        int expectedCustomers,
         int requestedContainers,
         bool unlocked,
         bool canIncrease,
@@ -102,8 +103,16 @@ public sealed class ManagementComputerCatalogCardUI : MonoBehaviour
         SetText(metaText, item != null
             ? $"{Mathf.Max(1, item.unitsPerBox)} units • {item.requiredStorage}"
             : string.Empty);
-        SetRestockStatus(item, currentStock, unlocked);
-        SetText(priceText, item != null ? "₱" + Mathf.Max(0, item.boxCost) + " / box" : "₱0");
+        SetRestockStatus(
+            item,
+            currentStock,
+            pendingContainers,
+            recommendedContainers,
+            expectedCustomers,
+            unlocked);
+        SetText(priceText, item != null
+            ? CasualDiningPolishManager.EnsureInstance().GetMarketTrendLabel(item) + " / box"
+            : "₱0");
 
         if (quantityRoot != null)
             quantityRoot.SetActive(true);
@@ -135,7 +144,13 @@ public sealed class ManagementComputerCatalogCardUI : MonoBehaviour
             background.color = unlocked ? normalColor : lockedColor;
     }
 
-    private void SetRestockStatus(ItemData item, int currentStock, bool unlocked)
+    private void SetRestockStatus(
+        ItemData item,
+        int currentStock,
+        int pendingContainers,
+        int recommendedContainers,
+        int expectedCustomers,
+        bool unlocked)
     {
         if (statusText == null)
             return;
@@ -178,6 +193,24 @@ public sealed class ManagementComputerCatalogCardUI : MonoBehaviour
             statusText.text += "\n<color=#" + expiredColor + "><b>EXPIRED " + expired +
                                " • THROW AWAY</b></color>";
         }
+
+        int unitsPerBox = item != null ? Mathf.Max(1, item.unitsPerBox) : 1;
+        int target = item != null
+            ? Mathf.CeilToInt(Mathf.Max(1, expectedCustomers) *
+                              Mathf.Max(0f, item.averageUsagePerCustomer))
+            : 0;
+        int projected = fresh + Mathf.Max(0, pendingContainers) * unitsPerBox;
+        string forecast;
+        if (expired > 0 || (fresh > target * 2 && freshExpiryDay > 0 && freshExpiryDay <= day + 1))
+            forecast = "SPOILAGE RISK";
+        else if (recommendedContainers > 0 || projected < target)
+            forecast = "LOW • NEED " + Mathf.Max(1, recommendedContainers) + " BOX" +
+                       (recommendedContainers == 1 ? string.Empty : "ES");
+        else if (target > 0 && projected > target * 2)
+            forecast = "OVERSTOCKED";
+        else
+            forecast = "ENOUGH FOR FORECAST";
+        statusText.text += "\n<b>FORECAST: " + forecast + "</b>";
     }
 
     private void SetIcon(Sprite sprite)

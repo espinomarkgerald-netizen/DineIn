@@ -50,7 +50,7 @@ public class ItemData : ScriptableObject
 
     [Header("Freshness")]
     [Min(0.1f)] public float shelfLifeDays = 7f;
-    [Min(1f)] public float wrongStorageSpoilageMultiplier = 4f;
+    [Min(1f)] public float wrongStorageSpoilageMultiplier = 3f;
 
     [Header("Visuals")]
     public Sprite sprite;

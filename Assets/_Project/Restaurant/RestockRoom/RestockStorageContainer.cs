@@ -8,8 +8,11 @@ using UnityEngine.UI;
 public sealed class RestockStorageContainer : MonoBehaviour
 {
     [SerializeField] private ItemData item;
+    [SerializeField, HideInInspector] private string containerID;
     [SerializeField, HideInInspector] private string stockBatchID;
     [SerializeField, HideInInspector] private int expiresDay;
+    [SerializeField, HideInInspector] private RestockStorageType currentStorage;
+    [SerializeField, HideInInspector] private bool wrongStorage;
     [Header("Editable Box Label")]
     [SerializeField] private TMP_Text[] itemNameTexts;
     [SerializeField] private Image[] itemIcons;
@@ -18,8 +21,18 @@ public sealed class RestockStorageContainer : MonoBehaviour
     [SerializeField] private string expiredLabel = "EXPIRED";
     [SerializeField] private Color expiredLabelColor = new Color(0.94f, 0.16f, 0.16f, 1f);
     public ItemData Item => item;
+    public string ContainerID
+    {
+        get
+        {
+            EnsureContainerID();
+            return containerID;
+        }
+    }
     public string StockBatchID => stockBatchID;
     public int ExpiresDay => expiresDay;
+    public RestockStorageType CurrentStorage => currentStorage;
+    public bool WrongStorage => wrongStorage;
     public bool HasConfiguredLabels => labelReferencesConfigured;
 
     public void ConfigureLabels(TMP_Text[] configuredNameTexts, Image[] configuredIcons)
@@ -39,9 +52,31 @@ public sealed class RestockStorageContainer : MonoBehaviour
         string configuredBatchID,
         int configuredExpiresDay)
     {
+        Bind(
+            configuredItem,
+            configuredBatchID,
+            configuredExpiresDay,
+            containerID,
+            configuredItem != null ? configuredItem.requiredStorage : RestockStorageType.Dry,
+            false);
+    }
+
+    public void Bind(
+        ItemData configuredItem,
+        string configuredBatchID,
+        int configuredExpiresDay,
+        string configuredContainerID,
+        RestockStorageType configuredStorage,
+        bool configuredWrongStorage)
+    {
         item = configuredItem;
+        containerID = string.IsNullOrWhiteSpace(configuredContainerID)
+            ? System.Guid.NewGuid().ToString("N")
+            : configuredContainerID.Trim();
         stockBatchID = configuredBatchID ?? string.Empty;
         expiresDay = Mathf.Max(0, configuredExpiresDay);
+        currentStorage = configuredStorage;
+        wrongStorage = configuredWrongStorage;
         if (item == null)
             return;
 
@@ -60,6 +95,38 @@ public sealed class RestockStorageContainer : MonoBehaviour
         }
 
 
+        RefreshExpiryState();
+    }
+
+    public void UpdateStorageEnvironment(RestockStorageType storageType)
+    {
+        if (item == null)
+            return;
+        currentStorage = storageType;
+        wrongStorage = storageType != item.requiredStorage;
+        if (!string.IsNullOrWhiteSpace(stockBatchID) && InventoryManager.Instance != null)
+        {
+            InventoryManager.Instance.UpdateBatchStorage(
+                stockBatchID,
+                storageType,
+                wrongStorage,
+                Mathf.Max(1f, item.wrongStorageSpoilageMultiplier));
+            if (InventoryManager.Instance.TryGetBatch(
+                    stockBatchID,
+                    out InventoryStockBatchSaveEntry batch))
+            {
+                expiresDay = batch.expiresDay;
+            }
+        }
+        RefreshExpiryState();
+    }
+
+    public void RestoreStorageEnvironment(
+        RestockStorageType storageType,
+        bool configuredWrongStorage)
+    {
+        currentStorage = storageType;
+        wrongStorage = configuredWrongStorage;
         RefreshExpiryState();
     }
 
@@ -124,6 +191,10 @@ public sealed class RestockStorageContainer : MonoBehaviour
             : 1;
         bool expired = expiresDay > 0 && day >= expiresDay;
         string label = item.displayName;
+        if (wrongStorage)
+        {
+            label += "\n<color=#FF9F1C><b>WRONG STORAGE</b></color>";
+        }
         if (expired)
         {
             label += "\n<color=#" + ColorUtility.ToHtmlStringRGB(expiredLabelColor) +
@@ -148,6 +219,12 @@ public sealed class RestockStorageContainer : MonoBehaviour
             item.itemType,
             Mathf.Max(1, item.unitsPerBox),
             stockBatchID);
+    }
+
+    private void EnsureContainerID()
+    {
+        if (string.IsNullOrWhiteSpace(containerID))
+            containerID = System.Guid.NewGuid().ToString("N");
     }
 
     private void ResolveLabelReferences()

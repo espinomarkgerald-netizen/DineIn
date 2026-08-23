@@ -88,6 +88,12 @@ public class LobbyAutonomousService : MonoBehaviour
         host = AddBot(hostObject, FindStation(null, "HostHomePoint"), 30);
         waiter = AddBot(waiterObject, FindStation(null, "WaiterHomePoint"), 80);
         busser = AddBot(busserObject, FindStation(null, "BusserHomePoint"), 50);
+        if (EmployeeManager.Instance != null)
+        {
+            host?.ConfigurePerformance(EmployeeManager.Instance.GetAssignedEmployee(EmployeeRole.Host));
+            waiter?.ConfigurePerformance(EmployeeManager.Instance.GetAssignedEmployee(EmployeeRole.Waiter));
+            busser?.ConfigurePerformance(EmployeeManager.Instance.GetAssignedEmployee(EmployeeRole.Busser));
+        }
         CashierBoothInteractable cashierBooth = FindFirstObjectByType<CashierBoothInteractable>();
         cashierStation = cashierBooth != null
             ? cashierBooth.StandPoint

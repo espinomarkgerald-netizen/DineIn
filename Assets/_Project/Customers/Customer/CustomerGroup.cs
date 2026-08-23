@@ -988,6 +988,8 @@ public class CustomerGroup : MonoBehaviour
             if (timeLeft <= 0f)
             {
                 if (shaker != null) shaker.StopShake(true);
+                CasualDiningPolishManager.EnsureInstance().RegisterIncident(
+                    DailyIncidentType.WaitedTooLong);
                 BecomeUnhappyAndLeave();
                 yield break;
             }
@@ -1580,6 +1582,8 @@ public class CustomerGroup : MonoBehaviour
 
     private void HandleWrongDelivery()
     {
+        CasualDiningPolishManager.EnsureInstance().RegisterIncident(
+            DailyIncidentType.WrongOrder);
         receivedWrongOrder = true;
         waitingForRemake = true;
         shouldShowAngryThoughtOnLeave = true;
@@ -1753,6 +1757,8 @@ public class CustomerGroup : MonoBehaviour
 
     private void WarnAndLeaveForMissingStock()
     {
+        CasualDiningPolishManager.EnsureInstance().RegisterIncident(
+            DailyIncidentType.StockoutRefusal);
         WarningSlideUI.Instance?.Show(
             "No stocked food and drinks are available. This group is leaving.");
         ShowThought(unhappyComments, unhappyFaceSprite);
@@ -2584,7 +2590,9 @@ public class CustomerGroup : MonoBehaviour
 
         linePatienceInstance = Instantiate(linePatiencePrefab);
         linePatienceInstance.name = name + "_LinePatienceUI";
-        linePatienceInstance.SetActive(true);
+        // Keep the prefab invisible until its scale, follow target, and fill
+        // value are final. This prevents one-frame full-size patience bars.
+        linePatienceInstance.SetActive(false);
         linePatienceInstance.transform.SetAsLastSibling();
 
         RectTransform rootRect = linePatienceInstance.GetComponent<RectTransform>();
@@ -2613,6 +2621,8 @@ public class CustomerGroup : MonoBehaviour
         if (linePatienceUI == null)
         {
             Debug.LogWarning("[CustomerGroup] LinePatienceUI component missing on prefab for " + name);
+            Destroy(linePatienceInstance);
+            linePatienceInstance = null;
             return;
         }
 
@@ -2628,6 +2638,7 @@ public class CustomerGroup : MonoBehaviour
         linePatienceUI.SetProgress(Mathf.Clamp01(linePatienceRemaining / Mathf.Max(1f, linePatienceSeconds)));
 
         Canvas.ForceUpdateCanvases();
+        linePatienceInstance.SetActive(true);
 
         Debug.Log("[CustomerGroup] Spawned line patience UI for " + name);
     }
@@ -2649,6 +2660,9 @@ public class CustomerGroup : MonoBehaviour
     private void HandleLinePatienceExpired()
     {
         StopLinePatience();
+
+        CasualDiningPolishManager.EnsureInstance().RegisterIncident(
+            DailyIncidentType.Unaccommodated);
 
         if (!angryResultLocked)
         {
@@ -3201,6 +3215,8 @@ public class CustomerGroup : MonoBehaviour
             return;
 
         Debug.LogWarning($"[TakeoutDelivery] {name} could not be completed: {reason}", this);
+        CasualDiningPolishManager.EnsureInstance().RegisterIncident(
+            DailyIncidentType.TakeoutFailure);
         BecomeUnhappyAndLeave();
     }
 
@@ -3210,6 +3226,8 @@ public class CustomerGroup : MonoBehaviour
             return;
 
         Debug.LogWarning($"[TakeoutQueue] {name} could not join the queue: {reason}", this);
+        CasualDiningPolishManager.EnsureInstance().RegisterIncident(
+            DailyIncidentType.TakeoutFailure);
         ReportFinalResult(FinalResult.Neutral);
         SetState(GroupState.Leaving);
         ClearOrderBubble();

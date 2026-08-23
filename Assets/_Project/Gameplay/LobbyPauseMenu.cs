@@ -11,6 +11,9 @@ public sealed class LobbyPauseMenu : MonoBehaviour
 
     private GameObject overlay;
     private Button pauseButton;
+    private Button largeTextButton;
+    private Button reducedMotionButton;
+    private Button highContrastButton;
     private bool paused;
     private float previousTimeScale = 1f;
 
@@ -24,6 +27,7 @@ public sealed class LobbyPauseMenu : MonoBehaviour
 
     private void OnDestroy()
     {
+        LevelOneUIAccessibility.SettingsChanged -= RefreshAccessibilityLabels;
         if (paused)
             Time.timeScale = 1f;
     }
@@ -62,6 +66,7 @@ public sealed class LobbyPauseMenu : MonoBehaviour
         view.ResumeButton.onClick.AddListener(Resume);
         view.GameMenuButton.onClick.RemoveListener(ReturnToGameMenu);
         view.GameMenuButton.onClick.AddListener(ReturnToGameMenu);
+        AddAccessibilityControls(view);
         overlay.SetActive(false);
     }
 
@@ -164,6 +169,76 @@ public sealed class LobbyPauseMenu : MonoBehaviour
         else
             SceneManager.LoadSceneAsync(GameMenuSceneName, LoadSceneMode.Single);
     }
+
+    private void AddAccessibilityControls(LobbyPauseMenuView view)
+    {
+        Transform window = overlay.transform.Find("PauseWindow");
+        if (window == null || window.Find("AccessibilityTitle") != null)
+            return;
+
+        RectTransform windowRect = window as RectTransform;
+        if (windowRect != null)
+            windowRect.sizeDelta = new Vector2(Mathf.Max(600f, windowRect.sizeDelta.x), 680f);
+
+        RectTransform resumeRect = view.ResumeButton.transform as RectTransform;
+        if (resumeRect != null)
+            resumeRect.anchoredPosition = new Vector2(0f, 150f);
+
+        RectTransform menuRect = view.GameMenuButton.transform as RectTransform;
+        if (menuRect != null)
+            menuRect.anchoredPosition = new Vector2(0f, -260f);
+
+        TMP_Text accessibilityTitle = CreateText(window, "AccessibilityTitle", "ACCESSIBILITY", 24f);
+        RectTransform titleRect = (RectTransform)accessibilityTitle.transform;
+        titleRect.anchorMin = titleRect.anchorMax = titleRect.pivot = new Vector2(0.5f, 0.5f);
+        titleRect.anchoredPosition = new Vector2(0f, 75f);
+        titleRect.sizeDelta = new Vector2(440f, 42f);
+
+        largeTextButton = CreateAccessibilityButton(window, "LargeTextButton", 18f,
+            () => LevelOneUIAccessibility.SetLargeTextEnabled(!LevelOneUIAccessibility.LargeText));
+        reducedMotionButton = CreateAccessibilityButton(window, "ReducedMotionButton", -62f,
+            () => LevelOneUIAccessibility.SetReducedMotionEnabled(!LevelOneUIAccessibility.ReducedMotion));
+        highContrastButton = CreateAccessibilityButton(window, "HighContrastButton", -142f,
+            () => LevelOneUIAccessibility.SetHighContrastEnabled(!LevelOneUIAccessibility.HighContrast));
+
+        LevelOneUIAccessibility.SettingsChanged -= RefreshAccessibilityLabels;
+        LevelOneUIAccessibility.SettingsChanged += RefreshAccessibilityLabels;
+        RefreshAccessibilityLabels();
+    }
+
+    private Button CreateAccessibilityButton(
+        Transform parent,
+        string name,
+        float verticalPosition,
+        UnityEngine.Events.UnityAction onClick)
+    {
+        Button button = CreateButton(parent, name, string.Empty,
+            new Color(0.13f, 0.39f, 0.49f, 1f));
+        RectTransform rect = (RectTransform)button.transform;
+        rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.anchoredPosition = new Vector2(0f, verticalPosition);
+        rect.sizeDelta = new Vector2(440f, 58f);
+        button.onClick.AddListener(onClick);
+        return button;
+    }
+
+    private void RefreshAccessibilityLabels()
+    {
+        SetButtonLabel(largeTextButton, $"LARGE TEXT: {OnOff(LevelOneUIAccessibility.LargeText)}");
+        SetButtonLabel(reducedMotionButton, $"REDUCED MOTION: {OnOff(LevelOneUIAccessibility.ReducedMotion)}");
+        SetButtonLabel(highContrastButton, $"HIGH CONTRAST: {OnOff(LevelOneUIAccessibility.HighContrast)}");
+    }
+
+    private static void SetButtonLabel(Button button, string value)
+    {
+        if (button == null)
+            return;
+        TMP_Text label = button.GetComponentInChildren<TMP_Text>(true);
+        if (label != null)
+            label.text = value;
+    }
+
+    private static string OnOff(bool enabled) => enabled ? "ON" : "OFF";
 
     private static Button CreateButton(Transform parent, string name, string label, Color color)
     {

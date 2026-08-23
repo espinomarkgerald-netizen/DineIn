@@ -209,6 +209,14 @@ public class GameDayManager : MonoBehaviour
     public int TipsEarned => tipsEarned;
     public int MaxCustomersThisShift => maxCustomersToSpawn;
     public bool UsesManagementComputerForDayStart => useManagementComputerForDayStart;
+    public int GroupsSpawnedThisShift => groupsSpawnedThisShift;
+    public int GroupsSeated => groupsSeated;
+    public int OrdersTaken => ordersTaken;
+    public int OrdersProcessed => ordersProcessed;
+    public int FoodDelivered => foodDelivered;
+    public int BillsDelivered => billsDelivered;
+    public int TraysCleaned => traysCleaned;
+    public int PaymentsCompleted => paymentsCompleted;
 
     private void Awake()
     {
@@ -506,6 +514,9 @@ public class GameDayManager : MonoBehaviour
 
     public void ConfirmStartShift()
     {
+        if (!CasualDiningPolishManager.EnsureInstance().TryAllowStartShift())
+            return;
+
         RestockFlowCoordinator restock = RestockFlowCoordinator.Instance;
         if (restock != null && restock.TryShowStartReminder(
                 () => StartCoroutine(StartShiftRoutine())))
@@ -1973,6 +1984,8 @@ public class GameDayManager : MonoBehaviour
             return;
 
         cashErrors++;
+        CasualDiningPolishManager.EnsureInstance().RegisterIncident(
+            DailyIncidentType.PaymentError);
         RefreshUI();
     }
 

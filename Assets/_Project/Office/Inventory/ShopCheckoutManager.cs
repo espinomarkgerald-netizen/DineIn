@@ -22,7 +22,8 @@ public class ShopCheckoutManager : MonoBehaviour
         {
             if (itemUI.Quantity <= 0) continue;
 
-            int cost = itemUI.Quantity * itemUI.ItemData.boxCost;
+            int cost = itemUI.Quantity *
+                       CasualDiningPolishManager.GetCurrentBoxCostOrBase(itemUI.ItemData);
             totalCost += cost;
 
             receiptItems.Add(new ReceiptItem

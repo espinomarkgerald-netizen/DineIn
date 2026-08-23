@@ -4,6 +4,8 @@ public class ShelfGrid : MonoBehaviour
 {
     [Header("Storage")]
     [SerializeField] private RestockStorageType storageType = RestockStorageType.Dry;
+    [Tooltip("Optional authored save ID. When empty, a deterministic hierarchy path is used.")]
+    [SerializeField] private string shelfID;
 
     [Header("Grid Size")]
     [Min(1)] public int columns = 4;
@@ -22,10 +24,13 @@ public class ShelfGrid : MonoBehaviour
     private GameObject[,] occupiedCells;
 
     public RestockStorageType StorageType => storageType;
+    public string StableShelfId => string.IsNullOrWhiteSpace(shelfID)
+        ? BuildHierarchyID()
+        : shelfID.Trim();
 
     private void Awake()
     {
-        occupiedCells = new GameObject[columns, rows];
+        EnsureGridAllocated();
     }
 
     public void ConfigureStorageType(RestockStorageType configuredType)
@@ -49,6 +54,7 @@ public class ShelfGrid : MonoBehaviour
 
     public bool IsCellFree(int column, int row)
     {
+        EnsureGridAllocated();
         if (!IsValidCell(column, row))
             return false;
 
@@ -133,6 +139,7 @@ public class ShelfGrid : MonoBehaviour
         int column,
         int row)
     {
+        EnsureGridAllocated();
         if (!IsCellFree(column, row))
             return false;
 
@@ -146,6 +153,7 @@ public class ShelfGrid : MonoBehaviour
         int column,
         int row)
     {
+        EnsureGridAllocated();
         if (!IsValidCell(column, row))
             return;
 
@@ -159,6 +167,59 @@ public class ShelfGrid : MonoBehaviour
                column < columns &&
                row >= 0 &&
                row < rows;
+    }
+
+    public bool TryGetFirstFreeCell(out int column, out int row)
+    {
+        EnsureGridAllocated();
+        for (int y = 0; y < rows; y++)
+        {
+            for (int x = 0; x < columns; x++)
+            {
+                if (!IsCellFree(x, y))
+                    continue;
+                column = x;
+                row = y;
+                return true;
+            }
+        }
+        column = -1;
+        row = -1;
+        return false;
+    }
+
+    private void EnsureGridAllocated()
+    {
+        columns = Mathf.Max(1, columns);
+        rows = Mathf.Max(1, rows);
+        if (occupiedCells == null ||
+            occupiedCells.GetLength(0) != columns ||
+            occupiedCells.GetLength(1) != rows)
+        {
+            occupiedCells = new GameObject[columns, rows];
+        }
+    }
+
+    private string BuildHierarchyID()
+    {
+        System.Text.StringBuilder path = new System.Text.StringBuilder();
+        Transform current = transform;
+        while (current != null)
+        {
+            if (path.Length > 0)
+                path.Insert(0, '/');
+            path.Insert(0, current.name + "[" + current.GetSiblingIndex() + "]");
+            current = current.parent;
+        }
+        string sceneName = gameObject.scene.IsValid() ? gameObject.scene.name : "Scene";
+        return sceneName + ":" + path;
+    }
+
+    private void OnValidate()
+    {
+        shelfID = shelfID != null ? shelfID.Trim() : string.Empty;
+        columns = Mathf.Max(1, columns);
+        rows = Mathf.Max(1, rows);
     }
 
     private void OnDrawGizmos()

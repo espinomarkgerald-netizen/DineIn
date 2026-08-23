@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public enum RestockOrderState
 {
@@ -21,7 +22,7 @@ public sealed class RestockCartLine
 
     public int LineCost => item == null
         ? 0
-        : Mathf.Max(0, quantity) * Mathf.Max(0, item.boxCost);
+        : Mathf.Max(0, quantity) * CasualDiningPolishManager.GetCurrentBoxCostOrBase(item);
 }
 
 [Serializable]
@@ -31,6 +32,7 @@ public sealed class RestockOrderLineSaveData
     public ItemType itemType;
     public int orderedContainers;
     public int storedContainers;
+    public int unitCost;
 }
 
 [Serializable]
@@ -58,6 +60,8 @@ public sealed class RestockOrderManager : MonoBehaviour
 
     [SerializeField] private List<RestockOrderSaveData> orders =
         new List<RestockOrderSaveData>();
+    [SerializeField] private List<RestockStoredContainerSaveData> storedContainers =
+        new List<RestockStoredContainerSaveData>();
 
     [Header("Delivery")]
     [SerializeField, Min(1f)] private float deliveryDelaySeconds = 5f;
@@ -65,6 +69,7 @@ public sealed class RestockOrderManager : MonoBehaviour
     public event Action OrdersChanged;
     public event Action<RestockOrderSaveData> OrderDelivered;
     public IReadOnlyList<RestockOrderSaveData> Orders => orders;
+    public IReadOnlyList<RestockStoredContainerSaveData> StoredContainers => storedContainers;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetStatics()
@@ -147,7 +152,8 @@ public sealed class RestockOrderManager : MonoBehaviour
                 itemID = cartLine.item.StableItemId,
                 itemType = cartLine.item.itemType,
                 orderedContainers = Mathf.Max(0, cartLine.quantity),
-                storedContainers = 0
+                storedContainers = 0,
+                unitCost = CasualDiningPolishManager.GetCurrentBoxCostOrBase(cartLine.item)
             });
         }
 
@@ -280,14 +286,6 @@ public sealed class RestockOrderManager : MonoBehaviour
             return false;
         }
 
-        if (item.requiredStorage != shelfStorage)
-        {
-            message = item.displayName + " belongs in " +
-                      item.requiredStorage.ToString().ToLowerInvariant() +
-                      " storage.";
-            return false;
-        }
-
         if (InventoryManager.Instance == null)
         {
             message = "Inventory is not ready yet.";
@@ -318,11 +316,26 @@ public sealed class RestockOrderManager : MonoBehaviour
                     currentDay,
                     out stockBatchID,
                     out expiresDay);
+                bool wrongStorage = shelfStorage != item.requiredStorage;
+                InventoryManager.Instance.UpdateBatchStorage(
+                    stockBatchID,
+                    shelfStorage,
+                    wrongStorage,
+                    Mathf.Max(1f, item.wrongStorageSpoilageMultiplier));
+                if (InventoryManager.Instance.TryGetBatch(
+                        stockBatchID,
+                        out InventoryStockBatchSaveEntry storedBatch))
+                {
+                    expiresDay = storedBatch.expiresDay;
+                }
                 RefreshStoredState(order);
                 OrdersChanged?.Invoke();
                 GameSaveManager.Instance?.RequestSave();
                 message = item.displayName + " stored (" +
-                          Mathf.Max(1, item.unitsPerBox) + " units added).";
+                          Mathf.Max(1, item.unitsPerBox) + " units added)." +
+                          (wrongStorage
+                              ? " WARNING: wrong storage is accelerating spoilage."
+                              : string.Empty);
                 return true;
             }
         }
@@ -393,11 +406,20 @@ public sealed class RestockOrderManager : MonoBehaviour
         data.restockOrders.Clear();
         for (int i = 0; i < orders.Count; i++)
             data.restockOrders.Add(CloneOrder(orders[i]));
+
+        data.restockStoredContainers.Clear();
+        for (int i = 0; i < storedContainers.Count; i++)
+        {
+            RestockStoredContainerSaveData entry = storedContainers[i];
+            if (entry != null && !string.IsNullOrWhiteSpace(entry.containerID))
+                data.restockStoredContainers.Add(CloneStoredContainer(entry));
+        }
     }
 
     public void ApplySaveData(GameSaveData data)
     {
         orders.Clear();
+        storedContainers.Clear();
         if (data?.restockOrders != null)
         {
             for (int i = 0; i < data.restockOrders.Count; i++)
@@ -420,6 +442,179 @@ public sealed class RestockOrderManager : MonoBehaviour
             }
         }
 
+        if (data?.restockStoredContainers != null)
+        {
+            HashSet<string> ids = new HashSet<string>(StringComparer.Ordinal);
+            for (int i = 0; i < data.restockStoredContainers.Count; i++)
+            {
+                RestockStoredContainerSaveData source = data.restockStoredContainers[i];
+                if (source == null || string.IsNullOrWhiteSpace(source.containerID) ||
+                    !ids.Add(source.containerID))
+                    continue;
+                storedContainers.Add(CloneStoredContainer(source));
+            }
+        }
+
+        OrdersChanged?.Invoke();
+    }
+
+    public void RegisterPhysicalContainer(
+        RestockStorageContainer identity,
+        ShelfGrid grid,
+        int column,
+        int row,
+        float rotationY)
+    {
+        if (identity == null || identity.Item == null || grid == null ||
+            string.IsNullOrWhiteSpace(identity.StockBatchID))
+            return;
+
+        RestockStoredContainerSaveData entry = FindStoredContainer(identity.ContainerID);
+        if (entry == null)
+        {
+            entry = new RestockStoredContainerSaveData
+            {
+                containerID = identity.ContainerID
+            };
+            storedContainers.Add(entry);
+        }
+
+        entry.stockBatchID = identity.StockBatchID;
+        entry.itemID = identity.Item.StableItemId;
+        entry.itemType = identity.Item.itemType;
+        entry.shelfID = grid.StableShelfId;
+        entry.column = Mathf.Max(0, column);
+        entry.row = Mathf.Max(0, row);
+        entry.rotationY = rotationY;
+        entry.storageType = grid.StorageType;
+        entry.wrongStorage = grid.StorageType != identity.Item.requiredStorage;
+        GameSaveManager.Instance?.RequestSave();
+    }
+
+    public void RemovePhysicalContainer(string containerID)
+    {
+        if (string.IsNullOrWhiteSpace(containerID))
+            return;
+        int removed = storedContainers.RemoveAll(entry =>
+            entry != null && string.Equals(
+                entry.containerID,
+                containerID,
+                StringComparison.Ordinal));
+        if (removed > 0)
+            GameSaveManager.Instance?.RequestSave();
+    }
+
+    public int RestorePhysicalContainers(
+        Scene scene,
+        IReadOnlyList<ShelfGrid> grids,
+        out int relocatedCount)
+    {
+        relocatedCount = 0;
+        if (!scene.IsValid() || !scene.isLoaded || grids == null || grids.Count == 0 ||
+            InventoryManager.Instance == null)
+            return storedContainers.Count;
+
+        Dictionary<string, RestockStorageContainer> existing =
+            new Dictionary<string, RestockStorageContainer>(StringComparer.Ordinal);
+        GameObject[] roots = scene.GetRootGameObjects();
+        for (int r = 0; r < roots.Length; r++)
+        {
+            RestockStorageContainer[] found =
+                roots[r].GetComponentsInChildren<RestockStorageContainer>(true);
+            for (int i = 0; i < found.Length; i++)
+            {
+                RestockStorageContainer identity = found[i];
+                if (identity != null && !string.IsNullOrWhiteSpace(identity.ContainerID))
+                    existing[identity.ContainerID] = identity;
+            }
+        }
+
+        int recoveryCount = 0;
+        for (int i = storedContainers.Count - 1; i >= 0; i--)
+        {
+            RestockStoredContainerSaveData entry = storedContainers[i];
+            if (entry == null || string.IsNullOrWhiteSpace(entry.containerID))
+            {
+                storedContainers.RemoveAt(i);
+                continue;
+            }
+
+            InventoryStockBatchSaveEntry batch = null;
+            if (!string.IsNullOrWhiteSpace(entry.stockBatchID) &&
+                !InventoryManager.Instance.TryGetBatch(entry.stockBatchID, out batch))
+            {
+                // The exact batch was consumed or discarded; its physical box
+                // must not be recreated on a later room visit.
+                storedContainers.RemoveAt(i);
+                continue;
+            }
+
+            if (existing.ContainsKey(entry.containerID))
+                continue;
+
+            ItemData item = FindCatalogItem(entry.itemID, entry.itemType);
+            if (item == null || item.worldContainerPrefab == null)
+            {
+                recoveryCount++;
+                continue;
+            }
+
+            ShelfGrid grid = FindGrid(grids, entry.shelfID);
+            int column = entry.column;
+            int row = entry.row;
+            if (grid == null || !grid.IsCellFree(column, row))
+            {
+                grid = FindRecoveryGrid(grids, entry.storageType, out column, out row);
+                if (grid == null)
+                {
+                    recoveryCount++;
+                    continue;
+                }
+                relocatedCount++;
+                entry.shelfID = grid.StableShelfId;
+                entry.column = column;
+                entry.row = row;
+                entry.storageType = grid.StorageType;
+                entry.wrongStorage = grid.StorageType != item.requiredStorage;
+            }
+
+            GameObject box = Instantiate(
+                item.worldContainerPrefab,
+                grid.GetCellWorldPosition(column, row),
+                Quaternion.Euler(0f, entry.rotationY, 0f));
+            SceneManager.MoveGameObjectToScene(box, scene);
+            RestockStorageContainer identity = box.GetComponent<RestockStorageContainer>();
+            if (identity == null)
+                identity = box.AddComponent<RestockStorageContainer>();
+            int expiresDay = batch != null ? batch.expiresDay : 0;
+            identity.Bind(
+                item,
+                entry.stockBatchID,
+                expiresDay,
+                entry.containerID,
+                entry.storageType,
+                entry.wrongStorage);
+            DraggableStorageBox draggable = box.GetComponent<DraggableStorageBox>();
+            if (draggable == null)
+                draggable = box.AddComponent<DraggableStorageBox>();
+            if (!draggable.TryPlaceInitially(grid, column, row))
+            {
+                Destroy(box);
+                recoveryCount++;
+                continue;
+            }
+            existing[entry.containerID] = identity;
+        }
+
+        if (relocatedCount > 0)
+            GameSaveManager.Instance?.RequestSave();
+        return recoveryCount;
+    }
+
+    public void ClearAll()
+    {
+        orders.Clear();
+        storedContainers.Clear();
         OrdersChanged?.Invoke();
     }
 
@@ -588,6 +783,7 @@ public sealed class RestockOrderManager : MonoBehaviour
                     itemID = line.itemID,
                     itemType = line.itemType,
                     orderedContainers = Mathf.Max(0, line.orderedContainers),
+                    unitCost = Mathf.Max(0, line.unitCost),
                     storedContainers = Mathf.Clamp(
                         line.storedContainers,
                         0,
@@ -597,5 +793,100 @@ public sealed class RestockOrderManager : MonoBehaviour
         }
 
         return clone;
+    }
+
+    private RestockStoredContainerSaveData FindStoredContainer(string containerID)
+    {
+        if (string.IsNullOrWhiteSpace(containerID))
+            return null;
+        for (int i = 0; i < storedContainers.Count; i++)
+        {
+            RestockStoredContainerSaveData entry = storedContainers[i];
+            if (entry != null && string.Equals(
+                    entry.containerID,
+                    containerID,
+                    StringComparison.Ordinal))
+                return entry;
+        }
+        return null;
+    }
+
+    private static RestockStoredContainerSaveData CloneStoredContainer(
+        RestockStoredContainerSaveData source)
+    {
+        return source == null ? null : new RestockStoredContainerSaveData
+        {
+            containerID = source.containerID,
+            stockBatchID = source.stockBatchID,
+            itemID = source.itemID,
+            itemType = source.itemType,
+            shelfID = source.shelfID,
+            column = Mathf.Max(0, source.column),
+            row = Mathf.Max(0, source.row),
+            rotationY = source.rotationY,
+            storageType = source.storageType,
+            wrongStorage = source.wrongStorage
+        };
+    }
+
+    private static ItemData FindCatalogItem(string itemID, ItemType itemType)
+    {
+        IReadOnlyList<ItemData> items = InventoryManager.Instance != null
+            ? InventoryManager.Instance.Items
+            : null;
+        if (items == null)
+            return null;
+        for (int i = 0; i < items.Count; i++)
+        {
+            ItemData item = items[i];
+            if (item == null)
+                continue;
+            if (!string.IsNullOrWhiteSpace(itemID) && string.Equals(
+                    item.StableItemId,
+                    itemID,
+                    StringComparison.OrdinalIgnoreCase))
+                return item;
+            if (string.IsNullOrWhiteSpace(itemID) && item.itemType == itemType)
+                return item;
+        }
+        return null;
+    }
+
+    private static ShelfGrid FindGrid(IReadOnlyList<ShelfGrid> grids, string shelfID)
+    {
+        if (string.IsNullOrWhiteSpace(shelfID))
+            return null;
+        for (int i = 0; i < grids.Count; i++)
+        {
+            ShelfGrid grid = grids[i];
+            if (grid != null && string.Equals(
+                    grid.StableShelfId,
+                    shelfID,
+                    StringComparison.Ordinal))
+                return grid;
+        }
+        return null;
+    }
+
+    private static ShelfGrid FindRecoveryGrid(
+        IReadOnlyList<ShelfGrid> grids,
+        RestockStorageType preferredStorage,
+        out int column,
+        out int row)
+    {
+        for (int pass = 0; pass < 2; pass++)
+        {
+            for (int i = 0; i < grids.Count; i++)
+            {
+                ShelfGrid grid = grids[i];
+                if (grid == null || (pass == 0 && grid.StorageType != preferredStorage))
+                    continue;
+                if (grid.TryGetFirstFreeCell(out column, out row))
+                    return grid;
+            }
+        }
+        column = -1;
+        row = -1;
+        return null;
     }
 }

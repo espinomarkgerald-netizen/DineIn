@@ -30,6 +30,9 @@ public sealed class RestockRoomController
     private bool previewValid;
     private Vector3 previewScale = Vector3.one;
     private Outline previewOutline;
+    private string wrongStorageConfirmationItemID;
+    private string wrongStorageConfirmationShelfID;
+    private float wrongStorageConfirmationUntil;
 
     public RestockStorageType ActiveRoom => activeRoom;
 
@@ -50,6 +53,7 @@ public sealed class RestockRoomController
         if (authoredEmptyHotbar != null)
             authoredEmptyHotbar.SetActive(false);
         WireButtons();
+        RestoreSavedContainers();
         RefreshStorageContainers();
         SwitchToRoom(requestedRoom);
         hud?.SetRestockContext(this, activeRoom);
@@ -150,9 +154,7 @@ public sealed class RestockRoomController
             previewGrid = grid;
             previewColumn = column;
             previewRow = row;
-            previewValid = dragItem != null &&
-                           grid.StorageType == dragItem.requiredStorage &&
-                           grid.IsCellFree(column, row);
+            previewValid = dragItem != null && grid.IsCellFree(column, row);
             dragPreview.transform.position = grid.GetCellWorldPosition(column, row);
             break;
         }
@@ -163,8 +165,13 @@ public sealed class RestockRoomController
         dragPreview.transform.localScale = previewScale * (previewValid ? 1.04f : 0.92f);
         if (previewOutline != null)
         {
+            bool wrongStorage = previewValid && dragItem != null &&
+                                previewGrid != null &&
+                                previewGrid.StorageType != dragItem.requiredStorage;
             previewOutline.OutlineColor = previewValid
-                ? new Color(0.28f, 1f, 0.40f, 1f)
+                ? wrongStorage
+                    ? new Color(1f, 0.63f, 0.10f, 1f)
+                    : new Color(0.28f, 1f, 0.40f, 1f)
                 : new Color(1f, 0.22f, 0.18f, 1f);
         }
     }
@@ -180,6 +187,12 @@ public sealed class RestockRoomController
         int column = previewColumn;
         int row = previewRow;
         bool valid = previewValid;
+        bool wrongStorage = valid && grid != null && grid.StorageType != item.requiredStorage;
+        if (wrongStorage && !ConsumeWrongStorageConfirmation(item, grid))
+        {
+            valid = false;
+            ArmWrongStorageConfirmation(item, grid);
+        }
         if (valid)
             Object.Destroy(dragPreview);
         else
@@ -189,8 +202,10 @@ public sealed class RestockRoomController
         if (!valid || grid == null)
         {
             string message;
-            if (grid != null && grid.StorageType != item.requiredStorage)
-                message = item.displayName + " belongs in " + StorageLabel(item.requiredStorage) + ".";
+            if (wrongStorage)
+                message = "Wrong storage accelerates spoilage. Drop " + item.displayName +
+                          " on this shelf again within 4 seconds to confirm, or use " +
+                          StorageLabel(item.requiredStorage) + ".";
             else if (grid != null)
                 message = "That shelf slot is occupied. The box returned to your hotbar.";
             else
@@ -238,7 +253,19 @@ public sealed class RestockRoomController
         }
 
 
-        identity.Bind(item, batchID, expiresDay);
+        identity.Bind(
+            item,
+            batchID,
+            expiresDay,
+            identity.ContainerID,
+            grid.StorageType,
+            grid.StorageType != item.requiredStorage);
+        RestockOrderManager.Instance.RegisterPhysicalContainer(
+            identity,
+            grid,
+            column,
+            row,
+            box.transform.eulerAngles.y);
 
         hud?.SetRoomMessage(result, false);
         return true;
@@ -307,6 +334,57 @@ public sealed class RestockRoomController
                 container.RefreshExpiryState();
             }
         }
+    }
+
+    private void RestoreSavedContainers()
+    {
+        RestockOrderManager manager = RestockOrderManager.Instance;
+        if (manager == null)
+            return;
+        int recoveryCount = manager.RestorePhysicalContainers(
+            scene,
+            grids,
+            out int relocatedCount);
+        if (recoveryCount > 0)
+        {
+            coordinator?.ShowMessage(
+                recoveryCount + " stored box" + (recoveryCount == 1 ? string.Empty : "es") +
+                " are safe in recovery because no shelf cell is available.");
+        }
+        else if (relocatedCount > 0)
+        {
+            coordinator?.ShowMessage(
+                relocatedCount + " stored box" + (relocatedCount == 1 ? " was" : "es were") +
+                " moved to the nearest free shelf cell.");
+        }
+    }
+
+    private void ArmWrongStorageConfirmation(ItemData item, ShelfGrid grid)
+    {
+        wrongStorageConfirmationItemID = item != null ? item.StableItemId : string.Empty;
+        wrongStorageConfirmationShelfID = grid != null ? grid.StableShelfId : string.Empty;
+        wrongStorageConfirmationUntil = Time.unscaledTime + 4f;
+    }
+
+    private bool ConsumeWrongStorageConfirmation(ItemData item, ShelfGrid grid)
+    {
+        bool confirmed = item != null && grid != null &&
+            Time.unscaledTime <= wrongStorageConfirmationUntil &&
+            string.Equals(
+                wrongStorageConfirmationItemID,
+                item.StableItemId,
+                System.StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(
+                wrongStorageConfirmationShelfID,
+                grid.StableShelfId,
+                System.StringComparison.Ordinal);
+        if (confirmed)
+        {
+            wrongStorageConfirmationUntil = 0f;
+            wrongStorageConfirmationItemID = string.Empty;
+            wrongStorageConfirmationShelfID = string.Empty;
+        }
+        return confirmed;
     }
 
     private void WireButtons()

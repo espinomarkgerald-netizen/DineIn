@@ -119,7 +119,7 @@ public class GameSaveManager : MonoBehaviour
             return;
 
         if (GameFlowManager.Instance != null &&
-            GameFlowManager.Instance.HasUnfinishedRestaurantDay &&
+            GameFlowManager.Instance.HasRunningRestaurantDay &&
             File.Exists(DayCheckpointPath))
         {
             Debug.Log("[GameSaveManager] Unfinished day active; preserving the day-start checkpoint.");
@@ -199,6 +199,8 @@ public class GameSaveManager : MonoBehaviour
         if (RestockOrderManager.Instance != null)
             RestockOrderManager.Instance.FillSaveData(data);
 
+        CasualDiningPolishManager.EnsureInstance()?.FillSaveData(data);
+
         return data;
     }
 
@@ -235,7 +237,7 @@ public class GameSaveManager : MonoBehaviour
         {
             Debug.Log("[GameSaveManager] No save file found — using defaults.");
             if (GameFlowManager.Instance != null &&
-                GameFlowManager.Instance.HasUnfinishedRestaurantDay)
+                GameFlowManager.Instance.HasRunningRestaurantDay)
                 CaptureDayStartCheckpoint();
             return;
         }
@@ -252,6 +254,11 @@ public class GameSaveManager : MonoBehaviour
             return;
         }
 
+        bool hasCasualDiningSchema = json.Contains("\"saveSchemaVersion\"");
+        if (!hasCasualDiningSchema)
+            data.saveSchemaVersion = 0;
+        bool requiresCasualDiningMigration = !hasCasualDiningSchema || data.saveSchemaVersion < 3;
+
         ApplySaveData(data, false, requiresFiniteInventoryMigration);
 
         Debug.Log("[GameSaveManager] Game loaded from: " + loadPath);
@@ -259,14 +266,17 @@ public class GameSaveManager : MonoBehaviour
         Debug.Log("[GameSaveManager] Loaded day: " + data.currentDay);
         Debug.Log("[GameSaveManager] Loaded approval: " + data.approval);
 
-        if (requiresFiniteInventoryMigration)
+        if (requiresFiniteInventoryMigration || requiresCasualDiningMigration)
         {
-            Debug.Log("[GameSaveManager] Migrated the save to finite restaurant stock.");
+            if (requiresFiniteInventoryMigration)
+                Debug.Log("[GameSaveManager] Migrated the save to finite restaurant stock.");
+            if (requiresCasualDiningMigration)
+                Debug.Log("[GameSaveManager] Migrated the save to Casual Dining schema 3.");
             SaveGame();
         }
 
         if (GameFlowManager.Instance != null &&
-            GameFlowManager.Instance.HasUnfinishedRestaurantDay)
+            GameFlowManager.Instance.HasRunningRestaurantDay)
             CaptureDayStartCheckpoint();
     }
 
@@ -299,6 +309,8 @@ public class GameSaveManager : MonoBehaviour
                 EmployeeManager.Instance.ApplySaveData(data);
 
             RestockOrderManager.EnsureInstance()?.ApplySaveData(data);
+
+            CasualDiningPolishManager.EnsureInstance()?.ApplySaveData(data);
 
             if (MoneyManager.Instance != null)
             {

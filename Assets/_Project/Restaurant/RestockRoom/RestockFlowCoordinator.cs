@@ -33,6 +33,8 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
     }
 
     public static RestockFlowCoordinator Instance { get; private set; }
+    public bool IsRestockRoomOpen => roomOpen;
+    public bool IsTransitioning => loading;
 
     private const string LobbySceneName = "Lobby1";
     private const string RestockSceneName = "RestockScene";
@@ -364,7 +366,7 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
     private void PlayCloseThen(Action completed)
     {
         CancelTransitionReleaseSafety();
-        transitionGeneration++;
+        int generation = ++transitionGeneration;
 
         if (hud == null)
         {
@@ -383,6 +385,8 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
 
         try
         {
+            transitionReleaseRoutine = StartCoroutine(
+                CompleteCloseAfterDelay(generation, () => callbackInvoked, guardedCompletion));
             hud.PlayClose(guardedCompletion);
         }
         catch (Exception exception)
@@ -392,6 +396,21 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
             hud.ReleaseTransitionInputBlocker();
             guardedCompletion();
         }
+    }
+
+    private IEnumerator CompleteCloseAfterDelay(
+        int generation,
+        Func<bool> wasCompleted,
+        Action completed)
+    {
+        yield return new WaitForSecondsRealtime(TransitionReleaseSafetySeconds);
+        transitionReleaseRoutine = null;
+        if (generation != transitionGeneration || wasCompleted())
+            yield break;
+
+        Debug.LogWarning("[RestockFlow] Iris close timed out; completing the scene transition safely.");
+        hud?.ReleaseTransitionInputBlocker();
+        completed?.Invoke();
     }
 
     private void RevealCurrentScene()
@@ -480,16 +499,31 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
             GameObject authoredMarker = authoredTruck == null
                 ? FindAuthoredTruckMarker()
                 : authoredTruck.gameObject;
+            Vector3 reachableFallback = FindNearbyNavMeshPoint(
+                origin + truckOffsetFromPlayer,
+                origin);
             Vector3 parkedPosition = authoredMarker != null
                 ? authoredMarker.transform.position
-                : FindNearbyNavMeshPoint(origin + truckOffsetFromPlayer, origin);
+                : reachableFallback;
             Quaternion parkedRotation = authoredMarker != null
                 ? authoredMarker.transform.rotation
                 : Quaternion.identity;
 
+            Vector3 authoredApproach = authoredTruck != null && authoredTruck.StandPoint != null
+                ? authoredTruck.StandPoint.position
+                : parkedPosition;
+            if (authoredMarker != null && !HasCompleteNavMeshPath(origin, authoredApproach))
+            {
+                parkedPosition = reachableFallback;
+                Debug.LogWarning(
+                    "[RestockFlow] Authored delivery truck is outside the reachable Lobby NavMesh; " +
+                    "using the safe nearby parking fallback.");
+            }
+
             if (authoredTruck != null)
             {
                 truck = authoredTruck.gameObject;
+                truck.transform.SetPositionAndRotation(parkedPosition, parkedRotation);
             }
             else
             {
@@ -633,10 +667,10 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
         if (standPoint == null)
             return;
 
-        if (NavMesh.SamplePosition(standPoint.position, out NavMeshHit hit, 3f, NavMesh.AllAreas))
+        if (NavMesh.SamplePosition(standPoint.position, out NavMeshHit hit, 8f, NavMesh.AllAreas))
             standPoint.position = hit.position;
         else if (standPoint.parent != null &&
-                 NavMesh.SamplePosition(standPoint.parent.position, out hit, 3f, NavMesh.AllAreas))
+                 NavMesh.SamplePosition(standPoint.parent.position, out hit, 8f, NavMesh.AllAreas))
             standPoint.position = hit.position;
     }
 
@@ -1060,5 +1094,16 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
         if (NavMesh.SamplePosition(fallback, out hit, 8f, NavMesh.AllAreas))
             return hit.position;
         return fallback;
+    }
+
+    private static bool HasCompleteNavMeshPath(Vector3 from, Vector3 to)
+    {
+        if (!NavMesh.SamplePosition(from, out NavMeshHit fromHit, 8f, NavMesh.AllAreas) ||
+            !NavMesh.SamplePosition(to, out NavMeshHit toHit, 4f, NavMesh.AllAreas))
+            return false;
+
+        NavMeshPath path = new NavMeshPath();
+        return NavMesh.CalculatePath(fromHit.position, toHit.position, NavMesh.AllAreas, path) &&
+               path.status == NavMeshPathStatus.PathComplete;
     }
 }

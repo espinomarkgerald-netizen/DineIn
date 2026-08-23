@@ -84,7 +84,9 @@ public sealed class RestockIrisGraphic : MaskableGraphic
 
     private IEnumerator AnimateRoutine(float from, float to, Action completed, int version)
     {
-        float animationDuration = Mathf.Max(0.01f, duration);
+        float animationDuration = LevelOneUIAccessibility.ReducedMotion
+            ? 0.12f
+            : Mathf.Max(0.01f, duration);
         double startedAt = Time.realtimeSinceStartupAsDouble;
         while (version == animationVersion)
         {

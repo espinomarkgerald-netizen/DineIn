@@ -249,6 +249,19 @@ public static class ManagementComputerSmokeTest
 
         Button startButton = FindNamedComponent<Button>(responsive.SafeAreaRoot, "StartShiftButton");
         Assert(startButton != null && startButton.interactable, "Start Shift button is not usable");
+
+        CasualDiningPolishManager polish = CasualDiningPolishManager.Instance;
+        Assert(polish != null && polish.GetIssueForDay(GameFlowManager.Instance.CurrentDay) != null,
+            "Today's newspaper was not prepared for the management start gate");
+        startButton.onClick.Invoke();
+        Assert(controller.IsOpen && !GameDayManager.Instance.ServiceActive,
+            "Management start bypassed the unread newspaper gate");
+        DailyNewspaperPresenter newspaper =
+            UnityEngine.Object.FindFirstObjectByType<DailyNewspaperPresenter>();
+        Assert(newspaper != null && newspaper.IsOpen,
+            "Management start did not open the unread newspaper");
+        polish.MarkCurrentIssueViewed();
+        newspaper.CloseImmediately();
         startButton.onClick.Invoke();
 
         if (controller.IsOpen && !GameDayManager.Instance.ServiceActive)
