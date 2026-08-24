@@ -5237,7 +5237,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   ticketUiPrefab: {fileID: 9161719239023753082, guid: 78383380eeb1e7a41b5a29b0bfedf025, type: 3}
-  paymentPopupPrefab: {fileID: 2756543861129049217, guid: e7227ae8c116af04fb121c33d8bcf4e3, type: 3}
 --- !u!1 &1613871718
 GameObject:
   m_ObjectHideFlags: 0

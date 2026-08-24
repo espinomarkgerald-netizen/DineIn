@@ -1,14 +1,17 @@
 using System.Collections;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 [DisallowMultipleComponent]
 public sealed class RestockStockRoomEntrance : MonoBehaviour, IInteractable
 {
     [SerializeField] private Transform standPoint;
     [SerializeField] private TMP_Text statusText;
+    [SerializeField] private Image signBackground;
     [SerializeField] private RestockStorageType storageType = RestockStorageType.Dry;
     [SerializeField, Min(0.5f)] private float interactRadius = 1.5f;
+    [SerializeField] private bool shelfMounted;
 
     [Header("Destination Guidance")]
     [SerializeField] private Color guidanceColor = new Color(0.2f, 0.95f, 1f, 1f);
@@ -25,6 +28,19 @@ public sealed class RestockStockRoomEntrance : MonoBehaviour, IInteractable
     {
         standPoint = configuredStandPoint;
         statusText = configuredStatus;
+    }
+
+    public void ConfigureShelfSign(
+        Transform configuredStandPoint,
+        TMP_Text configuredStatus,
+        Image configuredBackground)
+    {
+        standPoint = configuredStandPoint;
+        statusText = configuredStatus;
+        signBackground = configuredBackground;
+        shelfMounted = true;
+        guidanceScale = 1f;
+        RefreshStatus();
     }
 
     public void ConfigureRoom(RestockStorageType configuredStorage)
@@ -63,6 +79,25 @@ public sealed class RestockStockRoomEntrance : MonoBehaviour, IInteractable
         int boxes = RestockOrderManager.Instance != null
             ? RestockOrderManager.Instance.GetHotbarContainerCount(storageType)
             : 0;
+
+        if (shelfMounted)
+        {
+            bool frozen = storageType == RestockStorageType.Frozen;
+            statusText.text = (frozen ? "❄  FREEZER" : "DRY") +
+                              (boxes > 0 ? "  •  " + boxes + "×" : string.Empty);
+            statusText.color = Color.white;
+            if (signBackground != null)
+            {
+                signBackground.color = frozen
+                    ? new Color(0.06f, 0.42f, 0.72f, 1f)
+                    : new Color(0.42f, 0.24f, 0.10f, 1f);
+            }
+            guidanceColor = frozen
+                ? new Color(0.20f, 0.82f, 1f, 1f)
+                : new Color(1f, 0.66f, 0.22f, 1f);
+            return;
+        }
+
         string roomName = storageType == RestockStorageType.Frozen
             ? "WALK-IN FREEZER"
             : "DRY STORAGE";

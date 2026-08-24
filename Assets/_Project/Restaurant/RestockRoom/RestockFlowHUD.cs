@@ -8,7 +8,8 @@ using UnityEngine.UI;
 
 /// <summary>
 /// Persistent, prefab-backed delivery UI shared by Lobby1 and RestockScene.
-/// Designer-authored values are read from the prefab and are never resized at runtime.
+/// Designer-authored styling is read from the prefab. The hotbar width adapts to
+/// its cells so it stays compact without changing the established visual style.
 /// </summary>
 public sealed class RestockFlowHUD : MonoBehaviour
 {
@@ -291,6 +292,14 @@ public sealed class RestockFlowHUD : MonoBehaviour
             return;
 
         List<ItemData> items = manager.GetHotbarItems();
+        RectTransform hotbarRect = HotbarRect;
+        if (hotbarRect != null)
+        {
+            float width = Mathf.Clamp(44f + items.Count * 56f, 220f, 380f);
+            hotbarRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, width);
+            hotbarRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, 82f);
+        }
+
         for (int i = 0; i < items.Count; i++)
         {
             ItemData item = items[i];
@@ -495,9 +504,9 @@ public sealed class RestockFlowHUD : MonoBehaviour
         int dry = RestockOrderManager.Instance.GetHotbarContainerCount(RestockStorageType.Dry);
         int frozen = RestockOrderManager.Instance.GetHotbarContainerCount(RestockStorageType.Frozen);
         remainingText.text = inRestockRoom
-            ? (activeRoom == RestockStorageType.Frozen ? "FREEZER" : "DRY ROOM") +
-              "  •  " + (activeRoom == RestockStorageType.Frozen ? frozen : dry) + " REMAINING"
-            : "DELIVERY  •  " + (dry + frozen) + " REMAINING  •  DRY " + dry + "  •  FROZEN " + frozen;
+            ? (activeRoom == RestockStorageType.Frozen ? "❄ FREEZER" : "DRY") +
+              "  ▣ " + (activeRoom == RestockStorageType.Frozen ? frozen : dry)
+            : "▣ " + (dry + frozen) + "   DRY " + dry + "   ❄ " + frozen;
     }
 
     private bool IsInsideHotbar(Vector2 position, Camera eventCamera)

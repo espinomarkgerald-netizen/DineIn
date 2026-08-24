@@ -421,7 +421,6 @@ public class CashierRegisterUI : MonoBehaviour
                 paidGroup.PayAndLeave();
             }
 
-            OrderFlowManager.Instance?.ShowPayment(amountEarned, paidGroup.currentOrderNumber);
         }
 
         if (TutorialManager.Instance != null)
@@ -470,8 +469,6 @@ public class CashierRegisterUI : MonoBehaviour
             takeoutFlow.NotifyPaymentCompleted(group);
         else
             group.PayAndLeave();
-
-        OrderFlowManager.Instance?.ShowPayment(amountEarned, group.currentOrderNumber);
 
         return true;
     }

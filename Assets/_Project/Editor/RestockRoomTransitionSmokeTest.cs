@@ -42,7 +42,7 @@ public static class RestockRoomTransitionSmokeTest
         }
     }
 
-    [MenuItem("Tools/Dine In/Run Restock Room Transition Smoke Test")]
+    [MenuItem("Tools/Dine In/Run Restock Room Transition Smoke Test %#F8")]
     public static void Run()
     {
         if (EditorApplication.isPlayingOrWillChangePlaymode)

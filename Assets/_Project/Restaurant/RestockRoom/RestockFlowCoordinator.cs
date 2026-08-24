@@ -5,6 +5,8 @@ using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
+using TMPro;
 
 /// <summary>
 /// Preserves the exact Lobby1 session while RestockScene is shown, and owns
@@ -71,6 +73,7 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
     private RestockStorageType requestedRoom;
     private bool loading;
     private bool roomOpen;
+    private bool startReadinessWarningsAcknowledged;
     private float previousTimeScale = 1f;
     private Coroutine transitionReleaseRoutine;
     private int transitionGeneration;
@@ -200,9 +203,10 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
                 return;
 
             int count = manager.HotbarContainerCount;
+            truck?.GetComponent<RestockTruckInteractable>()?.BeginDepartureAfterCollection();
             hud?.RequestPickupAnimation();
-            ShowMessage(count + " delivered box" + (count == 1 ? string.Empty : "es") +
-                        " added to your hotbar. Choose a delivery slot to see its storage room.");
+            ShowMessage("✓ " + count + " BOX" + (count == 1 ? string.Empty : "ES") +
+                        " COLLECTED   →   CHOOSE A STORAGE SLOT");
         });
     }
 
@@ -233,10 +237,21 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
 
     public bool TryShowStartReminder(Action startAnyway)
     {
+        if (startReadinessWarningsAcknowledged)
+        {
+            startReadinessWarningsAcknowledged = false;
+            return false;
+        }
+
         int remaining = RestockOrderManager.Instance != null
             ? RestockOrderManager.Instance.HotbarContainerCount
             : 0;
         return remaining > 0 && hud != null && hud.ShowStartReminder(remaining, startAnyway);
+    }
+
+    public void AcknowledgeStartReadinessWarnings()
+    {
+        startReadinessWarningsAcknowledged = true;
     }
 
     public void GuideToStorage(RestockStorageType storage)
@@ -246,16 +261,14 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
             : dryEntrance;
         target?.PulseGuidance();
         ShowMessage(storage == RestockStorageType.Frozen
-            ? "Frozen delivery selected — go to the Walk-in Freezer entrance."
-            : "Dry delivery selected — go to the Dry Storage entrance.");
+            ? "❄  FREEZER  →  RIGHT SHELF"
+            : "DRY  →  LEFT SHELF");
     }
 
     public void ShowMessage(string message)
     {
-        if (!roomOpen && WarningSlideUI.Instance != null && WarningSlideUI.Instance.isActiveAndEnabled)
-            WarningSlideUI.Instance.Show(message);
-        else
-            hud?.ShowNotification(message);
+        EnsureHud();
+        hud?.ShowNotification(message);
     }
 
     public void EnsureLobbyUIInputReady()
@@ -554,6 +567,11 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
             EnsureTruckIndicator(truckInteractable);
         }
 
+        if (dryEntrance == null || freezerEntrance == null)
+            BindLobbyShelfEntrances(origin);
+
+        // Keep a safe fallback for older test scenes that do not contain the
+        // authored Lobby shelf bank.
         if (dryEntrance == null)
             dryEntrance = CreateEntrance(
                 "Dry Storage Entrance",
@@ -567,6 +585,161 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
                 RestockStorageType.Frozen,
                 origin + freezerEntranceOffsetFromPlayer,
                 origin);
+    }
+
+    private void BindLobbyShelfEntrances(Vector3 playerOrigin)
+    {
+        List<GameObject> shelfBanks = FindLobbyShelfBanks();
+        if (shelfBanks.Count < 2)
+            return;
+
+        Camera sceneCamera = PlayerSetup.FindActiveSceneCamera();
+        if (sceneCamera == null)
+            sceneCamera = Camera.main;
+
+        shelfBanks.Sort((a, b) =>
+        {
+            float aPosition = sceneCamera != null
+                ? sceneCamera.WorldToScreenPoint(GetWorldBounds(a).center).x
+                : GetWorldBounds(a).center.z;
+            float bPosition = sceneCamera != null
+                ? sceneCamera.WorldToScreenPoint(GetWorldBounds(b).center).x
+                : GetWorldBounds(b).center.z;
+            return aPosition.CompareTo(bPosition);
+        });
+
+        dryEntrance = ConfigureShelfEntrance(
+            shelfBanks[0], RestockStorageType.Dry, playerOrigin);
+        freezerEntrance = ConfigureShelfEntrance(
+            shelfBanks[shelfBanks.Count - 1], RestockStorageType.Frozen, playerOrigin);
+    }
+
+    private List<GameObject> FindLobbyShelfBanks()
+    {
+        List<GameObject> results = new List<GameObject>();
+        GameObject[] roots = lobbyScene.GetRootGameObjects();
+        for (int r = 0; r < roots.Length; r++)
+        {
+            ShelfGrid[] grids = roots[r].GetComponentsInChildren<ShelfGrid>(true);
+            for (int i = 0; i < grids.Length; i++)
+            {
+                Transform current = grids[i].transform;
+                GameObject shelf = null;
+                while (current != null)
+                {
+                    if (current.name.StartsWith("DryRoomShelf", StringComparison.OrdinalIgnoreCase))
+                    {
+                        shelf = current.gameObject;
+                        break;
+                    }
+                    current = current.parent;
+                }
+
+                if (shelf != null && !results.Contains(shelf))
+                    results.Add(shelf);
+            }
+        }
+
+        return results;
+    }
+
+    private RestockStockRoomEntrance ConfigureShelfEntrance(
+        GameObject shelf,
+        RestockStorageType storage,
+        Vector3 playerOrigin)
+    {
+        if (shelf == null)
+            return null;
+
+        RestockStockRoomEntrance entrance = shelf.GetComponent<RestockStockRoomEntrance>();
+        if (entrance == null)
+            entrance = shelf.AddComponent<RestockStockRoomEntrance>();
+
+        Bounds bounds = GetWorldBounds(shelf);
+        Transform standPoint = shelf.transform.Find("Restock Stand Point");
+        if (standPoint == null)
+        {
+            GameObject standObject = new GameObject("Restock Stand Point");
+            standPoint = standObject.transform;
+            standPoint.SetParent(shelf.transform, true);
+        }
+        standPoint.position = FindReachableShelfStandPoint(bounds, playerOrigin);
+
+        TMP_Text label = null;
+        Image background = null;
+        Transform existingSign = shelf.transform.Find("Restock Destination Sign");
+        if (existingSign == null)
+        {
+            RestockStockRoomEntrance signPrefab = Resources.Load<RestockStockRoomEntrance>(
+                "RestockFlow/RestockStockRoomEntrance");
+            if (signPrefab != null)
+            {
+                RestockStockRoomEntrance sign = Instantiate(
+                    signPrefab, bounds.center, Quaternion.identity, shelf.transform);
+                sign.name = "Restock Destination Sign";
+                sign.enabled = false;
+
+                Collider signCollider = sign.GetComponent<Collider>();
+                if (signCollider != null)
+                    signCollider.enabled = false;
+                Renderer[] signRenderers = sign.GetComponentsInChildren<Renderer>(true);
+                for (int i = 0; i < signRenderers.Length; i++)
+                    signRenderers[i].enabled = false;
+
+                Transform labelTransform = sign.transform.Find("WorldLabel");
+                if (labelTransform != null)
+                {
+                    GameObject anchorObject = new GameObject("Sign Anchor");
+                    anchorObject.transform.SetParent(shelf.transform, true);
+                    anchorObject.transform.position = new Vector3(
+                        bounds.center.x, bounds.max.y + 0.05f, bounds.center.z);
+
+                    NameTagBillboard billboard = labelTransform.GetComponent<NameTagBillboard>();
+                    if (billboard == null)
+                        billboard = labelTransform.gameObject.AddComponent<NameTagBillboard>();
+                    billboard.SetFollowTarget(anchorObject.transform);
+                    billboard.SetCamera(PlayerSetup.FindActiveSceneCamera());
+                }
+
+                existingSign = sign.transform;
+            }
+        }
+
+        if (existingSign != null)
+        {
+            label = existingSign.GetComponentInChildren<TMP_Text>(true);
+            background = existingSign.transform.Find("WorldLabel")?.GetComponent<Image>();
+        }
+
+        entrance.ConfigureShelfSign(standPoint, label, background);
+        entrance.ConfigureRoom(storage);
+        ConfigureShelfInteractionPresentation(shelf);
+        return entrance;
+    }
+
+    private static Bounds GetWorldBounds(GameObject target)
+    {
+        Renderer[] renderers = target.GetComponentsInChildren<Renderer>(true);
+        if (renderers.Length == 0)
+            return new Bounds(target.transform.position, Vector3.one);
+
+        Bounds bounds = renderers[0].bounds;
+        for (int i = 1; i < renderers.Length; i++)
+            bounds.Encapsulate(renderers[i].bounds);
+        return bounds;
+    }
+
+    private static void ConfigureShelfInteractionPresentation(GameObject shelf)
+    {
+        int interactionLayer = LayerMask.NameToLayer("Interactable ");
+        if (interactionLayer >= 0)
+        {
+            Collider[] colliders = shelf.GetComponentsInChildren<Collider>(true);
+            for (int i = 0; i < colliders.Length; i++)
+                colliders[i].gameObject.layer = interactionLayer;
+        }
+
+        ConfigureInteractionPresentation(shelf);
     }
 
     private RestockTruckInteractable FindAuthoredTruckInteractable()
@@ -1094,6 +1267,51 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
         if (NavMesh.SamplePosition(fallback, out hit, 8f, NavMesh.AllAreas))
             return hit.position;
         return fallback;
+    }
+
+    private static Vector3 FindReachableShelfStandPoint(Bounds bounds, Vector3 playerOrigin)
+    {
+        Vector3 center = new Vector3(bounds.center.x, playerOrigin.y, bounds.center.z);
+        Vector3 towardPlayer = playerOrigin - center;
+        towardPlayer.y = 0f;
+        if (towardPlayer.sqrMagnitude < 0.01f)
+            towardPlayer = Vector3.back;
+        towardPlayer.Normalize();
+
+        Vector3[] directions =
+        {
+            towardPlayer,
+            Vector3.forward,
+            Vector3.back,
+            Vector3.left,
+            Vector3.right,
+            new Vector3(1f, 0f, 1f).normalized,
+            new Vector3(1f, 0f, -1f).normalized,
+            new Vector3(-1f, 0f, 1f).normalized,
+            new Vector3(-1f, 0f, -1f).normalized
+        };
+
+        float xDistance = Mathf.Max(1.2f, bounds.extents.x + 1.1f);
+        float zDistance = Mathf.Max(1.2f, bounds.extents.z + 1.1f);
+        for (int i = 0; i < directions.Length; i++)
+        {
+            Vector3 direction = directions[i];
+            Vector3 candidate = center + new Vector3(
+                direction.x * xDistance,
+                0f,
+                direction.z * zDistance);
+            if (!NavMesh.SamplePosition(candidate, out NavMeshHit hit, 2.5f, NavMesh.AllAreas))
+                continue;
+            if (Mathf.Abs(hit.position.y - playerOrigin.y) > 2.5f)
+                continue;
+            if (HasCompleteNavMeshPath(playerOrigin, hit.position))
+                return hit.position;
+        }
+
+        // A reachable point is more important than fabricating an unreachable
+        // shelf position. This path is only used in legacy/test scenes with an
+        // unusual NavMesh bake.
+        return FindNearbyNavMeshPoint(playerOrigin, playerOrigin);
     }
 
     private static bool HasCompleteNavMeshPath(Vector3 from, Vector3 to)

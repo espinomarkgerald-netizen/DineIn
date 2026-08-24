@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 /// <summary>
@@ -35,25 +36,62 @@ public class SceneButtonBinder : MonoBehaviour
 
     private void RegisterAll()
     {
-        if (SceneManagerUI.Instance == null)
-        {
-            Debug.LogError("[SceneButtonBinder] SceneManagerUI not found! Make sure you started from the Bootstrap scene.");
-            return;
-        }
-
         foreach (var binding in buttons)
         {
-            if (binding.button == null) continue;
+            if (binding.button == null || string.IsNullOrWhiteSpace(binding.sceneName))
+                continue;
 
             var actionToUse = forceLoadSingleToMakeActive
                 ? SceneManagerUI.SceneAction.LoadSingle
                 : binding.action;
 
-            SceneManagerUI.Instance.RegisterButton(
-                binding.button,
-                binding.sceneName,
-                actionToUse
-            );
+            if (SceneManagerUI.Instance != null)
+            {
+                SceneManagerUI.Instance.RegisterButton(
+                    binding.button,
+                    binding.sceneName,
+                    actionToUse);
+                continue;
+            }
+
+            // Direct scene play and standalone builds may not have the Bootstrap
+            // manager. Keep the button live with the same scene semantics instead
+            // of raising a gameplay-blocking error.
+            ButtonBinding capturedBinding = binding;
+            binding.button.onClick.RemoveAllListeners();
+            binding.button.onClick.AddListener(() => LoadWithoutBootstrap(
+                capturedBinding.sceneName,
+                actionToUse));
+        }
+    }
+
+    private static void LoadWithoutBootstrap(
+        string sceneName,
+        SceneManagerUI.SceneAction action)
+    {
+        RestockFlowCoordinator restock = RestockFlowCoordinator.Instance;
+        if (sceneName == "Lobby1" && restock != null && restock.IsRestockRoomOpen)
+        {
+            restock.ExitRestockRoom();
+            return;
+        }
+
+        if (!Application.CanStreamedLevelBeLoaded(sceneName))
+            return;
+
+        switch (action)
+        {
+            case SceneManagerUI.SceneAction.LoadAdditive:
+                SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Additive);
+                break;
+            case SceneManagerUI.SceneAction.Unload:
+                Scene loaded = SceneManager.GetSceneByName(sceneName);
+                if (loaded.isLoaded)
+                    SceneManager.UnloadSceneAsync(loaded);
+                break;
+            default:
+                SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Single);
+                break;
         }
     }
 }

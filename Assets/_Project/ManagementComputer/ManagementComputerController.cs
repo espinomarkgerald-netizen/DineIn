@@ -49,7 +49,6 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
     private MainCameraController cameraController;
     private Vector3 savedCameraTarget;
     private bool savedCameraEnabled;
-    private bool pendingWarningConfirmation;
     private float nextStatusRefresh;
     private ScrollRect fallbackDragScroll;
     private Scrollbar fallbackDragScrollbar;
@@ -60,6 +59,23 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
     private bool currentAppUsesCards;
     private bool restockOrderCommitInProgress;
     private Coroutine canvasRefreshRoutine;
+
+    private sealed class StartChecklistEntry
+    {
+        public Sprite icon;
+        public string title;
+        public string details;
+        public ReadinessVisualState state;
+        public string action;
+        public UnityEngine.Events.UnityAction callback;
+    }
+
+    private sealed class StartChecklistSnapshot
+    {
+        public readonly List<StartChecklistEntry> entries = new List<StartChecklistEntry>();
+        public int blockers;
+        public int warnings;
+    }
 
     public bool IsOpen => desktopRoot != null && desktopRoot.activeSelf;
     public ManagementComputerWindow AppWindow => appWindow;
@@ -478,7 +494,6 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         RestockFlowCoordinator.Instance?.EnsureLobbyUIInputReady();
         activeManager = manager;
         activeStation = station;
-        pendingWarningConfirmation = false;
 
         if (activeManager != null)
             activeManager.SetExternalInputSuppressed(true);
@@ -591,7 +606,6 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         if (!Enum.IsDefined(typeof(ManagementComputerApp), appIndex) || appWindow == null)
             return;
 
-        pendingWarningConfirmation = false;
         appWindow.ClearRows();
 
         ManagementComputerApp app = (ManagementComputerApp)appIndex;
@@ -616,7 +630,6 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
 
     public void CloseApp()
     {
-        pendingWarningConfirmation = false;
         if (appWindow != null)
         {
             appWindow.ClearRows();
@@ -947,12 +960,6 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
 
     public void TryStartShift()
     {
-        if (!CasualDiningPolishManager.EnsureInstance().TryAllowStartShift())
-        {
-            ShowDesktopHint("Read today's Galactic Gazette before opening the restaurant.", true);
-            return;
-        }
-
         if (GameDayManager.Instance == null)
         {
             ShowDesktopHint("Shift controller not found.", true);
@@ -965,29 +972,28 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
             return;
         }
 
-        List<string> warnings = CollectStartWarnings(out bool hasUsableMenu);
-        if (!hasUsableMenu)
-        {
-            OpenApp((int)ManagementComputerApp.Menu);
-            appWindow.SetMessage("Add at least one unlocked food or drink before starting the shift.", true);
-            return;
-        }
-
-        if (warnings.Count > 0 && !pendingWarningConfirmation)
-        {
-            pendingWarningConfirmation = true;
-            OpenApp((int)ManagementComputerApp.Dashboard);
-            pendingWarningConfirmation = true;
-            appWindow.SetMessage("START WARNINGS\n• " + string.Join("\n• ", warnings), true);
-            appWindow.SetFooter("START ANYWAY", StartShiftConfirmed);
-            return;
-        }
-
-        StartShiftConfirmed();
+        OpenStartChecklist();
     }
 
     private void StartShiftConfirmed()
     {
+        StartChecklistSnapshot readiness = BuildStartChecklist();
+        if (readiness.blockers > 0)
+        {
+            OpenStartChecklist();
+            return;
+        }
+
+        // Race-safe final newspaper gate. In normal use this is already green
+        // in the checklist; if the day changed underneath the UI it opens the
+        // new issue instead of starting with stale readiness.
+        if (!CasualDiningPolishManager.EnsureInstance().TryAllowStartShift())
+        {
+            OpenStartChecklist();
+            return;
+        }
+
+        RestockFlowCoordinator.Instance?.AcknowledgeStartReadinessWarnings();
         EmployeeManager.Instance?.LockAllSlots();
 
         int payroll = EmployeeManager.Instance != null && EmployeeManager.Instance.salaryConfig != null
@@ -1011,10 +1017,69 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         GameDayManager.Instance.ShowShiftIntro();
     }
 
-    private List<string> CollectStartWarnings(out bool hasUsableMenu)
+    private void OpenStartChecklist()
     {
-        List<string> warnings = new List<string>();
-        hasUsableMenu = false;
+        if (appWindow == null)
+            return;
+
+        appWindow.ClearRows();
+        appWindow.Open("PRE-OPEN CHECKLIST");
+        currentAppUsesCards = false;
+        appWindow.SetContentLayout(false);
+        appWindow.SetEmbeddedPanelLayout(false);
+
+        StartChecklistSnapshot snapshot = BuildStartChecklist();
+        for (int i = 0; i < snapshot.entries.Count; i++)
+        {
+            StartChecklistEntry entry = snapshot.entries[i];
+            AddReadinessRow(
+                entry.icon,
+                entry.title,
+                entry.details,
+                entry.state,
+                entry.action,
+                entry.callback);
+        }
+
+        if (snapshot.blockers > 0)
+        {
+            appWindow.SetMessage("× FIX THE RED ITEMS", true);
+            appWindow.SetFooter("FIX " + snapshot.blockers + " REQUIRED", null, false);
+        }
+        else if (snapshot.warnings > 0)
+        {
+            appWindow.SetMessage("! READY WITH " + snapshot.warnings + " WARNING" +
+                                 (snapshot.warnings == 1 ? string.Empty : "S"));
+            appWindow.SetFooter(
+                "OPEN WITH " + snapshot.warnings + " !",
+                StartShiftConfirmed);
+        }
+        else
+        {
+            appWindow.SetMessage("✓ READY TO OPEN");
+            appWindow.SetFooter("START SHIFT  ✓", StartShiftConfirmed);
+        }
+
+        appWindow.RefreshContentLayout();
+    }
+
+    private StartChecklistSnapshot BuildStartChecklist()
+    {
+        StartChecklistSnapshot snapshot = new StartChecklistSnapshot();
+        CasualDiningPolishManager polish = CasualDiningPolishManager.EnsureInstance();
+        NewspaperIssueSaveEntry issue = polish.GetIssueForDay(CurrentDay);
+        bool newsReady = issue == null || issue.viewed;
+        AddChecklistEntry(
+            snapshot,
+            GetAppIcon(ManagementComputerApp.Dashboard),
+            "TODAY'S NEWS",
+            newsReady ? "TODAY'S ISSUE READ" : "READ BEFORE OPENING",
+            newsReady ? ReadinessVisualState.Ready : ReadinessVisualState.Blocked,
+            newsReady ? string.Empty : "READ",
+            newsReady ? null : polish.OpenCurrentIssue);
+
+        int menuCount = 0;
+        Dictionary<ItemData, int> requiredIngredients = new Dictionary<ItemData, int>();
 
         MenuCatalog catalog = MenuCatalog.Default;
         if (catalog != null)
@@ -1024,44 +1089,172 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
                 if (!MenuAvailabilityManager.IsProductAvailable(product) || !product.IsUnlocked)
                     continue;
 
-                hasUsableMenu = true;
-                if (InventoryManager.Instance == null || product.ingredients == null)
+                menuCount++;
+                if (product.ingredients == null)
                     continue;
 
                 foreach (RecipeIngredient ingredient in product.ingredients)
                 {
-                    if (ingredient?.item != null &&
-                        InventoryManager.Instance.IsTracked(ingredient.item.itemType) &&
-                        InventoryManager.Instance.GetStock(ingredient.item.itemType) < ingredient.amount)
-                    {
-                        warnings.Add("Low stock for " + product.DisplayName);
-                        break;
-                    }
+                    if (ingredient?.item == null)
+                        continue;
+                    if (!requiredIngredients.TryGetValue(ingredient.item, out int amount))
+                        amount = 0;
+                    requiredIngredients[ingredient.item] = Mathf.Max(amount, ingredient.amount);
                 }
             }
         }
 
-        if (EmployeeManager.Instance != null && EmployeeManager.Instance.AssignedEmployeeCount == 0)
-            warnings.Add("No staff are scheduled; the manager and default service bots will cover the shift");
+        AddChecklistEntry(
+            snapshot,
+            GetAppIcon(ManagementComputerApp.Menu),
+            "MENU",
+            menuCount > 0 ? menuCount + " ITEMS AVAILABLE" : "NO USABLE ITEMS",
+            menuCount > 0 ? ReadinessVisualState.Ready : ReadinessVisualState.Blocked,
+            "OPEN",
+            () => OpenApp((int)ManagementComputerApp.Menu));
 
-        if (EquipmentManager.Instance != null && EquipmentManager.Instance.AllEquipment != null &&
-            EquipmentManager.Instance.AllEquipment.Count > 0)
+        int assignedStaff = EmployeeManager.Instance != null
+            ? EmployeeManager.Instance.AssignedEmployeeCount
+            : 0;
+        AddChecklistEntry(
+            snapshot,
+            GetAppIcon(ManagementComputerApp.Staff),
+            "STAFF",
+            assignedStaff > 0
+                ? assignedStaff + " ROLE" + (assignedStaff == 1 ? string.Empty : "S") + " COVERED"
+                : "BOTS WILL COVER SERVICE",
+            assignedStaff > 0 ? ReadinessVisualState.Ready : ReadinessVisualState.Warning,
+            "OPEN",
+            () => OpenApp((int)ManagementComputerApp.Staff));
+
+        int ingredientCount = 0;
+        int uncovered = 0;
+        int coveredByIncoming = 0;
+        RestockOrderManager orders = RestockOrderManager.EnsureInstance();
+        foreach (KeyValuePair<ItemData, int> pair in requiredIngredients)
         {
-            bool ownsEquipment = false;
-            foreach (Equipment equipment in EquipmentManager.Instance.AllEquipment)
-            {
-                if (equipment != null && EquipmentManager.Instance.Purchased(equipment.itemID))
-                {
-                    ownsEquipment = true;
-                    break;
-                }
-            }
+            ItemData item = pair.Key;
+            if (item == null || InventoryManager.Instance == null ||
+                !InventoryManager.Instance.IsTracked(item.itemType))
+                continue;
 
-            if (!ownsEquipment)
-                warnings.Add("No optional equipment has been purchased");
+            ingredientCount++;
+            RestockStockProjection projection = RestockStockProjection.Calculate(
+                item,
+                GetExpectedCustomers(),
+                orders);
+            int minimumProjected = projection.FreshUnits +
+                                   projection.PendingContainers * projection.UnitsPerBox;
+            bool needsMore = projection.RecommendedContainers > 0 ||
+                             minimumProjected < Mathf.Max(1, pair.Value);
+            if (needsMore)
+                uncovered++;
+            else if (projection.HasIncoming)
+                coveredByIncoming++;
         }
 
-        return warnings;
+        ReadinessVisualState stockState = uncovered > 0
+            ? ReadinessVisualState.Warning
+            : coveredByIncoming > 0
+                ? ReadinessVisualState.Incoming
+                : ReadinessVisualState.Ready;
+        string stockDetails = uncovered > 0
+            ? uncovered + " LOW   •   " + coveredByIncoming + " COVERED BY DELIVERY"
+            : coveredByIncoming > 0
+                ? "✓ ALL COVERED   •   → " + coveredByIncoming + " INCOMING"
+                : ingredientCount + " INGREDIENTS COVERED";
+        AddChecklistEntry(
+            snapshot,
+            GetAppIcon(ManagementComputerApp.Restock),
+            "STOCK",
+            stockDetails,
+            stockState,
+            "CHECK",
+            () => OpenApp((int)ManagementComputerApp.Restock));
+
+        int inTransit = orders.GetContainerCountInStates(
+            RestockOrderState.Ordered,
+            RestockOrderState.InDelivery);
+        int atTruck = orders.DeliveredContainerCount;
+        int inHotbar = orders.HotbarContainerCount;
+        ReadinessVisualState deliveryState = atTruck > 0 || inHotbar > 0
+            ? ReadinessVisualState.Warning
+            : inTransit > 0
+                ? ReadinessVisualState.Incoming
+                : ReadinessVisualState.Ready;
+        string deliveryDetails = atTruck > 0 || inHotbar > 0
+            ? "TRUCK " + atTruck + "   •   HOTBAR " + inHotbar
+            : inTransit > 0
+                ? "→ " + inTransit + " BOX" + (inTransit == 1 ? string.Empty : "ES") + " INCOMING"
+                : "NO BOXES WAITING";
+        AddChecklistEntry(
+            snapshot,
+            GetAppIcon(ManagementComputerApp.Restock),
+            "DELIVERIES",
+            deliveryDetails,
+            deliveryState,
+            "VIEW",
+            () => OpenApp((int)ManagementComputerApp.Restock));
+
+        return snapshot;
+    }
+
+    private static void AddChecklistEntry(
+        StartChecklistSnapshot snapshot,
+        Sprite icon,
+        string title,
+        string details,
+        ReadinessVisualState state,
+        string action,
+        UnityEngine.Events.UnityAction callback)
+    {
+        snapshot.entries.Add(new StartChecklistEntry
+        {
+            icon = icon,
+            title = title,
+            details = details,
+            state = state,
+            action = action,
+            callback = callback
+        });
+
+        if (state == ReadinessVisualState.Blocked)
+            snapshot.blockers++;
+        else if (state == ReadinessVisualState.Warning)
+            snapshot.warnings++;
+    }
+
+    private Sprite GetAppIcon(ManagementComputerApp app)
+    {
+        int index = (int)app;
+        if (appButtons == null || index < 0 || index >= appButtons.Length || appButtons[index] == null)
+            return null;
+
+        Button button = appButtons[index];
+        Image[] images = button.GetComponentsInChildren<Image>(true);
+        for (int i = 0; i < images.Length; i++)
+        {
+            if (images[i] != null && images[i] != button.targetGraphic && images[i].sprite != null)
+                return images[i].sprite;
+        }
+        return button.image != null ? button.image.sprite : null;
+    }
+
+    private void AddReadinessRow(
+        Sprite icon,
+        string title,
+        string details,
+        ReadinessVisualState state,
+        string action,
+        UnityEngine.Events.UnityAction callback)
+    {
+        if (rowPrefab == null || appWindow == null || appWindow.Content == null)
+            return;
+
+        ManagementComputerRowUI row = Instantiate(rowPrefab, appWindow.Content);
+        row.gameObject.SetActive(true);
+        row.ApplyPresentation(false);
+        row.BindReadiness(icon, title, details, state, action, callback);
     }
 
     private void AddRow(Sprite icon, string title, string details, string value, string action,

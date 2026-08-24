@@ -380,6 +380,16 @@ public sealed class RestockOrderManager : MonoBehaviour
         return total;
     }
 
+    public int GetContainersInStates(ItemData item, params RestockOrderState[] states)
+    {
+        return CountItemContainers(item, states);
+    }
+
+    public int GetContainerCountInStates(params RestockOrderState[] states)
+    {
+        return CountOutstandingContainers(states);
+    }
+
     public int GetReservedContainers(
         RestockStorageType storageType,
         IReadOnlyList<ItemData> itemCatalog)
@@ -530,6 +540,7 @@ public sealed class RestockOrderManager : MonoBehaviour
         }
 
         int recoveryCount = 0;
+        bool repairedLegacyRotations = false;
         for (int i = storedContainers.Count - 1; i >= 0; i--)
         {
             RestockStoredContainerSaveData entry = storedContainers[i];
@@ -581,7 +592,15 @@ public sealed class RestockOrderManager : MonoBehaviour
             GameObject box = Instantiate(
                 item.worldContainerPrefab,
                 grid.GetCellWorldPosition(column, row),
-                Quaternion.Euler(0f, entry.rotationY, 0f));
+                item.worldContainerPrefab.transform.rotation);
+            float authoredRotationY = item.worldContainerPrefab.transform.eulerAngles.y;
+            if (!Mathf.Approximately(entry.rotationY, authoredRotationY))
+            {
+                // Older saves stored only Y and accidentally erased the prefab's
+                // authored X/Z orientation, which made boxes reappear sideways.
+                entry.rotationY = authoredRotationY;
+                repairedLegacyRotations = true;
+            }
             SceneManager.MoveGameObjectToScene(box, scene);
             RestockStorageContainer identity = box.GetComponent<RestockStorageContainer>();
             if (identity == null)
@@ -606,7 +625,7 @@ public sealed class RestockOrderManager : MonoBehaviour
             existing[entry.containerID] = identity;
         }
 
-        if (relocatedCount > 0)
+        if (relocatedCount > 0 || repairedLegacyRotations)
             GameSaveManager.Instance?.RequestSave();
         return recoveryCount;
     }

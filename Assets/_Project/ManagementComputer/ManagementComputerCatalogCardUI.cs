@@ -24,6 +24,8 @@ public sealed class ManagementComputerCatalogCardUI : MonoBehaviour
     [SerializeField] private Color lockedColor = new Color(0.82f, 0.84f, 0.88f, 1f);
     [SerializeField] private Color stockAccentColor = new Color(0.08f, 0.55f, 0.30f, 1f);
     [SerializeField] private Color expiryWarningColor = new Color(0.82f, 0.12f, 0.12f, 1f);
+    [SerializeField] private Color incomingAccentColor = new Color(0.08f, 0.42f, 0.78f, 1f);
+    [SerializeField] private Color warningAccentColor = new Color(0.92f, 0.55f, 0.08f, 1f);
 
     public ItemData BoundItem { get; private set; }
     public Recipe BoundProduct { get; private set; }
@@ -87,10 +89,7 @@ public sealed class ManagementComputerCatalogCardUI : MonoBehaviour
 
     public void BindRestock(
         ItemData item,
-        int currentStock,
-        int pendingContainers,
-        int recommendedContainers,
-        int expectedCustomers,
+        RestockStockProjection projection,
         int requestedContainers,
         bool unlocked,
         bool canIncrease,
@@ -105,10 +104,7 @@ public sealed class ManagementComputerCatalogCardUI : MonoBehaviour
             : string.Empty);
         SetRestockStatus(
             item,
-            currentStock,
-            pendingContainers,
-            recommendedContainers,
-            expectedCustomers,
+            projection,
             unlocked);
         SetText(priceText, item != null
             ? CasualDiningPolishManager.EnsureInstance().GetMarketTrendLabel(item) + " / box"
@@ -146,10 +142,7 @@ public sealed class ManagementComputerCatalogCardUI : MonoBehaviour
 
     private void SetRestockStatus(
         ItemData item,
-        int currentStock,
-        int pendingContainers,
-        int recommendedContainers,
-        int expectedCustomers,
+        RestockStockProjection projection,
         bool unlocked)
     {
         if (statusText == null)
@@ -162,55 +155,66 @@ public sealed class ManagementComputerCatalogCardUI : MonoBehaviour
             return;
         }
 
-        int stock = Mathf.Max(0, currentStock);
-        statusText.color = stock > 0 ? stockAccentColor : expiryWarningColor;
-        if (item == null || InventoryManager.Instance == null || stock <= 0)
-        {
-            statusText.text = stock > 0 ? "IN STOCK  " + stock : "OUT OF STOCK";
-            return;
-        }
-
-        int day = GameFlowManager.Instance != null
-            ? Mathf.Max(1, GameFlowManager.Instance.CurrentDay)
-            : 1;
-        int expired = InventoryManager.Instance.GetExpiredStock(item.itemType, day);
-        int fresh = InventoryManager.Instance.GetFreshStock(item.itemType, day);
-        int freshExpiryDay = InventoryManager.Instance.GetNextFreshExpiryDay(item.itemType, day);
+        projection ??= RestockStockProjection.Calculate(item, 1);
+        int stock = projection.OnHandUnits;
+        int expired = projection.ExpiredUnits;
         string stockColor = ColorUtility.ToHtmlStringRGB(stockAccentColor);
         string expiredColor = ColorUtility.ToHtmlStringRGB(expiryWarningColor);
+        string incomingColor = ColorUtility.ToHtmlStringRGB(incomingAccentColor);
+        string warningColor = ColorUtility.ToHtmlStringRGB(warningAccentColor);
 
         statusText.color = Color.white;
-        statusText.text = "<color=#" + stockColor + "><b>IN STOCK  " + stock + "</b></color>";
-        if (fresh > 0)
+        string headline;
+        string headlineColor;
+        switch (projection.State)
         {
-            statusText.text += "\n<color=#" + stockColor + ">FRESH " + fresh +
-                               (freshExpiryDay > 0 ? " • Expires Day " + freshExpiryDay : string.Empty) +
-                               "</color>";
+            case RestockCoverageState.CoveredByDelivery:
+                headline = "✓ STOCK COVERED";
+                headlineColor = incomingColor;
+                break;
+            case RestockCoverageState.Low:
+                headline = "! LOW • NEED " + projection.RecommendedContainers + " BOX" +
+                           (projection.RecommendedContainers == 1 ? string.Empty : "ES");
+                headlineColor = expiredColor;
+                break;
+            case RestockCoverageState.StillLow:
+                headline = "! STILL LOW • +" + projection.RecommendedContainers + " BOX" +
+                           (projection.RecommendedContainers == 1 ? string.Empty : "ES");
+                headlineColor = warningColor;
+                break;
+            case RestockCoverageState.Overstocked:
+                headline = "! OVERSTOCKED";
+                headlineColor = warningColor;
+                break;
+            case RestockCoverageState.SpoilageRisk:
+                headline = "× SPOILAGE RISK";
+                headlineColor = expiredColor;
+                break;
+            default:
+                headline = "✓ READY";
+                headlineColor = stockColor;
+                break;
+        }
+
+        statusText.text = "<color=#" + headlineColor + "><b>" + headline + "</b></color>" +
+                          "\nON HAND  <b>" + stock + "</b>   •   FORECAST  " +
+                          projection.TargetUnits;
+
+        if (projection.PendingContainers > 0)
+        {
+            statusText.text += "\n<color=#" + incomingColor + "><b>→ " +
+                               projection.PendingContainers + " BOX" +
+                               (projection.PendingContainers == 1 ? string.Empty : "ES") +
+                               " " + projection.GetDeliveryStageLabel() + "</b>   •   " +
+                               projection.PendingContainers * projection.UnitsPerBox +
+                               " UNITS</color>";
         }
 
         if (expired > 0)
         {
-            statusText.text += "\n<color=#" + expiredColor + "><b>EXPIRED " + expired +
-                               " • THROW AWAY</b></color>";
+            statusText.text += "\n<color=#" + expiredColor + "><b>× " + expired +
+                               " EXPIRED   →   DISCARD</b></color>";
         }
-
-        int unitsPerBox = item != null ? Mathf.Max(1, item.unitsPerBox) : 1;
-        int target = item != null
-            ? Mathf.CeilToInt(Mathf.Max(1, expectedCustomers) *
-                              Mathf.Max(0f, item.averageUsagePerCustomer))
-            : 0;
-        int projected = fresh + Mathf.Max(0, pendingContainers) * unitsPerBox;
-        string forecast;
-        if (expired > 0 || (fresh > target * 2 && freshExpiryDay > 0 && freshExpiryDay <= day + 1))
-            forecast = "SPOILAGE RISK";
-        else if (recommendedContainers > 0 || projected < target)
-            forecast = "LOW • NEED " + Mathf.Max(1, recommendedContainers) + " BOX" +
-                       (recommendedContainers == 1 ? string.Empty : "ES");
-        else if (target > 0 && projected > target * 2)
-            forecast = "OVERSTOCKED";
-        else
-            forecast = "ENOUGH FOR FORECAST";
-        statusText.text += "\n<b>FORECAST: " + forecast + "</b>";
     }
 
     private void SetIcon(Sprite sprite)

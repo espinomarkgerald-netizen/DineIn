@@ -6,7 +6,6 @@ public class OrderFlowManager : MonoBehaviour
 
     [Header("UI Prefabs (under Canvas_Gameplay)")]
     public OrderTicketUI ticketUiPrefab;
-    public PaymentPopupUI paymentPopupPrefab;
 
     private Canvas gameplayCanvas;
 
@@ -38,10 +37,4 @@ public class OrderFlowManager : MonoBehaviour
         ui.Init(group);
     }
 
-    public void ShowPayment(int amount, int orderNumber)
-    {
-        if (paymentPopupPrefab == null || gameplayCanvas == null) return;
-        var ui = Instantiate(paymentPopupPrefab, gameplayCanvas.transform);
-        ui.Show(amount, orderNumber);
-    }
 }

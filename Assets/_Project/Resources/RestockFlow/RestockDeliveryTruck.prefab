@@ -427,6 +427,9 @@ MonoBehaviour:
   arrivalHornClip: {fileID: 8300000, guid: ee027452684ba9d4da87e5bcd10bdbe0, type: 3}
   hornVolume: 1
   secondBeepDelay: 0.32
+  departureDelaySeconds: 2
+  departureDuration: 2.4
+  departureDistance: 24
 --- !u!114 &8465110740206826210
 MonoBehaviour:
   m_ObjectHideFlags: 0

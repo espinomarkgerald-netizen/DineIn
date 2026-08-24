@@ -3,6 +3,14 @@ using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.UI;
 
+public enum ReadinessVisualState
+{
+    Ready,
+    Incoming,
+    Warning,
+    Blocked
+}
+
 /// <summary>Reusable, prefab-backed row used by every management computer app.</summary>
 public sealed class ManagementComputerRowUI : MonoBehaviour
 {
@@ -51,6 +59,10 @@ public sealed class ManagementComputerRowUI : MonoBehaviour
         UnityAction onAction,
         bool actionEnabled = true)
     {
+        Image background = GetComponent<Image>();
+        if (background != null)
+            background.color = Color.white;
+
         if (icon != null)
         {
             icon.sprite = sprite;
@@ -61,6 +73,7 @@ public sealed class ManagementComputerRowUI : MonoBehaviour
         if (titleText != null) titleText.text = title ?? string.Empty;
         if (detailsText != null) detailsText.text = details ?? string.Empty;
         if (valueText != null) valueText.text = value ?? string.Empty;
+        if (valueText != null) valueText.color = new Color(0.08f, 0.14f, 0.22f, 1f);
 
         if (actionButton != null)
         {
@@ -73,6 +86,60 @@ public sealed class ManagementComputerRowUI : MonoBehaviour
 
         if (actionLabel != null) actionLabel.text = action ?? string.Empty;
         ApplyActionState(!string.IsNullOrWhiteSpace(action));
+    }
+
+    public void BindReadiness(
+        Sprite sprite,
+        string title,
+        string details,
+        ReadinessVisualState state,
+        string action,
+        UnityAction onAction)
+    {
+        string symbol;
+        Color accent;
+        Color panel;
+        switch (state)
+        {
+            case ReadinessVisualState.Incoming:
+                symbol = "→";
+                accent = new Color(0.08f, 0.42f, 0.78f, 1f);
+                panel = new Color(0.84f, 0.93f, 1f, 1f);
+                break;
+            case ReadinessVisualState.Warning:
+                symbol = "!";
+                accent = new Color(0.88f, 0.48f, 0.04f, 1f);
+                panel = new Color(1f, 0.94f, 0.78f, 1f);
+                break;
+            case ReadinessVisualState.Blocked:
+                symbol = "×";
+                accent = new Color(0.82f, 0.12f, 0.12f, 1f);
+                panel = new Color(1f, 0.86f, 0.84f, 1f);
+                break;
+            default:
+                symbol = "✓";
+                accent = new Color(0.08f, 0.55f, 0.30f, 1f);
+                panel = new Color(0.84f, 0.96f, 0.88f, 1f);
+                break;
+        }
+
+        Bind(sprite, title, details, symbol, action, onAction, onAction != null);
+
+        Image background = GetComponent<Image>();
+        if (background != null)
+            background.color = panel;
+        if (valueText != null)
+        {
+            valueText.color = accent;
+            valueText.fontStyle = FontStyles.Bold;
+            valueText.fontSizeMin = 34f;
+            valueText.fontSizeMax = 48f;
+        }
+        if (titleText != null)
+        {
+            titleText.color = accent;
+            titleText.fontStyle = FontStyles.Bold;
+        }
     }
 
     public void ApplyPresentation(bool asCard)

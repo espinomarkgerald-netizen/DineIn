@@ -71,6 +71,7 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
     private Func<IReadOnlyList<RestockCartLine>, bool> confirmOrder;
     private bool reviewMode;
     private bool committingOrder;
+    private ItemData extraOrderArmedItem;
     private Vector2 lastPanelSize;
     private InventoryManager subscribedInventory;
 
@@ -191,6 +192,7 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
         expectedCustomers = Mathf.Max(1, configuredExpectedCustomers);
         reviewMode = false;
         committingOrder = false;
+        extraOrderArmedItem = null;
         cart.Clear();
         restockItems.Clear();
 
@@ -405,12 +407,13 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
 
             int requested = GetCartQuantity(item);
             bool unlocked = IsItemUnlocked(item);
+            RestockStockProjection projection = RestockStockProjection.Calculate(
+                item,
+                expectedCustomers,
+                orderManager);
             card.BindRestock(
                 item,
-                GetCurrentStock(item),
-                orderManager != null ? orderManager.GetPendingContainers(item) : 0,
-                GetRecommendedContainers(item),
-                expectedCustomers,
+                projection,
                 requested,
                 unlocked,
                 unlocked && GetAvailableCapacity(item.requiredStorage) > 0,
@@ -453,6 +456,25 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
             return;
 
         int current = GetCartQuantity(item);
+        if (delta > 0 && current == 0)
+        {
+            RestockStockProjection projection = RestockStockProjection.Calculate(
+                item,
+                expectedCustomers,
+                orderManager);
+            if (projection.IsCoveredByIncoming && extraOrderArmedItem != item)
+            {
+                extraOrderArmedItem = item;
+                SetMessage(
+                    "✓ " + item.displayName.ToUpperInvariant() + " COVERED   →   " +
+                    projection.PendingContainers + " BOX" +
+                    (projection.PendingContainers == 1 ? string.Empty : "ES") +
+                    " " + projection.GetDeliveryStageLabel() +
+                    "\nTap + again only for EXTRA stock.");
+                return;
+            }
+        }
+
         if (delta > 0 && GetAvailableCapacity(item.requiredStorage) <= 0)
         {
             SetMessage(
@@ -468,6 +490,7 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
         else
             cart[item] = next;
 
+        extraOrderArmedItem = null;
         SetMessage(string.Empty);
         RefreshRestockView();
     }
@@ -652,16 +675,8 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
 
     private int GetRecommendedContainers(ItemData item)
     {
-        if (item == null)
-            return 0;
-
-        int unitsPerBox = Mathf.Max(1, item.unitsPerBox);
-        int targetUnits = Mathf.CeilToInt(
-            expectedCustomers * Mathf.Max(0f, item.averageUsagePerCustomer));
-        int pendingUnits = (orderManager != null ? orderManager.GetPendingContainers(item) : 0) *
-                           unitsPerBox;
-        int missingUnits = Mathf.Max(0, targetUnits - GetCurrentStock(item) - pendingUnits);
-        return Mathf.CeilToInt(missingUnits / (float)unitsPerBox);
+        return RestockStockProjection.Calculate(item, expectedCustomers, orderManager)
+            .RecommendedContainers;
     }
 
     private bool IsItemUnlocked(ItemData item)
@@ -708,6 +723,7 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
 
     private void HandleOrdersChanged()
     {
+        extraOrderArmedItem = null;
         if (isActiveAndEnabled && restockCartRoot != null && restockCartRoot.activeSelf)
             RefreshRestockView();
     }

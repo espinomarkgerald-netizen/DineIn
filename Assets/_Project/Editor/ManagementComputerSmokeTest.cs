@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
+using TMPro;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -251,15 +252,32 @@ public static class ManagementComputerSmokeTest
         Assert(startButton != null && startButton.interactable, "Start Shift button is not usable");
 
         CasualDiningPolishManager polish = CasualDiningPolishManager.Instance;
-        Assert(polish != null && polish.GetIssueForDay(GameFlowManager.Instance.CurrentDay) != null,
+        NewspaperIssueSaveEntry testIssue = polish != null
+            ? polish.GetIssueForDay(GameFlowManager.Instance.CurrentDay)
+            : null;
+        Assert(testIssue != null,
             "Today's newspaper was not prepared for the management start gate");
+        testIssue.viewed = false;
         startButton.onClick.Invoke();
         Assert(controller.IsOpen && !GameDayManager.Instance.ServiceActive,
             "Management start bypassed the unread newspaper gate");
+        Assert(controller.AppWindow.gameObject.activeSelf &&
+               controller.AppWindow.FooterButton != null &&
+               !controller.AppWindow.FooterButton.interactable,
+            "Unread news did not appear as a blocking pre-open checklist item");
+
+        Button readNews = Array.Find(
+            controller.AppWindow.Content.GetComponentsInChildren<Button>(true),
+            button => button != null && button.gameObject.activeInHierarchy &&
+                      button.interactable &&
+                      button.GetComponentInChildren<TMP_Text>(true)?.text == "READ");
+        Assert(readNews != null && readNews.interactable,
+            "The pre-open checklist has no visual READ action for today's news");
+        readNews.onClick.Invoke();
         DailyNewspaperPresenter newspaper =
             UnityEngine.Object.FindFirstObjectByType<DailyNewspaperPresenter>();
         Assert(newspaper != null && newspaper.IsOpen,
-            "Management start did not open the unread newspaper");
+            "The checklist READ action did not open today's newspaper");
         polish.MarkCurrentIssueViewed();
         newspaper.CloseImmediately();
         startButton.onClick.Invoke();
@@ -655,6 +673,15 @@ public static class ManagementComputerSmokeTest
             "The delivery truck has no click collider");
         Assert(truck.GetComponent<Outline>() != null,
             "The delivery truck has no booth-style outline");
+        FieldInfo departureDelay = typeof(RestockTruckInteractable).GetField(
+            "departureDelaySeconds", BindingFlags.Instance | BindingFlags.NonPublic);
+        FieldInfo hornClip = typeof(RestockTruckInteractable).GetField(
+            "arrivalHornClip", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert(departureDelay != null &&
+               Mathf.Abs((float)departureDelay.GetValue(truck) - 2f) < 0.001f,
+            "The delivery truck does not use the approved two-second departure delay");
+        Assert(hornClip != null && hornClip.GetValue(truck) is AudioClip,
+            "The delivery truck has no beep-beep horn clip assigned");
         AssertReachable(manager, truck, "delivery truck");
 
         RestockStockRoomEntrance[] roomTargets =
@@ -663,10 +690,12 @@ public static class ManagementComputerSmokeTest
                 FindObjectsSortMode.None);
         RestockStockRoomEntrance dry = Array.Find(
             roomTargets,
-            target => target != null && target.StorageType == RestockStorageType.Dry);
+            target => target != null && target.isActiveAndEnabled &&
+                      target.StorageType == RestockStorageType.Dry);
         RestockStockRoomEntrance freezer = Array.Find(
             roomTargets,
-            target => target != null && target.StorageType == RestockStorageType.Frozen);
+            target => target != null && target.isActiveAndEnabled &&
+                      target.StorageType == RestockStorageType.Frozen);
         Assert(dry != null, "Lobby has no Dry Storage interaction");
         Assert(freezer != null, "Lobby has no Walk-in Freezer interaction");
         VerifyRoomEntrance(manager, dry, interactionLayer, "dry-storage entrance");
@@ -681,10 +710,20 @@ public static class ManagementComputerSmokeTest
     {
         Assert(entrance.gameObject.layer == interactionLayer,
             label + " is outside the player's click mask");
-        Assert(entrance.GetComponent<Collider>() != null,
+        Assert(entrance.GetComponentsInChildren<Collider>(true).Length > 0,
             label + " has no click collider");
         Assert(entrance.GetComponent<Outline>() != null,
             label + " has no booth-style outline");
+        Assert(entrance.name.StartsWith("DryRoomShelf", StringComparison.OrdinalIgnoreCase),
+            label + " is not bound to the authored Lobby shelf bank");
+        Transform sign = entrance.transform.Find("Restock Destination Sign");
+        Assert(sign != null, label + " has no compact destination sign");
+        Renderer marker = sign != null
+            ? Array.Find(sign.GetComponentsInChildren<Renderer>(true),
+                renderer => renderer != null && renderer.name == "Stock Room Shelf Marker")
+            : null;
+        Assert(marker == null || !marker.enabled,
+            label + " still shows the obsolete green portal marker");
         AssertReachable(manager, entrance, label);
     }
 

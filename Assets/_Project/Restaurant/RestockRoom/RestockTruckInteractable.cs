@@ -20,6 +20,11 @@ public sealed class RestockTruckInteractable : MonoBehaviour, IInteractable
     [SerializeField, Range(0f, 1f)] private float hornVolume = 1f;
     [SerializeField, Min(0.05f)] private float secondBeepDelay = 0.32f;
 
+    [Header("Departure")]
+    [SerializeField, Min(0f)] private float departureDelaySeconds = 2f;
+    [SerializeField, Min(0.1f)] private float departureDuration = 2.4f;
+    [SerializeField, Min(1f)] private float departureDistance = 24f;
+
     public Transform StandPoint => standPoint != null ? standPoint : transform;
     public bool AutoReturnHome => false;
     public bool IsParked => isParked;
@@ -30,8 +35,12 @@ public sealed class RestockTruckInteractable : MonoBehaviour, IInteractable
     private Vector3 parkingPosition;
     private Quaternion parkingRotation;
     private Collider[] interactionColliders;
+    private Renderer[] presentationRenderers;
+    private Canvas[] presentationCanvases;
+    private AudioSource hornSource;
     private Coroutine arrivalRoutine;
     private Coroutine hornRoutine;
+    private Coroutine departureRoutine;
     private bool parkingConfigured;
     private bool isParked;
 
@@ -48,13 +57,24 @@ public sealed class RestockTruckInteractable : MonoBehaviour, IInteractable
         parkingConfigured = true;
 
         RestockOrderManager manager = RestockOrderManager.Instance;
-        bool alreadyArrived = manager != null &&
-                              (manager.DeliveredContainerCount > 0 ||
-                               manager.HotbarContainerCount > 0);
-        if (alreadyArrived)
+        bool hasReadyDelivery = manager != null && manager.DeliveredContainerCount > 0;
+        bool wasAlreadyCollected = manager != null && manager.HotbarContainerCount > 0;
+        if (hasReadyDelivery)
+        {
+            SetPresentationVisible(true);
             PlaceAtParkingPosition();
+            PlayArrivalHorn();
+        }
+        else if (wasAlreadyCollected)
+        {
+            PlacePastDeparturePoint();
+            SetPresentationVisible(false);
+        }
         else
+        {
+            SetPresentationVisible(true);
             PlaceAtApproachPosition();
+        }
 
         RefreshStatus();
     }
@@ -64,6 +84,15 @@ public sealed class RestockTruckInteractable : MonoBehaviour, IInteractable
         parkingPosition = transform.position;
         parkingRotation = transform.rotation;
         interactionColliders = GetComponentsInChildren<Collider>(true);
+        presentationRenderers = GetComponentsInChildren<Renderer>(true);
+        presentationCanvases = GetComponentsInChildren<Canvas>(true);
+        hornSource = GetComponent<AudioSource>();
+        if (hornSource == null)
+            hornSource = gameObject.AddComponent<AudioSource>();
+        hornSource.playOnAwake = false;
+        hornSource.loop = false;
+        hornSource.spatialBlend = 0f;
+        hornSource.volume = hornVolume;
     }
 
     private void OnEnable()
@@ -94,6 +123,8 @@ public sealed class RestockTruckInteractable : MonoBehaviour, IInteractable
             StopCoroutine(arrivalRoutine);
         if (hornRoutine != null)
             StopCoroutine(hornRoutine);
+        if (departureRoutine != null)
+            StopCoroutine(departureRoutine);
     }
 
     public bool CanInteract() => isActiveAndEnabled && isParked && HasReadyDelivery;
@@ -154,6 +185,13 @@ public sealed class RestockTruckInteractable : MonoBehaviour, IInteractable
 
     private void HandleOrderDelivered(RestockOrderSaveData _)
     {
+        if (departureRoutine != null)
+        {
+            StopCoroutine(departureRoutine);
+            departureRoutine = null;
+        }
+        SetPresentationVisible(true);
+
         if (!parkingConfigured)
         {
             parkingPosition = transform.position;
@@ -171,6 +209,21 @@ public sealed class RestockTruckInteractable : MonoBehaviour, IInteractable
         if (arrivalRoutine != null)
             StopCoroutine(arrivalRoutine);
         arrivalRoutine = StartCoroutine(ArrivalRoutine());
+    }
+
+    public void BeginDepartureAfterCollection()
+    {
+        if (!parkingConfigured || !isActiveAndEnabled)
+            return;
+
+        if (arrivalRoutine != null)
+        {
+            StopCoroutine(arrivalRoutine);
+            arrivalRoutine = null;
+        }
+        if (departureRoutine != null)
+            StopCoroutine(departureRoutine);
+        departureRoutine = StartCoroutine(DepartureRoutine());
     }
 
     private IEnumerator ArrivalRoutine()
@@ -218,6 +271,15 @@ public sealed class RestockTruckInteractable : MonoBehaviour, IInteractable
         SetInteractionReady(HasReadyDelivery);
     }
 
+    private void PlacePastDeparturePoint()
+    {
+        Vector3 position = parkingPosition + parkingRotation * Vector3.forward * departureDistance;
+        transform.SetPositionAndRotation(position, parkingRotation);
+        isParked = false;
+        Physics.SyncTransforms();
+        SetInteractionReady(false);
+    }
+
     private void SetInteractionReady(bool ready)
     {
         if (interactionColliders == null || interactionColliders.Length == 0)
@@ -245,9 +307,52 @@ public sealed class RestockTruckInteractable : MonoBehaviour, IInteractable
 
     private IEnumerator HornRoutine()
     {
-        AudioSource.PlayClipAtPoint(arrivalHornClip, transform.position, hornVolume);
+        hornSource.volume = hornVolume;
+        hornSource.PlayOneShot(arrivalHornClip, hornVolume);
         yield return new WaitForSecondsRealtime(Mathf.Max(0.05f, secondBeepDelay));
-        AudioSource.PlayClipAtPoint(arrivalHornClip, transform.position, hornVolume);
+        hornSource.PlayOneShot(arrivalHornClip, hornVolume);
         hornRoutine = null;
+    }
+
+    private IEnumerator DepartureRoutine()
+    {
+        isParked = false;
+        SetInteractionReady(false);
+        if (statusText != null)
+            statusText.text = "✓ ORDER COLLECTED";
+
+        yield return new WaitForSecondsRealtime(Mathf.Max(0f, departureDelaySeconds));
+
+        Vector3 start = transform.position;
+        Vector3 end = parkingPosition + parkingRotation * Vector3.forward * departureDistance;
+        float elapsed = 0f;
+        float duration = Mathf.Max(0.1f, departureDuration);
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+            t = t * t * (3f - 2f * t);
+            transform.SetPositionAndRotation(Vector3.Lerp(start, end, t), parkingRotation);
+            yield return null;
+        }
+
+        transform.SetPositionAndRotation(end, parkingRotation);
+        SetPresentationVisible(false);
+        departureRoutine = null;
+    }
+
+    private void SetPresentationVisible(bool visible)
+    {
+        if (presentationRenderers == null || presentationRenderers.Length == 0)
+            presentationRenderers = GetComponentsInChildren<Renderer>(true);
+        for (int i = 0; i < presentationRenderers.Length; i++)
+            if (presentationRenderers[i] != null)
+                presentationRenderers[i].enabled = visible;
+
+        if (presentationCanvases == null || presentationCanvases.Length == 0)
+            presentationCanvases = GetComponentsInChildren<Canvas>(true);
+        for (int i = 0; i < presentationCanvases.Length; i++)
+            if (presentationCanvases[i] != null)
+                presentationCanvases[i].enabled = visible;
     }
 }
