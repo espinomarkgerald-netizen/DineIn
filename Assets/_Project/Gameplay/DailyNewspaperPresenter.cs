@@ -111,7 +111,10 @@ public sealed class DailyNewspaperPresenter : MonoBehaviour
             (flow.CurrentRestaurantSessionState == GameFlowManager.RestaurantSessionState.PreOpen ||
              flow.CurrentRestaurantSessionState == GameFlowManager.RestaurantSessionState.Endless);
         bool serviceRunning = GameDayManager.Instance != null && GameDayManager.Instance.ServiceActive;
-        bool shouldShowButton = inLobby && preparation && !serviceRunning;
+        ManagementComputerController computer = FindFirstObjectByType<ManagementComputerController>(
+            FindObjectsInactive.Include);
+        bool computerOpen = computer != null && computer.IsOpen;
+        bool shouldShowButton = inLobby && preparation && !serviceRunning && !computerOpen;
 
         if ((shouldShowButton || IsOpen) && canvasRoot == null)
             BuildUI();

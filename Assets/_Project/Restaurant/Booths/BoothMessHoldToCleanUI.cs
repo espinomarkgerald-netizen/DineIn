@@ -43,6 +43,7 @@ public class BoothMessCleanUI : MonoBehaviour, IPointerDownHandler, IPointerUpHa
     {
         AssignWorldCamera();
         ResetUI();
+        PlayerTaskBubbleFocus.Bind(gameObject, booth);
     }
 
     private void OnDisable()

@@ -285,6 +285,10 @@ public class TakeoutBagInteractable : MonoBehaviour
                 }
             }
         }
+
+        Button actionButton = uiInstance.GetComponentInChildren<Button>(true);
+        if (actionButton != null)
+            PlayerTaskBubbleFocus.Bind(actionButton.gameObject, this);
     }
 
     private void HideUI()

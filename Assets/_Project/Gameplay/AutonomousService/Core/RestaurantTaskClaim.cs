@@ -1,5 +1,7 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 /// <summary>
 /// Lightweight arbitration between the Manager and autonomous staff.
@@ -17,14 +19,35 @@ public static class RestaurantTaskClaim
 
     private static readonly Dictionary<int, Entry> Entries = new Dictionary<int, Entry>();
     private static int activePlayerTargetId;
+    private static UnityEngine.Object activePlayerTarget;
 
-    public static bool PlayerHasActiveTask => activePlayerTargetId != 0;
+    public static event Action PlayerTaskChanged;
+
+    public static bool PlayerHasActiveTask
+    {
+        get
+        {
+            ValidateActivePlayerTarget();
+            return activePlayerTargetId != 0;
+        }
+    }
+
+    public static UnityEngine.Object ActivePlayerTarget
+    {
+        get
+        {
+            ValidateActivePlayerTarget();
+            return activePlayerTarget;
+        }
+    }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetRuntimeState()
     {
         Entries.Clear();
         activePlayerTargetId = 0;
+        activePlayerTarget = null;
+        PlayerTaskChanged = null;
     }
 
     public static bool CanBotStart(Object target, float playerGraceSeconds)
@@ -71,8 +94,12 @@ public static class RestaurantTaskClaim
         if (entry.botOwner != null)
             return false;
 
+        bool changed = activePlayerTargetId != targetId || activePlayerTarget != target;
         entry.playerClaimUntil = float.PositiveInfinity;
         activePlayerTargetId = targetId;
+        activePlayerTarget = target;
+        if (changed)
+            PlayerTaskChanged?.Invoke();
         return true;
     }
 
@@ -96,7 +123,11 @@ public static class RestaurantTaskClaim
             entry.playerClaimUntil = Time.time;
 
         if (activePlayerTargetId == target.GetInstanceID())
+        {
             activePlayerTargetId = 0;
+            activePlayerTarget = null;
+            PlayerTaskChanged?.Invoke();
+        }
     }
 
     public static void ReleaseBot(Object target, AutonomousStaffBot botOwner)
@@ -113,7 +144,11 @@ public static class RestaurantTaskClaim
         if (target != null)
         {
             if (activePlayerTargetId == target.GetInstanceID())
+            {
                 activePlayerTargetId = 0;
+                activePlayerTarget = null;
+                PlayerTaskChanged?.Invoke();
+            }
             Entries.Remove(target.GetInstanceID());
         }
     }
@@ -128,5 +163,15 @@ public static class RestaurantTaskClaim
         }
 
         return entry;
+    }
+
+    private static void ValidateActivePlayerTarget()
+    {
+        if (activePlayerTargetId == 0 || activePlayerTarget != null)
+            return;
+
+        activePlayerTargetId = 0;
+        activePlayerTarget = null;
+        PlayerTaskChanged?.Invoke();
     }
 }

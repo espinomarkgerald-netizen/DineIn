@@ -23,6 +23,7 @@ public class CustomerGreetBubbleUI : MonoBehaviour
         {
             button.onClick.RemoveAllListeners();
             button.onClick.AddListener(OnClick);
+            PlayerTaskBubbleFocus.Bind(button.gameObject, group);
         }
 
         Refresh();

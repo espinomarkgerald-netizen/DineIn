@@ -720,6 +720,9 @@ public class CustomerGroup : MonoBehaviour
         if (eatingVisualChanged)
             SetMembersEating(state == GroupState.Eating);
 
+        RefreshMemberProceduralState();
+        PlayStateReaction(newState);
+
         Debug.Log($"[CustomerGroup] {name} -> {state}");
     }
 
@@ -730,6 +733,72 @@ public class CustomerGroup : MonoBehaviour
 
         if (!eating)
             activeFoodTray = null;
+    }
+
+    private void RefreshMemberProceduralState()
+    {
+        CustomerProceduralState visualState = state switch
+        {
+            GroupState.Waiting => CustomerProceduralState.QueueWaiting,
+            GroupState.Seated => CustomerProceduralState.Conversation,
+            GroupState.WaitingToOrder => CustomerProceduralState.BrowseMenu,
+            GroupState.ReadyToOrder => CustomerProceduralState.RequestOrder,
+            GroupState.OrderTaken => CustomerProceduralState.WaitingForFood,
+            GroupState.Eating => CustomerProceduralState.Eating,
+            GroupState.NeedsBill => CustomerProceduralState.RequestBill,
+            GroupState.Leaving or GroupState.AngryLeft or GroupState.UnhappyLeft =>
+                CustomerProceduralState.Leaving,
+            _ => CustomerProceduralState.None
+        };
+
+        int memberCount = members != null ? members.Count : 0;
+        for (int i = 0; i < memberCount; i++)
+        {
+            CustomerAgent member = members[i];
+            if (member == null)
+                continue;
+
+            Transform partner = null;
+            if (memberCount > 1)
+            {
+                CustomerAgent next = members[(i + 1) % memberCount];
+                if (next != null)
+                    partner = next.transform;
+            }
+
+            member.SetProceduralGroupContext(i, memberCount, partner);
+            member.SetProceduralServiceState(visualState);
+        }
+    }
+
+    private void SetMembersProceduralPatience(float normalizedRemaining)
+    {
+        for (int i = 0; i < members.Count; i++)
+            members[i]?.SetProceduralPatience(normalizedRemaining);
+    }
+
+    private void PlayMembersReaction(CustomerProceduralReaction reaction)
+    {
+        for (int i = 0; i < members.Count; i++)
+            members[i]?.PlayProceduralReaction(reaction);
+    }
+
+    private void PlayStateReaction(GroupState newState)
+    {
+        if (newState == GroupState.AngryLeft ||
+            (newState == GroupState.Leaving && finalResult == FinalResult.Angry))
+        {
+            PlayMembersReaction(CustomerProceduralReaction.Angry);
+        }
+        else if (newState == GroupState.UnhappyLeft ||
+                 (newState == GroupState.Leaving && finalResult == FinalResult.Neutral))
+        {
+            PlayMembersReaction(CustomerProceduralReaction.Neutral);
+        }
+        else if (newState == GroupState.Leaving && finalResult == FinalResult.Happy)
+        {
+            PlayMembersReaction(CustomerProceduralReaction.Positive);
+        }
     }
 
     private Camera GetFollowCam()
@@ -1005,8 +1074,10 @@ public class CustomerGroup : MonoBehaviour
 
                 timeLeft -= Time.deltaTime * mult;
 
+                float normalizedPatience = Mathf.Clamp01(timeLeft / patience);
+                SetMembersProceduralPatience(normalizedPatience);
                 if (bubbleUI != null)
-                    bubbleUI.SetPatience(Mathf.Clamp01(timeLeft / patience));
+                    bubbleUI.SetPatience(normalizedPatience);
             }
 
             if (!startedShake && timeLeft <= shakeBeforeAngrySeconds)
@@ -1741,6 +1812,14 @@ public class CustomerGroup : MonoBehaviour
         managerComplaintPending = false;
         isOrderPaused = false;
         SetManagerCallAnimation(false);
+        PlayMembersReaction(quality switch
+        {
+            ManagerComplaintResponseQuality.Professional =>
+                CustomerProceduralReaction.Positive,
+            ManagerComplaintResponseQuality.Acceptable =>
+                CustomerProceduralReaction.Neutral,
+            _ => CustomerProceduralReaction.Angry
+        });
 
         if (quality == ManagerComplaintResponseQuality.Professional)
         {
@@ -2718,6 +2797,8 @@ public class CustomerGroup : MonoBehaviour
         linePatienceRemaining -= Time.deltaTime * baseDrain * typeMult;
 
         float normalized = Mathf.Clamp01(linePatienceRemaining / Mathf.Max(1f, linePatienceSeconds));
+
+        SetMembersProceduralPatience(normalized);
 
         if (linePatienceUI != null)
             linePatienceUI.SetProgress(normalized);

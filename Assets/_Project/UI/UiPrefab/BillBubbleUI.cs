@@ -15,6 +15,7 @@ public class BillBubbleUI : MonoBehaviour
         group = g;
         requested = false;
         SetTableNumber(g != null ? g.currentOrderNumber : -1);
+        PlayerTaskBubbleFocus.Bind(gameObject, group);
     }
 
     /// <summary>Sets the table number displayed on the bubble. Pass -1 to hide it.</summary>

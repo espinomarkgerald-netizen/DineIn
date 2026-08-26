@@ -4,25 +4,28 @@ using UnityEngine;
 
 public class LobbyTaskTracker : MonoBehaviour
 {
+    private const string GuidanceSource = "lobby-service";
+
     [Serializable]
     private struct TaskInfo
     {
         public string key;
         public string main;
         public string helper;
+        public UnityEngine.Object target;
 
         public bool IsValid => !string.IsNullOrWhiteSpace(main);
 
-        public TaskInfo(string key, string main, string helper)
+        public TaskInfo(string key, string main, string helper, UnityEngine.Object target = null)
         {
             this.key = key;
             this.main = main;
             this.helper = helper;
+            this.target = target;
         }
     }
 
     [Header("UI")]
-    [SerializeField] private LobbyTaskUI taskUI;
     [SerializeField] private bool showHelperText = true;
 
     [Header("Scene Sources")]
@@ -32,7 +35,6 @@ public class LobbyTaskTracker : MonoBehaviour
     [SerializeField] private MonoBehaviour[] boothSources;
 
     [Header("Rules")]
-    [SerializeField] private bool showOnlyWhenWaiterIsActive = true;
     [SerializeField] private string waiterRoleToken = "Waiter";
     [SerializeField] private string cashierLabelOverride = "cashier booth";
     [SerializeField] private float refreshInterval = 0.15f;
@@ -82,36 +84,6 @@ public class LobbyTaskTracker : MonoBehaviour
         "assignedBooth", "AssignedBooth"
     };
 
-    [Header("Task Text")]
-    [SerializeField] private string deliverMoneyText = "Deliver money to {0}";
-    [SerializeField] private string deliverMoneyHint = "Bring the payment to the cashier booth so it can be processed.";
-
-    [SerializeField] private string deliverBillText = "Deliver bill to Table {0}";
-    [SerializeField] private string deliverBillFallbackText = "Deliver bill";
-    [SerializeField] private string deliverBillHint = "Bring the bill to Table {0}.";
-    [SerializeField] private string deliverBillHintFallback = "Bring the bill to the correct table.";
-
-    [SerializeField] private string deliverOrderText = "Deliver order to Table {0}";
-    [SerializeField] private string deliverOrderFallbackText = "Deliver order";
-    [SerializeField] private string deliverOrderHint = "Bring the finished order to Table {0}.";
-    [SerializeField] private string deliverOrderHintFallback = "Bring the finished order to the correct table.";
-
-    [SerializeField] private string pendingOrderText = "Deliver order to Table {0}";
-    [SerializeField] private string pendingOrderHint = "Watch the counter and bring the finished meal to Table {0}.";
-    [SerializeField] private string pendingOrderHintFallback = "Watch the counter and bring the finished meal to the correct table.";
-
-    [SerializeField] private string takeOrderText = "Take order from Table {0}";
-    [SerializeField] private string takeOrderHint = "Approach Table {0} and confirm what they want.";
-    [SerializeField] private string takeOrderHintFallback = "Approach the table and confirm what they want.";
-
-    [SerializeField] private string pickUpBillText = "Pick up bill for Table {0}";
-    [SerializeField] private string pickUpBillHint = "Get the bill for Table {0}, then bring it to the customer.";
-    [SerializeField] private string pickUpBillHintFallback = "Get the bill, then bring it to the table.";
-
-    [SerializeField] private string collectPaymentText = "Collect payment from Table {0}";
-    [SerializeField] private string collectPaymentHint = "Pick up the money from Table {0}.";
-    [SerializeField] private string collectPaymentHintFallback = "Pick up the money after the bill is delivered.";
-
     private float refreshTimer;
     private string currentTaskKey = string.Empty;
     private string currentTaskMain = string.Empty;
@@ -120,6 +92,11 @@ public class LobbyTaskTracker : MonoBehaviour
     private void OnEnable()
     {
         ForceRefresh();
+    }
+
+    private void OnDisable()
+    {
+        PlayerTaskGuidance.ClearTask(GuidanceSource);
     }
 
     private void Update()
@@ -140,19 +117,16 @@ public class LobbyTaskTracker : MonoBehaviour
 
     private void RefreshTask()
     {
-        if (taskUI == null)
-            return;
-
         TaskInfo task = ResolveTask();
 
         if (!task.IsValid)
         {
+            PlayerTaskGuidance.ClearTask(GuidanceSource);
             if (!string.IsNullOrEmpty(currentTaskKey))
             {
                 currentTaskKey = string.Empty;
                 currentTaskMain = string.Empty;
                 currentTaskHelper = string.Empty;
-                taskUI.HideTask();
             }
 
             return;
@@ -165,90 +139,194 @@ public class LobbyTaskTracker : MonoBehaviour
         currentTaskMain = task.main;
         currentTaskHelper = task.helper;
 
-        taskUI.ShowTask(task.main, showHelperText ? task.helper : string.Empty);
+        PlayerTaskGuidance.SetTask(
+            GuidanceSource,
+            task.key,
+            task.main,
+            showHelperText ? task.helper : string.Empty,
+            100,
+            task.target,
+            PlayerTaskCategory.Service);
     }
 
     private TaskInfo ResolveTask()
     {
-        if (showOnlyWhenWaiterIsActive && roleManager != null && !IsWaiterRoleActive())
-            return default;
-
-        UnityEngine.Object heldMoney = ReadFirstUnityObject(waiterHands, moneyMemberNames);
-        if (heldMoney != null)
+        // Never use the scene's legacy waiterHands reference here: in Lobby1 it
+        // points at the autonomous waiter. Guidance must only inspect the
+        // permanent player-controlled Manager's inventory.
+        WaiterHands hands = ManagerPlayer.Active != null
+            ? ManagerPlayer.Active.GetComponent<WaiterHands>()
+            : null;
+        if (hands != null && hands.HasMoney)
         {
-            string cashierLabel = ResolveCashierLabel();
+            CustomerGroup group = hands.HeldMoney != null ? hands.HeldMoney.TargetGroup : hands.holdingMoneyFor;
+            int tableNumber = group != null ? group.currentOrderNumber : -1;
             return new TaskInfo(
-                "held_money",
-                FormatText(deliverMoneyText, cashierLabel, "Deliver money to cashier booth"),
-                CleanText(deliverMoneyHint)
+                tableNumber > 0 ? "held_money_" + tableNumber : "held_money",
+                "TAKE PAYMENT  >  CASHIER",
+                tableNumber > 0 ? "FROM TABLE " + tableNumber : "PROCESS THE CUSTOMER PAYMENT",
+                hands.HeldMoney != null ? hands.HeldMoney : group
             );
         }
 
-        UnityEngine.Object heldBill = ReadFirstUnityObject(waiterHands, billMemberNames);
-        if (heldBill != null)
+        if (hands != null && hands.HasBill)
         {
-            int tableNumber = ResolveHeldBillTable(heldBill);
+            CustomerGroup group = hands.holdingBillFor;
+            int tableNumber = group != null ? group.currentOrderNumber : -1;
 
             return new TaskInfo(
                 tableNumber > 0 ? "held_bill_" + tableNumber : "held_bill",
-                tableNumber > 0 ? FormatText(deliverBillText, tableNumber, deliverBillFallbackText) : CleanText(deliverBillFallbackText),
-                FormatTableHint(deliverBillHint, tableNumber, deliverBillHintFallback)
+                tableNumber > 0 ? "GIVE BILL  >  TABLE " + tableNumber : "GIVE BILL  >  CORRECT TABLE",
+                "MATCH THE TABLE NUMBER",
+                group
             );
         }
 
-        UnityEngine.Object heldTray = ReadFirstUnityObject(waiterHands, trayMemberNames);
-        if (heldTray != null)
+        if (hands != null && hands.HasTray)
         {
-            int tableNumber = ResolveHeldTrayTable(heldTray);
+            FoodTray tray = hands.holdingTray;
+            int tableNumber = tray != null ? tray.orderNumber : -1;
 
             return new TaskInfo(
                 tableNumber > 0 ? "held_tray_" + tableNumber : "held_tray",
-                tableNumber > 0 ? FormatText(deliverOrderText, tableNumber, deliverOrderFallbackText) : CleanText(deliverOrderFallbackText),
-                FormatTableHint(deliverOrderHint, tableNumber, deliverOrderHintFallback)
+                tableNumber > 0 ? "DELIVER ORDER  >  TABLE " + tableNumber : "DELIVER ORDER  >  CORRECT TABLE",
+                tableNumber > 0 ? "ORDER #" + tableNumber : "MATCH THE ORDER NUMBER",
+                tray
             );
         }
 
-        int collectPaymentTable = FindFirstTableWithState(collectPaymentStateTokens);
-        if (collectPaymentTable > 0)
+        if (TakeoutBagInteractable.PlayerHasHeldBag)
         {
+            TakeoutBagInteractable bag = TakeoutBagInteractable.HeldBag;
+            int number = bag != null ? bag.OrderNumber : -1;
             return new TaskInfo(
-                "collect_payment_" + collectPaymentTable,
-                FormatText(collectPaymentText, collectPaymentTable, "Collect payment"),
-                FormatTableHint(collectPaymentHint, collectPaymentTable, collectPaymentHintFallback)
-            );
+                bag != null ? "deliver_takeout_" + bag.GetInstanceID() : "deliver_takeout",
+                number > 0 ? "DELIVER TAKEOUT  >  ORDER #" + number : "DELIVER TAKEOUT ORDER",
+                "FIND THE WAITING TAKEOUT CUSTOMER",
+                bag);
         }
 
-        int billPickupTable = FindFirstTableWithState(pickUpBillStateTokens);
-        if (billPickupTable > 0)
+        UnityEngine.Object activeTarget = RestaurantTaskClaim.ActivePlayerTarget;
+        if (activeTarget == null)
+            return default;
+
+        if (activeTarget is CustomerGroup groupTarget)
         {
+            int number = groupTarget.currentOrderNumber;
+            string table = number > 0 ? "TABLE " + number : "CUSTOMER GROUP";
+
+            if (!groupTarget.hasBeenGreeted)
+            {
+                return new TaskInfo(
+                    "greet_group_" + groupTarget.GetInstanceID(),
+                    "GREET WAITING GROUP",
+                    "MEET THEM AT THE RECEPTION AREA",
+                    groupTarget);
+            }
+
+            if (groupTarget.IsReceptionClaimedByPlayer ||
+                groupTarget.state == CustomerGroup.GroupState.Waiting)
+            {
+                return new TaskInfo(
+                    "seat_group_" + groupTarget.GetInstanceID(),
+                    "CHOOSE A TABLE",
+                    "SEAT THE WAITING CUSTOMER GROUP",
+                    groupTarget);
+            }
+
+            if (groupTarget.state == CustomerGroup.GroupState.ReadyToOrder ||
+                groupTarget.state == CustomerGroup.GroupState.WaitingToOrder ||
+                groupTarget.state == CustomerGroup.GroupState.Seated)
+            {
+                return new TaskInfo(
+                    "take_order_" + groupTarget.GetInstanceID(),
+                    "TAKE ORDER  >  " + table,
+                    "CONFIRM THE CUSTOMER'S ORDER",
+                    groupTarget);
+            }
+
+            if (groupTarget.state == CustomerGroup.GroupState.NeedsBill)
+            {
+                BillPaper paper = FindBillPaperFor(groupTarget);
+                if (paper != null)
+                {
+                    return new TaskInfo(
+                        "pickup_bill_" + groupTarget.GetInstanceID(),
+                        "PICK UP BILL  >  CASHIER",
+                        number > 0 ? "FOR TABLE " + number : "CHECK THE TABLE NUMBER",
+                        groupTarget);
+                }
+
+                return new TaskInfo(
+                    "request_bill_" + groupTarget.GetInstanceID(),
+                    "REQUEST BILL  >  " + table,
+                    "THEN PICK IT UP AT THE CASHIER",
+                    groupTarget);
+            }
+
             return new TaskInfo(
-                "pickup_bill_" + billPickupTable,
-                FormatText(pickUpBillText, billPickupTable, "Pick up bill"),
-                FormatTableHint(pickUpBillHint, billPickupTable, pickUpBillHintFallback)
-            );
+                "help_group_" + groupTarget.GetInstanceID(),
+                "HELP  >  " + table,
+                "FINISH THE CURRENT CUSTOMER STEP",
+                groupTarget);
         }
 
-        int pendingOrderTable = FindFirstTableWithState(deliverOrderStateTokens);
-        if (pendingOrderTable > 0)
+        if (activeTarget is FoodTray trayTarget)
         {
+            int number = trayTarget.orderNumber;
             return new TaskInfo(
-                "pending_order_" + pendingOrderTable,
-                FormatText(pendingOrderText, pendingOrderTable, "Deliver order"),
-                FormatTableHint(pendingOrderHint, pendingOrderTable, pendingOrderHintFallback)
-            );
+                "pickup_tray_" + trayTarget.GetInstanceID(),
+                "PICK UP ORDER  >  COUNTER",
+                number > 0 ? "FOR TABLE " + number : "CHECK THE ORDER NUMBER",
+                trayTarget);
         }
 
-        int takeOrderTable = FindFirstTableWithState(takeOrderStateTokens);
-        if (takeOrderTable > 0)
+        if (activeTarget is MoneyPickup moneyTarget)
+        {
+            int number = moneyTarget.TargetGroup != null ? moneyTarget.TargetGroup.currentOrderNumber : -1;
+            return new TaskInfo(
+                "collect_money_" + moneyTarget.GetInstanceID(),
+                number > 0 ? "COLLECT PAYMENT  >  TABLE " + number : "COLLECT CUSTOMER PAYMENT",
+                "THEN TAKE IT TO THE CASHIER",
+                moneyTarget);
+        }
+
+        if (activeTarget is Booth boothTarget)
         {
             return new TaskInfo(
-                "take_order_" + takeOrderTable,
-                FormatText(takeOrderText, takeOrderTable, "Take order"),
-                FormatTableHint(takeOrderHint, takeOrderTable, takeOrderHintFallback)
-            );
+                "clean_booth_" + boothTarget.GetInstanceID(),
+                "CLEAN DIRTY TABLE",
+                "HOLD THE CLEAN BUTTON UNTIL COMPLETE",
+                boothTarget);
+        }
+
+        if (activeTarget is TakeoutBagInteractable takeoutTarget)
+        {
+            int number = takeoutTarget.OrderNumber;
+            return new TaskInfo(
+                "takeout_" + takeoutTarget.GetInstanceID(),
+                number > 0 ? "PICK UP TAKEOUT  >  ORDER #" + number : "PICK UP TAKEOUT ORDER",
+                "DELIVER IT TO THE WAITING CUSTOMER",
+                takeoutTarget);
         }
 
         return default;
+    }
+
+    private static BillPaper FindBillPaperFor(CustomerGroup group)
+    {
+        if (group == null)
+            return null;
+
+        BillPaper[] papers = FindObjectsByType<BillPaper>(FindObjectsSortMode.None);
+        for (int i = 0; i < papers.Length; i++)
+        {
+            BillPaper paper = papers[i];
+            if (paper != null && paper.TargetGroup == group)
+                return paper;
+        }
+
+        return null;
     }
 
     private int ResolveHeldTrayTable(object heldTray)

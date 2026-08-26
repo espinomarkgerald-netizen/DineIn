@@ -34,10 +34,14 @@ internal sealed class AlienProceduralAnimation
 
     private ParticleSystem eatingParticles;
     private GameObject bitePiece;
+    private Renderer bitePieceRenderer;
+    private MaterialPropertyBlock bitePieceProperties;
     private FoodTray foodSource;
     private int dinerIndex;
     private int cachedFoodCycle = int.MinValue;
     private Vector3 cachedFoodPosition;
+    private Color cachedFoodColor = Color.white;
+    private CustomerGroup.FoodType cachedFoodType = CustomerGroup.FoodType.Chicken;
     private bool hasCachedFoodPosition;
     private float animatorSpeedMultiplier = 1f;
     private float eatingBlend;
@@ -48,6 +52,14 @@ internal sealed class AlienProceduralAnimation
     private bool isMoving;
     private bool isCallingManager;
     private float managerCallClock;
+    private CustomerProceduralState serviceState;
+    private CustomerProceduralReaction activeReaction;
+    private float reactionTimeRemaining;
+    private float serviceClock;
+    private float patienceRemaining = 1f;
+    private int groupMemberIndex;
+    private int groupMemberCount = 1;
+    private Transform conversationTarget;
 
     private static Material sharedParticleMaterial;
     private static Texture2D sharedParticleTexture;
@@ -106,6 +118,44 @@ internal sealed class AlienProceduralAnimation
             managerCallClock = 0f;
     }
 
+    public void SetServiceState(CustomerProceduralState state)
+    {
+        if (serviceState == state)
+            return;
+
+        serviceState = state;
+        serviceClock = 0f;
+        if (state != CustomerProceduralState.QueueWaiting &&
+            state != CustomerProceduralState.RequestOrder)
+        {
+            patienceRemaining = 1f;
+        }
+    }
+
+    public void SetPatience(float normalizedRemaining)
+    {
+        patienceRemaining = Mathf.Clamp01(normalizedRemaining);
+    }
+
+    public void SetGroupContext(
+        int memberIndex,
+        int memberCount,
+        Transform partner)
+    {
+        groupMemberIndex = Mathf.Max(0, memberIndex);
+        groupMemberCount = Mathf.Max(1, memberCount);
+        conversationTarget = partner;
+    }
+
+    public void PlayReaction(CustomerProceduralReaction reaction)
+    {
+        if (settings == null || !settings.enableCustomerReactions)
+            return;
+
+        activeReaction = reaction;
+        reactionTimeRemaining = Mathf.Max(0.2f, settings.reactionDurationSeconds);
+    }
+
     public void Update(float deltaTime)
     {
         if (animator == null || settings == null)
@@ -130,6 +180,9 @@ internal sealed class AlienProceduralAnimation
             eatingClock += deltaTime * eatingSpeed;
         if (isCallingManager)
             managerCallClock += deltaTime;
+        serviceClock += deltaTime;
+        if (settings.enableCustomerReactions && reactionTimeRemaining > 0f)
+            reactionTimeRemaining = Mathf.Max(0f, reactionTimeRemaining - deltaTime);
     }
 
     public void LateUpdate()
@@ -146,11 +199,46 @@ internal sealed class AlienProceduralAnimation
         if (isSeated)
             ApplySeatedIdleMotion();
 
-        if (isCallingManager)
-            ApplyManagerCallMotion();
+        if (settings.enableCustomerReactions && reactionTimeRemaining > 0f)
+        {
+            ApplyReactionMotion();
+            return;
+        }
 
-        if (isSeated && eatingBlend > 0.001f && !isCallingManager)
+        if (isCallingManager)
+        {
+            ApplyManagerCallMotion();
+            return;
+        }
+
+        if (settings.enableProceduralEating &&
+            isSeated && eatingBlend > 0.001f && !isCallingManager)
+        {
             ApplyEatingMotion();
+            return;
+        }
+
+        float impatience = ApplyPatienceMotion();
+        if (impatience >= 0.55f)
+            return;
+
+        switch (serviceState)
+        {
+            case CustomerProceduralState.QueueWaiting:
+            case CustomerProceduralState.Conversation:
+            case CustomerProceduralState.WaitingForFood:
+                ApplyConversationMotion();
+                break;
+            case CustomerProceduralState.BrowseMenu:
+                ApplyMenuBrowseMotion();
+                break;
+            case CustomerProceduralState.RequestOrder:
+                ApplyServiceRequestMotion(false);
+                break;
+            case CustomerProceduralState.RequestBill:
+                ApplyServiceRequestMotion(true);
+                break;
+        }
     }
 
     public void Dispose()
@@ -206,6 +294,12 @@ internal sealed class AlienProceduralAnimation
         int cycleIndex = Mathf.FloorToInt(cycleValue);
         float phase = Mathf.Repeat(cycleValue, 1f);
 
+        if (ShouldUseDrinkCycle(cycleIndex, out Vector3 drinkPosition))
+        {
+            ApplyDrinkingMotion(cycleIndex, phase, drinkPosition);
+            return;
+        }
+
         float lift = EvaluateLift(phase);
         float reachEnvelope = SmoothStep(0f, 0.14f, phase) *
                               (1f - SmoothStep(0.82f, 0.98f, phase));
@@ -231,7 +325,18 @@ internal sealed class AlienProceduralAnimation
         Vector3 mouth = ResolveMouthPosition(bodyHeight);
         bool rightHandCycle = ResolveRightHandForCycle(cycleIndex);
         float side = rightHandCycle ? 1f : -1f;
-        Vector3 food = ResolveFoodPosition(bodyHeight, side, cycleIndex);
+        Vector3 food = ResolveFoodPosition(
+            bodyHeight,
+            side,
+            cycleIndex,
+            out Color sampledFoodColor,
+            out CustomerGroup.FoodType foodType);
+        Color configuredFoodColor = settings.GetFoodCrumbColor(foodType);
+        Color crumbColor = Color.Lerp(
+            configuredFoodColor,
+            sampledFoodColor,
+            Mathf.Clamp01(settings.sampledFoodColorStrength));
+        crumbColor.a = 1f;
         Vector3 handTarget = Vector3.Lerp(food, mouth, lift);
         handTarget += Vector3.up * (Mathf.Sin(lift * Mathf.PI) * bodyHeight * settings.handLiftArc);
 
@@ -240,14 +345,327 @@ internal sealed class AlienProceduralAnimation
         Transform hand = rightHandCycle ? rightHand : leftHand;
         float armWeight = settings.armReachWeight * reachEnvelope * eatingBlend;
         ApplyCcdArm(upperArm, lowerArm, hand, handTarget, armWeight);
-        UpdateBitePiece(hand, bodyHeight, phase, lift);
+        UpdateBitePiece(hand, bodyHeight, phase, lift, crumbColor);
 
         UpdateParticlePosition(mouth);
         if (phase >= BiteParticleStart && phase <= BiteParticleEnd &&
             lastParticleCycle != cycleIndex)
         {
             lastParticleCycle = cycleIndex;
-            EmitBiteParticles(mouth);
+            EmitBiteParticles(mouth, crumbColor);
+        }
+    }
+
+    private bool ShouldUseDrinkCycle(int cycleIndex, out Vector3 drinkPosition)
+    {
+        drinkPosition = default;
+        if (!settings.enableDrinking || foodSource == null)
+            return false;
+
+        int interval = Mathf.Max(2, settings.drinkEveryCycles);
+        int positiveCycle = Mathf.Abs(cycleIndex + groupMemberIndex + dinerIndex);
+        return positiveCycle % interval == interval - 1 &&
+               foodSource.TryGetDrinkSipPosition(out drinkPosition);
+    }
+
+    private void ApplyDrinkingMotion(
+        int cycleIndex,
+        float phase,
+        Vector3 drinkPosition)
+    {
+        if (bitePiece != null)
+            bitePiece.SetActive(false);
+
+        float lift = EvaluateLift(phase);
+        float reachEnvelope = SmoothStep(0f, 0.14f, phase) *
+                              (1f - SmoothStep(0.82f, 0.98f, phase));
+        float sipEnvelope = SmoothStep(0.46f, 0.55f, phase) *
+                            (1f - SmoothStep(0.68f, 0.78f, phase));
+        float bodyHeight = ResolveBodyHeight();
+        Vector3 mouth = ResolveMouthPosition(bodyHeight);
+        bool rightHandCycle = ResolveRightHandForCycle(cycleIndex);
+        Vector3 handTarget = Vector3.Lerp(drinkPosition, mouth, lift);
+        handTarget += Vector3.up *
+                      (Mathf.Sin(lift * Mathf.PI) * bodyHeight * settings.drinkLiftArc);
+
+        Transform upperArm = rightHandCycle ? rightUpperArm : leftUpperArm;
+        Transform lowerArm = rightHandCycle ? rightLowerArm : leftLowerArm;
+        Transform hand = rightHandCycle ? rightHand : leftHand;
+        ApplyCcdArm(
+            upperArm,
+            lowerArm,
+            hand,
+            handTarget,
+            settings.drinkArmReachWeight * reachEnvelope * eatingBlend);
+
+        RotateAroundWorldAxis(
+            head,
+            owner.transform.right,
+            -settings.drinkHeadTiltDegrees * sipEnvelope * eatingBlend);
+        RotateAroundWorldAxis(
+            chest,
+            owner.transform.right,
+            settings.torsoLeanDegrees * 0.35f * reachEnvelope * eatingBlend);
+    }
+
+    private float ApplyPatienceMotion()
+    {
+        if (!settings.enablePatienceBodyLanguage ||
+            (serviceState != CustomerProceduralState.QueueWaiting &&
+             serviceState != CustomerProceduralState.RequestOrder))
+            return 0f;
+
+        float angryThreshold = Mathf.Clamp(
+            settings.patienceAngryThreshold,
+            0.01f,
+            0.49f);
+        float concernThreshold = Mathf.Clamp(
+            settings.patienceConcernThreshold,
+            angryThreshold + 0.01f,
+            0.95f);
+        if (patienceRemaining >= concernThreshold)
+            return 0f;
+
+        float concern = Mathf.InverseLerp(
+            concernThreshold,
+            0f,
+            patienceRemaining);
+        float angry = patienceRemaining < angryThreshold
+            ? Mathf.InverseLerp(angryThreshold, 0f, patienceRemaining)
+            : 0f;
+        float scan = Mathf.Sin(
+            serviceClock * Mathf.Lerp(2.2f, 4.4f, concern) + idlePhase);
+        RotateAroundWorldAxis(
+            head,
+            Vector3.up,
+            scan * settings.impatientHeadScanDegrees * concern);
+
+        float bodyHeight = ResolveBodyHeight();
+        Vector3 torso = ResolveTorsoOrigin(bodyHeight);
+        if (angry > 0.001f)
+        {
+            Vector3 leftTarget = torso +
+                                 owner.transform.right * (bodyHeight * 0.12f) -
+                                 Vector3.up * (bodyHeight * 0.08f);
+            Vector3 rightTarget = torso -
+                                  owner.transform.right * (bodyHeight * 0.12f) -
+                                  Vector3.up * (bodyHeight * 0.08f);
+            float weight = settings.angryCrossedArmsWeight * angry;
+            ApplyCcdArm(leftUpperArm, leftLowerArm, leftHand, leftTarget, weight);
+            ApplyCcdArm(rightUpperArm, rightLowerArm, rightHand, rightTarget, weight);
+            return concern;
+        }
+
+        bool right = prefersRightHand;
+        float tap = Mathf.Max(
+            0f,
+            Mathf.Sin(serviceClock *
+                      Mathf.Max(0.1f, settings.impatientTableTapCyclesPerSecond) *
+                      Mathf.PI * 2f));
+        Vector3 tapTarget = torso +
+                            owner.transform.forward * (bodyHeight * 0.28f) +
+                            owner.transform.right *
+                            (bodyHeight * (right ? 0.16f : -0.16f)) -
+                            Vector3.up * (bodyHeight * (0.24f - tap * 0.035f));
+        ApplyCcdArm(
+            right ? rightUpperArm : leftUpperArm,
+            right ? rightLowerArm : leftLowerArm,
+            right ? rightHand : leftHand,
+            tapTarget,
+            settings.impatientTableTapWeight * concern);
+        return concern;
+    }
+
+    private void ApplyConversationMotion()
+    {
+        if (!settings.enableGroupConversation ||
+            groupMemberCount < 2 ||
+            conversationTarget == null)
+            return;
+
+        float cycle = Mathf.Max(2f, settings.conversationCycleSeconds);
+        int turn = Mathf.FloorToInt(serviceClock / cycle);
+        float phase = Mathf.Repeat(serviceClock / cycle, 1f);
+        float activePortion = Mathf.Clamp(
+            settings.conversationActivePortion,
+            0.1f,
+            0.8f);
+        if (phase > activePortion)
+            return;
+
+        float envelope = Mathf.Sin(Mathf.Clamp01(phase / activePortion) * Mathf.PI);
+        int speaker = PositiveModulo(turn, groupMemberCount);
+        if (speaker == groupMemberIndex)
+        {
+            Vector3 towardPartner = conversationTarget.position - owner.transform.position;
+            towardPartner.y = 0f;
+            if (towardPartner.sqrMagnitude > 0.0001f)
+            {
+                float turnDegrees = Mathf.Clamp(
+                    Vector3.SignedAngle(
+                        owner.transform.forward,
+                        towardPartner.normalized,
+                        Vector3.up),
+                    -settings.conversationTurnDegrees,
+                    settings.conversationTurnDegrees);
+                RotateAroundWorldAxis(head, Vector3.up, turnDegrees * envelope);
+                RotateAroundWorldAxis(chest, Vector3.up, turnDegrees * envelope * 0.35f);
+            }
+
+            float bodyHeight = ResolveBodyHeight();
+            Vector3 torso = ResolveTorsoOrigin(bodyHeight);
+            bool right = prefersRightHand;
+            Vector3 handTarget = torso +
+                                 Vector3.up * (bodyHeight * 0.02f) +
+                                 owner.transform.forward *
+                                 (bodyHeight * settings.conversationHandForward) +
+                                 owner.transform.right *
+                                 (bodyHeight * settings.conversationHandSide *
+                                  (right ? 1f : -1f));
+            ApplyCcdArm(
+                right ? rightUpperArm : leftUpperArm,
+                right ? rightLowerArm : leftLowerArm,
+                right ? rightHand : leftHand,
+                handTarget,
+                settings.conversationArmWeight * envelope);
+        }
+        else
+        {
+            float nod = Mathf.Sin(phase / activePortion * Mathf.PI * 2f);
+            RotateAroundWorldAxis(
+                head,
+                owner.transform.right,
+                nod * settings.conversationNodDegrees * envelope);
+        }
+    }
+
+    private void ApplyMenuBrowseMotion()
+    {
+        float bodyHeight = ResolveBodyHeight();
+        float look = 0.65f + Mathf.Sin(serviceClock * 1.1f + idlePhase) * 0.2f;
+        RotateAroundWorldAxis(
+            head,
+            owner.transform.right,
+            settings.conversationNodDegrees * 1.6f * look);
+
+        bool right = ((groupMemberIndex & 1) == 0) == prefersRightHand;
+        Vector3 torso = ResolveTorsoOrigin(bodyHeight);
+        Vector3 menuTarget = torso +
+                             owner.transform.forward * (bodyHeight * 0.3f) -
+                             Vector3.up * (bodyHeight * 0.25f) +
+                             owner.transform.right *
+                             (bodyHeight * (right ? 0.1f : -0.1f));
+        float pointEnvelope = (Mathf.Sin(serviceClock * 1.35f + idlePhase) + 1f) * 0.5f;
+        ApplyCcdArm(
+            right ? rightUpperArm : leftUpperArm,
+            right ? rightLowerArm : leftLowerArm,
+            right ? rightHand : leftHand,
+            menuTarget,
+            settings.conversationArmWeight * 0.7f * pointEnvelope);
+    }
+
+    private void ApplyServiceRequestMotion(bool requestingBill)
+    {
+        if (!settings.enableServiceRequestGestures)
+            return;
+
+        if (groupMemberIndex != 0)
+        {
+            if (!requestingBill)
+                ApplyMenuBrowseMotion();
+            return;
+        }
+
+        float cycle = Mathf.Max(1f, settings.serviceRequestCycleSeconds);
+        float phase = Mathf.Repeat(serviceClock / cycle, 1f);
+        float activePortion = Mathf.Clamp(
+            settings.serviceRequestActivePortion,
+            0.1f,
+            0.9f);
+        if (phase > activePortion)
+            return;
+
+        float handHeight = requestingBill
+            ? settings.billRequestHandHeight
+            : settings.orderRequestHandHeight;
+        ApplyCartoonCallGesture(
+            Mathf.Clamp01(phase / activePortion),
+            handHeight,
+            settings.serviceRequestHandSide,
+            settings.serviceRequestHandForward,
+            settings.serviceRequestArmWeight,
+            settings.serviceRequestWaveDistance,
+            settings.serviceRequestWavesAtTop);
+    }
+
+    private void ApplyReactionMotion()
+    {
+        float duration = Mathf.Max(0.2f, settings.reactionDurationSeconds);
+        float progress = 1f - Mathf.Clamp01(reactionTimeRemaining / duration);
+        float envelope = Mathf.Sin(progress * Mathf.PI);
+        float bodyHeight = ResolveBodyHeight();
+        Vector3 torso = ResolveTorsoOrigin(bodyHeight);
+
+        switch (activeReaction)
+        {
+            case CustomerProceduralReaction.Positive:
+            {
+                float nod = Mathf.Sin(progress * Mathf.PI * 4f);
+                RotateAroundWorldAxis(
+                    head,
+                    owner.transform.right,
+                    nod * settings.positiveNodDegrees * envelope);
+                Vector3 target = torso +
+                                 owner.transform.forward * (bodyHeight * 0.2f) +
+                                 owner.transform.right *
+                                 (bodyHeight * (prefersRightHand ? 0.15f : -0.15f));
+                ApplyCcdArm(
+                    prefersRightHand ? rightUpperArm : leftUpperArm,
+                    prefersRightHand ? rightLowerArm : leftLowerArm,
+                    prefersRightHand ? rightHand : leftHand,
+                    target,
+                    settings.positiveGestureWeight * envelope);
+                break;
+            }
+            case CustomerProceduralReaction.Neutral:
+            {
+                Vector3 leftTarget = torso -
+                                     owner.transform.right * (bodyHeight * 0.24f) +
+                                     Vector3.up * (bodyHeight * 0.06f) +
+                                     owner.transform.forward * (bodyHeight * 0.1f);
+                Vector3 rightTarget = torso +
+                                      owner.transform.right * (bodyHeight * 0.24f) +
+                                      Vector3.up * (bodyHeight * 0.06f) +
+                                      owner.transform.forward * (bodyHeight * 0.1f);
+                float weight = settings.neutralShrugWeight * envelope;
+                ApplyCcdArm(leftUpperArm, leftLowerArm, leftHand, leftTarget, weight);
+                ApplyCcdArm(rightUpperArm, rightLowerArm, rightHand, rightTarget, weight);
+                RotateAroundWorldAxis(
+                    head,
+                    owner.transform.forward,
+                    settings.conversationNodDegrees * envelope);
+                break;
+            }
+            case CustomerProceduralReaction.Angry:
+            {
+                float shake = Mathf.Sin(progress * Mathf.PI * 6f);
+                RotateAroundWorldAxis(
+                    head,
+                    Vector3.up,
+                    shake * settings.angryHeadShakeDegrees * envelope);
+                bool right = prefersRightHand;
+                Vector3 pointTarget = torso +
+                                      owner.transform.forward * (bodyHeight * 0.42f) +
+                                      owner.transform.right *
+                                      (bodyHeight * (right ? 0.12f : -0.12f));
+                ApplyCcdArm(
+                    right ? rightUpperArm : leftUpperArm,
+                    right ? rightLowerArm : leftLowerArm,
+                    right ? rightHand : leftHand,
+                    pointTarget,
+                    settings.angryGestureWeight * envelope);
+                break;
+            }
         }
     }
 
@@ -256,31 +674,132 @@ internal sealed class AlienProceduralAnimation
         if (head == null)
             return;
 
+        float cycle = Mathf.Max(1f, settings.managerCallGestureCycleSeconds);
+        float phase = Mathf.Repeat(managerCallClock / cycle, 1f);
+        float wavePortion = Mathf.Max(
+            0.1f,
+            settings.callWaveEnd - settings.callRaiseEnd);
+        float wavesAtTop = Mathf.Max(
+            0.5f,
+            settings.managerCallWaveCyclesPerSecond * cycle * wavePortion);
+        ApplyCartoonCallGesture(
+            phase,
+            settings.managerCallHandHeight,
+            settings.managerCallHandSide,
+            settings.managerCallHandForward,
+            settings.managerCallArmWeight,
+            settings.managerCallWaveDistance,
+            wavesAtTop);
+    }
+
+    private void ApplyCartoonCallGesture(
+        float phase,
+        float handHeight,
+        float handSide,
+        float handForward,
+        float armWeight,
+        float waveDistance,
+        float wavesAtTop)
+    {
+        float anticipationEnd = Mathf.Clamp(settings.callAnticipationEnd, 0.05f, 0.3f);
+        float raiseEnd = Mathf.Clamp(
+            settings.callRaiseEnd,
+            anticipationEnd + 0.1f,
+            0.68f);
+        float waveEnd = Mathf.Clamp(
+            settings.callWaveEnd,
+            raiseEnd + 0.1f,
+            0.95f);
+
+        float raise;
+        float poseWeight;
+        float waveEnvelope = 0f;
+        if (phase < anticipationEnd)
+        {
+            float t = Mathf.Clamp01(phase / anticipationEnd);
+            poseWeight = Mathf.SmoothStep(0f, 1f, t);
+            raise = -Mathf.Sin(t * Mathf.PI) * 0.12f;
+        }
+        else if (phase < raiseEnd)
+        {
+            float t = Mathf.InverseLerp(anticipationEnd, raiseEnd, phase);
+            float fastEase = 1f - Mathf.Pow(1f - t, 3f);
+            raise = fastEase +
+                    Mathf.Sin(t * Mathf.PI) * settings.callRaiseOvershoot;
+            poseWeight = 1f;
+        }
+        else if (phase < waveEnd)
+        {
+            float t = Mathf.InverseLerp(raiseEnd, waveEnd, phase);
+            float settlingBounce = Mathf.Sin(t * Mathf.PI * 4f) *
+                                   settings.callTopBounceHeight *
+                                   (1f - t * 0.55f);
+            raise = 1f + settlingBounce;
+            poseWeight = 1f;
+            waveEnvelope = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t / 0.14f)) *
+                           (1f - Mathf.SmoothStep(0.82f, 1f, t));
+        }
+        else
+        {
+            float t = Mathf.InverseLerp(waveEnd, 1f, phase);
+            float easedDown = Mathf.SmoothStep(0f, 1f, t);
+            raise = 1f - easedDown;
+            poseWeight = 1f - easedDown;
+        }
+
+        float waveProgress = Mathf.Clamp01(
+            Mathf.InverseLerp(raiseEnd, waveEnd, phase));
+        float waveAngle = waveProgress * Mathf.Max(0.5f, wavesAtTop) * Mathf.PI * 2f;
+        waveAngle += Mathf.Sin(waveAngle * 0.5f + idlePhase) *
+                     settings.callWaveSpeedVariation;
+        float wave = Mathf.Sin(waveAngle) * waveEnvelope;
+
         float bodyHeight = ResolveBodyHeight();
+        Vector3 torso = ResolveTorsoOrigin(bodyHeight);
         bool right = prefersRightHand;
         float side = right ? 1f : -1f;
-        float wave = Mathf.Sin(
-            managerCallClock * Mathf.Max(0.1f, settings.managerCallWaveCyclesPerSecond) *
-            Mathf.PI * 2f);
+        Vector3 sideDirection = owner.transform.right * side;
+        Vector3 lowTarget = torso +
+                            sideDirection *
+                            (bodyHeight *
+                             (handSide + settings.callAnticipationSideSwing)) -
+                            Vector3.up * (bodyHeight * 0.12f) +
+                            owner.transform.forward * (bodyHeight * handForward * 0.35f);
+        Vector3 topTarget = head.position +
+                            Vector3.up * (bodyHeight * handHeight) +
+                            sideDirection * (bodyHeight * handSide) +
+                            owner.transform.forward * (bodyHeight * handForward);
+        Vector3 mainTarget = Vector3.LerpUnclamped(lowTarget, topTarget, raise) +
+                             sideDirection * (bodyHeight * waveDistance * wave);
 
-        Vector3 target = head.position +
-                         Vector3.up * (bodyHeight * settings.managerCallHandHeight) +
-                         owner.transform.right *
-                         (bodyHeight * settings.managerCallHandSide * side) +
-                         owner.transform.forward *
-                         (bodyHeight * settings.managerCallHandForward) +
-                         owner.transform.right *
-                         (bodyHeight * settings.managerCallWaveDistance * wave);
-
-        Transform upperArm = right ? rightUpperArm : leftUpperArm;
-        Transform lowerArm = right ? rightLowerArm : leftLowerArm;
-        Transform hand = right ? rightHand : leftHand;
         ApplyCcdArm(
-            upperArm,
-            lowerArm,
-            hand,
-            target,
-            Mathf.Clamp01(settings.managerCallArmWeight));
+            right ? rightUpperArm : leftUpperArm,
+            right ? rightLowerArm : leftLowerArm,
+            right ? rightHand : leftHand,
+            mainTarget,
+            Mathf.Clamp01(armWeight) * poseWeight);
+
+        Vector3 oppositeTarget = torso -
+                                 sideDirection *
+                                 (bodyHeight * settings.callOppositeArmSide) +
+                                 owner.transform.forward * (bodyHeight * 0.08f) +
+                                 Vector3.up *
+                                 (bodyHeight * (0.02f + Mathf.Max(0f, raise) * 0.1f));
+        float oppositePulse = 0.78f +
+                              Mathf.Sin(phase * Mathf.PI * 2f + idlePhase) * 0.22f;
+        ApplyCcdArm(
+            right ? leftUpperArm : rightUpperArm,
+            right ? leftLowerArm : rightLowerArm,
+            right ? leftHand : rightHand,
+            oppositeTarget,
+            settings.callOppositeArmWeight * poseWeight * oppositePulse);
+
+        float bodyBounce = Mathf.Sin(phase * Mathf.PI * 2f) *
+                           settings.callBodyLeanDegrees * poseWeight;
+        RotateAroundWorldAxis(
+            chest,
+            owner.transform.forward,
+            bodyBounce * side);
     }
 
     private float ResolveBodyHeight()
@@ -289,23 +808,49 @@ internal sealed class AlienProceduralAnimation
         return Mathf.Max(MinimumBodyHeight, Vector3.Distance(basePosition, head.position));
     }
 
-    private Vector3 ResolveFoodPosition(float bodyHeight, float side, int cycleIndex)
+    private Vector3 ResolveTorsoOrigin(float bodyHeight)
+    {
+        return chest != null
+            ? chest.position
+            : head.position - Vector3.up * (bodyHeight * 0.3f);
+    }
+
+    private static int PositiveModulo(int value, int modulus)
+    {
+        modulus = Mathf.Max(1, modulus);
+        return ((value % modulus) + modulus) % modulus;
+    }
+
+    private Vector3 ResolveFoodPosition(
+        float bodyHeight,
+        float side,
+        int cycleIndex,
+        out Color sampledColor,
+        out CustomerGroup.FoodType foodType)
     {
         if (foodSource != null)
         {
             if (!hasCachedFoodPosition || cachedFoodCycle != cycleIndex)
             {
                 cachedFoodCycle = cycleIndex;
-                hasCachedFoodPosition = foodSource.TryGetFoodBitePosition(
+                hasCachedFoodPosition = foodSource.TryGetFoodBiteData(
                     dinerIndex,
                     cycleIndex,
-                    out cachedFoodPosition);
+                    out cachedFoodPosition,
+                    out cachedFoodColor,
+                    out cachedFoodType);
             }
 
             if (hasCachedFoodPosition)
+            {
+                sampledColor = cachedFoodColor;
+                foodType = cachedFoodType;
                 return cachedFoodPosition;
+            }
         }
 
+        sampledColor = settings.crumbColorA;
+        foodType = CustomerGroup.FoodType.Chicken;
         Vector3 foodOrigin = hips != null ? hips.position : owner.transform.position;
         return foodOrigin +
                owner.transform.forward * (bodyHeight * settings.foodForward) +
@@ -394,8 +939,11 @@ internal sealed class AlienProceduralAnimation
             eatingParticles.transform.position = mouthPosition;
     }
 
-    private void EmitBiteParticles(Vector3 mouthPosition)
+    private void EmitBiteParticles(Vector3 mouthPosition, Color foodColor)
     {
+        if (!settings.enableEatingParticles)
+            return;
+
         int count = Mathf.Max(0, settings.particlesPerBite);
         if (count == 0)
             return;
@@ -404,30 +952,49 @@ internal sealed class AlienProceduralAnimation
         if (particles == null)
             return;
 
-        particles.transform.position = mouthPosition + owner.transform.forward * 0.03f;
+        float bodyHeight = ResolveBodyHeight();
+        Vector3 origin = mouthPosition +
+                         owner.transform.forward * (bodyHeight * 0.018f);
+        particles.transform.position = origin;
         if (!particles.isPlaying)
             particles.Play(false);
 
-        float bodyHeight = ResolveBodyHeight();
+        float radius = Mathf.Max(0f, settings.particleSpawnRadius * bodyHeight);
+        float speed = Mathf.Max(0f, settings.particleSpeed);
         for (int i = 0; i < count; i++)
         {
+            Vector3 scatter = Random.insideUnitSphere * radius;
+            scatter -= owner.transform.forward *
+                       Mathf.Min(0f, Vector3.Dot(scatter, owner.transform.forward));
+            float randomSpeed = speed * Random.Range(0.75f, 1.2f);
             ParticleSystem.EmitParams emit = new ParticleSystem.EmitParams
             {
-                position = particles.transform.position,
-                velocity = owner.transform.forward * Random.Range(0.08f, 0.22f) +
-                           owner.transform.up * Random.Range(0.12f, 0.34f) +
-                           owner.transform.right * Random.Range(-0.18f, 0.18f),
-                startLifetime = Mathf.Max(0.15f, settings.particleLifetime),
-                startSize = Mathf.Max(0.025f, settings.particleSize * bodyHeight),
-                startColor = Color.Lerp(settings.crumbColorA, settings.crumbColorB, Random.value)
+                position = origin + scatter,
+                velocity = owner.transform.forward * (randomSpeed * Random.Range(0.35f, 0.75f)) +
+                           owner.transform.up * (randomSpeed * Random.Range(0.45f, 1f)) +
+                           owner.transform.right * (randomSpeed * Random.Range(-0.55f, 0.55f)),
+                startLifetime = Mathf.Max(0.08f, settings.particleLifetime) *
+                                Random.Range(0.85f, 1.15f),
+                startSize = Mathf.Max(0.002f, settings.particleSize * bodyHeight) *
+                            Random.Range(0.72f, 1.12f),
+                startColor = Color.Lerp(foodColor, settings.crumbColorB, Random.Range(0f, 0.34f))
             };
             particles.Emit(emit, 1);
         }
     }
 
-    private void UpdateBitePiece(Transform hand, float bodyHeight, float phase, float lift)
+    private void UpdateBitePiece(
+        Transform hand,
+        float bodyHeight,
+        float phase,
+        float lift,
+        Color foodColor)
     {
-        bool visible = hand != null && phase >= 0.24f && phase < BiteParticleStart && lift > 0.02f;
+        bool visible = settings.enableVisibleBitePiece &&
+                       hand != null &&
+                       phase >= 0.24f &&
+                       phase < BiteParticleStart &&
+                       lift > 0.02f;
         if (!visible)
         {
             if (bitePiece != null)
@@ -444,20 +1011,25 @@ internal sealed class AlienProceduralAnimation
             if (collider != null)
                 collider.enabled = false;
 
-            Renderer biteRenderer = bitePiece.GetComponent<Renderer>();
-            if (biteRenderer != null)
+            bitePieceRenderer = bitePiece.GetComponent<Renderer>();
+            bitePieceProperties = new MaterialPropertyBlock();
+            if (bitePieceRenderer != null)
             {
-                biteRenderer.sharedMaterial = GetParticleMaterial();
-                MaterialPropertyBlock properties = new MaterialPropertyBlock();
-                properties.SetColor("_BaseColor", settings.crumbColorA);
-                properties.SetColor("_Color", settings.crumbColorA);
-                biteRenderer.SetPropertyBlock(properties);
-                biteRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-                biteRenderer.receiveShadows = false;
+                bitePieceRenderer.sharedMaterial = GetParticleMaterial();
+                bitePieceRenderer.shadowCastingMode =
+                    UnityEngine.Rendering.ShadowCastingMode.Off;
+                bitePieceRenderer.receiveShadows = false;
             }
         }
 
         float size = Mathf.Max(0.015f, bodyHeight * settings.bitePieceSize);
+        if (bitePieceRenderer != null && bitePieceProperties != null)
+        {
+            bitePieceRenderer.GetPropertyBlock(bitePieceProperties);
+            bitePieceProperties.SetColor("_BaseColor", foodColor);
+            bitePieceProperties.SetColor("_Color", foodColor);
+            bitePieceRenderer.SetPropertyBlock(bitePieceProperties);
+        }
         bitePiece.SetActive(true);
         bitePiece.transform.position = hand.position + owner.transform.forward * (size * 0.35f);
         bitePiece.transform.localScale = Vector3.one * size;
@@ -476,10 +1048,11 @@ internal sealed class AlienProceduralAnimation
         main.loop = false;
         main.playOnAwake = false;
         main.simulationSpace = ParticleSystemSimulationSpace.World;
+        main.scalingMode = ParticleSystemScalingMode.Shape;
         main.cullingMode = ParticleSystemCullingMode.AlwaysSimulate;
-        main.maxParticles = 24;
+        main.maxParticles = Mathf.Max(12, settings.particlesPerBite * 3);
         main.startLifetime = Mathf.Max(0.05f, settings.particleLifetime);
-        main.startSpeed = Mathf.Max(0f, settings.particleSpeed);
+        main.startSpeed = 0f;
         float bodyHeight = ResolveBodyHeight();
         main.startSize = Mathf.Max(0.001f, settings.particleSize * bodyHeight);
         main.gravityModifier = settings.particleGravity;
@@ -491,17 +1064,10 @@ internal sealed class AlienProceduralAnimation
         emission.enabled = false;
 
         ParticleSystem.ShapeModule shape = eatingParticles.shape;
-        shape.enabled = true;
-        shape.shapeType = ParticleSystemShapeType.Sphere;
-        shape.radius = Mathf.Max(0f, settings.particleSpawnRadius * bodyHeight);
-        shape.radiusThickness = 1f;
+        shape.enabled = false;
 
         ParticleSystem.VelocityOverLifetimeModule velocity = eatingParticles.velocityOverLifetime;
-        velocity.enabled = true;
-        velocity.space = ParticleSystemSimulationSpace.World;
-        velocity.x = new ParticleSystem.MinMaxCurve(-0.12f, 0.12f);
-        velocity.y = new ParticleSystem.MinMaxCurve(0.08f, 0.22f);
-        velocity.z = new ParticleSystem.MinMaxCurve(-0.12f, 0.12f);
+        velocity.enabled = false;
 
         ParticleSystem.SizeOverLifetimeModule size = eatingParticles.sizeOverLifetime;
         size.enabled = true;
@@ -515,6 +1081,7 @@ internal sealed class AlienProceduralAnimation
             particleObject.GetComponent<ParticleSystemRenderer>();
         renderer.renderMode = ParticleSystemRenderMode.Billboard;
         renderer.sharedMaterial = GetParticleMaterial();
+        renderer.sortMode = ParticleSystemSortMode.Distance;
         renderer.sortingOrder = 2;
         renderer.sortingFudge = 1f;
         renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;

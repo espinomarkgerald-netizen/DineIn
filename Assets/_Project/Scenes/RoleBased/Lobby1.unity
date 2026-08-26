@@ -13845,7 +13845,6 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 2131050628}
-  - {fileID: 1079582088}
   m_Father: {fileID: 1531882250}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
@@ -19295,12 +19294,12 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1790854055}
-  m_Father: {fileID: 852011000}
+  m_Father: {fileID: 1531882250}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 1, y: 0}
-  m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -10.00061, y: -0.49996948}
-  m_SizeDelta: {x: 18, y: -16.999939}
+  m_AnchorMin: {x: 1, y: 0.5}
+  m_AnchorMax: {x: 1, y: 0.5}
+  m_AnchoredPosition: {x: -498.81226, y: 17.161}
+  m_SizeDelta: {x: 18, y: 395.81}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1079582089
 MonoBehaviour:
@@ -25352,7 +25351,6 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 205583286}
-  - {fileID: 913000000000000032}
   m_Father: {fileID: 1531882250}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
@@ -26130,6 +26128,8 @@ RectTransform:
   - {fileID: 312080780}
   - {fileID: 1449817406}
   - {fileID: 852011000}
+  - {fileID: 913000000000000032}
+  - {fileID: 1079582088}
   - {fileID: 1199490976}
   m_Father: {fileID: 2142882886}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -37805,6 +37805,8 @@ MonoBehaviour:
   drinkTabButton: {fileID: 282663503}
   confirmButton: {fileID: 1199490977}
   exitButton: {fileID: 18389643}
+  alignScrollbarsWithExitButton: 1
+  scrollbarHorizontalOffset: 0
   useTypewriter: 1
   typeSpeed: 0.02
   tutorialHint: {fileID: 0}
@@ -40411,12 +40413,12 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 913000000000000042}
-  m_Father: {fileID: 1449817406}
+  m_Father: {fileID: 1531882250}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 1, y: 0}
-  m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -10, y: 0}
-  m_SizeDelta: {x: 18, y: -18}
+  m_AnchorMin: {x: 1, y: 0.5}
+  m_AnchorMax: {x: 1, y: 0.5}
+  m_AnchoredPosition: {x: -498.81226, y: 17.161}
+  m_SizeDelta: {x: 18, y: 395.81}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &913000000000000033
 CanvasRenderer:

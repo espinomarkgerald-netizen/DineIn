@@ -69,6 +69,7 @@ public class MoneyBubbleUI : MonoBehaviour
         {
             button.onClick.RemoveAllListeners();
             button.onClick.AddListener(OnClickCollect);
+            PlayerTaskBubbleFocus.Bind(button.gameObject, money);
         }
 
         SetClaimedByStaff(

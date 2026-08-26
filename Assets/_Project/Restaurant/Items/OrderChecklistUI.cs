@@ -38,6 +38,12 @@ public class OrderChecklistUI : MonoBehaviour
     [SerializeField] private Button confirmButton;
     [SerializeField] private Button exitButton;
 
+    [Header("Scrollbar Alignment")]
+    [Tooltip("Keeps the Food and Drinks scrollbars in the same right-side column as the exit button.")]
+    [SerializeField] private bool alignScrollbarsWithExitButton = true;
+    [Tooltip("Optional horizontal adjustment after aligning the scrollbar centers to the exit button.")]
+    [SerializeField] private float scrollbarHorizontalOffset;
+
     [Header("Presentation")]
     [SerializeField] private bool useTypewriter = true;
     [SerializeField] private float typeSpeed = 0.02f;
@@ -224,7 +230,72 @@ public class OrderChecklistUI : MonoBehaviour
         ApplyCustomerMessageBounds();
         FinalizeMenuLayout(foodContentRoot, foodScrollRect);
         FinalizeMenuLayout(drinkContentRoot, drinkScrollRect);
+        AlignMenuScrollbars();
         refreshingResponsiveLayout = false;
+    }
+
+    private void AlignMenuScrollbars()
+    {
+        if (!alignScrollbarsWithExitButton || exitButton == null)
+            return;
+
+        RectTransform exitRect = exitButton.transform as RectTransform;
+        RectTransform alignmentParent = exitRect != null
+            ? exitRect.parent as RectTransform
+            : null;
+        if (exitRect == null || alignmentParent == null)
+            return;
+
+        Vector3 exitCenterWorld = exitRect.TransformPoint(exitRect.rect.center);
+        AlignScrollbar(foodScrollRect, alignmentParent, exitCenterWorld);
+        AlignScrollbar(drinkScrollRect, alignmentParent, exitCenterWorld);
+    }
+
+    private void AlignScrollbar(
+        ScrollRect scrollRect,
+        RectTransform alignmentParent,
+        Vector3 targetCenterWorld)
+    {
+        if (scrollRect == null || scrollRect.verticalScrollbar == null)
+            return;
+
+        RectTransform scrollbarRect = scrollRect.verticalScrollbar.transform as RectTransform;
+        if (scrollbarRect == null || alignmentParent == null)
+            return;
+
+        // The menu list itself is masked. Keep the scrollbar beside that mask,
+        // under the shared panel, so moving it to the exit-button column cannot
+        // clip it. Existing authored height and vertical placement are preserved.
+        if (scrollbarRect.parent != alignmentParent)
+        {
+            Vector3[] worldCorners = new Vector3[4];
+            scrollbarRect.GetWorldCorners(worldCorners);
+            Vector3 lowerLeft = alignmentParent.InverseTransformPoint(worldCorners[0]);
+            Vector3 upperRight = alignmentParent.InverseTransformPoint(worldCorners[2]);
+            float preservedWidth = Mathf.Abs(upperRight.x - lowerLeft.x);
+            float preservedHeight = Mathf.Abs(upperRight.y - lowerLeft.y);
+            if (preservedWidth <= 0.01f || preservedHeight <= 0.01f)
+                return;
+
+            scrollbarRect.SetParent(alignmentParent, false);
+            scrollbarRect.anchorMin = scrollbarRect.anchorMax = new Vector2(0.5f, 0.5f);
+            scrollbarRect.pivot = new Vector2(0.5f, 0.5f);
+            scrollbarRect.localRotation = Quaternion.identity;
+            scrollbarRect.localScale = Vector3.one;
+            scrollbarRect.sizeDelta = new Vector2(preservedWidth, preservedHeight);
+            scrollbarRect.anchoredPosition = new Vector2(
+                (lowerLeft.x + upperRight.x) * 0.5f,
+                (lowerLeft.y + upperRight.y) * 0.5f);
+        }
+
+        Vector3 targetInParent = alignmentParent.InverseTransformPoint(targetCenterWorld);
+        float anchorReferenceX = Mathf.Lerp(
+            alignmentParent.rect.xMin,
+            alignmentParent.rect.xMax,
+            scrollbarRect.anchorMin.x);
+        Vector2 position = scrollbarRect.anchoredPosition;
+        position.x = targetInParent.x - anchorReferenceX + scrollbarHorizontalOffset;
+        scrollbarRect.anchoredPosition = position;
     }
 
     private void ApplyCustomerMessageBounds()
@@ -536,6 +607,7 @@ public class OrderChecklistUI : MonoBehaviour
         RebuildAvailableItems(foods);
         RefreshMenuAvailability();
         Canvas.ForceUpdateCanvases();
+        AlignMenuScrollbars();
 
         if (foodScrollRect != null)
             foodScrollRect.verticalNormalizedPosition = 1f;

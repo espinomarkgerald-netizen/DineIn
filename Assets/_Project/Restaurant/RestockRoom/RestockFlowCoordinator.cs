@@ -37,6 +37,7 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
     public static RestockFlowCoordinator Instance { get; private set; }
     public bool IsRestockRoomOpen => roomOpen;
     public bool IsTransitioning => loading;
+    public RestockStorageType ActiveStorageRoom => requestedRoom;
 
     private const string LobbySceneName = "Lobby1";
     private const string RestockSceneName = "RestockScene";

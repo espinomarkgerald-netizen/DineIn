@@ -693,7 +693,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         CasualDiningPolishManager polish = CasualDiningPolishManager.EnsureInstance();
         AddRow(null, "Restaurant rating", "Operational quality, separate from Alien Approval",
             polish.RestaurantStars.ToString("0.0") + " / 5",
-            "READ NEWS", polish.OpenCurrentIssue);
+            string.Empty, null, false);
         AddRow(null, "Latest alien review", polish.GetLatestReviewText(),
             string.Empty, string.Empty, null, false);
 
@@ -1073,10 +1073,10 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
             snapshot,
             GetAppIcon(ManagementComputerApp.Dashboard),
             "TODAY'S NEWS",
-            newsReady ? "TODAY'S ISSUE READ" : "READ BEFORE OPENING",
+            newsReady ? "TODAY'S ISSUE READ" : "CLOSE COMPUTER AND READ TODAY'S NEWS",
             newsReady ? ReadinessVisualState.Ready : ReadinessVisualState.Blocked,
-            newsReady ? string.Empty : "READ",
-            newsReady ? null : polish.OpenCurrentIssue);
+            string.Empty,
+            null);
 
         int menuCount = 0;
         Dictionary<ItemData, int> requiredIngredients = new Dictionary<ItemData, int>();

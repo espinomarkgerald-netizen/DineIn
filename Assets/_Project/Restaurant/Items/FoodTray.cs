@@ -53,59 +53,146 @@ public class FoodTray : MonoBehaviour
 
     public bool TryGetFoodBitePosition(int dinerIndex, int biteIndex, out Vector3 position)
     {
-        GameObject first = spawnedFood1;
-        GameObject second = spawnedFood2;
-        int foodCount = (first != null ? 1 : 0) + (second != null ? 1 : 0);
+        return TryGetFoodBiteData(dinerIndex, biteIndex, out position, out _);
+    }
 
-        if (foodCount > 0)
+    public bool TryGetFoodBiteData(
+        int dinerIndex,
+        int biteIndex,
+        out Vector3 position,
+        out Color sampledColor)
+    {
+        return TryGetFoodBiteData(
+            dinerIndex,
+            biteIndex,
+            out position,
+            out sampledColor,
+            out _);
+    }
+
+    public bool TryGetFoodBiteData(
+        int dinerIndex,
+        int biteIndex,
+        out Vector3 position,
+        out Color sampledColor,
+        out CustomerGroup.FoodType foodType)
+    {
+        GameObject food = ResolveFoodVisual(dinerIndex, biteIndex, out foodType);
+        if (food != null)
         {
-            int choice = ((dinerIndex + biteIndex) % foodCount + foodCount) % foodCount;
-            GameObject food = first != null && (choice == 0 || second == null)
-                ? first
-                : second;
-
-            if (food != null)
-            {
-                Renderer[] renderers = food.GetComponentsInChildren<Renderer>(true);
-                bool hasBounds = false;
-                Bounds combinedBounds = default;
-                for (int i = 0; i < renderers.Length; i++)
-                {
-                    Renderer foodRenderer = renderers[i];
-                    if (foodRenderer == null) continue;
-
-                    if (!hasBounds)
-                    {
-                        combinedBounds = foodRenderer.bounds;
-                        hasBounds = true;
-                    }
-                    else
-                    {
-                        combinedBounds.Encapsulate(foodRenderer.bounds);
-                    }
-                }
-
-                if (hasBounds)
-                {
-                    position = combinedBounds.center +
-                               Vector3.up * (combinedBounds.extents.y * 0.45f);
-                    return true;
-                }
-
-                position = food.transform.position;
-                return true;
-            }
+            ResolveServingVisual(food, 0.45f, out position, out sampledColor);
+            return true;
         }
 
         Transform fallbackAnchor = foodAnchor1 != null ? foodAnchor1 : foodAnchor2;
         if (fallbackAnchor != null)
         {
             position = fallbackAnchor.position;
+            sampledColor = Color.white;
+            foodType = deliveredFood1;
+            return true;
+        }
+
+        position = default;
+        sampledColor = Color.white;
+        foodType = deliveredFood1;
+        return false;
+    }
+
+    public bool TryGetDrinkSipPosition(out Vector3 position)
+    {
+        if (spawnedDrink != null)
+        {
+            ResolveServingVisual(spawnedDrink, 0.6f, out position, out _);
+            return true;
+        }
+
+        if (hasDrink && drinkAnchor != null)
+        {
+            position = drinkAnchor.position;
             return true;
         }
 
         position = default;
         return false;
+    }
+
+    private GameObject ResolveFoodVisual(
+        int dinerIndex,
+        int biteIndex,
+        out CustomerGroup.FoodType foodType)
+    {
+        foodType = deliveredFood1;
+        int foodCount = (spawnedFood1 != null ? 1 : 0) +
+                        (spawnedFood2 != null ? 1 : 0);
+        if (foodCount == 0)
+            return null;
+
+        int choice = ((dinerIndex + biteIndex) % foodCount + foodCount) % foodCount;
+        if (spawnedFood1 != null && (choice == 0 || spawnedFood2 == null))
+        {
+            foodType = deliveredFood1;
+            return spawnedFood1;
+        }
+
+        foodType = deliveredFood2;
+        return spawnedFood2;
+    }
+
+    private static void ResolveServingVisual(
+        GameObject serving,
+        float topBias,
+        out Vector3 position,
+        out Color sampledColor)
+    {
+        position = serving != null ? serving.transform.position : Vector3.zero;
+        sampledColor = Color.white;
+        if (serving == null)
+            return;
+
+        Renderer[] renderers = serving.GetComponentsInChildren<Renderer>(true);
+        bool hasBounds = false;
+        bool hasColor = false;
+        Bounds combinedBounds = default;
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            Renderer servingRenderer = renderers[i];
+            if (servingRenderer == null || !servingRenderer.enabled)
+                continue;
+
+            if (!hasBounds)
+            {
+                combinedBounds = servingRenderer.bounds;
+                hasBounds = true;
+            }
+            else
+            {
+                combinedBounds.Encapsulate(servingRenderer.bounds);
+            }
+
+            if (hasColor || servingRenderer.sharedMaterial == null)
+                continue;
+
+            Material material = servingRenderer.sharedMaterial;
+            if (material.HasProperty("_BaseColor"))
+            {
+                sampledColor = material.GetColor("_BaseColor");
+                hasColor = true;
+            }
+            else if (material.HasProperty("_Color"))
+            {
+                sampledColor = material.GetColor("_Color");
+                hasColor = true;
+            }
+        }
+
+        if (hasBounds)
+        {
+            position = combinedBounds.center +
+                       Vector3.up * (combinedBounds.extents.y * topBias);
+        }
+
+        sampledColor.a = 1f;
     }
 
     // ✅ NEW: unified delivered contents

@@ -197,6 +197,10 @@ public class GameDayManager : MonoBehaviour
     public int HappyCustomers => happyCustomers;
     public int NeutralCustomers => neutralCustomers;
     public int AngryCustomers => angryCustomers;
+    public int NeutralCustomerObjectiveMax => Mathf.Max(1, neutralBarMax);
+    public int AngryCustomerObjectiveMax => Mathf.Max(1, angryBarMax);
+    public TMP_Text DayHudText => dayText;
+    public TMP_Text TimeHudText => timerText;
     public int CustomersServed => happyCustomers + neutralCustomers + angryCustomers;
     public float ShiftLengthSeconds =>
         Mathf.Max(1f, (closingHour - openingHour) * realSecondsPerGameHour);

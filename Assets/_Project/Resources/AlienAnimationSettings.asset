@@ -19,8 +19,9 @@ MonoBehaviour:
   breathingCyclesPerSecond: 0.28
   breathingChestDegrees: 1.05
   idleHeadSwayDegrees: 1.1
+  enableProceduralEating: 1
   eatingCycleSeconds: 1.65
-  armReachWeight: 0.302
+  armReachWeight: 0.657
   torsoLeanDegrees: 10.1
   chewHeadDegrees: 4.63
   chewJawDegrees: 4.5
@@ -31,19 +32,73 @@ MonoBehaviour:
   mouthForward: 0.075
   mouthDown: 0.045
   alternateHands: 1
-  managerCallArmWeight: 0.9
-  managerCallHandHeight: 0.38
-  managerCallHandSide: 0.24
-  managerCallHandForward: 0.08
+  enableVisibleBitePiece: 1
+  enableDrinking: 1
+  drinkEveryCycles: 4
+  drinkArmReachWeight: 0.72
+  drinkHeadTiltDegrees: 4
+  drinkLiftArc: 0.035
+  enableGroupConversation: 1
+  conversationCycleSeconds: 6
+  conversationActivePortion: 0.509
+  conversationTurnDegrees: 14.6
+  conversationNodDegrees: 5.46
+  conversationArmWeight: 0.562
+  conversationHandSide: 0.308
+  conversationHandForward: 0.18
+  enablePatienceBodyLanguage: 1
+  patienceConcernThreshold: 0.55
+  patienceAngryThreshold: 0.22
+  impatientHeadScanDegrees: 12
+  impatientTableTapWeight: 0.46
+  impatientTableTapCyclesPerSecond: 2.2
+  angryCrossedArmsWeight: 0.62
+  enableServiceRequestGestures: 1
+  serviceRequestCycleSeconds: 3.6
+  serviceRequestActivePortion: 0.786
+  serviceRequestArmWeight: 0.909
+  orderRequestHandHeight: 0.559
+  billRequestHandHeight: 0.34
+  serviceRequestHandSide: 0.23
+  serviceRequestHandForward: 0.08
+  serviceRequestWaveDistance: 0.045
+  serviceRequestWavesAtTop: 2.25
+  managerCallArmWeight: 0.936
+  managerCallHandHeight: 0.521
+  managerCallHandSide: 0.285
+  managerCallHandForward: 0.191
   managerCallWaveCyclesPerSecond: 1.8
-  managerCallWaveDistance: 0.08
+  managerCallWaveDistance: 0.197
+  managerCallGestureCycleSeconds: 2.6
+  callAnticipationEnd: 0.17
+  callRaiseEnd: 0.48
+  callWaveEnd: 0.84
+  callRaiseOvershoot: 0.1
+  callTopBounceHeight: 0.045
+  callAnticipationSideSwing: 0.349
+  callOppositeArmWeight: 0.475
+  callOppositeArmSide: 0.4
+  callBodyLeanDegrees: 5.29
+  callWaveSpeedVariation: 0.598
+  enableCustomerReactions: 1
+  reactionDurationSeconds: 1.8
+  positiveNodDegrees: 6.62
+  positiveGestureWeight: 0.309
+  neutralShrugWeight: 0.44
+  angryGestureWeight: 0.7
+  angryHeadShakeDegrees: 14
   bitePieceSize: 0.055
+  enableEatingParticles: 1
   particleMaterial: {fileID: 2100000, guid: c8d75a9c4b2e4e498cf08c1b3a37f028, type: 2}
-  particlesPerBite: 12
-  particleLifetime: 0.75
-  particleSpeed: 0.34
-  particleSize: 0.13
-  particleGravity: 0.18
-  particleSpawnRadius: 0.025
+  particlesPerBite: 4
+  particleLifetime: 0.34
+  particleSpeed: 0.2
+  particleSize: 0.022
+  particleGravity: 0.3
+  particleSpawnRadius: 0.012
+  sampledFoodColorStrength: 0.25
+  chickenCrumbColor: {r: 0.92, g: 0.58, b: 0.2, a: 1}
+  friesCrumbColor: {r: 1, g: 0.82, b: 0.28, a: 1}
+  burgerCrumbColor: {r: 0.58, g: 0.3, b: 0.14, a: 1}
   crumbColorA: {r: 1, g: 0.76, b: 0.2, a: 1}
   crumbColorB: {r: 1, g: 0.96, b: 0.66, a: 1}

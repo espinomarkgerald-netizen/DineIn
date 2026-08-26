@@ -120,6 +120,35 @@ MonoBehaviour:
   overlay: {fileID: 6432879172325907741}
   resumeButton: {fileID: 7356077355573580571}
   gameMenuButton: {fileID: 2611283398094655893}
+  nineSlicedFrame: {fileID: -5177388603050735206, guid: c63c29f7cc02b0b4590894ee34419ab6, type: 3}
+  sliderHandle: {fileID: 21300000, guid: 86f95d74ec4602d4598fe6217a469a0a, type: 3}
+  font: {fileID: 11400000, guid: 44132a242d69e514eaf236194f4a06cf, type: 2}
+  audioMixer: {fileID: 24100000, guid: 3fd0d86c1f880854d9b5971fafc00816, type: 2}
+  sfxMixerGroup: {fileID: 2878796282664989187, guid: 3fd0d86c1f880854d9b5971fafc00816, type: 2}
+  windowColor: {r: 0.035, g: 0.16, b: 0.31, a: 0.99}
+  buttonColor: {r: 0.04, g: 0.64, b: 0.88, a: 1}
+  toggleColor: {r: 0.08, g: 0.35, b: 0.5, a: 1}
+  dangerColor: {r: 0.82, g: 0.16, b: 0.2, a: 1}
+  trackColor: {r: 0.75, g: 0.84, b: 0.9, a: 1}
+  fillColor: {r: 0.04, g: 0.64, b: 0.88, a: 1}
+  pauseButtonPosition: {x: 149, y: -28}
+  pauseButtonSize: {x: 82, y: 82}
+  alignDayAndTimeToPause: 1
+  dayTimeVerticalOffset: 0
+  settingsWindowSize: {x: 720, y: 880}
+  resumePosition: {x: 0, y: 282}
+  resumeSize: {x: 500, y: 68}
+  gameMenuPosition: {x: 0, y: -354}
+  gameMenuSize: {x: 500, y: 68}
+  settingsContentSize: {x: 610, y: 570}
+  settingsRowSize: {x: 540, y: 58}
+  audioTitleY: 205
+  musicRowY: 145
+  sfxRowY: 72
+  accessibilityTitleY: -5
+  largeTextRowY: -68
+  reducedMotionRowY: -139
+  highContrastRowY: -210
 --- !u!1 &997047534486955654
 GameObject:
   m_ObjectHideFlags: 0
@@ -804,8 +833,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 143, y: -34}
-  m_SizeDelta: {x: 70, y: 70}
+  m_AnchoredPosition: {x: 149, y: -28}
+  m_SizeDelta: {x: 82, y: 82}
   m_Pivot: {x: 1, y: 1}
 --- !u!222 &97244144836986286
 CanvasRenderer:

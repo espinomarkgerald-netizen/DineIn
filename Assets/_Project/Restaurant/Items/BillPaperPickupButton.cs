@@ -34,6 +34,11 @@ public class BillPaperPickupButton : MonoBehaviour
     {
         bill = b;
         SetTableNumber(b != null ? b.orderNumber : -1);
+
+        if (button != null)
+            PlayerTaskBubbleFocus.Bind(
+                button.gameObject,
+                b != null ? b.TargetGroup : null);
     }
 
     /// <summary>Sets the table number displayed on the pickup button. Pass -1 to hide it.</summary>

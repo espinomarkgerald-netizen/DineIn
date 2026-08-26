@@ -111,6 +111,9 @@ public class OrderBubbleUI : MonoBehaviour
 
         if (drinkImage != null)
             drinkImage.enabled = false;
+
+        if (openButton != null && group != null)
+            PlayerTaskBubbleFocus.Bind(openButton.gameObject, group);
     }
 
     public void SetPatience(float normalized)

@@ -1,6 +1,26 @@
 using UnityEngine;
 using UnityEngine.AI;
 
+public enum CustomerProceduralState
+{
+    None,
+    QueueWaiting,
+    Conversation,
+    BrowseMenu,
+    RequestOrder,
+    WaitingForFood,
+    Eating,
+    RequestBill,
+    Leaving
+}
+
+public enum CustomerProceduralReaction
+{
+    Positive,
+    Neutral,
+    Angry
+}
+
 [RequireComponent(typeof(NavMeshAgent))]
 public class CustomerAgent : MonoBehaviour
 {
@@ -166,6 +186,32 @@ public class CustomerAgent : MonoBehaviour
     public void SetCallingManager(bool calling)
     {
         proceduralAnimation?.SetCallingManager(calling);
+    }
+
+    public void SetProceduralServiceState(CustomerProceduralState state)
+    {
+        proceduralAnimation?.SetServiceState(state);
+    }
+
+    public void SetProceduralPatience(float normalizedRemaining)
+    {
+        proceduralAnimation?.SetPatience(normalizedRemaining);
+    }
+
+    public void SetProceduralGroupContext(
+        int memberIndex,
+        int memberCount,
+        Transform conversationTarget)
+    {
+        proceduralAnimation?.SetGroupContext(
+            memberIndex,
+            memberCount,
+            conversationTarget);
+    }
+
+    public void PlayProceduralReaction(CustomerProceduralReaction reaction)
+    {
+        proceduralAnimation?.PlayReaction(reaction);
     }
 
     public void WalkTo(Vector3 worldPos)

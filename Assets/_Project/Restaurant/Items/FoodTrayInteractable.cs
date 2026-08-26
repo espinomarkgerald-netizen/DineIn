@@ -481,6 +481,10 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
                 b.onClick.AddListener(UI_RequestPickup);
             }
         }
+
+        Button actionButton = uiInstance.GetComponentInChildren<Button>(true);
+        if (actionButton != null)
+            PlayerTaskBubbleFocus.Bind(actionButton.gameObject, tray);
     }
 
     private void HideUI()
