@@ -340,6 +340,7 @@ public class GameFlowManager : MonoBehaviour
         RestockOrderManager.EnsureInstance()?.ClearAll();
         EmployeeManager.Instance?.ClearAllEmployees();
         CasualDiningPolishManager.EnsureInstance()?.ResetRun();
+        ManagerComplaintSystem.EnsureInstance()?.ResetRun();
         EquipmentManager.Instance?.ResetPurchases();
         UnlockManager.Instance?.ResetAll();
 

@@ -10,8 +10,8 @@ public sealed class RestockTruckInteractable : MonoBehaviour, IInteractable
     [SerializeField, Min(0.5f)] private float interactRadius = 2f;
 
     [Header("Arrival Animation")]
-    [Tooltip("Signed world-Z distance behind the authored parking position.")]
-    [SerializeField] private float approachZOffset = -24f;
+    [Tooltip("World-space X/Y/Z offset from the parked position where every delivery starts.")]
+    [SerializeField] private Vector3 arrivalOffset = new Vector3(0f, 0f, 100f);
     [SerializeField, Min(0.1f)] private float arrivalDuration = 2.8f;
 
     [Header("Arrival Horn")]
@@ -23,7 +23,8 @@ public sealed class RestockTruckInteractable : MonoBehaviour, IInteractable
     [Header("Departure")]
     [SerializeField, Min(0f)] private float departureDelaySeconds = 2f;
     [SerializeField, Min(0.1f)] private float departureDuration = 2.4f;
-    [SerializeField, Min(1f)] private float departureDistance = 24f;
+    [Tooltip("World-space X/Y/Z offset from the parked position where the truck hides after leaving.")]
+    [SerializeField] private Vector3 departureOffset = new Vector3(0f, 0f, -100f);
 
     public Transform StandPoint => standPoint != null ? standPoint : transform;
     public bool AutoReturnHome => false;
@@ -208,6 +209,7 @@ public sealed class RestockTruckInteractable : MonoBehaviour, IInteractable
 
         if (arrivalRoutine != null)
             StopCoroutine(arrivalRoutine);
+        PlaceAtArrivalPosition();
         arrivalRoutine = StartCoroutine(ArrivalRoutine());
     }
 
@@ -230,9 +232,8 @@ public sealed class RestockTruckInteractable : MonoBehaviour, IInteractable
     {
         isParked = false;
         SetInteractionReady(false);
-        Vector3 start = transform.position;
-        start.x = parkingPosition.x;
-        start.y = parkingPosition.y;
+        Vector3 start = GetArrivalPosition();
+        transform.SetPositionAndRotation(start, parkingRotation);
         float duration = Mathf.Max(0.1f, arrivalDuration);
         float elapsed = 0f;
 
@@ -241,9 +242,9 @@ public sealed class RestockTruckInteractable : MonoBehaviour, IInteractable
             elapsed += Time.unscaledDeltaTime;
             float t = Mathf.Clamp01(elapsed / duration);
             t = t * t * (3f - 2f * t);
-            Vector3 position = parkingPosition;
-            position.z = Mathf.Lerp(start.z, parkingPosition.z, t);
-            transform.SetPositionAndRotation(position, parkingRotation);
+            transform.SetPositionAndRotation(
+                Vector3.LerpUnclamped(start, parkingPosition, t),
+                parkingRotation);
             yield return null;
         }
 
@@ -255,13 +256,20 @@ public sealed class RestockTruckInteractable : MonoBehaviour, IInteractable
 
     private void PlaceAtApproachPosition()
     {
-        Vector3 position = parkingPosition;
-        position.z += approachZOffset;
-        transform.SetPositionAndRotation(position, parkingRotation);
+        PlaceAtArrivalPosition();
+    }
+
+    private void PlaceAtArrivalPosition()
+    {
+        transform.SetPositionAndRotation(GetArrivalPosition(), parkingRotation);
         isParked = false;
         Physics.SyncTransforms();
         SetInteractionReady(false);
     }
+
+    private Vector3 GetArrivalPosition() => parkingPosition + arrivalOffset;
+
+    private Vector3 GetDeparturePosition() => parkingPosition + departureOffset;
 
     private void PlaceAtParkingPosition()
     {
@@ -273,8 +281,7 @@ public sealed class RestockTruckInteractable : MonoBehaviour, IInteractable
 
     private void PlacePastDeparturePoint()
     {
-        Vector3 position = parkingPosition + parkingRotation * Vector3.forward * departureDistance;
-        transform.SetPositionAndRotation(position, parkingRotation);
+        transform.SetPositionAndRotation(GetDeparturePosition(), parkingRotation);
         isParked = false;
         Physics.SyncTransforms();
         SetInteractionReady(false);
@@ -324,7 +331,7 @@ public sealed class RestockTruckInteractable : MonoBehaviour, IInteractable
         yield return new WaitForSecondsRealtime(Mathf.Max(0f, departureDelaySeconds));
 
         Vector3 start = transform.position;
-        Vector3 end = parkingPosition + parkingRotation * Vector3.forward * departureDistance;
+        Vector3 end = GetDeparturePosition();
         float elapsed = 0f;
         float duration = Mathf.Max(0.1f, departureDuration);
         while (elapsed < duration)

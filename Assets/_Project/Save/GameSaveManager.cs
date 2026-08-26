@@ -200,6 +200,7 @@ public class GameSaveManager : MonoBehaviour
             RestockOrderManager.Instance.FillSaveData(data);
 
         CasualDiningPolishManager.EnsureInstance()?.FillSaveData(data);
+        ManagerComplaintSystem.EnsureInstance()?.FillSaveData(data);
 
         return data;
     }
@@ -311,6 +312,7 @@ public class GameSaveManager : MonoBehaviour
             RestockOrderManager.EnsureInstance()?.ApplySaveData(data);
 
             CasualDiningPolishManager.EnsureInstance()?.ApplySaveData(data);
+            ManagerComplaintSystem.EnsureInstance()?.ApplySaveData(data);
 
             if (MoneyManager.Instance != null)
             {

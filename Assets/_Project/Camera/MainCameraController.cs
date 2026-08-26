@@ -114,6 +114,21 @@ public class MainCameraController : MonoBehaviour
         return targetRigPos;
     }
 
+    public float GetTargetOrthographicSize()
+    {
+        return targetOrtho;
+    }
+
+    public void SetTargetOrthographicSize(float orthographicSize, bool snapInstant = false)
+    {
+        targetOrtho = Mathf.Clamp(orthographicSize, minOrthoSize, maxOrthoSize);
+        if (snapInstant && cam != null)
+        {
+            zoomVel = 0f;
+            cam.orthographicSize = targetOrtho;
+        }
+    }
+
     private void HandlePanInput()
     {
         if (Input.touchCount >= 2)

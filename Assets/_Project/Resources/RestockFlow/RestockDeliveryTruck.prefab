@@ -251,18 +251,18 @@ RectTransform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5323589440546274593}
-  m_LocalRotation: {x: 0.7071068, y: 0, z: 0, w: 0.7071068}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalRotation: {x: 0, y: -0.7071068, z: 0, w: 0.7071068}
+  m_LocalPosition: {x: 0, y: 0, z: -0.0563}
   m_LocalScale: {x: 0.01, y: 0.01, z: 0.01}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 7081196470408964860}
   m_Father: {fileID: 7813487113436311119}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: -90, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 2.45}
-  m_SizeDelta: {x: 380, y: 100}
+  m_AnchoredPosition: {x: 0.51, y: 5.0622}
+  m_SizeDelta: {x: 606.0612, y: 142.4441}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!223 &7754068750700591829
 Canvas:
@@ -309,7 +309,7 @@ MonoBehaviour:
   m_FallbackScreenDPI: 96
   m_DefaultSpriteDPI: 96
   m_DynamicPixelsPerUnit: 10
-  m_PresetInfoIsWorld: 0
+  m_PresetInfoIsWorld: 1
 --- !u!222 &4382980679206017865
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -422,14 +422,14 @@ MonoBehaviour:
   standPoint: {fileID: 2313247020123459007}
   statusText: {fileID: 1496163393041159875}
   interactRadius: 2
-  approachZOffset: 100
+  arrivalOffset: {x: 0, y: 0, z: 100}
   arrivalDuration: 2.8
   arrivalHornClip: {fileID: 8300000, guid: ee027452684ba9d4da87e5bcd10bdbe0, type: 3}
   hornVolume: 1
   secondBeepDelay: 0.32
   departureDelaySeconds: 2
   departureDuration: 2.4
-  departureDistance: 24
+  departureOffset: {x: 0, y: 0, z: -100}
 --- !u!114 &8465110740206826210
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -444,7 +444,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   outlineMode: 0
   outlineColor: {r: 1, g: 1, b: 1, a: 1}
-  outlineWidth: 4
+  outlineWidth: 6
   precomputeOutline: 0
   bakeKeys: []
   bakeValues: []

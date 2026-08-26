@@ -52,6 +52,18 @@ public sealed class AlienAnimationSettings : ScriptableObject
     [Tooltip("When enabled, customers may swap hands between bites.")]
     public bool alternateHands = true;
 
+    [Header("Call The Manager")]
+    [Tooltip("Strength of the procedural raised-hand pose while requesting the Manager.")]
+    [Range(0f, 1f)] public float managerCallArmWeight = 0.9f;
+    [Tooltip("Raised hand height above the head as a fraction of hips-to-head height.")]
+    [Range(0.05f, 0.8f)] public float managerCallHandHeight = 0.38f;
+    [Tooltip("Horizontal distance from the head as a fraction of hips-to-head height.")]
+    [Range(0f, 0.6f)] public float managerCallHandSide = 0.24f;
+    [Tooltip("Forward distance from the head as a fraction of hips-to-head height.")]
+    [Range(-0.2f, 0.5f)] public float managerCallHandForward = 0.08f;
+    [Min(0.1f)] public float managerCallWaveCyclesPerSecond = 1.8f;
+    [Range(0f, 0.3f)] public float managerCallWaveDistance = 0.08f;
+
     [Tooltip("Visible bite size as a fraction of hips-to-head height.")]
     [Range(0.01f, 0.15f)] public float bitePieceSize = 0.055f;
 

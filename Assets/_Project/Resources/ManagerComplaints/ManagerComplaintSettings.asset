@@ -1,0 +1,83 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d12a8f3c94b2473cbd90f1e6a27c50aa, type: 3}
+  m_Name: ManagerComplaintSettings
+  m_EditorClassIdentifier:
+  maximumEncountersPerWeek: 2
+  eligibleIncidentChance: 0.45
+  minimumCompletedDaysBetweenEncounters: 1
+  unansweredTimeoutSeconds: 30
+  responseFeedbackSeconds: 2.2
+  markerPulseSpeed: 3.6
+  markerPulseScale: 1.12
+  screenEdgePadding: 58
+  markerWorldOffset: {x: 0, y: 0.65, z: 0}
+  focusedOrthographicSize: 7
+  cameraFramingOffset: {x: 0, y: 0, z: -0.8}
+  wrongOrder:
+    type: 1
+    headline: WRONG ORDER
+    fallbackPortrait: {fileID: 0}
+    customerLines:
+    - Manager! This is not what we ordered.
+    - Your waiter brought another table's food.
+    - We waited for this, and it is the wrong meal.
+    professional:
+      quality: 0
+      buttonHeading: APOLOGIZE + REMAKE
+      managerLine: You're right to be upset. I'm sorry; we'll replace it immediately.
+      coachingFeedback: You acknowledged the mistake, apologized, and offered a clear solution.
+      orderCostMultiplier: 0.35
+      feedbackColor: {r: 0.2, g: 0.82, b: 0.38, a: 1}
+    acceptable:
+      quality: 1
+      buttonHeading: OFFER A REFUND
+      managerLine: I can refund this meal for you.
+      coachingFeedback: A refund solves the cost, but acknowledging the frustration would be better.
+      orderCostMultiplier: 1
+      feedbackColor: {r: 1, g: 0.76, b: 0.18, a: 1}
+    poor:
+      quality: 2
+      buttonHeading: DISMISS IT
+      managerLine: It looks close enough to me.
+      coachingFeedback: Never dismiss a valid complaint. Listen first and offer a solution.
+      orderCostMultiplier: 0
+      feedbackColor: {r: 1, g: 0.25, b: 0.22, a: 1}
+  burntFood:
+    type: 2
+    headline: BURNT FOOD
+    fallbackPortrait: {fileID: 0}
+    customerLines:
+    - Manager! This food is completely burnt.
+    - Was this cooked or attacked by a flamethrower?
+    - We cannot eat this. The meal is burnt.
+    professional:
+      quality: 0
+      buttonHeading: APOLOGIZE + REMAKE
+      managerLine: You're right. I'm sorry; we'll prepare a fresh replacement now.
+      coachingFeedback: You agreed with the concern, apologized, and acted immediately.
+      orderCostMultiplier: 0.35
+      feedbackColor: {r: 0.2, g: 0.82, b: 0.38, a: 1}
+    acceptable:
+      quality: 1
+      buttonHeading: OFFER A REFUND
+      managerLine: I will remove this meal from your bill.
+      coachingFeedback: Compensation helps, but empathy and a replacement create a better recovery.
+      orderCostMultiplier: 1
+      feedbackColor: {r: 1, g: 0.76, b: 0.18, a: 1}
+    poor:
+      quality: 2
+      buttonHeading: BLAME THE CUSTOMER
+      managerLine: That is how the kitchen serves it.
+      coachingFeedback: Do not argue with an angry customer. Acknowledge the issue and fix it.
+      orderCostMultiplier: 0
+      feedbackColor: {r: 1, g: 0.25, b: 0.22, a: 1}

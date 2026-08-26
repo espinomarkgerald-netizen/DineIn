@@ -58,7 +58,7 @@ public sealed class RestockRoomController
         SwitchToRoom(requestedRoom);
         hud?.SetRestockContext(this, activeRoom);
         hud?.SetRoomMessage(
-            "Drag a delivery slot out of the hotbar and drop its box on a shelf.",
+            "DRAG A BOX TO AN OPEN SHELF",
             false);
     }
 
@@ -87,10 +87,9 @@ public sealed class RestockRoomController
         if (dragItem == null || dragItem.worldContainerPrefab == null || roomCamera == null)
         {
             string message = dragItem == null
-                ? "That delivery item is missing."
-                : dragItem.displayName + " has no box or crate prefab assigned.";
+                ? "ITEM UNAVAILABLE"
+                : "BOX PREFAB MISSING: " + dragItem.displayName;
             hud?.SetRoomMessage(message, true);
-            coordinator?.ShowMessage(message);
             return false;
         }
 
@@ -203,15 +202,13 @@ public sealed class RestockRoomController
         {
             string message;
             if (wrongStorage)
-                message = "Wrong storage accelerates spoilage. Drop " + item.displayName +
-                          " on this shelf again within 4 seconds to confirm, or use " +
-                          StorageLabel(item.requiredStorage) + ".";
+                message = "! WRONG STORAGE  |  " + StorageLabel(item.requiredStorage).ToUpperInvariant() +
+                          "  |  DROP AGAIN TO CONFIRM";
             else if (grid != null)
-                message = "That shelf slot is occupied. The box returned to your hotbar.";
+                message = "! SLOT OCCUPIED  |  BOX RETURNED";
             else
-                message = "Drop the box on an open shelf. It returned to your hotbar.";
+                message = "! OPEN SHELF REQUIRED  |  BOX RETURNED";
             hud?.SetRoomMessage(message, true);
-            coordinator?.ShowMessage(message);
             return false;
         }
 
@@ -232,9 +229,8 @@ public sealed class RestockRoomController
         if (!draggable.TryPlaceInitially(grid, column, row))
         {
             Object.Destroy(box);
-            string occupied = "That shelf slot was just occupied. The box returned to your hotbar.";
+            string occupied = "! SLOT OCCUPIED  |  BOX RETURNED";
             hud?.SetRoomMessage(occupied, true);
-            coordinator?.ShowMessage(occupied);
             return false;
         }
 
@@ -248,7 +244,6 @@ public sealed class RestockRoomController
             grid.RemoveObject(box, column, row);
             Object.Destroy(box);
             hud?.SetRoomMessage(result, true);
-            coordinator?.ShowMessage(result);
             return false;
         }
 
@@ -428,7 +423,7 @@ public sealed class RestockRoomController
         UpdateSwitchLabel();
         hud?.SetActiveRoom(room);
         hud?.SetRoomMessage(
-            room == RestockStorageType.Frozen ? "Walk-in Freezer" : "Dry Storage Room",
+            room == RestockStorageType.Frozen ? "WALK-IN FREEZER" : "DRY STORAGE",
             false);
     }
 
@@ -478,6 +473,6 @@ public sealed class RestockRoomController
 
     private static string StorageLabel(RestockStorageType storage)
     {
-        return storage == RestockStorageType.Frozen ? "the Walk-in Freezer" : "the Dry Storage Room";
+        return storage == RestockStorageType.Frozen ? "Freezer" : "Dry Storage";
     }
 }

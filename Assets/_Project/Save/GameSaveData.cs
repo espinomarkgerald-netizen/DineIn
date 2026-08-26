@@ -211,4 +211,9 @@ public class GameSaveData
         new List<NewspaperIssueSaveEntry>();
     public List<RestockStoredContainerSaveData> restockStoredContainers =
         new List<RestockStoredContainerSaveData>();
+
+    [Header("Manager Complaint Encounters")]
+    public int managerComplaintWeekIndex = -1;
+    public int managerComplaintsThisWeek;
+    public int managerComplaintLastDay;
 }

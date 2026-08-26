@@ -66,13 +66,6 @@ public sealed class RestockHotbarSlotUI : MonoBehaviour,
         if (countText != null)
             countText.text = "x" + Mathf.Max(0, count);
 
-        if (slotBackground != null)
-        {
-            slotBackground.color = item != null && item.requiredStorage == RestockStorageType.Frozen
-                ? new Color(0.28f, 0.72f, 0.94f, 1f)
-                : new Color(0.62f, 0.40f, 0.20f, 1f);
-        }
-
         SetSelected(false);
         SetDragging(false);
     }

@@ -46,6 +46,8 @@ internal sealed class AlienProceduralAnimation
     private bool isSeated;
     private bool isEating;
     private bool isMoving;
+    private bool isCallingManager;
+    private float managerCallClock;
 
     private static Material sharedParticleMaterial;
     private static Texture2D sharedParticleTexture;
@@ -97,6 +99,13 @@ internal sealed class AlienProceduralAnimation
         hasCachedFoodPosition = false;
     }
 
+    public void SetCallingManager(bool calling)
+    {
+        isCallingManager = calling;
+        if (!calling)
+            managerCallClock = 0f;
+    }
+
     public void Update(float deltaTime)
     {
         if (animator == null || settings == null)
@@ -119,6 +128,8 @@ internal sealed class AlienProceduralAnimation
 
         if (isEating)
             eatingClock += deltaTime * eatingSpeed;
+        if (isCallingManager)
+            managerCallClock += deltaTime;
     }
 
     public void LateUpdate()
@@ -129,12 +140,16 @@ internal sealed class AlienProceduralAnimation
         if (head == null)
             ResolveHumanoidBones();
 
-        if (!isSeated || head == null)
+        if (head == null)
             return;
 
-        ApplySeatedIdleMotion();
+        if (isSeated)
+            ApplySeatedIdleMotion();
 
-        if (eatingBlend > 0.001f)
+        if (isCallingManager)
+            ApplyManagerCallMotion();
+
+        if (isSeated && eatingBlend > 0.001f && !isCallingManager)
             ApplyEatingMotion();
     }
 
@@ -234,6 +249,38 @@ internal sealed class AlienProceduralAnimation
             lastParticleCycle = cycleIndex;
             EmitBiteParticles(mouth);
         }
+    }
+
+    private void ApplyManagerCallMotion()
+    {
+        if (head == null)
+            return;
+
+        float bodyHeight = ResolveBodyHeight();
+        bool right = prefersRightHand;
+        float side = right ? 1f : -1f;
+        float wave = Mathf.Sin(
+            managerCallClock * Mathf.Max(0.1f, settings.managerCallWaveCyclesPerSecond) *
+            Mathf.PI * 2f);
+
+        Vector3 target = head.position +
+                         Vector3.up * (bodyHeight * settings.managerCallHandHeight) +
+                         owner.transform.right *
+                         (bodyHeight * settings.managerCallHandSide * side) +
+                         owner.transform.forward *
+                         (bodyHeight * settings.managerCallHandForward) +
+                         owner.transform.right *
+                         (bodyHeight * settings.managerCallWaveDistance * wave);
+
+        Transform upperArm = right ? rightUpperArm : leftUpperArm;
+        Transform lowerArm = right ? rightLowerArm : leftLowerArm;
+        Transform hand = right ? rightHand : leftHand;
+        ApplyCcdArm(
+            upperArm,
+            lowerArm,
+            hand,
+            target,
+            Mathf.Clamp01(settings.managerCallArmWeight));
     }
 
     private float ResolveBodyHeight()

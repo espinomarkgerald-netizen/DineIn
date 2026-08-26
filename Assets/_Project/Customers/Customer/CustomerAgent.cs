@@ -163,6 +163,11 @@ public class CustomerAgent : MonoBehaviour
             !IsSeated && currentAnimSpeed > 0.05f);
     }
 
+    public void SetCallingManager(bool calling)
+    {
+        proceduralAnimation?.SetCallingManager(calling);
+    }
+
     public void WalkTo(Vector3 worldPos)
     {
         TryWalkTo(worldPos, out _);

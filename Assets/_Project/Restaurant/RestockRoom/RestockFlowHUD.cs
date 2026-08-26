@@ -28,12 +28,20 @@ public sealed class RestockFlowHUD : MonoBehaviour
     [SerializeField] private RectTransform hotbarContent;
     [SerializeField] private Button hotbarSlotPrefab;
     [SerializeField] private TMP_Text roomMessageText;
+    [SerializeField] private GameObject roomMessageRoot;
+    [SerializeField] private CanvasGroup roomMessageCanvasGroup;
     [SerializeField] private TMP_Text remainingText;
     [SerializeField] private GameObject tooltipRoot;
     [SerializeField] private TMP_Text tooltipText;
+    [SerializeField, Min(40f)] private float hotbarSlotSize = 54f;
+    [SerializeField, Min(0f)] private float hotbarSlotSpacing = 6f;
+    [SerializeField, Min(100f)] private float maxHotbarWidth = 720f;
+    [SerializeField, Min(0.05f)] private float hotbarGrowSeconds = 0.24f;
     [SerializeField, Min(0.01f)] private float pickupSlotDelay = 0.08f;
     [SerializeField, Min(0.05f)] private float pickupPopSeconds = 0.18f;
     [SerializeField, Min(1f)] private float returnPunchScale = 1.18f;
+    [SerializeField, Min(0.5f)] private float roomMessageInfoSeconds = 1.5f;
+    [SerializeField, Min(0.5f)] private float roomMessageErrorSeconds = 4.1f;
 
     [Header("Start-day Restock Reminder")]
     [SerializeField] private GameObject startReminderRoot;
@@ -55,8 +63,11 @@ public sealed class RestockFlowHUD : MonoBehaviour
     private Coroutine pickupRoutine;
     private Coroutine returnRoutine;
     private Coroutine notificationRoutine;
+    private Coroutine hotbarResizeRoutine;
+    private Coroutine roomMessageRoutine;
     private Action startAnyway;
     private CanvasGroup hotbarInputGroup;
+    private Vector2 roomMessageShownPosition;
 
     public RectTransform HotbarRect => hotbarRoot != null
         ? hotbarRoot.transform as RectTransform
@@ -108,6 +119,7 @@ public sealed class RestockFlowHUD : MonoBehaviour
     {
         ResolveOptionalReferences();
         MakeTooltipInputTransparent();
+        PrepareRoomMessage();
         SetHotbarInteraction(false);
 
         if (holdRoot != null)
@@ -116,6 +128,8 @@ public sealed class RestockFlowHUD : MonoBehaviour
             notificationRoot.SetActive(false);
         if (tooltipRoot != null)
             tooltipRoot.SetActive(false);
+        if (remainingText != null)
+            remainingText.gameObject.SetActive(false);
         if (startReminderRoot != null)
             startReminderRoot.SetActive(false);
         if (iris != null)
@@ -149,6 +163,17 @@ public sealed class RestockFlowHUD : MonoBehaviour
     {
         if (RestockOrderManager.Instance != null)
             RestockOrderManager.Instance.OrdersChanged -= HandleOrdersChanged;
+
+        if (hotbarResizeRoutine != null)
+        {
+            StopCoroutine(hotbarResizeRoutine);
+            hotbarResizeRoutine = null;
+        }
+        if (roomMessageRoutine != null)
+        {
+            StopCoroutine(roomMessageRoutine);
+            roomMessageRoutine = null;
+        }
     }
 
     private IEnumerator SubscribeAndRefresh()
@@ -207,6 +232,7 @@ public sealed class RestockFlowHUD : MonoBehaviour
     {
         roomController = null;
         inRestockRoom = false;
+        HideRoomMessageImmediate();
         SetHotbarInteraction(false);
         RebuildHotbar();
     }
@@ -258,7 +284,11 @@ public sealed class RestockFlowHUD : MonoBehaviour
     public void RequestPickupAnimation()
     {
         pickupAnimationRequested = true;
-        RebuildHotbar();
+    }
+
+    public void CancelPickupAnimation()
+    {
+        pickupAnimationRequested = false;
     }
 
     public void RebuildHotbar()
@@ -278,13 +308,20 @@ public sealed class RestockFlowHUD : MonoBehaviour
 
         RestockOrderManager manager = RestockOrderManager.Instance;
         bool hasBoxes = manager != null && manager.HotbarContainerCount > 0;
+        RectTransform hotbarRect = HotbarRect;
+        float previousWidth = hotbarRect != null ? hotbarRect.rect.width : 0f;
         if (hotbarRoot != null)
             hotbarRoot.SetActive(hasBoxes);
         if (!hasBoxes)
         {
+            if (hotbarResizeRoutine != null)
+            {
+                StopCoroutine(hotbarResizeRoutine);
+                hotbarResizeRoutine = null;
+            }
             HideTooltip();
             if (inRestockRoom)
-                SetRoomMessage("All delivered boxes are stored.", false);
+                SetRoomMessage("ALL BOXES STORED", false);
             return;
         }
 
@@ -292,12 +329,17 @@ public sealed class RestockFlowHUD : MonoBehaviour
             return;
 
         List<ItemData> items = manager.GetHotbarItems();
-        RectTransform hotbarRect = HotbarRect;
+        float targetWidth = Mathf.Min(
+            maxHotbarWidth,
+            items.Count * hotbarSlotSize + Mathf.Max(0, items.Count - 1) * hotbarSlotSpacing);
         if (hotbarRect != null)
         {
-            float width = Mathf.Clamp(44f + items.Count * 56f, 220f, 380f);
-            hotbarRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, width);
-            hotbarRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, 82f);
+            hotbarRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, hotbarSlotSize);
+            if (hotbarResizeRoutine != null)
+                StopCoroutine(hotbarResizeRoutine);
+            float startWidth = pickupAnimationRequested ? 0f : previousWidth;
+            hotbarResizeRoutine = StartCoroutine(
+                AnimateHotbarWidth(hotbarRect, startWidth, targetWidth));
         }
 
         for (int i = 0; i < items.Count; i++)
@@ -331,10 +373,6 @@ public sealed class RestockFlowHUD : MonoBehaviour
 
         SelectSlot(slot);
         ShowTooltip(slot.Item);
-        SetRoomMessage(
-            "Drag " + slot.Item.displayName + " out of the hotbar and onto a " +
-            StorageLabel(slot.Item.requiredStorage) + " shelf.",
-            false);
     }
 
     public void HandleSlotHover(RestockHotbarSlotUI slot, bool entered)
@@ -402,12 +440,25 @@ public sealed class RestockFlowHUD : MonoBehaviour
 
     public void SetRoomMessage(string message, bool error)
     {
-        if (roomMessageText == null)
+        if (roomMessageText == null || roomMessageRoot == null)
             return;
-        roomMessageText.text = message ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            HideRoomMessageImmediate();
+            return;
+        }
+
+        roomMessageText.text = message.Trim();
         roomMessageText.color = error
-            ? new Color(0.92f, 0.22f, 0.2f, 1f)
-            : new Color(0.78f, 0.94f, 1f, 1f);
+            ? new Color(1f, 0.94f, 0.84f, 1f)
+            : Color.white;
+        roomMessageRoot.SetActive(true);
+
+        if (roomMessageRoutine != null)
+            StopCoroutine(roomMessageRoutine);
+        roomMessageRoutine = StartCoroutine(
+            ShowRoomMessageRoutine(error ? roomMessageErrorSeconds : roomMessageInfoSeconds));
     }
 
     public bool ShowStartReminder(int remainingBoxes, Action onStartAnyway)
@@ -461,13 +512,8 @@ public sealed class RestockFlowHUD : MonoBehaviour
         if (tooltipRoot == null || tooltipText == null || item == null)
             return;
 
-        int count = RestockOrderManager.Instance != null
-            ? RestockOrderManager.Instance.GetHotbarContainers(item)
-            : 0;
-        tooltipText.text = item.displayName + "  •  " + count + " box" +
-            (count == 1 ? string.Empty : "es") + "  •  " +
-            Mathf.Max(1, item.unitsPerBox) + " units each  •  " +
-            StorageLabel(item.requiredStorage);
+        tooltipText.text = item.displayName.ToUpperInvariant() + "  |  " +
+                           StorageLabel(item.requiredStorage).ToUpperInvariant();
         tooltipRoot.SetActive(true);
     }
 
@@ -498,15 +544,107 @@ public sealed class RestockFlowHUD : MonoBehaviour
 
     private void RefreshRemainingText()
     {
-        if (remainingText == null || RestockOrderManager.Instance == null)
+        if (remainingText == null)
+            return;
+        remainingText.text = string.Empty;
+        remainingText.gameObject.SetActive(false);
+    }
+
+    private IEnumerator AnimateHotbarWidth(RectTransform rect, float from, float to)
+    {
+        if (rect == null)
+            yield break;
+
+        float elapsed = 0f;
+        float duration = Mathf.Max(0.05f, hotbarGrowSeconds);
+        while (elapsed < duration && rect != null)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / duration));
+            rect.SetSizeWithCurrentAnchors(
+                RectTransform.Axis.Horizontal,
+                Mathf.LerpUnclamped(Mathf.Max(0f, from), Mathf.Max(hotbarSlotSize, to), t));
+            yield return null;
+        }
+
+        if (rect != null)
+            rect.SetSizeWithCurrentAnchors(
+                RectTransform.Axis.Horizontal,
+                Mathf.Max(hotbarSlotSize, to));
+        hotbarResizeRoutine = null;
+    }
+
+    private void PrepareRoomMessage()
+    {
+        if (roomMessageRoot == null && roomMessageText != null)
+            roomMessageRoot = roomMessageText.transform.parent != null
+                ? roomMessageText.transform.parent.gameObject
+                : roomMessageText.gameObject;
+        if (roomMessageRoot == null)
             return;
 
-        int dry = RestockOrderManager.Instance.GetHotbarContainerCount(RestockStorageType.Dry);
-        int frozen = RestockOrderManager.Instance.GetHotbarContainerCount(RestockStorageType.Frozen);
-        remainingText.text = inRestockRoom
-            ? (activeRoom == RestockStorageType.Frozen ? "❄ FREEZER" : "DRY") +
-              "  ▣ " + (activeRoom == RestockStorageType.Frozen ? frozen : dry)
-            : "▣ " + (dry + frozen) + "   DRY " + dry + "   ❄ " + frozen;
+        if (roomMessageCanvasGroup == null)
+            roomMessageCanvasGroup = roomMessageRoot.GetComponent<CanvasGroup>();
+        if (roomMessageCanvasGroup == null)
+            roomMessageCanvasGroup = roomMessageRoot.AddComponent<CanvasGroup>();
+        roomMessageCanvasGroup.interactable = false;
+        roomMessageCanvasGroup.blocksRaycasts = false;
+
+        RectTransform rect = roomMessageRoot.transform as RectTransform;
+        if (rect != null)
+            roomMessageShownPosition = rect.anchoredPosition;
+        HideRoomMessageImmediate();
+    }
+
+    private IEnumerator ShowRoomMessageRoutine(float staySeconds)
+    {
+        RectTransform rect = roomMessageRoot != null
+            ? roomMessageRoot.transform as RectTransform
+            : null;
+        if (rect == null || roomMessageCanvasGroup == null)
+            yield break;
+
+        Vector2 hidden = roomMessageShownPosition +
+                         Vector2.up * (Mathf.Max(54f, rect.rect.height) + 18f);
+        rect.anchoredPosition = hidden;
+        roomMessageCanvasGroup.alpha = 0f;
+
+        float elapsed = 0f;
+        const float slideSeconds = 0.18f;
+        while (elapsed < slideSeconds)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / slideSeconds));
+            rect.anchoredPosition = Vector2.LerpUnclamped(hidden, roomMessageShownPosition, t);
+            roomMessageCanvasGroup.alpha = t;
+            yield return null;
+        }
+
+        rect.anchoredPosition = roomMessageShownPosition;
+        roomMessageCanvasGroup.alpha = 1f;
+        yield return new WaitForSecondsRealtime(Mathf.Max(0.5f, staySeconds));
+
+        elapsed = 0f;
+        const float hideSeconds = 0.16f;
+        while (elapsed < hideSeconds)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / hideSeconds));
+            rect.anchoredPosition = Vector2.LerpUnclamped(roomMessageShownPosition, hidden, t);
+            roomMessageCanvasGroup.alpha = 1f - t;
+            yield return null;
+        }
+
+        roomMessageRoutine = null;
+        HideRoomMessageImmediate();
+    }
+
+    private void HideRoomMessageImmediate()
+    {
+        if (roomMessageCanvasGroup != null)
+            roomMessageCanvasGroup.alpha = 0f;
+        if (roomMessageRoot != null)
+            roomMessageRoot.SetActive(false);
     }
 
     private bool IsInsideHotbar(Vector2 position, Camera eventCamera)

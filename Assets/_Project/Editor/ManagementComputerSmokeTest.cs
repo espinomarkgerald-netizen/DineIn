@@ -677,11 +677,19 @@ public static class ManagementComputerSmokeTest
             "departureDelaySeconds", BindingFlags.Instance | BindingFlags.NonPublic);
         FieldInfo hornClip = typeof(RestockTruckInteractable).GetField(
             "arrivalHornClip", BindingFlags.Instance | BindingFlags.NonPublic);
+        FieldInfo arrivalOffset = typeof(RestockTruckInteractable).GetField(
+            "arrivalOffset", BindingFlags.Instance | BindingFlags.NonPublic);
+        FieldInfo departureOffset = typeof(RestockTruckInteractable).GetField(
+            "departureOffset", BindingFlags.Instance | BindingFlags.NonPublic);
         Assert(departureDelay != null &&
                Mathf.Abs((float)departureDelay.GetValue(truck) - 2f) < 0.001f,
             "The delivery truck does not use the approved two-second departure delay");
         Assert(hornClip != null && hornClip.GetValue(truck) is AudioClip,
             "The delivery truck has no beep-beep horn clip assigned");
+        Assert(arrivalOffset != null && departureOffset != null,
+            "The delivery truck is missing editable X/Y/Z arrival or departure offsets");
+        Assert((Vector3)arrivalOffset.GetValue(truck) != (Vector3)departureOffset.GetValue(truck),
+            "The delivery truck arrival and departure targets are identical");
         AssertReachable(manager, truck, "delivery truck");
 
         RestockStockRoomEntrance[] roomTargets =

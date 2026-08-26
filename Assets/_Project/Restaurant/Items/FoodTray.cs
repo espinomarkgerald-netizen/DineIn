@@ -12,6 +12,8 @@ public class FoodTray : MonoBehaviour
 
     [Header("Delivered Data")]
     [SerializeField] private List<string> deliveredProductIds = new List<string>();
+    [Tooltip("Editable quality flag used by the Manager complaint system. Kitchen stations may set this when a burnt serving reaches the tray.")]
+    [SerializeField] private bool containsBurntFood;
     [SerializeField] private CustomerGroup.FoodType deliveredFood1;
     [SerializeField] private CustomerGroup.FoodType deliveredFood2;
     [SerializeField] private CustomerGroup.DrinkType deliveredDrink;
@@ -42,6 +44,12 @@ public class FoodTray : MonoBehaviour
     private bool hasDrink;
 
     public CustomerGroup TargetGroup => targetGroup;
+    public bool ContainsBurntFood => containsBurntFood;
+
+    public void SetContainsBurntFood(bool burnt)
+    {
+        containsBurntFood = burnt;
+    }
 
     public bool TryGetFoodBitePosition(int dinerIndex, int biteIndex, out Vector3 position)
     {
@@ -126,6 +134,7 @@ public class FoodTray : MonoBehaviour
 
         hasFood2 = false;
         hasDrink = false;
+        containsBurntFood = false;
         deliveredProductIds.Clear();
         deliveredFood1 = CustomerGroup.FoodType.Chicken;
         deliveredFood2 = CustomerGroup.FoodType.Chicken;

@@ -149,14 +149,16 @@ public class DevSettingsConsole : MonoBehaviour
         bool expectsValue = normalized switch
         {
             "day" or "reputation" or "approval" or "money" or "addmoney" or
-            "fillstocks" or "setcoin" or "addcoin" or "timescale" => true,
+            "fillstocks" or "setcoin" or "addcoin" or "timescale" or
+            "complaint" => true,
             _ => false
         };
 
         bool knownNoValueCommand = normalized switch
         {
             "endday" or "gameover" or "zerostocks" or "startday" or "resetrun" or
-            "recover" or "save" or "status" or "help" => true,
+            "recover" or "save" or "status" or "help" or
+            "wrongorder" or "burntfood" => true,
             _ => false
         };
 
@@ -179,6 +181,9 @@ public class DevSettingsConsole : MonoBehaviour
             "setcoin" => TryRunSetCoinCommand(value),
             "addcoin" => TryRunAddCoinCommand(value),
             "timescale" => TryRunTimeScaleCommand(value),
+            "complaint" => TryRunComplaintCommand(value),
+            "wrongorder" => TryRunComplaintCommand((int)ManagerComplaintType.WrongOrder),
+            "burntfood" => TryRunComplaintCommand((int)ManagerComplaintType.BurntFood),
             "endday" => TryRunEndDayCommand(),
             "gameover" => TryRunGameOverCommand(),
             "zerostocks" => TryRunZeroStocksCommand(),
@@ -466,6 +471,35 @@ public class DevSettingsConsole : MonoBehaviour
         return true;
     }
 
+    private bool TryRunComplaintCommand(int value)
+    {
+        if (value != (int)ManagerComplaintType.WrongOrder &&
+            value != (int)ManagerComplaintType.BurntFood)
+        {
+            SetConsoleMessage(
+                "ERROR: complaint(1) = wrong order, complaint(2) = burnt food.",
+                errorColor);
+            return false;
+        }
+
+        ManagerComplaintSystem system = ManagerComplaintSystem.EnsureInstance();
+        if (system == null || !system.DebugForceComplaint((ManagerComplaintType)value))
+        {
+            SetConsoleMessage(
+                "ERROR: Start service and wait for a seated customer group first.",
+                errorColor);
+            return false;
+        }
+
+        SetConsoleMessage(
+            value == (int)ManagerComplaintType.WrongOrder
+                ? "SUCCESS: Wrong-order Manager complaint created."
+                : "SUCCESS: Burnt-food Manager complaint created.",
+            successColor);
+        ClosePanel();
+        return true;
+    }
+
     private bool TryRunHelpCommand()
     {
         SetConsoleMessage(
@@ -473,6 +507,7 @@ public class DevSettingsConsole : MonoBehaviour
             "day(n), reputation(n), money(n), addMoney(n)\n" +
             "startDay(), endDay(), gameOver(), resetRun(), recover()\n" +
             "zeroStocks(), fillStocks(n), setCoin(n), addCoin(n)\n" +
+            "complaint(1), complaint(2), wrongOrder(), burntFood()\n" +
             "timeScale(n), save(), status(), help()",
             normalColor);
         return true;

@@ -51,7 +51,7 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
     [SerializeField, TextArea] private string dayForecastTemplate =
         "Today's forecast: at least {0} customer groups. Review supplies and prepare the restaurant using the management computer before opening.";
     [SerializeField, TextArea] private string deliveryArrivedMessage =
-        "Your order has arrived! Go to the delivery truck and hold to collect it.";
+        "DELIVERY ARRIVED  |  TRUCK READY";
     [SerializeField, TextArea] private string expiredStockWarningMessage =
         "Some of your stocks are expired. Throw them away in the stock room.";
 
@@ -199,14 +199,17 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
 
         hud?.ShowHold(() =>
         {
+            hud?.RequestPickupAnimation();
             if (!manager.CollectDeliveredOrders())
+            {
+                hud?.CancelPickupAnimation();
                 return;
+            }
 
             int count = manager.HotbarContainerCount;
             truck?.GetComponent<RestockTruckInteractable>()?.BeginDepartureAfterCollection();
-            hud?.RequestPickupAnimation();
-            ShowMessage("✓ " + count + " BOX" + (count == 1 ? string.Empty : "ES") +
-                        " COLLECTED   →   CHOOSE A STORAGE SLOT");
+            ShowMessage("ORDER COLLECTED  |  " + count + " BOX" +
+                        (count == 1 ? string.Empty : "ES"));
         });
     }
 
@@ -267,6 +270,22 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
 
     public void ShowMessage(string message)
     {
+        EnsureLobbyWarningUI();
+        WarningSlideUI warning = WarningSlideUI.Instance;
+        Canvas warningCanvas = warning != null
+            ? warning.GetComponentInParent<Canvas>(true)
+            : null;
+        bool lobbyWarningCanRender = warning != null &&
+                                     warning.isActiveAndEnabled &&
+                                     (warningCanvas == null || warningCanvas.isActiveAndEnabled);
+        if (lobbyWarningCanRender)
+        {
+            warning.Show(message);
+            return;
+        }
+
+        // The prefab-backed HUD notification is only a safe fallback for scenes
+        // that genuinely do not contain the normal Lobby warning UI.
         EnsureHud();
         hud?.ShowNotification(message);
     }

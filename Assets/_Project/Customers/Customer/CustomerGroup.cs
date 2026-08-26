@@ -564,6 +564,7 @@ public class CustomerGroup : MonoBehaviour
 
     private bool receivedWrongOrder;
     private bool shouldShowAngryThoughtOnLeave;
+    private bool managerComplaintPending;
 
     private bool finalResultReported;
     private FinalResult finalResult = FinalResult.None;
@@ -596,6 +597,35 @@ public class CustomerGroup : MonoBehaviour
         !leavingRoutineStarted &&
         (state == GroupState.Waiting || state == GroupState.WalkingToLobby);
     public Transform UIAnchor => groupUiAnchor;
+    public Transform ManagerComplaintAnchor
+    {
+        get
+        {
+            if (groupUiAnchor != null)
+                return groupUiAnchor;
+
+            for (int i = 0; i < members.Count; i++)
+            {
+                if (members[i] == null) continue;
+                if (members[i].HeadAnchor != null)
+                    return members[i].HeadAnchor;
+                return members[i].transform;
+            }
+
+            return transform;
+        }
+    }
+    public bool CanReceiveManagerComplaint =>
+        gameObject.activeInHierarchy &&
+        !IsTakeout &&
+        !managerComplaintPending &&
+        !leavingRoutineStarted &&
+        assignedBooth != null &&
+        members != null &&
+        members.Count > 0 &&
+        state != GroupState.Leaving &&
+        state != GroupState.UnhappyLeft &&
+        state != GroupState.AngryLeft;
 
     private int pendingPaymentAmount;
 
@@ -1549,6 +1579,21 @@ public class CustomerGroup : MonoBehaviour
             return;
 
         bool isCorrectOrder = IsCorrectDeliveredOrder(deliveredContents);
+        bool isBurntFood = sourceTray != null && sourceTray.ContainsBurntFood;
+        if (!isBurntFood && deliveredContents != null)
+        {
+            for (int i = 0; i < deliveredContents.Count; i++)
+            {
+                string delivered = deliveredContents[i];
+                if (!string.IsNullOrWhiteSpace(delivered) &&
+                    (delivered.IndexOf("burnt", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                     delivered.IndexOf("burned", StringComparison.OrdinalIgnoreCase) >= 0))
+                {
+                    isBurntFood = true;
+                    break;
+                }
+            }
+        }
 
         if (assignedBooth != null)
             assignedBooth.ClearMenuBook();
@@ -1556,6 +1601,12 @@ public class CustomerGroup : MonoBehaviour
         ClearTableNumber();
 
         firstDeliveryCompleted = true;
+
+        if (isBurntFood)
+        {
+            HandleBurntDelivery();
+            return;
+        }
 
         if (!isCorrectOrder)
         {
@@ -1589,6 +1640,34 @@ public class CustomerGroup : MonoBehaviour
         shouldShowAngryThoughtOnLeave = true;
         wrongDeliveryCount++;
 
+        ManagerComplaintSystem complaintSystem = ManagerComplaintSystem.EnsureInstance();
+        if (complaintSystem != null && complaintSystem.TryRequestComplaint(
+                this,
+                ManagerComplaintType.WrongOrder))
+            return;
+
+        ContinueUnresolvedDeliveryFailure();
+    }
+
+    private void HandleBurntDelivery()
+    {
+        CasualDiningPolishManager.EnsureInstance().RegisterIncident(
+            DailyIncidentType.OrderFailed);
+        waitingForRemake = true;
+        shouldShowAngryThoughtOnLeave = true;
+
+        ManagerComplaintSystem complaintSystem = ManagerComplaintSystem.EnsureInstance();
+        if (complaintSystem != null && complaintSystem.TryRequestComplaint(
+                this,
+                ManagerComplaintType.BurntFood))
+            return;
+
+        ContinueUnresolvedDeliveryFailure();
+    }
+
+    private void ContinueUnresolvedDeliveryFailure()
+    {
+
         if (!angryResultLocked)
         {
             angryResultLocked = true;
@@ -1621,6 +1700,95 @@ public class CustomerGroup : MonoBehaviour
 
         ClearOrderBubble();
         StartCoroutine(ShowRemakeOrderAfterDelay());
+    }
+
+    public void BeginManagerComplaint(ManagerComplaintType _)
+    {
+        managerComplaintPending = true;
+        isOrderPaused = true;
+        SetMembersEating(false);
+        ClearThoughtBubble();
+        SetManagerCallAnimation(true);
+    }
+
+    public void SetManagerCallAnimation(bool calling)
+    {
+        bool assigned = false;
+        for (int i = 0; i < members.Count; i++)
+        {
+            CustomerAgent member = members[i];
+            if (member == null) continue;
+            bool shouldCall = calling && !assigned;
+            member.SetCallingManager(shouldCall);
+            assigned |= shouldCall;
+        }
+    }
+
+    public void CancelManagerComplaint()
+    {
+        managerComplaintPending = false;
+        isOrderPaused = false;
+        SetManagerCallAnimation(false);
+    }
+
+    public void ResolveManagerComplaint(
+        ManagerComplaintResponseQuality quality,
+        ManagerComplaintType _)
+    {
+        if (!managerComplaintPending)
+            return;
+
+        managerComplaintPending = false;
+        isOrderPaused = false;
+        SetManagerCallAnimation(false);
+
+        if (quality == ManagerComplaintResponseQuality.Professional)
+        {
+            angryResultLocked = false;
+            receivedWrongOrder = false;
+            shouldShowAngryThoughtOnLeave = false;
+            waitingForRemake = true;
+            hasConfirmedOrder = false;
+            isPlayerReviewingOrder = false;
+
+            if (assignedBooth != null)
+                assignedBooth.ClearMenuBook();
+
+            ClearOrderBubble();
+            ClearBillBubble();
+            ClearTableNumber();
+            ClearMoneyBubble();
+            ClearEatingBubble();
+            SetState(GroupState.ReadyToOrder);
+            ShowCustomThought("Thank you for taking this seriously.", happyFaceSprite);
+            StartCoroutine(ShowRemakeOrderAfterDelay());
+            return;
+        }
+
+        ClearOrderBubble();
+        ClearBillBubble();
+        ClearTableNumber();
+        ClearMoneyBubble();
+        ClearEatingBubble();
+
+        if (quality == ManagerComplaintResponseQuality.Acceptable)
+        {
+            ReportFinalResult(FinalResult.Neutral);
+            ShowCustomThought("The refund helps, but this was disappointing.", unhappyFaceSprite);
+            SetState(GroupState.Leaving);
+        }
+        else
+        {
+            if (!angryResultLocked)
+            {
+                angryResultLocked = true;
+                ReportFinalResult(FinalResult.Angry);
+            }
+            ShowThought(angryComments, angryFaceSprite);
+            SetState(GroupState.AngryLeft);
+        }
+
+        StartLeaving(false);
     }
 
     public void ReceiveBillFromWaiter()
