@@ -1910,7 +1910,8 @@ public class CustomerGroup : MonoBehaviour
         if (assignedBooth == null) yield break;
 
         int total = GetCurrentOrderTotal();
-        int amount = GetCustomerPaymentAmount(total);
+        bool useCardPayment = CardPaymentService.ShouldUseCardPayment();
+        int amount = useCardPayment ? total : GetCustomerPaymentAmount(total);
 
         pendingPaymentAmount = amount;
 
@@ -1920,7 +1921,7 @@ public class CustomerGroup : MonoBehaviour
         Transform paymentApproach = assignedBooth.approachPoint != null
             ? assignedBooth.approachPoint
             : assignedBooth.transform;
-        var money = spawner.SpawnMoney(this, amount, paymentApproach);
+        var money = spawner.SpawnMoney(this, amount, paymentApproach, useCardPayment);
         if (money == null) yield break;
 
         ClearMoneyBubble();
@@ -3226,8 +3227,7 @@ public class CustomerGroup : MonoBehaviour
             if (member == null)
                 continue;
 
-            if (member.Agent != null)
-                member.Agent.avoidancePriority = Mathf.Clamp(20 + i, 0, 99);
+            member.SetFormationPriorityOffset(i);
 
             Vector3 desiredTarget = GetTakeoutFormationTarget(
                 worldPoint,

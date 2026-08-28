@@ -8,6 +8,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.AI;
+using UnityEngine.Audio;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -113,6 +114,16 @@ public static class ManagementComputerSmokeTest
         Assert(EquipmentManager.Instance != null, "EquipmentManager missing");
         Assert(MenuAvailabilityManager.Instance != null, "MenuAvailabilityManager missing");
 
+        FieldInfo startingMoney = typeof(MoneyManager).GetField(
+            "startingMoney", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert(startingMoney != null && (int)startingMoney.GetValue(MoneyManager.Instance) == 5000,
+            "Day 1 starting money is not the editable ₱5,000 value");
+        Assert(new GameSaveData().money == 5000,
+            "A fresh save does not begin with ₱5,000");
+        LobbyPauseMenuView pausePrefab = Resources.Load<LobbyPauseMenuView>("LobbyPauseMenu");
+        Assert(pausePrefab != null && Mathf.Abs(pausePrefab.DefaultSfxVolume - 0.5f) < 0.001f,
+            "The editable pause prefab's default SFX volume is not 50%");
+
         if (GameSaveManager.Instance != null)
             GameSaveManager.Instance.SuppressWritesForTests = true;
 
@@ -145,6 +156,15 @@ public static class ManagementComputerSmokeTest
 
         controller.OpenComputer(manager, station);
         Assert(controller.IsOpen, "Desktop did not open");
+        Assert(GameplayUIBlocker.IsBlocked(),
+            "Opening the management computer did not register as blocking gameplay HUD");
+        CasualDiningProgressHUD progressHud = CasualDiningProgressHUD.Instance;
+        Assert(progressHud != null, "Casual Dining HUD was not created");
+        FieldInfo hudGroupField = typeof(CasualDiningProgressHUD).GetField(
+            "hudGroup", BindingFlags.Instance | BindingFlags.NonPublic);
+        CanvasGroup hudGroup = hudGroupField?.GetValue(progressHud) as CanvasGroup;
+        Assert(hudGroup != null && hudGroup.alpha <= 0.001f,
+            "Casual Dining HUD remained visible over the management computer");
         Assert(!manager.Movement.IsPlayerControlled(), "Manager gameplay input remained active behind the desktop");
         responsive.RefreshLayout();
         Canvas.ForceUpdateCanvases();
@@ -230,6 +250,7 @@ public static class ManagementComputerSmokeTest
         }
 
         VerifyRestockCheckout(controller, responsive);
+        VerifyAssignedStaffPresence();
 
         Button closeButton = FindNamedComponent<Button>(responsive.SafeAreaRoot, "WindowCloseButton");
         Assert(closeButton != null && closeButton.interactable, "App window close button is not usable");
@@ -686,6 +707,13 @@ public static class ManagementComputerSmokeTest
             "The delivery truck does not use the approved two-second departure delay");
         Assert(hornClip != null && hornClip.GetValue(truck) is AudioClip,
             "The delivery truck has no beep-beep horn clip assigned");
+        FieldInfo sfxGroupField = typeof(RestockTruckInteractable).GetField(
+            "sfxMixerGroup", BindingFlags.Instance | BindingFlags.NonPublic);
+        AudioMixerGroup sfxGroup = sfxGroupField?.GetValue(truck) as AudioMixerGroup;
+        AudioSource hornSource = truck.GetComponent<AudioSource>();
+        Assert(sfxGroup != null && hornSource != null &&
+               hornSource.outputAudioMixerGroup == sfxGroup,
+            "The delivery truck horn is not routed through the adjustable SFX mixer");
         Assert(arrivalOffset != null && departureOffset != null,
             "The delivery truck is missing editable X/Y/Z arrival or departure offsets");
         Assert((Vector3)arrivalOffset.GetValue(truck) != (Vector3)departureOffset.GetValue(truck),
@@ -708,6 +736,42 @@ public static class ManagementComputerSmokeTest
         Assert(freezer != null, "Lobby has no Walk-in Freezer interaction");
         VerifyRoomEntrance(manager, dry, interactionLayer, "dry-storage entrance");
         VerifyRoomEntrance(manager, freezer, interactionLayer, "walk-in-freezer entrance");
+    }
+
+    private static void VerifyAssignedStaffPresence()
+    {
+        EmployeeManager employees = EmployeeManager.Instance;
+        RoleManager roles = UnityEngine.Object.FindFirstObjectByType<RoleManager>(
+            FindObjectsInactive.Include);
+        Assert(employees != null && roles != null,
+            "Staff presence verification is missing EmployeeManager or RoleManager");
+
+        Assert(roles.host.activeSelf ==
+               (employees.GetAssignedEmployee(EmployeeRole.Host) != null),
+            "Host visibility does not match the Active employee selection");
+        Assert(roles.waiter.activeSelf ==
+               (employees.GetAssignedEmployee(EmployeeRole.Waiter) != null),
+            "Waiter visibility does not match the Active employee selection");
+        Assert(roles.cashier.activeSelf ==
+               (employees.GetAssignedEmployee(EmployeeRole.Cashier) != null),
+            "Cashier visibility does not match the Active employee selection");
+        Assert(roles.busser.activeSelf ==
+               (employees.GetAssignedEmployee(EmployeeRole.Busser) != null),
+            "Busser visibility does not match the Active employee selection");
+
+        KitchenWorkerBot[] kitchenWorkers =
+            UnityEngine.Object.FindObjectsByType<KitchenWorkerBot>(
+                FindObjectsInactive.Include,
+                FindObjectsSortMode.None);
+        Assert(kitchenWorkers.Length == 2,
+            "Casual Dining must expose the editable Chef and Barista bot roles");
+        for (int i = 0; i < kitchenWorkers.Length; i++)
+        {
+            KitchenWorkerBot worker = kitchenWorkers[i];
+            Assert(worker.gameObject.activeSelf ==
+                   (employees.GetAssignedEmployee(worker.EmployeeRole) != null),
+                worker.EmployeeRole + " visibility does not match its Active employee selection");
+        }
     }
 
     private static void VerifyRoomEntrance(

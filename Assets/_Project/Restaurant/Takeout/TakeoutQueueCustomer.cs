@@ -31,6 +31,9 @@ public class TakeoutQueueCustomer : MonoBehaviour
         if (agent == null)
             agent = GetComponentInChildren<NavMeshAgent>();
 
+        if (agent != null)
+            CrowdNavigationAgent.Ensure(agent.gameObject, true);
+
         if (positionRoot == null)
             positionRoot = transform;
     }

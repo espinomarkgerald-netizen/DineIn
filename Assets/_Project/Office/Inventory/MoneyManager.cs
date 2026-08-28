@@ -7,7 +7,7 @@ public class MoneyManager : MonoBehaviour
     public static MoneyManager Instance;
 
     [Header("Finance Setup")]
-    [SerializeField] private int startingMoney = 500;
+    [SerializeField] private int startingMoney = 5000;
     public int Money { get; private set; }
 
     [Header("Optional Inspector Debug")]

@@ -7,7 +7,8 @@ alwaysApply: true
 
 - Before creating or changing UI, search the project for existing 9-slice frames, buttons, icons, fonts, and prefabs.
 - Reuse those authored assets instead of drawing plain replacement rectangles or introducing a new visual style.
-- Keep new UI editable through prefabs and serialized Inspector fields for layout, colors, assets, timing, and audio routing.
+- Keep new UI editable through real saved prefab children and serialized Inspector fields for layout, colors, assets, timing, and audio routing.
+- Never use temporary or `DontSave` preview objects as the editable UI; Prefab Mode edits must persist and drive runtime presentation.
 - Use the established Dine In colors and Fredoka typography unless a feature already has a more specific authored style.
 - Keep UI polish separate from authoritative gameplay logic and avoid duplicate presentation systems.
 - Verify both direct scene play and normal build flow after UI changes.

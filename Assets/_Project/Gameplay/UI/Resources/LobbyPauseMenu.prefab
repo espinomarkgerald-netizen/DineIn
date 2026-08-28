@@ -125,16 +125,18 @@ MonoBehaviour:
   font: {fileID: 11400000, guid: 44132a242d69e514eaf236194f4a06cf, type: 2}
   audioMixer: {fileID: 24100000, guid: 3fd0d86c1f880854d9b5971fafc00816, type: 2}
   sfxMixerGroup: {fileID: 2878796282664989187, guid: 3fd0d86c1f880854d9b5971fafc00816, type: 2}
+  defaultMusicVolume: 1
+  defaultSfxVolume: 0.5
   windowColor: {r: 0.035, g: 0.16, b: 0.31, a: 0.99}
   buttonColor: {r: 0.04, g: 0.64, b: 0.88, a: 1}
   toggleColor: {r: 0.08, g: 0.35, b: 0.5, a: 1}
   dangerColor: {r: 0.82, g: 0.16, b: 0.2, a: 1}
   trackColor: {r: 0.75, g: 0.84, b: 0.9, a: 1}
   fillColor: {r: 0.04, g: 0.64, b: 0.88, a: 1}
+  buttonHighlightTint: {r: 1, g: 1, b: 1, a: 1}
+  buttonPressedTint: {r: 0.72, g: 0.88, b: 0.95, a: 1}
   pauseButtonPosition: {x: 149, y: -28}
   pauseButtonSize: {x: 82, y: 82}
-  alignDayAndTimeToPause: 1
-  dayTimeVerticalOffset: 0
   settingsWindowSize: {x: 720, y: 880}
   resumePosition: {x: 0, y: 282}
   resumeSize: {x: 500, y: 68}

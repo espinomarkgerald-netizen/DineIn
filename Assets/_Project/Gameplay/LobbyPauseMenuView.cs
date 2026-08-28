@@ -18,6 +18,12 @@ public sealed class LobbyPauseMenuView : MonoBehaviour
     [SerializeField] private AudioMixer audioMixer;
     [SerializeField] private AudioMixerGroup sfxMixerGroup;
 
+    [Header("Editable Audio Defaults")]
+    [Tooltip("Used only when the player has not saved a Music setting yet.")]
+    [SerializeField, Range(0f, 1f)] private float defaultMusicVolume = 1f;
+    [Tooltip("Used only when the player has not saved an SFX setting yet.")]
+    [SerializeField, Range(0f, 1f)] private float defaultSfxVolume = 0.5f;
+
     [Header("Editable Settings Colors")]
     [SerializeField] private Color windowColor = new Color(0.035f, 0.16f, 0.31f, 0.99f);
     [SerializeField] private Color buttonColor = new Color(0.04f, 0.64f, 0.88f, 1f);
@@ -26,15 +32,17 @@ public sealed class LobbyPauseMenuView : MonoBehaviour
     [SerializeField] private Color trackColor = new Color(0.75f, 0.84f, 0.9f, 1f);
     [SerializeField] private Color fillColor = new Color(0.04f, 0.64f, 0.88f, 1f);
 
+    [Header("Editable Button Feedback")]
+    [Tooltip("Multiplied over the authored button color while highlighted.")]
+    [SerializeField] private Color buttonHighlightTint = Color.white;
+    [Tooltip("Multiplied over the authored button color while pressed. Avoid white flashes by keeping this below white.")]
+    [SerializeField] private Color buttonPressedTint = new Color(0.72f, 0.88f, 0.95f, 1f);
+
     [Header("Editable HUD Layout")]
     [Tooltip("Position of the pause button's top-right corner on the 1920 x 1080 HUD canvas.")]
     [SerializeField] private Vector2 pauseButtonPosition = new Vector2(149f, -28f);
     [Tooltip("Pause button size. Change this in the LobbyPauseMenu prefab.")]
     [SerializeField] private Vector2 pauseButtonSize = new Vector2(82f, 82f);
-    [Tooltip("Keeps the Day and Time text on the pause button's vertical centerline.")]
-    [SerializeField] private bool alignDayAndTimeToPause = true;
-    [SerializeField] private float dayTimeVerticalOffset;
-
     [Header("Editable Settings Layout (1920 x 1080)")]
     [SerializeField] private Vector2 settingsWindowSize = new Vector2(720f, 880f);
     [SerializeField] private Vector2 resumePosition = new Vector2(0f, 282f);
@@ -60,12 +68,16 @@ public sealed class LobbyPauseMenuView : MonoBehaviour
     public TMP_FontAsset Font => font;
     public AudioMixer AudioMixer => audioMixer;
     public AudioMixerGroup SfxMixerGroup => sfxMixerGroup;
+    public float DefaultMusicVolume => defaultMusicVolume;
+    public float DefaultSfxVolume => defaultSfxVolume;
     public Color WindowColor => windowColor;
     public Color ButtonColor => buttonColor;
     public Color ToggleColor => toggleColor;
     public Color DangerColor => dangerColor;
     public Color TrackColor => trackColor;
     public Color FillColor => fillColor;
+    public Color ButtonHighlightTint => buttonHighlightTint;
+    public Color ButtonPressedTint => buttonPressedTint;
     public Vector2 SettingsWindowSize => settingsWindowSize;
     public Vector2 ResumePosition => resumePosition;
     public Vector2 ResumeSize => resumeSize;
@@ -80,9 +92,6 @@ public sealed class LobbyPauseMenuView : MonoBehaviour
     public float LargeTextRowY => largeTextRowY;
     public float ReducedMotionRowY => reducedMotionRowY;
     public float HighContrastRowY => highContrastRowY;
-    public bool AlignDayAndTimeToPause => alignDayAndTimeToPause;
-    public float DayTimeVerticalOffset => dayTimeVerticalOffset;
-
     private void OnEnable()
     {
         ApplyPauseButtonLayout();
@@ -92,6 +101,8 @@ public sealed class LobbyPauseMenuView : MonoBehaviour
     {
         pauseButtonSize.x = Mathf.Max(44f, pauseButtonSize.x);
         pauseButtonSize.y = Mathf.Max(44f, pauseButtonSize.y);
+        defaultMusicVolume = Mathf.Clamp01(defaultMusicVolume);
+        defaultSfxVolume = Mathf.Clamp01(defaultSfxVolume);
         settingsWindowSize.x = Mathf.Max(560f, settingsWindowSize.x);
         settingsWindowSize.y = Mathf.Max(720f, settingsWindowSize.y);
         settingsRowSize.x = Mathf.Max(420f, settingsRowSize.x);

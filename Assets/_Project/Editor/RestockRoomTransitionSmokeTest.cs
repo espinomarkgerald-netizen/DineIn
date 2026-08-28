@@ -121,6 +121,11 @@ public static class RestockRoomTransitionSmokeTest
 
         Assert(SceneManager.GetActiveScene().name == "RestockScene",
             "RestockScene did not become the active additive scene.");
+        CasualDiningProgressHUD progressHud = UnityEngine.Object.FindFirstObjectByType<CasualDiningProgressHUD>(
+            FindObjectsInactive.Include);
+        Assert(progressHud != null && progressHud.GetComponent<Canvas>() != null &&
+               !progressHud.GetComponent<Canvas>().enabled,
+            "Normal gameplay objectives/day/time HUD is visible inside RestockScene.");
         Assert(EventSystem.current != null && EventSystem.current.isActiveAndEnabled,
             "Restock UI has no active EventSystem.");
 
@@ -142,6 +147,11 @@ public static class RestockRoomTransitionSmokeTest
 
         Assert(SceneManager.GetActiveScene().name == "Lobby1",
             "Lobby1 was not restored after leaving RestockScene.");
+        CasualDiningProgressHUD progressHud = UnityEngine.Object.FindFirstObjectByType<CasualDiningProgressHUD>(
+            FindObjectsInactive.Include);
+        Assert(progressHud != null && progressHud.GetComponent<Canvas>() != null &&
+               progressHud.GetComponent<Canvas>().enabled,
+            "Normal gameplay objectives/day/time HUD was not restored after RestockScene.");
         Assert(EventSystem.current != null && EventSystem.current.isActiveAndEnabled,
             "Lobby UI input was not restored after leaving RestockScene.");
 

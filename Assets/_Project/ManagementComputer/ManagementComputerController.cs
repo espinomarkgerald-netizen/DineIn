@@ -509,6 +509,8 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         }
 
         desktopRoot.SetActive(true);
+        GameplayUIBlocker.Instance?.SetPanelBlocksGameplay(desktopRoot, true);
+        CasualDiningProgressHUD.Instance?.RefreshBlockingVisibility();
         ResetComputerInputState();
         CloseApp();
         RefreshStatusBar();
@@ -535,6 +537,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
 
         CloseApp();
         desktopRoot.SetActive(false);
+        CasualDiningProgressHUD.Instance?.RefreshBlockingVisibility();
         ResetFallbackInputState();
 
         if (canvasRefreshRoutine != null)
@@ -798,29 +801,83 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         }
 
         bool editable = !IsShiftActive;
+        ManagementEquipmentSectionUI sectionPrefab = Resources.Load<ManagementEquipmentSectionUI>(
+            "ManagementComputer/ManagementEquipmentSection");
+        if (sectionPrefab == null)
+        {
+            appWindow.SetMessage(
+                "The editable equipment catalog prefabs are missing. Run the Equipment Catalog UI installer.",
+                true);
+            return;
+        }
+
+        AddEquipmentSection(
+            manager,
+            sectionPrefab,
+            EquipmentCatalogSection.BoothsAndSeating,
+            "BOOTHS & SEATING",
+            "Activate and expand the restaurant's seating capacity.",
+            editable);
+        AddEquipmentSection(
+            manager,
+            sectionPrefab,
+            EquipmentCatalogSection.Upgrades,
+            "RESTAURANT UPGRADES",
+            "Permanent tools that improve staff and payment flow.",
+            editable);
+
+        appWindow.SetMessage(editable
+            ? "Choose an available item. Purchases are saved automatically."
+            : "Equipment purchases are locked while service is active.");
+    }
+
+    private void AddEquipmentSection(
+        EquipmentManager manager,
+        ManagementEquipmentSectionUI sectionPrefab,
+        EquipmentCatalogSection section,
+        string title,
+        string subtitle,
+        bool editable)
+    {
+        ManagementEquipmentSectionUI sectionUI = Instantiate(sectionPrefab, appWindow.Content);
+        sectionUI.gameObject.SetActive(true);
+        sectionUI.Bind(title, subtitle);
+
         foreach (Equipment equipment in manager.AllEquipment)
         {
-            if (equipment == null)
+            if (equipment == null || equipment.catalogSection != section)
                 continue;
 
             Equipment captured = equipment;
             bool purchased = manager.Purchased(equipment.itemID);
             bool unlocked = equipment.dayToUnlock <= CurrentDay ||
                 (UnlockManager.Instance != null && UnlockManager.Instance.IsEquipmentUnlocked(equipment.itemID));
-            AddRow(equipment.sprite, equipment.displayName,
-                "Unlock day " + equipment.dayToUnlock,
-                purchased ? "OWNED" : "₱" + equipment.cost,
-                purchased ? "PURCHASED" : "BUY",
+            string details = string.IsNullOrWhiteSpace(equipment.description)
+                ? (section == EquipmentCatalogSection.Upgrades
+                    ? "Permanent restaurant upgrade"
+                    : "Restaurant seating equipment")
+                : equipment.description;
+            bool canAfford = MoneyManager.Instance != null &&
+                             MoneyManager.Instance.HasEnough(equipment.cost);
+            ManagementEquipmentCardUI card = sectionUI.AddCard();
+            if (card == null)
+                continue;
+
+            card.Bind(
+                equipment,
+                details,
+                unlocked,
+                purchased,
+                editable,
+                editable && unlocked && !purchased && canAfford,
                 () =>
                 {
                     manager.Purchase(captured.itemID);
                     PopulateAgain(ManagementComputerApp.Equipment);
-                }, editable && unlocked && !purchased && MoneyManager.Instance != null && MoneyManager.Instance.HasEnough(equipment.cost));
+                });
         }
 
-        appWindow.SetMessage(editable
-            ? "Purchased equipment persists and activates matching equipment links."
-            : "Equipment purchases are locked while service is active.");
+        sectionUI.Reflow(true);
     }
 
     private void PopulateFinances()
@@ -1113,19 +1170,64 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
             "OPEN",
             () => OpenApp((int)ManagementComputerApp.Menu));
 
-        int assignedStaff = EmployeeManager.Instance != null
-            ? EmployeeManager.Instance.AssignedEmployeeCount
-            : 0;
+        EmployeeManager employeeManager = EmployeeManager.Instance;
+        List<EmployeeRole> missingRoles = employeeManager != null
+            ? employeeManager.GetMissingRequiredRoles()
+            : new List<EmployeeRole>();
+        bool everyRoleCovered = employeeManager != null &&
+            employeeManager.HasAllRequiredRolesAssigned;
+        string staffDetails = everyRoleCovered
+            ? "HOST  ✓   WAITER  ✓   CASHIER  ✓   BUSSER  ✓   CHEF  ✓   BARISTA  ✓"
+            : missingRoles.Count > 0
+                ? "MISSING: " + string.Join("  •  ", missingRoles).ToUpperInvariant()
+                : "NO ACTIVE EMPLOYEES";
         AddChecklistEntry(
             snapshot,
             GetAppIcon(ManagementComputerApp.Staff),
             "STAFF",
-            assignedStaff > 0
-                ? assignedStaff + " ROLE" + (assignedStaff == 1 ? string.Empty : "S") + " COVERED"
-                : "BOTS WILL COVER SERVICE",
-            assignedStaff > 0 ? ReadinessVisualState.Ready : ReadinessVisualState.Warning,
+            staffDetails,
+            everyRoleCovered ? ReadinessVisualState.Ready : ReadinessVisualState.Blocked,
             "OPEN",
             () => OpenApp((int)ManagementComputerApp.Staff));
+
+        int activeBooths = 0;
+        int activeSeats = 0;
+        Booth[] booths = FindObjectsByType<Booth>(
+            FindObjectsInactive.Exclude,
+            FindObjectsSortMode.None);
+        for (int boothIndex = 0; boothIndex < booths.Length; boothIndex++)
+        {
+            Booth booth = booths[boothIndex];
+            if (booth == null || booth.seats == null)
+                continue;
+
+            int usableSeats = 0;
+            for (int seatIndex = 0; seatIndex < booth.seats.Count; seatIndex++)
+            {
+                Transform seat = booth.seats[seatIndex];
+                if (seat != null && seat.gameObject.activeInHierarchy)
+                    usableSeats++;
+            }
+
+            if (usableSeats <= 0)
+                continue;
+
+            activeBooths++;
+            activeSeats += usableSeats;
+        }
+
+        bool hasActiveSeating = activeBooths > 0 && activeSeats > 0;
+        AddChecklistEntry(
+            snapshot,
+            GetAppIcon(ManagementComputerApp.Equipment),
+            "SEATING",
+            hasActiveSeating
+                ? activeBooths + " BOOTH" + (activeBooths == 1 ? string.Empty : "S") +
+                  "   •   " + activeSeats + " SEATS ACTIVE"
+                : "NO ACTIVE BOOTHS OR SEATS",
+            hasActiveSeating ? ReadinessVisualState.Ready : ReadinessVisualState.Blocked,
+            "OPEN",
+            () => OpenApp((int)ManagementComputerApp.Equipment));
 
         int ingredientCount = 0;
         int uncovered = 0;
@@ -1271,7 +1373,9 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
 
     private static bool UsesCardLayout(ManagementComputerApp app)
     {
-        return app == ManagementComputerApp.Equipment;
+        // Equipment owns a responsive, vertically scrolling prefab layout.
+        // The generic row-card layout would fight that authored grid.
+        return false;
     }
 
     private static bool UsesEmbeddedCatalogLayout(ManagementComputerApp app)

@@ -105,7 +105,7 @@ public static class ManagementComputerInstaller
     {
         MoneyManager money = EnsureComponent<MoneyManager>(systems);
         SerializedObject moneySerialized = new SerializedObject(money);
-        moneySerialized.FindProperty("startingMoney").intValue = 6000;
+        moneySerialized.FindProperty("startingMoney").intValue = 5000;
         moneySerialized.ApplyModifiedPropertiesWithoutUndo();
 
         UnlockManager unlocks = EnsureComponent<UnlockManager>(systems);

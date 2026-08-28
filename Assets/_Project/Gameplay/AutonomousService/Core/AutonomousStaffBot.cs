@@ -27,6 +27,11 @@ public class AutonomousStaffBot : MonoBehaviour
     [SerializeField] private float navMeshReadyTimeout = 2f;
     [SerializeField] private float destinationSampleRadius = 1.5f;
 
+    [Header("Crowd Navigation")]
+    [Tooltip("Optional override. When empty, Resources/Settings/CrowdNavigationProfile is shared by all staff.")]
+    [SerializeField] private CrowdNavigationProfile crowdNavigationProfile;
+    [SerializeField] private bool useSmartCrowdNavigation = true;
+
     [Header("Behaviour Timing")]
     [SerializeField] private Vector2 reactionDelayRange = new Vector2(0.1f, 0.35f);
     [SerializeField, Range(0f, 0.4f)] private float workTimeVariance = 0.15f;
@@ -45,6 +50,7 @@ public class AutonomousStaffBot : MonoBehaviour
     private Animator animator;
     private Coroutine activeTask;
     private bool carrying;
+    private bool usingTrolley;
     private Vector3 fallbackHomePosition;
     private Quaternion fallbackHomeRotation;
     private Transform[] idleLookTargets;
@@ -70,6 +76,8 @@ public class AutonomousStaffBot : MonoBehaviour
         fallbackHomePosition = transform.position;
         fallbackHomeRotation = transform.rotation;
         agent = GetComponent<NavMeshAgent>();
+        if (useSmartCrowdNavigation)
+            CrowdNavigationAgent.Ensure(gameObject, false, crowdNavigationProfile);
         baseAgentSpeed = agent != null ? Mathf.Max(0.1f, agent.speed) : 3.5f;
         animator = GetComponentInChildren<Animator>(true);
         idleLookRotation = fallbackHomeRotation;
@@ -144,8 +152,11 @@ public class AutonomousStaffBot : MonoBehaviour
         {
             animator.SetFloat("Speed", 0f);
             animator.SetBool("IsMoving", false);
+            animator.SetBool("IsCarrying", false);
         }
 
+        carrying = false;
+        usingTrolley = false;
         CurrentState = StaffState.IdleAtHome;
         playingHappyIdle = false;
     }
@@ -155,7 +166,13 @@ public class AutonomousStaffBot : MonoBehaviour
         homePoint = configuredHome;
 
         if (agent != null)
-            agent.avoidancePriority = Mathf.Clamp(avoidancePriority, 0, 99);
+        {
+            CrowdNavigationAgent crowdAgent = GetComponent<CrowdNavigationAgent>();
+            if (useSmartCrowdNavigation && crowdAgent != null)
+                crowdAgent.Configure(false, crowdNavigationProfile, avoidancePriority);
+            else
+                agent.avoidancePriority = Mathf.Clamp(avoidancePriority, 0, 99);
+        }
     }
 
     public void ConfigurePerformance(EmployeeData employee)
@@ -202,12 +219,24 @@ public class AutonomousStaffBot : MonoBehaviour
         BusserHands busserHands = GetComponent<BusserHands>();
         if (waiterHands != null || busserHands != null)
         {
-            carrying = (waiterHands != null && waiterHands.HasTray) ||
+            carrying = usingTrolley ||
+                       (waiterHands != null && waiterHands.HasTray) ||
                        (busserHands != null && busserHands.HasTray);
             return;
         }
 
-        carrying = value;
+        carrying = usingTrolley || value;
+    }
+
+    /// <summary>
+    /// Forces the existing carrying pose while a bot is actively pushing a
+    /// trolley. This is separate from hand inventory so cash and bills cannot
+    /// accidentally trigger or clear the trolley animation.
+    /// </summary>
+    public void SetUsingTrolley(bool value)
+    {
+        usingTrolley = value;
+        SetCarrying(false);
     }
 
     public IEnumerator MoveTo(Transform target)

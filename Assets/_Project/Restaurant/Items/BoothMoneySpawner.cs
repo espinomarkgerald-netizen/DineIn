@@ -26,7 +26,11 @@ public class BoothMoneySpawner : MonoBehaviour
 
     public bool HasMoneySpawned => spawned != null;
 
-    public MoneyPickup SpawnMoney(CustomerGroup group, int amount, Transform standPointForPickup = null)
+    public MoneyPickup SpawnMoney(
+        CustomerGroup group,
+        int amount,
+        Transform standPointForPickup = null,
+        bool isCardPayment = false)
     {
         if (moneyPrefab == null) return null;
         if (group == null) return null;
@@ -46,7 +50,7 @@ public class BoothMoneySpawner : MonoBehaviour
             return null;
         }
 
-        money.Init(group, amount, standPointForPickup);
+        money.Init(group, amount, standPointForPickup, null, isCardPayment);
         spawned = money;
         return spawned;
     }

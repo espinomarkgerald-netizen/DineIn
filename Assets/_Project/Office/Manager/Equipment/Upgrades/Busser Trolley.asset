@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2194c40115b487b4c964b3ff88ed3782, type: 3}
+  m_Name: Busser Trolley
+  m_EditorClassIdentifier: 
+  itemID: upgrade_busser_trolley
+  displayName: Busser Trolley
+  cost: 5000
+  dayToUnlock: 15
+  sprite: {fileID: 21300000, guid: 5ad6f17cd98050e4193e24379bfdd2fc, type: 3}
+  catalogSection: 1
+  description: Collects up to four dirty trays before returning to the sink.
+  effect: 1
+  carryCapacity: 4
+  cardPaymentChance: 0.5
+  playerPrioritySeconds: 5
+  successCloseDelay: 0.5

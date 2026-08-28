@@ -34,6 +34,11 @@ public class CustomerAgent : MonoBehaviour
     [SerializeField] private float destinationSampleRadius = 1.5f;
     [SerializeField] private float pathArrivalPadding = 0.2f;
 
+    [Header("Crowd Navigation")]
+    [Tooltip("Optional override. When empty, Resources/Settings/CrowdNavigationProfile is shared by all customers.")]
+    [SerializeField] private CrowdNavigationProfile crowdNavigationProfile;
+    [SerializeField] private bool useSmartCrowdNavigation = true;
+
     [Header("Idle Facing")]
     [SerializeField] private float idleFaceTurnSpeed = 10f;
 
@@ -59,6 +64,9 @@ public class CustomerAgent : MonoBehaviour
         Agent = GetComponent<NavMeshAgent>();
         Agent.stoppingDistance = 0.15f;
         Agent.autoBraking = true;
+
+        if (useSmartCrowdNavigation)
+            CrowdNavigationAgent.Ensure(gameObject, true, crowdNavigationProfile);
 
         if (animator == null)
             animator = GetComponentInChildren<Animator>();
@@ -212,6 +220,15 @@ public class CustomerAgent : MonoBehaviour
     public void PlayProceduralReaction(CustomerProceduralReaction reaction)
     {
         proceduralAnimation?.PlayReaction(reaction);
+    }
+
+    public void SetFormationPriorityOffset(int offset)
+    {
+        CrowdNavigationAgent crowdAgent = GetComponent<CrowdNavigationAgent>();
+        if (crowdAgent != null)
+            crowdAgent.SetFormationPriorityOffset(offset);
+        else if (Agent != null)
+            Agent.avoidancePriority = Mathf.Clamp(Agent.avoidancePriority + offset, 0, 99);
     }
 
     public void WalkTo(Vector3 worldPos)

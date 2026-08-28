@@ -1,6 +1,7 @@
 using System.Collections;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Audio;
 
 [DisallowMultipleComponent]
 public sealed class RestockTruckInteractable : MonoBehaviour, IInteractable
@@ -17,6 +18,8 @@ public sealed class RestockTruckInteractable : MonoBehaviour, IInteractable
     [Header("Arrival Horn")]
     [Tooltip("Assign the delivery-truck horn clip here.")]
     [SerializeField] private AudioClip arrivalHornClip;
+    [Tooltip("Routes the horn through the player-adjustable SFX mixer.")]
+    [SerializeField] private AudioMixerGroup sfxMixerGroup;
     [SerializeField, Range(0f, 1f)] private float hornVolume = 1f;
     [SerializeField, Min(0.05f)] private float secondBeepDelay = 0.32f;
 
@@ -94,6 +97,7 @@ public sealed class RestockTruckInteractable : MonoBehaviour, IInteractable
         hornSource.loop = false;
         hornSource.spatialBlend = 0f;
         hornSource.volume = hornVolume;
+        hornSource.outputAudioMixerGroup = sfxMixerGroup;
     }
 
     private void OnEnable()

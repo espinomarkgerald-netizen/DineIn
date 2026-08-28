@@ -6,6 +6,7 @@ using UnityEngine.SceneManagement;
 public class EmployeeManager : MonoBehaviour
 {
     public static EmployeeManager Instance { get; private set; }
+    public event Action AssignmentsChanged;
     public EmployeeGenerator generator;
 
     [Header("Salary")]
@@ -126,6 +127,7 @@ public class EmployeeManager : MonoBehaviour
 
         employee.assigned = true;
         employee.assignedSlotName = employee.role.ToString();
+        AssignmentsChanged?.Invoke();
         GameSaveManager.Instance?.RequestSave();
         return true;
     }
@@ -162,6 +164,7 @@ public class EmployeeManager : MonoBehaviour
                 AssignEmployeeForDay(replacement);
         }
 
+        AssignmentsChanged?.Invoke();
         GameSaveManager.Instance?.RequestSave();
         return true;
     }
@@ -173,6 +176,7 @@ public class EmployeeManager : MonoBehaviour
 
         EmployeeRole role = employee.role;
         RemoveEmployee(employee);
+        AssignmentsChanged?.Invoke();
         GameSaveManager.Instance?.RequestSave();
         return true;
     }
@@ -199,6 +203,7 @@ public class EmployeeManager : MonoBehaviour
         employee.assigned = false;
         employee.assignedSlot = null;
         employee.assignedSlotName = string.Empty;
+        AssignmentsChanged?.Invoke();
         GameSaveManager.Instance?.RequestSave();
         return true;
     }
@@ -214,6 +219,53 @@ public class EmployeeManager : MonoBehaviour
                     count++;
             }
             return count;
+        }
+    }
+
+    /// <summary>
+    /// The restaurant can only open when every role exposed by the current HR
+    /// board has one scheduled employee. Keeping this rule here gives the
+    /// checklist and the authoritative shift controller the same answer.
+    /// </summary>
+    public bool HasAllRequiredRolesAssigned
+    {
+        get
+        {
+            IReadOnlyList<EmployeeRole> lobbyRoles = EmployeeRoleCatalog.LobbyRoles;
+            for (int i = 0; i < lobbyRoles.Count; i++)
+            {
+                if (GetAssignedEmployee(lobbyRoles[i]) == null)
+                    return false;
+            }
+
+            IReadOnlyList<EmployeeRole> kitchenRoles = EmployeeRoleCatalog.KitchenRoles;
+            for (int i = 0; i < kitchenRoles.Count; i++)
+            {
+                if (GetAssignedEmployee(kitchenRoles[i]) == null)
+                    return false;
+            }
+
+            return true;
+        }
+    }
+
+    public List<EmployeeRole> GetMissingRequiredRoles()
+    {
+        List<EmployeeRole> missing = new List<EmployeeRole>();
+        AddMissingRoles(EmployeeRoleCatalog.LobbyRoles, missing);
+        AddMissingRoles(EmployeeRoleCatalog.KitchenRoles, missing);
+        return missing;
+    }
+
+    private void AddMissingRoles(
+        IReadOnlyList<EmployeeRole> requiredRoles,
+        List<EmployeeRole> missing)
+    {
+        for (int i = 0; i < requiredRoles.Count; i++)
+        {
+            EmployeeRole role = requiredRoles[i];
+            if (GetAssignedEmployee(role) == null)
+                missing.Add(role);
         }
     }
 
@@ -304,6 +356,8 @@ public class EmployeeManager : MonoBehaviour
             EnsureApplicantPools();
             applicantPoolsInitialized = true;
         }
+
+        AssignmentsChanged?.Invoke();
     }
 
     private void RebuildRoleGroups()
@@ -336,6 +390,8 @@ public class EmployeeManager : MonoBehaviour
         var group = employeesByRole.Find(g => g.role == slot.roleType);
         if (group != null && !group.employees.Contains(employee))
             group.employees.Add(employee);
+
+        AssignmentsChanged?.Invoke();
     }
 
     /// <summary>
@@ -368,6 +424,8 @@ public class EmployeeManager : MonoBehaviour
         RoleSlot[] allSlots = FindObjectsByType<RoleSlot>(FindObjectsInactive.Include, FindObjectsSortMode.None);
         foreach (var slot in allSlots)
             slot.ResetForNewDay();
+
+        AssignmentsChanged?.Invoke();
     }
 
     public int CalculateTotalPayroll()

@@ -545,6 +545,16 @@ public class GameDayManager : MonoBehaviour
         if (shiftRunning || closingOut)
             return;
 
+        if (useManagementComputerForDayStart &&
+            (EmployeeManager.Instance == null || !EmployeeManager.Instance.HasAllRequiredRolesAssigned))
+        {
+            string missing = EmployeeManager.Instance == null
+                ? "STAFF SYSTEM UNAVAILABLE"
+                : string.Join(", ", EmployeeManager.Instance.GetMissingRequiredRoles());
+            ShowWarning("COVER EVERY ROLE BEFORE STARTING: " + missing.ToUpperInvariant());
+            return;
+        }
+
         Time.timeScale = 1f;
 
         ResolveManagerComponents();
@@ -897,8 +907,13 @@ public class GameDayManager : MonoBehaviour
     {
         GameFlowManager flow = GameFlowManager.Instance;
         bool singleRestaurantFlow = flow != null && flow.UsesSingleRestaurantFlow;
+        int earnedStars = CalculateEarnedStars();
         if (singleRestaurantFlow)
-            flow.FinalizeRestaurantDayForResults();
+            flow.FinalizeRestaurantDayForResults(earnedStars);
+        else
+            AlienApprovalManager.Instance?.RegisterDailyStarRating(
+                earnedStars,
+                flow != null ? flow.CurrentDay : 1);
 
         resultsHaveOutcome = singleRestaurantFlow &&
                              flow.TryGetRestaurantDayOutcome(out currentResultsOutcome);
@@ -918,7 +933,6 @@ public class GameDayManager : MonoBehaviour
         else
             PopulateStandardResults(singleRestaurantFlow, dayRevenue, targetRevenue);
 
-        int earnedStars = CalculateEarnedStars();
         ConfigureResultsActions(singleRestaurantFlow);
         RefreshResultsResponsiveLayout(true);
         PrepareResultStars(earnedStars);

@@ -5,6 +5,7 @@ public class MoneyPickup : MonoBehaviour, IInteractable, ICancelableTaskTarget
     [Header("Runtime")]
     [SerializeField] private CustomerGroup targetGroup;
     [SerializeField] private int amount;
+    [SerializeField] private bool isCardPayment;
 
     [Header("Interact")]
     [SerializeField] private Transform standPoint;
@@ -15,13 +16,20 @@ public class MoneyPickup : MonoBehaviour, IInteractable, ICancelableTaskTarget
     private Collider cachedCol;
     private MoneyBubbleUI bubbleUI;
     private bool isPickedUp;
+    private float paymentCreatedAt;
 
     public CustomerGroup TargetGroup => targetGroup;
     public int Amount => amount;
+    public int OrderTotal => isCardPayment
+        ? Mathf.Max(0, amount)
+        : targetGroup != null ? targetGroup.GetCurrentOrderTotal() : 0;
+    public bool IsCardPayment => isCardPayment;
     public bool IsPickedUp => isPickedUp;
     public bool IsAvailableForCollection =>
         !isPickedUp && targetGroup != null && amount > 0 &&
         targetGroup.state == CustomerGroup.GroupState.NeedsBill;
+    public bool IsAvailableForBotCollection => IsAvailableForCollection &&
+        (!isCardPayment || Time.time >= paymentCreatedAt + GetCardPlayerPrioritySeconds());
 
     public Transform StandPoint => standPoint != null ? standPoint : transform;
     public bool AutoReturnHome => autoReturnHome;
@@ -31,13 +39,20 @@ public class MoneyPickup : MonoBehaviour, IInteractable, ICancelableTaskTarget
         cachedCol = GetComponentInChildren<Collider>(true);
     }
 
-    public void Init(CustomerGroup group, int moneyAmount, Transform useStandPoint, MoneyBubbleUI ui = null)
+    public void Init(
+        CustomerGroup group,
+        int moneyAmount,
+        Transform useStandPoint,
+        MoneyBubbleUI ui = null,
+        bool cardPayment = false)
     {
         targetGroup = group;
         amount = moneyAmount;
         standPoint = useStandPoint;
         bubbleUI = ui;
+        isCardPayment = cardPayment;
         isPickedUp = false;
+        paymentCreatedAt = Time.time;
 
         if (cachedCol != null)
             cachedCol.enabled = true;
@@ -88,6 +103,12 @@ public class MoneyPickup : MonoBehaviour, IInteractable, ICancelableTaskTarget
 
     public void Interact(PlayerMovement mover)
     {
+        if (isCardPayment)
+        {
+            UI_RequestCardPayment();
+            return;
+        }
+
         if (!TryPickup(mover))
             RecoverFailedPickup();
     }
@@ -125,6 +146,66 @@ public class MoneyPickup : MonoBehaviour, IInteractable, ICancelableTaskTarget
         SetClaimedByStaff(true);
         mover.LockTask(this);
         mover.UI_MoveTo(this);
+    }
+
+    public void UI_RequestCardPayment()
+    {
+        if (!isCardPayment || !IsAvailableForCollection)
+            return;
+
+        if (RestaurantTaskClaim.PlayerHasActiveTask &&
+            !RestaurantTaskClaim.IsClaimedByPlayer(this))
+        {
+            WarningSlideUI.Instance?.Show("Finish your current task first.");
+            return;
+        }
+
+        if (!RestaurantTaskClaim.TryClaimPlayer(this))
+        {
+            WarningSlideUI.Instance?.Show("A staff member is already handling this payment.");
+            return;
+        }
+
+        SetClaimedByStaff(true);
+        CardPaymentUI ui = CardPaymentUI.Instance != null
+            ? CardPaymentUI.Instance
+            : FindFirstObjectByType<CardPaymentUI>(FindObjectsInactive.Include);
+        if (ui == null || !ui.Open(this))
+        {
+            RestaurantTaskClaim.ReleasePlayer(this);
+            SetClaimedByStaff(false);
+            WarningSlideUI.Instance?.Show("Card terminal is unavailable.");
+        }
+    }
+
+    public void CancelCardPaymentUI()
+    {
+        if (!isCardPayment || isPickedUp)
+            return;
+
+        RestaurantTaskClaim.ReleasePlayer(this);
+        SetClaimedByStaff(RestaurantTaskClaim.IsClaimedByBot(this));
+    }
+
+    public bool CompleteCardPayment()
+    {
+        if (!isCardPayment || isPickedUp || !IsAvailableForCollection)
+            return false;
+
+        CashierRegisterUI register = CashierRegisterUI.Instance != null
+            ? CashierRegisterUI.Instance
+            : FindFirstObjectByType<CashierRegisterUI>(FindObjectsInactive.Include);
+        if (register == null || !register.CompleteAutomatedPayment(targetGroup))
+            return false;
+
+        isPickedUp = true;
+        if (cachedCol != null)
+            cachedCol.enabled = false;
+        bubbleUI?.RemoveBubble();
+        bubbleUI = null;
+        RestaurantTaskClaim.Complete(this);
+        Destroy(gameObject);
+        return true;
     }
 
     public bool TryPickup(PlayerMovement mover = null)
@@ -176,6 +257,12 @@ public class MoneyPickup : MonoBehaviour, IInteractable, ICancelableTaskTarget
     {
         RestaurantTaskClaim.ReleasePlayer(this);
         SetClaimedByStaff(RestaurantTaskClaim.IsClaimedByBot(this));
+    }
+
+    private static float GetCardPlayerPrioritySeconds()
+    {
+        EquipmentUpgrade upgrade = EquipmentUpgradeService.Find(EquipmentUpgradeEffect.CardPayment);
+        return upgrade != null ? Mathf.Max(0f, upgrade.playerPrioritySeconds) : 5f;
     }
 
     public bool Matches(CustomerGroup group)

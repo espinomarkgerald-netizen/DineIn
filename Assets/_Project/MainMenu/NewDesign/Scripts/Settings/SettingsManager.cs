@@ -8,7 +8,7 @@ namespace DineIn.NewMenu
     {
         public int graphicsQualityIndex;
         public float musicVolume = 1f;
-        public float sfxVolume = 1f;
+        public float sfxVolume = 0.5f;
     }
 
     /// <summary>
@@ -23,6 +23,7 @@ namespace DineIn.NewMenu
         private const string PrefQualityUserSet = "Settings_QualityUserSet";
         private const string PrefMusicVolume = "Settings_MusicVolume";
         private const string PrefSfxVolume = "Settings_SfxVolume";
+        private const float DefaultSfxVolume = 0.5f;
 
         public UserSettings Current { get; private set; } = new UserSettings();
         public event Action<UserSettings> OnSettingsLoaded;
@@ -80,7 +81,7 @@ namespace DineIn.NewMenu
             int fallbackQuality = QualitySettings.GetQualityLevel();
             Current.graphicsQualityIndex = ClampQualityIndex(PlayerPrefs.GetInt(PrefGraphicsQuality, fallbackQuality));
             Current.musicVolume = PlayerPrefs.GetFloat(PrefMusicVolume, 1f);
-            Current.sfxVolume = PlayerPrefs.GetFloat(PrefSfxVolume, 1f);
+            Current.sfxVolume = PlayerPrefs.GetFloat(PrefSfxVolume, DefaultSfxVolume);
 
             if (PlayerPrefs.GetInt(PrefQualityUserSet, 0) == 1)
                 QualitySettings.SetQualityLevel(Current.graphicsQualityIndex, true);

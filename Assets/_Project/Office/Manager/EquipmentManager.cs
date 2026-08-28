@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -7,6 +8,7 @@ public class EquipmentManager : MonoBehaviour
 
     [SerializeField] private List<Equipment> allEquipment;
     public List<Equipment> AllEquipment => allEquipment;
+    public event Action PurchasesChanged;
     private HashSet<string> purchased = new HashSet<string>();
 
     private void Awake()
@@ -59,11 +61,37 @@ public class EquipmentManager : MonoBehaviour
         }
 
         GameSaveManager.Instance?.RequestSave();
+        PurchasesChanged?.Invoke();
 
         return true;
     }
 
     public bool Purchased(string itemID) => purchased.Contains(itemID);
+
+    public bool DebugUnlockAndPurchase(string itemID)
+    {
+        Equipment equipment = allEquipment != null
+            ? allEquipment.Find(candidate => candidate != null && candidate.itemID == itemID)
+            : null;
+        if (equipment == null)
+            return false;
+
+        UnlockManager.Instance?.UnlockEquipment(itemID);
+        purchased.Add(itemID);
+
+        EquipmentLink[] allLinks = FindObjectsByType<EquipmentLink>(
+            FindObjectsInactive.Include,
+            FindObjectsSortMode.None);
+        for (int i = 0; i < allLinks.Length; i++)
+        {
+            if (allLinks[i] != null && allLinks[i].itemID == itemID)
+                allLinks[i].gameObject.SetActive(true);
+        }
+
+        GameSaveManager.Instance?.RequestSave();
+        PurchasesChanged?.Invoke();
+        return true;
+    }
 
     public void Configure(List<Equipment> configuredEquipment)
     {
@@ -85,13 +113,18 @@ public class EquipmentManager : MonoBehaviour
     {
         purchased.Clear();
         if (data?.purchasedEquipmentIDs == null)
+        {
+            PurchasesChanged?.Invoke();
             return;
+        }
 
         foreach (string itemID in data.purchasedEquipmentIDs)
         {
             if (!string.IsNullOrWhiteSpace(itemID))
                 purchased.Add(itemID);
         }
+
+        PurchasesChanged?.Invoke();
     }
 
     /// <summary>
@@ -105,5 +138,7 @@ public class EquipmentManager : MonoBehaviour
         EquipmentLink[] allLinks = FindObjectsByType<EquipmentLink>(FindObjectsInactive.Include, FindObjectsSortMode.None);
         foreach (var link in allLinks)
             link.gameObject.SetActive(false);
+
+        PurchasesChanged?.Invoke();
     }
 }

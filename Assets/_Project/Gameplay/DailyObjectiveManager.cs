@@ -59,7 +59,7 @@ public enum ObjectiveGrade { S, A, B, C, F }
 /// <summary>
 /// Persistent singleton that manages the three daily objectives (Alien Demands).
 /// Rolls objectives at the start of each day, counts angry departures during the shift,
-/// evaluates results at day end, and applies the grade bonus/penalty to AlienApprovalManager.
+/// evaluates results at day end, and applies any earned grade reward to AlienApprovalManager.
 ///
 /// Setup: Add this component to the same persistent manager GameObject as
 /// AlienApprovalManager, MoneyManager, and DailyFinanceBridge.
@@ -75,12 +75,10 @@ public class DailyObjectiveManager : MonoBehaviour
     [SerializeField] private List<ObjectiveDefinition> bonusPool      = new();
     
 
-    [Header("Grade → Approval Delta")]
+    [Header("Grade → Approval Reward")]
     [SerializeField] private int gradeS_Bonus   =  2;
     [SerializeField] private int gradeA_Bonus   =  1;
     [SerializeField] private int gradeB_Bonus   =  0;
-    [SerializeField] private int gradeC_Bonus   = -2;
-    [SerializeField] private int gradeF_Penalty = -10;
 
     /// <summary>The three active objectives for the current day. Set by RollObjectivesForDay().</summary>
     public ObjectiveDefinition ActiveMandatory  { get; private set; }
@@ -207,7 +205,7 @@ public class DailyObjectiveManager : MonoBehaviour
 
     /// <summary>
     /// Evaluates all three objectives against the day's tracked data,
-    /// computes a grade, applies the approval bonus/penalty, and fires OnObjectivesEvaluated.
+    /// computes a grade, applies any approval reward, and fires OnObjectivesEvaluated.
     /// Call this from GameFlowManager.EvaluateEndOfDay(), before StartNewDay().
     /// </summary>
     /// <returns>The ObjectiveGrade awarded for this day.</returns>
@@ -247,8 +245,8 @@ public class DailyObjectiveManager : MonoBehaviour
             ObjectiveGrade.S => gradeS_Bonus,
             ObjectiveGrade.A => gradeA_Bonus,
             ObjectiveGrade.B => gradeB_Bonus,
-            ObjectiveGrade.C => gradeC_Bonus,
-            ObjectiveGrade.F => gradeF_Penalty,
+            ObjectiveGrade.C => 0,
+            ObjectiveGrade.F => 0,
             _                => 0
         };
 

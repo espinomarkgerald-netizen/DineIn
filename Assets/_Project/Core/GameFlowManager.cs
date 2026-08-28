@@ -570,7 +570,7 @@ public class GameFlowManager : MonoBehaviour
     /// result, including a terminal outcome, instead of changing state only
     /// after its button has already been pressed.
     /// </summary>
-    public void FinalizeRestaurantDayForResults()
+    public void FinalizeRestaurantDayForResults(int earnedStars = -1)
     {
         if (!useSingleRestaurantFlow || restaurantSessionState == RestaurantSessionState.DayComplete)
             return;
@@ -581,6 +581,9 @@ public class GameFlowManager : MonoBehaviour
 
         if (!campaignCompleted)
             DailyObjectiveManager.Instance?.EvaluateAndApply();
+
+        if (earnedStars >= 0)
+            AlienApprovalManager.Instance?.RegisterDailyStarRating(earnedStars, currentDay);
 
         CasualDiningPolishManager.EnsureInstance()?.FinalizeDay(currentDay);
 

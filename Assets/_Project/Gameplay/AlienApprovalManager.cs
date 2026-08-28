@@ -8,17 +8,23 @@ public class AlienApprovalManager : MonoBehaviour
     [Header("Starting Approval (0-100)")]
     [SerializeField] private int startingApproval = 30;
 
-    [Header("Approval Deltas Per Group Result")]
+    [Header("Approval Rewards")]
+    [Tooltip("Approval gained when a customer group leaves happy.")]
     [SerializeField] private int happyDelta = 1;
-    [SerializeField] private int neutralDelta = -1;
-    [SerializeField] private int angryDelta = -8;
     [Tooltip("Positive approval earned from customer results is capped per day.")]
     [SerializeField, Min(0)] private int maxPositiveGroupApprovalPerDay = 5;
-    [Tooltip("Limits customer-result losses in one day. Objective penalties still apply, so a new 30% run survives one bad learning day but repeated bad days can still end it.")]
+
+    [Header("Approval Penalties")]
+    [Tooltip("Approval lost when one customer group leaves angry. Neutral and happy groups never reduce approval.")]
+    [SerializeField, Min(0)] private int angryCustomerPenalty = 4;
+    [Tooltip("One additional end-of-shift penalty when the restaurant earns exactly one star.")]
+    [SerializeField, Min(0)] private int oneStarShiftPenalty = 3;
+    [Tooltip("Maximum approval that angry customers and a one-star result can remove in one day. All allowed losses share this cap.")]
     [SerializeField, Min(0)] private int maxNegativeGroupApprovalPerDay = 15;
 
     private int positiveGroupApprovalEarnedToday;
-    private int negativeGroupApprovalLostToday;
+    private int approvalLostToday;
+    private int oneStarPenaltyAppliedDay = -1;
 
     public int Approval { get; private set; }
 
@@ -41,9 +47,9 @@ public class AlienApprovalManager : MonoBehaviour
     {
         int delta = result switch
         {
-            CustomerGroup.FinalResult.Happy => happyDelta,
-            CustomerGroup.FinalResult.Neutral => neutralDelta,
-            CustomerGroup.FinalResult.Angry => angryDelta,
+            CustomerGroup.FinalResult.Happy => Mathf.Max(0, happyDelta),
+            CustomerGroup.FinalResult.Neutral => 0,
+            CustomerGroup.FinalResult.Angry => GetCappedLoss(angryCustomerPenalty),
             _ => 0
         };
 
@@ -54,34 +60,35 @@ public class AlienApprovalManager : MonoBehaviour
             delta = Mathf.Min(delta, remainingGain);
             positiveGroupApprovalEarnedToday += delta;
         }
-        else if (delta < 0)
-        {
-            int remainingLoss = Mathf.Max(0,
-                maxNegativeGroupApprovalPerDay - negativeGroupApprovalLostToday);
-            int appliedLoss = Mathf.Min(-delta, remainingLoss);
-            delta = -appliedLoss;
-            negativeGroupApprovalLostToday += appliedLoss;
-        }
-
         if (result == CustomerGroup.FinalResult.Angry)
             DailyObjectiveManager.Instance?.RegisterAngryDeparture();
 
-        Approval = Mathf.Clamp(Approval + delta, 0, 100);
-        OnApprovalChanged?.Invoke(Approval);
+        ApplyApprovalDelta(delta);
+    }
 
-        TriggerImmediateGameOverForLegacyFlow();
+    /// <summary>
+    /// Applies the only end-of-shift approval penalty. The day token prevents
+    /// the results panel from charging the same one-star shift more than once.
+    /// </summary>
+    public void RegisterDailyStarRating(int earnedStars, int day)
+    {
+        if (earnedStars != 1)
+            return;
 
-        GameSaveManager.Instance?.RequestSave();
+        day = Mathf.Max(1, day);
+        if (oneStarPenaltyAppliedDay == day)
+            return;
+
+        oneStarPenaltyAppliedDay = day;
+        ApplyApprovalDelta(GetCappedLoss(oneStarShiftPenalty));
     }
 
     public void ApplyGradeBonus(int delta)
     {
-        Approval = Mathf.Clamp(Approval + delta, 0, 100);
-        OnApprovalChanged?.Invoke(Approval);
-
-        TriggerImmediateGameOverForLegacyFlow();
-
-        GameSaveManager.Instance?.RequestSave();
+        // Daily objectives can reward strong management, but missing one does
+        // not reduce approval. Losses are reserved for angry customers and a
+        // one-star shift result so the player always understands the cause.
+        ApplyApprovalDelta(Mathf.Max(0, delta));
     }
 
     public int GetSpawnModifier()
@@ -96,7 +103,8 @@ public class AlienApprovalManager : MonoBehaviour
     {
         Approval = Mathf.Clamp(startingApproval, 0, 100);
         positiveGroupApprovalEarnedToday = 0;
-        negativeGroupApprovalLostToday = 0;
+        approvalLostToday = 0;
+        oneStarPenaltyAppliedDay = -1;
         OnApprovalChanged?.Invoke(Approval);
         GameSaveManager.Instance?.RequestSave();
     }
@@ -104,14 +112,16 @@ public class AlienApprovalManager : MonoBehaviour
     public void BeginNewDay()
     {
         positiveGroupApprovalEarnedToday = 0;
-        negativeGroupApprovalLostToday = 0;
+        approvalLostToday = 0;
+        oneStarPenaltyAppliedDay = -1;
     }
 
     public void RestoreApprovalForContinue(int approval)
     {
         Approval = Mathf.Clamp(approval, 1, 100);
         positiveGroupApprovalEarnedToday = 0;
-        negativeGroupApprovalLostToday = 0;
+        approvalLostToday = 0;
+        oneStarPenaltyAppliedDay = -1;
         OnApprovalChanged?.Invoke(Approval);
         GameSaveManager.Instance?.RequestSave();
     }
@@ -154,5 +164,37 @@ public class AlienApprovalManager : MonoBehaviour
         GameFlowManager flow = GameFlowManager.Instance;
         if (Approval <= 0 && flow != null && !flow.UsesSingleRestaurantFlow)
             flow.TriggerGameOver(GameOverReason.ApprovalCollapsed);
+    }
+
+    private int GetCappedLoss(int requestedPenalty)
+    {
+        int remainingLoss = Mathf.Max(0,
+            maxNegativeGroupApprovalPerDay - approvalLostToday);
+        int appliedLoss = Mathf.Min(Mathf.Max(0, requestedPenalty), remainingLoss);
+        approvalLostToday += appliedLoss;
+        return -appliedLoss;
+    }
+
+    private void ApplyApprovalDelta(int delta)
+    {
+        if (delta == 0)
+            return;
+
+        Approval = Mathf.Clamp(Approval + delta, 0, 100);
+        OnApprovalChanged?.Invoke(Approval);
+
+        TriggerImmediateGameOverForLegacyFlow();
+
+        GameSaveManager.Instance?.RequestSave();
+    }
+
+    private void OnValidate()
+    {
+        startingApproval = Mathf.Clamp(startingApproval, 0, 100);
+        happyDelta = Mathf.Max(0, happyDelta);
+        maxPositiveGroupApprovalPerDay = Mathf.Max(0, maxPositiveGroupApprovalPerDay);
+        angryCustomerPenalty = Mathf.Max(0, angryCustomerPenalty);
+        oneStarShiftPenalty = Mathf.Max(0, oneStarShiftPenalty);
+        maxNegativeGroupApprovalPerDay = Mathf.Max(0, maxNegativeGroupApprovalPerDay);
     }
 }

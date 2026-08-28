@@ -193,6 +193,8 @@ public class GameSaveManager : MonoBehaviour
         if (EquipmentManager.Instance != null)
             EquipmentManager.Instance.FillSaveData(data);
 
+        UnlockCelebrationManager.EnsureInstance()?.FillSaveData(data);
+
         if (EmployeeManager.Instance != null)
             EmployeeManager.Instance.FillSaveData(data);
 
@@ -305,6 +307,8 @@ public class GameSaveManager : MonoBehaviour
 
             if (EquipmentManager.Instance != null)
                 EquipmentManager.Instance.ApplySaveData(data);
+
+            UnlockCelebrationManager.EnsureInstance()?.ApplySaveData(data);
 
             if (EmployeeManager.Instance != null)
                 EmployeeManager.Instance.ApplySaveData(data);

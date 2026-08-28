@@ -150,7 +150,7 @@ public class DevSettingsConsole : MonoBehaviour
         {
             "day" or "reputation" or "approval" or "money" or "addmoney" or
             "fillstocks" or "setcoin" or "addcoin" or "timescale" or
-            "complaint" => true,
+            "complaint" or "upgrade" or "unlockpopup" => true,
             _ => false
         };
 
@@ -158,7 +158,7 @@ public class DevSettingsConsole : MonoBehaviour
         {
             "endday" or "gameover" or "zerostocks" or "startday" or "resetrun" or
             "recover" or "save" or "status" or "help" or
-            "wrongorder" or "burntfood" => true,
+            "wrongorder" or "burntfood" or "cardpayment" => true,
             _ => false
         };
 
@@ -182,8 +182,11 @@ public class DevSettingsConsole : MonoBehaviour
             "addcoin" => TryRunAddCoinCommand(value),
             "timescale" => TryRunTimeScaleCommand(value),
             "complaint" => TryRunComplaintCommand(value),
+            "upgrade" => TryRunUpgradeCommand(value),
+            "unlockpopup" => TryRunUnlockPopupCommand(value),
             "wrongorder" => TryRunComplaintCommand((int)ManagerComplaintType.WrongOrder),
             "burntfood" => TryRunComplaintCommand((int)ManagerComplaintType.BurntFood),
+            "cardpayment" => TryRunForceCardPaymentCommand(),
             "endday" => TryRunEndDayCommand(),
             "gameover" => TryRunGameOverCommand(),
             "zerostocks" => TryRunZeroStocksCommand(),
@@ -500,6 +503,54 @@ public class DevSettingsConsole : MonoBehaviour
         return true;
     }
 
+    private bool TryRunUpgradeCommand(int value)
+    {
+        string itemID = value switch
+        {
+            1 => EquipmentUpgradeService.BusserTrolleyID,
+            2 => EquipmentUpgradeService.WaiterTrolleyID,
+            3 => EquipmentUpgradeService.CardPaymentID,
+            _ => string.Empty
+        };
+        if (string.IsNullOrEmpty(itemID) || EquipmentManager.Instance == null ||
+            !EquipmentManager.Instance.DebugUnlockAndPurchase(itemID))
+        {
+            SetConsoleMessage("ERROR: upgrade(1)=busser, upgrade(2)=waiter, upgrade(3)=card.", errorColor);
+            return false;
+        }
+
+        SetConsoleMessage("SUCCESS: Upgrade unlocked and purchased.", successColor);
+        return true;
+    }
+
+    private bool TryRunUnlockPopupCommand(int value)
+    {
+        string itemID = value switch
+        {
+            1 => EquipmentUpgradeService.BusserTrolleyID,
+            2 => EquipmentUpgradeService.WaiterTrolleyID,
+            3 => EquipmentUpgradeService.CardPaymentID,
+            _ => string.Empty
+        };
+        if (string.IsNullOrEmpty(itemID))
+        {
+            SetConsoleMessage("ERROR: unlockPopup(1..3).", errorColor);
+            return false;
+        }
+
+        UnlockCelebrationManager.EnsureInstance().DebugReplayEquipment(itemID);
+        SetConsoleMessage("SUCCESS: Unlock celebration queued.", successColor);
+        ClosePanel();
+        return true;
+    }
+
+    private bool TryRunForceCardPaymentCommand()
+    {
+        CardPaymentService.ForceNextCardPayment();
+        SetConsoleMessage("SUCCESS: The next eligible payment will use a card.", successColor);
+        return true;
+    }
+
     private bool TryRunHelpCommand()
     {
         SetConsoleMessage(
@@ -508,6 +559,7 @@ public class DevSettingsConsole : MonoBehaviour
             "startDay(), endDay(), gameOver(), resetRun(), recover()\n" +
             "zeroStocks(), fillStocks(n), setCoin(n), addCoin(n)\n" +
             "complaint(1), complaint(2), wrongOrder(), burntFood()\n" +
+            "upgrade(1..3), unlockPopup(1..3), cardPayment()\n" +
             "timeScale(n), save(), status(), help()",
             normalColor);
         return true;

@@ -61,7 +61,7 @@ public class OfficeStartButtons : MonoBehaviour
 
         foreach (var emp in EmployeeManager.Instance.allEmployees)
         {
-            if (!string.IsNullOrEmpty(emp.assignedSlotName))
+            if (emp != null && emp.assigned)
                 return true;
         }
 

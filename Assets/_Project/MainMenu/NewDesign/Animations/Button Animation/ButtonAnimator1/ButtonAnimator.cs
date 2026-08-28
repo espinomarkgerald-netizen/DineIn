@@ -38,6 +38,20 @@ public class ButtonAnimator : MonoBehaviour, IPointerEnterHandler, IPointerExitH
             _image.DOColor(targetColor, duration).SetEase(ease).SetUpdate(true);
     }
 
+    /// <summary>
+    /// Lets prefab-backed runtime styling replace the color captured in Awake.
+    /// Without this, a button authored white can flash back to white after a click.
+    /// </summary>
+    public void SetBaseColor(Color color)
+    {
+        _originalColor = color;
+        if (_image != null)
+        {
+            _image.DOKill();
+            _image.color = color;
+        }
+    }
+
     public void OnPointerEnter(PointerEventData eventData) => Animate(
         profile != null ? profile.hoverScale : Vector3.Scale(_originalScale, new Vector3(1.04f, 1.04f, 1f)),
         profile != null ? profile.hoverColor : Color.Lerp(_originalColor, Color.white, 0.12f),

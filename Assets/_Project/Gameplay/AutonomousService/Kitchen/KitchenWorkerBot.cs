@@ -9,6 +9,10 @@ using UnityEngine;
 /// </summary>
 public class KitchenWorkerBot : MonoBehaviour
 {
+    [Header("Employee Assignment")]
+    [Tooltip("Only the employee made Active for this role appears and works during the shift.")]
+    [SerializeField] private EmployeeRole employeeRole = EmployeeRole.Chef;
+
     [Header("Stations")]
     [SerializeField] private Transform homePoint;
     [SerializeField] private Transform[] workPoints;
@@ -22,6 +26,8 @@ public class KitchenWorkerBot : MonoBehaviour
     private KitchenManager kitchenManager;
     private int currentIndex;
     private bool subscribed;
+
+    public EmployeeRole EmployeeRole => employeeRole;
 
     private void Awake()
     {
@@ -42,10 +48,7 @@ public class KitchenWorkerBot : MonoBehaviour
     {
         if (staffBot == null || EmployeeManager.Instance == null)
             return;
-        EmployeeRole role = name.ToLowerInvariant().Contains("barista")
-            ? EmployeeRole.Barista
-            : EmployeeRole.Chef;
-        staffBot.ConfigurePerformance(EmployeeManager.Instance.GetAssignedEmployee(role));
+        staffBot.ConfigurePerformance(EmployeeManager.Instance.GetAssignedEmployee(employeeRole));
     }
 
     private void OnDisable()

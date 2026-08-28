@@ -174,7 +174,7 @@ public class GameSaveData
     public bool kitchenCompleted;
     public bool campaignCompleted;
 
-    public int money = 500;
+    public int money = 5000;
     public int approval = 50;
 
     public List<string> unlockedRecipeIDs = new List<string>();
@@ -188,13 +188,14 @@ public class GameSaveData
     public List<MenuPriceOverrideSaveEntry> menuPriceOverrides = new List<MenuPriceOverrideSaveEntry>();
     public List<RestockOrderSaveData> restockOrders = new List<RestockOrderSaveData>();
     public List<string> purchasedEquipmentIDs = new List<string>();
+    public List<string> seenUnlockCelebrationIDs = new List<string>();
     public List<EmployeeSaveEntry> employees = new List<EmployeeSaveEntry>();
 
     [Header("Casual Dining Level 1 Polish")]
     public int polishPreparedDay;
     public int polishLastFinalizedDay;
     public int polishDayStartApproval = 30;
-    public int polishDayStartMoney = 500;
+    public int polishDayStartMoney = 5000;
     public int restaurantRatingScore = 60;
     public int supplierMarketGeneratedDay;
     public int employeeApplicantNextRefreshDay = 8;

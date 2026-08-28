@@ -28,15 +28,15 @@ public sealed class LobbyPauseMenu : MonoBehaviour
     private TMP_FontAsset uiFont;
     private AudioMixer audioMixer;
     private AudioMixerGroup sfxMixerGroup;
+    private float defaultMusicVolume = 1f;
+    private float defaultSfxVolume = 0.5f;
     private Color buttonColor;
     private Color toggleColor;
     private Color dangerColor;
     private Color trackColor;
     private Color fillColor;
-    private bool alignDayAndTimeToPause;
-    private float dayTimeVerticalOffset;
-    private GameDayManager alignedDayManager;
-    private Vector2Int alignedScreenSize = new Vector2Int(-1, -1);
+    private Color buttonHighlightTint = Color.white;
+    private Color buttonPressedTint = new Color(0.72f, 0.88f, 0.95f, 1f);
     private bool paused;
     private float previousTimeScale = 1f;
     private Coroutine openRoutine;
@@ -59,7 +59,6 @@ public sealed class LobbyPauseMenu : MonoBehaviour
 
     private void LateUpdate()
     {
-        AlignTopHudIfNeeded();
         if (paused || pauseButton == null) return;
         bool loading = SceneLoader.Instance != null && SceneLoader.Instance.IsLoading;
         bool shouldShow = !loading && !GameplayUIBlocker.IsBlocked();
@@ -87,14 +86,15 @@ public sealed class LobbyPauseMenu : MonoBehaviour
         uiFont = view.Font;
         audioMixer = view.AudioMixer;
         sfxMixerGroup = view.SfxMixerGroup;
+        defaultMusicVolume = view.DefaultMusicVolume;
+        defaultSfxVolume = view.DefaultSfxVolume;
         buttonColor = view.ButtonColor;
         toggleColor = view.ToggleColor;
         dangerColor = view.DangerColor;
         trackColor = view.TrackColor;
         fillColor = view.FillColor;
-        alignDayAndTimeToPause = view.AlignDayAndTimeToPause;
-        dayTimeVerticalOffset = view.DayTimeVerticalOffset;
-
+        buttonHighlightTint = view.ButtonHighlightTint;
+        buttonPressedTint = view.ButtonPressedTint;
         pauseButton.onClick.RemoveListener(Pause);
         pauseButton.onClick.AddListener(Pause);
         view.ResumeButton.onClick.RemoveListener(Resume);
@@ -107,50 +107,6 @@ public sealed class LobbyPauseMenu : MonoBehaviour
         LoadAndApplyAudioSettings();
         RouteUnassignedSoundEffects();
         overlay.SetActive(false);
-    }
-
-    private void AlignTopHudIfNeeded()
-    {
-        if (!alignDayAndTimeToPause || pauseButton == null ||
-            pauseButton.transform is not RectTransform pauseRect)
-            return;
-
-        GameDayManager manager = GameDayManager.Instance;
-        Vector2Int screenSize = new Vector2Int(Screen.width, Screen.height);
-        if (manager == null || (alignedDayManager == manager && alignedScreenSize == screenSize))
-            return;
-
-        Canvas pauseCanvas = pauseRect.GetComponentInParent<Canvas>();
-        Camera pauseCamera = pauseCanvas != null && pauseCanvas.renderMode != RenderMode.ScreenSpaceOverlay
-            ? pauseCanvas.worldCamera
-            : null;
-        float targetScreenY = RectTransformUtility.WorldToScreenPoint(pauseCamera, pauseRect.position).y +
-                              dayTimeVerticalOffset;
-        if (manager.DayHudText != null)
-            manager.DayHudText.verticalAlignment = VerticalAlignmentOptions.Middle;
-        if (manager.TimeHudText != null)
-            manager.TimeHudText.verticalAlignment = VerticalAlignmentOptions.Middle;
-        AlignRectToScreenY(manager.DayHudText != null ? manager.DayHudText.rectTransform : null, targetScreenY);
-        AlignRectToScreenY(manager.TimeHudText != null ? manager.TimeHudText.rectTransform : null, targetScreenY);
-        alignedDayManager = manager;
-        alignedScreenSize = screenSize;
-    }
-
-    private static void AlignRectToScreenY(RectTransform target, float targetScreenY)
-    {
-        if (target == null || target.parent is not RectTransform parent)
-            return;
-        Canvas canvas = target.GetComponentInParent<Canvas>();
-        Camera camera = canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay
-            ? canvas.worldCamera
-            : null;
-        Vector2 currentScreen = RectTransformUtility.WorldToScreenPoint(camera, target.position);
-        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(parent, currentScreen, camera,
-                out Vector2 currentLocal) ||
-            !RectTransformUtility.ScreenPointToLocalPointInRectangle(parent,
-                new Vector2(currentScreen.x, targetScreenY), camera, out Vector2 targetLocal))
-            return;
-        target.anchoredPosition += new Vector2(0f, targetLocal.y - currentLocal.y);
     }
 
     private void StyleBaseVisuals(LobbyPauseMenuView view)
@@ -311,8 +267,8 @@ public sealed class LobbyPauseMenu : MonoBehaviour
 
     private void LoadAndApplyAudioSettings()
     {
-        float music = Mathf.Clamp01(PlayerPrefs.GetFloat(MusicPreference, 1f));
-        float sfx = Mathf.Clamp01(PlayerPrefs.GetFloat(SfxPreference, 1f));
+        float music = Mathf.Clamp01(PlayerPrefs.GetFloat(MusicPreference, defaultMusicVolume));
+        float sfx = Mathf.Clamp01(PlayerPrefs.GetFloat(SfxPreference, defaultSfxVolume));
         if (musicSlider != null) musicSlider.SetValueWithoutNotify(music);
         if (sfxSlider != null) sfxSlider.SetValueWithoutNotify(sfx);
         ApplyMixerVolume("MusicVol", music);
@@ -441,6 +397,16 @@ public sealed class LobbyPauseMenu : MonoBehaviour
     {
         if (button == null) return;
         ApplySlicedStyle(button.GetComponent<Image>(), color);
+        ColorBlock stateColors = button.colors;
+        stateColors.normalColor = Color.white;
+        stateColors.highlightedColor = buttonHighlightTint;
+        stateColors.selectedColor = buttonHighlightTint;
+        stateColors.pressedColor = buttonPressedTint;
+        stateColors.disabledColor = new Color(0.65f, 0.65f, 0.65f, 0.55f);
+        stateColors.colorMultiplier = 1f;
+        stateColors.fadeDuration = 0.08f;
+        button.colors = stateColors;
+        button.GetComponent<ButtonAnimator>()?.SetBaseColor(color);
         TMP_Text label = button.GetComponentInChildren<TMP_Text>(true);
         if (label != null && uiFont != null) label.font = uiFont;
     }

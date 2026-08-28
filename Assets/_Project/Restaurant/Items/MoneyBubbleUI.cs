@@ -7,15 +7,40 @@ public class MoneyBubbleUI : MonoBehaviour
     [SerializeField] private Button button;
     [SerializeField] private TMP_Text amountText;
     [SerializeField] private TMP_Text tableNumberText;
+    [Header("Editable Payment Presentation")]
+    [SerializeField] private Image paymentFrame;
+    [SerializeField] private Sprite cashFrameSprite;
+    [SerializeField] private Sprite cardFrameSprite;
+    [SerializeField] private Image paymentIcon;
+    [SerializeField] private Sprite cashIcon;
+    [SerializeField] private Sprite cardIcon;
 
     private MoneyPickup money;
     private bool isRemoving;
     private bool claimedByStaff;
 
+    public void ConfigurePaymentPresentation(
+        Image configuredFrame,
+        Sprite configuredCashFrame,
+        Sprite configuredCardFrame,
+        Image configuredIcon,
+        Sprite configuredCashIcon,
+        Sprite configuredCardIcon)
+    {
+        paymentFrame = configuredFrame;
+        cashFrameSprite = configuredCashFrame;
+        cardFrameSprite = configuredCardFrame;
+        paymentIcon = configuredIcon;
+        cashIcon = configuredCashIcon;
+        cardIcon = configuredCardIcon;
+    }
+
     private void Awake()
     {
         if (button == null)
             button = GetComponentInChildren<Button>(true);
+        if (paymentFrame == null && button != null)
+            paymentFrame = button.image;
     }
 
     private void Update()
@@ -60,8 +85,22 @@ public class MoneyBubbleUI : MonoBehaviour
         money = m;
         money?.SetBubbleUI(this);
 
+        bool cardPayment = m != null && m.IsCardPayment;
+        if (paymentFrame != null)
+        {
+            Sprite frameSprite = cardPayment ? cardFrameSprite : cashFrameSprite;
+            if (frameSprite != null)
+                paymentFrame.sprite = frameSprite;
+            paymentFrame.preserveAspect = true;
+        }
         if (amountText != null)
-            amountText.text = amount.ToString();
+            amountText.text = cardPayment ? string.Empty : amount.ToString();
+        if (paymentIcon != null)
+        {
+            paymentIcon.sprite = cardPayment ? cardIcon : cashIcon;
+            paymentIcon.enabled = paymentIcon.sprite != null;
+            paymentIcon.preserveAspect = true;
+        }
 
         SetTableNumber(m != null && m.TargetGroup != null ? m.TargetGroup.currentOrderNumber : -1);
 
@@ -111,6 +150,11 @@ public class MoneyBubbleUI : MonoBehaviour
     {
         if (claimedByStaff) return;
         if (money == null) return;
+        if (money.IsCardPayment)
+        {
+            money.UI_RequestCardPayment();
+            return;
+        }
         if (RoleManager.Instance == null) return;
         if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Waiter)) return;
 

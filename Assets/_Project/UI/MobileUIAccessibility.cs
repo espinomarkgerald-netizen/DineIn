@@ -67,6 +67,10 @@ public sealed class MobileUIAccessibility : MonoBehaviour
                 scaler.uiScaleMode != CanvasScaler.ScaleMode.ScaleWithScreenSize)
                 continue;
 
+            CasualDiningProgressHUD progressHud = scaler.GetComponent<CasualDiningProgressHUD>();
+            if (progressHud != null && progressHud.PreserveReferenceResolutionOnMobile)
+                continue;
+
             Vector2 reference = scaler.referenceResolution;
             const float mobileReferenceWidth = 600f;
             if (reference.x > mobileReferenceWidth)

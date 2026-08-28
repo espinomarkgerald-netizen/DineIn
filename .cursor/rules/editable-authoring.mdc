@@ -1,0 +1,14 @@
+---
+description: Ensure every Dine In feature remains genuinely editable by the project owner
+alwaysApply: true
+---
+
+# Saveable and Editable Authoring
+
+- Every feature, UI element, animation, balance value, destination, timing, color, asset, and layout introduced or changed must be editable through a real saved Unity asset, prefab, scene object, ScriptableObject, or serialized Inspector field.
+- Edit-time visuals must be genuine serialized prefab or scene children and must be the same objects used at runtime.
+- Never present temporary, generated, hidden, `DontSave`, or runtime-only objects as editable authoring content.
+- Runtime construction is allowed only as a defensive fallback or when explicitly requested; it must not replace the editable authored version.
+- Direct edits made in Prefab Mode or the scene must persist after Save, domain reload, Play Mode, and reopening Unity.
+- Runtime code must bind to and preserve authored transforms, colors, sprites, fonts, and component settings instead of silently rebuilding or overwriting them.
+- Before handoff, verify persistence as well as runtime behavior. If a value cannot reasonably be exposed, explain why before implementing it.

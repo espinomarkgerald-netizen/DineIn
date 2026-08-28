@@ -425,6 +425,7 @@ MonoBehaviour:
   arrivalOffset: {x: 0, y: 0, z: 100}
   arrivalDuration: 2.8
   arrivalHornClip: {fileID: 8300000, guid: ee027452684ba9d4da87e5bcd10bdbe0, type: 3}
+  sfxMixerGroup: {fileID: 2878796282664989187, guid: 3fd0d86c1f880854d9b5971fafc00816, type: 2}
   hornVolume: 1
   secondBeepDelay: 0.32
   departureDelaySeconds: 2
