@@ -11,6 +11,8 @@ public static class CardPaymentTrolleyEquipmentSmokeTest
     private const string CardPath = "Assets/_Project/Resources/UI/CardPaymentUI.prefab";
     private const string WaiterPath = "Assets/_Project/Resources/Upgrades/WaiterTrolley.prefab";
     private const string BusserPath = "Assets/_Project/Resources/Upgrades/BusserTrolley.prefab";
+    private const string WaiterBotPath = "Assets/_Project/Lobby/Assets/Waiter/Waiter.prefab";
+    private const string BusserBotPath = "Assets/_Project/Lobby/Assets/Busser/Busser.prefab";
     private const string MoneyBubblePath = "Assets/_Project/Restaurant/Assets/Level1/UI/Money.prefab";
     private const string EquipmentCardPath = "Assets/_Project/Resources/ManagementComputer/ManagementEquipmentCard.prefab";
     private const string EquipmentSectionPath = "Assets/_Project/Resources/ManagementComputer/ManagementEquipmentSection.prefab";
@@ -36,6 +38,8 @@ public static class CardPaymentTrolleyEquipmentSmokeTest
         failures += ValidatePaymentBubble();
         failures += ValidateTrolley(WaiterPath, EquipmentUpgradeEffect.WaiterTrolley);
         failures += ValidateTrolley(BusserPath, EquipmentUpgradeEffect.BusserTrolley);
+        failures += ValidateBotTrolleyGrip(WaiterBotPath, true);
+        failures += ValidateBotTrolleyGrip(BusserBotPath, false);
         failures += ValidateTrolleyUpgradeAssetsAndParking();
         failures += ValidateEquipmentCatalog();
         failures += ValidateUnlockCelebration();
@@ -101,7 +105,7 @@ public static class CardPaymentTrolleyEquipmentSmokeTest
         GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
         BotTrolleyCarrier carrier = prefab != null ? prefab.GetComponent<BotTrolleyCarrier>() : null;
         int failures = 0;
-        if (carrier == null || carrier.AuthoringVersion < 6 || carrier.Effect != expectedEffect)
+        if (carrier == null || carrier.AuthoringVersion < 8 || carrier.Effect != expectedEffect)
             return Fail("Trolley prefab is missing its authored carrier configuration: " + path, prefab);
         if (CountTraySlots(prefab.transform) != 4 || carrier.TraySlots.Count != 4)
             failures += Fail("Trolley prefab must expose exactly four editable tray slots: " + path, prefab);
@@ -114,8 +118,12 @@ public static class CardPaymentTrolleyEquipmentSmokeTest
             failures += Fail("Trolley prefab is missing its editable HoldingPoint: " + path, prefab);
         if (!HasIdentityGameplayRoot(prefab.transform))
             failures += Fail("Trolley gameplay root must stay at identity; put visual corrections on VisualPivot: " + path, prefab);
-        if (carrier.MinimumBatchSize != 1)
-            failures += Fail("Purchased trolleys must support one-to-four tray batches: " + path, prefab);
+        if (carrier.MinimumBatchSize != 2)
+            failures += Fail("Purchased trolleys must batch two-to-four trays: " + path, prefab);
+        if (carrier.MovementSpeedMultiplier <= 1f || carrier.MovementSpeedMultiplier > 1.5f)
+            failures += Fail("Trolley movement boost must stay editable between 1.0x and 1.5x: " + path, prefab);
+        if (carrier.AccelerationMultiplier < 1f || carrier.AccelerationMultiplier > 1.5f)
+            failures += Fail("Trolley acceleration boost must stay editable between 1.0x and 1.5x: " + path, prefab);
         if (carrier.ParkingNavMeshSampleRadius < 0.25f)
             failures += Fail("Trolley needs an editable NavMesh parking approach search radius: " + path, prefab);
         if (model == null || model.localScale.x <= 0f ||
@@ -130,6 +138,25 @@ public static class CardPaymentTrolleyEquipmentSmokeTest
                 if (holdingColliders[i] != null && holdingColliders[i].enabled && !holdingColliders[i].isTrigger)
                     failures += Fail("HoldingPoint must not contain an enabled solid collider: " + path, prefab);
             }
+            if (holdingPoint.GetComponent<Renderer>() != null ||
+                holdingPoint.GetComponent<MeshFilter>() != null ||
+                holdingPoint.GetComponent<Rigidbody>() != null)
+            {
+                failures += Fail("HoldingPoint must be an empty non-physical transform: " + path, prefab);
+            }
+            if ((holdingPoint.localScale - Vector3.one).sqrMagnitude > 0.000001f)
+                failures += Fail("HoldingPoint must keep unit local scale: " + path, prefab);
+        }
+
+        for (int i = 0; i < carrier.TraySlots.Count; i++)
+        {
+            Transform slot = carrier.TraySlots[i];
+            if (slot == null)
+                continue;
+            if ((slot.localScale - Vector3.one).sqrMagnitude > 0.000001f)
+                failures += Fail($"TraySlot{i + 1} must keep unit local scale: {path}", prefab);
+            if (slot.localPosition.y < -0.01f)
+                failures += Fail($"TraySlot{i + 1} is below the trolley ground plane: {path}", prefab);
         }
 
         GameObject loadedRoot = null;
@@ -159,7 +186,7 @@ public static class CardPaymentTrolleyEquipmentSmokeTest
                         bounds.Encapsulate(renderer.bounds);
                 }
 
-                if (bounds.size.y < 0.75f || bounds.size.y > 3f)
+                if (bounds.size.y < 0.75f || bounds.size.y > 4.25f)
                     failures += Fail(
                         $"Trolley visual height {bounds.size.y:0.###} is outside the usable bot-scale range: {path}",
                         prefab);
@@ -174,6 +201,26 @@ public static class CardPaymentTrolleyEquipmentSmokeTest
             if (loadedRoot != null)
                 PrefabUtility.UnloadPrefabContents(loadedRoot);
         }
+        return failures;
+    }
+
+    private static int ValidateBotTrolleyGrip(string path, bool waiter)
+    {
+        GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+        if (prefab == null)
+            return Fail("Missing trolley operator prefab: " + path, null);
+
+        Transform grip = FindDeep(prefab.transform, "TrolleyGripPoint");
+        bool assigned = waiter
+            ? prefab.GetComponent<WaiterHands>()?.HasDedicatedTrolleyGrip == true
+            : prefab.GetComponent<BusserHands>()?.HasDedicatedTrolleyGrip == true;
+        int failures = 0;
+        if (grip == null || !assigned)
+            failures += Fail("Bot prefab is missing its assigned TrolleyGripPoint: " + path, prefab);
+        if (grip != null && (grip.localScale - Vector3.one).sqrMagnitude > 0.000001f)
+            failures += Fail("TrolleyGripPoint must keep unit local scale: " + path, prefab);
+        if (grip != null && (grip.GetComponent<Collider>() != null || grip.GetComponent<Renderer>() != null))
+            failures += Fail("TrolleyGripPoint must be an empty non-physical transform: " + path, prefab);
         return failures;
     }
 

@@ -16,9 +16,9 @@ public static class CardPaymentAndUpgradeAuthoring
     private const string UnlockPrefabPath = "Assets/_Project/Resources/UI/UnlockCelebrationUI.prefab";
     private const string UpgradeFolder = "Assets/_Project/Office/Manager/Equipment/Upgrades";
     private const string ResourceUpgradeFolder = "Assets/_Project/Resources/Upgrades";
-    private const string SessionKey = "DineIn.CardPaymentAndUpgrades.Installed.v7";
+    private const string SessionKey = "DineIn.CardPaymentAndUpgrades.Installed.v9";
     private const int CardPrefabAuthoringVersion = 4;
-    private const int TrolleyPrefabAuthoringVersion = 6;
+    private const int TrolleyPrefabAuthoringVersion = 8;
     private const int UnlockPrefabAuthoringVersion = 2;
     private const float TrolleyVisualHeight = 1.1f;
 
@@ -79,6 +79,12 @@ public static class CardPaymentAndUpgradeAuthoring
             ResourceUpgradeFolder + "/BusserTrolley.mat",
             new Color(0.92f, 0.43f, 0.10f, 1f),
             EquipmentUpgradeEffect.BusserTrolley);
+        UpgradeBotTrolleyGripPrefab(
+            "Assets/_Project/Lobby/Assets/Waiter/Waiter.prefab",
+            true);
+        UpgradeBotTrolleyGripPrefab(
+            "Assets/_Project/Lobby/Assets/Busser/Busser.prefab",
+            false);
         CreateUnlockCelebrationPrefab();
         UpgradeMoneyBubblePrefab();
         InstallLobbyScene(busser, waiter, card);
@@ -584,6 +590,8 @@ public static class CardPaymentAndUpgradeAuthoring
             }
 
             bool newPrefab = !existingPrefab;
+            bool recoveryMigration = newPrefab || existingCarrier == null ||
+                                     existingCarrier.AuthoringVersion < TrolleyPrefabAuthoringVersion;
             MoveGameplayRootCorrectionIntoChildren(root.transform);
 
             Transform visualPivot = FindDeep(root.transform, "VisualPivot");
@@ -678,7 +686,8 @@ public static class CardPaymentAndUpgradeAuthoring
                 holdingPoint.SetParent(root.transform, true);
             }
 
-            MakeHoldingPointNonPhysical(holdingPoint);
+            if (recoveryMigration && effect == EquipmentUpgradeEffect.WaiterTrolley)
+                NormalizeTrolleyRecoveryAnchors(root.transform, visualPivot, slots, holdingPoint);
 
             if (effect == EquipmentUpgradeEffect.BusserTrolley)
             {
@@ -687,6 +696,8 @@ public static class CardPaymentAndUpgradeAuthoring
                     slots,
                     holdingPoint);
             }
+
+            MakeHoldingPointNonPhysical(holdingPoint);
 
             BotTrolleyCarrier carrier = existingCarrier != null
                 ? existingCarrier
@@ -706,6 +717,124 @@ public static class CardPaymentAndUpgradeAuthoring
                 PrefabUtility.UnloadPrefabContents(root);
             else
                 Object.DestroyImmediate(root);
+        }
+    }
+
+    private static void NormalizeTrolleyRecoveryAnchors(
+        Transform root,
+        Transform visualPivot,
+        IList<Transform> slots,
+        Transform holdingPoint)
+    {
+        if (root == null || visualPivot == null || holdingPoint == null ||
+            slots == null || slots.Count != 4)
+        {
+            return;
+        }
+
+        // Preserve the user's authored trolley orientation and size, but make the
+        // presentation pivot deterministic for gameplay. Older prefabs rotated and
+        // enlarged the model around its centre, leaving half of the visual and its
+        // lower tray anchors below the NavMesh ground plane.
+        if (!TryGetMeshBounds(root, visualPivot, out Bounds bounds))
+            return;
+
+        visualPivot.localPosition += new Vector3(
+            -bounds.center.x,
+            -bounds.min.y,
+            -bounds.center.z);
+
+        if (!TryGetMeshBounds(root, visualPivot, out bounds))
+            return;
+
+        float leftX = Mathf.Lerp(bounds.min.x, bounds.max.x, 0.30f);
+        float rightX = Mathf.Lerp(bounds.min.x, bounds.max.x, 0.70f);
+        float lowerY = Mathf.Lerp(bounds.min.y, bounds.max.y, 0.30f);
+        float upperY = Mathf.Lerp(bounds.min.y, bounds.max.y, 0.68f);
+        float shelfZ = bounds.center.z;
+        Vector3[] positions =
+        {
+            new Vector3(leftX, lowerY, shelfZ),
+            new Vector3(rightX, lowerY, shelfZ),
+            new Vector3(leftX, upperY, shelfZ),
+            new Vector3(rightX, upperY, shelfZ)
+        };
+
+        for (int i = 0; i < slots.Count; i++)
+        {
+            Transform slot = slots[i];
+            if (slot == null)
+                continue;
+            slot.SetParent(root, false);
+            slot.localPosition = positions[i];
+            slot.localRotation = Quaternion.identity;
+            slot.localScale = Vector3.one;
+        }
+
+        bool useMinimumZHandle = holdingPoint.localPosition.z <= bounds.center.z;
+        holdingPoint.SetParent(root, false);
+        holdingPoint.localPosition = new Vector3(
+            bounds.center.x,
+            Mathf.Lerp(bounds.min.y, bounds.max.y, 0.73f),
+            useMinimumZHandle ? bounds.min.z : bounds.max.z);
+        holdingPoint.localRotation = Quaternion.identity;
+        holdingPoint.localScale = Vector3.one;
+    }
+
+    private static void UpgradeBotTrolleyGripPrefab(string prefabPath, bool waiter)
+    {
+        if (AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath) == null)
+            return;
+
+        GameObject root = PrefabUtility.LoadPrefabContents(prefabPath);
+        try
+        {
+            Component hands = waiter
+                ? root.GetComponent<WaiterHands>()
+                : root.GetComponent<BusserHands>();
+            if (hands == null)
+            {
+                Debug.LogError($"[CardPaymentAuthoring] {prefabPath} has no matching hands component.", root);
+                return;
+            }
+
+            Transform grip = FindDeep(root.transform, "TrolleyGripPoint");
+            if (grip == null)
+            {
+                Transform trayHolder = FindDeep(root.transform, "TrayHolder");
+                Transform parent = trayHolder != null && trayHolder.parent != null
+                    ? trayHolder.parent
+                    : root.transform;
+                GameObject gripObject = new GameObject("TrolleyGripPoint");
+                grip = gripObject.transform;
+                grip.SetParent(parent, false);
+                grip.localPosition = trayHolder != null
+                    ? new Vector3(0f, trayHolder.localPosition.y, trayHolder.localPosition.z)
+                    : new Vector3(0f, 0.55f, 0.75f);
+                grip.localRotation = Quaternion.identity;
+                grip.localScale = Vector3.one;
+            }
+
+            SerializedObject serializedHands = new SerializedObject(hands);
+            SerializedProperty gripProperty = serializedHands.FindProperty("trolleyGripPoint");
+            if (gripProperty == null)
+            {
+                Debug.LogError($"[CardPaymentAuthoring] {hands.GetType().Name} has no trolleyGripPoint field.", hands);
+                return;
+            }
+
+            if (gripProperty.objectReferenceValue == null)
+            {
+                gripProperty.objectReferenceValue = grip;
+                serializedHands.ApplyModifiedPropertiesWithoutUndo();
+                EditorUtility.SetDirty(hands);
+            }
+
+            PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
+        }
+        finally
+        {
+            PrefabUtility.UnloadPrefabContents(root);
         }
     }
 
@@ -803,13 +932,21 @@ public static class CardPaymentAndUpgradeAuthoring
         if (holdingPoint == null)
             return;
 
-        Renderer[] markerRenderers = holdingPoint.GetComponentsInChildren<Renderer>(true);
+        Renderer[] markerRenderers = holdingPoint.GetComponents<Renderer>();
         for (int i = 0; i < markerRenderers.Length; i++)
-            markerRenderers[i].enabled = false;
+            Object.DestroyImmediate(markerRenderers[i]);
 
-        Collider[] colliders = holdingPoint.GetComponentsInChildren<Collider>(true);
+        MeshFilter[] meshFilters = holdingPoint.GetComponents<MeshFilter>();
+        for (int i = 0; i < meshFilters.Length; i++)
+            Object.DestroyImmediate(meshFilters[i]);
+
+        Collider[] colliders = holdingPoint.GetComponents<Collider>();
         for (int i = 0; i < colliders.Length; i++)
             Object.DestroyImmediate(colliders[i]);
+
+        Rigidbody rigidbody = holdingPoint.GetComponent<Rigidbody>();
+        if (rigidbody != null)
+            Object.DestroyImmediate(rigidbody);
     }
 
     private static void GroundAndScaleVisual(

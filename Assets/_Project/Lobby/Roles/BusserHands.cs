@@ -35,6 +35,13 @@ public class BusserHands : MonoBehaviour
     public bool HasTray => holdingTray != null;
     public Transform TrayHoldPoint => trayHoldPoint != null ? trayHoldPoint : transform;
     public Transform TrolleyGripPoint => trolleyGripPoint != null ? trolleyGripPoint : TrayHoldPoint;
+    public bool HasDedicatedTrolleyGrip => trolleyGripPoint != null;
+
+    public bool TryGetTrolleyGripPoint(out Transform gripPoint)
+    {
+        gripPoint = trolleyGripPoint;
+        return gripPoint != null;
+    }
 
     private void Awake()
     {
@@ -136,5 +143,20 @@ public class BusserHands : MonoBehaviour
         Debug.Log("[BusserHands] DisposeTray");
 
         NotifyHandsChanged();
+    }
+
+    public bool ReleaseTrayForRetry(Vector3 worldPosition)
+    {
+        FoodTray tray = holdingTray;
+        if (tray == null)
+            return false;
+
+        holdingTray = null;
+        tray.transform.SetParent(null, true);
+        tray.transform.position = worldPosition;
+        WaiterHands.SetAllColliders(tray.gameObject, true);
+        tray.GetComponent<FoodTrayInteractable>()?.RestoreAfterStaffPickup();
+        NotifyHandsChanged();
+        return true;
     }
 }

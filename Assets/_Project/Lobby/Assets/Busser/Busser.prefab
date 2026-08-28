@@ -5246,10 +5246,6 @@ MonoBehaviour:
   nameText: {fileID: 9167122988662634599}
   worldOffset: {x: 0.5, y: 6, z: 0}
   faceCamera: 1
-  desiredPixelHeight: 40
-  fallbackLocalHeight: 1
-  minWorldScale: 0.005
-  maxWorldScale: 0.05
 --- !u!114 &4586281533668407940
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5438,6 +5434,8 @@ MonoBehaviour:
     m_Bits: 5504
   tapThreshold: 10
   arriveDistance: 0.25
+  useInteractRadiusArrival: 1
+  interactStopMultiplier: 0.85
   homePoint: {fileID: 0}
   returnHomeWhenIdle: 1
   returnHomeIdleSeconds: 1.25
@@ -5586,6 +5584,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   holdingTray: {fileID: 8503857634238110082, guid: d31d808e8c170a64092e5200a4ff9757, type: 3}
   trayHoldPoint: {fileID: 5976064102513859322}
+  trolleyGripPoint: {fileID: 2004284768962755086}
 --- !u!1 &5371330271615959315
 GameObject:
   m_ObjectHideFlags: 0
@@ -5751,6 +5750,37 @@ MonoBehaviour:
   m_BlockingMask:
     serializedVersion: 2
     m_Bits: 4294967295
+--- !u!1 &7329931448443395464
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2004284768962755086}
+  m_Layer: 0
+  m_Name: TrolleyGripPoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2004284768962755086
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7329931448443395464}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0.52, z: 2.9}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 8798466489363420690}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &9183226381255392101
 GameObject:
   m_ObjectHideFlags: 0
@@ -6013,6 +6043,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 5392390209365313541, guid: 04fac75123c57c84da9bac72861f85a4, type: 3}
       insertIndex: -1
       addedObject: {fileID: 5976064102513859322}
+    - targetCorrespondingSourceObject: {fileID: 5392390209365313541, guid: 04fac75123c57c84da9bac72861f85a4, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2004284768962755086}
     - targetCorrespondingSourceObject: {fileID: 5799710098955775747, guid: 04fac75123c57c84da9bac72861f85a4, type: 3}
       insertIndex: -1
       addedObject: {fileID: 8119335475869630874}

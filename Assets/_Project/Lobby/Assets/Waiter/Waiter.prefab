@@ -114,10 +114,6 @@ MonoBehaviour:
   nameText: {fileID: 2928089286999393987}
   worldOffset: {x: 0.5, y: 6, z: 0}
   faceCamera: 1
-  desiredPixelHeight: 40
-  fallbackLocalHeight: 1
-  minWorldScale: 0.005
-  maxWorldScale: 0.05
 --- !u!114 &6556752848057204657
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -543,6 +539,8 @@ MonoBehaviour:
     m_Bits: 5504
   tapThreshold: 10
   arriveDistance: 0.25
+  useInteractRadiusArrival: 1
+  interactStopMultiplier: 0.85
   homePoint: {fileID: 0}
   returnHomeWhenIdle: 1
   returnHomeIdleSeconds: 1.25
@@ -696,6 +694,7 @@ MonoBehaviour:
   holdingMoneyAmount: 0
   trayHoldPoint: {fileID: 3865814960097702521}
   billHoldPoint: {fileID: 7976560511155695983}
+  trolleyGripPoint: {fileID: 7838240859865194596}
   billHeldVisualPrefab: {fileID: 7176886065242486638, guid: b123222c8f4fb714289fd2f7da36fabc, type: 3}
   moneyHoldPoint: {fileID: 7976560511155695983}
   moneyHeldVisualPrefab: {fileID: 3692771060958817622, guid: 6cacf6b5f47400f4796683d009a0070b, type: 3}
@@ -5727,6 +5726,37 @@ Transform:
   m_Children: []
   m_Father: {fileID: 2208303301436674435}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &8178689855004530369
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7838240859865194596}
+  m_Layer: 0
+  m_Name: TrolleyGripPoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7838240859865194596
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8178689855004530369}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0.52, z: 2.9}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 4124637257141107950}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &8538223433220202583
 GameObject:
   m_ObjectHideFlags: 0
@@ -6137,6 +6167,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 5392390209365313541, guid: 04fac75123c57c84da9bac72861f85a4, type: 3}
       insertIndex: -1
       addedObject: {fileID: 7976560511155695983}
+    - targetCorrespondingSourceObject: {fileID: 5392390209365313541, guid: 04fac75123c57c84da9bac72861f85a4, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 7838240859865194596}
     - targetCorrespondingSourceObject: {fileID: 5799710098955775747, guid: 04fac75123c57c84da9bac72861f85a4, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1555772230634322873}

@@ -10,6 +10,18 @@ using UnityEngine.AI;
 [DisallowMultipleComponent]
 public sealed class BotTrolleyCarrier : MonoBehaviour
 {
+    public enum TrolleyState
+    {
+        ParkedIdle,
+        Reserved,
+        Acquiring,
+        Collecting,
+        Transporting,
+        Unloading,
+        Returning,
+        Recovery
+    }
+
     [Header("Authored Trolley")]
     [SerializeField] private EquipmentUpgradeEffect effect;
     [SerializeField, Min(1)] private int capacity = 4;
@@ -34,6 +46,12 @@ public sealed class BotTrolleyCarrier : MonoBehaviour
     [SerializeField, Min(0f)] private float followRotationSpeed;
     [SerializeField] private bool useBotCarryingAnimation = true;
 
+    [Header("Movement Upgrade")]
+    [Tooltip("Applied only while a bot is actively pushing this trolley. Employee speed still applies.")]
+    [SerializeField, Range(1f, 1.5f)] private float movementSpeedMultiplier = 1.35f;
+    [Tooltip("Small acceleration increase helps the trolley reach its boosted speed without changing stopping distance.")]
+    [SerializeField, Range(1f, 1.5f)] private float accelerationMultiplier = 1.2f;
+
     [Header("Parking")]
     [SerializeField, Min(0.35f)] private float parkingApproachDistance = 1.1f;
     [Tooltip("Editable local-space floor position where the bot stands before taking the trolley. Keep the trolley parked beside the counter and move this offset onto open floor space.")]
@@ -50,6 +68,10 @@ public sealed class BotTrolleyCarrier : MonoBehaviour
     [SerializeField] private Color traySlotGizmoColor = new Color(0.15f, 0.75f, 1f, 0.7f);
     [SerializeField] private bool drawHoldingPointGizmo = true;
     [SerializeField] private Color holdingPointGizmoColor = new Color(0.2f, 1f, 0.45f, 0.85f);
+
+    [Header("Runtime Diagnostics")]
+    [SerializeField] private TrolleyState currentState = TrolleyState.ParkedIdle;
+    [SerializeField, TextArea] private string lastFailureReason;
 
     private readonly List<FoodTray> trays = new List<FoodTray>();
     private AutonomousStaffBot operatorBot;
@@ -76,6 +98,10 @@ public sealed class BotTrolleyCarrier : MonoBehaviour
     public Transform VisualRoot => visualRoot;
     public Transform HoldingPoint => holdingPoint;
     public IReadOnlyList<Transform> TraySlots => traySlots;
+    public float MovementSpeedMultiplier => Mathf.Clamp(movementSpeedMultiplier, 1f, 1.5f);
+    public float AccelerationMultiplier => Mathf.Clamp(accelerationMultiplier, 1f, 1.5f);
+    public TrolleyState CurrentState => currentState;
+    public string LastFailureReason => lastFailureReason;
     public string ConfigurationProblem
     {
         get
@@ -125,7 +151,7 @@ public sealed class BotTrolleyCarrier : MonoBehaviour
         int version)
     {
         effect = configuredEffect;
-        minimumBatchSize = 1;
+        minimumBatchSize = Mathf.Clamp(2, 1, capacity);
         visualRoot = configuredVisualRoot;
         holdingPoint = configuredHoldingPoint;
         authoringVersion = Mathf.Max(0, version);
@@ -146,21 +172,67 @@ public sealed class BotTrolleyCarrier : MonoBehaviour
         if (bot == null || !IsConfigured || (operatorBot != null && operatorBot != bot))
             return false;
 
+        if (!TryResolveOperatorGripPoint(bot, out _))
+        {
+            SetFailure($"{bot.name} has no dedicated TrolleyGripPoint");
+            return false;
+        }
+
         operatorBot = bot;
         warnedAboutMissingGrip = false;
         followVelocity = Vector3.zero;
-        SetOperatorAnimation(true);
+        lastFailureReason = string.Empty;
+        currentState = TrolleyState.Collecting;
+        SetOperatorActiveBenefits(true);
         FollowOperator(true);
         return true;
     }
 
     public void EndUse(bool returnToParking = true)
     {
-        SetOperatorAnimation(false);
+        SetOperatorActiveBenefits(false);
         operatorBot = null;
         followVelocity = Vector3.zero;
         if (returnToParking)
             ParkImmediate();
+        else
+            currentState = TrolleyState.ParkedIdle;
+    }
+
+    public bool CanBeOperatedBy(AutonomousStaffBot bot, out string reason)
+    {
+        if (bot == null)
+        {
+            reason = "assigned bot is missing";
+            return false;
+        }
+
+        if (!IsConfigured)
+        {
+            reason = ConfigurationProblem;
+            return false;
+        }
+
+        if (!TryResolveOperatorGripPoint(bot, out _))
+        {
+            reason = $"{bot.name} has no dedicated TrolleyGripPoint";
+            return false;
+        }
+
+        reason = string.Empty;
+        return true;
+    }
+
+    public void SetReserved() => currentState = TrolleyState.Reserved;
+    public void SetAcquiring() => currentState = TrolleyState.Acquiring;
+    public void SetTransporting() => currentState = TrolleyState.Transporting;
+    public void SetUnloading() => currentState = TrolleyState.Unloading;
+    public void SetReturning() => currentState = TrolleyState.Returning;
+
+    public void SetFailure(string reason)
+    {
+        lastFailureReason = string.IsNullOrWhiteSpace(reason) ? "unknown trolley failure" : reason;
+        currentState = TrolleyState.Recovery;
     }
 
     public void SetVisible(bool visible)
@@ -192,6 +264,7 @@ public sealed class BotTrolleyCarrier : MonoBehaviour
             trayLocalPosition,
             Quaternion.Euler(trayLocalEulerAngles));
         WaiterHands.SetAllColliders(tray.gameObject, false);
+        currentState = TrolleyState.Collecting;
         return true;
     }
 
@@ -213,7 +286,9 @@ public sealed class BotTrolleyCarrier : MonoBehaviour
         if (tray == null || !trays.Remove(tray))
             return false;
 
-        tray.GetComponent<FoodTrayInteractable>()?.SetClaimedByStaff(false);
+        FoodTrayInteractable interactable = tray.GetComponent<FoodTrayInteractable>();
+        interactable?.RestoreAfterStaffPickup();
+        interactable?.SetClaimedByStaff(false);
         if (operatorBot != null)
             RestaurantTaskClaim.ReleaseBot(tray, operatorBot);
         tray.transform.SetParent(null, true);
@@ -251,6 +326,7 @@ public sealed class BotTrolleyCarrier : MonoBehaviour
 
         transform.position = ResolveParkingPosition();
         transform.rotation = ResolveParkingRotation();
+        currentState = TrolleyState.ParkedIdle;
     }
 
     /// <summary>
@@ -270,7 +346,7 @@ public sealed class BotTrolleyCarrier : MonoBehaviour
         Quaternion parkingRotation = ResolveParkingRotation();
         Vector3 parkingPosition = ResolveParkingPosition();
         Vector3 authoredApproach = parkingPosition + parkingRotation * parkingBotApproachOffset;
-        float ringDistance = Mathf.Max(
+        float authoredRingDistance = Mathf.Max(
             ParkingApproachDistance,
             new Vector2(parkingBotApproachOffset.x, parkingBotApproachOffset.z).magnitude);
         float localSampleRadius = Mathf.Min(0.75f, ParkingNavMeshSampleRadius);
@@ -285,44 +361,62 @@ public sealed class BotTrolleyCarrier : MonoBehaviour
         bool found = false;
         float bestScore = float.PositiveInfinity;
 
-        // Prefer the explicitly authored side, then test all sides so moving the
-        // parking point against a different wall cannot deadlock restaurant work.
-        for (int i = -1; i < 8; i++)
+        // A presentation marker is allowed beside a counter and may have a Y
+        // value below the baked floor. Search several rings on the operator's
+        // actual NavMesh plane instead of assuming the trolley marker itself is
+        // a valid navigation destination. This is what keeps a user-moved
+        // parking point editable without silently disabling trolley gameplay.
+        float[] ringDistances =
         {
-            Vector3 candidate = i < 0
-                ? authoredApproach
-                : parkingPosition + parkingRotation *
-                  (Quaternion.Euler(0f, i * 45f, 0f) * Vector3.back * ringDistance);
+            authoredRingDistance,
+            Mathf.Max(authoredRingDistance, 1.5f),
+            Mathf.Max(authoredRingDistance, ParkingNavMeshSampleRadius),
+            Mathf.Max(authoredRingDistance, ParkingNavMeshSampleRadius * 1.6f)
+        };
 
-            if (!NavMesh.SamplePosition(
-                    candidate,
-                    out NavMeshHit candidateHit,
-                    localSampleRadius,
-                    NavMesh.AllAreas))
+        for (int ring = -1; ring < ringDistances.Length; ring++)
+        {
+            int directionCount = ring < 0 ? 1 : 16;
+            for (int direction = 0; direction < directionCount; direction++)
             {
-                continue;
+                Vector3 candidate = ring < 0
+                    ? authoredApproach
+                    : parkingPosition + parkingRotation *
+                      (Quaternion.Euler(0f, direction * (360f / directionCount), 0f) *
+                       Vector3.back * ringDistances[ring]);
+                if (hasOperatorStart)
+                    candidate.y = operatorHit.position.y;
+
+                if (!NavMesh.SamplePosition(
+                        candidate,
+                        out NavMeshHit candidateHit,
+                        localSampleRadius,
+                        NavMesh.AllAreas))
+                {
+                    continue;
+                }
+
+                if (hasOperatorStart &&
+                    (!NavMesh.CalculatePath(
+                        operatorHit.position,
+                        candidateHit.position,
+                        NavMesh.AllAreas,
+                        path) ||
+                     path.status != NavMeshPathStatus.PathComplete))
+                {
+                    continue;
+                }
+
+                float score = (candidateHit.position - authoredApproach).sqrMagnitude;
+                if (hasOperatorStart)
+                    score += CalculatePathLength(path);
+                if (score >= bestScore)
+                    continue;
+
+                bestScore = score;
+                approachPosition = candidateHit.position;
+                found = true;
             }
-
-            if (hasOperatorStart &&
-                (!NavMesh.CalculatePath(
-                    operatorHit.position,
-                    candidateHit.position,
-                    NavMesh.AllAreas,
-                    path) ||
-                 path.status != NavMeshPathStatus.PathComplete))
-            {
-                continue;
-            }
-
-            float score = (candidateHit.position - authoredApproach).sqrMagnitude;
-            if (hasOperatorStart)
-                score += CalculatePathLength(path);
-            if (score >= bestScore)
-                continue;
-
-            bestScore = score;
-            approachPosition = candidateHit.position;
-            found = true;
         }
 
         if (found)
@@ -331,8 +425,11 @@ public sealed class BotTrolleyCarrier : MonoBehaviour
         // Final wider search covers an approach marker placed slightly inside a
         // counter. Movement still validates the route; callers fall back safely
         // if congestion or disconnected NavMesh areas make it unusable.
+        Vector3 fallbackApproach = authoredApproach;
+        if (hasOperatorStart)
+            fallbackApproach.y = operatorHit.position.y;
         if (!NavMesh.SamplePosition(
-                authoredApproach,
+                fallbackApproach,
                 out NavMeshHit fallbackHit,
                 ParkingNavMeshSampleRadius,
                 NavMesh.AllAreas))
@@ -377,11 +474,14 @@ public sealed class BotTrolleyCarrier : MonoBehaviour
 
         Transform bot = operatorBot.transform;
         Quaternion targetRotation = bot.rotation * Quaternion.Euler(pushEulerAngles);
-        Transform gripPoint = ResolveOperatorGripPoint(operatorBot);
+        TryResolveOperatorGripPoint(operatorBot, out Transform gripPoint);
         Vector3 targetPosition = bot.TransformPoint(pushOffset);
 
         if (holdingPoint != null && gripPoint != null)
         {
+            Quaternion holdingLocalRotation = Quaternion.Inverse(transform.rotation) * holdingPoint.rotation;
+            Quaternion desiredHoldingRotation = gripPoint.rotation * Quaternion.Euler(pushEulerAngles);
+            targetRotation = desiredHoldingRotation * Quaternion.Inverse(holdingLocalRotation);
             Vector3 holdingLocalPosition = transform.InverseTransformPoint(holdingPoint.position);
             Vector3 scaledHoldingOffset = Vector3.Scale(holdingLocalPosition, transform.lossyScale);
             Vector3 targetGripPosition = gripPoint.TransformPoint(operatorGripLocalOffset);
@@ -420,17 +520,18 @@ public sealed class BotTrolleyCarrier : MonoBehaviour
                 1f - Mathf.Exp(-followRotationSpeed * Time.deltaTime));
     }
 
-    private static Transform ResolveOperatorGripPoint(AutonomousStaffBot bot)
+    private static bool TryResolveOperatorGripPoint(AutonomousStaffBot bot, out Transform gripPoint)
     {
+        gripPoint = null;
         if (bot == null)
-            return null;
+            return false;
 
         WaiterHands waiterHands = bot.GetComponent<WaiterHands>();
         if (waiterHands != null)
-            return waiterHands.TrolleyGripPoint;
+            return waiterHands.TryGetTrolleyGripPoint(out gripPoint);
 
         BusserHands busserHands = bot.GetComponent<BusserHands>();
-        return busserHands != null ? busserHands.TrolleyGripPoint : null;
+        return busserHands != null && busserHands.TryGetTrolleyGripPoint(out gripPoint);
     }
 
     private Vector3 ResolveParkingPosition()
@@ -459,10 +560,24 @@ public sealed class BotTrolleyCarrier : MonoBehaviour
         return length;
     }
 
-    private void SetOperatorAnimation(bool active)
+    private void SetOperatorActiveBenefits(bool active)
     {
-        if (operatorBot != null && useBotCarryingAnimation)
+        if (operatorBot == null)
+            return;
+
+        if (useBotCarryingAnimation)
             operatorBot.SetUsingTrolley(active);
+
+        if (active)
+        {
+            operatorBot.SetTrolleyMovementModifier(
+                MovementSpeedMultiplier,
+                AccelerationMultiplier);
+        }
+        else
+        {
+            operatorBot.ClearTrolleyMovementModifier();
+        }
     }
 
     private Renderer[] ResolveVisualRenderers()
@@ -489,6 +604,8 @@ public sealed class BotTrolleyCarrier : MonoBehaviour
         parkingNavMeshSampleRadius = Mathf.Max(0.25f, parkingNavMeshSampleRadius);
         followPositionSmoothTime = Mathf.Max(0f, followPositionSmoothTime);
         followRotationSpeed = Mathf.Max(0f, followRotationSpeed);
+        movementSpeedMultiplier = Mathf.Clamp(movementSpeedMultiplier, 1f, 1.5f);
+        accelerationMultiplier = Mathf.Clamp(accelerationMultiplier, 1f, 1.5f);
 
         if (visualRoot == null)
         {
@@ -535,15 +652,17 @@ public sealed class BotTrolleyCarrier : MonoBehaviour
     private void OnDisable()
     {
         if (operatorBot != null)
-            SetOperatorAnimation(false);
+            SetOperatorActiveBenefits(false);
         operatorBot = null;
         followVelocity = Vector3.zero;
+        if (currentState != TrolleyState.Recovery)
+            currentState = TrolleyState.ParkedIdle;
     }
 
     private void OnDestroy()
     {
         if (operatorBot != null)
-            SetOperatorAnimation(false);
+            SetOperatorActiveBenefits(false);
 
         for (int i = 0; i < trays.Count; i++)
         {

@@ -1,6 +1,6 @@
-# Waiter and Busser Trolley Gameplay Fix — Handoff Plan
+# Waiter and Busser Trolley Gameplay Fix — Superseded Handoff
 
-**Status:** Implemented on 2026-08-28. Keep this document as the design/QA contract for regression testing.
+**Status:** SUPERSEDED. Runtime testing showed the feature is not complete. Use `TROLLEY_GAMEPLAY_RECOVERY_IMPLEMENTATION_PLAN.md` as the current implementation handoff.
 
 **Implementation result:** Both trolley prefabs now use identity gameplay roots, editable `VisualPivot`, four editable `TraySlot` anchors, and a non-physical `HoldingPoint`. Runtime discovers purchased scene/prefab instances, aligns the trolley handle to an editable bot grip point, batches one to four trays after a short grace period, restores claims/UI on cancellation, and returns the trolley to its authored parking point. The authoring installer is versioned and no longer overwrites version-6 manual trolley edits.
 

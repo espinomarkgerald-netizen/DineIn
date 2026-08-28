@@ -59,6 +59,13 @@ public class WaiterHands : MonoBehaviour
     public Transform TrayHoldPoint => trayHoldPoint != null ? trayHoldPoint : transform;
     public Transform BillHoldPoint => billHoldPoint != null ? billHoldPoint : transform;
     public Transform TrolleyGripPoint => trolleyGripPoint != null ? trolleyGripPoint : TrayHoldPoint;
+    public bool HasDedicatedTrolleyGrip => trolleyGripPoint != null;
+
+    public bool TryGetTrolleyGripPoint(out Transform gripPoint)
+    {
+        gripPoint = trolleyGripPoint;
+        return gripPoint != null;
+    }
 
     private void Awake()
     {
@@ -401,6 +408,21 @@ public class WaiterHands : MonoBehaviour
         money.NotifyPickedUp();
 
         NotifyHandsChanged();
+    }
+
+    public bool ReleaseTrayForRetry(Vector3 worldPosition)
+    {
+        FoodTray tray = holdingTray;
+        if (tray == null)
+            return false;
+
+        holdingTray = null;
+        tray.transform.SetParent(null, true);
+        tray.transform.position = worldPosition;
+        SetAllColliders(tray.gameObject, true);
+        tray.GetComponent<FoodTrayInteractable>()?.RestoreAfterStaffPickup();
+        NotifyHandsChanged();
+        return true;
     }
 
     public void ClearMoney()

@@ -61,8 +61,11 @@ public class AutonomousStaffBot : MonoBehaviour
     private float happyIdleDuration;
     private bool playingHappyIdle;
     private float baseAgentSpeed;
+    private float baseAgentAcceleration;
     private float workSpeedMultiplier = 1f;
     private float reactionTimeMultiplier = 1f;
+    private float trolleyMovementSpeedMultiplier = 1f;
+    private float trolleyAccelerationMultiplier = 1f;
 
     private static readonly int IdleStateHash = Animator.StringToHash("Base Layer.idle");
     private static readonly int HappyIdleStateHash = Animator.StringToHash("Base Layer.Happy Idle");
@@ -70,6 +73,10 @@ public class AutonomousStaffBot : MonoBehaviour
     public bool IsBusy => activeTask != null;
     public bool LastMoveSucceeded { get; private set; }
     public StaffState CurrentState { get; private set; } = StaffState.IdleAtHome;
+    public float BaseMovementSpeed => baseAgentSpeed;
+    public float EmployeeMovementSpeedMultiplier => workSpeedMultiplier;
+    public float TrolleyMovementSpeedMultiplier => trolleyMovementSpeedMultiplier;
+    public float EffectiveMovementSpeed => baseAgentSpeed * workSpeedMultiplier * trolleyMovementSpeedMultiplier;
 
     private void Awake()
     {
@@ -79,6 +86,7 @@ public class AutonomousStaffBot : MonoBehaviour
         if (useSmartCrowdNavigation)
             CrowdNavigationAgent.Ensure(gameObject, false, crowdNavigationProfile);
         baseAgentSpeed = agent != null ? Mathf.Max(0.1f, agent.speed) : 3.5f;
+        baseAgentAcceleration = agent != null ? Mathf.Max(0.1f, agent.acceleration) : 8f;
         animator = GetComponentInChildren<Animator>(true);
         idleLookRotation = fallbackHomeRotation;
         happyIdleDuration = ResolveHappyIdleDuration();
@@ -157,6 +165,9 @@ public class AutonomousStaffBot : MonoBehaviour
 
         carrying = false;
         usingTrolley = false;
+        trolleyMovementSpeedMultiplier = 1f;
+        trolleyAccelerationMultiplier = 1f;
+        ApplyMovementPerformance();
         CurrentState = StaffState.IdleAtHome;
         playingHappyIdle = false;
     }
@@ -181,8 +192,7 @@ public class AutonomousStaffBot : MonoBehaviour
         {
             workSpeedMultiplier = 1f;
             reactionTimeMultiplier = 1f;
-            if (agent != null)
-                agent.speed = baseAgentSpeed;
+            ApplyMovementPerformance();
             return;
         }
 
@@ -190,8 +200,7 @@ public class AutonomousStaffBot : MonoBehaviour
         float reliability01 = Mathf.InverseLerp(50f, 100f, employee.reliability);
         workSpeedMultiplier = speed;
         reactionTimeMultiplier = Mathf.Lerp(1.20f, 0.82f, reliability01);
-        if (agent != null)
-            agent.speed = baseAgentSpeed * speed;
+        ApplyMovementPerformance();
     }
 
     public void ConfigureIdlePresentation(params Transform[] lookTargets)
@@ -237,6 +246,35 @@ public class AutonomousStaffBot : MonoBehaviour
     {
         usingTrolley = value;
         SetCarrying(false);
+    }
+
+    /// <summary>
+    /// Applies the temporary movement benefit supplied by trolley equipment.
+    /// Employee performance and the trolley modifier are composed instead of
+    /// overwriting one another. Reapplying replaces the existing modifier, so
+    /// repeated BeginUse calls cannot stack speed indefinitely.
+    /// </summary>
+    public void SetTrolleyMovementModifier(float speedMultiplier, float accelerationMultiplier)
+    {
+        trolleyMovementSpeedMultiplier = Mathf.Clamp(speedMultiplier, 1f, 1.5f);
+        trolleyAccelerationMultiplier = Mathf.Clamp(accelerationMultiplier, 1f, 1.5f);
+        ApplyMovementPerformance();
+    }
+
+    public void ClearTrolleyMovementModifier()
+    {
+        trolleyMovementSpeedMultiplier = 1f;
+        trolleyAccelerationMultiplier = 1f;
+        ApplyMovementPerformance();
+    }
+
+    private void ApplyMovementPerformance()
+    {
+        if (agent == null)
+            return;
+
+        agent.speed = EffectiveMovementSpeed;
+        agent.acceleration = baseAgentAcceleration * trolleyAccelerationMultiplier;
     }
 
     public IEnumerator MoveTo(Transform target)

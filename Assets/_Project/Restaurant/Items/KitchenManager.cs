@@ -5,6 +5,71 @@ using UnityEngine;
 
 public class KitchenManager : MonoBehaviour
 {
+    public enum ForecastState
+    {
+        Cooking,
+        WaitingForSpawnSlot,
+        Completed,
+        Canceled
+    }
+
+    public readonly struct OrderForecast
+    {
+        public CustomerGroup Group { get; }
+        public int OrderNumber { get; }
+        public bool IsTakeout { get; }
+        public float StartedAt { get; }
+        public float PreparationDelaySeconds { get; }
+        public float CookDurationSeconds { get; }
+        public float PredictedReadyAt { get; }
+        public ForecastState State { get; }
+
+        public float RemainingSeconds => Mathf.Max(0f, PredictedReadyAt - Time.time);
+        public bool HasReliableReadyTime => State == ForecastState.Cooking;
+
+        internal OrderForecast(
+            CustomerGroup group,
+            int orderNumber,
+            bool isTakeout,
+            float startedAt,
+            float preparationDelaySeconds,
+            float cookDurationSeconds,
+            float predictedReadyAt,
+            ForecastState state)
+        {
+            Group = group;
+            OrderNumber = orderNumber;
+            IsTakeout = isTakeout;
+            StartedAt = startedAt;
+            PreparationDelaySeconds = preparationDelaySeconds;
+            CookDurationSeconds = cookDurationSeconds;
+            PredictedReadyAt = predictedReadyAt;
+            State = state;
+        }
+    }
+
+    private sealed class ActiveOrderForecast
+    {
+        public CustomerGroup group;
+        public int orderNumber;
+        public bool isTakeout;
+        public float startedAt;
+        public float preparationDelaySeconds;
+        public float cookDurationSeconds;
+        public float predictedReadyAt;
+        public ForecastState state;
+
+        public OrderForecast Snapshot => new OrderForecast(
+            group,
+            orderNumber,
+            isTakeout,
+            startedAt,
+            preparationDelaySeconds,
+            cookDurationSeconds,
+            predictedReadyAt,
+            state);
+    }
+
     [Header("Dine-In Spawn Points")]
     public Transform[] traySpawnPoints;
     public FoodTray foodTrayPrefab;
@@ -15,6 +80,7 @@ public class KitchenManager : MonoBehaviour
 
     [Header("Timing")]
     public float cookSeconds = 5f;
+    [SerializeField, Min(0f)] private float preparationDelaySeconds = 2f;
 
     [Header("Queueing")]
     [SerializeField] private float waitForFreeSlotCheckInterval = 0.25f;
@@ -22,11 +88,16 @@ public class KitchenManager : MonoBehaviour
 
     private readonly HashSet<int> cookingOrders = new HashSet<int>();
     private readonly HashSet<int> completedOrders = new HashSet<int>();
+    private readonly Dictionary<int, ActiveOrderForecast> activeOrderForecasts =
+        new Dictionary<int, ActiveOrderForecast>();
 
     private TrayPickupQueue pickupQueue;
 
     public event Action<CustomerGroup, int> OrderStarted;
     public event Action<CustomerGroup, int, bool> OrderFinished;
+    public event Action<OrderForecast> OrderForecastChanged;
+
+    public int ActiveForecastCount => activeOrderForecasts.Count;
 
     private void Awake()
     {
@@ -38,6 +109,67 @@ public class KitchenManager : MonoBehaviour
     private void Start()
     {
         ApplyKitchenAssignmentCookTime();
+    }
+
+    private void OnDestroy()
+    {
+        activeOrderForecasts.Clear();
+    }
+
+    public bool TryGetForecast(int orderNumber, out OrderForecast forecast)
+    {
+        if (activeOrderForecasts.TryGetValue(orderNumber, out ActiveOrderForecast active))
+        {
+            forecast = active.Snapshot;
+            return true;
+        }
+
+        forecast = default;
+        return false;
+    }
+
+    public bool TryGetNextDineInForecast(out OrderForecast forecast)
+    {
+        bool found = false;
+        forecast = default;
+
+        foreach (ActiveOrderForecast active in activeOrderForecasts.Values)
+        {
+            if (!IsUsableDineInForecast(active))
+                continue;
+
+            if (!found || active.predictedReadyAt < forecast.PredictedReadyAt ||
+                (Mathf.Approximately(active.predictedReadyAt, forecast.PredictedReadyAt) &&
+                 active.orderNumber < forecast.OrderNumber))
+            {
+                forecast = active.Snapshot;
+                found = true;
+            }
+        }
+
+        return found;
+    }
+
+    public int CopyActiveDineInForecasts(List<OrderForecast> destination)
+    {
+        if (destination == null)
+            return 0;
+
+        destination.Clear();
+        foreach (ActiveOrderForecast active in activeOrderForecasts.Values)
+        {
+            if (IsUsableDineInForecast(active))
+                destination.Add(active.Snapshot);
+        }
+
+        destination.Sort((left, right) =>
+        {
+            int timeComparison = left.PredictedReadyAt.CompareTo(right.PredictedReadyAt);
+            return timeComparison != 0
+                ? timeComparison
+                : left.OrderNumber.CompareTo(right.OrderNumber);
+        });
+        return destination.Count;
     }
 
     private void ApplyKitchenAssignmentCookTime()
@@ -99,25 +231,53 @@ public class KitchenManager : MonoBehaviour
         }
 
         bool isTakeout = group.IsTakeout;
+        float startedAt = Time.time;
+        float preparationSnapshot = Mathf.Max(0f, preparationDelaySeconds);
+        float cookSnapshot = Mathf.Max(0f, cookSeconds);
+        ActiveOrderForecast activeForecast = new ActiveOrderForecast
+        {
+            group = group,
+            orderNumber = orderNo,
+            isTakeout = isTakeout,
+            startedAt = startedAt,
+            preparationDelaySeconds = preparationSnapshot,
+            cookDurationSeconds = cookSnapshot,
+            predictedReadyAt = startedAt + preparationSnapshot + cookSnapshot,
+            state = ForecastState.Cooking
+        };
+        activeOrderForecasts[orderNo] = activeForecast;
 
         Debug.Log($"[KitchenManager] Starting cook for order #{orderNo} — group={group.name} isTakeout={isTakeout}.");
-        StartCoroutine(CookAndSpawn(group, orderNo, isTakeout));
+        NotifyForecastChanged(activeForecast);
+        StartCoroutine(CookAndSpawn(
+            group,
+            orderNo,
+            isTakeout,
+            preparationSnapshot,
+            cookSnapshot));
         OrderStarted?.Invoke(group, orderNo);
         return true;
     }
 
-    private IEnumerator CookAndSpawn(CustomerGroup group, int orderNo, bool isTakeout)
+    private IEnumerator CookAndSpawn(
+        CustomerGroup group,
+        int orderNo,
+        bool isTakeout,
+        float preparationSnapshot,
+        float cookSnapshot)
     {
         bool spawnedSuccessfully = false;
 
         try
         {
-            yield return new WaitForSeconds(2f);
+            if (preparationSnapshot > 0f)
+                yield return new WaitForSeconds(preparationSnapshot);
 
             if (ProcessingBillIndicatorUI.Instance != null)
                 ProcessingBillIndicatorUI.Instance.Show("Order #" + orderNo + " is being prepared");
 
-            yield return new WaitForSeconds(cookSeconds);
+            if (cookSnapshot > 0f)
+                yield return new WaitForSeconds(cookSnapshot);
 
             if (!IsOrderStillValid(group, orderNo))
             {
@@ -152,8 +312,11 @@ public class KitchenManager : MonoBehaviour
                 yield break;
             }
 
-            Transform freeSlot = null;
+            Transform freeSlot = GetFirstFreeSlot(targetSlots);
             float slotWaitStarted = Time.time;
+
+            if (freeSlot == null)
+                SetForecastState(orderNo, ForecastState.WaitingForSpawnSlot);
 
             while (freeSlot == null && Time.time - slotWaitStarted < maxSlotWaitSeconds)
             {
@@ -231,11 +394,49 @@ public class KitchenManager : MonoBehaviour
         finally
         {
             cookingOrders.Remove(orderNo);
+            CompleteForecast(
+                orderNo,
+                spawnedSuccessfully ? ForecastState.Completed : ForecastState.Canceled);
             OrderFinished?.Invoke(group, orderNo, spawnedSuccessfully);
 
             if (!spawnedSuccessfully && ProcessingBillIndicatorUI.Instance != null && cookingOrders.Count == 0)
                 ProcessingBillIndicatorUI.Instance.Hide();
         }
+    }
+
+    private static bool IsUsableDineInForecast(ActiveOrderForecast active)
+    {
+        return active != null && !active.isTakeout && active.group != null &&
+               active.state != ForecastState.Completed &&
+               active.state != ForecastState.Canceled;
+    }
+
+    private void SetForecastState(int orderNumber, ForecastState state)
+    {
+        if (!activeOrderForecasts.TryGetValue(orderNumber, out ActiveOrderForecast active) ||
+            active.state == state)
+        {
+            return;
+        }
+
+        active.state = state;
+        NotifyForecastChanged(active);
+    }
+
+    private void CompleteForecast(int orderNumber, ForecastState finalState)
+    {
+        if (!activeOrderForecasts.TryGetValue(orderNumber, out ActiveOrderForecast active))
+            return;
+
+        active.state = finalState;
+        NotifyForecastChanged(active);
+        activeOrderForecasts.Remove(orderNumber);
+    }
+
+    private void NotifyForecastChanged(ActiveOrderForecast active)
+    {
+        if (active != null)
+            OrderForecastChanged?.Invoke(active.Snapshot);
     }
 
     private bool IsOrderStillValid(CustomerGroup group, int orderNo)

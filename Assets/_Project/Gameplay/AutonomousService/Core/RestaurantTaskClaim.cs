@@ -109,6 +109,13 @@ public static class RestaurantTaskClaim
                entry.botOwner != null;
     }
 
+    public static bool IsClaimedByBot(Object target, AutonomousStaffBot botOwner)
+    {
+        return target != null && botOwner != null &&
+               Entries.TryGetValue(target.GetInstanceID(), out Entry entry) &&
+               entry.botOwner == botOwner;
+    }
+
     public static bool IsClaimedByPlayer(Object target)
     {
         return target != null && activePlayerTargetId == target.GetInstanceID();

@@ -27,11 +27,19 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
     private bool pendingCleanup;
     private bool uiHiddenUntilStateChange;
     private bool claimedByStaff;
+    private bool staffCarried;
+    private TrayMode modeBeforeStaffPickup = TrayMode.None;
+    private TrayPickupQueue queueBeforeStaffPickup;
+    private float readySince;
+    private float readySinceBeforeStaffPickup;
 
     public Transform StandPoint => ResolveStandPoint();
     public bool AutoReturnHome => false;
     public bool IsDeliveryPickable => mode == TrayMode.Delivery;
     public bool IsCleanupPickable => mode == TrayMode.Cleanup;
+    public bool IsStaffCarried => staffCarried;
+    public TrayMode CurrentMode => mode;
+    public float ReadySince => readySince;
 
     private void Awake()
     {
@@ -51,6 +59,8 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
         RestaurantTaskClaim.Complete(tray);
         if (queueOwner != null)
             queueOwner.Unregister(this);
+        if (queueBeforeStaffPickup != null && queueBeforeStaffPickup != queueOwner)
+            queueBeforeStaffPickup.Unregister(this);
 
         HideUI();
     }
@@ -96,14 +106,19 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
         claimedByStaff = claimed;
         if (claimed)
             HideUI();
-        else
+        else if (!staffCarried)
             RefreshUI();
     }
 
     public void SetDeliveryPickable(TrayPickupQueue queue)
     {
+        if (queueOwner != null && queueOwner != queue)
+            queueOwner.Unregister(this);
+
+        ClearStaffPickupSnapshot();
         mode = TrayMode.Delivery;
         queueOwner = queue;
+        readySince = Time.time;
 
         if (queueOwner != null)
             queueOwner.Register(this);
@@ -115,8 +130,17 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
 
     public void NotifyDeliveredToTable()
     {
+        if (queueOwner != null)
+            queueOwner.Unregister(this);
+        if (queueBeforeStaffPickup != null && queueBeforeStaffPickup != queueOwner)
+            queueBeforeStaffPickup.Unregister(this);
+
         mode = TrayMode.None;
         queueOwner = null;
+        readySince = 0f;
+        claimedByStaff = false;
+        staffCarried = false;
+        ClearStaffPickupSnapshot();
         pickupRequested = false;
         uiHiddenUntilStateChange = false;
         HideUI();
@@ -129,9 +153,71 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
 
         queueOwner = null;
         mode = value ? TrayMode.Cleanup : TrayMode.None;
+        readySince = value ? Time.time : 0f;
+        staffCarried = false;
+        ClearStaffPickupSnapshot();
         pickupRequested = false;
         uiHiddenUntilStateChange = false;
         RefreshUI();
+    }
+
+    /// <summary>
+    /// Performs the logical half of an autonomous pickup before the tray is
+    /// reparented to hands or a trolley. Queue membership, task UI and tray mode
+    /// change atomically, and RestoreAfterStaffPickup can reverse the transition.
+    /// </summary>
+    public bool TryBeginStaffPickup(AutonomousStaffBot owner, TrayMode expectedMode)
+    {
+        if (owner == null || tray == null || staffCarried || mode != expectedMode ||
+            !RestaurantTaskClaim.IsClaimedByBot(tray, owner))
+        {
+            return false;
+        }
+
+        modeBeforeStaffPickup = mode;
+        queueBeforeStaffPickup = queueOwner;
+        readySinceBeforeStaffPickup = readySince;
+        if (queueOwner != null)
+            queueOwner.Unregister(this);
+
+        queueOwner = null;
+        mode = TrayMode.None;
+        readySince = 0f;
+        staffCarried = true;
+        claimedByStaff = true;
+        pickupRequested = false;
+        uiHiddenUntilStateChange = true;
+        HideUI();
+        return true;
+    }
+
+    public void RestoreAfterStaffPickup()
+    {
+        if (!staffCarried)
+            return;
+
+        mode = modeBeforeStaffPickup;
+        readySince = readySinceBeforeStaffPickup > 0f
+            ? readySinceBeforeStaffPickup
+            : Time.time;
+        queueOwner = mode == TrayMode.Delivery ? queueBeforeStaffPickup : null;
+        staffCarried = false;
+        claimedByStaff = false;
+        pickupRequested = false;
+        uiHiddenUntilStateChange = false;
+
+        if (queueOwner != null)
+            queueOwner.Register(this);
+
+        ClearStaffPickupSnapshot();
+        RefreshUI();
+    }
+
+    private void ClearStaffPickupSnapshot()
+    {
+        modeBeforeStaffPickup = TrayMode.None;
+        queueBeforeStaffPickup = null;
+        readySinceBeforeStaffPickup = 0f;
     }
 
     public void SetQueuePickable(bool allowed)
@@ -243,6 +329,9 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
         pickupRequested = false;
         uiHiddenUntilStateChange = true;
         mode = TrayMode.None;
+        readySince = 0f;
+        staffCarried = false;
+        ClearStaffPickupSnapshot();
         queueOwner = null;
         HideUI();
 

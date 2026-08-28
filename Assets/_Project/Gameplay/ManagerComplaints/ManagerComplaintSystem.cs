@@ -74,12 +74,16 @@ public sealed class ManagerComplaintSystem : MonoBehaviour
             return existing;
         }
 
-        ManagerComplaintSystem prefab = Resources.Load<ManagerComplaintSystem>(
-            SystemResourcePath);
+        Object prefabAsset = Resources.Load(SystemResourcePath);
+        GameObject prefabObject = prefabAsset as GameObject;
+        ManagerComplaintSystem prefab = prefabObject != null
+            ? prefabObject.GetComponent<ManagerComplaintSystem>()
+            : null;
         if (prefab == null)
         {
             Debug.LogError(
-                "[ManagerComplaint] Missing Resources/" + SystemResourcePath + ".prefab.");
+                "[ManagerComplaint] Missing or invalid Resources/" +
+                SystemResourcePath + ".prefab.");
             return null;
         }
 
@@ -101,7 +105,13 @@ public sealed class ManagerComplaintSystem : MonoBehaviour
             settings = Resources.Load<ManagerComplaintSettings>(
                 ManagerComplaintSettings.ResourcePath);
         if (markerPrefab == null)
-            markerPrefab = Resources.Load<ManagerComplaintMarker>(MarkerResourcePath);
+        {
+            Object markerAsset = Resources.Load(MarkerResourcePath);
+            GameObject markerObject = markerAsset as GameObject;
+            markerPrefab = markerObject != null
+                ? markerObject.GetComponent<ManagerComplaintMarker>()
+                : null;
+        }
 
         BindButtons();
         HidePresentationImmediate();
