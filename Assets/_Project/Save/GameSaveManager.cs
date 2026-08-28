@@ -29,6 +29,8 @@ public class GameSaveManager : MonoBehaviour
 
     private bool hasAutoLoaded;
 
+    public bool HasCompletedInitialLoad => !autoLoadOnStart || hasAutoLoaded;
+
     private void Awake()
     {
         if (Instance != null && Instance != this)

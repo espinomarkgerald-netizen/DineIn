@@ -16,9 +16,11 @@ public static class CardPaymentAndUpgradeAuthoring
     private const string UnlockPrefabPath = "Assets/_Project/Resources/UI/UnlockCelebrationUI.prefab";
     private const string UpgradeFolder = "Assets/_Project/Office/Manager/Equipment/Upgrades";
     private const string ResourceUpgradeFolder = "Assets/_Project/Resources/Upgrades";
-    private const string SessionKey = "DineIn.CardPaymentAndUpgrades.Installed.v4";
+    private const string SessionKey = "DineIn.CardPaymentAndUpgrades.Installed.v7";
     private const int CardPrefabAuthoringVersion = 4;
-    private const int TrolleyPrefabAuthoringVersion = 3;
+    private const int TrolleyPrefabAuthoringVersion = 6;
+    private const int UnlockPrefabAuthoringVersion = 2;
+    private const float TrolleyVisualHeight = 1.1f;
 
     static CardPaymentAndUpgradeAuthoring()
     {
@@ -110,7 +112,8 @@ public static class CardPaymentAndUpgradeAuthoring
         if (cardUI != null && cardUI.AuthoringVersion >= CardPrefabAuthoringVersion &&
             waiterCarrier != null && waiterCarrier.AuthoringVersion >= TrolleyPrefabAuthoringVersion &&
             busserCarrier != null && busserCarrier.AuthoringVersion >= TrolleyPrefabAuthoringVersion &&
-            unlockPrefab != null && unlockPrefab.GetComponent<UnlockCelebrationUI>() != null &&
+            unlockPrefab != null &&
+            unlockPrefab.GetComponent<UnlockCelebrationUI>()?.AuthoringVersion >= UnlockPrefabAuthoringVersion &&
             AssetDatabase.LoadAssetAtPath<EquipmentUpgrade>(UpgradeFolder + "/Card Payment.asset") != null)
         {
             SessionState.SetBool(SessionKey, true);
@@ -554,14 +557,18 @@ public static class CardPaymentAndUpgradeAuthoring
         }
 
         Material material = AssetDatabase.LoadAssetAtPath<Material>(materialPath);
+        bool createdMaterial = material == null;
         if (material == null)
         {
             Shader shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
             material = new Material(shader) { name = Path.GetFileNameWithoutExtension(materialPath) };
             AssetDatabase.CreateAsset(material, materialPath);
         }
-        material.color = color;
-        EditorUtility.SetDirty(material);
+        if (createdMaterial)
+        {
+            material.color = color;
+            EditorUtility.SetDirty(material);
+        }
 
         bool existingPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath) != null;
         GameObject root = existingPrefab
@@ -576,45 +583,64 @@ public static class CardPaymentAndUpgradeAuthoring
                 return;
             }
 
-            root.transform.localPosition = Vector3.zero;
-            root.transform.localRotation = Quaternion.identity;
-            root.transform.localScale = Vector3.one;
+            bool newPrefab = !existingPrefab;
+            MoveGameplayRootCorrectionIntoChildren(root.transform);
+
+            Transform visualPivot = FindDeep(root.transform, "VisualPivot");
+            if (visualPivot == null)
+            {
+                GameObject pivotObject = new GameObject("VisualPivot");
+                visualPivot = pivotObject.transform;
+                visualPivot.SetParent(root.transform, false);
+            }
 
             Transform visualTransform = FindDeep(root.transform, "TrolleyModel");
             GameObject visual;
             if (visualTransform == null)
             {
-                visual = (GameObject)PrefabUtility.InstantiatePrefab(model);
+                visual = (GameObject)PrefabUtility.InstantiatePrefab(model, visualPivot);
                 visual.name = "TrolleyModel";
-                visual.transform.SetParent(root.transform, false);
+                visual.transform.localPosition = Vector3.zero;
+                visual.transform.localRotation = Quaternion.identity;
+                visual.transform.localScale = Vector3.one;
             }
             else
             {
                 visual = visualTransform.gameObject;
+                if (visualTransform.parent != visualPivot)
+                    visualTransform.SetParent(visualPivot, true);
             }
 
-            // The imported FBX is already converted to Unity's Y-up space.
-            // Keeping the visual at identity prevents the previous vertical cart.
-            visual.transform.localPosition = Vector3.zero;
-            visual.transform.localRotation = Quaternion.identity;
-            // The source FBX is authored at a miniature scale. Keep the root
-            // prefab at 1 so parking/push offsets stay intuitive, and scale
-            // only the editable visual child to restaurant-prop size.
-            visual.transform.localScale = Vector3.one * 2.5f;
+            visual.SetActive(true);
             Renderer[] renderers = visual.GetComponentsInChildren<Renderer>(true);
             for (int i = 0; i < renderers.Length; i++)
             {
+                renderers[i].enabled = true;
                 Material[] materials = renderers[i].sharedMaterials;
-                for (int m = 0; m < materials.Length; m++) materials[m] = material;
+                for (int m = 0; m < materials.Length; m++)
+                {
+                    if (materials[m] == null || newPrefab)
+                        materials[m] = material;
+                }
                 renderers[i].sharedMaterials = materials;
+            }
+
+            if (newPrefab)
+            {
+                // Defaults are applied only to a newly created prefab. Existing
+                // presentation transforms are user-authored and must be preserved.
+                visualPivot.localPosition = Vector3.zero;
+                visualPivot.localRotation = Quaternion.identity;
+                visualPivot.localScale = Vector3.one;
+                GroundAndScaleVisual(visualPivot, root.transform, renderers, TrolleyVisualHeight);
             }
 
             Vector3[] positions =
             {
-                new Vector3(-0.28f, 0.76f, 0.05f),
-                new Vector3(0.28f, 0.76f, 0.05f),
-                new Vector3(-0.28f, 1.08f, 0.05f),
-                new Vector3(0.28f, 1.08f, 0.05f)
+                new Vector3(-0.25f, 0.46f, 0.02f),
+                new Vector3(0.25f, 0.46f, 0.02f),
+                new Vector3(-0.25f, 0.82f, 0.02f),
+                new Vector3(0.25f, 0.82f, 0.02f)
             };
             List<Transform> slots = new List<Transform>(positions.Length);
             for (int i = 0; i < positions.Length; i++)
@@ -626,17 +652,51 @@ public static class CardPaymentAndUpgradeAuthoring
                     GameObject slotObject = new GameObject(slotName);
                     slot = slotObject.transform;
                     slot.SetParent(root.transform, false);
+                    slot.localPosition = positions[i];
+                    slot.localRotation = Quaternion.identity;
+                    slot.localScale = Vector3.one;
                 }
-                slot.localPosition = positions[i];
-                slot.localRotation = Quaternion.identity;
-                slot.localScale = Vector3.one;
+                else if (slot.parent != root.transform)
+                {
+                    slot.SetParent(root.transform, true);
+                }
                 slots.Add(slot);
+            }
+
+            Transform holdingPoint = FindDeep(root.transform, "HoldingPoint");
+            if (holdingPoint == null)
+            {
+                GameObject holdingObject = new GameObject("HoldingPoint");
+                holdingPoint = holdingObject.transform;
+                holdingPoint.SetParent(root.transform, false);
+                holdingPoint.localPosition = new Vector3(0f, 0.72f, -0.48f);
+                holdingPoint.localRotation = Quaternion.identity;
+                holdingPoint.localScale = Vector3.one;
+            }
+            else if (holdingPoint.parent != root.transform)
+            {
+                holdingPoint.SetParent(root.transform, true);
+            }
+
+            MakeHoldingPointNonPhysical(holdingPoint);
+
+            if (effect == EquipmentUpgradeEffect.BusserTrolley)
+            {
+                CopyWaiterTrolleyLayout(
+                    visualPivot,
+                    slots,
+                    holdingPoint);
             }
 
             BotTrolleyCarrier carrier = existingCarrier != null
                 ? existingCarrier
                 : root.AddComponent<BotTrolleyCarrier>();
-            carrier.ConfigureAuthoring(effect, slots, TrolleyPrefabAuthoringVersion);
+            carrier.ConfigureAuthoring(
+                effect,
+                slots,
+                visualPivot,
+                holdingPoint,
+                TrolleyPrefabAuthoringVersion);
             EditorUtility.SetDirty(carrier);
             PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
         }
@@ -649,20 +709,217 @@ public static class CardPaymentAndUpgradeAuthoring
         }
     }
 
-    private static void CreateUnlockCelebrationPrefab()
+    private static void MoveGameplayRootCorrectionIntoChildren(Transform root)
     {
-        if (AssetDatabase.LoadAssetAtPath<GameObject>(UnlockPrefabPath) != null)
+        if (root == null ||
+            (root.localPosition.sqrMagnitude <= 0.000001f &&
+             Quaternion.Angle(root.localRotation, Quaternion.identity) <= 0.001f &&
+             (root.localScale - Vector3.one).sqrMagnitude <= 0.000001f))
+        {
+            return;
+        }
+
+        int childCount = root.childCount;
+        Transform[] children = new Transform[childCount];
+        Vector3[] positions = new Vector3[childCount];
+        Quaternion[] rotations = new Quaternion[childCount];
+        Vector3[] scales = new Vector3[childCount];
+        for (int i = 0; i < childCount; i++)
+        {
+            Transform child = root.GetChild(i);
+            children[i] = child;
+            positions[i] = child.position;
+            rotations[i] = child.rotation;
+            scales[i] = child.lossyScale;
+        }
+
+        root.localPosition = Vector3.zero;
+        root.localRotation = Quaternion.identity;
+        root.localScale = Vector3.one;
+
+        for (int i = 0; i < childCount; i++)
+        {
+            Transform child = children[i];
+            child.position = positions[i];
+            child.rotation = rotations[i];
+            SetWorldScale(child, scales[i]);
+        }
+    }
+
+    private static void SetWorldScale(Transform target, Vector3 worldScale)
+    {
+        if (target == null)
             return;
 
-        GameObject root = new GameObject(
-            "UnlockCelebrationUI",
-            typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler),
-            typeof(GraphicRaycaster), typeof(CanvasGroup), typeof(Image),
-            typeof(UnlockCelebrationUI));
+        Vector3 parentScale = target.parent != null
+            ? target.parent.lossyScale
+            : Vector3.one;
+        target.localScale = new Vector3(
+            SafeScaleDivide(worldScale.x, parentScale.x),
+            SafeScaleDivide(worldScale.y, parentScale.y),
+            SafeScaleDivide(worldScale.z, parentScale.z));
+    }
+
+    private static float SafeScaleDivide(float value, float divisor)
+    {
+        return Mathf.Abs(divisor) > 0.0001f ? value / divisor : value;
+    }
+
+    private static void CopyWaiterTrolleyLayout(
+        Transform targetVisualPivot,
+        IList<Transform> targetSlots,
+        Transform targetHoldingPoint)
+    {
+        GameObject waiterPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(
+            ResourceUpgradeFolder + "/WaiterTrolley.prefab");
+        if (waiterPrefab == null)
+            return;
+
+        Transform waiterRoot = waiterPrefab.transform;
+        CopyLocalTransform(FindDeep(waiterRoot, "VisualPivot"), targetVisualPivot);
+        for (int i = 0; i < targetSlots.Count; i++)
+        {
+            Transform targetSlot = targetSlots[i];
+            Transform sourceSlot = targetSlot != null
+                ? FindDeep(waiterRoot, targetSlot.name)
+                : null;
+            CopyLocalTransform(sourceSlot, targetSlot);
+        }
+        CopyLocalTransform(FindDeep(waiterRoot, "HoldingPoint"), targetHoldingPoint);
+    }
+
+    private static void CopyLocalTransform(Transform source, Transform target)
+    {
+        if (source == null || target == null)
+            return;
+
+        target.localPosition = source.localPosition;
+        target.localRotation = source.localRotation;
+        target.localScale = source.localScale;
+    }
+
+    private static void MakeHoldingPointNonPhysical(Transform holdingPoint)
+    {
+        if (holdingPoint == null)
+            return;
+
+        Renderer[] markerRenderers = holdingPoint.GetComponentsInChildren<Renderer>(true);
+        for (int i = 0; i < markerRenderers.Length; i++)
+            markerRenderers[i].enabled = false;
+
+        Collider[] colliders = holdingPoint.GetComponentsInChildren<Collider>(true);
+        for (int i = 0; i < colliders.Length; i++)
+            Object.DestroyImmediate(colliders[i]);
+    }
+
+    private static void GroundAndScaleVisual(
+        Transform visual,
+        Transform relativeTo,
+        Renderer[] renderers,
+        float targetHeight)
+    {
+        if (visual == null || relativeTo == null || renderers == null || renderers.Length == 0)
+            return;
+
+        if (!TryGetMeshBounds(relativeTo, visual, out Bounds bounds) || bounds.size.y <= 0.0001f)
+        {
+            Debug.LogError("[CardPaymentAuthoring] Trolley FBX has no usable renderer bounds.", visual);
+            return;
+        }
+
+        float uniformScale = Mathf.Clamp(targetHeight / bounds.size.y, 0.01f, 100f);
+        visual.localScale = Vector3.one * uniformScale;
+        visual.localPosition = new Vector3(
+            -bounds.center.x * uniformScale,
+            -bounds.min.y * uniformScale,
+            -bounds.center.z * uniformScale);
+    }
+
+    private static bool TryGetMeshBounds(
+        Transform relativeTo,
+        Transform visualRoot,
+        out Bounds bounds)
+    {
+        bounds = default;
+        bool initialized = false;
+
+        MeshFilter[] filters = visualRoot.GetComponentsInChildren<MeshFilter>(true);
+        for (int i = 0; i < filters.Length; i++)
+        {
+            MeshFilter filter = filters[i];
+            if (filter == null || filter.sharedMesh == null)
+                continue;
+
+            EncapsulateTransformedBounds(
+                relativeTo, filter.transform, filter.sharedMesh.bounds, ref bounds, ref initialized);
+        }
+
+        SkinnedMeshRenderer[] skinned = visualRoot.GetComponentsInChildren<SkinnedMeshRenderer>(true);
+        for (int i = 0; i < skinned.Length; i++)
+        {
+            SkinnedMeshRenderer renderer = skinned[i];
+            if (renderer == null || renderer.sharedMesh == null)
+                continue;
+
+            EncapsulateTransformedBounds(
+                relativeTo, renderer.transform, renderer.localBounds, ref bounds, ref initialized);
+        }
+
+        return initialized;
+    }
+
+    private static void EncapsulateTransformedBounds(
+        Transform relativeTo,
+        Transform source,
+        Bounds sourceBounds,
+        ref Bounds result,
+        ref bool initialized)
+    {
+        Vector3 min = sourceBounds.min;
+        Vector3 max = sourceBounds.max;
+        for (int x = 0; x < 2; x++)
+        for (int y = 0; y < 2; y++)
+        for (int z = 0; z < 2; z++)
+        {
+            Vector3 sourceCorner = new Vector3(
+                x == 0 ? min.x : max.x,
+                y == 0 ? min.y : max.y,
+                z == 0 ? min.z : max.z);
+            Vector3 local = relativeTo.InverseTransformPoint(source.TransformPoint(sourceCorner));
+            if (!initialized)
+            {
+                result = new Bounds(local, Vector3.zero);
+                initialized = true;
+            }
+            else
+            {
+                result.Encapsulate(local);
+            }
+        }
+    }
+
+    private static void CreateUnlockCelebrationPrefab()
+    {
+        GameObject existingAsset = AssetDatabase.LoadAssetAtPath<GameObject>(UnlockPrefabPath);
+        UnlockCelebrationUI existingUI = existingAsset != null
+            ? existingAsset.GetComponent<UnlockCelebrationUI>()
+            : null;
+        if (existingUI != null && existingUI.AuthoringVersion >= UnlockPrefabAuthoringVersion)
+            return;
+
+        bool existingPrefab = existingAsset != null;
+        GameObject root = existingPrefab
+            ? PrefabUtility.LoadPrefabContents(UnlockPrefabPath)
+            : new GameObject(
+                "UnlockCelebrationUI",
+                typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler),
+                typeof(GraphicRaycaster), typeof(CanvasGroup), typeof(Image),
+                typeof(UnlockCelebrationUI));
         try
         {
             RectTransform rootRect = root.GetComponent<RectTransform>();
             Stretch(rootRect);
+            rootRect.localScale = Vector3.one;
             Canvas canvas = root.GetComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             canvas.sortingOrder = 150;
@@ -676,62 +933,66 @@ public static class CardPaymentAndUpgradeAuthoring
             RectTransform safe = GetOrCreateRect("SafeAreaContent", root.transform);
             Stretch(safe);
             RectTransform panel = GetOrCreateRect("BluePanel", safe);
-            Center(panel, new Vector2(760f, 520f), Vector2.zero);
-            Image panelImage = panel.gameObject.AddComponent<Image>();
+            Center(panel, new Vector2(720f, 480f), Vector2.zero);
+            Image panelImage = GetOrAddComponent<Image>(panel.gameObject);
             panelImage.sprite = AssetDatabase.LoadAssetAtPath<Sprite>(
                 "Assets/_Project/MainMenu/Assets/Buttons/Frames/9Sliced.png");
             panelImage.type = Image.Type.Sliced;
             panelImage.color = new Color(0.05f, 0.31f, 0.55f, 1f);
 
             TMP_Text heading = GetOrCreateText(
-                "Heading", panel, "NEW UNLOCK!", 48f, TextAlignmentOptions.Center);
-            Center(heading.rectTransform, new Vector2(600f, 70f), new Vector2(0f, 198f));
+                "Heading", panel, "NEW UNLOCK!", 44f, TextAlignmentOptions.Center);
+            Center(heading.rectTransform, new Vector2(560f, 64f), new Vector2(0f, 178f));
             heading.fontStyle = FontStyles.Bold;
 
             RectTransform iconRect = GetOrCreateRect("UnlockIcon", panel);
-            Center(iconRect, new Vector2(170f, 170f), new Vector2(-225f, 38f));
-            Image icon = iconRect.gameObject.AddComponent<Image>();
+            Center(iconRect, new Vector2(150f, 150f), new Vector2(-205f, 32f));
+            Image icon = GetOrAddComponent<Image>(iconRect.gameObject);
             icon.preserveAspect = true;
 
             TMP_Text title = GetOrCreateText(
-                "ItemName", panel, "ITEM NAME", 38f, TextAlignmentOptions.Left);
-            Center(title.rectTransform, new Vector2(430f, 70f), new Vector2(105f, 95f));
+                "ItemName", panel, "ITEM NAME", 34f, TextAlignmentOptions.Left);
+            Center(title.rectTransform, new Vector2(400f, 64f), new Vector2(100f, 82f));
             title.fontStyle = FontStyles.Bold;
 
             TMP_Text description = GetOrCreateText(
-                "Description", panel, "Description", 26f, TextAlignmentOptions.TopLeft);
-            Center(description.rectTransform, new Vector2(430f, 145f), new Vector2(105f, -18f));
+                "Description", panel, "Description", 24f, TextAlignmentOptions.TopLeft);
+            Center(description.rectTransform, new Vector2(400f, 132f), new Vector2(100f, -20f));
             description.enableAutoSizing = true;
             description.fontSizeMin = 18f;
             description.fontSizeMax = 28f;
 
             TMP_Text location = GetOrCreateText(
                 "Location", panel, "AVAILABLE IN THE COMPUTER", 21f, TextAlignmentOptions.Center);
-            Center(location.rectTransform, new Vector2(620f, 45f), new Vector2(0f, -150f));
+            Center(location.rectTransform, new Vector2(580f, 42f), new Vector2(0f, -132f));
             location.color = new Color(0.78f, 0.93f, 1f, 1f);
 
             Button continueButton = CreateButton(
-                "ContinueButton", panel, "CONTINUE", new Vector2(250f, 70f), new Vector2(0f, -218f),
+                "ContinueButton", panel, "CONTINUE", new Vector2(280f, 82f), new Vector2(0f, -190f),
                 "Assets/_Project/MainMenu/NewDesign/UI Elements/PNG/Green/Default/button_rectangle_depth_flat.png");
             Button close = CreateIconButton(
-                "CloseButton", panel, new Vector2(68f, 68f), new Vector2(-18f, -18f),
+                "CloseButton", panel, new Vector2(84f, 84f), new Vector2(-20f, -20f),
                 "Assets/_Project/UI/Assets/Legacy/Buttons/Menu/Close Button.png");
             RectTransform closeRect = (RectTransform)close.transform;
             closeRect.anchorMin = closeRect.anchorMax = new Vector2(1f, 1f);
             closeRect.pivot = new Vector2(1f, 1f);
-            closeRect.anchoredPosition = new Vector2(-18f, -18f);
+            closeRect.anchoredPosition = new Vector2(-20f, -20f);
 
             UnlockCelebrationUI controller = root.GetComponent<UnlockCelebrationUI>();
             controller.ConfigureReferences(
                 safe, panel, icon, title, description, location,
                 continueButton, close, root.GetComponent<CanvasGroup>());
+            controller.ConfigureResponsiveLayout(28f, 0.86f, 0.82f, UnlockPrefabAuthoringVersion);
             SetLayerRecursively(root, LayerMask.NameToLayer("UI"));
             root.SetActive(false);
             PrefabUtility.SaveAsPrefabAsset(root, UnlockPrefabPath);
         }
         finally
         {
-            Object.DestroyImmediate(root);
+            if (existingPrefab)
+                PrefabUtility.UnloadPrefabContents(root);
+            else
+                Object.DestroyImmediate(root);
         }
     }
 
@@ -740,10 +1001,10 @@ public static class CardPaymentAndUpgradeAuthoring
     {
         RectTransform rect = GetOrCreateRect(name, parent);
         Center(rect, size, position);
-        Image image = rect.gameObject.AddComponent<Image>();
+        Image image = GetOrAddComponent<Image>(rect.gameObject);
         image.sprite = AssetDatabase.LoadAssetAtPath<Sprite>(spritePath);
         image.type = Image.Type.Sliced;
-        Button button = rect.gameObject.AddComponent<Button>();
+        Button button = GetOrAddComponent<Button>(rect.gameObject);
         button.targetGraphic = image;
         TMP_Text text = GetOrCreateText("Label", rect, label, 28f, TextAlignmentOptions.Center);
         Stretch(text.rectTransform);
@@ -756,10 +1017,10 @@ public static class CardPaymentAndUpgradeAuthoring
     {
         RectTransform rect = GetOrCreateRect(name, parent);
         Center(rect, size, position);
-        Image image = rect.gameObject.AddComponent<Image>();
+        Image image = GetOrAddComponent<Image>(rect.gameObject);
         image.sprite = AssetDatabase.LoadAssetAtPath<Sprite>(spritePath);
         image.preserveAspect = true;
-        Button button = rect.gameObject.AddComponent<Button>();
+        Button button = GetOrAddComponent<Button>(rect.gameObject);
         button.targetGraphic = image;
         return button;
     }
@@ -783,6 +1044,12 @@ public static class CardPaymentAndUpgradeAuthoring
         text.color = Color.white;
         text.raycastTarget = false;
         return text;
+    }
+
+    private static T GetOrAddComponent<T>(GameObject gameObject) where T : Component
+    {
+        T component = gameObject.GetComponent<T>();
+        return component != null ? component : gameObject.AddComponent<T>();
     }
 
     private static RectTransform GetOrCreateRect(string name, Transform parent)

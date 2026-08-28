@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 [DefaultExecutionOrder(-400)]
 public sealed class UnlockCelebrationManager : MonoBehaviour
@@ -10,8 +11,15 @@ public sealed class UnlockCelebrationManager : MonoBehaviour
     private readonly Queue<UnlockPresentation> pending = new Queue<UnlockPresentation>();
     private readonly HashSet<string> queued = new HashSet<string>();
     private readonly HashSet<string> seen = new HashSet<string>();
+    [Header("Presentation Scenes")]
+    [Tooltip("Unlocks wait in the queue everywhere else and are only presented in these scenes.")]
+    [SerializeField] private string[] presentationSceneNames = { "Lobby1" };
+
     private UnlockCelebrationUI view;
     private bool presenting;
+    private bool hasActivePresentation;
+    private UnlockPresentation activePresentation;
+    private int lastScannedDay = -1;
 
     public static UnlockCelebrationManager EnsureInstance()
     {
@@ -42,19 +50,21 @@ public sealed class UnlockCelebrationManager : MonoBehaviour
     {
         UnlockManager.OnEquipmentUnlocked += QueueEquipment;
         UnlockManager.OnRecipeUnlocked += QueueRecipe;
+        SceneManager.sceneLoaded += HandleSceneLoaded;
     }
 
     private void OnDisable()
     {
         UnlockManager.OnEquipmentUnlocked -= QueueEquipment;
         UnlockManager.OnRecipeUnlocked -= QueueRecipe;
+        SceneManager.sceneLoaded -= HandleSceneLoaded;
     }
 
     private IEnumerator Start()
     {
         yield return null;
-        QueueCurrentDayUnlocks();
-        TryPresentNext();
+        yield return WaitForInitialSaveLoad();
+        HandlePresentationSceneReady();
     }
 
     public void FillSaveData(GameSaveData data)
@@ -76,6 +86,8 @@ public sealed class UnlockCelebrationManager : MonoBehaviour
             if (!string.IsNullOrWhiteSpace(id))
                 seen.Add(id);
         }
+        RemoveSeenFromPendingQueue();
+        TryPresentNext();
     }
 
     public void QueueEquipment(string itemID)
@@ -118,6 +130,10 @@ public sealed class UnlockCelebrationManager : MonoBehaviour
     private void QueueCurrentDayUnlocks()
     {
         int day = GameFlowManager.Instance != null ? GameFlowManager.Instance.CurrentDay : 1;
+        if (lastScannedDay == day)
+            return;
+        lastScannedDay = day;
+
         EquipmentManager equipment = EquipmentManager.Instance;
         if (equipment?.AllEquipment != null)
         {
@@ -157,7 +173,8 @@ public sealed class UnlockCelebrationManager : MonoBehaviour
     private IEnumerator PresentWhenReady()
     {
         presenting = true;
-        while (GameplayUIBlocker.IsBlocked() ||
+        while (!CanPresentInCurrentScene() ||
+               GameplayUIBlocker.IsBlocked() ||
                (GameDayManager.Instance != null && GameDayManager.Instance.ServiceActive))
             yield return new WaitForSecondsRealtime(0.25f);
 
@@ -179,14 +196,94 @@ public sealed class UnlockCelebrationManager : MonoBehaviour
         }
 
         UnlockPresentation presentation = pending.Dequeue();
+        activePresentation = presentation;
+        hasActivePresentation = true;
         view.Show(presentation, () =>
         {
             seen.Add(presentation.id);
             queued.Remove(presentation.id);
             GameSaveManager.Instance?.RequestSave();
+            hasActivePresentation = false;
             presenting = false;
             TryPresentNext();
         });
+    }
+
+    private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        if (!IsPresentationScene(scene.name))
+        {
+            if (view != null && view.gameObject.activeSelf)
+            {
+                view.HideForSceneTransition();
+                if (hasActivePresentation)
+                    pending.Enqueue(activePresentation);
+                hasActivePresentation = false;
+                presenting = false;
+                TryPresentNext();
+            }
+            return;
+        }
+
+        StartCoroutine(HandlePresentationSceneLoaded());
+    }
+
+    private IEnumerator HandlePresentationSceneLoaded()
+    {
+        yield return null;
+        yield return WaitForInitialSaveLoad();
+        HandlePresentationSceneReady();
+    }
+
+    private IEnumerator WaitForInitialSaveLoad()
+    {
+        while (GameSaveManager.Instance != null &&
+               (!GameSaveManager.Instance.HasCompletedInitialLoad || GameSaveManager.Instance.IsApplyingSave))
+            yield return null;
+    }
+
+    private void HandlePresentationSceneReady()
+    {
+        if (!CanPresentInCurrentScene())
+            return;
+        QueueCurrentDayUnlocks();
+        TryPresentNext();
+    }
+
+    private bool CanPresentInCurrentScene()
+    {
+        Scene active = SceneManager.GetActiveScene();
+        return active.IsValid() && active.isLoaded && IsPresentationScene(active.name);
+    }
+
+    private bool IsPresentationScene(string sceneName)
+    {
+        if (string.IsNullOrWhiteSpace(sceneName) || presentationSceneNames == null)
+            return false;
+        for (int i = 0; i < presentationSceneNames.Length; i++)
+        {
+            if (string.Equals(presentationSceneNames[i], sceneName, System.StringComparison.Ordinal))
+                return true;
+        }
+        return false;
+    }
+
+    private void RemoveSeenFromPendingQueue()
+    {
+        if (pending.Count == 0)
+            return;
+
+        int count = pending.Count;
+        for (int i = 0; i < count; i++)
+        {
+            UnlockPresentation presentation = pending.Dequeue();
+            if (seen.Contains(presentation.id))
+            {
+                queued.Remove(presentation.id);
+                continue;
+            }
+            pending.Enqueue(presentation);
+        }
     }
 
     private static Equipment FindEquipment(string itemID)

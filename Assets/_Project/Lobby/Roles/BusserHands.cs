@@ -28,8 +28,13 @@ public class BusserHands : MonoBehaviour
     [Header("Hold Points")]
     [SerializeField] private Transform trayHoldPoint;
 
+    [Header("Trolley")]
+    [Tooltip("Editable point the trolley handle aligns to while this character pushes it. Falls back to Tray Hold Point.")]
+    [SerializeField] private Transform trolleyGripPoint;
+
     public bool HasTray => holdingTray != null;
     public Transform TrayHoldPoint => trayHoldPoint != null ? trayHoldPoint : transform;
+    public Transform TrolleyGripPoint => trolleyGripPoint != null ? trolleyGripPoint : TrayHoldPoint;
 
     private void Awake()
     {

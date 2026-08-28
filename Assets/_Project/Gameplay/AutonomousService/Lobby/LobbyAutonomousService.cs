@@ -48,6 +48,8 @@ public class LobbyAutonomousService : MonoBehaviour
     [SerializeField, Min(0f)] private float waiterTrolleyBatchGraceSeconds = 0.75f;
     [Tooltip("How briefly the busser waits for a second dirty tray before using the normal one-tray route.")]
     [SerializeField, Min(0f)] private float busserTrolleyBatchGraceSeconds = 1.25f;
+    [Tooltip("After an unreachable trolley route, temporarily use normal single-tray service before trying the trolley again. This prevents a moved parking point from blocking the role.")]
+    [SerializeField, Min(0.5f)] private float trolleyRouteRetrySeconds = 4f;
 
     private AutonomousStaffBot host;
     private AutonomousStaffBot waiter;
@@ -79,6 +81,11 @@ public class LobbyAutonomousService : MonoBehaviour
     private float waiterBatchGraceUntil;
     private FoodTray busserBatchGraceTray;
     private float busserBatchGraceUntil;
+    private float waiterTrolleyRetryAfter;
+    private float busserTrolleyRetryAfter;
+    private readonly List<FoodTray> activeWaiterTrolleyBatch = new List<FoodTray>();
+    private readonly List<FoodTray> activeBusserTrolleyBatch = new List<FoodTray>();
+    private readonly HashSet<string> trolleyDiagnostics = new HashSet<string>();
 
     private void Awake()
     {
@@ -86,13 +93,32 @@ public class LobbyAutonomousService : MonoBehaviour
         DisableManualRoleControl();
     }
 
-    private void Start()
+    private IEnumerator Start()
     {
         // This component is added during GameDayManager.Awake. Repeat the shutdown
         // after every scene Awake has run so RoleManager cannot re-enable controls.
         DisableManualRoleControl();
+
+        // Equipment purchases are save-backed. Do not decide that a trolley is
+        // unpurchased during the one-frame bootstrap window before save apply.
+        GameSaveManager saveManager = GameSaveManager.Instance;
+        while (saveManager != null &&
+               (!saveManager.HasCompletedInitialLoad || saveManager.IsApplyingSave))
+        {
+            yield return null;
+        }
+
         ResolveSceneReferences();
-        StartCoroutine(ServiceLoop());
+        yield return ServiceLoop();
+    }
+
+    private void OnDisable()
+    {
+        if (!Application.isPlaying)
+            return;
+
+        CancelActiveTrolleyBatch(waiterTrolley, waiter, activeWaiterTrolleyBatch);
+        CancelActiveTrolleyBatch(busserTrolley, busser, activeBusserTrolleyBatch);
     }
 
     private void OnDestroy()
@@ -106,6 +132,8 @@ public class LobbyAutonomousService : MonoBehaviour
         if (takeoutFlow != null)
             takeoutFlow.SetAutomatedService(false);
 
+        CancelActiveTrolleyBatch(waiterTrolley, waiter, activeWaiterTrolleyBatch);
+        CancelActiveTrolleyBatch(busserTrolley, busser, activeBusserTrolleyBatch);
         ShutdownTrolley(waiterTrolley, waiter);
         ShutdownTrolley(busserTrolley, busser);
     }
@@ -174,6 +202,13 @@ public class LobbyAutonomousService : MonoBehaviour
         BindEmployeeAssignments();
         BindEquipmentPurchases();
 
+        // Disabling a role stops its coroutine immediately. Release every
+        // trolley claim first so no tray or pickup bubble remains locked.
+        if (waiter != null && !IsAssigned(EmployeeRole.Waiter))
+            CancelActiveTrolleyBatch(waiterTrolley, waiter, activeWaiterTrolleyBatch);
+        if (busser != null && !IsAssigned(EmployeeRole.Busser))
+            CancelActiveTrolleyBatch(busserTrolley, busser, activeBusserTrolleyBatch);
+
         host = ConfigureLobbyBot(
             hostObject,
             EmployeeRole.Host,
@@ -225,6 +260,7 @@ public class LobbyAutonomousService : MonoBehaviour
         string resourcesPath,
         Transform parkingPoint)
     {
+        existing = ResolveAuthoritativeTrolley(existing, effect);
         bool purchased = EquipmentUpgradeService.IsPurchased(effect);
         if (!purchased)
         {
@@ -232,8 +268,11 @@ public class LobbyAutonomousService : MonoBehaviour
             {
                 existing.ReleaseAllForRetry(roleObject != null ? roleObject.transform.position : existing.transform.position);
                 existing.EndUse();
-                Destroy(existing.gameObject);
+                existing.SetVisible(false);
+                if (existing.IsRuntimeOwned)
+                    Destroy(existing.gameObject);
             }
+            LogTrolleyDiagnosticOnce(effect, "not purchased; no trolley will be shown");
             return null;
         }
 
@@ -264,6 +303,7 @@ public class LobbyAutonomousService : MonoBehaviour
                 Destroy(instance);
                 return null;
             }
+            existing.MarkRuntimeOwned();
         }
 
         existing.ConfigureRuntime(
@@ -273,13 +313,89 @@ public class LobbyAutonomousService : MonoBehaviour
         if (!existing.IsConfigured)
         {
             Debug.LogError(
-                $"[LobbyAutonomousService] {existing.name} is missing an editable parking point or tray slots.",
+                $"[LobbyAutonomousService] {existing.name} is not usable: {existing.ConfigurationProblem}.",
                 existing);
-            Destroy(existing.gameObject);
+            existing.SetVisible(false);
+            if (existing.IsRuntimeOwned)
+                Destroy(existing.gameObject);
             return null;
         }
         existing.SetVisible(true);
+        HideDuplicateTrolleys(effect, existing);
+        LogTrolleyDiagnosticOnce(
+            effect,
+            $"ready at {parkingPoint.name}; role active={roleObject != null && roleObject.activeSelf}; " +
+            $"capacity={existing.Capacity}");
         return existing;
+    }
+
+    private BotTrolleyCarrier ResolveAuthoritativeTrolley(
+        BotTrolleyCarrier current,
+        EquipmentUpgradeEffect effect)
+    {
+        BotTrolleyCarrier[] candidates = FindObjectsByType<BotTrolleyCarrier>(
+            FindObjectsInactive.Include,
+            FindObjectsSortMode.None);
+        BotTrolleyCarrier selected = current != null && current.Effect == effect
+            ? current
+            : null;
+
+        // Prefer an explicitly authored scene object over creating another copy.
+        if (selected == null)
+        {
+            for (int i = 0; i < candidates.Length; i++)
+            {
+                BotTrolleyCarrier candidate = candidates[i];
+                if (candidate == null || candidate.Effect != effect ||
+                    candidate.gameObject.scene != gameObject.scene)
+                    continue;
+
+                if (selected == null || (selected.IsRuntimeOwned && !candidate.IsRuntimeOwned))
+                    selected = candidate;
+            }
+        }
+
+        HideDuplicateTrolleys(effect, selected);
+        return selected;
+    }
+
+    private void HideDuplicateTrolleys(
+        EquipmentUpgradeEffect effect,
+        BotTrolleyCarrier authoritative)
+    {
+        BotTrolleyCarrier[] candidates = FindObjectsByType<BotTrolleyCarrier>(
+            FindObjectsInactive.Include,
+            FindObjectsSortMode.None);
+        int duplicateCount = 0;
+        for (int i = 0; i < candidates.Length; i++)
+        {
+            BotTrolleyCarrier candidate = candidates[i];
+            if (candidate == null || candidate == authoritative ||
+                candidate.Effect != effect || candidate.gameObject.scene != gameObject.scene)
+                continue;
+
+            duplicateCount++;
+            candidate.ReleaseAllForRetry(candidate.transform.position);
+            candidate.SetVisible(false);
+            if (candidate.IsRuntimeOwned)
+                Destroy(candidate.gameObject);
+        }
+
+        if (duplicateCount > 0)
+        {
+            LogTrolleyDiagnosticOnce(
+                effect,
+                $"found {duplicateCount} duplicate scene instance(s); only one authoritative trolley is active");
+        }
+    }
+
+    private void LogTrolleyDiagnosticOnce(
+        EquipmentUpgradeEffect effect,
+        string message)
+    {
+        string key = effect + ":" + message;
+        if (trolleyDiagnostics.Add(key))
+            Debug.Log($"[LobbyAutonomousService] {effect}: {message}.", this);
     }
 
     private AutonomousStaffBot ConfigureLobbyBot(
@@ -584,6 +700,9 @@ public class LobbyAutonomousService : MonoBehaviour
 
     private bool TryStartWaiterTrolleyBatch()
     {
+        if (Time.time < waiterTrolleyRetryAfter)
+            return false;
+
         if (waiter == null || waiterTrolley == null || !waiterTrolley.IsConfigured ||
             waiterTrolley.IsInUse || waiterTrolley.Count > 0 ||
             !AreWaiterHandsFree(WaiterHands.Instance))
@@ -609,6 +728,9 @@ public class LobbyAutonomousService : MonoBehaviour
         if (candidates.Count < waiterTrolley.MinimumBatchSize)
             return false;
 
+        if (candidates.Count == 1 && ShouldWaitForWaiterTrolleyBatch(candidates[0]))
+            return false;
+
         List<FoodTray> batch = new List<FoodTray>(candidates.Count);
         for (int i = 0; i < candidates.Count; i++)
         {
@@ -626,6 +748,7 @@ public class LobbyAutonomousService : MonoBehaviour
             return false;
         }
 
+        TrackActiveBatch(activeWaiterTrolleyBatch, batch);
         waiter.StartTask(DeliverFoodBatch(batch));
         ClearWaiterBatchGrace();
         return true;
@@ -633,6 +756,9 @@ public class LobbyAutonomousService : MonoBehaviour
 
     private bool TryStartBusserTrolleyBatch()
     {
+        if (Time.time < busserTrolleyRetryAfter)
+            return false;
+
         if (busser == null || sink == null || busserTrolley == null ||
             !busserTrolley.IsConfigured ||
             busserTrolley.IsInUse || busserTrolley.Count > 0 ||
@@ -654,6 +780,9 @@ public class LobbyAutonomousService : MonoBehaviour
         if (candidates.Count < busserTrolley.MinimumBatchSize)
             return false;
 
+        if (candidates.Count == 1 && ShouldWaitForBusserTrolleyBatch(candidates[0]))
+            return false;
+
         List<FoodTray> batch = new List<FoodTray>(candidates.Count);
         for (int i = 0; i < candidates.Count; i++)
         {
@@ -671,6 +800,7 @@ public class LobbyAutonomousService : MonoBehaviour
             return false;
         }
 
+        TrackActiveBatch(activeBusserTrolleyBatch, batch);
         busser.StartTask(CleanTrayBatchAtSink(batch));
         ClearBusserBatchGrace();
         return true;
@@ -678,7 +808,13 @@ public class LobbyAutonomousService : MonoBehaviour
 
     private bool ShouldWaitForWaiterTrolleyBatch(FoodTray tray)
     {
-        if (tray == null || waiterTrolley == null || waiterTrolley.MinimumBatchSize <= 1)
+        if (Time.time < waiterTrolleyRetryAfter)
+        {
+            ClearWaiterBatchGrace();
+            return false;
+        }
+
+        if (tray == null || waiterTrolley == null || !waiterTrolley.IsConfigured)
         {
             ClearWaiterBatchGrace();
             return false;
@@ -693,13 +829,18 @@ public class LobbyAutonomousService : MonoBehaviour
         if (Time.time < waiterBatchGraceUntil)
             return true;
 
-        ClearWaiterBatchGrace();
         return false;
     }
 
     private bool ShouldWaitForBusserTrolleyBatch(FoodTray tray)
     {
-        if (tray == null || busserTrolley == null || busserTrolley.MinimumBatchSize <= 1)
+        if (Time.time < busserTrolleyRetryAfter)
+        {
+            ClearBusserBatchGrace();
+            return false;
+        }
+
+        if (tray == null || busserTrolley == null || !busserTrolley.IsConfigured)
         {
             ClearBusserBatchGrace();
             return false;
@@ -714,7 +855,6 @@ public class LobbyAutonomousService : MonoBehaviour
         if (Time.time < busserBatchGraceUntil)
             return true;
 
-        ClearBusserBatchGrace();
         return false;
     }
 
@@ -1155,15 +1295,24 @@ public class LobbyAutonomousService : MonoBehaviour
         if (waiter == null || trolley == null || batch == null || batch.Count == 0)
             yield break;
 
-        yield return waiter.MoveWithin(
-            trolley.ParkingPosition,
-            trolley.ParkingApproachDistance,
-            2f);
-        if (!waiter.LastMoveSucceeded || !trolley.BeginUse(waiter))
+        if (!trolley.TryGetParkingApproachPosition(
+                waiter.transform.position,
+                out Vector3 approachPosition))
         {
-            ReleaseBatchClaims(batch, waiter);
+            DeferWaiterTrolleyRoute(trolley, batch);
             yield break;
         }
+
+        yield return waiter.MoveWithin(
+            approachPosition,
+            trolley.ParkingApproachDistance,
+            0.75f);
+        if (!waiter.LastMoveSucceeded || !trolley.BeginUse(waiter))
+        {
+            DeferWaiterTrolleyRoute(trolley, batch);
+            yield break;
+        }
+        waiterTrolleyRetryAfter = 0f;
 
         for (int i = 0; i < batch.Count; i++)
         {
@@ -1227,6 +1376,7 @@ public class LobbyAutonomousService : MonoBehaviour
         trolley.ReleaseAllForRetry(waiter.transform.position);
         ReleaseBatchClaims(batch, waiter);
         yield return ReturnTrolleyToParking(trolley, waiter);
+        activeWaiterTrolleyBatch.Clear();
     }
 
     private IEnumerator CleanTrayBatchAtSink(List<FoodTray> batch)
@@ -1235,15 +1385,24 @@ public class LobbyAutonomousService : MonoBehaviour
         if (busser == null || trolley == null || sink == null || batch == null || batch.Count == 0)
             yield break;
 
-        yield return busser.MoveWithin(
-            trolley.ParkingPosition,
-            trolley.ParkingApproachDistance,
-            2f);
-        if (!busser.LastMoveSucceeded || !trolley.BeginUse(busser))
+        if (!trolley.TryGetParkingApproachPosition(
+                busser.transform.position,
+                out Vector3 approachPosition))
         {
-            ReleaseBatchClaims(batch, busser);
+            DeferBusserTrolleyRoute(trolley, batch);
             yield break;
         }
+
+        yield return busser.MoveWithin(
+            approachPosition,
+            trolley.ParkingApproachDistance,
+            0.75f);
+        if (!busser.LastMoveSucceeded || !trolley.BeginUse(busser))
+        {
+            DeferBusserTrolleyRoute(trolley, batch);
+            yield break;
+        }
+        busserTrolleyRetryAfter = 0f;
 
         for (int i = 0; i < batch.Count; i++)
         {
@@ -1298,6 +1457,7 @@ public class LobbyAutonomousService : MonoBehaviour
         trolley.ReleaseAllForRetry(busser.transform.position);
         ReleaseBatchClaims(batch, busser);
         yield return ReturnTrolleyToParking(trolley, busser);
+        activeBusserTrolleyBatch.Clear();
     }
 
     private static bool IsDeliveryTrayReady(FoodTray tray)
@@ -1348,6 +1508,67 @@ public class LobbyAutonomousService : MonoBehaviour
             ReleaseBatchClaim(batch[i], owner);
     }
 
+    private static void TrackActiveBatch(List<FoodTray> destination, IList<FoodTray> source)
+    {
+        destination.Clear();
+        if (source == null)
+            return;
+
+        for (int i = 0; i < source.Count; i++)
+        {
+            if (source[i] != null)
+                destination.Add(source[i]);
+        }
+    }
+
+    private void CancelActiveTrolleyBatch(
+        BotTrolleyCarrier trolley,
+        AutonomousStaffBot owner,
+        List<FoodTray> batch)
+    {
+        if (trolley != null)
+        {
+            Vector3 releasePosition = owner != null
+                ? owner.transform.position
+                : trolley.transform.position;
+            trolley.ReleaseAllForRetry(releasePosition);
+            trolley.EndUse(true);
+        }
+
+        ReleaseBatchClaims(batch, owner);
+        batch.Clear();
+    }
+
+    private void DeferWaiterTrolleyRoute(
+        BotTrolleyCarrier trolley,
+        List<FoodTray> batch)
+    {
+        if (trolley != null && trolley.IsInUse)
+            trolley.EndUse(true);
+        ReleaseBatchClaims(batch, waiter);
+        activeWaiterTrolleyBatch.Clear();
+        ClearWaiterBatchGrace();
+        waiterTrolleyRetryAfter = Time.time + Mathf.Max(0.5f, trolleyRouteRetrySeconds);
+        LogTrolleyDiagnosticOnce(
+            EquipmentUpgradeEffect.WaiterTrolley,
+            "parking approach is unreachable; temporarily using normal single-tray service");
+    }
+
+    private void DeferBusserTrolleyRoute(
+        BotTrolleyCarrier trolley,
+        List<FoodTray> batch)
+    {
+        if (trolley != null && trolley.IsInUse)
+            trolley.EndUse(true);
+        ReleaseBatchClaims(batch, busser);
+        activeBusserTrolleyBatch.Clear();
+        ClearBusserBatchGrace();
+        busserTrolleyRetryAfter = Time.time + Mathf.Max(0.5f, trolleyRouteRetrySeconds);
+        LogTrolleyDiagnosticOnce(
+            EquipmentUpgradeEffect.BusserTrolley,
+            "parking approach is unreachable; temporarily using normal single-tray service");
+    }
+
     private IEnumerator ReturnTrolleyToParking(
         BotTrolleyCarrier trolley,
         AutonomousStaffBot owner)
@@ -1357,10 +1578,15 @@ public class LobbyAutonomousService : MonoBehaviour
 
         if (owner != null && owner.isActiveAndEnabled)
         {
-            yield return owner.MoveWithin(
-                trolley.ParkingPosition,
-                trolley.ParkingApproachDistance,
-                2f);
+            if (trolley.TryGetParkingApproachPosition(
+                    owner.transform.position,
+                    out Vector3 approachPosition))
+            {
+                yield return owner.MoveWithin(
+                    approachPosition,
+                    trolley.ParkingApproachDistance,
+                    0.75f);
+            }
         }
 
         // Parking is authoritative even if congestion prevented the last few

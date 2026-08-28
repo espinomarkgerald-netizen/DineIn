@@ -1,6 +1,8 @@
 #if UNITY_EDITOR
+using System.IO;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.UI;
 
 /// <summary>Fast asset check for the three connected upgrade features.</summary>
 [InitializeOnLoad]
@@ -12,6 +14,9 @@ public static class CardPaymentTrolleyEquipmentSmokeTest
     private const string MoneyBubblePath = "Assets/_Project/Restaurant/Assets/Level1/UI/Money.prefab";
     private const string EquipmentCardPath = "Assets/_Project/Resources/ManagementComputer/ManagementEquipmentCard.prefab";
     private const string EquipmentSectionPath = "Assets/_Project/Resources/ManagementComputer/ManagementEquipmentSection.prefab";
+    private const string UnlockPath = "Assets/_Project/Resources/UI/UnlockCelebrationUI.prefab";
+    private const string LobbyPath = "Assets/_Project/Scenes/RoleBased/Lobby1.unity";
+    private const string UpgradeFolder = "Assets/_Project/Office/Manager/Equipment/Upgrades";
 
     static CardPaymentTrolleyEquipmentSmokeTest()
     {
@@ -31,7 +36,9 @@ public static class CardPaymentTrolleyEquipmentSmokeTest
         failures += ValidatePaymentBubble();
         failures += ValidateTrolley(WaiterPath, EquipmentUpgradeEffect.WaiterTrolley);
         failures += ValidateTrolley(BusserPath, EquipmentUpgradeEffect.BusserTrolley);
+        failures += ValidateTrolleyUpgradeAssetsAndParking();
         failures += ValidateEquipmentCatalog();
+        failures += ValidateUnlockCelebration();
 
         if (failures == 0)
             Debug.Log("[UpgradeAssetSmokeTest] Card payment, trolley tools, and equipment catalog assets passed.");
@@ -94,15 +101,108 @@ public static class CardPaymentTrolleyEquipmentSmokeTest
         GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
         BotTrolleyCarrier carrier = prefab != null ? prefab.GetComponent<BotTrolleyCarrier>() : null;
         int failures = 0;
-        if (carrier == null || carrier.AuthoringVersion < 3 || carrier.Effect != expectedEffect)
+        if (carrier == null || carrier.AuthoringVersion < 6 || carrier.Effect != expectedEffect)
             return Fail("Trolley prefab is missing its authored carrier configuration: " + path, prefab);
-        if (CountTraySlots(prefab.transform) != 4)
+        if (CountTraySlots(prefab.transform) != 4 || carrier.TraySlots.Count != 4)
             failures += Fail("Trolley prefab must expose exactly four editable tray slots: " + path, prefab);
+        Transform pivot = FindDeep(prefab.transform, "VisualPivot");
         Transform model = FindDeep(prefab.transform, "TrolleyModel");
-        if (model == null || Quaternion.Angle(model.localRotation, Quaternion.identity) > 1f)
-            failures += Fail("Trolley visual is not upright: " + path, prefab);
-        if (model == null || model.localScale.x < 2f || model.localScale.y < 2f || model.localScale.z < 2f)
-            failures += Fail("Trolley visual is still at the miniature FBX scale: " + path, prefab);
+        Transform holdingPoint = FindDeep(prefab.transform, "HoldingPoint");
+        if (pivot == null || carrier.VisualRoot != pivot)
+            failures += Fail("Trolley prefab is missing its editable visual pivot: " + path, prefab);
+        if (holdingPoint == null || carrier.HoldingPoint != holdingPoint)
+            failures += Fail("Trolley prefab is missing its editable HoldingPoint: " + path, prefab);
+        if (!HasIdentityGameplayRoot(prefab.transform))
+            failures += Fail("Trolley gameplay root must stay at identity; put visual corrections on VisualPivot: " + path, prefab);
+        if (carrier.MinimumBatchSize != 1)
+            failures += Fail("Purchased trolleys must support one-to-four tray batches: " + path, prefab);
+        if (carrier.ParkingNavMeshSampleRadius < 0.25f)
+            failures += Fail("Trolley needs an editable NavMesh parking approach search radius: " + path, prefab);
+        if (model == null || model.localScale.x <= 0f ||
+            !Mathf.Approximately(model.localScale.x, model.localScale.y) ||
+            !Mathf.Approximately(model.localScale.x, model.localScale.z))
+            failures += Fail("Trolley visual must use a positive uniform scale: " + path, prefab);
+        if (holdingPoint != null)
+        {
+            Collider[] holdingColliders = holdingPoint.GetComponentsInChildren<Collider>(true);
+            for (int i = 0; i < holdingColliders.Length; i++)
+            {
+                if (holdingColliders[i] != null && holdingColliders[i].enabled && !holdingColliders[i].isTrigger)
+                    failures += Fail("HoldingPoint must not contain an enabled solid collider: " + path, prefab);
+            }
+        }
+
+        GameObject loadedRoot = null;
+        try
+        {
+            // Renderer.bounds is not reliable on a persistent prefab asset because it has
+            // never entered a preview scene. Validate the loaded prefab contents instead,
+            // which matches the hierarchy and transform state used by a player build.
+            loadedRoot = PrefabUtility.LoadPrefabContents(path);
+            BotTrolleyCarrier loadedCarrier = loadedRoot.GetComponent<BotTrolleyCarrier>();
+            Renderer[] renderers = loadedCarrier != null && loadedCarrier.VisualRoot != null
+                ? loadedCarrier.VisualRoot.GetComponentsInChildren<Renderer>(true)
+                : System.Array.Empty<Renderer>();
+            if (renderers.Length == 0)
+            {
+                failures += Fail("Trolley prefab has no renderers: " + path, prefab);
+            }
+            else
+            {
+                Bounds bounds = renderers[0].bounds;
+                for (int i = 0; i < renderers.Length; i++)
+                {
+                    Renderer renderer = renderers[i];
+                    if (renderer == null || !renderer.enabled || renderer.sharedMaterial == null)
+                        failures += Fail("Trolley has a disabled renderer or missing material: " + path, prefab);
+                    else if (i > 0)
+                        bounds.Encapsulate(renderer.bounds);
+                }
+
+                if (bounds.size.y < 0.75f || bounds.size.y > 3f)
+                    failures += Fail(
+                        $"Trolley visual height {bounds.size.y:0.###} is outside the usable bot-scale range: {path}",
+                        prefab);
+                if (Mathf.Abs(bounds.min.y - loadedRoot.transform.position.y) > 0.08f)
+                    failures += Fail(
+                        $"Trolley visual ground offset {bounds.min.y - loadedRoot.transform.position.y:0.###} is too large: {path}",
+                        prefab);
+            }
+        }
+        finally
+        {
+            if (loadedRoot != null)
+                PrefabUtility.UnloadPrefabContents(loadedRoot);
+        }
+        return failures;
+    }
+
+    private static int ValidateTrolleyUpgradeAssetsAndParking()
+    {
+        EquipmentUpgrade waiter = AssetDatabase.LoadAssetAtPath<EquipmentUpgrade>(
+            UpgradeFolder + "/Waiter Trolley.asset");
+        EquipmentUpgrade busser = AssetDatabase.LoadAssetAtPath<EquipmentUpgrade>(
+            UpgradeFolder + "/Busser Trolley.asset");
+        int failures = 0;
+        if (waiter == null || waiter.itemID != EquipmentUpgradeService.WaiterTrolleyID ||
+            waiter.effect != EquipmentUpgradeEffect.WaiterTrolley)
+        {
+            failures += Fail("Waiter trolley upgrade asset is missing or has the wrong ID/effect.", waiter);
+        }
+        if (busser == null || busser.itemID != EquipmentUpgradeService.BusserTrolleyID ||
+            busser.effect != EquipmentUpgradeEffect.BusserTrolley)
+        {
+            failures += Fail("Busser trolley upgrade asset is missing or has the wrong ID/effect.", busser);
+        }
+
+        if (!File.Exists(LobbyPath))
+            return failures + Fail("Lobby1 scene asset is missing.", null);
+
+        string sceneYaml = File.ReadAllText(LobbyPath);
+        if (!sceneYaml.Contains("m_Name: WaiterTrolleyParkingPoint"))
+            failures += Fail("Lobby1 is missing WaiterTrolleyParkingPoint.", null);
+        if (!sceneYaml.Contains("m_Name: BusserTrolleyParkingPoint"))
+            failures += Fail("Lobby1 is missing BusserTrolleyParkingPoint.", null);
         return failures;
     }
 
@@ -116,6 +216,32 @@ public static class CardPaymentTrolleyEquipmentSmokeTest
         if (section == null || section.GetComponent<ManagementEquipmentSectionUI>() == null ||
             FindDeep(section.transform, "Divider") == null || FindDeep(section.transform, "Cards") == null)
             failures += Fail("Editable equipment section prefab is missing its divider or responsive grid.", section);
+        return failures;
+    }
+
+    private static int ValidateUnlockCelebration()
+    {
+        GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(UnlockPath);
+        UnlockCelebrationUI ui = prefab != null ? prefab.GetComponent<UnlockCelebrationUI>() : null;
+        if (ui == null || ui.AuthoringVersion < 2)
+            return Fail("Unlock celebration prefab is missing its responsive mobile migration.", prefab);
+
+        int failures = 0;
+        RectTransform safe = FindDeep(prefab.transform, "SafeAreaContent") as RectTransform;
+        RectTransform panel = FindDeep(prefab.transform, "BluePanel") as RectTransform;
+        RectTransform close = FindDeep(prefab.transform, "CloseButton") as RectTransform;
+        RectTransform continueButton = FindDeep(prefab.transform, "ContinueButton") as RectTransform;
+        CanvasScaler scaler = prefab.GetComponent<CanvasScaler>();
+        if (!IsFullStretch(safe))
+            failures += Fail("Unlock celebration safe-area root is not stretched.", prefab);
+        if (panel == null || panel.sizeDelta.x > 760f || panel.sizeDelta.y > 520f)
+            failures += Fail("Unlock celebration panel is too large for the mobile layout.", prefab);
+        if (close == null || close.sizeDelta.x < 80f || close.sizeDelta.y < 80f)
+            failures += Fail("Unlock celebration close button is below the mobile tap target.", prefab);
+        if (continueButton == null || continueButton.sizeDelta.y < 80f)
+            failures += Fail("Unlock celebration continue button is below the mobile tap target.", prefab);
+        if (scaler == null || scaler.uiScaleMode != CanvasScaler.ScaleMode.ScaleWithScreenSize)
+            failures += Fail("Unlock celebration canvas is not screen-size responsive.", prefab);
         return failures;
     }
 
@@ -140,6 +266,14 @@ public static class CardPaymentTrolleyEquipmentSmokeTest
     private static bool IsFullStretch(RectTransform rect)
     {
         return rect != null && rect.anchorMin == Vector2.zero && rect.anchorMax == Vector2.one;
+    }
+
+    private static bool HasIdentityGameplayRoot(Transform root)
+    {
+        return root != null &&
+               root.localPosition.sqrMagnitude <= 0.000001f &&
+               Quaternion.Angle(root.localRotation, Quaternion.identity) <= 0.001f &&
+               (root.localScale - Vector3.one).sqrMagnitude <= 0.000001f;
     }
 
     private static Transform FindDeep(Transform root, string name)

@@ -33,6 +33,10 @@ public class WaiterHands : MonoBehaviour
     [SerializeField] private Transform trayHoldPoint;
     [SerializeField] private Transform billHoldPoint;
 
+    [Header("Trolley")]
+    [Tooltip("Editable point the trolley handle aligns to while this character pushes it. Falls back to Tray Hold Point.")]
+    [SerializeField] private Transform trolleyGripPoint;
+
     [Header("Held Visuals")]
     [SerializeField] private GameObject billHeldVisualPrefab;
     [SerializeField] private Transform moneyHoldPoint;
@@ -54,6 +58,7 @@ public class WaiterHands : MonoBehaviour
     public Transform MoneyHoldPoint => moneyHoldPoint != null ? moneyHoldPoint : transform;
     public Transform TrayHoldPoint => trayHoldPoint != null ? trayHoldPoint : transform;
     public Transform BillHoldPoint => billHoldPoint != null ? billHoldPoint : transform;
+    public Transform TrolleyGripPoint => trolleyGripPoint != null ? trolleyGripPoint : TrayHoldPoint;
 
     private void Awake()
     {

@@ -40,9 +40,16 @@ public sealed class UnlockCelebrationUI : MonoBehaviour
     [SerializeField] private CanvasGroup canvasGroup;
     [SerializeField, Min(0f)] private float entranceDuration = 0.28f;
     [SerializeField, Min(0f)] private float safeAreaPadding = 20f;
+    [SerializeField, Range(0.5f, 1f)] private float maximumSafeWidth = 0.86f;
+    [SerializeField, Range(0.5f, 1f)] private float maximumSafeHeight = 0.82f;
+    [SerializeField, HideInInspector] private int authoringVersion;
 
     private Action dismissed;
     private Rect lastSafeArea = new Rect(-1f, -1f, -1f, -1f);
+    private Vector2Int lastScreenSize = new Vector2Int(-1, -1);
+    private float responsivePanelScale = 1f;
+
+    public int AuthoringVersion => authoringVersion;
 
     public void ConfigureReferences(
         RectTransform configuredSafeArea,
@@ -66,6 +73,18 @@ public sealed class UnlockCelebrationUI : MonoBehaviour
         canvasGroup = configuredCanvasGroup;
     }
 
+    public void ConfigureResponsiveLayout(
+        float configuredSafeAreaPadding,
+        float configuredMaximumSafeWidth,
+        float configuredMaximumSafeHeight,
+        int configuredAuthoringVersion)
+    {
+        safeAreaPadding = Mathf.Max(0f, configuredSafeAreaPadding);
+        maximumSafeWidth = Mathf.Clamp(configuredMaximumSafeWidth, 0.5f, 1f);
+        maximumSafeHeight = Mathf.Clamp(configuredMaximumSafeHeight, 0.5f, 1f);
+        authoringVersion = Mathf.Max(0, configuredAuthoringVersion);
+    }
+
     private void Awake()
     {
         if (canvasGroup == null)
@@ -78,7 +97,9 @@ public sealed class UnlockCelebrationUI : MonoBehaviour
 
     private void Update()
     {
-        if (gameObject.activeSelf && lastSafeArea != Screen.safeArea)
+        if (gameObject.activeSelf &&
+            (lastSafeArea != Screen.safeArea ||
+             lastScreenSize.x != Screen.width || lastScreenSize.y != Screen.height))
             ApplySafeArea();
     }
 
@@ -114,25 +135,34 @@ public sealed class UnlockCelebrationUI : MonoBehaviour
         if (panel == null || entranceDuration <= 0f)
             yield break;
         float elapsed = 0f;
-        panel.localScale = Vector3.one * 0.72f;
+        panel.localScale = Vector3.one * (responsivePanelScale * 0.72f);
         while (elapsed < entranceDuration)
         {
             elapsed += Time.unscaledDeltaTime;
             float t = Mathf.Clamp01(elapsed / entranceDuration);
             float eased = 1f - Mathf.Pow(1f - t, 3f);
             float bounce = Mathf.Sin(t * Mathf.PI) * 0.08f;
-            panel.localScale = Vector3.one * (Mathf.Lerp(0.72f, 1f, eased) + bounce);
+            panel.localScale = Vector3.one *
+                (responsivePanelScale * (Mathf.Lerp(0.72f, 1f, eased) + bounce));
             yield return null;
         }
-        panel.localScale = Vector3.one;
+        panel.localScale = Vector3.one * responsivePanelScale;
     }
 
     private void Dismiss()
     {
         Action callback = dismissed;
         dismissed = null;
+        GameplayUIBlocker.Instance?.SetPanelBlocksGameplay(gameObject, false);
         gameObject.SetActive(false);
         callback?.Invoke();
+    }
+
+    public void HideForSceneTransition()
+    {
+        StopAllCoroutines();
+        GameplayUIBlocker.Instance?.SetPanelBlocksGameplay(gameObject, false);
+        gameObject.SetActive(false);
     }
 
     private void ApplySafeArea()
@@ -144,6 +174,32 @@ public sealed class UnlockCelebrationUI : MonoBehaviour
         safeAreaContent.anchorMax = new Vector2(safe.xMax / Screen.width, safe.yMax / Screen.height);
         safeAreaContent.offsetMin = new Vector2(safeAreaPadding, safeAreaPadding);
         safeAreaContent.offsetMax = new Vector2(-safeAreaPadding, -safeAreaPadding);
+        Canvas.ForceUpdateCanvases();
+        FitPanelInsideSafeArea();
         lastSafeArea = safe;
+        lastScreenSize = new Vector2Int(Screen.width, Screen.height);
+    }
+
+    private void FitPanelInsideSafeArea()
+    {
+        if (panel == null || safeAreaContent == null)
+            return;
+
+        Vector2 available = safeAreaContent.rect.size;
+        Vector2 authored = panel.rect.size;
+        if (available.x <= 1f || available.y <= 1f || authored.x <= 1f || authored.y <= 1f)
+            return;
+
+        float widthScale = available.x * maximumSafeWidth / authored.x;
+        float heightScale = available.y * maximumSafeHeight / authored.y;
+        responsivePanelScale = Mathf.Clamp(Mathf.Min(1f, widthScale, heightScale), 0.35f, 1f);
+        panel.localScale = Vector3.one * responsivePanelScale;
+    }
+
+    private void OnValidate()
+    {
+        safeAreaPadding = Mathf.Max(0f, safeAreaPadding);
+        maximumSafeWidth = Mathf.Clamp(maximumSafeWidth, 0.5f, 1f);
+        maximumSafeHeight = Mathf.Clamp(maximumSafeHeight, 0.5f, 1f);
     }
 }
