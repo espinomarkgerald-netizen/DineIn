@@ -40,6 +40,13 @@ public class SceneManagerUI : MonoBehaviourPunCallbacks
     // Guard against double-firing while a load/unload is already in progress.
     private bool isLoading;
 
+    // SceneManagerUI receives callbacks for every scene operation, including
+    // additive loads owned by independent systems such as RestockFlowCoordinator.
+    // Track our target explicitly so an external additive load can never trigger
+    // this manager's "hide every other scene" presentation policy.
+    private string ownedOperationSceneName;
+    private SceneAction? ownedOperationAction;
+
     // When a LoadSingle is requested but the scene is still mid-unload, we defer
     // the actual load until OnSceneUnloaded fires.
     private string pendingLoadAfterUnload;
@@ -227,7 +234,7 @@ public class SceneManagerUI : MonoBehaviourPunCallbacks
 
     private void LoadSingleSafe(string sceneName)
     {
-        isLoading = true;
+        BeginOwnedOperation(sceneName, SceneAction.LoadSingle);
         Debug.Log($"[SceneManagerUI] LoadSingle -> '{sceneName}'");
         SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Single);
         // isLoading is cleared in OnSceneLoaded.
@@ -243,13 +250,13 @@ public class SceneManagerUI : MonoBehaviourPunCallbacks
             // Store the pending target so OnSceneUnloaded can re-fire the load.
             Debug.Log($"[SceneManagerUI] '{sceneName}' still loaded — unloading before re-adding.");
             pendingLoadAfterUnload = sceneName;
-            isLoading = true;
+            BeginOwnedOperation(sceneName, SceneAction.Unload);
             SceneManager.UnloadSceneAsync(sceneName);
             // Flow continues in OnSceneUnloaded.
             return;
         }
 
-        isLoading = true;
+        BeginOwnedOperation(sceneName, SceneAction.LoadAdditive);
         Debug.Log($"[SceneManagerUI] LoadAdditive -> '{sceneName}'");
         SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Additive);
         // isLoading is cleared in OnSceneLoaded.
@@ -264,7 +271,7 @@ public class SceneManagerUI : MonoBehaviourPunCallbacks
             return;
         }
 
-        isLoading = true;
+        BeginOwnedOperation(sceneName, SceneAction.Unload);
         SceneManager.UnloadSceneAsync(sceneName);
         // isLoading is cleared in OnSceneUnloaded.
     }
@@ -277,8 +284,14 @@ public class SceneManagerUI : MonoBehaviourPunCallbacks
     {
         Debug.Log($"[SceneManagerUI] OnSceneLoaded: '{scene.name}' ({mode})");
 
-        isLoading = false;
-        pendingLoadAfterUnload = null;
+        bool completedOwnedLoad = IsOwnedOperation(scene.name, SceneAction.LoadSingle) ||
+                                  IsOwnedOperation(scene.name, SceneAction.LoadAdditive);
+        bool completedOwnedAdditive = IsOwnedOperation(scene.name, SceneAction.LoadAdditive);
+        if (completedOwnedLoad)
+        {
+            CompleteOwnedOperation();
+            pendingLoadAfterUnload = null;
+        }
 
         // Hide any loading screen overlay that was shown by SceneLoadWithScreen
         // or by the Bootstrap startup path.
@@ -287,7 +300,7 @@ public class SceneManagerUI : MonoBehaviourPunCallbacks
         // destroyed objects compared to null, so we must use ReferenceEquals(null)
         // to check for a truly unassigned reference, and catch the case where the
         // object exists in C# but is destroyed on the Unity side.
-        if (_pendingOverlay != null)
+        if (completedOwnedLoad && _pendingOverlay != null)
         {
             try { _pendingOverlay.SetActive(false); }
             catch (System.Exception) { /* object was destroyed mid-load */ }
@@ -299,7 +312,7 @@ public class SceneManagerUI : MonoBehaviourPunCallbacks
 
         // When loading additively, hide roots in every other scene so only the
         // new scene is visible.
-        if (mode == LoadSceneMode.Additive && deactivateOtherScenesOnLoad)
+        if (mode == LoadSceneMode.Additive && deactivateOtherScenesOnLoad && completedOwnedAdditive)
             DeactivateAllOtherScenesExcept(scene);
 
         // Gameplay-specific extras.
@@ -327,11 +340,13 @@ public class SceneManagerUI : MonoBehaviourPunCallbacks
             pendingLoadAfterUnload = null;
             // isLoading stays true until OnSceneLoaded fires for the new load.
             Debug.Log($"[SceneManagerUI] Re-loading '{target}' after unload completed.");
+            BeginOwnedOperation(target, SceneAction.LoadAdditive);
             SceneManager.LoadSceneAsync(target, LoadSceneMode.Additive);
             return;
         }
 
-        isLoading = false;
+        if (IsOwnedOperation(scene.name, SceneAction.Unload))
+            CompleteOwnedOperation();
 
         // Ensure active scene is valid after unload.
         Scene active = SceneManager.GetActiveScene();
@@ -393,13 +408,34 @@ public class SceneManagerUI : MonoBehaviourPunCallbacks
     public override void OnLeftRoom()
     {
         Debug.Log("[SceneManagerUI] OnLeftRoom -> Loading menu scene.");
-        isLoading = false; // clear any leftover guard before triggering new load
+        CompleteOwnedOperation(); // clear any leftover guard before triggering new load
         LoadSingleSafe(menuSceneName);
     }
 
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
+
+    private void BeginOwnedOperation(string sceneName, SceneAction action)
+    {
+        isLoading = true;
+        ownedOperationSceneName = sceneName;
+        ownedOperationAction = action;
+    }
+
+    private bool IsOwnedOperation(string sceneName, SceneAction action)
+    {
+        return isLoading &&
+               ownedOperationAction == action &&
+               string.Equals(ownedOperationSceneName, sceneName, System.StringComparison.Ordinal);
+    }
+
+    private void CompleteOwnedOperation()
+    {
+        isLoading = false;
+        ownedOperationSceneName = null;
+        ownedOperationAction = null;
+    }
 
     private void DeactivateAllOtherScenesExcept(Scene keepScene)
     {

@@ -74,8 +74,7 @@ public sealed class ManagerComplaintSystem : MonoBehaviour
             return existing;
         }
 
-        Object prefabAsset = Resources.Load(SystemResourcePath);
-        GameObject prefabObject = prefabAsset as GameObject;
+        GameObject prefabObject = Resources.Load<GameObject>(SystemResourcePath);
         ManagerComplaintSystem prefab = prefabObject != null
             ? prefabObject.GetComponent<ManagerComplaintSystem>()
             : null;
@@ -106,8 +105,7 @@ public sealed class ManagerComplaintSystem : MonoBehaviour
                 ManagerComplaintSettings.ResourcePath);
         if (markerPrefab == null)
         {
-            Object markerAsset = Resources.Load(MarkerResourcePath);
-            GameObject markerObject = markerAsset as GameObject;
+            GameObject markerObject = Resources.Load<GameObject>(MarkerResourcePath);
             markerPrefab = markerObject != null
                 ? markerObject.GetComponent<ManagerComplaintMarker>()
                 : null;

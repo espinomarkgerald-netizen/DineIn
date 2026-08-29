@@ -34,6 +34,12 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
         public int timeSamples;
     }
 
+    private struct RootState
+    {
+        public GameObject root;
+        public bool active;
+    }
+
     public static RestockFlowCoordinator Instance { get; private set; }
     public bool IsRestockRoomOpen => roomOpen;
     public bool IsTransitioning => loading;
@@ -68,6 +74,7 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
     private readonly List<BehaviourState> lobbyEventSystemStates = new List<BehaviourState>();
     private readonly List<RendererState> lobbyRendererStates = new List<RendererState>();
     private readonly List<AudioState> lobbyAudioStates = new List<AudioState>();
+    private readonly List<RootState> lobbyRootStates = new List<RootState>();
     private readonly List<GameObject> restockRoots = new List<GameObject>();
     private readonly List<bool> restockRootAuthoredStates = new List<bool>();
     private RestockRoomController roomController;
@@ -224,6 +231,9 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
         if (loading || roomOpen)
             return;
 
+        // Acquire the transition lock before the iris begins. A second mobile tap
+        // must not cancel the first close callback and leave the screen covered.
+        loading = true;
         requestedRoom = room;
         EnsureHud();
         PlayCloseThen(() => StartCoroutine(OpenRestockRoomRoutine()));
@@ -321,7 +331,6 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
 
     private IEnumerator OpenRestockRoomRoutine()
     {
-        loading = true;
         previousTimeScale = Time.timeScale;
         CaptureAndPauseLobby();
         Time.timeScale = 0f;
@@ -929,6 +938,7 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
 
     private void CaptureAndPauseLobby()
     {
+        lobbyRootStates.Clear();
         lobbyBehaviourStates.Clear();
         lobbyRendererStates.Clear();
         lobbyAudioStates.Clear();
@@ -967,6 +977,12 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
         GameObject[] roots = lobbyScene.GetRootGameObjects();
         for (int r = 0; r < roots.Length; r++)
         {
+            lobbyRootStates.Add(new RootState
+            {
+                root = roots[r],
+                active = roots[r] != null && roots[r].activeSelf
+            });
+
             Renderer[] renderers = roots[r].GetComponentsInChildren<Renderer>(true);
             for (int i = 0; i < renderers.Length; i++)
             {
@@ -986,6 +1002,17 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
 
     private void RestoreLobby()
     {
+        // Normally no Lobby root is disabled: the restock flow pauses individual
+        // presentation components so gameplay state remains alive. Restoring the
+        // captured root flags is a final recovery layer against another global
+        // scene listener accidentally deactivating Lobby during an additive load.
+        for (int i = 0; i < lobbyRootStates.Count; i++)
+        {
+            RootState state = lobbyRootStates[i];
+            if (state.root != null)
+                state.root.SetActive(state.active);
+        }
+
         for (int i = 0; i < lobbyRendererStates.Count; i++)
         {
             RendererState state = lobbyRendererStates[i];
@@ -1014,6 +1041,7 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
         lobbyRendererStates.Clear();
         lobbyBehaviourStates.Clear();
         lobbyAudioStates.Clear();
+        lobbyRootStates.Clear();
     }
 
     private void CaptureAndDisableLobbyBehaviours<T>() where T : Behaviour

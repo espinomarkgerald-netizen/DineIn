@@ -107,6 +107,15 @@ public static class RestockRoomTransitionSmokeTest
         if (GameSaveManager.Instance != null)
             GameSaveManager.Instance.SuppressWritesForTests = true;
 
+        // Lobby1 can be opened directly by this test without the bootstrap scene.
+        // Install the same global listener used by a normal game session so an
+        // unrelated additive load cannot silently deactivate all Lobby1 roots.
+        if (SceneManagerUI.Instance == null)
+        {
+            GameObject sceneManagerRoot = new GameObject("[Smoke Test] SceneManagerUI");
+            sceneManagerRoot.AddComponent<SceneManagerUI>();
+        }
+
         RestockFlowCoordinator coordinator = RestockFlowCoordinator.Instance;
         Assert(coordinator != null, "Restock flow coordinator is missing.");
         coordinator.EnterRestockRoom(RestockStorageType.Dry);
@@ -121,6 +130,11 @@ public static class RestockRoomTransitionSmokeTest
 
         Assert(SceneManager.GetActiveScene().name == "RestockScene",
             "RestockScene did not become the active additive scene.");
+        Scene lobby = SceneManager.GetSceneByName("Lobby1");
+        Assert(lobby.IsValid() && lobby.isLoaded,
+            "Lobby1 was unloaded instead of being preserved for the restock return.");
+        Assert(Array.Exists(lobby.GetRootGameObjects(), root => root != null && root.activeSelf),
+            "All Lobby1 roots were deactivated by an unrelated additive-scene listener.");
         CasualDiningProgressHUD progressHud = UnityEngine.Object.FindFirstObjectByType<CasualDiningProgressHUD>(
             FindObjectsInactive.Include);
         Assert(progressHud != null && progressHud.GetComponent<Canvas>() != null &&
@@ -147,6 +161,10 @@ public static class RestockRoomTransitionSmokeTest
 
         Assert(SceneManager.GetActiveScene().name == "Lobby1",
             "Lobby1 was not restored after leaving RestockScene.");
+        Scene lobby = SceneManager.GetSceneByName("Lobby1");
+        Assert(lobby.IsValid() && lobby.isLoaded &&
+               Array.Exists(lobby.GetRootGameObjects(), root => root != null && root.activeSelf),
+            "Lobby1 returned with all scene roots inactive (black-screen regression).");
         CasualDiningProgressHUD progressHud = UnityEngine.Object.FindFirstObjectByType<CasualDiningProgressHUD>(
             FindObjectsInactive.Include);
         Assert(progressHud != null && progressHud.GetComponent<Canvas>() != null &&
@@ -196,7 +214,13 @@ public static class RestockRoomTransitionSmokeTest
             Debug.LogError("[RestockRoomTransitionSmokeTest] " + result);
         else
             Debug.Log("[RestockRoomTransitionSmokeTest] " + result);
-        EditorApplication.ExitPlaymode();
+
+        // Headless CI/agent runs have no editor window to close manually. Return a
+        // meaningful process result after writing the same artifact used by local runs.
+        if (Application.isBatchMode)
+            EditorApplication.Exit(failed ? 1 : 0);
+        else
+            EditorApplication.ExitPlaymode();
     }
 
     private static void WriteResult(string result)

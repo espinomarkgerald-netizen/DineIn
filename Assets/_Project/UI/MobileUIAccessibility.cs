@@ -5,9 +5,14 @@ using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 /// <summary>
-/// Mobile-only accessibility pass. It leaves the authored PC layout untouched,
-/// normalizes oversized reference resolutions, and gives small controls a larger
-/// invisible pointer target without stretching their artwork.
+/// Mobile-only accessibility pass. It leaves authored reference resolutions intact,
+/// makes screen-space canvases fit inside unusual mobile aspect ratios, and gives
+/// small controls a larger invisible pointer target without stretching their artwork.
+///
+/// Reference resolution is part of the coordinate system used by every child
+/// RectTransform. Changing it without converting the complete hierarchy enlarges or
+/// shrinks fixed-size UI. In particular, converting a 1920 x 1080 canvas to
+/// 600 x 337.5 made the Level 1 UI roughly 3.2 times larger on Android.
 /// </summary>
 public sealed class MobileUIAccessibility : MonoBehaviour
 {
@@ -60,31 +65,31 @@ public sealed class MobileUIAccessibility : MonoBehaviour
             FindObjectsInactive.Include,
             FindObjectsSortMode.None);
         for (int i = 0; i < scalers.Length; i++)
-        {
-            CanvasScaler scaler = scalers[i];
-            Canvas canvas = scaler != null ? scaler.GetComponent<Canvas>() : null;
-            if (scaler == null || canvas == null || canvas.renderMode == RenderMode.WorldSpace ||
-                scaler.uiScaleMode != CanvasScaler.ScaleMode.ScaleWithScreenSize)
-                continue;
-
-            CasualDiningProgressHUD progressHud = scaler.GetComponent<CasualDiningProgressHUD>();
-            if (progressHud != null && progressHud.PreserveReferenceResolutionOnMobile)
-                continue;
-
-            Vector2 reference = scaler.referenceResolution;
-            const float mobileReferenceWidth = 600f;
-            if (reference.x > mobileReferenceWidth)
-            {
-                float aspectHeight = reference.y * (mobileReferenceWidth / reference.x);
-                scaler.referenceResolution = new Vector2(mobileReferenceWidth, aspectHeight);
-            }
-        }
+            ConfigureCanvasForMobile(scalers[i]);
 
         Button[] buttons = FindObjectsByType<Button>(
             FindObjectsInactive.Include,
             FindObjectsSortMode.None);
         for (int i = 0; i < buttons.Length; i++)
             EnsureTouchArea(buttons[i]);
+    }
+
+    /// <summary>
+    /// Applies the mobile aspect-ratio policy without changing the canvas coordinate
+    /// system. Public so the editor regression validator can exercise the exact
+    /// runtime code used by Android builds.
+    /// </summary>
+    public static void ConfigureCanvasForMobile(CanvasScaler scaler)
+    {
+        Canvas canvas = scaler != null ? scaler.GetComponent<Canvas>() : null;
+        if (scaler == null || canvas == null || canvas.renderMode == RenderMode.WorldSpace ||
+            scaler.uiScaleMode != CanvasScaler.ScaleMode.ScaleWithScreenSize)
+            return;
+
+        // Expand selects the smaller of the width/height scale factors. The complete
+        // authored reference rectangle therefore remains visible on extra-wide phones
+        // such as 20:9 devices instead of losing its top or bottom edges.
+        scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.Expand;
     }
 
     private static void EnsureTouchArea(Button button)
