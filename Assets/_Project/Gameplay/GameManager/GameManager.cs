@@ -42,6 +42,10 @@ public class GameDayManager : MonoBehaviour
     [Tooltip("Limits simultaneous customer groups while still allowing the full daily total to spawn.")]
     [SerializeField, Min(1)] private int maxConcurrentGroups = 8;
     [SerializeField, Min(1)] private int rushMaxConcurrentGroups = 10;
+    [Tooltip("Android performance cap. Blocked groups are delayed, not removed from the day's total.")]
+    [SerializeField, Min(1)] private int mobileMaxConcurrentGroups = 4;
+    [Tooltip("Android rush-hour cap. Keeps the rush busier without allowing an unbounded crowd.")]
+    [SerializeField, Min(1)] private int mobileRushMaxConcurrentGroups = 5;
 
     [Header("Rush Hour")]
     [Tooltip("Rush hour begins when this many real seconds remain in the shift.")]
@@ -409,6 +413,11 @@ public class GameDayManager : MonoBehaviour
 
         if (spawnIntervalMax < spawnIntervalMin)
             spawnIntervalMax = spawnIntervalMin + 1f;
+
+        maxConcurrentGroups = Mathf.Max(1, maxConcurrentGroups);
+        rushMaxConcurrentGroups = Mathf.Max(maxConcurrentGroups, rushMaxConcurrentGroups);
+        mobileMaxConcurrentGroups = Mathf.Max(1, mobileMaxConcurrentGroups);
+        mobileRushMaxConcurrentGroups = Mathf.Max(mobileMaxConcurrentGroups, mobileRushMaxConcurrentGroups);
 
         angryBarMax = Mathf.Max(1, angryBarMax);
         neutralBarMax = Mathf.Max(1, neutralBarMax);
@@ -833,6 +842,14 @@ public class GameDayManager : MonoBehaviour
         int concurrentLimit = IsRushHour
             ? Mathf.Max(maxConcurrentGroups, rushMaxConcurrentGroups)
             : maxConcurrentGroups;
+        if (Application.isMobilePlatform)
+        {
+            int mobileLimit = IsRushHour
+                ? Mathf.Max(mobileMaxConcurrentGroups, mobileRushMaxConcurrentGroups)
+                : mobileMaxConcurrentGroups;
+            concurrentLimit = Mathf.Min(concurrentLimit, mobileLimit);
+        }
+
         if (FindObjectsByType<CustomerGroup>(FindObjectsInactive.Exclude, FindObjectsSortMode.None).Length >= concurrentLimit)
             return false;
 

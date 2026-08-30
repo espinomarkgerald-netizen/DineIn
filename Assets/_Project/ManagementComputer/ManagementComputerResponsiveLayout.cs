@@ -17,6 +17,9 @@ public sealed class ManagementComputerResponsiveLayout : MonoBehaviour
     [SerializeField] private Vector2 compactWindowMin = new Vector2(0.015f, 0.045f);
     [SerializeField] private Vector2 compactWindowMax = new Vector2(0.985f, 0.955f);
 
+    public static readonly Vector2 MobileLandscapeWindowMin = new Vector2(0.02f, 0.035f);
+    public static readonly Vector2 MobileLandscapeWindowMax = new Vector2(0.985f, 0.96f);
+
     private Vector2Int lastScreenSize;
     private Rect lastSafeArea;
 
@@ -93,11 +96,17 @@ public sealed class ManagementComputerResponsiveLayout : MonoBehaviour
         if (appWindow == null)
             return;
 
-        appWindow.anchorMin = compact ? compactWindowMin : landscapeWindowMin;
-        appWindow.anchorMax = compact ? compactWindowMax : landscapeWindowMax;
+        bool phoneLandscape = Application.isMobilePlatform && !compact;
+        appWindow.anchorMin = compact
+            ? compactWindowMin
+            : phoneLandscape ? MobileLandscapeWindowMin : landscapeWindowMin;
+        appWindow.anchorMax = compact
+            ? compactWindowMax
+            : phoneLandscape ? MobileLandscapeWindowMax : landscapeWindowMax;
         appWindow.pivot = new Vector2(0.5f, 0.5f);
-        appWindow.offsetMin = new Vector2(10f, 10f);
-        appWindow.offsetMax = new Vector2(-10f, -10f);
+        float inset = Application.isMobilePlatform ? 8f : 10f;
+        appWindow.offsetMin = new Vector2(inset, inset);
+        appWindow.offsetMax = new Vector2(-inset, -inset);
         appWindow.localScale = Vector3.one;
     }
 

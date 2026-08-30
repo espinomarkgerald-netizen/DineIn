@@ -148,13 +148,19 @@ public sealed class ManagementComputerRowUI : MonoBehaviour
 
         LayoutElement layout = GetComponent<LayoutElement>();
         RectTransform root = transform as RectTransform;
-        float height = asCard ? 228f : 148f;
+        float height = Application.isMobilePlatform
+            ? asCard ? 270f : 168f
+            : asCard ? 228f : 148f;
         if (layout != null)
         {
             layout.minHeight = height;
             layout.preferredHeight = height;
-            layout.minWidth = asCard ? 176f : -1f;
-            layout.preferredWidth = asCard ? 190f : -1f;
+            layout.minWidth = asCard
+                ? Application.isMobilePlatform ? 190f : 176f
+                : -1f;
+            layout.preferredWidth = asCard
+                ? Application.isMobilePlatform ? 222f : 190f
+                : -1f;
             layout.flexibleWidth = asCard ? 0f : 1f;
         }
         if (root != null)

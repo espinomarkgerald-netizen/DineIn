@@ -62,6 +62,7 @@ public sealed class ManagementComputerWindow : MonoBehaviour
     {
         gameObject.SetActive(true);
         if (titleText != null) titleText.text = windowTitle;
+        ApplyMobileChromeAndTypography();
         SetMessage(string.Empty);
         SetFooter(string.Empty, null, false);
 
@@ -100,6 +101,8 @@ public sealed class ManagementComputerWindow : MonoBehaviour
     {
         if (content == null)
             return;
+
+        ApplyMobileChromeAndTypography();
 
         if (verticalLayout == null)
             verticalLayout = content.GetComponent<VerticalLayoutGroup>();
@@ -194,11 +197,12 @@ public sealed class ManagementComputerWindow : MonoBehaviour
                 : content.rect;
         float viewportWidth = Mathf.Max(320f, viewportRect.width);
         float viewportHeight = Mathf.Max(360f, viewportRect.height);
-        float cardHeight = Mathf.Clamp(
-            (viewportHeight - padding * 2f - gap) / rows,
-            190f,
-            236f);
-        float cardWidth = Mathf.Clamp(cardHeight * 0.8f, 176f, 194f);
+        float cardHeight = Application.isMobilePlatform
+            ? Mathf.Clamp((viewportHeight - padding * 2f - gap) / rows, 228f, 270f)
+            : Mathf.Clamp((viewportHeight - padding * 2f - gap) / rows, 190f, 236f);
+        float cardWidth = Application.isMobilePlatform
+            ? Mathf.Clamp(cardHeight * 0.82f, 190f, 222f)
+            : Mathf.Clamp(cardHeight * 0.8f, 176f, 194f);
 
         int visibleIndex = 0;
         for (int i = 0; i < content.childCount; i++)
@@ -232,6 +236,47 @@ public sealed class ManagementComputerWindow : MonoBehaviour
         contentHeightOverride.minHeight = viewportHeight;
         contentHeightOverride.preferredHeight = viewportHeight;
         LayoutRebuilder.MarkLayoutForRebuild(content);
+    }
+
+    private void ApplyMobileChromeAndTypography()
+    {
+        if (!Application.isMobilePlatform)
+            return;
+
+        ConfigureText(titleText, 30f, 40f);
+        ConfigureText(messageText, 20f, 27f);
+        ConfigureText(footerLabel, 21f, 28f);
+
+        if (closeButton != null && closeButton.transform is RectTransform closeRect)
+            closeRect.sizeDelta = new Vector2(92f, 82f);
+        if (footerButton != null && footerButton.transform is RectTransform footerRect)
+            footerRect.sizeDelta = new Vector2(280f, 82f);
+
+        // App panels are populated after the window opens. Re-running this from the
+        // layout refresh gives every generated row/card readable type without
+        // changing its wording or blindly scaling the complete window.
+        TMP_Text[] texts = GetComponentsInChildren<TMP_Text>(true);
+        for (int i = 0; i < texts.Length; i++)
+        {
+            TMP_Text text = texts[i];
+            if (text == null || text == titleText || text == messageText || text == footerLabel)
+                continue;
+
+            bool buttonLabel = text.GetComponentInParent<Button>() != null;
+            ConfigureText(text, buttonLabel ? 19f : 18f, buttonLabel ? 28f : 27f);
+        }
+    }
+
+    private static void ConfigureText(TMP_Text text, float minimum, float maximum)
+    {
+        if (text == null)
+            return;
+
+        text.enableAutoSizing = true;
+        text.fontSizeMin = Mathf.Max(text.fontSizeMin, minimum);
+        text.fontSizeMax = Mathf.Max(text.fontSizeMax, maximum);
+        text.fontSize = Mathf.Max(text.fontSize, minimum);
+        text.overflowMode = TextOverflowModes.Ellipsis;
     }
 
     public void Close() => gameObject.SetActive(false);

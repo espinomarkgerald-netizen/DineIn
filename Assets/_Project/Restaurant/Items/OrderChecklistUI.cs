@@ -83,6 +83,10 @@ public class OrderChecklistUI : MonoBehaviour
     private bool unlockEventSubscribed;
     private LobbyStockBridge subscribedStockBridge;
     private bool refreshingResponsiveLayout;
+    private bool rootScaleCaptured;
+    private Vector3 authoredRootScale;
+
+    public const float MobileRootScaleMultiplier = 1.28f;
 
     private string cachedOpeningMessage;
     private string cachedCustomerTypeName;
@@ -209,6 +213,20 @@ public class OrderChecklistUI : MonoBehaviour
         if (root == null || parent == null)
             return;
 
+        if (!rootScaleCaptured)
+        {
+            authoredRootScale = root.localScale;
+            rootScaleCaptured = true;
+        }
+
+        if (Application.isMobilePlatform)
+        {
+            root.localScale = new Vector3(
+                authoredRootScale.x * MobileRootScaleMultiplier,
+                authoredRootScale.y * MobileRootScaleMultiplier,
+                authoredRootScale.z);
+        }
+
         Vector2 parentSize = parent.rect.size;
         if (parentSize.x <= 0f || parentSize.y <= 0f)
             return;
@@ -228,6 +246,7 @@ public class OrderChecklistUI : MonoBehaviour
             root.sizeDelta = requiredSizeDelta;
 
         ApplyCustomerMessageBounds();
+        ApplyMobileOrderHeaderLayout();
         FinalizeMenuLayout(foodContentRoot, foodScrollRect);
         FinalizeMenuLayout(drinkContentRoot, drinkScrollRect);
         AlignMenuScrollbars();
@@ -304,15 +323,48 @@ public class OrderChecklistUI : MonoBehaviour
             return;
 
         RectTransform messageRect = customerMessageText.rectTransform;
-        messageRect.sizeDelta = new Vector2(280f, 150f);
+        messageRect.sizeDelta = Application.isMobilePlatform
+            ? new Vector2(300f, 150f)
+            : new Vector2(280f, 150f);
         customerMessageText.margin = Vector4.zero;
         customerMessageText.enableAutoSizing = true;
-        customerMessageText.fontSizeMin = 14f;
-        customerMessageText.fontSizeMax = 20f;
+        customerMessageText.fontSizeMin = Application.isMobilePlatform ? 16f : 14f;
+        customerMessageText.fontSizeMax = Application.isMobilePlatform ? 23f : 20f;
         customerMessageText.textWrappingMode = TextWrappingModes.Normal;
         customerMessageText.overflowMode = TextOverflowModes.Ellipsis;
         customerMessageText.alignment = TextAlignmentOptions.MidlineLeft;
         customerMessageText.raycastTarget = false;
+    }
+
+    private void ApplyMobileOrderHeaderLayout()
+    {
+        if (!Application.isMobilePlatform)
+            return;
+
+        // Keep the portrait, message, and requested-order strip as three distinct
+        // regions. The old positions let longer dialogue visually run into the menu
+        // column after the notepad was enlarged for phones.
+        if (customerImage != null)
+        {
+            RectTransform imageRect = customerImage.rectTransform;
+            imageRect.anchoredPosition = new Vector2(-610f, 82f);
+            imageRect.sizeDelta = new Vector2(230f, 230f);
+        }
+
+        if (customerTypeText != null)
+            customerTypeText.rectTransform.anchoredPosition = new Vector2(-610f, 228f);
+        if (tableNumberText != null)
+            tableNumberText.rectTransform.anchoredPosition = new Vector2(-420f, 307f);
+        if (customerMessageText != null)
+            customerMessageText.rectTransform.anchoredPosition = new Vector2(-330f, 118f);
+        if (requestedIconsRoot != null)
+        {
+            requestedIconsRoot.anchoredPosition = new Vector2(-610f, -145f);
+            requestedIconsRoot.sizeDelta = new Vector2(150f, 100f);
+        }
+
+        if (confirmButton != null && confirmButton.transform is RectTransform confirmRect)
+            confirmRect.localScale = new Vector3(0.78f, 0.78f, 1f);
     }
 
     public void Open(CustomerGroup customerGroup)
@@ -960,22 +1012,25 @@ public class OrderChecklistUI : MonoBehaviour
         if (products.Count == 0)
             return;
 
-        float iconSize = products.Count > 1 ? 42f : 54f;
+        float iconSize = Application.isMobilePlatform
+            ? products.Count > 1 ? 50f : 66f
+            : products.Count > 1 ? 42f : 54f;
         float iconsWidth = products.Count * iconSize + Mathf.Max(0, products.Count - 1) * 2f;
-        float entryWidth = Mathf.Max(78f, iconsWidth + 28f);
+        float entryWidth = Mathf.Max(Application.isMobilePlatform ? 92f : 78f, iconsWidth + 28f);
+        float entryHeight = Application.isMobilePlatform ? 88f : 76f;
 
         GameObject entryObject = new GameObject($"Order Line - {line.displayName}",
             typeof(RectTransform), typeof(LayoutElement));
         entryObject.layer = requestedIconsRoot.gameObject.layer;
         RectTransform entryRect = entryObject.GetComponent<RectTransform>();
         entryRect.SetParent(requestedIconsRoot, false);
-        entryRect.sizeDelta = new Vector2(entryWidth, 76f);
+        entryRect.sizeDelta = new Vector2(entryWidth, entryHeight);
 
         LayoutElement element = entryObject.GetComponent<LayoutElement>();
         element.minWidth = entryWidth;
         element.preferredWidth = entryWidth;
-        element.minHeight = 76f;
-        element.preferredHeight = 76f;
+        element.minHeight = entryHeight;
+        element.preferredHeight = entryHeight;
 
         float startX = -iconsWidth * 0.5f + iconSize * 0.5f - 8f;
         for (int i = 0; i < products.Count; i++)

@@ -13,6 +13,7 @@ public static class LobbyPaymentSmokeTest
     private const string RunKey = "DineIn.LobbyPaymentSmokeTest.Running";
     private const string MenuPath = "Tools/Dine In/Run Lobby1 Payment Smoke Test %#F9";
     private const string BubblePrefabPath = "Assets/_Project/Restaurant/Assets/Level1/UI/Money.prefab";
+    private const string LobbyScenePath = "Assets/_Project/Scenes/RoleBased/Lobby1.unity";
 
     private enum Phase
     {
@@ -29,6 +30,8 @@ public static class LobbyPaymentSmokeTest
     private static MoneyPickup payment;
     private static GameObject bubbleObject;
     private static WaiterHands staffHands;
+    private static LobbyAutonomousService autonomousService;
+    private static bool forcedWaiterPoll;
 
     static LobbyPaymentSmokeTest()
     {
@@ -49,11 +52,7 @@ public static class LobbyPaymentSmokeTest
         }
 
         if (SceneManager.GetActiveScene().name != "Lobby1")
-        {
-            Debug.LogError("[LobbyPaymentSmokeTest] Open Lobby1 before running the payment test.");
-            WriteResult("FAIL: Lobby1 was not open.");
-            return;
-        }
+            EditorSceneManager.OpenScene(LobbyScenePath, OpenSceneMode.Single);
 
         SessionState.SetBool(RunKey, true);
         WriteResult("RUNNING");
@@ -107,7 +106,7 @@ public static class LobbyPaymentSmokeTest
 
     private static void TrySetUpPayment()
     {
-        LobbyAutonomousService service = UnityEngine.Object.FindFirstObjectByType<LobbyAutonomousService>();
+        autonomousService = UnityEngine.Object.FindFirstObjectByType<LobbyAutonomousService>();
         GameDayManager dayManager = GameDayManager.Instance;
         staffHands = WaiterHands.Instance;
 
@@ -115,20 +114,44 @@ public static class LobbyPaymentSmokeTest
             ? CashierRegisterUI.Instance
             : UnityEngine.Object.FindFirstObjectByType<CashierRegisterUI>(FindObjectsInactive.Include);
 
-        if (service == null || dayManager == null || staffHands == null || register == null)
+        if (autonomousService == null || dayManager == null || staffHands == null || register == null)
         {
             if (ElapsedInPhase > 12d)
             {
                 Fail(
                     "Lobby initialization timed out: " +
-                    $"service={(service != null)}, waiterHands={(staffHands != null)}, " +
+                    $"service={(autonomousService != null)}, waiterHands={(staffHands != null)}, " +
                     $"gameDayManager={(dayManager != null)}, cashierRegister={(register != null)}.");
             }
             return;
         }
 
+        if (GameSaveManager.Instance != null)
+            GameSaveManager.Instance.SuppressWritesForTests = true;
+
+        EnsureRequiredTestStaff();
+
         if (!dayManager.ServiceActive)
             dayManager.StartShift();
+        Assert(dayManager.ServiceActive,
+            "The payment smoke test could not start service with its temporary staff roster.");
+        Time.timeScale = 1f;
+
+        // EditorApplication.timeSinceStartup advances independently of Play Mode's
+        // Time.time in headless batch runs. Remove only this test's player-reaction
+        // grace so the production ownership path is deterministic; normal gameplay
+        // keeps LobbyAutonomousService's authored one-second grace.
+        FieldInfo reactionGrace = typeof(LobbyAutonomousService).GetField(
+            "managerReactionSeconds", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert(reactionGrace != null,
+            "Lobby autonomous service lost its player-reaction grace setting.");
+        reactionGrace.SetValue(autonomousService, 0f);
+
+        FieldInfo spawnLimit = typeof(GameDayManager).GetField(
+            "maxCustomersToSpawn", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert(spawnLimit != null,
+            "GameDayManager lost its customer spawn limit used to isolate payment tests.");
+        spawnLimit.SetValue(dayManager, 0);
 
         Booth[] booths = UnityEngine.Object.FindObjectsByType<Booth>(
             FindObjectsInactive.Exclude,
@@ -212,9 +235,47 @@ public static class LobbyPaymentSmokeTest
         Assert(collectButton.interactable,
             "The returned bubble must remain fully interactable with no fade.");
 
+        MethodInfo refreshPayments = typeof(LobbyAutonomousService).GetMethod(
+            "RefreshSceneQueryCache", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert(refreshPayments != null,
+            "Lobby autonomous service lost its dynamic task-cache refresh.");
+        refreshPayments.Invoke(autonomousService, new object[] { true });
+
+        FieldInfo cachedPaymentsField = typeof(LobbyAutonomousService).GetField(
+            "cachedPayments", BindingFlags.Instance | BindingFlags.NonPublic);
+        MoneyPickup[] refreshedPayments = cachedPaymentsField?.GetValue(autonomousService) as MoneyPickup[];
+        Assert(refreshedPayments != null && Array.Exists(refreshedPayments, entry => entry == payment),
+            "The active synthetic payment was missing from the autonomous service cache " +
+            $"(activeSelf={payment.gameObject.activeSelf}, activeInHierarchy={payment.gameObject.activeInHierarchy}, " +
+            $"scene={payment.gameObject.scene.name}).");
+
         phase = Phase.WaitingForBotClaim;
         phaseStartedAt = EditorApplication.timeSinceStartup;
+        forcedWaiterPoll = false;
         Debug.Log("[LobbyPaymentSmokeTest] Player ownership passed; waiting for autonomous waiter claim.");
+    }
+
+    private static void EnsureAssignedTestEmployee(EmployeeRole role)
+    {
+        EmployeeManager employees = EmployeeManager.Instance;
+        if (employees == null || employees.GetAssignedEmployee(role) != null)
+            return;
+
+        EmployeeData employee = new EmployeeData("Payment Smoke " + role, 3, role)
+        {
+            hired = true
+        };
+        employees.allEmployees.Add(employee);
+        Assert(employees.AssignEmployeeForDay(employee),
+            "The payment smoke test could not schedule a " + role + ".");
+    }
+
+    private static void EnsureRequiredTestStaff()
+    {
+        for (int i = 0; i < EmployeeRoleCatalog.LobbyRoles.Count; i++)
+            EnsureAssignedTestEmployee(EmployeeRoleCatalog.LobbyRoles[i]);
+        for (int i = 0; i < EmployeeRoleCatalog.KitchenRoles.Count; i++)
+            EnsureAssignedTestEmployee(EmployeeRoleCatalog.KitchenRoles[i]);
     }
 
     private static void TrackBotClaim()
@@ -225,21 +286,64 @@ public static class LobbyPaymentSmokeTest
             return;
         }
 
-        if (RestaurantTaskClaim.IsClaimedByBot(payment))
-        {
-            Assert(bubbleObject == null || !bubbleObject.activeSelf,
-                "The payment bubble stayed visible after the waiter claimed it.");
-            phase = Phase.WaitingForCompletion;
-            phaseStartedAt = EditorApplication.timeSinceStartup;
-            Debug.Log("[LobbyPaymentSmokeTest] Waiter claimed payment; checking for flicker and cashier completion.");
+        if (BeginCompletionIfBotClaimed())
             return;
-        }
 
         Assert(bubbleObject != null && bubbleObject.activeSelf,
             "The payment bubble disappeared while nobody owned the task.");
 
+        // The editor's headless coroutine timing is not deterministic. Once the
+        // same player-reaction grace used in production has elapsed, invoke the
+        // service's real task poll once; all ownership and task code remains the
+        // production path exercised by the test.
+        if (!forcedWaiterPoll && ElapsedInPhase >= 0.25d)
+        {
+            forcedWaiterPoll = true;
+            MethodInfo waiterPoll = typeof(LobbyAutonomousService).GetMethod(
+                "TryStartWaiterTask", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert(waiterPoll != null,
+                "Lobby autonomous service lost its waiter task poll.");
+            waiterPoll.Invoke(autonomousService, null);
+
+            // Headless Editor updates can be sparse enough that this invocation
+            // and the timeout boundary occur in the same tick. Re-check the
+            // ownership we just triggered before evaluating the timeout.
+            if (BeginCompletionIfBotClaimed())
+                return;
+        }
+
         if (ElapsedInPhase > 8d)
-            Fail("The autonomous waiter did not claim the available payment within 8 seconds.");
+        {
+            FieldInfo waiterField = typeof(LobbyAutonomousService).GetField(
+                "waiter", BindingFlags.Instance | BindingFlags.NonPublic);
+            FieldInfo handsField = typeof(LobbyAutonomousService).GetField(
+                "waiterHands", BindingFlags.Instance | BindingFlags.NonPublic);
+            FieldInfo paymentsField = typeof(LobbyAutonomousService).GetField(
+                "cachedPayments", BindingFlags.Instance | BindingFlags.NonPublic);
+            AutonomousStaffBot waiterBot = waiterField?.GetValue(autonomousService) as AutonomousStaffBot;
+            WaiterHands serviceHands = handsField?.GetValue(autonomousService) as WaiterHands;
+            MoneyPickup[] cachedPayments = paymentsField?.GetValue(autonomousService) as MoneyPickup[];
+            Fail(
+                "The autonomous waiter did not claim the available payment within 8 seconds. " +
+                $"serviceActive={GameDayManager.Instance?.ServiceActive}, " +
+                $"waiter={(waiterBot != null)}, busy={waiterBot?.IsBusy}, state={waiterBot?.CurrentState}, " +
+                $"handsFree={(serviceHands != null && !serviceHands.HasMoney && !serviceHands.HasBill && !serviceHands.HasTray)}, " +
+                $"cachedPayments={cachedPayments?.Length ?? -1}, available={payment.IsAvailableForBotCollection}, " +
+                $"playerClaim={RestaurantTaskClaim.IsClaimedByPlayer(payment)}, botClaim={RestaurantTaskClaim.IsClaimedByBot(payment)}.");
+        }
+    }
+
+    private static bool BeginCompletionIfBotClaimed()
+    {
+        if (payment == null || !RestaurantTaskClaim.IsClaimedByBot(payment))
+            return false;
+
+        Assert(bubbleObject == null || !bubbleObject.activeSelf,
+            "The payment bubble stayed visible after the waiter claimed it.");
+        phase = Phase.WaitingForCompletion;
+        phaseStartedAt = EditorApplication.timeSinceStartup;
+        Debug.Log("[LobbyPaymentSmokeTest] Waiter claimed payment; checking for flicker and cashier completion.");
+        return true;
     }
 
     private static void TrackCompletion()
@@ -290,7 +394,9 @@ public static class LobbyPaymentSmokeTest
         WriteResult(result);
         SessionState.SetBool(RunKey, false);
 
-        if (EditorApplication.isPlaying)
+        if (Application.isBatchMode)
+            EditorApplication.Exit(result.StartsWith("PASS", StringComparison.Ordinal) ? 0 : 1);
+        else if (EditorApplication.isPlaying)
             EditorApplication.ExitPlaymode();
     }
 

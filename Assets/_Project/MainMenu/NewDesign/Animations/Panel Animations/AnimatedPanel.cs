@@ -83,6 +83,10 @@ public class AnimatedPanel : MonoBehaviour
     {
         if (activeAnimation != null) StopCoroutine(activeAnimation);
 
+        // Full-screen panels must render above the GameMenu's persistent controls.
+        // Without this, the base Back/Shop HUD can remain visible and clickable over
+        // the shop or game-mode surface on Android.
+        transform.SetAsLastSibling();
         gameObject.SetActive(true);
         ResetTransform();
         IsOpen = true;

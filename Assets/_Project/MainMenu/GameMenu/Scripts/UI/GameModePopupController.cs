@@ -63,6 +63,7 @@ public class GameModePopupController : MonoBehaviour
             return;
         }
 
+        gamemodePopupUI.transform.SetAsLastSibling();
         gamemodePopupUI.SetActive(true);
     }
 

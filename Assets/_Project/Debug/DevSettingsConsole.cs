@@ -1,4 +1,7 @@
+using System;
 using System.Text.RegularExpressions;
+using PlayFab;
+using PlayFab.ClientModels;
 using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -6,6 +9,8 @@ using UnityEngine.UI;
 
 public class DevSettingsConsole : MonoBehaviour
 {
+    private static DevSettingsConsole activeConsole;
+
     [Header("Panel")]
     [SerializeField] private GameObject panelRoot;
 
@@ -27,7 +32,7 @@ public class DevSettingsConsole : MonoBehaviour
     [SerializeField] private string invalidCommandMessage = "ERROR: Invalid command.";
     [SerializeField] private string commandFailedMessage = "ERROR: Command failed.";
     [SerializeField] private string developmentBuildOnlyMessage =
-        "ERROR: Dev codes are available only in the Unity Editor or desktop PC builds.";
+        "ERROR: Dev codes require the authorized Kali PlayFab account.";
 
     [Header("Behavior")]
     [SerializeField] private KeyCode toggleKey = KeyCode.F10;
@@ -36,13 +41,52 @@ public class DevSettingsConsole : MonoBehaviour
     [SerializeField] private bool focusInputWhenOpened = true;
     [SerializeField] private bool allowToggleInEditor = true;
 
+    [Header("Authorized Player Builds")]
+    [Tooltip("The real PlayFab username allowed to use dev commands in a player build. " +
+             "This is verified with PlayFab GetAccountInfo and is not trusted from PlayerPrefs or visible UI text.")]
+    [SerializeField] private string authorizedPlayFabUsername = "Kali";
+    [SerializeField] private bool createAndroidOpenButton = true;
+    [SerializeField] private string androidButtonLabel = "DEV";
+    [SerializeField] private Vector2 androidButtonSize = new Vector2(96f, 56f);
+    [SerializeField] private Vector2 androidButtonOffsetFromSafeTopLeft = new Vector2(14f, -84f);
+
+    private Button androidOpenButton;
+    private RectTransform androidOpenButtonRect;
+    private Canvas devCanvas;
+    private PlayFabAuthManager subscribedAuthManager;
+    private string verifiedPlayFabId;
+    private string pendingVerificationPlayFabId;
+    private bool playerBuildAccessVerified;
+    private bool verificationInFlight;
+    private float nextAuthorizationRefreshTime;
+    private Rect lastButtonSafeArea = new Rect(-1f, -1f, -1f, -1f);
+
     private static readonly Regex CommandRegex = new Regex(
         @"^\s*([A-Za-z]+)\s*\(\s*(-?\d+)?\s*\)\s*$",
         RegexOptions.Compiled
     );
 
+    /// <summary>
+    /// Shared authorization boundary for debug-only services used by this console.
+    /// Player builds are authorized only after this active console verifies the
+    /// authenticated PlayFab account. The Editor remains available for development.
+    /// </summary>
+    public static bool HasAuthorizedDevAccess =>
+        Application.isEditor ||
+        (activeConsole != null &&
+         activeConsole.isActiveAndEnabled &&
+         activeConsole.CanExecuteCommands());
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStaticState()
+    {
+        activeConsole = null;
+    }
+
     private void Awake()
     {
+        activeConsole = this;
+
         if (runButton != null)
         {
             runButton.onClick.RemoveListener(RunCurrentCode);
@@ -58,11 +102,63 @@ public class DevSettingsConsole : MonoBehaviour
         if (panelRoot != null)
             panelRoot.SetActive(openPanelOnStart);
 
+        devCanvas = panelRoot != null ? panelRoot.GetComponentInParent<Canvas>(true) : null;
+        if (devCanvas != null)
+        {
+            // The console is a diagnostic overlay and must stay above gameplay HUDs.
+            devCanvas.overrideSorting = true;
+            devCanvas.sortingOrder = 32000;
+        }
+
+        if (IsAndroidPlayer() && createAndroidOpenButton)
+            CreateAndroidOpenButton();
+
+        ApplyAuthorizationState();
+
         SetConsoleMessage(defaultConsoleMessage, normalColor);
+    }
+
+    private void OnEnable()
+    {
+        EnsureAuthSubscription();
+        RefreshPlayerBuildAuthorization();
+    }
+
+    private void Start()
+    {
+        EnsureAuthSubscription();
+        RefreshPlayerBuildAuthorization();
+    }
+
+    private void OnDisable()
+    {
+        UnsubscribeFromAuthManager();
+    }
+
+    private void OnDestroy()
+    {
+        UnsubscribeFromAuthManager();
+
+        if (activeConsole == this)
+            activeConsole = null;
     }
 
     private void Update()
     {
+        if (!Application.isEditor)
+        {
+            EnsureAuthSubscription();
+
+            if (Time.unscaledTime >= nextAuthorizationRefreshTime)
+            {
+                nextAuthorizationRefreshTime = Time.unscaledTime + 2f;
+                RefreshPlayerBuildAuthorization();
+            }
+        }
+
+        if (androidOpenButtonRect != null && lastButtonSafeArea != Screen.safeArea)
+            ApplyAndroidButtonSafeArea();
+
         if (CanUsePcToggle() && WasTogglePressedThisFrame())
         {
             if (panelRoot != null && panelRoot.activeSelf)
@@ -80,6 +176,12 @@ public class DevSettingsConsole : MonoBehaviour
 
     public void OpenPanel()
     {
+        if (!CanExecuteCommands())
+        {
+            ClosePanel();
+            return;
+        }
+
         if (panelRoot != null)
             panelRoot.SetActive(true);
 
@@ -585,7 +687,7 @@ public class DevSettingsConsole : MonoBehaviour
         if (Application.isEditor)
             return allowToggleInEditor;
 
-        return IsDesktopPlayer();
+        return IsDesktopPlayer() && CanExecuteCommands();
     }
 
     private bool WasTogglePressedThisFrame()
@@ -597,9 +699,12 @@ public class DevSettingsConsole : MonoBehaviour
         return legacyPressed || inputSystemPressed;
     }
 
-    private static bool CanExecuteCommands()
+    private bool CanExecuteCommands()
     {
-        return Application.isEditor || IsDesktopPlayer();
+        if (Application.isEditor)
+            return true;
+
+        return (IsDesktopPlayer() || IsAndroidPlayer()) && playerBuildAccessVerified;
     }
 
     private static bool IsDesktopPlayer()
@@ -607,5 +712,232 @@ public class DevSettingsConsole : MonoBehaviour
         return Application.platform == RuntimePlatform.WindowsPlayer ||
                Application.platform == RuntimePlatform.OSXPlayer ||
                Application.platform == RuntimePlatform.LinuxPlayer;
+    }
+
+    private static bool IsAndroidPlayer()
+    {
+        return Application.platform == RuntimePlatform.Android;
+    }
+
+    private void EnsureAuthSubscription()
+    {
+        PlayFabAuthManager current = PlayFabAuthManager.Instance;
+        if (current == subscribedAuthManager)
+            return;
+
+        UnsubscribeFromAuthManager();
+        subscribedAuthManager = current;
+        if (subscribedAuthManager == null)
+            return;
+
+        subscribedAuthManager.OnLoginSuccess += HandleAuthChanged;
+        subscribedAuthManager.OnLoggedOut += HandleAuthChanged;
+    }
+
+    private void UnsubscribeFromAuthManager()
+    {
+        if (subscribedAuthManager == null)
+            return;
+
+        subscribedAuthManager.OnLoginSuccess -= HandleAuthChanged;
+        subscribedAuthManager.OnLoggedOut -= HandleAuthChanged;
+        subscribedAuthManager = null;
+    }
+
+    private void HandleAuthChanged()
+    {
+        ClearVerifiedPlayerAccess();
+        RefreshPlayerBuildAuthorization();
+    }
+
+    private void RefreshPlayerBuildAuthorization()
+    {
+        if (Application.isEditor)
+        {
+            ApplyAuthorizationState();
+            return;
+        }
+
+        PlayFabAuthManager auth = PlayFabAuthManager.Instance;
+        if (auth == null || !auth.IsLoggedIn || string.IsNullOrWhiteSpace(auth.PlayFabId))
+        {
+            ClearVerifiedPlayerAccess();
+            return;
+        }
+
+        if (playerBuildAccessVerified &&
+            string.Equals(verifiedPlayFabId, auth.PlayFabId, StringComparison.Ordinal))
+        {
+            ApplyAuthorizationState();
+            return;
+        }
+
+        if (verificationInFlight &&
+            string.Equals(pendingVerificationPlayFabId, auth.PlayFabId, StringComparison.Ordinal))
+            return;
+
+        string requestedPlayFabId = auth.PlayFabId;
+        verificationInFlight = true;
+        pendingVerificationPlayFabId = requestedPlayFabId;
+
+        // Never authorize from PlayFabAuthManager.DisplayName: that value is cached in
+        // PlayerPrefs for UI convenience and can be edited locally. This authenticated
+        // API response is the source of truth for the account's unique PlayFab username.
+        PlayFabClientAPI.GetAccountInfo(
+            new GetAccountInfoRequest(),
+            result => HandleAccountInfoVerified(requestedPlayFabId, result),
+            error => HandleAccountInfoVerificationFailed(requestedPlayFabId, error));
+    }
+
+    private void HandleAccountInfoVerified(string requestedPlayFabId, GetAccountInfoResult result)
+    {
+        if (!string.Equals(pendingVerificationPlayFabId, requestedPlayFabId, StringComparison.Ordinal))
+            return;
+
+        verificationInFlight = false;
+        pendingVerificationPlayFabId = null;
+
+        PlayFabAuthManager auth = PlayFabAuthManager.Instance;
+        bool currentSessionMatches = auth != null && auth.IsLoggedIn &&
+                                     string.Equals(auth.PlayFabId, requestedPlayFabId, StringComparison.Ordinal);
+        bool verified = currentSessionMatches && IsVerifiedAuthorizedAccount(
+            result != null ? result.AccountInfo : null,
+            requestedPlayFabId,
+            authorizedPlayFabUsername);
+
+        playerBuildAccessVerified = verified;
+        verifiedPlayFabId = verified ? requestedPlayFabId : null;
+        ApplyAuthorizationState();
+    }
+
+    private void HandleAccountInfoVerificationFailed(string requestedPlayFabId, PlayFabError error)
+    {
+        if (!string.Equals(pendingVerificationPlayFabId, requestedPlayFabId, StringComparison.Ordinal))
+            return;
+
+        verificationInFlight = false;
+        pendingVerificationPlayFabId = null;
+        playerBuildAccessVerified = false;
+        verifiedPlayFabId = null;
+        nextAuthorizationRefreshTime = Time.unscaledTime + 10f;
+        ApplyAuthorizationState();
+
+        Debug.LogWarning("DevSettingsConsole: PlayFab owner verification failed; dev access remains locked. " +
+                         (error != null ? error.ErrorMessage : "Unknown PlayFab error."));
+    }
+
+    private void ClearVerifiedPlayerAccess()
+    {
+        verificationInFlight = false;
+        pendingVerificationPlayFabId = null;
+        playerBuildAccessVerified = false;
+        verifiedPlayFabId = null;
+        ApplyAuthorizationState();
+    }
+
+    private void ApplyAuthorizationState()
+    {
+        bool canExecute = CanExecuteCommands();
+
+        if (androidOpenButton != null)
+            androidOpenButton.gameObject.SetActive(IsAndroidPlayer() && canExecute);
+
+        if (!canExecute && panelRoot != null && panelRoot.activeSelf)
+            panelRoot.SetActive(false);
+    }
+
+    public static bool IsVerifiedAuthorizedAccount(
+        UserAccountInfo accountInfo,
+        string authenticatedPlayFabId,
+        string authorizedUsername)
+    {
+        if (accountInfo == null || string.IsNullOrWhiteSpace(authenticatedPlayFabId) ||
+            string.IsNullOrWhiteSpace(authorizedUsername))
+            return false;
+
+        return string.Equals(accountInfo.PlayFabId, authenticatedPlayFabId, StringComparison.Ordinal) &&
+               string.Equals(accountInfo.Username, authorizedUsername.Trim(), StringComparison.Ordinal);
+    }
+
+    private void CreateAndroidOpenButton()
+    {
+        if (devCanvas == null || androidOpenButton != null)
+            return;
+
+        GameObject buttonObject = new GameObject(
+            "AuthorizedMobileDevButton",
+            typeof(RectTransform),
+            typeof(CanvasRenderer),
+            typeof(Image),
+            typeof(Button),
+            typeof(Shadow));
+        buttonObject.layer = 5;
+        buttonObject.transform.SetParent(devCanvas.transform, false);
+        buttonObject.transform.SetAsLastSibling();
+
+        androidOpenButtonRect = buttonObject.GetComponent<RectTransform>();
+        androidOpenButtonRect.pivot = new Vector2(0f, 1f);
+        androidOpenButtonRect.sizeDelta = new Vector2(
+            Mathf.Max(88f, androidButtonSize.x),
+            Mathf.Max(52f, androidButtonSize.y));
+
+        Image image = buttonObject.GetComponent<Image>();
+        image.color = new Color32(22, 106, 154, 245);
+
+        Shadow shadow = buttonObject.GetComponent<Shadow>();
+        shadow.effectColor = new Color(0f, 0f, 0f, 0.45f);
+        shadow.effectDistance = new Vector2(0f, -4f);
+
+        androidOpenButton = buttonObject.GetComponent<Button>();
+        androidOpenButton.navigation = new Navigation { mode = Navigation.Mode.None };
+        ColorBlock colors = androidOpenButton.colors;
+        colors.normalColor = Color.white;
+        colors.highlightedColor = new Color32(215, 244, 255, 255);
+        colors.pressedColor = new Color32(160, 220, 245, 255);
+        colors.selectedColor = colors.highlightedColor;
+        colors.disabledColor = new Color(1f, 1f, 1f, 0.35f);
+        androidOpenButton.colors = colors;
+        androidOpenButton.onClick.AddListener(OpenPanel);
+
+        GameObject labelObject = new GameObject(
+            "Label",
+            typeof(RectTransform),
+            typeof(CanvasRenderer),
+            typeof(TextMeshProUGUI));
+        labelObject.layer = 5;
+        labelObject.transform.SetParent(buttonObject.transform, false);
+
+        RectTransform labelRect = labelObject.GetComponent<RectTransform>();
+        labelRect.anchorMin = Vector2.zero;
+        labelRect.anchorMax = Vector2.one;
+        labelRect.offsetMin = new Vector2(8f, 4f);
+        labelRect.offsetMax = new Vector2(-8f, -4f);
+
+        TextMeshProUGUI label = labelObject.GetComponent<TextMeshProUGUI>();
+        label.text = string.IsNullOrWhiteSpace(androidButtonLabel) ? "DEV" : androidButtonLabel.Trim();
+        label.alignment = TextAlignmentOptions.Center;
+        label.fontSize = 20f;
+        label.fontStyle = FontStyles.Bold;
+        label.color = Color.white;
+        label.raycastTarget = false;
+        label.enableAutoSizing = true;
+        label.fontSizeMin = 14f;
+        label.fontSizeMax = 22f;
+        if (consoleText != null && consoleText.font != null)
+            label.font = consoleText.font;
+
+        ApplyAndroidButtonSafeArea();
+    }
+
+    private void ApplyAndroidButtonSafeArea()
+    {
+        if (androidOpenButtonRect == null || Screen.width <= 0 || Screen.height <= 0)
+            return;
+
+        Rect safe = Screen.safeArea;
+        androidOpenButtonRect.anchorMin = new Vector2(safe.xMin / Screen.width, safe.yMax / Screen.height);
+        androidOpenButtonRect.anchorMax = androidOpenButtonRect.anchorMin;
+        androidOpenButtonRect.anchoredPosition = androidButtonOffsetFromSafeTopLeft;
+        lastButtonSafeArea = safe;
     }
 }

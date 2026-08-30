@@ -5,6 +5,8 @@ using UnityEngine.UI;
 
 public class CashierRegisterUI : MonoBehaviour
 {
+    public const float MobilePanelScale = 1.15f;
+
     public static CashierRegisterUI Instance { get; private set; }
 
     public static event System.Action OnHidden;
@@ -71,10 +73,10 @@ public class CashierRegisterUI : MonoBehaviour
     // The Lobby1 Food/Drink rows are 230 px wide. Keep a dedicated price
     // column and a visible gap so a full four-person order cannot collide
     // with, or render outside, its row.
-    private const float CompactItemsWidth = 136f;
-    private const float CompactItemsHeight = 36f;
-    private const float CompactMaxCellWidth = 48f;
-    private const float CompactPriceWidth = 82f;
+    private static float CompactItemsWidth => Application.isMobilePlatform ? 146f : 136f;
+    private static float CompactItemsHeight => Application.isMobilePlatform ? 46f : 36f;
+    private static float CompactMaxCellWidth => Application.isMobilePlatform ? 52f : 48f;
+    private static float CompactPriceWidth => Application.isMobilePlatform ? 76f : 82f;
 
     private sealed class CompactOrderLine
     {
@@ -110,6 +112,7 @@ public class CashierRegisterUI : MonoBehaviour
 
         Instance = this;
 
+        ApplyMobilePresentation();
         ResolveRoot();
         BindButtons();
         ResetDisplay();
@@ -429,6 +432,22 @@ public class CashierRegisterUI : MonoBehaviour
         CloseRegister();
     }
 
+    private void ApplyMobilePresentation()
+    {
+        if (!Application.isMobilePlatform)
+            return;
+
+        // The register already has a balanced two-column layout, so enlarging the
+        // complete panel preserves that composition while using the spare phone
+        // margins. It remains below the 576 px vertical budget on a Realme 8 5G.
+        Transform panel = transform.Find("Panel");
+        if (panel is RectTransform panelRect)
+        {
+            panelRect.localScale = new Vector3(MobilePanelScale, MobilePanelScale, 1f);
+            panelRect.anchoredPosition = Vector2.zero;
+        }
+    }
+
     /// <summary>
     /// Completes a valid restaurant payment without opening the player-facing change UI.
     /// This is used only by the autonomous Lobby service while no player role exists.
@@ -677,7 +696,8 @@ public class CashierRegisterUI : MonoBehaviour
             cell.sizeDelta = new Vector2(cellWidth, CompactItemsHeight);
 
             float pictureWidth = Mathf.Max(4f, cellWidth - 12f);
-            float iconSize = Mathf.Min(24f, pictureWidth / line.products.Count);
+            float maximumIconSize = Application.isMobilePlatform ? 32f : 24f;
+            float iconSize = Mathf.Min(maximumIconSize, pictureWidth / line.products.Count);
             float iconsWidth = iconSize * line.products.Count;
             float startX = Mathf.Max(0f, (pictureWidth - iconsWidth) * 0.5f);
 
@@ -717,10 +737,10 @@ public class CashierRegisterUI : MonoBehaviour
 
             TextMeshProUGUI quantityText = quantityObject.GetComponent<TextMeshProUGUI>();
             quantityText.text = $"x{Mathf.Max(1, line.quantity)}";
-            quantityText.fontSize = 11f;
+            quantityText.fontSize = Application.isMobilePlatform ? 14f : 11f;
             quantityText.enableAutoSizing = true;
             quantityText.fontSizeMin = 7f;
-            quantityText.fontSizeMax = 11f;
+            quantityText.fontSizeMax = Application.isMobilePlatform ? 14f : 11f;
             quantityText.fontStyle = FontStyles.Bold;
             quantityText.alignment = TextAlignmentOptions.BottomRight;
             quantityText.color = Color.white;

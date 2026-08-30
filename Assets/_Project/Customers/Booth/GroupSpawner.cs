@@ -43,6 +43,8 @@ public class GroupSpawner : MonoBehaviour
     [SerializeField] private float spawnInterval = 8f;
     [SerializeField] private int minGroupSize = 1;
     [SerializeField] private int maxGroupSize = 4;
+    [Tooltip("Maximum members per customer group on mobile. This reduces animated agents and NavMesh work without changing desktop balance.")]
+    [SerializeField, Min(1)] private int mobileMaxGroupSize = 3;
 
     [Header("Customer Type Spawn Weights")]
     [SerializeField] private float weightGreen = 0.7f;
@@ -240,7 +242,12 @@ public class GroupSpawner : MonoBehaviour
         if (takeoutEnabled && takeoutQueueManager == null)
             Debug.LogWarning("[GroupSpawner] Takeout is enabled but TakeoutQueueManager is missing. Falling back to dine-in.");
 
-        int size = Random.Range(minGroupSize, maxGroupSize + 1);
+        int effectiveMaxGroupSize = Mathf.Max(1, maxGroupSize);
+        if (Application.isMobilePlatform)
+            effectiveMaxGroupSize = Mathf.Min(effectiveMaxGroupSize, Mathf.Max(1, mobileMaxGroupSize));
+
+        int effectiveMinGroupSize = Mathf.Clamp(minGroupSize, 1, effectiveMaxGroupSize);
+        int size = Random.Range(effectiveMinGroupSize, effectiveMaxGroupSize + 1);
 
         Debug.Log(
             $"[GroupSpawner] Routing {type} group of {size}: " +

@@ -72,13 +72,17 @@ public static class ManagementComputerSmokeTest
             Application.logMessageReceived -= CaptureLog;
 
             string result = SessionState.GetString(ResultKey, "Smoke test did not finish.");
-            if (result == "PASS")
+            bool passed = result == "PASS";
+            if (passed)
                 Debug.Log("[ManagementComputerSmokeTest] PASS — responsive management UI, prefab-backed Menu/Restock catalogs, reviewed delivery checkout, HR departments, all apps, and shift flow passed.");
             else
                 Debug.LogError("[ManagementComputerSmokeTest] FAIL\n" + result);
 
             SessionState.EraseBool(RunningKey);
             SessionState.EraseString(ResultKey);
+
+            if (Application.isBatchMode)
+                EditorApplication.Exit(passed ? 0 : 1);
         }
     }
 
@@ -190,13 +194,11 @@ public static class ManagementComputerSmokeTest
             bool isCatalog =
                 i == (int)ManagementComputerApp.Menu ||
                 i == (int)ManagementComputerApp.Restock;
-            bool expectsPortraitCards = i == (int)ManagementComputerApp.Equipment;
+            bool isEquipment = i == (int)ManagementComputerApp.Equipment;
             Assert(scroll != null, "App window has no ScrollRect for index " + i);
             Assert(isCatalog
                     ? !scroll.horizontal && !scroll.vertical
-                    : expectsPortraitCards
-                        ? scroll.horizontal && !scroll.vertical
-                        : scroll.vertical && !scroll.horizontal,
+                    : scroll.vertical && !scroll.horizontal,
                 "App window has the wrong scroll direction for index " + i);
             Assert(scroll.viewport != null && scroll.content != null && scroll.verticalScrollbar != null,
                 "App window scroll view references are incomplete");
@@ -230,14 +232,23 @@ public static class ManagementComputerSmokeTest
                 Assert(Array.Exists(nestedScrolls, nested => nested.vertical && !nested.horizontal),
                     "Menu/Restock catalog has no vertical content scroll");
             }
-            else if (expectsPortraitCards)
+            else if (isEquipment)
             {
-                Assert(firstRow.rect.height > firstRow.rect.width,
-                    "App index " + i + " did not use portrait cards");
-                Button cardAction = firstRow.GetComponentInChildren<Button>(false);
-                Assert(cardAction != null &&
-                       ((RectTransform)cardAction.transform).rect.height >= 44f,
-                    "App index " + i + " has a card action smaller than the mobile target");
+                // Equipment is a vertically scrolling page of responsive sections;
+                // each section owns the portrait cards. Checking the outer row as a
+                // card incorrectly required the old horizontal strip layout.
+                ManagementEquipmentCardUI card = controller.AppWindow.Content
+                    .GetComponentInChildren<ManagementEquipmentCardUI>(false);
+                RectTransform cardRect = card != null ? card.transform as RectTransform : null;
+                Assert(cardRect != null && cardRect.rect.width >= 280f && cardRect.rect.height >= 300f,
+                    "Equipment app cards fell below the readable section-card size");
+                Button cardAction = card.GetComponentInChildren<Button>(true);
+                RectTransform actionRect = cardAction != null
+                    ? cardAction.transform as RectTransform
+                    : null;
+                Assert(actionRect != null && actionRect.rect.height >= 44f,
+                    "Equipment app has a card action smaller than the mobile target" +
+                    (actionRect != null ? $" ({actionRect.rect.height:0.0})" : string.Empty));
             }
 
             if (i == (int)ManagementComputerApp.Staff)
@@ -613,6 +624,7 @@ public static class ManagementComputerSmokeTest
 
         Assert(selectedCard != null, "Restock app has no usable quantity action");
         ItemData item = selectedCard.BoundItem;
+        int expectedContainerCost = CasualDiningPolishManager.GetCurrentBoxCostOrBase(item);
         int moneyBefore = MoneyManager.Instance.Money;
         int stockBefore = InventoryManager.Instance.GetStock(item.itemType);
         int orderCountBefore = orders.Orders.Count;
@@ -633,7 +645,7 @@ public static class ManagementComputerSmokeTest
         primary.onClick.Invoke();
         Assert(orders.Orders.Count == orderCountBefore + 1,
             "ORDER NOW did not create exactly one delivery order");
-        Assert(MoneyManager.Instance.Money == moneyBefore - item.boxCost,
+        Assert(MoneyManager.Instance.Money == moneyBefore - expectedContainerCost,
             "ORDER NOW did not spend the exact container cost once");
         Assert(InventoryManager.Instance.GetStock(item.itemType) == stockBefore,
             "Ordered stock became usable before truck delivery and storage");

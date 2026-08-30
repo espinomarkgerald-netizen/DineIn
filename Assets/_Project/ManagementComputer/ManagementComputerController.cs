@@ -1130,10 +1130,10 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
             snapshot,
             GetAppIcon(ManagementComputerApp.Dashboard),
             "TODAY'S NEWS",
-            newsReady ? "TODAY'S ISSUE READ" : "CLOSE COMPUTER AND READ TODAY'S NEWS",
+            newsReady ? "TODAY'S ISSUE READ" : "READ TODAY'S NEWS BEFORE OPENING",
             newsReady ? ReadinessVisualState.Ready : ReadinessVisualState.Blocked,
-            string.Empty,
-            null);
+            newsReady ? string.Empty : "READ",
+            newsReady ? null : polish.OpenCurrentIssue);
 
         int menuCount = 0;
         Dictionary<ItemData, int> requiredIngredients = new Dictionary<ItemData, int>();

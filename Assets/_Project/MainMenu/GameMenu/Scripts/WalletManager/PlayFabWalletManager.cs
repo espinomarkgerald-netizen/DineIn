@@ -288,7 +288,7 @@ public class PlayFabWalletManager : MonoBehaviour
     {
         if (!CanUseDebugCurrencyCommands())
         {
-            onFailure?.Invoke("Gold Coin debug commands require the Editor or a Development Build.");
+            onFailure?.Invoke("Gold Coin debug commands require an authorized dev session.");
             return;
         }
 
@@ -308,7 +308,7 @@ public class PlayFabWalletManager : MonoBehaviour
     {
         if (!CanUseDebugCurrencyCommands())
         {
-            onFailure?.Invoke("Gold Coin debug commands require the Editor or a Development Build.");
+            onFailure?.Invoke("Gold Coin debug commands require an authorized dev session.");
             return;
         }
 
@@ -402,7 +402,7 @@ public class PlayFabWalletManager : MonoBehaviour
 
     private static bool CanUseDebugCurrencyCommands()
     {
-        return Application.isEditor || Debug.isDebugBuild;
+        return DevSettingsConsole.HasAuthorizedDevAccess;
     }
 
     /// <summary>
