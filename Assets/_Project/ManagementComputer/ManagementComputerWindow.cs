@@ -15,6 +15,22 @@ public sealed class ManagementComputerWindow : MonoBehaviour
     [SerializeField] private Button footerButton;
     [SerializeField] private TMP_Text footerLabel;
 
+    [Header("Mobile Window Style (Editable)")]
+    [SerializeField, Min(8f)] private float mobileTitleMinimum = 32f;
+    [SerializeField, Min(8f)] private float mobileTitleMaximum = 42f;
+    [SerializeField, Min(8f)] private float mobileMessageMinimum = 21f;
+    [SerializeField, Min(8f)] private float mobileMessageMaximum = 29f;
+    [SerializeField, Min(8f)] private float mobileBodyMinimum = 19f;
+    [SerializeField, Min(8f)] private float mobileBodyMaximum = 27f;
+    [SerializeField, Min(8f)] private float mobileButtonMinimum = 20f;
+    [SerializeField, Min(8f)] private float mobileButtonMaximum = 29f;
+    [SerializeField] private Vector2 mobileCloseButtonSize = new Vector2(96f, 86f);
+    [SerializeField] private Vector2 mobileFooterButtonSize = new Vector2(300f, 86f);
+    [SerializeField, Min(0f)] private float mobileContentPadding = 14f;
+    [SerializeField, Min(0f)] private float mobileContentSpacing = 14f;
+    [SerializeField, Min(1)] private int mobileCardRows = 2;
+    [SerializeField] private Vector2 mobileCardSizeRange = new Vector2(236f, 282f);
+
     private VerticalLayoutGroup verticalLayout;
     private LayoutElement contentHeightOverride;
     private ContentSizeFitter contentSizeFitter;
@@ -61,6 +77,7 @@ public sealed class ManagementComputerWindow : MonoBehaviour
     public void Open(string windowTitle)
     {
         gameObject.SetActive(true);
+        GetComponent<UIRevealAnimation>()?.Play();
         if (titleText != null) titleText.text = windowTitle;
         ApplyMobileChromeAndTypography();
         SetMessage(string.Empty);
@@ -127,8 +144,10 @@ public sealed class ManagementComputerWindow : MonoBehaviour
         if (verticalLayout != null)
         {
             verticalLayout.enabled = !useCardLayout && !useEmbeddedPanelLayout;
-            verticalLayout.padding = new RectOffset(12, 12, 12, 12);
-            verticalLayout.spacing = 12f;
+            int listPadding = Mathf.RoundToInt(UsesMobileLayout ? mobileContentPadding : 12f);
+            verticalLayout.padding = new RectOffset(
+                listPadding, listPadding, listPadding, listPadding);
+            verticalLayout.spacing = UsesMobileLayout ? mobileContentSpacing : 12f;
         }
 
         if (useEmbeddedPanelLayout)
@@ -187,9 +206,9 @@ public sealed class ManagementComputerWindow : MonoBehaviour
         if (contentSizeFitter != null)
             contentSizeFitter.enabled = false;
 
-        const int rows = 2;
-        const float gap = 12f;
-        const float padding = 12f;
+        int rows = UsesMobileLayout ? Mathf.Max(1, mobileCardRows) : 2;
+        float gap = UsesMobileLayout ? mobileContentSpacing : 12f;
+        float padding = UsesMobileLayout ? mobileContentPadding : 12f;
         Rect viewportRect = scrollRect != null && scrollRect.viewport != null
             ? scrollRect.viewport.rect
             : content.parent is RectTransform parentRect
@@ -197,11 +216,14 @@ public sealed class ManagementComputerWindow : MonoBehaviour
                 : content.rect;
         float viewportWidth = Mathf.Max(320f, viewportRect.width);
         float viewportHeight = Mathf.Max(360f, viewportRect.height);
-        float cardHeight = Application.isMobilePlatform
-            ? Mathf.Clamp((viewportHeight - padding * 2f - gap) / rows, 228f, 270f)
+        float mobileCardMin = Mathf.Min(mobileCardSizeRange.x, mobileCardSizeRange.y);
+        float mobileCardMax = Mathf.Max(mobileCardSizeRange.x, mobileCardSizeRange.y);
+        float cardHeight = UsesMobileLayout
+            ? Mathf.Clamp((viewportHeight - padding * 2f - gap * (rows - 1)) / rows,
+                mobileCardMin, mobileCardMax)
             : Mathf.Clamp((viewportHeight - padding * 2f - gap) / rows, 190f, 236f);
-        float cardWidth = Application.isMobilePlatform
-            ? Mathf.Clamp(cardHeight * 0.82f, 190f, 222f)
+        float cardWidth = UsesMobileLayout
+            ? Mathf.Clamp(cardHeight * 0.84f, mobileCardMin * 0.84f, mobileCardMax * 0.84f)
             : Mathf.Clamp(cardHeight * 0.8f, 176f, 194f);
 
         int visibleIndex = 0;
@@ -240,17 +262,17 @@ public sealed class ManagementComputerWindow : MonoBehaviour
 
     private void ApplyMobileChromeAndTypography()
     {
-        if (!Application.isMobilePlatform)
+        if (!UsesMobileLayout)
             return;
 
-        ConfigureText(titleText, 30f, 40f);
-        ConfigureText(messageText, 20f, 27f);
-        ConfigureText(footerLabel, 21f, 28f);
+        ConfigureText(titleText, mobileTitleMinimum, mobileTitleMaximum);
+        ConfigureText(messageText, mobileMessageMinimum, mobileMessageMaximum);
+        ConfigureText(footerLabel, mobileButtonMinimum + 1f, mobileButtonMaximum + 1f);
 
         if (closeButton != null && closeButton.transform is RectTransform closeRect)
-            closeRect.sizeDelta = new Vector2(92f, 82f);
+            closeRect.sizeDelta = mobileCloseButtonSize;
         if (footerButton != null && footerButton.transform is RectTransform footerRect)
-            footerRect.sizeDelta = new Vector2(280f, 82f);
+            footerRect.sizeDelta = mobileFooterButtonSize;
 
         // App panels are populated after the window opens. Re-running this from the
         // layout refresh gives every generated row/card readable type without
@@ -263,7 +285,22 @@ public sealed class ManagementComputerWindow : MonoBehaviour
                 continue;
 
             bool buttonLabel = text.GetComponentInParent<Button>() != null;
-            ConfigureText(text, buttonLabel ? 19f : 18f, buttonLabel ? 28f : 27f);
+            ConfigureText(
+                text,
+                buttonLabel ? mobileButtonMinimum : mobileBodyMinimum,
+                buttonLabel ? mobileButtonMaximum : mobileBodyMaximum);
+        }
+    }
+
+    private bool UsesMobileLayout
+    {
+        get
+        {
+            ManagementComputerResponsiveLayout responsive =
+                GetComponentInParent<ManagementComputerResponsiveLayout>(true);
+            return responsive != null
+                ? responsive.UsesMobileLayout
+                : Application.isMobilePlatform;
         }
     }
 

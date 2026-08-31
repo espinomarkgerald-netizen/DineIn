@@ -15,6 +15,8 @@ internal static class CasualDiningProgressHUDAuthoring
     private const string PrefabPath = "Assets/_Project/Resources/UI/CasualDiningProgressHUD.prefab";
     private const string DayTimeFontPath =
         "Assets/_Project/UI/Assets/Legacy/Fonts/Fredoka,Lilita_One/Fredoka/Fredoka-VariableFont_wdth,wght SDF.asset";
+    private const string MoneyIconPath =
+        "Assets/_Project/Art/Icons/GameIcons/HUD/MoneyIcon.png";
 
     static CasualDiningProgressHUDAuthoring()
     {
@@ -51,6 +53,18 @@ internal static class CasualDiningProgressHUDAuthoring
             if (hud == null)
                 return;
 
+            TMP_FontAsset dayTimeFont = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(DayTimeFontPath);
+            Sprite moneyIcon = AssetDatabase.LoadAssetAtPath<Sprite>(MoneyIconPath);
+            if (hud.EnsureLobbyHudRedesignForEditor(dayTimeFont, moneyIcon))
+            {
+                EditorUtility.SetDirty(hud);
+                EditorUtility.SetDirty(contents);
+                PrefabUtility.SaveAsPrefabAsset(contents, PrefabPath);
+                AssetDatabase.SaveAssets();
+                Debug.Log("[CasualDiningProgressHUD] Applied the mobile-first Lobby HUD arrangement.");
+                return;
+            }
+
             Transform objectives = contents.transform.Find("SafeAreaContent/ObjectivesResponsiveRoot/ObjectivesPanel") ??
                                    contents.transform.Find("SafeAreaContent/ObjectivesPanel") ??
                                    contents.transform.Find("ObjectivesPanel");
@@ -62,7 +76,6 @@ internal static class CasualDiningProgressHUDAuthoring
             }
             else
             {
-                TMP_FontAsset dayTimeFont = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(DayTimeFontPath);
                 changed = hud.EnsureAuthoredResponsiveHierarchyForEditor(dayTimeFont);
             }
 

@@ -60,9 +60,25 @@ public sealed class ManagerComplaintSettings : ScriptableObject
 {
     public const string ResourcePath = "ManagerComplaints/ManagerComplaintSettings";
 
-    [Header("Occurrence")]
+    [Header("Daily Occurrence Weights")]
+    [Tooltip("25% by default: a quiet day with no Manager complaint encounters.")]
+    [Min(0f)] public float zeroComplaintsWeight = 25f;
+    [Tooltip("50% by default: exactly one available complaint encounter.")]
+    [Min(0f)] public float oneComplaintWeight = 50f;
+    [Tooltip("20% by default: up to two available complaint encounters.")]
+    [Min(0f)] public float twoComplaintsWeight = 20f;
+    [Tooltip("5% by default: a rare difficult day with up to three encounters.")]
+    [Min(0f)] public float threeComplaintsWeight = 5f;
+    [Min(0f)] public float firstComplaintDelaySeconds = 90f;
+    [Min(0f)] public float minimumSecondsBetweenComplaints = 120f;
+    [Min(0f)] public float stopNewComplaintsBeforeCloseSeconds = 60f;
+
+    [Header("Legacy Occurrence (save compatibility; no longer used)")]
+    [HideInInspector]
     [Range(0, 2)] public int maximumEncountersPerWeek = 2;
+    [HideInInspector]
     [Range(0f, 1f)] public float eligibleIncidentChance = 0.45f;
+    [HideInInspector]
     [Min(0)] public int minimumCompletedDaysBetweenEncounters = 1;
     [Min(5f)] public float unansweredTimeoutSeconds = 30f;
 
@@ -84,5 +100,30 @@ public sealed class ManagerComplaintSettings : ScriptableObject
     public ManagerComplaintDefinition GetDefinition(ManagerComplaintType type)
     {
         return type == ManagerComplaintType.BurntFood ? burntFood : wrongOrder;
+    }
+
+    /// <summary>
+    /// Converts a normalized daily roll into the allowed number of authentic
+    /// complaint encounters. Keeping this in the editable settings asset makes
+    /// the balance deterministic and regression-testable.
+    /// </summary>
+    public int RollDailyComplaintAllowance(float normalizedRoll)
+    {
+        float zero = Mathf.Max(0f, zeroComplaintsWeight);
+        float one = Mathf.Max(0f, oneComplaintWeight);
+        float two = Mathf.Max(0f, twoComplaintsWeight);
+        float three = Mathf.Max(0f, threeComplaintsWeight);
+        float total = zero + one + two + three;
+        if (total <= 0f)
+            return 0;
+
+        float roll = Mathf.Clamp01(normalizedRoll) * total;
+        if (roll < zero)
+            return 0;
+        if (roll < zero + one)
+            return 1;
+        if (roll < zero + one + two)
+            return 2;
+        return 3;
     }
 }

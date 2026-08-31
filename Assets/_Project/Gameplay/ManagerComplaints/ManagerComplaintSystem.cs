@@ -5,9 +5,9 @@ using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 /// <summary>
-/// Owns the intentionally small Manager complaint loop: at most two authentic
-/// encounters per seven-day week, prefab-authored presentation, coached answers,
-/// and a debug path that does not consume the real weekly allowance.
+/// Owns the Manager complaint loop. Each day rolls a saved 0/1/2/3 encounter
+/// allowance, while real incidents, safe timing, coached answers and the debug
+/// path remain authoritative.
 /// </summary>
 public sealed class ManagerComplaintSystem : MonoBehaviour
 {
@@ -52,6 +52,10 @@ public sealed class ManagerComplaintSystem : MonoBehaviour
     private int savedWeekIndex = -1;
     private int encountersThisWeek;
     private int lastEncounterDay;
+    private int complaintScheduleDay;
+    private int dailyComplaintAllowance;
+    private int complaintsToday;
+    private float lastComplaintShiftElapsedSeconds = -10000f;
     private MainCameraController focusedCamera;
     private Vector3 savedCameraTarget;
     private float savedCameraZoom;
@@ -222,6 +226,10 @@ public sealed class ManagerComplaintSystem : MonoBehaviour
         data.managerComplaintWeekIndex = savedWeekIndex;
         data.managerComplaintsThisWeek = encountersThisWeek;
         data.managerComplaintLastDay = lastEncounterDay;
+        data.managerComplaintScheduleDay = complaintScheduleDay;
+        data.managerComplaintDailyAllowance = dailyComplaintAllowance;
+        data.managerComplaintsToday = complaintsToday;
+        data.managerComplaintLastShiftElapsedSeconds = lastComplaintShiftElapsedSeconds;
     }
 
     public void ApplySaveData(GameSaveData data)
@@ -233,6 +241,10 @@ public sealed class ManagerComplaintSystem : MonoBehaviour
         savedWeekIndex = data.managerComplaintWeekIndex;
         encountersThisWeek = Mathf.Max(0, data.managerComplaintsThisWeek);
         lastEncounterDay = Mathf.Max(0, data.managerComplaintLastDay);
+        complaintScheduleDay = Mathf.Max(0, data.managerComplaintScheduleDay);
+        dailyComplaintAllowance = Mathf.Clamp(data.managerComplaintDailyAllowance, 0, 3);
+        complaintsToday = Mathf.Clamp(data.managerComplaintsToday, 0, 3);
+        lastComplaintShiftElapsedSeconds = data.managerComplaintLastShiftElapsedSeconds;
         NormalizeWeek(Mathf.Max(1, data.currentDay));
     }
 
@@ -242,6 +254,10 @@ public sealed class ManagerComplaintSystem : MonoBehaviour
         savedWeekIndex = -1;
         encountersThisWeek = 0;
         lastEncounterDay = 0;
+        complaintScheduleDay = 0;
+        dailyComplaintAllowance = 0;
+        complaintsToday = 0;
+        lastComplaintShiftElapsedSeconds = -10000f;
     }
 
     private bool CanUseAuthenticEncounter(int day)
@@ -249,15 +265,24 @@ public sealed class ManagerComplaintSystem : MonoBehaviour
         if (GameDayManager.Instance == null || !GameDayManager.Instance.ServiceActive)
             return false;
 
-        NormalizeWeek(day);
-        if (encountersThisWeek >= Mathf.Clamp(settings.maximumEncountersPerWeek, 0, 2))
+        EnsureDailySchedule(day);
+        if (complaintsToday >= dailyComplaintAllowance)
             return false;
 
-        int requiredGap = Mathf.Max(0, settings.minimumCompletedDaysBetweenEncounters);
-        if (lastEncounterDay > 0 && day - lastEncounterDay <= requiredGap)
+        float elapsed = Mathf.Max(0f,
+            GameDayManager.Instance.ShiftLengthSeconds - GameDayManager.Instance.TimeRemaining);
+        if (elapsed < Mathf.Max(0f, settings.firstComplaintDelaySeconds))
             return false;
 
-        return Random.value <= Mathf.Clamp01(settings.eligibleIncidentChance);
+        if (GameDayManager.Instance.TimeRemaining <=
+            Mathf.Max(0f, settings.stopNewComplaintsBeforeCloseSeconds))
+            return false;
+
+        if (elapsed - lastComplaintShiftElapsedSeconds <
+            Mathf.Max(0f, settings.minimumSecondsBetweenComplaints))
+            return false;
+
+        return true;
     }
 
     private void RecordAuthenticEncounter(int day)
@@ -265,6 +290,27 @@ public sealed class ManagerComplaintSystem : MonoBehaviour
         NormalizeWeek(day);
         encountersThisWeek++;
         lastEncounterDay = day;
+        complaintsToday++;
+        if (GameDayManager.Instance != null)
+        {
+            lastComplaintShiftElapsedSeconds = Mathf.Max(0f,
+                GameDayManager.Instance.ShiftLengthSeconds - GameDayManager.Instance.TimeRemaining);
+        }
+    }
+
+    private void EnsureDailySchedule(int day)
+    {
+        day = Mathf.Max(1, day);
+        if (complaintScheduleDay == day)
+            return;
+
+        complaintScheduleDay = day;
+        complaintsToday = 0;
+        lastComplaintShiftElapsedSeconds = -10000f;
+
+        dailyComplaintAllowance = settings.RollDailyComplaintAllowance(Random.value);
+
+        GameSaveManager.Instance?.RequestSave();
     }
 
     private void NormalizeWeek(int day)
@@ -312,7 +358,12 @@ public sealed class ManagerComplaintSystem : MonoBehaviour
         if (dialogueRoot != null)
             dialogueRoot.SetActive(true);
         if (dialoguePanel != null)
-            StartCoroutine(PopPanel(dialoguePanel));
+        {
+            if (LevelOneUIAccessibility.ReducedMotion)
+                dialoguePanel.localScale = Vector3.one;
+            else
+                StartCoroutine(PopPanel(dialoguePanel));
+        }
 
         FocusCameraOnGroup();
     }
@@ -530,11 +581,13 @@ public sealed class ManagerComplaintSystem : MonoBehaviour
             null,
             out Vector2 localPoint);
         offscreenMarker.anchoredPosition = localPoint;
-        offscreenMarker.localScale = Vector3.one * Mathf.Lerp(
-            1f,
-            settings != null ? settings.markerPulseScale : 1.12f,
-            (Mathf.Sin(Time.unscaledTime *
-                (settings != null ? settings.markerPulseSpeed : 3.6f)) + 1f) * 0.5f);
+        offscreenMarker.localScale = LevelOneUIAccessibility.ReducedMotion
+            ? Vector3.one
+            : Vector3.one * Mathf.Lerp(
+                1f,
+                settings != null ? settings.markerPulseScale : 1.12f,
+                (Mathf.Sin(Time.unscaledTime *
+                    (settings != null ? settings.markerPulseSpeed : 3.6f)) + 1f) * 0.5f);
         if (!offscreenMarker.gameObject.activeSelf)
             offscreenMarker.gameObject.SetActive(true);
     }

@@ -16,10 +16,19 @@ public sealed class RestockStorageContainer : MonoBehaviour
     [Header("Editable Box Label")]
     [SerializeField] private TMP_Text[] itemNameTexts;
     [SerializeField] private Image[] itemIcons;
+    [Tooltip("Optional dedicated quantity labels. If left empty, the quantity is appended to the item-name labels.")]
+    [SerializeField] private TMP_Text[] quantityTexts;
+    [SerializeField] private string quantityPrefix = "x";
+    [SerializeField] private bool appendQuantityToItemName = true;
+    [SerializeField] private bool removeContainerWhenEmpty = true;
     [SerializeField, HideInInspector] private bool labelReferencesConfigured;
     [Header("Expiry Presentation")]
     [SerializeField] private string expiredLabel = "EXPIRED";
     [SerializeField] private Color expiredLabelColor = new Color(0.94f, 0.16f, 0.16f, 1f);
+    private InventoryManager subscribedInventory;
+    private bool emptyRemovalRequested;
+    private bool stockBatchObserved;
+
     public ItemData Item => item;
     public string ContainerID
     {
@@ -34,12 +43,35 @@ public sealed class RestockStorageContainer : MonoBehaviour
     public RestockStorageType CurrentStorage => currentStorage;
     public bool WrongStorage => wrongStorage;
     public bool HasConfiguredLabels => labelReferencesConfigured;
+    public int CurrentRemainingQuantity => ResolveRemainingQuantity(out _);
+
+    private void OnEnable()
+    {
+        SubscribeToInventory();
+    }
+
+    private void Start()
+    {
+        SubscribeToInventory();
+        if (item != null)
+            RefreshExpiryState();
+    }
+
+    private void OnDisable()
+    {
+        UnsubscribeFromInventory();
+    }
 
     public void ConfigureLabels(TMP_Text[] configuredNameTexts, Image[] configuredIcons)
     {
         itemNameTexts = configuredNameTexts;
         itemIcons = configuredIcons;
         labelReferencesConfigured = true;
+    }
+
+    public void ConfigureQuantityLabels(TMP_Text[] configuredQuantityTexts)
+    {
+        quantityTexts = configuredQuantityTexts;
     }
 
     public void Bind(ItemData configuredItem)
@@ -73,10 +105,15 @@ public sealed class RestockStorageContainer : MonoBehaviour
         containerID = string.IsNullOrWhiteSpace(configuredContainerID)
             ? System.Guid.NewGuid().ToString("N")
             : configuredContainerID.Trim();
-        stockBatchID = configuredBatchID ?? string.Empty;
+        string nextBatchID = configuredBatchID ?? string.Empty;
+        if (!string.Equals(stockBatchID, nextBatchID, System.StringComparison.Ordinal))
+            stockBatchObserved = false;
+        stockBatchID = nextBatchID;
         expiresDay = Mathf.Max(0, configuredExpiresDay);
         currentStorage = configuredStorage;
         wrongStorage = configuredWrongStorage;
+        emptyRemovalRequested = false;
+        SubscribeToInventory();
         if (item == null)
             return;
 
@@ -203,11 +240,30 @@ public sealed class RestockStorageContainer : MonoBehaviour
         }
 
         ResolveLabelReferences();
+        int remainingQuantity = ResolveRemainingQuantity(out bool hasAuthoritativeBatch);
+        string quantityLabel = (quantityPrefix ?? string.Empty) + Mathf.Max(0, remainingQuantity);
+        bool hasDedicatedQuantityLabels = HasQuantityLabels();
         for (int i = 0; i < itemNameTexts.Length; i++)
         {
             if (itemNameTexts[i] != null)
-                itemNameTexts[i].text = label;
+            {
+                itemNameTexts[i].text = !hasDedicatedQuantityLabels && appendQuantityToItemName
+                    ? label + "\n" + quantityLabel
+                    : label;
+            }
         }
+
+        if (quantityTexts != null)
+        {
+            for (int i = 0; i < quantityTexts.Length; i++)
+            {
+                if (quantityTexts[i] != null)
+                    quantityTexts[i].text = quantityLabel;
+            }
+        }
+
+        if (removeContainerWhenEmpty && hasAuthoritativeBatch && remainingQuantity <= 0)
+            RequestEmptyContainerRemoval();
     }
 
     public int DiscardTrackedStock()
@@ -225,6 +281,104 @@ public sealed class RestockStorageContainer : MonoBehaviour
     {
         if (string.IsNullOrWhiteSpace(containerID))
             containerID = System.Guid.NewGuid().ToString("N");
+    }
+
+    private void SubscribeToInventory()
+    {
+        InventoryManager inventory = InventoryManager.Instance;
+        if (subscribedInventory == inventory)
+            return;
+
+        UnsubscribeFromInventory();
+        subscribedInventory = inventory;
+        if (subscribedInventory != null)
+            subscribedInventory.OnStockChanged += HandleStockChanged;
+    }
+
+    private void UnsubscribeFromInventory()
+    {
+        if (subscribedInventory != null)
+            subscribedInventory.OnStockChanged -= HandleStockChanged;
+        subscribedInventory = null;
+    }
+
+    private void HandleStockChanged(ItemType changedType, int _)
+    {
+        if (!emptyRemovalRequested && item != null && item.itemType == changedType)
+            RefreshExpiryState();
+    }
+
+    private int ResolveRemainingQuantity(out bool hasAuthoritativeBatch)
+    {
+        hasAuthoritativeBatch = false;
+        if (item == null)
+            return 0;
+
+        InventoryManager inventory = InventoryManager.Instance;
+        if (inventory == null)
+            return Mathf.Max(0, item.unitsPerBox);
+
+        if (!string.IsNullOrWhiteSpace(stockBatchID))
+        {
+            if (inventory.TryGetBatch(stockBatchID, out InventoryStockBatchSaveEntry batch))
+            {
+                stockBatchObserved = true;
+                hasAuthoritativeBatch = true;
+                return Mathf.Max(0, batch.unitsRemaining);
+            }
+
+            // During scene/save restoration the physical box may bind before
+            // InventoryManager has restored its batches. Missing is not the same
+            // as empty until this exact batch has previously been observed.
+            if (stockBatchObserved)
+            {
+                hasAuthoritativeBatch = true;
+                return 0;
+            }
+
+            return Mathf.Max(0, item.unitsPerBox);
+        }
+
+        // Compatibility for authored/legacy containers that predate batch IDs.
+        return Mathf.Min(
+            Mathf.Max(0, item.unitsPerBox),
+            Mathf.Max(0, inventory.GetStock(item.itemType)));
+    }
+
+    private bool HasQuantityLabels()
+    {
+        if (quantityTexts == null)
+            return false;
+        for (int i = 0; i < quantityTexts.Length; i++)
+        {
+            if (quantityTexts[i] != null)
+                return true;
+        }
+        return false;
+    }
+
+    private void RequestEmptyContainerRemoval()
+    {
+        if (emptyRemovalRequested)
+            return;
+        emptyRemovalRequested = true;
+
+        DraggableStorageBox draggable = GetComponent<DraggableStorageBox>();
+        if (draggable != null)
+        {
+            draggable.RemoveEmptyContainer();
+            return;
+        }
+
+        RestockOrderManager.Instance?.RemovePhysicalContainer(ContainerID);
+#if UNITY_EDITOR
+        if (!Application.isPlaying)
+        {
+            DestroyImmediate(gameObject);
+            return;
+        }
+#endif
+        Destroy(gameObject);
     }
 
     private void ResolveLabelReferences()

@@ -68,6 +68,21 @@ public class OrderChecklistUI : MonoBehaviour
     [SerializeField] private Color errorSummaryColor =
         new Color(1f, 0.88f, 0.86f, 1f);
 
+    [Header("Mobile Layout (Editable)")]
+    [SerializeField, Range(0.8f, 1.6f)] private float mobileRootScaleMultiplier =
+        MobileRootScaleMultiplier;
+    [SerializeField] private Vector2 mobileCustomerMessageSize = new Vector2(300f, 150f);
+    [SerializeField, Min(8f)] private float mobileMessageMinimumFontSize = 16f;
+    [SerializeField, Min(8f)] private float mobileMessageMaximumFontSize = 23f;
+    [SerializeField] private Vector2 mobileCustomerImagePosition = new Vector2(-610f, 82f);
+    [SerializeField] private Vector2 mobileCustomerImageSize = new Vector2(230f, 230f);
+    [SerializeField] private Vector2 mobileCustomerTypePosition = new Vector2(-610f, 228f);
+    [SerializeField] private Vector2 mobileTableNumberPosition = new Vector2(-420f, 307f);
+    [SerializeField] private Vector2 mobileCustomerMessagePosition = new Vector2(-330f, 118f);
+    [SerializeField] private Vector2 mobileRequestedIconsPosition = new Vector2(-610f, -145f);
+    [SerializeField] private Vector2 mobileRequestedIconsSize = new Vector2(150f, 100f);
+    [SerializeField, Range(0.5f, 1.25f)] private float mobileConfirmButtonScale = 0.78f;
+
     private TMP_FontAsset notepadFont;
     private NotepadMenuEntryUI reviewFocusEntry;
 
@@ -222,8 +237,8 @@ public class OrderChecklistUI : MonoBehaviour
         if (Application.isMobilePlatform)
         {
             root.localScale = new Vector3(
-                authoredRootScale.x * MobileRootScaleMultiplier,
-                authoredRootScale.y * MobileRootScaleMultiplier,
+                authoredRootScale.x * mobileRootScaleMultiplier,
+                authoredRootScale.y * mobileRootScaleMultiplier,
                 authoredRootScale.z);
         }
 
@@ -324,12 +339,16 @@ public class OrderChecklistUI : MonoBehaviour
 
         RectTransform messageRect = customerMessageText.rectTransform;
         messageRect.sizeDelta = Application.isMobilePlatform
-            ? new Vector2(300f, 150f)
+            ? mobileCustomerMessageSize
             : new Vector2(280f, 150f);
         customerMessageText.margin = Vector4.zero;
         customerMessageText.enableAutoSizing = true;
-        customerMessageText.fontSizeMin = Application.isMobilePlatform ? 16f : 14f;
-        customerMessageText.fontSizeMax = Application.isMobilePlatform ? 23f : 20f;
+        customerMessageText.fontSizeMin = Application.isMobilePlatform
+            ? mobileMessageMinimumFontSize
+            : 14f;
+        customerMessageText.fontSizeMax = Application.isMobilePlatform
+            ? Mathf.Max(mobileMessageMinimumFontSize, mobileMessageMaximumFontSize)
+            : 20f;
         customerMessageText.textWrappingMode = TextWrappingModes.Normal;
         customerMessageText.overflowMode = TextOverflowModes.Ellipsis;
         customerMessageText.alignment = TextAlignmentOptions.MidlineLeft;
@@ -347,24 +366,27 @@ public class OrderChecklistUI : MonoBehaviour
         if (customerImage != null)
         {
             RectTransform imageRect = customerImage.rectTransform;
-            imageRect.anchoredPosition = new Vector2(-610f, 82f);
-            imageRect.sizeDelta = new Vector2(230f, 230f);
+            imageRect.anchoredPosition = mobileCustomerImagePosition;
+            imageRect.sizeDelta = mobileCustomerImageSize;
         }
 
         if (customerTypeText != null)
-            customerTypeText.rectTransform.anchoredPosition = new Vector2(-610f, 228f);
+            customerTypeText.rectTransform.anchoredPosition = mobileCustomerTypePosition;
         if (tableNumberText != null)
-            tableNumberText.rectTransform.anchoredPosition = new Vector2(-420f, 307f);
+            tableNumberText.rectTransform.anchoredPosition = mobileTableNumberPosition;
         if (customerMessageText != null)
-            customerMessageText.rectTransform.anchoredPosition = new Vector2(-330f, 118f);
+            customerMessageText.rectTransform.anchoredPosition = mobileCustomerMessagePosition;
         if (requestedIconsRoot != null)
         {
-            requestedIconsRoot.anchoredPosition = new Vector2(-610f, -145f);
-            requestedIconsRoot.sizeDelta = new Vector2(150f, 100f);
+            requestedIconsRoot.anchoredPosition = mobileRequestedIconsPosition;
+            requestedIconsRoot.sizeDelta = mobileRequestedIconsSize;
         }
 
         if (confirmButton != null && confirmButton.transform is RectTransform confirmRect)
-            confirmRect.localScale = new Vector3(0.78f, 0.78f, 1f);
+            confirmRect.localScale = new Vector3(
+                mobileConfirmButtonScale,
+                mobileConfirmButtonScale,
+                1f);
     }
 
     public void Open(CustomerGroup customerGroup)

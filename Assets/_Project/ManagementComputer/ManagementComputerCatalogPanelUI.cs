@@ -52,6 +52,14 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
     [SerializeField, Min(0f)] private float cardSpacing = 12f;
     [SerializeField, Min(220f)] private float rightRailPreferredWidth = 380f;
 
+    [Header("Mobile Catalog Layout (Editable)")]
+    [SerializeField, Range(0.3f, 0.6f)] private float mobileRightRailProportion = 0.42f;
+    [SerializeField] private Vector2 mobileRightRailWidthRange = new Vector2(440f, 560f);
+    [SerializeField] private Vector2 mobilePreferredCardSize = new Vector2(280f, 336f);
+    [SerializeField, Min(44f)] private float mobileControlHeight = 68f;
+    [SerializeField, Min(44f)] private float mobileSmallButtonWidth = 112f;
+    [SerializeField, Min(44f)] private float mobileMenuIconSize = 104f;
+
     private readonly List<Recipe> menuProducts = new List<Recipe>();
     private readonly Dictionary<Recipe, ManagementComputerCatalogCardUI> menuCards =
         new Dictionary<Recipe, ManagementComputerCatalogCardUI>();
@@ -757,30 +765,44 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
 
         lastPanelSize = root.rect.size;
         float width = Mathf.Max(480f, lastPanelSize.x);
+        bool mobile = UsesMobileLayout;
+        float railMinimum = mobile
+            ? Mathf.Min(mobileRightRailWidthRange.x, mobileRightRailWidthRange.y)
+            : 300f;
+        float railMaximum = mobile
+            ? Mathf.Max(mobileRightRailWidthRange.x, mobileRightRailWidthRange.y)
+            : Mathf.Max(300f, rightRailPreferredWidth);
         float railWidth = Mathf.Clamp(
-            width * 0.34f,
-            300f,
-            Mathf.Max(300f, rightRailPreferredWidth));
+            width * (mobile ? mobileRightRailProportion : 0.34f),
+            railMinimum,
+            railMaximum);
         if (rightRailLayout != null)
+        {
+            rightRailLayout.minWidth = mobile ? railMinimum : 250f;
             rightRailLayout.preferredWidth = railWidth;
+        }
 
         if (cardGrid == null)
+        {
+            ApplyMobileControls(mobile);
             return;
+        }
 
+        Vector2 targetCardSize = mobile ? mobilePreferredCardSize : preferredCardSize;
         float estimatedLeftWidth = Mathf.Max(220f, width - railWidth - 52f);
-        int columns = estimatedLeftWidth >= preferredCardSize.x * 2f + cardSpacing * 3f
+        int columns = estimatedLeftWidth >= targetCardSize.x * 2f + cardSpacing * 3f
             ? Mathf.Max(1, preferredColumns)
             : 1;
         float usableWidth = estimatedLeftWidth - cardGrid.padding.left - cardGrid.padding.right -
                             Mathf.Max(0, columns - 1) * cardSpacing;
         float cardWidth = Mathf.Clamp(
             usableWidth / columns,
-            204f,
-            preferredCardSize.x * 1.35f);
+            mobile ? 236f : 204f,
+            targetCardSize.x * (mobile ? 1.25f : 1.35f));
         float cardHeight = Mathf.Clamp(
-            cardWidth * (preferredCardSize.y / Mathf.Max(1f, preferredCardSize.x)),
-            248f,
-            preferredCardSize.y * 1.12f);
+            cardWidth * (targetCardSize.y / Mathf.Max(1f, targetCardSize.x)),
+            mobile ? 284f : 248f,
+            targetCardSize.y * 1.12f);
         cardGrid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
         cardGrid.constraintCount = columns;
         cardGrid.cellSize = new Vector2(cardWidth, cardHeight);
@@ -788,6 +810,63 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
 
         if (cardContent != null)
             LayoutRebuilder.MarkLayoutForRebuild(cardContent);
+
+        ApplyMobileControls(mobile);
+    }
+
+    private bool UsesMobileLayout
+    {
+        get
+        {
+            ManagementComputerResponsiveLayout responsive =
+                GetComponentInParent<ManagementComputerResponsiveLayout>(true);
+            return responsive != null
+                ? responsive.UsesMobileLayout
+                : Application.isMobilePlatform;
+        }
+    }
+
+    private void ApplyMobileControls(bool mobile)
+    {
+        if (!mobile)
+            return;
+
+        ResizeControl(menuPriceInput != null ? menuPriceInput.transform as RectTransform : null,
+            -1f, mobileControlHeight);
+        ResizeControl(savePriceButton != null ? savePriceButton.transform as RectTransform : null,
+            mobileSmallButtonWidth, mobileControlHeight);
+        ResizeControl(menuAvailabilityButton != null
+                ? menuAvailabilityButton.transform as RectTransform
+                : null,
+            -1f, mobileControlHeight);
+        ResizeControl(primaryCartButton != null ? primaryCartButton.transform as RectTransform : null,
+            -1f, mobileControlHeight);
+        ResizeControl(secondaryCartButton != null ? secondaryCartButton.transform as RectTransform : null,
+            -1f, mobileControlHeight);
+
+        if (menuIcon != null && menuIcon.transform is RectTransform iconRect)
+            iconRect.sizeDelta = Vector2.one * mobileMenuIconSize;
+    }
+
+    private static void ResizeControl(RectTransform rect, float minimumWidth, float minimumHeight)
+    {
+        if (rect == null)
+            return;
+
+        Vector2 size = rect.sizeDelta;
+        if (minimumWidth > 0f && Mathf.Approximately(rect.anchorMin.x, rect.anchorMax.x))
+            size.x = Mathf.Max(size.x, minimumWidth);
+        if (minimumHeight > 0f && Mathf.Approximately(rect.anchorMin.y, rect.anchorMax.y))
+            size.y = Mathf.Max(size.y, minimumHeight);
+        rect.sizeDelta = size;
+
+        LayoutElement layout = rect.GetComponent<LayoutElement>();
+        if (layout == null)
+            return;
+        if (minimumWidth > 0f)
+            layout.minWidth = Mathf.Max(layout.minWidth, minimumWidth);
+        if (minimumHeight > 0f)
+            layout.minHeight = Mathf.Max(layout.minHeight, minimumHeight);
     }
 
     private void SetMenuIcon(Sprite sprite)

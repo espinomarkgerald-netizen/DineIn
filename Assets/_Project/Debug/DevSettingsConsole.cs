@@ -46,12 +46,14 @@ public class DevSettingsConsole : MonoBehaviour
              "This is verified with PlayFab GetAccountInfo and is not trusted from PlayerPrefs or visible UI text.")]
     [SerializeField] private string authorizedPlayFabUsername = "Kali";
     [SerializeField] private bool createAndroidOpenButton = true;
+    [Tooltip("Optional scene/prefab button. Assign this to use fully authored visuals instead of the runtime fallback button.")]
+    [SerializeField] private Button androidOpenButton;
+    [SerializeField] private RectTransform androidOpenButtonRect;
     [SerializeField] private string androidButtonLabel = "DEV";
     [SerializeField] private Vector2 androidButtonSize = new Vector2(96f, 56f);
+    [SerializeField] private bool positionAndroidButtonInSafeArea = true;
     [SerializeField] private Vector2 androidButtonOffsetFromSafeTopLeft = new Vector2(14f, -84f);
 
-    private Button androidOpenButton;
-    private RectTransform androidOpenButtonRect;
     private Canvas devCanvas;
     private PlayFabAuthManager subscribedAuthManager;
     private string verifiedPlayFabId;
@@ -110,8 +112,12 @@ public class DevSettingsConsole : MonoBehaviour
             devCanvas.sortingOrder = 32000;
         }
 
-        if (IsAndroidPlayer() && createAndroidOpenButton)
-            CreateAndroidOpenButton();
+        if (IsAndroidPlayer())
+        {
+            if (androidOpenButton == null && createAndroidOpenButton)
+                CreateAndroidOpenButton();
+            BindAndroidOpenButton();
+        }
 
         ApplyAuthorizationState();
 
@@ -138,6 +144,8 @@ public class DevSettingsConsole : MonoBehaviour
     private void OnDestroy()
     {
         UnsubscribeFromAuthManager();
+        if (androidOpenButton != null)
+            androidOpenButton.onClick.RemoveListener(OpenPanel);
 
         if (activeConsole == this)
             activeConsole = null;
@@ -897,8 +905,6 @@ public class DevSettingsConsole : MonoBehaviour
         colors.selectedColor = colors.highlightedColor;
         colors.disabledColor = new Color(1f, 1f, 1f, 0.35f);
         androidOpenButton.colors = colors;
-        androidOpenButton.onClick.AddListener(OpenPanel);
-
         GameObject labelObject = new GameObject(
             "Label",
             typeof(RectTransform),
@@ -926,12 +932,27 @@ public class DevSettingsConsole : MonoBehaviour
         if (consoleText != null && consoleText.font != null)
             label.font = consoleText.font;
 
-        ApplyAndroidButtonSafeArea();
+        BindAndroidOpenButton();
+    }
+
+    private void BindAndroidOpenButton()
+    {
+        if (androidOpenButton == null)
+            return;
+
+        if (androidOpenButtonRect == null)
+            androidOpenButtonRect = androidOpenButton.transform as RectTransform;
+        androidOpenButton.onClick.RemoveListener(OpenPanel);
+        androidOpenButton.onClick.AddListener(OpenPanel);
+
+        if (positionAndroidButtonInSafeArea)
+            ApplyAndroidButtonSafeArea();
     }
 
     private void ApplyAndroidButtonSafeArea()
     {
-        if (androidOpenButtonRect == null || Screen.width <= 0 || Screen.height <= 0)
+        if (!positionAndroidButtonInSafeArea || androidOpenButtonRect == null ||
+            Screen.width <= 0 || Screen.height <= 0)
             return;
 
         Rect safe = Screen.safeArea;

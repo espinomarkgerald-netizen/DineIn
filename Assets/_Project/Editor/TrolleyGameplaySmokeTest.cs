@@ -327,10 +327,12 @@ public static class TrolleyGameplaySmokeTest
             singleWaiterUsedTrolley = true;
 
         if (trays.Count == 1 && trays[0] != null && groups.Count == 1 &&
-            groups[0] != null && groups[0].state == CustomerGroup.GroupState.Eating)
+            groups[0] != null && groups[0].state == CustomerGroup.GroupState.Eating &&
+            waiterTrolley.Count == 0 && !waiterTrolley.IsInUse &&
+            waiterTrolley.CurrentState == BotTrolleyCarrier.TrolleyState.ParkedIdle)
         {
-            Assert(!singleWaiterUsedTrolley,
-                "Waiter fetched the trolley for one isolated tray with no imminent second order.");
+            Assert(singleWaiterUsedTrolley,
+                "Waiter bypassed the purchased trolley for one isolated prepared order.");
 
             PrepareDeliveredTraysForCleanup();
             Booth booth = groups[0].assignedBooth;
@@ -346,7 +348,7 @@ public static class TrolleyGameplaySmokeTest
         }
 
         if (Elapsed > 60d)
-            Fail("Waiter did not complete the isolated one-tray fallback within 60 seconds.");
+            Fail("Waiter did not complete the isolated one-tray trolley route within 60 seconds.");
     }
 
     private static void TrackContextualBusserRoute()
@@ -698,7 +700,7 @@ public static class TrolleyGameplaySmokeTest
         string message =
             "PASS: waiter loaded/delivered four trays, busser collected four before one sink cleanup, " +
             "both carts used and restored their speed boosts, the waiter used a kitchen forecast for a " +
-            "same-day two-tray batch, an isolated tray used the normal fallback, and the busser combined " +
+            "same-day two-tray batch, an isolated prepared tray used the waiter trolley, and the busser combined " +
             "one tray plus booth cleaning into one contextual trolley route.";
         Debug.Log("[TrolleyGameplaySmokeTest] " + message);
         Finish(message);
@@ -718,6 +720,11 @@ public static class TrolleyGameplaySmokeTest
         SessionState.SetBool(RunningKey, false);
         phase = Phase.None;
         DestroyTestObjects();
+        if (Application.isBatchMode)
+        {
+            EditorApplication.Exit(result.StartsWith("FAIL:", StringComparison.Ordinal) ? 1 : 0);
+            return;
+        }
         if (EditorApplication.isPlaying)
             EditorApplication.ExitPlaymode();
     }

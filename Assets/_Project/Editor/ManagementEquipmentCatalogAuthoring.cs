@@ -16,7 +16,7 @@ public static class ManagementEquipmentCatalogAuthoring
     private const string SectionPath = ResourceFolder + "/ManagementEquipmentSection.prefab";
     private const string SessionKey = "DineIn.ManagementEquipmentCatalog.Installed.v1";
     private const string FramePath = "Assets/_Project/MainMenu/Assets/Buttons/Frames/9Sliced.png";
-    private const string BlueButtonPath = "Assets/_Project/MainMenu/NewDesign/UI Elements/PNG/Blue/Default/button_rectangle_depth_flat.png";
+    private const string BlueButtonPath = "Assets/_Project/MainMenu/NewDesign/UI Elements/PNG/Blue/Double/button_rectangle_depth_flat.png";
     private const string GreenButtonPath = "Assets/_Project/MainMenu/NewDesign/UI Elements/PNG/Green/Default/button_rectangle_depth_flat.png";
     private const string FontPath = "Assets/_Project/UI/Assets/Legacy/Fonts/Fredoka,Lilita_One/Fredoka/Fredoka-VariableFont_wdth,wght SDF.asset";
 

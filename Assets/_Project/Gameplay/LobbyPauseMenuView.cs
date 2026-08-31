@@ -43,6 +43,10 @@ public sealed class LobbyPauseMenuView : MonoBehaviour
     [SerializeField] private Vector2 pauseButtonPosition = new Vector2(149f, -28f);
     [Tooltip("Pause button size. Change this in the LobbyPauseMenu prefab.")]
     [SerializeField] private Vector2 pauseButtonSize = new Vector2(82f, 82f);
+    [Tooltip("Applies the Canva mobile-first pause placement while leaving the pause menu itself unchanged.")]
+    [SerializeField] private bool useLobbyHudRedesignLayout = true;
+    [SerializeField] private Vector2 redesignedPauseButtonPosition = new Vector2(118f, -42f);
+    [SerializeField] private Vector2 redesignedPauseButtonSize = new Vector2(84f, 84f);
     [Header("Editable Settings Layout (1920 x 1080)")]
     [SerializeField] private Vector2 settingsWindowSize = new Vector2(720f, 880f);
     [SerializeField] private Vector2 resumePosition = new Vector2(0f, 282f);
@@ -117,8 +121,12 @@ public sealed class LobbyPauseMenuView : MonoBehaviour
 
         rect.anchorMin = rect.anchorMax = new Vector2(0f, 1f);
         rect.pivot = new Vector2(1f, 1f);
-        rect.anchoredPosition = pauseButtonPosition;
-        rect.sizeDelta = pauseButtonSize;
+        rect.anchoredPosition = useLobbyHudRedesignLayout
+            ? redesignedPauseButtonPosition
+            : pauseButtonPosition;
+        rect.sizeDelta = useLobbyHudRedesignLayout
+            ? redesignedPauseButtonSize
+            : pauseButtonSize;
     }
 
     public void Configure(Button pause, GameObject configuredOverlay, Button resume, Button gameMenu)

@@ -65,6 +65,7 @@ public class DraggableStorageBox : MonoBehaviour
     private int previewColumn = -1;
     private int previewRow = -1;
     private bool previewCanPlace;
+    private bool removalQueued;
 
     // Mobile
     private int activeFingerId = -1;
@@ -122,7 +123,7 @@ public class DraggableStorageBox : MonoBehaviour
 
     private void Update()
     {
-#if UNITY_ANDROID || UNITY_IOS
+#if (UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR
         HandleTouchInput();
 #endif
     }
@@ -131,7 +132,7 @@ public class DraggableStorageBox : MonoBehaviour
     // PC
     // =========================================================
 
-#if !UNITY_ANDROID && !UNITY_IOS
+#if UNITY_EDITOR || (!UNITY_ANDROID && !UNITY_IOS)
 
     private void OnMouseDown()
     {
@@ -195,23 +196,8 @@ public class DraggableStorageBox : MonoBehaviour
                     continue;
                 }
 
-                Ray ray =
-                    playerCamera.ScreenPointToRay(
-                        touch.position);
-
-                if (!Physics.Raycast(
-                    ray,
-                    out RaycastHit hit,
-                    Mathf.Infinity))
-                {
-                    continue;
-                }
-
-                DraggableStorageBox touchedBox =
-                    hit.collider.GetComponentInParent<
-                        DraggableStorageBox>();
-
-                if (touchedBox != this)
+                if (!TryGetTouchedStorageBox(touch.position, out DraggableStorageBox touchedBox) ||
+                    touchedBox != this)
                     continue;
 
                 activeFingerId =
@@ -748,6 +734,38 @@ public class DraggableStorageBox : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Finds the first storage box under a touch even when a shelf/grid collider
+    /// is returned before the box. This keeps mobile tap, Keep/Throw, and drag
+    /// interaction reliable without changing placement rules.
+    /// </summary>
+    private bool TryGetTouchedStorageBox(
+        Vector2 screenPosition,
+        out DraggableStorageBox touchedBox)
+    {
+        touchedBox = null;
+        Ray ray = playerCamera.ScreenPointToRay(screenPosition);
+        RaycastHit[] hits = Physics.RaycastAll(
+            ray,
+            500f,
+            ~0,
+            QueryTriggerInteraction.Collide);
+        System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+
+        for (int i = 0; i < hits.Length; i++)
+        {
+            DraggableStorageBox candidate =
+                hits[i].collider.GetComponentInParent<DraggableStorageBox>();
+            if (candidate == null || !candidate.isActiveAndEnabled)
+                continue;
+
+            touchedBox = candidate;
+            return true;
+        }
+
+        return false;
+    }
+
     private void ReturnToPreviousPosition()
     {
         transform.position =
@@ -812,15 +830,38 @@ public class DraggableStorageBox : MonoBehaviour
         }
 
         int discarded = identity.DiscardTrackedStock();
-        RestockOrderManager.Instance?.RemovePhysicalContainer(identity.ContainerID);
         string itemName = identity.Item != null ? identity.Item.displayName : "item";
-        if (currentGrid != null)
-            currentGrid.RemoveObject(gameObject, currentColumn, currentRow);
 
         HideInteractionUI();
         RestockFlowCoordinator.Instance?.ShowMessage(discarded > 0
             ? $"Threw away {itemName}. {discarded} stock removed."
             : $"Threw away the empty {itemName} container. No stock remained to deduct.");
+        RemoveEmptyContainer();
+    }
+
+    /// <summary>
+    /// Removes a consumed physical container from both its shelf cell and the
+    /// persisted RestockScene layout. Safe to call more than once in the same frame.
+    /// </summary>
+    public void RemoveEmptyContainer()
+    {
+        if (removalQueued)
+            return;
+        removalQueued = true;
+
+        RestockStorageContainer identity = GetComponent<RestockStorageContainer>();
+        if (identity != null)
+            RestockOrderManager.Instance?.RemovePhysicalContainer(identity.ContainerID);
+
+        if (currentGrid != null)
+        {
+            currentGrid.RemoveObject(gameObject, currentColumn, currentRow);
+            currentGrid = null;
+            currentColumn = -1;
+            currentRow = -1;
+        }
+
+        HideInteractionUI();
         Destroy(gameObject);
     }
 

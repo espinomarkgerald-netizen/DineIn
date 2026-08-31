@@ -27,7 +27,7 @@ MonoBehaviour:
   firstPromotionExperience: 150
   promotionExperienceGrowth: 75
   statPointsPerPromotion: 3
-  applicantRefreshDays: 7
+  applicantRefreshDays: 2
   newspaperName: THE GALACTIC GAZETTE
   alienReporterName: Xylo-7, Alien Correspondent
   recentTemplateExclusionDays: 5

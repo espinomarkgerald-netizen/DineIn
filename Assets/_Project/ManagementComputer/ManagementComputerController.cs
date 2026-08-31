@@ -37,12 +37,15 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
     [SerializeField] private TMP_Text approvalStatusText;
     [SerializeField] private TMP_Text clockStatusText;
     [SerializeField] private TMP_Text desktopHintText;
+    [SerializeField] private GameObject staffNotificationBadge;
+    [SerializeField] private TMP_Text staffNotificationBadgeText;
 
     [Header("App Window")]
     [SerializeField] private ManagementComputerWindow appWindow;
     [SerializeField] private ManagementComputerRowUI rowPrefab;
     [SerializeField] private ManagementComputerHRPanel hrPanelPrefab;
     [SerializeField] private ManagementComputerCatalogUIConfig catalogUIConfig;
+    [SerializeField] private ManagementComputerResponsiveLayout responsiveLayout;
 
     private ManagerPlayer activeManager;
     private ManagementComputerStation activeStation;
@@ -112,6 +115,8 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
 
     private void Awake()
     {
+        ResolveResponsiveLayout();
+        ResolveStaffNotificationBadge();
         WireButtons();
         if (appWindow != null)
             appWindow.Initialize(CloseApp);
@@ -160,19 +165,20 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
             ScrollRect scroll = FindTopmostScrollableAt(position);
             if (scroll != null)
             {
-                // Move normalized positions directly because Unity's
-                // ScrollRect event path is the part blocked by this modal.
-                if (scroll.horizontal && !scroll.vertical)
+                SmoothScrollRectInput smooth = scroll.GetComponent<SmoothScrollRectInput>();
+                if (smooth != null)
+                {
+                    smooth.QueueScrollDelta(wheel);
+                }
+                else if (scroll.horizontal && !scroll.vertical)
                 {
                     float amount = Mathf.Abs(wheel.x) > Mathf.Abs(wheel.y) ? wheel.x : wheel.y;
                     scroll.horizontalNormalizedPosition = Mathf.Clamp01(
-                        scroll.horizontalNormalizedPosition - amount * 0.12f);
+                        scroll.horizontalNormalizedPosition - amount * 0.085f);
                 }
                 else if (scroll.vertical)
-                {
                     scroll.verticalNormalizedPosition = Mathf.Clamp01(
-                        scroll.verticalNormalizedPosition + wheel.y * 0.12f);
-                }
+                        scroll.verticalNormalizedPosition + wheel.y * 0.085f);
             }
         }
 
@@ -449,12 +455,40 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
                     rect, screenPosition, null))
                 continue;
 
+            // RectangleContainsScreenPoint only checks the control's own rect.
+            // Cards outside a ScrollRect can retain screen-space rectangles and
+            // must not steal a mobile fallback tap through their clipping mask.
+            if (!IsVisibleThroughParentMasks(candidate.transform, screenPosition))
+                continue;
+
             // GetComponentsInChildren follows rendered hierarchy order. Keeping
             // the last match makes modal-window controls win over desktop apps.
             best = candidate;
         }
 
         return best;
+    }
+
+    private static bool IsVisibleThroughParentMasks(
+        Transform target,
+        Vector2 screenPosition)
+    {
+        Transform current = target != null ? target.parent : null;
+        while (current != null)
+        {
+            RectMask2D rectMask = current.GetComponent<RectMask2D>();
+            if (rectMask != null && rectMask.isActiveAndEnabled)
+            {
+                RectTransform maskRect = rectMask.transform as RectTransform;
+                if (maskRect != null && !RectTransformUtility.RectangleContainsScreenPoint(
+                        maskRect, screenPosition, null))
+                    return false;
+            }
+
+            current = current.parent;
+        }
+
+        return true;
     }
 
     private TMP_InputField FindTopmostInputFieldAt(Vector2 screenPosition)
@@ -516,6 +550,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         RefreshStatusBar();
 
         Canvas.ForceUpdateCanvases();
+        responsiveLayout?.RefreshLayout();
         if (canvasRefreshRoutine != null)
             StopCoroutine(canvasRefreshRoutine);
         canvasRefreshRoutine = StartCoroutine(RefreshComputerCanvasNextFrame());
@@ -602,6 +637,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         Canvas.ForceUpdateCanvases();
         if (appWindow != null && appWindow.gameObject.activeSelf)
             appWindow.RefreshContentLayout();
+        responsiveLayout?.RefreshDynamicContent();
     }
 
     public void OpenApp(int appIndex)
@@ -629,6 +665,30 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         }
 
         appWindow.RefreshContentLayout();
+        responsiveLayout?.RefreshDynamicContent();
+    }
+
+    private void ResolveResponsiveLayout()
+    {
+        if (responsiveLayout != null)
+            return;
+
+        if (desktopRoot != null)
+            responsiveLayout = desktopRoot.GetComponentInParent<ManagementComputerResponsiveLayout>(true);
+        if (responsiveLayout == null)
+            responsiveLayout = GetComponentInChildren<ManagementComputerResponsiveLayout>(true);
+    }
+
+    private void ResolveStaffNotificationBadge()
+    {
+        if (staffNotificationBadge != null || appButtons == null || appButtons.Length <= 1 || appButtons[1] == null)
+            return;
+
+        Transform badge = appButtons[1].transform.Find("NewApplicantBadge");
+        if (badge == null)
+            return;
+        staffNotificationBadge = badge.gameObject;
+        staffNotificationBadgeText = badge.GetComponentInChildren<TMP_Text>(true);
     }
 
     public void CloseApp()
@@ -883,25 +943,76 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
     private void PopulateFinances()
     {
         DailyFinanceBridge bridge = DailyFinanceBridge.Instance;
-        DailyRevenueTracker revenue = DailyRevenueTracker.Instance;
         EmployeeManager employees = EmployeeManager.Instance;
         int payroll = employees != null && employees.salaryConfig != null ? employees.CalculateTotalPayroll() : 0;
+        int earnedToday = bridge != null ? bridge.EarnedToday : 0;
+        int paidExpenses = 0;
+        bool payrollPaid = false;
+        List<MoneyTransactionSaveEntry> expenseEntries = new List<MoneyTransactionSaveEntry>();
 
-        AddRow(null, "Cash balance", "Available for restocking and equipment", MoneyText, string.Empty, null, false);
-        AddRow(null, "Revenue today", "Completed customer payments", "₱" + (bridge != null ? bridge.EarnedToday : 0), string.Empty, null, false);
-        AddRow(null, "Ingredient purchases", "Boxes purchased during management", "₱" + (revenue != null ? revenue.IngredientCost : 0), string.Empty, null, false);
-        AddRow(null, "Scheduled payroll", "Deducted during end-of-day settlement", "₱" + payroll, string.Empty, null, false);
-
-        IReadOnlyList<string> transactions = MoneyManager.Instance != null
-            ? MoneyManager.Instance.TransactionLog
+        IReadOnlyList<MoneyTransactionSaveEntry> transactions = MoneyManager.Instance != null
+            ? MoneyManager.Instance.DailyTransactions
             : null;
         if (transactions != null)
         {
-            for (int i = transactions.Count - 1, shown = 0; i >= 0 && shown < 8; i--, shown++)
-                AddRow(null, "Transaction", transactions[i], string.Empty, string.Empty, null, false);
+            for (int i = 0; i < transactions.Count; i++)
+            {
+                MoneyTransactionSaveEntry transaction = transactions[i];
+                if (transaction == null || transaction.day != CurrentDay ||
+                    transaction.adjustment || transaction.amountDelta >= 0)
+                    continue;
+
+                paidExpenses += -transaction.amountDelta;
+                expenseEntries.Add(transaction);
+                if (string.Equals(transaction.description, "Payroll", StringComparison.OrdinalIgnoreCase))
+                    payrollPaid = true;
+            }
         }
 
-        appWindow.SetMessage("Live financial overview. The latest eight wallet transactions are shown below.");
+        int pendingPayroll = payrollPaid ? 0 : payroll;
+        int totalExpenses = paidExpenses + pendingPayroll;
+        int projectedNet = earnedToday - totalExpenses;
+
+        AddRow(null, "Cash balance", "Available for restocking and equipment", MoneyText, string.Empty, null, false);
+        AddRow(null, "Revenue today", "Completed customer payments", "₱" + earnedToday, string.Empty, null, false);
+        AddRow(null, "Paid expenses today", "Restock, equipment, penalties and other completed deductions",
+            "₱" + paidExpenses, string.Empty, null, false);
+        AddRow(null,
+            payrollPaid ? "Payroll paid" : "Scheduled payroll",
+            payrollPaid
+                ? "Automatically deducted during end-of-day settlement"
+                : "Will be deducted automatically at the end of the day",
+            "₱" + payroll,
+            string.Empty,
+            null,
+            false);
+        AddRow(null, "Total daily expenses", "Paid expenses plus scheduled payroll",
+            "₱" + totalExpenses, string.Empty, null, false);
+        AddRow(null, "Projected net", "Revenue minus all of today's expenses",
+            (projectedNet >= 0 ? "+₱" : "-₱") + Mathf.Abs(projectedNet), string.Empty, null, false);
+
+        if (expenseEntries.Count == 0)
+        {
+            AddRow(null, "Expense details", "No expenses have been paid yet today",
+                "₱0", string.Empty, null, false);
+        }
+        else
+        {
+            for (int i = expenseEntries.Count - 1, shown = 0; i >= 0 && shown < 12; i--, shown++)
+            {
+                MoneyTransactionSaveEntry expense = expenseEntries[i];
+                AddRow(null,
+                    string.IsNullOrWhiteSpace(expense.description) ? "Expense" : expense.description,
+                    "Paid today",
+                    "-₱" + Mathf.Abs(expense.amountDelta),
+                    string.Empty,
+                    null,
+                    false);
+            }
+        }
+
+        appWindow.SetMessage(
+            "Payroll is automatic. Expense details show actual wallet deductions for the current day only.");
     }
 
     private void PopulateObjectives()
@@ -1380,7 +1491,8 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
 
     private static bool UsesEmbeddedCatalogLayout(ManagementComputerApp app)
     {
-        return app == ManagementComputerApp.Menu ||
+        return app == ManagementComputerApp.Staff ||
+               app == ManagementComputerApp.Menu ||
                app == ManagementComputerApp.Restock;
     }
 
@@ -1429,6 +1541,14 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         bool active = IsShiftActive;
         if (startShiftLabel != null) startShiftLabel.text = active ? "SHIFT RUNNING" : "START SHIFT";
         if (startShiftButton != null) startShiftButton.interactable = !active;
+
+        ResolveStaffNotificationBadge();
+        bool newApplicants = EmployeeManager.Instance != null &&
+                             EmployeeManager.Instance.HasUnseenApplicants;
+        if (staffNotificationBadge != null)
+            staffNotificationBadge.SetActive(newApplicants);
+        if (staffNotificationBadgeText != null)
+            staffNotificationBadgeText.text = "!";
     }
 
     private void OnMoneyChanged(int _) => RefreshStatusBar();

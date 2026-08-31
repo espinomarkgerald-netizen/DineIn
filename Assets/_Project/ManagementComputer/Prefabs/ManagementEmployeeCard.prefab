@@ -13,6 +13,8 @@ GameObject:
   - component: {fileID: 3645545948852828609}
   - component: {fileID: 1051572429935128723}
   - component: {fileID: 4277514517672758481}
+  - component: {fileID: 1283835244531102148}
+  - component: {fileID: 655903686307888037}
   m_Layer: 0
   m_Name: ManagementEmployeeCard
   m_TagString: Untagged
@@ -136,6 +138,35 @@ MonoBehaviour:
   primaryLabel: {fileID: 2895656419006660918}
   secondaryButton: {fileID: 1281173671239340887}
   secondaryLabel: {fileID: 5324888939598917996}
+--- !u!225 &1283835244531102148
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 998349570700891792}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
+--- !u!114 &655903686307888037
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 998349570700891792}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe341889b92b4d1a855ba2fbc44cdfae, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  playOnEnable: 0
+  duration: 0.16
+  delay: 0
+  startScale: 0.96
+  startOffset: {x: 0, y: 0}
 --- !u!1 &2019619539332421373
 GameObject:
   m_ObjectHideFlags: 0

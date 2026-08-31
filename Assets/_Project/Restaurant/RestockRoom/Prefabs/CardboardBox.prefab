@@ -1523,6 +1523,10 @@ MonoBehaviour:
   itemIcons:
   - {fileID: 1354461519710666362}
   - {fileID: 1969422802834066713}
+  quantityTexts: []
+  quantityPrefix: x
+  appendQuantityToItemName: 1
+  removeContainerWhenEmpty: 1
   labelReferencesConfigured: 1
   expiredLabel: EXPIRED
   expiredLabelColor: {r: 0.94, g: 0.16, b: 0.16, a: 1}

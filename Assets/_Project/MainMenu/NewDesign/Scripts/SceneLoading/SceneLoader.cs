@@ -71,17 +71,38 @@ public class SceneLoader : MonoBehaviour
             DontDestroyOnLoad(spawnedLoadingCanvas);
 
             progressBar = spawnedLoadingCanvas.GetComponentInChildren<Slider>(true);
-            progressText = spawnedLoadingCanvas.GetComponentInChildren<TMPro.TextMeshProUGUI>(true);
+            progressText = FindDedicatedProgressText(spawnedLoadingCanvas);
 
             if (progressBar == null)
                 Debug.LogWarning("[SceneLoader] No Slider found under the loading canvas prefab — " +
                                   "progress bar will not animate, but transitions will still work.");
-            if (progressText == null)
-                Debug.LogWarning("[SceneLoader] No TextMeshProUGUI found under the loading canvas prefab — " +
-                                  "percentage text will not display, but transitions will still work.");
-
             spawnedLoadingCanvas.SetActive(false);
         }
+    }
+
+    private static TMPro.TextMeshProUGUI FindDedicatedProgressText(GameObject loadingRoot)
+    {
+        if (loadingRoot == null)
+            return null;
+
+        // Loading screens may contain other text, including randomized tips.
+        // Never claim the first TMP component and overwrite that content.
+        TMPro.TextMeshProUGUI[] texts =
+            loadingRoot.GetComponentsInChildren<TMPro.TextMeshProUGUI>(true);
+        for (int i = 0; i < texts.Length; i++)
+        {
+            TMPro.TextMeshProUGUI candidate = texts[i];
+            if (candidate == null)
+                continue;
+
+            string objectName = candidate.gameObject.name;
+            if (objectName.IndexOf("progress", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+                objectName.IndexOf("percent", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                return candidate;
+        }
+
+        // The original burger screen intentionally uses only its thin Slider.
+        return null;
     }
 
     // ---------- Public API ----------

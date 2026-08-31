@@ -13,6 +13,14 @@ public sealed class ManagementHRRoleSectionUI : MonoBehaviour
     [SerializeField] private RectTransform applicantContent;
     [SerializeField] private ScrollRect employedScroll;
     [SerializeField] private ScrollRect applicantScroll;
+    [SerializeField] private GameObject employedLabelRoot;
+    [SerializeField] private GameObject applicantLabelRoot;
+
+    [Header("Single Rail Layout (Editable)")]
+    [SerializeField] private Vector2 singleRailLabelPosition = new Vector2(0f, -68f);
+    [SerializeField] private Vector2 singleRailScrollPosition = new Vector2(0f, -249f);
+    [SerializeField, Min(120f)] private float singleRailScrollHeight = 330f;
+    [SerializeField, Min(240f)] private float singleRailSectionHeight = 430f;
 
     public EmployeeRole Role { get; private set; }
     public RectTransform EmployedContent => employedContent;
@@ -41,9 +49,17 @@ public sealed class ManagementHRRoleSectionUI : MonoBehaviour
         EmployeeManager manager,
         ManagementEmployeeCardUI cardPrefab,
         bool editable,
-        Action onRosterChanged)
+        Action onRosterChanged,
+        bool showEmployed = true,
+        bool showApplicants = true)
     {
         Role = role;
+        ResolveRailRoots();
+        if (employedLabelRoot != null) employedLabelRoot.SetActive(showEmployed);
+        if (applicantLabelRoot != null) applicantLabelRoot.SetActive(showApplicants);
+        if (employedScroll != null) employedScroll.gameObject.SetActive(showEmployed);
+        if (applicantScroll != null) applicantScroll.gameObject.SetActive(showApplicants);
+        ApplySingleRailLayout(showEmployed, showApplicants);
         Clear(employedContent);
         Clear(applicantContent);
 
@@ -62,14 +78,14 @@ public sealed class ManagementHRRoleSectionUI : MonoBehaviour
         if (roleSummary != null)
             roleSummary.text = $"{employed.Count}/{manager.MaxHiredPerRole} EMPLOYED   •   {applicants.Count} APPLICANTS";
 
-        if (employed.Count == 0)
+        if (showEmployed && employed.Count == 0)
         {
             ManagementEmployeeCardUI empty = Instantiate(cardPrefab, employedContent);
             empty.name = "Empty_" + role;
             empty.Bind(null, manager.salaryConfig, "EMPTY POSITION", string.Empty, null, false,
                 string.Empty, null, false);
         }
-        else
+        else if (showEmployed)
         {
             foreach (EmployeeData employee in employed)
             {
@@ -94,31 +110,78 @@ public sealed class ManagementHRRoleSectionUI : MonoBehaviour
         }
 
         bool hasSpace = employed.Count < manager.MaxHiredPerRole;
-        foreach (EmployeeData applicant in applicants)
+        if (showApplicants)
         {
-            EmployeeData captured = applicant;
-            ManagementEmployeeCardUI card = Instantiate(cardPrefab, applicantContent);
-            card.name = "Applicant_" + applicant.employeeName;
-            card.Bind(applicant, manager.salaryConfig, "APPLICANT",
-                hasSpace ? "HIRE" : "ROSTER FULL",
-                () =>
-                {
-                    if (manager.HireApplicant(captured)) onRosterChanged?.Invoke();
-                },
-                editable && hasSpace,
-                "DECLINE",
-                () =>
-                {
-                    if (manager.DeclineApplicant(captured)) onRosterChanged?.Invoke();
-                },
-                editable);
+            foreach (EmployeeData applicant in applicants)
+            {
+                EmployeeData captured = applicant;
+                ManagementEmployeeCardUI card = Instantiate(cardPrefab, applicantContent);
+                card.name = "Applicant_" + applicant.employeeName;
+                string availability = applicant.applicantAvailableUntilDay > 0
+                    ? "AVAILABLE THROUGH DAY " + applicant.applicantAvailableUntilDay
+                    : "APPLICANT";
+                card.Bind(applicant, manager.salaryConfig, availability,
+                    hasSpace ? "HIRE" : "ROSTER FULL",
+                    () =>
+                    {
+                        if (manager.HireApplicant(captured)) onRosterChanged?.Invoke();
+                    },
+                    editable && hasSpace,
+                    "DECLINE",
+                    () =>
+                    {
+                        if (manager.DeclineApplicant(captured)) onRosterChanged?.Invoke();
+                    },
+                    editable);
+            }
         }
 
         Canvas.ForceUpdateCanvases();
-        LayoutRebuilder.ForceRebuildLayoutImmediate(employedContent);
-        LayoutRebuilder.ForceRebuildLayoutImmediate(applicantContent);
+        if (showEmployed) LayoutRebuilder.ForceRebuildLayoutImmediate(employedContent);
+        if (showApplicants) LayoutRebuilder.ForceRebuildLayoutImmediate(applicantContent);
         if (employedScroll != null) employedScroll.horizontalNormalizedPosition = 0f;
         if (applicantScroll != null) applicantScroll.horizontalNormalizedPosition = 0f;
+
+        float preferredHeight = showEmployed && showApplicants
+            ? 760f
+            : singleRailSectionHeight;
+        if (transform is RectTransform rect)
+            rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, preferredHeight);
+        LayoutElement layout = GetComponent<LayoutElement>();
+        if (layout != null)
+            layout.preferredHeight = preferredHeight;
+    }
+
+    private void ApplySingleRailLayout(bool showEmployed, bool showApplicants)
+    {
+        if (showEmployed == showApplicants)
+            return;
+
+        GameObject labelRoot = showEmployed ? employedLabelRoot : applicantLabelRoot;
+        ScrollRect activeScroll = showEmployed ? employedScroll : applicantScroll;
+        if (labelRoot != null && labelRoot.transform is RectTransform labelRect)
+            labelRect.anchoredPosition = singleRailLabelPosition;
+        if (activeScroll != null && activeScroll.transform is RectTransform scrollRect)
+        {
+            scrollRect.anchoredPosition = singleRailScrollPosition;
+            scrollRect.SetSizeWithCurrentAnchors(
+                RectTransform.Axis.Vertical,
+                singleRailScrollHeight);
+        }
+    }
+
+    private void ResolveRailRoots()
+    {
+        if (employedLabelRoot == null)
+        {
+            Transform label = transform.Find("EmployedLabel");
+            if (label != null) employedLabelRoot = label.gameObject;
+        }
+        if (applicantLabelRoot == null)
+        {
+            Transform label = transform.Find("ApplicantsLabel");
+            if (label != null) applicantLabelRoot = label.gameObject;
+        }
     }
 
     private static int CompareEmployees(EmployeeData left, EmployeeData right)

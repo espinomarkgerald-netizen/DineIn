@@ -25,7 +25,8 @@ public sealed class CasualDiningPolishSettings : ScriptableObject
     [Min(10)] public int firstPromotionExperience = 150;
     [Min(0)] public int promotionExperienceGrowth = 75;
     [Range(0, 10)] public int statPointsPerPromotion = 3;
-    [Min(1)] public int applicantRefreshDays = 7;
+    [Tooltip("Remaining unhired applicants are replaced on this cadence.")]
+    [Min(1)] public int applicantRefreshDays = 2;
 
     [Header("Newspaper")]
     public string newspaperName = "THE GALACTIC GAZETTE";

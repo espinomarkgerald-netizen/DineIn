@@ -29,6 +29,15 @@ public class MenuPriceOverrideSaveEntry
 }
 
 [Serializable]
+public class MoneyTransactionSaveEntry
+{
+    public int day;
+    public int amountDelta;
+    public string description;
+    public bool adjustment;
+}
+
+[Serializable]
 public class EmployeeSaveEntry
 {
     public string employeeID;
@@ -37,6 +46,7 @@ public class EmployeeSaveEntry
     public EmployeeRole role;
     public bool assigned;
     public bool hired;
+    public int applicantAvailableUntilDay;
     public int speed = 100;
     public int accuracy = 80;
     public int reliability = 80;
@@ -176,6 +186,8 @@ public class GameSaveData
 
     public int money = 5000;
     public int approval = 50;
+    public List<MoneyTransactionSaveEntry> moneyTransactions =
+        new List<MoneyTransactionSaveEntry>();
 
     public List<string> unlockedRecipeIDs = new List<string>();
     public List<string> unlockedEquipmentIDs = new List<string>();
@@ -198,7 +210,9 @@ public class GameSaveData
     public int polishDayStartMoney = 5000;
     public int restaurantRatingScore = 60;
     public int supplierMarketGeneratedDay;
-    public int employeeApplicantNextRefreshDay = 8;
+    public int employeeApplicantNextRefreshDay = 3;
+    public int employeeApplicantLastProcessedDay;
+    public bool employeeApplicantsUnseen;
     public int discardedUnitsToday;
     public DailyRestaurantSnapshotSaveData lastDailyRestaurantSnapshot;
     public List<SupplierPriceSaveEntry> supplierPrices = new List<SupplierPriceSaveEntry>();
@@ -217,4 +231,8 @@ public class GameSaveData
     public int managerComplaintWeekIndex = -1;
     public int managerComplaintsThisWeek;
     public int managerComplaintLastDay;
+    public int managerComplaintScheduleDay;
+    public int managerComplaintDailyAllowance;
+    public int managerComplaintsToday;
+    public float managerComplaintLastShiftElapsedSeconds = -10000f;
 }

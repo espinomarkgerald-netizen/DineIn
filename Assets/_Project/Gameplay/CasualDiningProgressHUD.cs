@@ -55,6 +55,16 @@ public sealed class CasualDiningProgressHUD : MonoBehaviour
     [SerializeField, Min(2f)] private float laneBottomPadding = 5f;
     [SerializeField, Min(0f)] private float depthOffset = 3f;
 
+    [Header("Lobby HUD Redesign Layout")]
+    [SerializeField] private bool useLobbyHudRedesignLayout = true;
+    [SerializeField] private Vector2 redesignedPanelPosition = new Vector2(0f, -24f);
+    [SerializeField] private Vector2 redesignedPanelSize = new Vector2(1640f, 220f);
+    [SerializeField] private Vector2 redesignedApprovalPosition = new Vector2(430f, 0f);
+    [SerializeField] private Vector2 redesignedMoneyPosition = new Vector2(1335f, 0f);
+    [SerializeField] private Vector2 redesignedNeutralPosition = new Vector2(1335f, -124f);
+    [SerializeField] private Vector2 redesignedAngryPosition = new Vector2(1565f, -124f);
+    [SerializeField, HideInInspector] private int authoredLayoutVersion;
+
     [Header("Editable Day & Time")]
     [Tooltip("Auto uses side-by-side on wide screens and stacked on compact screens. Both layouts are real editable prefab children.")]
     [SerializeField] private DayTimeLayoutMode dayTimeLayout = DayTimeLayoutMode.Auto;
@@ -205,7 +215,8 @@ public sealed class CasualDiningProgressHUD : MonoBehaviour
             BuildVisualTree();
         else if (panelRect != null)
             expandedSize = panelRect.sizeDelta;
-        expanded = !rememberToggleState || PlayerPrefs.GetInt(ExpandedPreference, 1) != 0;
+        expanded = useLobbyHudRedesignLayout || !rememberToggleState ||
+                   PlayerPrefs.GetInt(ExpandedPreference, 1) != 0;
         RefreshResponsiveLayout(true);
         ApplyExpandedStateImmediate();
         RefreshSceneVisibility();
@@ -298,6 +309,11 @@ public sealed class CasualDiningProgressHUD : MonoBehaviour
 
     public void ToggleObjectives()
     {
+        if (useLobbyHudRedesignLayout)
+        {
+            expanded = true;
+            return;
+        }
         expanded = !expanded;
         if (!rememberToggleState) return;
         PlayerPrefs.SetInt(ExpandedPreference, expanded ? 1 : 0);
@@ -598,30 +614,47 @@ public sealed class CasualDiningProgressHUD : MonoBehaviour
         GameObject panel = CreateUIObject("ObjectivesPanel", objectivesRoot.transform, typeof(CanvasGroup));
         panelRect = panel.GetComponent<RectTransform>();
         panelRect.anchorMin = panelRect.anchorMax = panelRect.pivot = new Vector2(0.5f, 1f);
-        panelRect.anchoredPosition = panelPosition;
-        panelRect.sizeDelta = expandedSize;
+        panelRect.anchoredPosition = useLobbyHudRedesignLayout ? redesignedPanelPosition : panelPosition;
+        panelRect.sizeDelta = useLobbyHudRedesignLayout ? redesignedPanelSize : expandedSize;
         panelGroup = panel.GetComponent<CanvasGroup>();
 
         GameObject content = CreateUIObject("ObjectiveRows", panel.transform);
         RectTransform contentRect = content.GetComponent<RectTransform>();
         Stretch(contentRect);
-        float moodWidth = (expandedSize.x - moodGap) * 0.5f;
-        float moodY = -(moneyBarHeight + barGap + approvalBarHeight + barGap);
-        moneyRow = CreateProgressRow(content.transform, "SalesProgress", "TODAY'S SALES", moneyIcon,
-            Vector2.zero, expandedSize.x, moneyBarHeight, moneyLaneHeight, 40f, 20f, salesFillColor,
-            out moneyFill, out moneyShine, out moneyValue);
-        approvalRow = CreateProgressRow(content.transform, "ApprovalProgress", "ALIEN APPROVAL", approvalIcon,
-            new Vector2(0f, -(moneyBarHeight + barGap)), expandedSize.x, approvalBarHeight,
-            approvalLaneHeight, 28f, 17f,
-            approvalFillColor,
-            out approvalFill, out approvalShine, out approvalValue);
-        angryRow = CreateProgressRow(content.transform, "AngryProgress", "ANGRY CUSTOMERS", angryIcon,
-            new Vector2(0f, moodY), moodWidth, moodBarHeight, moodLaneHeight, 20f, 14f, angryFillColor,
-            out angryFill, out angryShine, out angryValue);
-        neutralRow = CreateProgressRow(content.transform, "NeutralProgress", "NEUTRAL CUSTOMERS", neutralIcon,
-            new Vector2(moodWidth + moodGap, moodY), moodWidth, moodBarHeight, moodLaneHeight, 20f, 14f,
-            neutralFillColor,
-            out neutralFill, out neutralShine, out neutralValue);
+        if (useLobbyHudRedesignLayout)
+        {
+            expandedSize = redesignedPanelSize;
+            approvalRow = CreateProgressRow(content.transform, "ApprovalProgress", "Alien's approval", approvalIcon,
+                redesignedApprovalPosition, 700f, 130f, 56f, 100f, 28f, approvalFillColor, false,
+                out approvalFill, out approvalShine, out approvalValue);
+            moneyRow = CreateProgressRow(content.transform, "SalesProgress", "TODAY'S SALES", moneyIcon,
+                redesignedMoneyPosition, 530f, 118f, 58f, 85f, 22f, salesFillColor, true,
+                out moneyFill, out moneyShine, out moneyValue);
+            neutralRow = CreateProgressRow(content.transform, "NeutralProgress", "NEUTRAL", neutralIcon,
+                redesignedNeutralPosition, 230f, 82f, 42f, 54f, 18f, neutralFillColor, true,
+                out neutralFill, out neutralShine, out neutralValue);
+            angryRow = CreateProgressRow(content.transform, "AngryProgress", "ANGRY", angryIcon,
+                redesignedAngryPosition, 250f, 82f, 42f, 54f, 18f, angryFillColor, true,
+                out angryFill, out angryShine, out angryValue);
+        }
+        else
+        {
+            float moodWidth = (expandedSize.x - moodGap) * 0.5f;
+            float moodY = -(moneyBarHeight + barGap + approvalBarHeight + barGap);
+            moneyRow = CreateProgressRow(content.transform, "SalesProgress", "TODAY'S SALES", moneyIcon,
+                Vector2.zero, expandedSize.x, moneyBarHeight, moneyLaneHeight, 40f, 20f, salesFillColor, false,
+                out moneyFill, out moneyShine, out moneyValue);
+            approvalRow = CreateProgressRow(content.transform, "ApprovalProgress", "ALIEN APPROVAL", approvalIcon,
+                new Vector2(0f, -(moneyBarHeight + barGap)), expandedSize.x, approvalBarHeight,
+                approvalLaneHeight, 28f, 17f, approvalFillColor, false,
+                out approvalFill, out approvalShine, out approvalValue);
+            angryRow = CreateProgressRow(content.transform, "AngryProgress", "ANGRY CUSTOMERS", angryIcon,
+                new Vector2(0f, moodY), moodWidth, moodBarHeight, moodLaneHeight, 20f, 14f, angryFillColor, false,
+                out angryFill, out angryShine, out angryValue);
+            neutralRow = CreateProgressRow(content.transform, "NeutralProgress", "NEUTRAL CUSTOMERS", neutralIcon,
+                new Vector2(moodWidth + moodGap, moodY), moodWidth, moodBarHeight, moodLaneHeight, 20f, 14f,
+                neutralFillColor, false, out neutralFill, out neutralShine, out neutralValue);
+        }
 
         BuildDayTimeVisualTree(safeArea.transform);
     }
@@ -683,13 +716,18 @@ public sealed class CasualDiningProgressHUD : MonoBehaviour
     {
         GameObject root = CreateUIObject("DayTimeRoot", parent);
         dayTimeRoot = root.GetComponent<RectTransform>();
-        dayTimeRoot.anchorMin = dayTimeRoot.anchorMax = dayTimeRoot.pivot = Vector2.one;
-        dayTimeRoot.anchoredPosition = new Vector2(-28f, -28f);
-        dayTimeRoot.sizeDelta = new Vector2(330f, 104f);
+        Vector2 clockAnchor = useLobbyHudRedesignLayout ? new Vector2(0f, 1f) : Vector2.one;
+        dayTimeRoot.anchorMin = dayTimeRoot.anchorMax = dayTimeRoot.pivot = clockAnchor;
+        dayTimeRoot.anchoredPosition = useLobbyHudRedesignLayout
+            ? new Vector2(122f, -50f)
+            : new Vector2(-28f, -28f);
+        dayTimeRoot.sizeDelta = useLobbyHudRedesignLayout
+            ? new Vector2(220f, 104f)
+            : new Vector2(330f, 104f);
 
         sideBySideDayTime = CreateUIObject("SideBySide", root.transform);
         RectTransform sideRect = sideBySideDayTime.GetComponent<RectTransform>();
-        sideRect.anchorMin = sideRect.anchorMax = sideRect.pivot = Vector2.one;
+        sideRect.anchorMin = sideRect.anchorMax = sideRect.pivot = clockAnchor;
         sideRect.anchoredPosition = Vector2.zero;
         sideRect.sizeDelta = new Vector2(330f, 68f);
 
@@ -709,7 +747,7 @@ public sealed class CasualDiningProgressHUD : MonoBehaviour
 
         stackedDayTime = CreateUIObject("Stacked", root.transform);
         RectTransform stackedRect = stackedDayTime.GetComponent<RectTransform>();
-        stackedRect.anchorMin = stackedRect.anchorMax = stackedRect.pivot = Vector2.one;
+        stackedRect.anchorMin = stackedRect.anchorMax = stackedRect.pivot = clockAnchor;
         stackedRect.anchoredPosition = Vector2.zero;
         stackedRect.sizeDelta = new Vector2(180f, 104f);
 
@@ -732,7 +770,8 @@ public sealed class CasualDiningProgressHUD : MonoBehaviour
 
     private TMP_Text CreateClockText(Transform parent, string objectName, string contents, float size)
     {
-        TMP_Text text = CreateText(parent, objectName, contents, size, TextAlignmentOptions.MidlineRight);
+        TMP_Text text = CreateText(parent, objectName, contents, size,
+            useLobbyHudRedesignLayout ? TextAlignmentOptions.MidlineLeft : TextAlignmentOptions.MidlineRight);
         text.font = dayTimeFont != null ? dayTimeFont : font != null ? font : TMP_Settings.defaultFontAsset;
         if (text.font != null)
             text.fontSharedMaterial = text.font.material;
@@ -771,6 +810,31 @@ public sealed class CasualDiningProgressHUD : MonoBehaviour
     }
 
 #if UNITY_EDITOR
+    public bool EnsureLobbyHudRedesignForEditor(
+        TMP_FontAsset configuredDayTimeFont,
+        Sprite configuredMoneyIcon)
+    {
+        const int currentVersion = 3;
+        if (authoredLayoutVersion >= currentVersion)
+            return false;
+
+        useLobbyHudRedesignLayout = true;
+        rememberToggleState = false;
+        dayTimeLayout = DayTimeLayoutMode.Stacked;
+        redesignedPanelSize = new Vector2(1640f, 220f);
+        redesignedApprovalPosition = new Vector2(430f, 0f);
+        redesignedMoneyPosition = new Vector2(1335f, 0f);
+        redesignedNeutralPosition = new Vector2(1335f, -124f);
+        redesignedAngryPosition = new Vector2(1565f, -124f);
+        if (dayTimeFont == null && configuredDayTimeFont != null)
+            dayTimeFont = configuredDayTimeFont;
+        if (configuredMoneyIcon != null)
+            moneyIcon = configuredMoneyIcon;
+        authoredLayoutVersion = currentVersion;
+        RebuildAuthoredVisualTreeForEditor();
+        return true;
+    }
+
     /// <summary>Used only by the prefab authoring utility to create real, saved child objects.</summary>
     public void RebuildAuthoredVisualTreeForEditor()
     {
@@ -935,7 +999,7 @@ public sealed class CasualDiningProgressHUD : MonoBehaviour
 
     private RectTransform CreateProgressRow(Transform parent, string objectName, string label, Sprite icon,
         Vector2 position, float width, float height, float laneHeight, float iconSize, float fontSize,
-        Color fillColor,
+        Color fillColor, bool badgeOnRight,
         out RectTransform fill,
         out RectTransform shine, out TMP_Text value)
     {
@@ -946,9 +1010,13 @@ public sealed class CasualDiningProgressHUD : MonoBehaviour
         rowRect.sizeDelta = new Vector2(width, height);
 
         float badgeSize = Mathf.Max(iconSize + 8f, height * 0.94f);
-        float contentLeft = badgeSize + laneSidePadding;
-        float usableWidth = Mathf.Max(40f, width - contentLeft - laneSidePadding);
-        float laneBottom = Mathf.Min(laneBottomPadding, Mathf.Max(2f, (height - laneHeight) * 0.25f));
+        float contentLeft = badgeOnRight ? 0f : badgeSize + laneSidePadding;
+        float contentRight = badgeOnRight ? badgeSize + laneSidePadding : laneSidePadding;
+        float usableWidth = Mathf.Max(40f, width - contentLeft - contentRight);
+        bool moodRow = badgeOnRight && objectName != "SalesProgress";
+        float laneBottom = moodRow
+            ? Mathf.Max(18f, height - laneHeight - 18f)
+            : Mathf.Min(laneBottomPadding, Mathf.Max(2f, (height - laneHeight) * 0.25f));
 
         GameObject progressShadow = CreateUIObject("ProgressShadow", row.transform, typeof(Image));
         RectTransform progressShadowRect = progressShadow.GetComponent<RectTransform>();
@@ -997,12 +1065,13 @@ public sealed class CasualDiningProgressHUD : MonoBehaviour
 
         GameObject badgeShadow = CreateUIObject("BadgeShadow", row.transform, typeof(Image));
         RectTransform badgeShadowRect = badgeShadow.GetComponent<RectTransform>();
-        SetBadgeRect(badgeShadowRect, badgeSize, new Vector2(badgeSize * 0.5f, -depthOffset));
+        float badgeCenterX = badgeOnRight ? width - badgeSize * 0.5f : badgeSize * 0.5f;
+        SetBadgeRect(badgeShadowRect, badgeSize, new Vector2(badgeCenterX, -depthOffset));
         ConfigureBadgeImage(badgeShadow.GetComponent<Image>(), depthShadowColor);
 
         GameObject badgeRim = CreateUIObject("BadgeRim", row.transform, typeof(Image));
         RectTransform badgeRimRect = badgeRim.GetComponent<RectTransform>();
-        SetBadgeRect(badgeRimRect, badgeSize, new Vector2(badgeSize * 0.5f, 0f));
+        SetBadgeRect(badgeRimRect, badgeSize, new Vector2(badgeCenterX, 0f));
         ConfigureSlicedImage(badgeRim.GetComponent<Image>(), nineSlicedFrame, badgeRimColor);
 
         GameObject badgeCore = CreateUIObject("BadgeCore", badgeRim.transform, typeof(Image));
@@ -1022,7 +1091,10 @@ public sealed class CasualDiningProgressHUD : MonoBehaviour
         iconImage.preserveAspect = true;
         iconImage.raycastTarget = false;
 
-        TMP_Text title = CreateText(row.transform, "Label", label, fontSize, TextAlignmentOptions.Center);
+        TextAlignmentOptions titleAlignment = objectName == "ApprovalProgress"
+            ? TextAlignmentOptions.Left
+            : TextAlignmentOptions.Center;
+        TMP_Text title = CreateText(row.transform, "Label", label, fontSize, titleAlignment);
         RectTransform titleRect = title.rectTransform;
         float headerHeight = Mathf.Max(9f, height - laneBottom - laneHeight);
         float headerCenterY = laneBottom + laneHeight + headerHeight * 0.5f;
@@ -1030,16 +1102,38 @@ public sealed class CasualDiningProgressHUD : MonoBehaviour
         titleRect.pivot = new Vector2(0f, 0.5f);
         titleRect.anchoredPosition = new Vector2(contentLeft, headerCenterY);
         titleRect.sizeDelta = new Vector2(usableWidth, headerHeight);
+        if (moodRow)
+            title.gameObject.SetActive(false);
 
-        value = CreateText(row.transform, "Value", "0", fontSize, TextAlignmentOptions.Right);
+        TextAlignmentOptions valueAlignment = badgeOnRight
+            ? TextAlignmentOptions.Center
+            : TextAlignmentOptions.Right;
+        value = CreateText(row.transform, "Value", "0", fontSize, valueAlignment);
         value.fontSizeMin = 8f;
         value.fontSizeMax = Mathf.Min(fontSize, Mathf.Max(11f, laneHeight + 2f));
         RectTransform valueRect = value.rectTransform;
-        valueRect.anchorMin = valueRect.anchorMax = new Vector2(1f, 0f);
-        valueRect.pivot = new Vector2(1f, 0.5f);
-        valueRect.anchoredPosition = new Vector2(-laneSidePadding - 6f,
-            laneBottom + laneHeight * 0.5f);
-        valueRect.sizeDelta = new Vector2(Mathf.Min(155f, width * 0.32f), laneHeight + 6f);
+        if (badgeOnRight)
+        {
+            valueRect.anchorMin = valueRect.anchorMax = Vector2.zero;
+            valueRect.pivot = new Vector2(0f, 0.5f);
+            valueRect.anchoredPosition = new Vector2(contentLeft,
+                moodRow ? 8f : laneBottom + laneHeight + headerHeight * 0.5f);
+            valueRect.sizeDelta = new Vector2(moodRow ? usableWidth : usableWidth * 0.52f,
+                moodRow ? 22f : headerHeight);
+            if (!moodRow)
+            {
+                titleRect.anchoredPosition = new Vector2(contentLeft + usableWidth * 0.52f, headerCenterY);
+                titleRect.sizeDelta = new Vector2(usableWidth * 0.48f, headerHeight);
+            }
+        }
+        else
+        {
+            valueRect.anchorMin = valueRect.anchorMax = new Vector2(1f, 0f);
+            valueRect.pivot = new Vector2(1f, 0.5f);
+            valueRect.anchoredPosition = new Vector2(-laneSidePadding - 6f,
+                laneBottom + laneHeight * 0.5f);
+            valueRect.sizeDelta = new Vector2(Mathf.Min(155f, width * 0.32f), laneHeight + 6f);
+        }
         return rowRect;
     }
 

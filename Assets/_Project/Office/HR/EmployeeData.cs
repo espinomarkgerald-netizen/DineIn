@@ -10,6 +10,8 @@ public class EmployeeData
 
     [Header("Employment")]
     public bool hired;
+    [Tooltip("Last management day this applicant remains available. Ignored after hiring.")]
+    [Min(0)] public int applicantAvailableUntilDay;
 
     [Header("Work Profile")]
     [Range(50, 200)] public int speed = 100;

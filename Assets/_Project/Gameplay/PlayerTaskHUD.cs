@@ -47,6 +47,18 @@ public sealed class PlayerTaskHUD : MonoBehaviour
     [SerializeField] private Vector2 panelShownPosition = new Vector2(286f, -154f);
     [SerializeField] private Vector2 panelHiddenPosition = new Vector2(92f, -154f);
 
+    [Header("Lobby HUD Redesign")]
+    [Tooltip("Uses the mobile-first right-side layout from the Lobby HUD design. Disable to use the authored legacy positions.")]
+    [SerializeField] private bool useLobbyHudRedesignLayout = true;
+    [SerializeField] private bool hideLegacyObjectivesButton = true;
+    [SerializeField] private bool manualPanelStaysOpen = true;
+    [SerializeField] private Vector2 redesignedButtonPosition = new Vector2(-76f, -350f);
+    [SerializeField] private Vector2 redesignedButtonSize = new Vector2(96f, 116f);
+    [SerializeField] private Vector2 redesignedPanelSize = new Vector2(292f, 164f);
+    [SerializeField] private Vector2 redesignedPanelShownPosition = new Vector2(-186f, -344f);
+    [SerializeField] private Vector2 redesignedPanelHiddenPosition = new Vector2(-78f, -344f);
+    [SerializeField, HideInInspector] private int lobbyHudLayoutVersion;
+
     [Header("Timing")]
     [SerializeField, Min(0.05f)] private float slideSeconds = 0.28f;
     [SerializeField, Min(0.5f)] private float automaticVisibleSeconds = 2.6f;
@@ -80,6 +92,10 @@ public sealed class PlayerTaskHUD : MonoBehaviour
     private bool objectivesSceneVisible;
     private float autoHideAt;
     private float reminderAt = float.PositiveInfinity;
+    private Vector2 effectivePanelShownPosition;
+    private Vector2 effectivePanelHiddenPosition;
+    private Vector2Int lastLayoutScreenSize = new Vector2Int(-1, -1);
+    private Rect lastLayoutSafeArea = new Rect(-1f, -1f, -1f, -1f);
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetStatics()
@@ -156,6 +172,7 @@ public sealed class PlayerTaskHUD : MonoBehaviour
         if (panelImage != null)
             panelImage.color = panelColor;
 
+        RefreshLobbyLayout(true);
         ApplyPanelImmediate(false);
         SetBadge(false);
         RefreshSceneVisibility();
@@ -194,6 +211,7 @@ public sealed class PlayerTaskHUD : MonoBehaviour
 
     private void Update()
     {
+        RefreshLobbyLayout(false);
         PlayerTaskBubbleFocus.BackgroundAlpha = backgroundTaskBubbleAlpha;
 
         bool blocked = hideWhileGameplayUIBlocked && GameplayUIBlocker.IsBlocked();
@@ -236,7 +254,15 @@ public sealed class PlayerTaskHUD : MonoBehaviour
     {
         supportedSceneVisible = false;
         objectivesSceneVisible = false;
-        for (int i = 0; i < SceneManager.sceneCount && !supportedSceneVisible; i++)
+        if (useLobbyHudRedesignLayout)
+        {
+            // RestockScene is additive, so a loaded Lobby1 scene is not enough.
+            // The redesigned HUD belongs only to the active normal Lobby view.
+            bool activeLobby = SceneManager.GetActiveScene().name == "Lobby1";
+            supportedSceneVisible = activeLobby;
+            objectivesSceneVisible = activeLobby;
+        }
+        else for (int i = 0; i < SceneManager.sceneCount && !supportedSceneVisible; i++)
         {
             string sceneName = SceneManager.GetSceneAt(i).name;
             if (sceneName == "Lobby1")
@@ -257,7 +283,9 @@ public sealed class PlayerTaskHUD : MonoBehaviour
         if (hudCanvas != null)
             hudCanvas.enabled = supportedSceneVisible;
         if (objectivesButton != null)
-            objectivesButton.gameObject.SetActive(objectivesSceneVisible);
+            objectivesButton.gameObject.SetActive(objectivesSceneVisible && !hideLegacyObjectivesButton);
+
+        RefreshLobbyLayout(true);
     }
 
     private void OnObjectivesButtonClicked()
@@ -330,7 +358,7 @@ public sealed class PlayerTaskHUD : MonoBehaviour
         currentCompositeKey = compositeKey;
 
         if (taskText != null)
-            taskText.text = task.Action;
+            taskText.text = "CURRENT TASK\n" + task.Action;
         if (detailText != null)
         {
             detailText.text = task.Detail;
@@ -358,7 +386,7 @@ public sealed class PlayerTaskHUD : MonoBehaviour
         if (!PlayerTaskGuidance.Current.IsValid)
         {
             if (taskText != null)
-                taskText.text = "NO ACTIVE TASK";
+                taskText.text = "CURRENT TASK\nNO ACTIVE TASK";
             if (detailText != null)
             {
                 detailText.text = "CHOOSE A CUSTOMER OR WORK ITEM";
@@ -372,7 +400,7 @@ public sealed class PlayerTaskHUD : MonoBehaviour
         if (panelOpen)
             HidePanel(true);
         else
-            ShowPanel(manualVisibleSeconds, true);
+            ShowPanel(manualPanelStaysOpen ? float.PositiveInfinity : manualVisibleSeconds, true);
     }
 
     private void ShowPanel(float visibleSeconds, bool resetReminder)
@@ -382,7 +410,9 @@ public sealed class PlayerTaskHUD : MonoBehaviour
 
         panelRoot.SetActive(true);
         panelOpen = true;
-        autoHideAt = Time.unscaledTime + Mathf.Max(0.25f, visibleSeconds);
+        autoHideAt = float.IsPositiveInfinity(visibleSeconds)
+            ? float.PositiveInfinity
+            : Time.unscaledTime + Mathf.Max(0.25f, visibleSeconds);
         if (resetReminder)
             reminderAt = Time.unscaledTime + reminderDelaySeconds;
         StartPanelTransition(true);
@@ -410,7 +440,7 @@ public sealed class PlayerTaskHUD : MonoBehaviour
     private IEnumerator PanelTransition(bool show)
     {
         Vector2 startPosition = panelRect.anchoredPosition;
-        Vector2 targetPosition = show ? panelShownPosition : panelHiddenPosition;
+        Vector2 targetPosition = show ? effectivePanelShownPosition : effectivePanelHiddenPosition;
         float startAlpha = panelGroup != null ? panelGroup.alpha : (show ? 0f : 1f);
         float targetAlpha = show ? 1f : 0f;
         float startScale = panelRect.localScale.x;
@@ -445,7 +475,7 @@ public sealed class PlayerTaskHUD : MonoBehaviour
             panelRoot.SetActive(show);
         if (panelRect != null)
         {
-            panelRect.anchoredPosition = show ? panelShownPosition : panelHiddenPosition;
+            panelRect.anchoredPosition = show ? effectivePanelShownPosition : effectivePanelHiddenPosition;
             panelRect.localScale = Vector3.one * (show ? 1f : panelHiddenScale);
         }
         if (panelGroup != null)
@@ -526,7 +556,7 @@ public sealed class PlayerTaskHUD : MonoBehaviour
     private IEnumerator CompletionPresentation()
     {
         if (taskText != null)
-            taskText.text = "TASK COMPLETE";
+            taskText.text = "CURRENT TASK\nTASK COMPLETE";
         if (detailText != null)
         {
             detailText.text = "READY FOR THE NEXT JOB";
@@ -557,11 +587,95 @@ public sealed class PlayerTaskHUD : MonoBehaviour
             panelImage.color = panelColor;
     }
 
+    private void RefreshLobbyLayout(bool force)
+    {
+        if (!useLobbyHudRedesignLayout || buttonRect == null || panelRect == null)
+        {
+            effectivePanelShownPosition = panelShownPosition;
+            effectivePanelHiddenPosition = panelHiddenPosition;
+            return;
+        }
+
+        Vector2Int size = new Vector2Int(Screen.width, Screen.height);
+        Rect safeArea = Screen.safeArea;
+        if (!force && size == lastLayoutScreenSize && safeArea == lastLayoutSafeArea)
+            return;
+
+        lastLayoutScreenSize = size;
+        lastLayoutSafeArea = safeArea;
+        float rightInset = Screen.width > 0
+            ? (Screen.width - safeArea.xMax) * 1920f / Screen.width
+            : 0f;
+        float topInset = Screen.height > 0
+            ? (Screen.height - safeArea.yMax) * 1080f / Screen.height
+            : 0f;
+        Vector2 safeOffset = new Vector2(-rightInset, -topInset);
+
+        buttonRect.anchorMin = buttonRect.anchorMax = buttonRect.pivot = Vector2.one;
+        buttonRect.anchoredPosition = redesignedButtonPosition + safeOffset;
+        buttonRect.sizeDelta = redesignedButtonSize;
+
+        panelRect.anchorMin = panelRect.anchorMax = panelRect.pivot = Vector2.one;
+        panelRect.sizeDelta = redesignedPanelSize;
+        effectivePanelShownPosition = redesignedPanelShownPosition + safeOffset;
+        effectivePanelHiddenPosition = redesignedPanelHiddenPosition + safeOffset;
+        if (panelRoutine == null)
+            panelRect.anchoredPosition = panelOpen
+                ? effectivePanelShownPosition
+                : effectivePanelHiddenPosition;
+
+        if (taskText != null)
+        {
+            taskText.alignment = TextAlignmentOptions.Top;
+            taskText.fontSizeMax = 28f;
+            taskText.fontSizeMin = 18f;
+            RectTransform rect = taskText.rectTransform;
+            rect.anchorMin = new Vector2(0f, 0.42f);
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = new Vector2(16f, 4f);
+            rect.offsetMax = new Vector2(-16f, -12f);
+        }
+
+        if (detailText != null)
+        {
+            detailText.alignment = TextAlignmentOptions.Top;
+            detailText.fontSizeMax = 22f;
+            detailText.fontSizeMin = 15f;
+            RectTransform rect = detailText.rectTransform;
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = new Vector2(1f, 0.43f);
+            rect.offsetMin = new Vector2(16f, 10f);
+            rect.offsetMax = new Vector2(-16f, -2f);
+        }
+    }
+
     private static float Smooth(float value)
     {
         value = Mathf.Clamp01(value);
         return value * value * (3f - 2f * value);
     }
+
+#if UNITY_EDITOR
+    public bool EnsureLobbyHudLayoutForEditor(Sprite configuredTaskIcon)
+    {
+        const int currentVersion = 1;
+        if (lobbyHudLayoutVersion >= currentVersion)
+            return false;
+
+        useLobbyHudRedesignLayout = true;
+        hideLegacyObjectivesButton = true;
+        manualPanelStaysOpen = true;
+        redesignedButtonPosition = new Vector2(-76f, -350f);
+        redesignedButtonSize = new Vector2(96f, 116f);
+        redesignedPanelSize = new Vector2(292f, 164f);
+        redesignedPanelShownPosition = new Vector2(-186f, -344f);
+        redesignedPanelHiddenPosition = new Vector2(-78f, -344f);
+        if (taskIcon != null && configuredTaskIcon != null)
+            taskIcon.sprite = configuredTaskIcon;
+        lobbyHudLayoutVersion = currentVersion;
+        return true;
+    }
+#endif
 
     private static float BackOut(float value)
     {

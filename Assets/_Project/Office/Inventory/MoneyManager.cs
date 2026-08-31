@@ -12,6 +12,8 @@ public class MoneyManager : MonoBehaviour
 
     [Header("Optional Inspector Debug")]
     [SerializeField] private List<string> transactionLog = new List<string>();
+    [SerializeField] private List<MoneyTransactionSaveEntry> dailyTransactions =
+        new List<MoneyTransactionSaveEntry>();
 
     public event Action<int> OnMoneyChanged;
 
@@ -71,7 +73,7 @@ public class MoneyManager : MonoBehaviour
 
         Money += amount;
         SyncWalletDelta(amount);
-        LogTransaction($"+{amount}: {description}");
+        LogTransaction($"+{amount}: {description}", amount, description, false);
         Debug.Log("[MoneyManager] Earn -> " + Money);
         NotifyMoneyChanged();
         GameSaveManager.Instance?.RequestSave();
@@ -87,7 +89,7 @@ public class MoneyManager : MonoBehaviour
 
         Money -= amount;
         SyncWalletDelta(-amount);
-        LogTransaction($"-{amount}: {description}");
+        LogTransaction($"-{amount}: {description}", -amount, description, false);
         Debug.Log("[MoneyManager] Spend -> " + Money);
         NotifyMoneyChanged();
         GameSaveManager.Instance?.RequestSave();
@@ -99,7 +101,7 @@ public class MoneyManager : MonoBehaviour
         int previousMoney = Money;
         Money = Mathf.Max(0, amount);
         SyncWalletDelta(Money - previousMoney);
-        LogTransaction($"={Money}: {description}");
+        LogTransaction($"={Money}: {description}", Money - previousMoney, description, true);
         Debug.Log("[MoneyManager] SetMoney -> " + Money);
         NotifyMoneyChanged();
         GameSaveManager.Instance?.RequestSave();
@@ -118,22 +120,46 @@ public class MoneyManager : MonoBehaviour
         int previousMoney = Money;
         Money = Mathf.Max(0, Money - amount);
         SyncWalletDelta(Money - previousMoney);
-        LogTransaction($"-{amount} (forced): {description}");
+        LogTransaction(
+            $"-{amount} (forced): {description}",
+            Money - previousMoney,
+            description,
+            false);
         Debug.Log("[MoneyManager] ForceSpend -> " + Money);
         NotifyMoneyChanged();
         GameSaveManager.Instance?.RequestSave();
     }
 
     public IReadOnlyList<string> TransactionLog => transactionLog;
+    public IReadOnlyList<MoneyTransactionSaveEntry> DailyTransactions => dailyTransactions;
 
     private void NotifyMoneyChanged()
     {
         OnMoneyChanged?.Invoke(Money);
     }
 
-    private void LogTransaction(string entry)
+    private void LogTransaction(
+        string entry,
+        int amountDelta,
+        string description,
+        bool adjustment)
     {
         transactionLog.Add(entry);
+        dailyTransactions.Add(new MoneyTransactionSaveEntry
+        {
+            day = GameFlowManager.Instance != null
+                ? Mathf.Max(1, GameFlowManager.Instance.CurrentDay)
+                : 0,
+            amountDelta = amountDelta,
+            description = string.IsNullOrWhiteSpace(description) ? "Transaction" : description,
+            adjustment = adjustment
+        });
+
+        // Keep saves small during long endless-mode runs while retaining enough
+        // history for the current-day Finance app.
+        const int retainedEntries = 160;
+        if (dailyTransactions.Count > retainedEntries)
+            dailyTransactions.RemoveRange(0, dailyTransactions.Count - retainedEntries);
     }
 
     private void TryBindWallet()
@@ -191,6 +217,21 @@ public class MoneyManager : MonoBehaviour
             return;
 
         data.money = Money;
+        if (data.moneyTransactions == null)
+            data.moneyTransactions = new List<MoneyTransactionSaveEntry>();
+        data.moneyTransactions.Clear();
+        foreach (MoneyTransactionSaveEntry entry in dailyTransactions)
+        {
+            if (entry == null)
+                continue;
+            data.moneyTransactions.Add(new MoneyTransactionSaveEntry
+            {
+                day = entry.day,
+                amountDelta = entry.amountDelta,
+                description = entry.description,
+                adjustment = entry.adjustment
+            });
+        }
         Debug.Log("[MoneyManager] FillSaveData saved money = " + Money);
     }
 
@@ -200,6 +241,22 @@ public class MoneyManager : MonoBehaviour
             return;
 
         Money = Mathf.Max(0, data.money);
+        dailyTransactions.Clear();
+        if (data.moneyTransactions != null)
+        {
+            foreach (MoneyTransactionSaveEntry entry in data.moneyTransactions)
+            {
+                if (entry == null)
+                    continue;
+                dailyTransactions.Add(new MoneyTransactionSaveEntry
+                {
+                    day = entry.day,
+                    amountDelta = entry.amountDelta,
+                    description = entry.description,
+                    adjustment = entry.adjustment
+                });
+            }
+        }
         Debug.Log("[MoneyManager] ApplySaveData loaded money = " + Money);
         NotifyMoneyChanged();
     }

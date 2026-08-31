@@ -1524,6 +1524,10 @@ MonoBehaviour:
   itemIcons:
   - {fileID: 5862151882040081512}
   - {fileID: 8922524725196030070}
+  quantityTexts: []
+  quantityPrefix: x
+  appendQuantityToItemName: 1
+  removeContainerWhenEmpty: 1
   labelReferencesConfigured: 1
   expiredLabel: EXPIRED
   expiredLabelColor: {r: 0.94, g: 0.16, b: 0.16, a: 1}

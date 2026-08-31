@@ -114,7 +114,12 @@ public sealed class DailyNewspaperPresenter : MonoBehaviour
         ManagementComputerController computer = FindFirstObjectByType<ManagementComputerController>(
             FindObjectsInactive.Include);
         bool computerOpen = computer != null && computer.IsOpen;
-        bool shouldShowButton = inLobby && preparation && !serviceRunning && !computerOpen;
+        // The redesigned Lobby HUD owns the compact newspaper shortcut. Keep
+        // this presenter's full article overlay and archive logic, but avoid a
+        // second legacy button occupying the bottom-left corner.
+        bool integratedLobbyButton = LobbyHUDRedesign.Instance != null;
+        bool shouldShowButton = inLobby && preparation && !serviceRunning &&
+                                !computerOpen && !integratedLobbyButton;
 
         if ((shouldShowButton || IsOpen) && canvasRoot == null)
             BuildUI();

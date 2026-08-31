@@ -749,9 +749,13 @@ public class LobbyAutonomousService : MonoBehaviour
         candidates.Sort(CompareTrayReadyOrder);
         if (candidates.Count > waiterTrolley.Capacity)
             candidates.RemoveRange(waiterTrolley.Capacity, candidates.Count - waiterTrolley.Capacity);
-        if (candidates.Count < waiterTrolley.MinimumBatchSize)
+        if (candidates.Count == 0)
             return false;
 
+        // A purchased waiter trolley is the normal carrier for every prepared
+        // dine-in order. Keep the existing short grace period so an imminent
+        // second tray can still be collected in one trip, but do not fall back
+        // to hand-carrying merely because only one tray remains ready.
         if (candidates.Count == 1 && ShouldWaitForWaiterTrolleyBatch(candidates[0]))
             return false;
 
@@ -765,12 +769,8 @@ public class LobbyAutonomousService : MonoBehaviour
             batch.Add(tray);
         }
 
-        if (batch.Count < waiterTrolley.MinimumBatchSize)
-        {
-            for (int i = 0; i < batch.Count; i++)
-                ReleaseBatchClaim(batch[i], waiter);
+        if (batch.Count == 0)
             return false;
-        }
 
         TrackActiveBatch(activeWaiterTrolleyBatch, batch);
         waiterTrolley.SetReserved();

@@ -12,6 +12,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d12a8f3c94b2473cbd90f1e6a27c50aa, type: 3}
   m_Name: ManagerComplaintSettings
   m_EditorClassIdentifier:
+  zeroComplaintsWeight: 25
+  oneComplaintWeight: 50
+  twoComplaintsWeight: 20
+  threeComplaintsWeight: 5
+  firstComplaintDelaySeconds: 90
+  minimumSecondsBetweenComplaints: 120
+  stopNewComplaintsBeforeCloseSeconds: 60
   maximumEncountersPerWeek: 2
   eligibleIncidentChance: 0.45
   minimumCompletedDaysBetweenEncounters: 1

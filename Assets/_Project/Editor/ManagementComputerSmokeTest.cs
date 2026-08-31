@@ -157,6 +157,12 @@ public static class ManagementComputerSmokeTest
         Assert(responsiveLayouts.Length == 1,
             "Lobby1 must contain exactly one responsive management desktop, found " + responsiveLayouts.Length);
         ManagementComputerResponsiveLayout responsive = responsiveLayouts[0];
+        SerializedObject responsivePreview = new SerializedObject(responsive);
+        SerializedProperty previewMobile = responsivePreview.FindProperty("previewMobileLayoutInEditor");
+        Assert(previewMobile != null,
+            "Management computer lost its non-destructive mobile preview switch");
+        previewMobile.boolValue = true;
+        responsivePreview.ApplyModifiedPropertiesWithoutUndo();
 
         controller.OpenComputer(manager, station);
         Assert(controller.IsOpen, "Desktop did not open");
@@ -187,16 +193,21 @@ public static class ManagementComputerSmokeTest
             appButton.onClick.Invoke();
             Canvas.ForceUpdateCanvases();
             LayoutRebuilder.ForceRebuildLayoutImmediate(controller.AppWindow.Content);
+            responsive.RefreshDynamicContent();
+            Canvas.ForceUpdateCanvases();
             Assert(controller.AppWindow.gameObject.activeSelf, "App window did not open for index " + i);
             Assert(controller.AppWindow.Content.childCount > 0, "App index " + i + " populated no prefab rows");
+            VerifyMobileAppControls(controller.AppWindow.transform, i);
 
             ScrollRect scroll = controller.AppWindow.GetComponentInChildren<ScrollRect>(true);
             bool isCatalog =
                 i == (int)ManagementComputerApp.Menu ||
                 i == (int)ManagementComputerApp.Restock;
             bool isEquipment = i == (int)ManagementComputerApp.Equipment;
+            bool ownsEmbeddedScroll = isCatalog ||
+                                      i == (int)ManagementComputerApp.Staff;
             Assert(scroll != null, "App window has no ScrollRect for index " + i);
-            Assert(isCatalog
+            Assert(ownsEmbeddedScroll
                     ? !scroll.horizontal && !scroll.vertical
                     : scroll.vertical && !scroll.horizontal,
                 "App window has the wrong scroll direction for index " + i);
@@ -257,6 +268,15 @@ public static class ManagementComputerSmokeTest
                     controller.AppWindow.Content.GetComponentInChildren<ManagementComputerHRPanel>(false);
                 Assert(hrPanel != null, "Staff app did not populate the prefab-backed HR board");
                 VerifyHRBoard(hrPanel, EmployeeManager.Instance, controller);
+            }
+            else if (i == (int)ManagementComputerApp.Objectives)
+            {
+                ManagementComputerRowUI[] demandRows = controller.AppWindow.Content
+                    .GetComponentsInChildren<ManagementComputerRowUI>(false);
+                Assert(demandRows.Length >= 3,
+                    "Alien Demands did not create the mandatory, secondary, and bonus rows");
+                VerifyVisibleRect(demandRows[0].transform as RectTransform,
+                    "first Alien Demands row");
             }
         }
 
@@ -471,10 +491,16 @@ public static class ManagementComputerSmokeTest
         EmployeeManager manager,
         ManagementComputerController controller)
     {
-        Assert(panel.LobbyTab != null && panel.KitchenTab != null,
-            "HR department tabs are missing");
-        Assert(panel.LobbyTab.interactable && panel.KitchenTab.interactable,
+        Assert(panel.LobbyTab != null && panel.KitchenTab != null && panel.ApplicantsTab != null,
+            "HR department/applicant tabs are missing");
+        Assert(panel.LobbyTab.interactable && panel.KitchenTab.interactable && panel.ApplicantsTab.interactable,
             "HR department tabs are not interactable");
+        Assert(panel.BodyScroll != null && panel.BodyScroll.vertical,
+            "HR role list has no dedicated vertical scroll view");
+        Assert(!panel.LobbyTab.transform.IsChildOf(panel.BodyScroll.transform) &&
+               !panel.KitchenTab.transform.IsChildOf(panel.BodyScroll.transform) &&
+               !panel.ApplicantsTab.transform.IsChildOf(panel.BodyScroll.transform),
+            "HR navigation tabs scroll with the role list instead of staying sticky");
 
         ManagementHRRoleSectionUI[] lobbySections = GetActiveRoleSections(panel);
         Assert(lobbySections.Length == EmployeeRoleCatalog.LobbyRoles.Count,
@@ -482,7 +508,11 @@ public static class ManagementComputerSmokeTest
         foreach (EmployeeRole role in EmployeeRoleCatalog.LobbyRoles)
             Assert(Array.Exists(lobbySections, section => section.Role == role),
                 "Lobby HR department is missing " + role);
-        VerifyRoleRails(lobbySections);
+        VerifyEmployedRoleRails(lobbySections);
+        Assert(panel.SectionsRoot.rect.height >= 400f,
+            "Staff role content collapsed to a zero-height body");
+        VerifyVisibleRect(lobbySections[0].transform as RectTransform,
+            "first lobby Staff section");
 
         panel.KitchenTab.onClick.Invoke();
         Canvas.ForceUpdateCanvases();
@@ -496,13 +526,37 @@ public static class ManagementComputerSmokeTest
                 section.Role == EmployeeRole.PrepCook || section.Role == EmployeeRole.LineCook ||
                 section.Role == EmployeeRole.Assembler),
             "Legacy kitchen roles are still exposed by the HR board");
-        VerifyRoleRails(kitchenSections);
+        VerifyEmployedRoleRails(kitchenSections);
 
-        ManagementHRRoleSectionUI actionSection = kitchenSections[0];
+        panel.ApplicantsTab.onClick.Invoke();
+        Canvas.ForceUpdateCanvases();
+        Assert(panel.CurrentView == ManagementHRView.Applicants,
+            "Applicants tab did not open the consolidated applicant view");
+        ManagementHRRoleSectionUI[] applicantSections = GetActiveRoleSections(panel);
+        Assert(applicantSections.Length ==
+               EmployeeRoleCatalog.LobbyRoles.Count + EmployeeRoleCatalog.KitchenRoles.Count,
+            "Applicants tab does not show every supported role");
+        VerifyApplicantRoleRails(applicantSections);
+
+        // Exercise a card that is currently inside the outer Staff viewport.
+        // The previous test targeted Chef while the consolidated list was still
+        // scrolled to the first (Lobby) section, so its synthetic screen click
+        // landed on an unrelated visible control instead of the clipped card.
+        ManagementHRRoleSectionUI actionSection = applicantSections[0];
+        EmployeeDepartment actionDepartment =
+            actionSection.Role == EmployeeRole.Chef || actionSection.Role == EmployeeRole.Barista
+                ? EmployeeDepartment.Kitchen
+                : EmployeeDepartment.Lobby;
         if (manager.GetHiredCount(actionSection.Role) >= manager.MaxHiredPerRole)
         {
+            (actionDepartment == EmployeeDepartment.Lobby
+                ? panel.LobbyTab
+                : panel.KitchenTab).onClick.Invoke();
+            Canvas.ForceUpdateCanvases();
+            ManagementHRRoleSectionUI employedSection = Array.Find(
+                GetActiveRoleSections(panel), section => section.Role == actionSection.Role);
             ManagementEmployeeCardUI employedCard =
-                actionSection.EmployedContent.GetComponentInChildren<ManagementEmployeeCardUI>(false);
+                employedSection.EmployedContent.GetComponentInChildren<ManagementEmployeeCardUI>(false);
             Assert(employedCard != null && employedCard.Employee != null,
                 "Full HR roster has no employed card to manage");
             EmployeeData fired = employedCard.Employee;
@@ -510,14 +564,19 @@ public static class ManagementComputerSmokeTest
                 "Employed card Fire action is not interactable");
             employedCard.SecondaryButton.onClick.Invoke();
             Assert(!manager.allEmployees.Contains(fired), "Fire action did not remove the employee");
+
+            panel.ApplicantsTab.onClick.Invoke();
+            Canvas.ForceUpdateCanvases();
         }
 
-        kitchenSections = GetActiveRoleSections(panel);
-        actionSection = Array.Find(kitchenSections, section => section.Role == actionSection.Role);
+        applicantSections = GetActiveRoleSections(panel);
+        actionSection = Array.Find(applicantSections, section => section.Role == actionSection.Role);
         ManagementEmployeeCardUI[] applicantCards =
             actionSection.ApplicantContent.GetComponentsInChildren<ManagementEmployeeCardUI>(false);
+        // The horizontal rail starts at its leading edge, so the first card is
+        // the one a player can actually tap before swiping the rail.
         ManagementEmployeeCardUI applicantCard = applicantCards.Length > 0
-            ? applicantCards[applicantCards.Length / 2]
+            ? applicantCards[0]
             : null;
         Assert(applicantCard != null && applicantCard.Employee != null && !applicantCard.Employee.hired,
             "Applicant rail has no applicant card");
@@ -532,6 +591,10 @@ public static class ManagementComputerSmokeTest
         Assert(manager.GetAssignedEmployee(hired.role) != null,
             "Hiring into an empty role did not assign an active employee");
 
+        (actionDepartment == EmployeeDepartment.Lobby
+            ? panel.LobbyTab
+            : panel.KitchenTab).onClick.Invoke();
+        Canvas.ForceUpdateCanvases();
         kitchenSections = GetActiveRoleSections(panel);
         actionSection = Array.Find(kitchenSections, section => section.Role == hired.role);
         ManagementEmployeeCardUI hiredCard = Array.Find(
@@ -566,6 +629,19 @@ public static class ManagementComputerSmokeTest
         Assert(rect != null, "Hire button has no RectTransform");
         Vector2 screenPoint = RectTransformUtility.WorldToScreenPoint(
             null, rect.TransformPoint(rect.rect.center));
+
+        MethodInfo hitTest = typeof(ManagementComputerController).GetMethod(
+            "FindTopmostButtonAt",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert(hitTest != null, "Management fallback button hit-test is missing");
+        Button routedButton = hitTest.Invoke(
+            controller,
+            new object[] { screenPoint }) as Button;
+        Assert(routedButton == targetButton,
+            "Visible Staff Hire tap was routed to " +
+            (routedButton != null ? GetHierarchyPath(routedButton.transform) : "nothing") +
+            " instead of " + GetHierarchyPath(targetButton.transform) +
+            " at " + screenPoint);
 
         PointerEventData firstRelease = new PointerEventData(EventSystem.current)
         {
@@ -849,27 +925,81 @@ public static class ManagementComputerSmokeTest
         return null;
     }
 
-    private static void VerifyRoleRails(ManagementHRRoleSectionUI[] sections)
+    private static void VerifyEmployedRoleRails(ManagementHRRoleSectionUI[] sections)
     {
         foreach (ManagementHRRoleSectionUI section in sections)
         {
             Assert(section.EmployedScroll != null && section.ApplicantScroll != null,
                 section.Role + " is missing an employee or applicant ScrollRect");
+            Assert(section.EmployedScroll.gameObject.activeSelf && !section.ApplicantScroll.gameObject.activeSelf,
+                section.Role + " department view did not isolate the employed roster");
             Assert(section.EmployedScroll.horizontal && !section.EmployedScroll.vertical,
                 section.Role + " employed rail is not horizontal-only");
+            Assert(section.EmployedScroll is ManagementHorizontalScrollRect,
+                section.Role + " employed rail cannot forward vertical touch drags to the outer HR page");
+            Assert(section.EmployedScroll.horizontalScrollbar != null,
+                section.Role + " employed rail is missing an editable scrollbar");
+            ManagementEmployeeCardUI card =
+                section.EmployedContent.GetComponentInChildren<ManagementEmployeeCardUI>(false);
+            Assert(card != null,
+                section.Role + " employed rail has neither a worker card nor an empty-slot card");
+            VerifyVisibleRect(card.transform as RectTransform,
+                section.Role + " employed Staff card");
+            Assert(OverlapsViewport(card.transform as RectTransform, section.EmployedScroll.viewport),
+                section.Role + " employed Staff card is outside its visible viewport");
+        }
+    }
+
+    private static void VerifyApplicantRoleRails(ManagementHRRoleSectionUI[] sections)
+    {
+        foreach (ManagementHRRoleSectionUI section in sections)
+        {
+            Assert(section.EmployedScroll != null && section.ApplicantScroll != null,
+                section.Role + " is missing an employee or applicant ScrollRect");
+            Assert(!section.EmployedScroll.gameObject.activeSelf && section.ApplicantScroll.gameObject.activeSelf,
+                section.Role + " applicant view did not isolate the applicant pool");
             Assert(section.ApplicantScroll.horizontal && !section.ApplicantScroll.vertical,
                 section.Role + " applicant rail is not horizontal-only");
-            Assert(section.EmployedScroll is ManagementHorizontalScrollRect &&
-                   section.ApplicantScroll is ManagementHorizontalScrollRect,
-                section.Role + " rails cannot forward vertical touch drags to the outer HR page");
-            Assert(section.EmployedScroll.horizontalScrollbar != null &&
-                   section.ApplicantScroll.horizontalScrollbar != null,
-                section.Role + " horizontal rail is missing an editable scrollbar");
-            Assert(section.EmployedContent.GetComponentInChildren<ManagementEmployeeCardUI>(false) != null,
-                section.Role + " employed rail has neither a worker card nor an empty-slot card");
-            Assert(section.ApplicantContent.GetComponentInChildren<ManagementEmployeeCardUI>(false) != null,
+            Assert(section.ApplicantScroll is ManagementHorizontalScrollRect,
+                section.Role + " applicant rail cannot forward vertical touch drags to the outer HR page");
+            Assert(section.ApplicantScroll.horizontalScrollbar != null,
+                section.Role + " applicant rail is missing an editable scrollbar");
+            ManagementEmployeeCardUI card =
+                section.ApplicantContent.GetComponentInChildren<ManagementEmployeeCardUI>(false);
+            Assert(card != null,
                 section.Role + " applicant rail has no employee cards");
+            VerifyVisibleRect(card.transform as RectTransform,
+                section.Role + " applicant Staff card");
+            Assert(OverlapsViewport(card.transform as RectTransform, section.ApplicantScroll.viewport),
+                section.Role + " applicant Staff card is outside its visible viewport");
         }
+    }
+
+    private static void VerifyVisibleRect(RectTransform rect, string label)
+    {
+        Assert(rect != null && rect.gameObject.activeInHierarchy,
+            label + " is inactive or has no RectTransform");
+        Assert(rect.rect.width > 8f && rect.rect.height > 8f,
+            label + " collapsed to " +
+            (rect != null ? rect.rect.size.ToString("F1") : "no size"));
+
+        CanvasGroup ownGroup = rect.GetComponent<CanvasGroup>();
+        Assert(ownGroup == null || ownGroup.alpha > 0.99f,
+            label + " is present but transparent");
+    }
+
+    private static bool OverlapsViewport(RectTransform target, RectTransform viewport)
+    {
+        if (target == null || viewport == null)
+            return false;
+
+        Bounds bounds = RectTransformUtility.CalculateRelativeRectTransformBounds(viewport, target);
+        Rect targetRect = new Rect(
+            bounds.min.x,
+            bounds.min.y,
+            bounds.size.x,
+            bounds.size.y);
+        return viewport.rect.Overlaps(targetRect, true);
     }
 
     private static bool MaskContains(UnityEngine.Object target, string propertyName, int layer)
@@ -904,8 +1034,11 @@ public static class ManagementComputerSmokeTest
         CanvasScaler scaler = canvas.GetComponent<CanvasScaler>();
         Assert(scaler != null && scaler.uiScaleMode == CanvasScaler.ScaleMode.ScaleWithScreenSize,
             "Management computer canvas is not configured to scale with screen size");
-        Assert(Vector2.Distance(scaler.referenceResolution, new Vector2(1920f, 1080f)) < 0.1f,
-            "Management computer canvas reference resolution must be 1920x1080");
+        Vector2 expectedReference = responsive.UsesMobileLayout
+            ? new Vector2(1600f, 900f)
+            : new Vector2(1920f, 1080f);
+        Assert(Vector2.Distance(scaler.referenceResolution, expectedReference) < 0.1f,
+            "Management computer canvas reference resolution does not match its active layout mode");
         Assert(Mathf.Abs(scaler.matchWidthOrHeight - 0.5f) < 0.001f,
             "Management computer canvas must balance width and height scaling");
 
@@ -934,6 +1067,43 @@ public static class ManagementComputerSmokeTest
 
         foreach (Vector2Int screen in supportedScreens)
             VerifyScaledViewport(screen, scaler.referenceResolution, scaler.matchWidthOrHeight);
+    }
+
+    private static void VerifyMobileAppControls(Transform appWindow, int appIndex)
+    {
+        Button[] buttons = appWindow.GetComponentsInChildren<Button>(false);
+        Assert(buttons.Length > 0,
+            "Management app " + appIndex + " has no usable controls");
+
+        foreach (Button button in buttons)
+        {
+            if (button == null || !button.gameObject.activeInHierarchy)
+                continue;
+
+            RectTransform rect = button.transform as RectTransform;
+            Assert(rect != null && rect.rect.width >= 64f && rect.rect.height >= 64f,
+                button.name + " in app " + appIndex +
+                " fell below the phone touch target (" +
+                (rect != null ? $"{rect.rect.width:0} x {rect.rect.height:0}" : "missing rect") + ")");
+
+            string buttonName = button.name;
+            bool keepsPurposeSpecificArt =
+                buttonName.IndexOf("Close", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                buttonName.IndexOf("Exit", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                buttonName.IndexOf("Secondary", StringComparison.OrdinalIgnoreCase) >= 0;
+            if (keepsPurposeSpecificArt)
+                continue;
+
+            Image image = button.targetGraphic as Image;
+            string spritePath = image != null && image.sprite != null
+                ? AssetDatabase.GetAssetPath(image.sprite).Replace('\\', '/')
+                : string.Empty;
+            Assert(spritePath.IndexOf(
+                       "/NewDesign/UI Elements/PNG/Blue/Double/",
+                       StringComparison.OrdinalIgnoreCase) >= 0,
+                button.name + " in app " + appIndex +
+                " does not use the shared Blue/Double control style");
+        }
     }
 
     private static void VerifyScaledViewport(Vector2Int screen, Vector2 reference, float match)

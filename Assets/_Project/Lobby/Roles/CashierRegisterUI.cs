@@ -58,6 +58,18 @@ public class CashierRegisterUI : MonoBehaviour
 
     [SerializeField] private TutorialHintTextUI tutorialHint;
 
+    [Header("Mobile Presentation (Editable)")]
+    [SerializeField, Range(0.8f, 1.5f)] private float mobilePanelScale = MobilePanelScale;
+    [SerializeField, Min(80f)] private float mobileCompactItemsWidth = 146f;
+    [SerializeField, Min(28f)] private float mobileCompactItemsHeight = 46f;
+    [SerializeField, Min(28f)] private float mobileCompactMaximumCellWidth = 52f;
+    [SerializeField, Min(48f)] private float mobileCompactPriceWidth = 76f;
+    [Header("Desktop Compact Layout (Editable)")]
+    [SerializeField, Min(80f)] private float desktopCompactItemsWidth = 136f;
+    [SerializeField, Min(28f)] private float desktopCompactItemsHeight = 36f;
+    [SerializeField, Min(28f)] private float desktopCompactMaximumCellWidth = 48f;
+    [SerializeField, Min(48f)] private float desktopCompactPriceWidth = 82f;
+
     private int receivedAmount;
     private int totalAmount;
     private int expectedChange;
@@ -73,10 +85,18 @@ public class CashierRegisterUI : MonoBehaviour
     // The Lobby1 Food/Drink rows are 230 px wide. Keep a dedicated price
     // column and a visible gap so a full four-person order cannot collide
     // with, or render outside, its row.
-    private static float CompactItemsWidth => Application.isMobilePlatform ? 146f : 136f;
-    private static float CompactItemsHeight => Application.isMobilePlatform ? 46f : 36f;
-    private static float CompactMaxCellWidth => Application.isMobilePlatform ? 52f : 48f;
-    private static float CompactPriceWidth => Application.isMobilePlatform ? 76f : 82f;
+    private float CompactItemsWidth => Application.isMobilePlatform
+        ? mobileCompactItemsWidth
+        : desktopCompactItemsWidth;
+    private float CompactItemsHeight => Application.isMobilePlatform
+        ? mobileCompactItemsHeight
+        : desktopCompactItemsHeight;
+    private float CompactMaxCellWidth => Application.isMobilePlatform
+        ? mobileCompactMaximumCellWidth
+        : desktopCompactMaximumCellWidth;
+    private float CompactPriceWidth => Application.isMobilePlatform
+        ? mobileCompactPriceWidth
+        : desktopCompactPriceWidth;
 
     private sealed class CompactOrderLine
     {
@@ -443,7 +463,7 @@ public class CashierRegisterUI : MonoBehaviour
         Transform panel = transform.Find("Panel");
         if (panel is RectTransform panelRect)
         {
-            panelRect.localScale = new Vector3(MobilePanelScale, MobilePanelScale, 1f);
+            panelRect.localScale = new Vector3(mobilePanelScale, mobilePanelScale, 1f);
             panelRect.anchoredPosition = Vector2.zero;
         }
     }
@@ -622,7 +642,7 @@ public class CashierRegisterUI : MonoBehaviour
         ConfigureCompactPriceText(drinkPriceText, drinkContainer);
     }
 
-    private static RectTransform CreateCompactOrderRoot(string objectName, RectTransform parent)
+    private RectTransform CreateCompactOrderRoot(string objectName, RectTransform parent)
     {
         GameObject rootObject = new GameObject(
             objectName, typeof(RectTransform), typeof(RectMask2D));
@@ -639,7 +659,7 @@ public class CashierRegisterUI : MonoBehaviour
         return rect;
     }
 
-    private static void ConfigureCompactPriceText(TMP_Text priceText, RectTransform container)
+    private void ConfigureCompactPriceText(TMP_Text priceText, RectTransform container)
     {
         if (priceText == null || container == null)
             return;
@@ -665,7 +685,7 @@ public class CashierRegisterUI : MonoBehaviour
         rect.SetAsLastSibling();
     }
 
-    private static void PopulateCompactOrderRoot(
+    private void PopulateCompactOrderRoot(
         RectTransform root,
         IReadOnlyList<CompactOrderLine> lines)
     {

@@ -1,5 +1,8 @@
 #if UNITY_EDITOR
 using System;
+using System.Collections.Generic;
+using System.Reflection;
+using TMPro;
 using PlayFab.ClientModels;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -19,14 +22,198 @@ public static class MobileUILayoutRegressionTest
         ValidatePersistentHudScaling("CasualDiningProgressHUD(Clone)");
         ValidatePersistentHudScaling("LobbyPauseMenu(Clone)");
         ValidateManagementComputerScaling();
+        ValidateManagementComputerMobileAuthoring();
         ValidateRealme8SizingEnvelope();
         ValidateAuthoredNewGameMenuScene();
         ValidateLoadingCanvasProtection();
         ValidateDevConsoleAuthorizationBoundary();
+        ValidateInspectorEditableMobileUI();
+        ValidateSmoothScrollPolicy();
+        ValidateRestockContainerQuantityLifecycle();
+        ValidateRestockInteractionPrefabs();
+        ValidateCasualDiningFeedbackFeatures();
         Debug.Log(
             "[MobileUILayoutRegressionTest] PASS — authored canvas coordinates are preserved " +
             "while full-screen panels, persistent HUD sizing, and physical touch targets " +
             "match the 1280 x 576 Android policy.");
+    }
+
+    private static void ValidateInspectorEditableMobileUI()
+    {
+        Assert(IsInspectorField<OrderChecklistUI>("mobileRootScaleMultiplier") &&
+               IsInspectorField<OrderChecklistUI>("mobileCustomerMessagePosition"),
+            "Notepad mobile scale/header layout is no longer Inspector-editable.");
+        Assert(IsInspectorField<CashierRegisterUI>("mobilePanelScale") &&
+               IsInspectorField<CashierRegisterUI>("mobileCompactItemsWidth"),
+            "Cashier mobile layout is no longer Inspector-editable.");
+        Assert(IsInspectorField<ManagementComputerResponsiveLayout>("mobileLandscapeWindowMin") &&
+               IsInspectorField<ManagementComputerResponsiveLayout>("appButtonColumns") &&
+               IsInspectorField<ManagementComputerResponsiveLayout>("mobileReferenceResolution") &&
+               IsInspectorField<ManagementComputerResponsiveLayout>("minimumTouchTarget") &&
+               IsInspectorField<ManagementComputerResponsiveLayout>("wideButtonSprite") &&
+               IsInspectorField<ManagementComputerResponsiveLayout>("squareButtonSprite"),
+            "Management-computer mobile scale, touch targets, or Blue/Double theme are no longer Inspector-editable.");
+        Assert(IsInspectorField<ManagementComputerWindow>("mobileBodyMinimum") &&
+               IsInspectorField<ManagementComputerWindow>("mobileCloseButtonSize") &&
+               IsInspectorField<ManagementComputerWindow>("mobileCardSizeRange"),
+            "Management-computer app-window sizing is no longer Inspector-editable.");
+        Assert(IsInspectorField<ManagementComputerCatalogPanelUI>("mobilePreferredCardSize") &&
+               IsInspectorField<ManagementComputerCatalogPanelUI>("mobileControlHeight") &&
+               IsInspectorField<ManagementComputerCatalogPanelUI>("mobileRightRailWidthRange"),
+            "Management-computer catalog sizing is no longer Inspector-editable.");
+        Assert(IsInspectorField<DevSettingsConsole>("androidOpenButton") &&
+               IsInspectorField<DevSettingsConsole>("positionAndroidButtonInSafeArea"),
+            "Authorized Android dev button can no longer be authored in a scene or prefab.");
+        Assert(IsInspectorField<RestockStorageContainer>("quantityTexts") &&
+               IsInspectorField<RestockStorageContainer>("quantityPrefix"),
+            "Restock quantity presentation is no longer Inspector-editable.");
+    }
+
+    private static bool IsInspectorField<T>(string fieldName)
+    {
+        FieldInfo field = typeof(T).GetField(
+            fieldName,
+            BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+        return field != null &&
+               (field.IsPublic || field.GetCustomAttribute<SerializeField>() != null);
+    }
+
+    private static void ValidateSmoothScrollPolicy()
+    {
+        GameObject root = new GameObject("Smooth Scroll Regression", typeof(RectTransform));
+        GameObject contentObject = new GameObject("Content", typeof(RectTransform));
+        contentObject.transform.SetParent(root.transform, false);
+        try
+        {
+            ScrollRect scroll = root.AddComponent<ScrollRect>();
+            scroll.content = contentObject.GetComponent<RectTransform>();
+            scroll.horizontal = false;
+            scroll.vertical = true;
+            scroll.scrollSensitivity = 32f;
+
+            SmoothScrollRectInput smooth = root.AddComponent<SmoothScrollRectInput>();
+            smooth.ApplyNowForValidation();
+            Assert(Mathf.Approximately(scroll.scrollSensitivity, 0f),
+                "Built-in immediate wheel jumps were not disabled by the smooth-scroll policy.");
+            Assert(scroll.inertia && Mathf.Approximately(scroll.decelerationRate, 0.12f),
+                "Touch/drag inertia is not using the shared moderate scrolling policy.");
+            Assert(smooth.NormalizedStep > 0.05f && smooth.NormalizedStep < 0.12f &&
+                   smooth.SmoothTime >= 0.08f && smooth.SmoothTime <= 0.16f,
+                "Default wheel scrolling is outside the comfortable moderate range.");
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(root);
+        }
+    }
+
+    private static void ValidateRestockContainerQuantityLifecycle()
+    {
+        InventoryManager previousInventory = InventoryManager.Instance;
+        GameObject inventoryObject = new GameObject("Restock Quantity Test Inventory");
+        ItemData item = ScriptableObject.CreateInstance<ItemData>();
+        GameObject containerObject = null;
+        try
+        {
+            InventoryManager inventory = inventoryObject.AddComponent<InventoryManager>();
+            InventoryManager.Instance = inventory;
+            item.itemID = "regression-restock-item";
+            item.itemType = default;
+            item.displayName = "Regression Buns";
+            item.unitsPerBox = 20;
+            item.shelfLifeDays = 7f;
+            inventory.ConfigureItems(new List<ItemData> { item });
+            inventory.SetAllStock(0);
+            inventory.AddStockBatch(item, 20, 1, out string batchID, out int expiresDay);
+
+            containerObject = new GameObject("Restock Quantity Test Container");
+            GameObject nameObject = new GameObject(
+                "Name", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+            GameObject quantityObject = new GameObject(
+                "Quantity", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+            GameObject iconObject = new GameObject(
+                "Icon", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            nameObject.transform.SetParent(containerObject.transform, false);
+            quantityObject.transform.SetParent(containerObject.transform, false);
+            iconObject.transform.SetParent(containerObject.transform, false);
+
+            TMP_Text nameText = nameObject.GetComponent<TMP_Text>();
+            TMP_Text quantityText = quantityObject.GetComponent<TMP_Text>();
+            RestockStorageContainer container =
+                containerObject.AddComponent<RestockStorageContainer>();
+            container.ConfigureLabels(
+                new[] { nameText },
+                new[] { iconObject.GetComponent<Image>() });
+            container.ConfigureQuantityLabels(new[] { quantityText });
+            container.Bind(item, batchID, expiresDay);
+
+            Assert(container.CurrentRemainingQuantity == 20 && quantityText.text == "x20",
+                "A new RestockScene crate does not show its real full quantity.");
+            Assert(inventory.UseStock(item.itemType, 1),
+                "Regression inventory could not consume one crate item.");
+            Assert(container.CurrentRemainingQuantity == 19 && quantityText.text == "x19",
+                "RestockScene crate quantity did not update immediately after one item was consumed.");
+            Assert(inventory.UseStock(item.itemType, 19),
+                "Regression inventory could not consume the remaining crate items.");
+            Assert(container == null && containerObject == null,
+                "The zero-quantity RestockScene crate was not removed.");
+
+            // A physical crate can be restored before its saved inventory batch.
+            // That temporary ordering must never delete or disable the crate.
+            containerObject = new GameObject("Restock Delayed Batch Container");
+            RestockStorageContainer delayed =
+                containerObject.AddComponent<RestockStorageContainer>();
+            delayed.ConfigureLabels(Array.Empty<TMP_Text>(), Array.Empty<Image>());
+            delayed.Bind(item, "batch-not-restored-yet", expiresDay);
+            delayed.RefreshExpiryState();
+            Assert(delayed != null && containerObject != null &&
+                   delayed.CurrentRemainingQuantity == item.unitsPerBox,
+                "A not-yet-restored stock batch was incorrectly treated as an empty crate.");
+        }
+        finally
+        {
+            InventoryManager.Instance = previousInventory;
+            if (containerObject != null)
+                UnityEngine.Object.DestroyImmediate(containerObject);
+            UnityEngine.Object.DestroyImmediate(inventoryObject);
+            UnityEngine.Object.DestroyImmediate(item);
+        }
+    }
+
+    private static void ValidateRestockInteractionPrefabs()
+    {
+        string[] prefabPaths =
+        {
+            "Assets/_Project/Restaurant/RestockRoom/Prefabs/CardboardBox.prefab",
+            "Assets/_Project/Restaurant/RestockRoom/Prefabs/crate.prefab"
+        };
+
+        foreach (string path in prefabPaths)
+        {
+            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+            Assert(prefab != null, "Restock container prefab is missing: " + path);
+            DraggableStorageBox draggable = prefab.GetComponent<DraggableStorageBox>();
+            Assert(draggable != null && prefab.GetComponentInChildren<Collider>(true) != null,
+                "Restock container lost its drag script or click collider: " + path);
+
+            SerializedObject serialized = new SerializedObject(draggable);
+            GameObject interactionRoot = serialized.FindProperty("interactionUIRoot")
+                ?.objectReferenceValue as GameObject;
+            Button keep = serialized.FindProperty("keepButton")?.objectReferenceValue as Button;
+            Button throwAway = serialized.FindProperty("throwAwayButton")
+                ?.objectReferenceValue as Button;
+            Assert(interactionRoot != null && keep != null && throwAway != null,
+                "Restock container lost its editable Keep/Throw interaction references: " + path);
+
+            RestockStorageContainer container = prefab.GetComponent<RestockStorageContainer>();
+            Assert(container != null,
+                "Restock container lost its live quantity/spoilage identity: " + path);
+            SerializedObject containerSerialized = new SerializedObject(container);
+            Assert(containerSerialized.FindProperty("appendQuantityToItemName")?.boolValue == true &&
+                   containerSerialized.FindProperty("removeContainerWhenEmpty")?.boolValue == true &&
+                   containerSerialized.FindProperty("quantityPrefix")?.stringValue == "x",
+                "Restock container quantity display/removal settings are not serialized: " + path);
+        }
     }
 
     private static void ValidateLoadingCanvasProtection()
@@ -41,6 +228,29 @@ public static class MobileUILayoutRegressionTest
         Slider slider = prefab.GetComponentInChildren<Slider>(true);
         Assert(scaler != null && burger != null && slider != null,
             "Loading screen lost its canvas, burger animation, or progress bar.");
+
+        LoadingScreenUI presenter = prefab.GetComponentInChildren<LoadingScreenUI>(true);
+        RectTransform tipSafeArea = FindNamedTransform(prefab.transform, "FlavorTipSafeArea") as RectTransform;
+        TMP_Text tipText = FindNamedTransform(prefab.transform, "FlavorTipText")?.GetComponent<TMP_Text>();
+        SerializedObject loadingPresenter = presenter != null ? new SerializedObject(presenter) : null;
+        CanvasGroup serializedTipGroup = loadingPresenter != null
+            ? loadingPresenter.FindProperty("tipsCanvasGroup").objectReferenceValue as CanvasGroup
+            : null;
+        Assert(presenter != null && tipSafeArea != null && tipText != null &&
+               serializedTipGroup != null &&
+               loadingPresenter.FindProperty("tipsText").objectReferenceValue == tipText &&
+               loadingPresenter.FindProperty("tipsSafeAreaRoot").objectReferenceValue == tipSafeArea,
+            "Loading screen lost its editable, safe-area-aware flavor-tip strip.");
+        Assert(tipSafeArea.anchorMin == Vector2.zero && tipSafeArea.anchorMax == Vector2.one,
+            "Loading flavor text no longer starts from a full safe-area root.");
+        Assert(tipText.transform.parent.GetComponent<Image>() == null,
+            "Loading flavor text regained an unwanted framed progress-style background.");
+
+        MethodInfo progressLookup = typeof(SceneLoader).GetMethod(
+            "FindDedicatedProgressText",
+            BindingFlags.Static | BindingFlags.NonPublic);
+        Assert(progressLookup != null && progressLookup.Invoke(null, new object[] { prefab }) == null,
+            "The scene loader can still mistake the loading tip for percentage text.");
 
         CanvasScaler.ScreenMatchMode authoredMode = scaler.screenMatchMode;
         float authoredMatch = scaler.matchWidthOrHeight;
@@ -114,6 +324,323 @@ public static class MobileUILayoutRegressionTest
         {
             UnityEngine.Object.DestroyImmediate(root);
         }
+    }
+
+    private static void ValidateManagementComputerMobileAuthoring()
+    {
+        const string desktopPath =
+            "Assets/_Project/ManagementComputer/Prefabs/ManagementComputerDesktop.prefab";
+        const string windowPath =
+            "Assets/_Project/ManagementComputer/Prefabs/ManagementComputerAppWindow.prefab";
+        const string catalogPath =
+            "Assets/_Project/ManagementComputer/Prefabs/ManagementComputerCatalogPanel.prefab";
+        const string equipmentCardPath =
+            "Assets/_Project/Resources/ManagementComputer/ManagementEquipmentCard.prefab";
+
+        GameObject desktopPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(desktopPath);
+        Assert(desktopPrefab != null, "Management-computer desktop prefab is missing.");
+        ManagementComputerResponsiveLayout responsive =
+            desktopPrefab.GetComponentInChildren<ManagementComputerResponsiveLayout>(true);
+        Assert(responsive != null, "Management-computer desktop lost its responsive layout.");
+        Assert(responsive.AppButtons != null &&
+               responsive.AppButtons.Length == Enum.GetValues(typeof(ManagementComputerApp)).Length,
+            "Management-computer desktop no longer covers every app button.");
+
+        SerializedObject desktop = new SerializedObject(responsive);
+        Vector2 mobileReference = desktop.FindProperty("mobileReferenceResolution").vector2Value;
+        float touchTarget = desktop.FindProperty("minimumTouchTarget").floatValue;
+        Sprite wideSprite = desktop.FindProperty("wideButtonSprite").objectReferenceValue as Sprite;
+        Sprite squareSprite = desktop.FindProperty("squareButtonSprite").objectReferenceValue as Sprite;
+        Assert(Vector2.Distance(mobileReference, new Vector2(1600f, 900f)) < 0.1f,
+            $"Management-computer phone reference changed unexpectedly ({mobileReference}).");
+        Assert(touchTarget >= 64f && touchTarget <= 80f,
+            $"Management-computer touch target escaped the readable phone range ({touchTarget:0}px).");
+        Assert(IsBlueDoubleSprite(wideSprite) && IsBlueDoubleSprite(squareSprite),
+            "Management-computer buttons no longer use the existing Blue/Double UI family.");
+
+        GameObject windowPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(windowPath);
+        ManagementComputerWindow window = windowPrefab != null
+            ? windowPrefab.GetComponent<ManagementComputerWindow>()
+            : null;
+        Assert(window != null, "Management-computer app-window prefab is missing or invalid.");
+        SerializedObject windowSettings = new SerializedObject(window);
+        Assert(windowSettings.FindProperty("mobileBodyMinimum").floatValue >= 18f &&
+               windowSettings.FindProperty("mobileCloseButtonSize").vector2Value.x >= 88f,
+            "Management-computer app-window text or close target became too small for phones.");
+
+        GameObject catalogPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(catalogPath);
+        ManagementComputerCatalogPanelUI catalog = catalogPrefab != null
+            ? catalogPrefab.GetComponent<ManagementComputerCatalogPanelUI>()
+            : null;
+        Assert(catalog != null, "Management-computer catalog prefab is missing or invalid.");
+        SerializedObject catalogSettings = new SerializedObject(catalog);
+        Vector2 mobileCard = catalogSettings.FindProperty("mobilePreferredCardSize").vector2Value;
+        Assert(mobileCard.x >= 260f && mobileCard.y >= 320f &&
+               catalogSettings.FindProperty("mobileControlHeight").floatValue >= 64f,
+            "Menu/Restock cards or controls became too small for phones.");
+
+        GameObject equipmentCard = AssetDatabase.LoadAssetAtPath<GameObject>(equipmentCardPath);
+        Assert(equipmentCard != null, "Management equipment-card prefab is missing.");
+        Button[] equipmentButtons = equipmentCard.GetComponentsInChildren<Button>(true);
+        Assert(Array.Exists(equipmentButtons, button =>
+                button != null && button.targetGraphic is Image image && IsBlueDoubleSprite(image.sprite)),
+            "Equipment cards no longer carry the shared Blue/Double action styling.");
+
+        const string hrPath =
+            "Assets/_Project/ManagementComputer/Prefabs/ManagementHRPanel.prefab";
+        GameObject hrPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(hrPath);
+        ManagementComputerHRPanel hrPanel = hrPrefab != null
+            ? hrPrefab.GetComponent<ManagementComputerHRPanel>()
+            : null;
+        Assert(hrPanel != null && hrPanel.ApplicantsTab != null && hrPanel.BodyScroll != null,
+            "Staff prefab lost its editable Applicants tab or dedicated body scroll.");
+        Assert(hrPanel.BodyScroll.vertical && hrPanel.BodyScroll.content == hrPanel.SectionsRoot,
+            "Staff role sections are no longer owned by the smooth vertical body scroll.");
+        Assert(!hrPanel.ApplicantsTab.transform.IsChildOf(hrPanel.BodyScroll.transform) &&
+               !hrPanel.LobbyTab.transform.IsChildOf(hrPanel.BodyScroll.transform) &&
+               !hrPanel.KitchenTab.transform.IsChildOf(hrPanel.BodyScroll.transform),
+            "Staff navigation no longer stays sticky while employee cards scroll.");
+
+        Transform staffButton = FindNamedTransform(desktopPrefab.transform, "STAFF");
+        Assert(staffButton != null && staffButton.Find("NewApplicantBadge") != null,
+            "Staff desktop button lost its new-applicant notification badge.");
+
+        string[] animatedPrefabs =
+        {
+            windowPath,
+            "Assets/_Project/ManagementComputer/Prefabs/ManagementComputerRow.prefab",
+            hrPath,
+            "Assets/_Project/ManagementComputer/Prefabs/ManagementHRRoleSection.prefab",
+            "Assets/_Project/ManagementComputer/Prefabs/ManagementEmployeeCard.prefab"
+        };
+        foreach (string animatedPath in animatedPrefabs)
+        {
+            GameObject animated = AssetDatabase.LoadAssetAtPath<GameObject>(animatedPath);
+            Assert(animated != null && animated.GetComponent<UIRevealAnimation>() != null,
+                "Management reveal transition is missing from " + animatedPath);
+        }
+    }
+
+    private static void ValidateCasualDiningFeedbackFeatures()
+    {
+        ValidateApplicantLifecycleAndSoleHire();
+        ValidateFinanceLedgerPersistence();
+
+        const string complaintSettingsPath =
+            "Assets/_Project/Resources/ManagerComplaints/ManagerComplaintSettings.asset";
+        ManagerComplaintSettings complaintSettings =
+            AssetDatabase.LoadAssetAtPath<ManagerComplaintSettings>(complaintSettingsPath);
+        Assert(complaintSettings != null, "Manager complaint settings asset is missing.");
+        Assert(complaintSettings.RollDailyComplaintAllowance(0f) == 0 &&
+               complaintSettings.RollDailyComplaintAllowance(0.2499f) == 0 &&
+               complaintSettings.RollDailyComplaintAllowance(0.25f) == 1 &&
+               complaintSettings.RollDailyComplaintAllowance(0.7499f) == 1 &&
+               complaintSettings.RollDailyComplaintAllowance(0.75f) == 2 &&
+               complaintSettings.RollDailyComplaintAllowance(0.9499f) == 2 &&
+               complaintSettings.RollDailyComplaintAllowance(0.95f) == 3,
+            "Manager complaint weights no longer implement the approved 25/50/20/5 distribution.");
+
+        int[] complaintCounts = new int[4];
+        int complaintTotal = 0;
+        const int deterministicRolls = 10000;
+        for (int i = 0; i < deterministicRolls; i++)
+        {
+            float roll = (i + 0.5f) / deterministicRolls;
+            int allowance = complaintSettings.RollDailyComplaintAllowance(roll);
+            Assert(allowance >= 0 && allowance <= 3,
+                "Manager complaint allowance escaped the supported 0-3 range.");
+            complaintCounts[allowance]++;
+            complaintTotal += allowance;
+        }
+        Assert(complaintCounts[0] == 2500 &&
+               complaintCounts[1] == 5000 &&
+               complaintCounts[2] == 2000 &&
+               complaintCounts[3] == 500,
+            "Manager complaint sampling no longer produces exact 25/50/20/5 buckets.");
+        Assert(Mathf.Abs((float)complaintTotal / deterministicRolls - 1.05f) < 0.0001f,
+            "Manager complaint distribution no longer averages 1.05 encounters per day.");
+        Assert(complaintSettings.firstComplaintDelaySeconds >= 90f &&
+               complaintSettings.minimumSecondsBetweenComplaints >= 120f &&
+               complaintSettings.stopNewComplaintsBeforeCloseSeconds >= 60f,
+            "Manager complaint pacing guardrails became too aggressive.");
+    }
+
+    private static void ValidateApplicantLifecycleAndSoleHire()
+    {
+        GameObject managerObject = new GameObject("Applicant Lifecycle Regression");
+        GameObject generatorObject = new GameObject("Applicant Generator Regression");
+        UnityEngine.Random.State previousRandom = UnityEngine.Random.state;
+        try
+        {
+            UnityEngine.Random.InitState(73419);
+            EmployeeManager manager = managerObject.AddComponent<EmployeeManager>();
+            EmployeeGenerator generator = generatorObject.AddComponent<EmployeeGenerator>();
+            manager.generator = generator;
+
+            EmployeeData soleHost = new EmployeeData("Solo Host", 3, EmployeeRole.Host)
+            {
+                hired = true,
+                assigned = false
+            };
+            EmployeeData firstWaiter = new EmployeeData("Waiter One", 3, EmployeeRole.Waiter)
+            {
+                hired = true,
+                assigned = false
+            };
+            EmployeeData secondWaiter = new EmployeeData("Waiter Two", 4, EmployeeRole.Waiter)
+            {
+                hired = true,
+                assigned = false
+            };
+            EmployeeData expiringApplicant = new EmployeeData("One Day Applicant", 2, EmployeeRole.Host)
+            {
+                hired = false,
+                applicantAvailableUntilDay = 1
+            };
+            string expiringID = expiringApplicant.EmployeeID;
+            manager.allEmployees.AddRange(new[]
+            {
+                soleHost, firstWaiter, secondWaiter, expiringApplicant
+            });
+
+            manager.AutoAssignSoleHires();
+            Assert(soleHost.assigned,
+                "A role with exactly one hired employee was not made active automatically.");
+            Assert(!firstWaiter.assigned && !secondWaiter.assigned,
+                "A role with multiple hired employees bypassed the player's active-worker choice.");
+
+            SetPrivateField(manager, "applicantLastProcessedDay", 1);
+            SetPrivateField(manager, "applicantNextRefreshDay", 3);
+            manager.RefreshApplicantsIfDue(2, 2);
+            Assert(!manager.allEmployees.Exists(employee =>
+                    employee != null && employee.EmployeeID == expiringID),
+                "A one-day applicant remained after their availability expired.");
+            Assert(manager.HasUnseenApplicants,
+                "Replacement applicants did not raise the Staff notification.");
+            Assert(manager.allEmployees.FindAll(employee =>
+                    employee != null && !employee.hired && employee.role == EmployeeRole.Host).Count == 3,
+                "The expired applicant slot was not refilled immediately.");
+
+            manager.MarkApplicantsSeen();
+            Assert(!manager.HasUnseenApplicants,
+                "Opening Applicants did not clear its notification state.");
+            HashSet<string> dayTwoApplicants = new HashSet<string>();
+            foreach (EmployeeData employee in manager.allEmployees)
+            {
+                if (employee != null && !employee.hired)
+                    dayTwoApplicants.Add(employee.EmployeeID);
+            }
+
+            manager.RefreshApplicantsIfDue(3, 2);
+            Assert(manager.ApplicantNextRefreshDay == 5 && manager.HasUnseenApplicants,
+                "Applicant pools did not perform their full every-other-day refresh.");
+            Assert(!manager.allEmployees.Exists(employee =>
+                    employee != null && !employee.hired && dayTwoApplicants.Contains(employee.EmployeeID)),
+                "The scheduled applicant refresh reused an expired cohort.");
+
+            GameSaveData save = new GameSaveData();
+            manager.FillSaveData(save);
+            Assert(save.employeeApplicantNextRefreshDay == 5 &&
+                   save.employeeApplicantLastProcessedDay == 3 &&
+                   save.employeeApplicantsUnseen,
+                "Applicant refresh/notification state did not persist to the save model.");
+
+            save.currentDay = 3;
+            save.employeeApplicantNextRefreshDay = 99;
+            manager.ApplySaveData(save);
+            Assert(manager.ApplicantNextRefreshDay == 5,
+                "A legacy weekly applicant schedule was not migrated to every other day.");
+        }
+        finally
+        {
+            UnityEngine.Random.state = previousRandom;
+            UnityEngine.Object.DestroyImmediate(managerObject);
+            UnityEngine.Object.DestroyImmediate(generatorObject);
+        }
+    }
+
+    private static void ValidateFinanceLedgerPersistence()
+    {
+        MoneyManager previous = MoneyManager.Instance;
+        GameObject sourceObject = new GameObject("Finance Ledger Regression Source");
+        GameObject restoredObject = new GameObject("Finance Ledger Regression Restored");
+        try
+        {
+            MoneyManager source = sourceObject.AddComponent<MoneyManager>();
+            MoneyManager.Instance = source;
+            source.SetMoney(1000, "Regression starting balance");
+            Assert(source.Spend(175, "Equipment purchase"),
+                "Finance regression could not record a normal expense.");
+            source.ForceSpend(225, "Payroll");
+            Assert(source.Money == 600 && source.DailyTransactions.Count >= 3,
+                "Finance ledger did not retain the current-day transactions.");
+            Assert(ContainsTransaction(source.DailyTransactions, "Equipment purchase", -175) &&
+                   ContainsTransaction(source.DailyTransactions, "Payroll", -225),
+                "Finance ledger does not itemize purchases and automatic payroll.");
+
+            GameSaveData save = new GameSaveData();
+            source.FillSaveData(save);
+            MoneyManager restored = restoredObject.AddComponent<MoneyManager>();
+            restored.ApplySaveData(save);
+            Assert(restored.Money == 600 &&
+                   ContainsTransaction(restored.DailyTransactions, "Payroll", -225),
+                "Finance ledger did not survive save/load.");
+        }
+        finally
+        {
+            MoneyManager.Instance = previous;
+            UnityEngine.Object.DestroyImmediate(sourceObject);
+            UnityEngine.Object.DestroyImmediate(restoredObject);
+            MoneyManager.Instance = previous;
+        }
+    }
+
+    private static bool ContainsTransaction(
+        IReadOnlyList<MoneyTransactionSaveEntry> transactions,
+        string description,
+        int amount)
+    {
+        for (int i = 0; i < transactions.Count; i++)
+        {
+            MoneyTransactionSaveEntry entry = transactions[i];
+            if (entry != null && entry.description == description && entry.amountDelta == amount)
+                return true;
+        }
+        return false;
+    }
+
+    private static void SetPrivateField(object target, string fieldName, object value)
+    {
+        FieldInfo field = target.GetType().GetField(
+            fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert(field != null, "Regression field is missing: " + fieldName);
+        field.SetValue(target, value);
+    }
+
+    private static Transform FindNamedTransform(Transform root, string objectName)
+    {
+        if (root == null)
+            return null;
+        if (root.name == objectName)
+            return root;
+        foreach (Transform child in root)
+        {
+            Transform found = FindNamedTransform(child, objectName);
+            if (found != null)
+                return found;
+        }
+        return null;
+    }
+
+    private static bool IsBlueDoubleSprite(Sprite sprite)
+    {
+        if (sprite == null)
+            return false;
+
+        string path = AssetDatabase.GetAssetPath(sprite).Replace('\\', '/');
+        return path.IndexOf(
+                   "/NewDesign/UI Elements/PNG/Blue/Double/",
+                   StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
     private static void ValidateFullScreenPanelCoverage()

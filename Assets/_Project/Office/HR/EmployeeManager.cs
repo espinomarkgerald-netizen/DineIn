@@ -7,6 +7,7 @@ public class EmployeeManager : MonoBehaviour
 {
     public static EmployeeManager Instance { get; private set; }
     public event Action AssignmentsChanged;
+    public event Action ApplicantsRefreshed;
     public EmployeeGenerator generator;
 
     [Header("Salary")]
@@ -21,12 +22,18 @@ public class EmployeeManager : MonoBehaviour
     [Header("HR Roster")]
     [SerializeField, Min(1)] private int maxHiredPerRole = 3;
     [SerializeField, Min(1)] private int targetApplicantsPerRole = 3;
-    [SerializeField, Min(1)] private int applicantNextRefreshDay = 8;
+    [SerializeField, Min(1)] private int applicantNextRefreshDay = 3;
+    [SerializeField, Min(1)] private int applicantRefreshIntervalDays = 2;
+    [SerializeField, Min(1)] private int applicantMinimumAvailabilityDays = 1;
+    [SerializeField, Min(1)] private int applicantMaximumAvailabilityDays = 2;
 
     private bool applicantPoolsInitialized;
+    private int applicantLastProcessedDay;
+    private bool applicantsUnseen;
 
     public int MaxHiredPerRole => maxHiredPerRole;
     public int ApplicantNextRefreshDay => applicantNextRefreshDay;
+    public bool HasUnseenApplicants => applicantsUnseen;
 
     /// <summary>True once the lobby shift starts; prevents reassignment for the rest of the day.</summary>
     public bool SlotsLocked { get; private set; }
@@ -76,7 +83,10 @@ public class EmployeeManager : MonoBehaviour
         int currentDay = GameFlowManager.Instance != null
             ? Mathf.Max(1, GameFlowManager.Instance.CurrentDay)
             : 1;
-        applicantNextRefreshDay = currentDay + 7;
+        AssignMissingApplicantExpiryDays(currentDay);
+        applicantNextRefreshDay = currentDay + Mathf.Max(1, applicantRefreshIntervalDays);
+        applicantLastProcessedDay = currentDay;
+        applicantsUnseen = true;
         applicantPoolsInitialized = true;
 
         // Clear role groups
@@ -101,16 +111,17 @@ public class EmployeeManager : MonoBehaviour
         for (int i = 0; i < allEmployees.Count; i++)
             allEmployees[i]?.EnsureIdentity();
 
-        if (!applicantPoolsInitialized)
-        {
-            EnsureApplicantPools();
-            applicantPoolsInitialized = true;
-        }
-
         int day = GameFlowManager.Instance != null
             ? Mathf.Max(1, GameFlowManager.Instance.CurrentDay)
             : 1;
-        RefreshApplicantsIfDue(day, 7);
+
+        if (!applicantPoolsInitialized)
+        {
+            EnsureApplicantPools(day);
+            applicantPoolsInitialized = true;
+        }
+
+        RefreshApplicantsIfDue(day, applicantRefreshIntervalDays);
     }
 
     /// <summary>Assigns one employee to their role for the coming shift.</summary>
@@ -140,8 +151,12 @@ public class EmployeeManager : MonoBehaviour
             return false;
 
         employee.hired = true;
-        if (GetAssignedEmployee(employee.role) == null)
+        employee.applicantAvailableUntilDay = 0;
+        if (GetHiredCount(employee.role) == 1 && GetAssignedEmployee(employee.role) == null)
             AssignEmployeeForDay(employee);
+
+        if (EnsureApplicantPool(employee.role, CurrentDay()))
+            NotifyNewApplicants();
 
         GameSaveManager.Instance?.RequestSave();
         return true;
@@ -176,6 +191,8 @@ public class EmployeeManager : MonoBehaviour
 
         EmployeeRole role = employee.role;
         RemoveEmployee(employee);
+        if (EnsureApplicantPool(role, CurrentDay()))
+            NotifyNewApplicants();
         AssignmentsChanged?.Invoke();
         GameSaveManager.Instance?.RequestSave();
         return true;
@@ -276,6 +293,8 @@ public class EmployeeManager : MonoBehaviour
 
         data.employees.Clear();
         data.employeeApplicantNextRefreshDay = Mathf.Max(1, applicantNextRefreshDay);
+        data.employeeApplicantLastProcessedDay = Mathf.Max(0, applicantLastProcessedDay);
+        data.employeeApplicantsUnseen = applicantsUnseen;
         foreach (EmployeeData employee in allEmployees)
         {
             if (employee == null)
@@ -289,6 +308,7 @@ public class EmployeeManager : MonoBehaviour
                 role = employee.role,
                 assigned = employee.assigned,
                 hired = employee.hired,
+                applicantAvailableUntilDay = employee.applicantAvailableUntilDay,
                 speed = employee.speed,
                 accuracy = employee.accuracy,
                 reliability = employee.reliability,
@@ -321,6 +341,7 @@ public class EmployeeManager : MonoBehaviour
             {
                 assigned = entry.assigned,
                 hired = entry.hired || entry.assigned,
+                applicantAvailableUntilDay = Mathf.Max(0, entry.applicantAvailableUntilDay),
                 speed = entry.speed > 0 ? Mathf.Clamp(entry.speed, 50, 200) : 100,
                 accuracy = entry.accuracy > 0 ? Mathf.Clamp(entry.accuracy, 50, 100) : 80,
                 reliability = entry.reliability > 0 ? Mathf.Clamp(entry.reliability, 50, 100) : 80,
@@ -346,16 +367,23 @@ public class EmployeeManager : MonoBehaviour
             allEmployees.Add(employee);
         }
 
+        int loadedDay = Mathf.Max(1, data.currentDay);
+        int latestAllowedRefresh = loadedDay + Mathf.Max(1, applicantRefreshIntervalDays);
         applicantNextRefreshDay = data.employeeApplicantNextRefreshDay > 0
-            ? data.employeeApplicantNextRefreshDay
-            : Mathf.Max(1, data.currentDay) + 7;
+            ? Mathf.Min(data.employeeApplicantNextRefreshDay, latestAllowedRefresh)
+            : latestAllowedRefresh;
+        applicantLastProcessedDay = Mathf.Max(0, data.employeeApplicantLastProcessedDay);
+        applicantsUnseen = data.employeeApplicantsUnseen;
         applicantPoolsInitialized = HasApplicantForEverySupportedRole();
         RebuildRoleGroups();
         if (!applicantPoolsInitialized)
         {
-            EnsureApplicantPools();
+            EnsureApplicantPools(loadedDay);
             applicantPoolsInitialized = true;
         }
+
+        AssignMissingApplicantExpiryDays(loadedDay);
+        AutoAssignSoleHires();
 
         AssignmentsChanged?.Invoke();
     }
@@ -425,7 +453,43 @@ public class EmployeeManager : MonoBehaviour
         foreach (var slot in allSlots)
             slot.ResetForNewDay();
 
+        AutoAssignSoleHires();
+
         AssignmentsChanged?.Invoke();
+    }
+
+    /// <summary>
+    /// Removes pointless daily setup when a role has only one possible worker.
+    /// Roles with multiple hires remain a real management choice.
+    /// </summary>
+    public void AutoAssignSoleHires()
+    {
+        foreach (EmployeeRole role in EmployeeRoleCatalog.LobbyRoles)
+            AutoAssignSoleHire(role);
+        foreach (EmployeeRole role in EmployeeRoleCatalog.KitchenRoles)
+            AutoAssignSoleHire(role);
+    }
+
+    private void AutoAssignSoleHire(EmployeeRole role)
+    {
+        EmployeeData onlyHire = null;
+        int count = 0;
+        foreach (EmployeeData employee in allEmployees)
+        {
+            if (employee == null || !employee.hired || employee.role != role)
+                continue;
+
+            onlyHire = employee;
+            count++;
+            if (count > 1)
+                return;
+        }
+
+        if (count == 1 && onlyHire != null && GetAssignedEmployee(role) == null)
+        {
+            onlyHire.assigned = true;
+            onlyHire.assignedSlotName = role.ToString();
+        }
     }
 
     public int CalculateTotalPayroll()
@@ -456,15 +520,34 @@ public class EmployeeManager : MonoBehaviour
 
         if (applicantNextRefreshDay <= 0)
             applicantNextRefreshDay = currentDay + refreshIntervalDays;
-        if (currentDay < applicantNextRefreshDay)
+
+        // PrepareDay can call this more than once. Applicant expiry and the full
+        // cohort roll must only happen once per in-game morning.
+        if (applicantLastProcessedDay == currentDay)
             return;
 
-        allEmployees.RemoveAll(employee => employee != null && !employee.hired);
-        generator.employees.RemoveAll(employee => employee != null && !employee.hired);
+        bool fullRefresh = currentDay >= applicantNextRefreshDay;
+        int removed = RemoveExpiredApplicants(currentDay, fullRefresh);
         applicantPoolsInitialized = false;
-        EnsureApplicantPools();
+        int added = EnsureApplicantPools(currentDay);
         applicantPoolsInitialized = true;
-        applicantNextRefreshDay = currentDay + refreshIntervalDays;
+        applicantLastProcessedDay = currentDay;
+        if (fullRefresh)
+            applicantNextRefreshDay = currentDay + refreshIntervalDays;
+
+        if (removed > 0 || added > 0)
+            NotifyNewApplicants();
+
+        GameSaveManager.Instance?.RequestSave();
+    }
+
+    public void MarkApplicantsSeen()
+    {
+        if (!applicantsUnseen)
+            return;
+
+        applicantsUnseen = false;
+        ApplicantsRefreshed?.Invoke();
         GameSaveManager.Instance?.RequestSave();
     }
 
@@ -593,12 +676,14 @@ public class EmployeeManager : MonoBehaviour
             RebuildRoleGroups();
     }
 
-    private void EnsureApplicantPools()
+    private int EnsureApplicantPools(int currentDay)
     {
+        int added = 0;
         foreach (EmployeeRole role in EmployeeRoleCatalog.LobbyRoles)
-            EnsureApplicantPool(role);
+            added += EnsureApplicantPool(role, currentDay) ? 1 : 0;
         foreach (EmployeeRole role in EmployeeRoleCatalog.KitchenRoles)
-            EnsureApplicantPool(role);
+            added += EnsureApplicantPool(role, currentDay) ? 1 : 0;
+        return added;
     }
 
     private bool HasApplicantForEverySupportedRole()
@@ -618,12 +703,13 @@ public class EmployeeManager : MonoBehaviour
         return true;
     }
 
-    private void EnsureApplicantPool(EmployeeRole role)
+    private bool EnsureApplicantPool(EmployeeRole role, int currentDay)
     {
         if (generator == null)
-            return;
+            return false;
 
         int applicantCount = 0;
+        bool generatedAny = false;
         foreach (EmployeeData employee in allEmployees)
         {
             if (employee != null && !employee.hired && employee.role == role)
@@ -641,13 +727,66 @@ public class EmployeeManager : MonoBehaviour
 
             EmployeeData generated = generator.GenerateApplicant(role, names);
             generated.EnsureIdentity();
+            generated.applicantAvailableUntilDay = PickApplicantExpiryDay(currentDay);
             if (!allEmployees.Contains(generated))
                 allEmployees.Add(generated);
             applicantCount++;
+            generatedAny = true;
         }
 
         RebuildRoleGroups();
+        return generatedAny;
     }
+
+    private int RemoveExpiredApplicants(int currentDay, bool removeAll)
+    {
+        int removed = 0;
+        for (int i = allEmployees.Count - 1; i >= 0; i--)
+        {
+            EmployeeData employee = allEmployees[i];
+            if (employee == null || employee.hired)
+                continue;
+
+            bool expired = employee.applicantAvailableUntilDay > 0 &&
+                           currentDay > employee.applicantAvailableUntilDay;
+            if (!removeAll && !expired)
+                continue;
+
+            allEmployees.RemoveAt(i);
+            generator?.employees.Remove(employee);
+            removed++;
+        }
+
+        if (removed > 0)
+            RebuildRoleGroups();
+        return removed;
+    }
+
+    private void AssignMissingApplicantExpiryDays(int currentDay)
+    {
+        foreach (EmployeeData employee in allEmployees)
+        {
+            if (employee != null && !employee.hired && employee.applicantAvailableUntilDay <= 0)
+                employee.applicantAvailableUntilDay = PickApplicantExpiryDay(currentDay);
+        }
+    }
+
+    private int PickApplicantExpiryDay(int currentDay)
+    {
+        int minimum = Mathf.Max(1, applicantMinimumAvailabilityDays);
+        int maximum = Mathf.Max(minimum, applicantMaximumAvailabilityDays);
+        return Mathf.Max(1, currentDay) + UnityEngine.Random.Range(minimum, maximum + 1) - 1;
+    }
+
+    private void NotifyNewApplicants()
+    {
+        applicantsUnseen = true;
+        ApplicantsRefreshed?.Invoke();
+    }
+
+    private static int CurrentDay() => GameFlowManager.Instance != null
+        ? Mathf.Max(1, GameFlowManager.Instance.CurrentDay)
+        : 1;
 
     private void RemoveEmployee(EmployeeData employee)
     {
@@ -673,7 +812,9 @@ public class EmployeeManager : MonoBehaviour
 
         SlotsLocked = false;
         applicantPoolsInitialized = false;
-        applicantNextRefreshDay = 8;
+        applicantNextRefreshDay = 3;
+        applicantLastProcessedDay = 0;
+        applicantsUnseen = false;
 
         RoleSlot[] allSlots = FindObjectsByType<RoleSlot>(FindObjectsInactive.Include, FindObjectsSortMode.None);
         foreach (var slot in allSlots)

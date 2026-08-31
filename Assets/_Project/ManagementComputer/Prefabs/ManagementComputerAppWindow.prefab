@@ -544,6 +544,8 @@ GameObject:
   - component: {fileID: 5568932173554150710}
   - component: {fileID: 227118902226757309}
   - component: {fileID: 4238406707793206208}
+  - component: {fileID: 8666340312146230365}
+  - component: {fileID: 3957044455892059395}
   m_Layer: 0
   m_Name: ManagementComputerAppWindow
   m_TagString: Untagged
@@ -631,6 +633,49 @@ MonoBehaviour:
   messageText: {fileID: 5647372757439572434}
   footerButton: {fileID: 8816447432395700312}
   footerLabel: {fileID: 3516953503588542962}
+  mobileTitleMinimum: 32
+  mobileTitleMaximum: 42
+  mobileMessageMinimum: 21
+  mobileMessageMaximum: 29
+  mobileBodyMinimum: 19
+  mobileBodyMaximum: 27
+  mobileButtonMinimum: 20
+  mobileButtonMaximum: 29
+  mobileCloseButtonSize: {x: 96, y: 86}
+  mobileFooterButtonSize: {x: 300, y: 86}
+  mobileContentPadding: 14
+  mobileContentSpacing: 14
+  mobileCardRows: 2
+  mobileCardSizeRange: {x: 236, y: 282}
+--- !u!225 &8666340312146230365
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3513500726044446204}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
+--- !u!114 &3957044455892059395
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3513500726044446204}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe341889b92b4d1a855ba2fbc44cdfae, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  playOnEnable: 0
+  duration: 0.2
+  delay: 0
+  startScale: 0.96
+  startOffset: {x: 0, y: 0}
 --- !u!1 &3975673038582044783
 GameObject:
   m_ObjectHideFlags: 0
