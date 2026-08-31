@@ -60,9 +60,9 @@ public sealed class CasualDiningProgressHUD : MonoBehaviour
     [SerializeField] private Vector2 redesignedPanelPosition = new Vector2(0f, -24f);
     [SerializeField] private Vector2 redesignedPanelSize = new Vector2(1640f, 220f);
     [SerializeField] private Vector2 redesignedApprovalPosition = new Vector2(430f, 0f);
-    [SerializeField] private Vector2 redesignedMoneyPosition = new Vector2(1335f, 0f);
-    [SerializeField] private Vector2 redesignedNeutralPosition = new Vector2(1335f, -124f);
-    [SerializeField] private Vector2 redesignedAngryPosition = new Vector2(1565f, -124f);
+    [SerializeField] private Vector2 redesignedMoneyPosition = new Vector2(1395f, 0f);
+    [SerializeField] private Vector2 redesignedNeutralPosition = new Vector2(1403f, -124f);
+    [SerializeField] private Vector2 redesignedAngryPosition = new Vector2(1595f, -124f);
     [SerializeField, HideInInspector] private int authoredLayoutVersion;
 
     [Header("Editable Day & Time")]
@@ -191,6 +191,11 @@ public sealed class CasualDiningProgressHUD : MonoBehaviour
         if (Instance != null) return Instance;
         CasualDiningProgressHUD existing = FindFirstObjectByType<CasualDiningProgressHUD>(FindObjectsInactive.Include);
         if (existing != null) return existing;
+        LobbyHUDRoot combinedRoot = LobbyHUDRoot.EnsureInstance();
+        CasualDiningProgressHUD combined = combinedRoot != null
+            ? combinedRoot.GetComponentInChildren<CasualDiningProgressHUD>(true)
+            : null;
+        if (combined != null) return combined;
         CasualDiningProgressHUD prefab = Resources.Load<CasualDiningProgressHUD>(ResourcePath);
         if (prefab == null)
         {
@@ -209,7 +214,8 @@ public sealed class CasualDiningProgressHUD : MonoBehaviour
             return;
         }
         Instance = this;
-        DontDestroyOnLoad(gameObject);
+        if (GetComponentInParent<LobbyHUDRoot>() == null)
+            DontDestroyOnLoad(gameObject);
         bool usingAuthoredVisuals = TryBindAuthoredVisualTree();
         if (!usingAuthoredVisuals)
             BuildVisualTree();
@@ -628,13 +634,13 @@ public sealed class CasualDiningProgressHUD : MonoBehaviour
                 redesignedApprovalPosition, 700f, 130f, 56f, 100f, 28f, approvalFillColor, false,
                 out approvalFill, out approvalShine, out approvalValue);
             moneyRow = CreateProgressRow(content.transform, "SalesProgress", "TODAY'S SALES", moneyIcon,
-                redesignedMoneyPosition, 530f, 118f, 58f, 85f, 22f, salesFillColor, true,
+                redesignedMoneyPosition, 390f, 118f, 58f, 85f, 22f, salesFillColor, true,
                 out moneyFill, out moneyShine, out moneyValue);
             neutralRow = CreateProgressRow(content.transform, "NeutralProgress", "NEUTRAL", neutralIcon,
                 redesignedNeutralPosition, 230f, 82f, 42f, 54f, 18f, neutralFillColor, true,
                 out neutralFill, out neutralShine, out neutralValue);
             angryRow = CreateProgressRow(content.transform, "AngryProgress", "ANGRY", angryIcon,
-                redesignedAngryPosition, 250f, 82f, 42f, 54f, 18f, angryFillColor, true,
+                redesignedAngryPosition, 220f, 82f, 42f, 54f, 18f, angryFillColor, true,
                 out angryFill, out angryShine, out angryValue);
         }
         else
@@ -814,7 +820,7 @@ public sealed class CasualDiningProgressHUD : MonoBehaviour
         TMP_FontAsset configuredDayTimeFont,
         Sprite configuredMoneyIcon)
     {
-        const int currentVersion = 3;
+        const int currentVersion = 5;
         if (authoredLayoutVersion >= currentVersion)
             return false;
 
@@ -823,9 +829,9 @@ public sealed class CasualDiningProgressHUD : MonoBehaviour
         dayTimeLayout = DayTimeLayoutMode.Stacked;
         redesignedPanelSize = new Vector2(1640f, 220f);
         redesignedApprovalPosition = new Vector2(430f, 0f);
-        redesignedMoneyPosition = new Vector2(1335f, 0f);
-        redesignedNeutralPosition = new Vector2(1335f, -124f);
-        redesignedAngryPosition = new Vector2(1565f, -124f);
+        redesignedMoneyPosition = new Vector2(1395f, 0f);
+        redesignedNeutralPosition = new Vector2(1403f, -124f);
+        redesignedAngryPosition = new Vector2(1595f, -124f);
         if (dayTimeFont == null && configuredDayTimeFont != null)
             dayTimeFont = configuredDayTimeFont;
         if (configuredMoneyIcon != null)
@@ -1011,7 +1017,10 @@ public sealed class CasualDiningProgressHUD : MonoBehaviour
 
         float badgeSize = Mathf.Max(iconSize + 8f, height * 0.94f);
         float contentLeft = badgeOnRight ? 0f : badgeSize + laneSidePadding;
-        float contentRight = badgeOnRight ? badgeSize + laneSidePadding : laneSidePadding;
+        // Right-side badges overlap the end of their lane like the Canva HUD.
+        // Reserving the full badge width made these bars too short and pushed
+        // the icons outside the mobile safe area.
+        float contentRight = badgeOnRight ? 0f : laneSidePadding;
         float usableWidth = Mathf.Max(40f, width - contentLeft - contentRight);
         bool moodRow = badgeOnRight && objectName != "SalesProgress";
         float laneBottom = moodRow
@@ -1028,7 +1037,10 @@ public sealed class CasualDiningProgressHUD : MonoBehaviour
         RectTransform trackRect = track.GetComponent<RectTransform>();
         SetBottomLeftRect(trackRect, new Vector2(contentLeft, laneBottom),
             new Vector2(usableWidth, laneHeight));
-        ConfigureSlicedImage(track.GetComponent<Image>(), roundedBarFrame, trackColor);
+        Color rowTrackColor = useLobbyHudRedesignLayout
+            ? Color.Lerp(fillColor, Color.black, 0.12f)
+            : trackColor;
+        ConfigureSlicedImage(track.GetComponent<Image>(), roundedBarFrame, rowTrackColor);
         track.GetComponent<Mask>().showMaskGraphic = true;
 
         GameObject fillObject = CreateUIObject("Fill", track.transform, typeof(Image), typeof(RectMask2D));
@@ -1118,12 +1130,15 @@ public sealed class CasualDiningProgressHUD : MonoBehaviour
             valueRect.pivot = new Vector2(0f, 0.5f);
             valueRect.anchoredPosition = new Vector2(contentLeft,
                 moodRow ? 8f : laneBottom + laneHeight + headerHeight * 0.5f);
-            valueRect.sizeDelta = new Vector2(moodRow ? usableWidth : usableWidth * 0.52f,
+            const float salesValueWidthRatio = 0.36f;
+            valueRect.sizeDelta = new Vector2(moodRow ? usableWidth : usableWidth * salesValueWidthRatio,
                 moodRow ? 22f : headerHeight);
             if (!moodRow)
             {
-                titleRect.anchoredPosition = new Vector2(contentLeft + usableWidth * 0.52f, headerCenterY);
-                titleRect.sizeDelta = new Vector2(usableWidth * 0.48f, headerHeight);
+                titleRect.anchoredPosition = new Vector2(
+                    contentLeft + usableWidth * salesValueWidthRatio, headerCenterY);
+                titleRect.sizeDelta = new Vector2(
+                    usableWidth * (1f - salesValueWidthRatio), headerHeight);
             }
         }
         else

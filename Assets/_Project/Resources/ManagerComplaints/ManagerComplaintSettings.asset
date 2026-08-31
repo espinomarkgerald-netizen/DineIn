@@ -19,6 +19,9 @@ MonoBehaviour:
   firstComplaintDelaySeconds: 90
   minimumSecondsBetweenComplaints: 120
   stopNewComplaintsBeforeCloseSeconds: 60
+  automaticallyCreateAllowedComplaints: 1
+  automaticSearchIntervalSeconds: 0.2
+  automaticBurntFoodChance: 0.35
   maximumEncountersPerWeek: 2
   eligibleIncidentChance: 0.45
   minimumCompletedDaysBetweenEncounters: 1
@@ -26,6 +29,7 @@ MonoBehaviour:
   responseFeedbackSeconds: 2.2
   markerPulseSpeed: 3.6
   markerPulseScale: 1.12
+  visibleMarkerScale: 1.4
   screenEdgePadding: 58
   markerWorldOffset: {x: 0, y: 0.65, z: 0}
   focusedOrthographicSize: 7

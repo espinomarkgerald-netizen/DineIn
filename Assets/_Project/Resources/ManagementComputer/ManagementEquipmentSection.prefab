@@ -111,7 +111,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: -92}
-  m_SizeDelta: {x: 0, y: 330}
+  m_SizeDelta: {x: 0, y: 300}
   m_Pivot: {x: 0.5, y: 1}
 --- !u!114 &4208671310863564466
 MonoBehaviour:
@@ -126,17 +126,17 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Padding:
-    m_Left: 14
-    m_Right: 14
+    m_Left: 12
+    m_Right: 12
     m_Top: 0
     m_Bottom: 0
-  m_ChildAlignment: 1
+  m_ChildAlignment: 0
   m_StartCorner: 0
   m_StartAxis: 0
-  m_CellSize: {x: 427, y: 330}
-  m_Spacing: {x: 18, y: 18}
+  m_CellSize: {x: 281.33334, y: 300}
+  m_Spacing: {x: 16, y: 16}
   m_Constraint: 1
-  m_ConstraintCount: 2
+  m_ConstraintCount: 3
 --- !u!1 &6507571169858984176
 GameObject:
   m_ObjectHideFlags: 0
@@ -495,6 +495,8 @@ GameObject:
   - component: {fileID: 5619302523118561482}
   - component: {fileID: 2005762972542204455}
   - component: {fileID: 8738266981337419295}
+  - component: {fileID: 7252672044967631356}
+  - component: {fileID: 1978541566414869237}
   m_Layer: 0
   m_Name: ManagementEquipmentSection
   m_TagString: Untagged
@@ -522,7 +524,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 444}
+  m_SizeDelta: {x: 0, y: 410}
   m_Pivot: {x: 0.5, y: 1}
 --- !u!114 &2005762972542204455
 MonoBehaviour:
@@ -538,9 +540,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_IgnoreLayout: 0
   m_MinWidth: -1
-  m_MinHeight: 444
+  m_MinHeight: 410
   m_PreferredWidth: -1
-  m_PreferredHeight: 444
+  m_PreferredHeight: 410
   m_FlexibleWidth: -1
   m_FlexibleHeight: -1
   m_LayoutPriority: 1
@@ -563,10 +565,40 @@ MonoBehaviour:
   grid: {fileID: 4208671310863564466}
   sectionLayout: {fileID: 2005762972542204455}
   cardPrefab: {fileID: 5153207960164219229, guid: 791d729492da0884cb557b1192598a03, type: 3}
-  minimumCardWidth: 280
-  cardHeight: 330
-  horizontalSpacing: 18
-  verticalSpacing: 18
-  sidePadding: 14
-  headerHeight: 92
-  maximumColumns: 3
+  minimumCardWidth: 260
+  maximumCardWidth: 330
+  cardHeight: 300
+  horizontalSpacing: 16
+  verticalSpacing: 16
+  sidePadding: 12
+  headerHeight: 88
+  maximumColumns: 4
+--- !u!225 &7252672044967631356
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8144687161555014079}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
+--- !u!114 &1978541566414869237
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8144687161555014079}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe341889b92b4d1a855ba2fbc44cdfae, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  playOnEnable: 0
+  duration: 0.16
+  delay: 0
+  startScale: 0.98
+  startOffset: {x: 0, y: -6}

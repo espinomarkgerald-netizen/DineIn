@@ -47,6 +47,11 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
     [SerializeField] private ManagementComputerCatalogUIConfig catalogUIConfig;
     [SerializeField] private ManagementComputerResponsiveLayout responsiveLayout;
 
+    [Header("Objectives Presentation (Editable)")]
+    [SerializeField] private Sprite mandatoryObjectiveIcon;
+    [SerializeField] private Sprite secondaryObjectiveIcon;
+    [SerializeField] private Sprite bonusObjectiveIcon;
+
     private ManagerPlayer activeManager;
     private ManagementComputerStation activeStation;
     private MainCameraController cameraController;
@@ -549,11 +554,8 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         CloseApp();
         RefreshStatusBar();
 
-        Canvas.ForceUpdateCanvases();
-        responsiveLayout?.RefreshLayout();
-        if (canvasRefreshRoutine != null)
-            StopCoroutine(canvasRefreshRoutine);
-        canvasRefreshRoutine = StartCoroutine(RefreshComputerCanvasNextFrame());
+        RebuildComputerLayoutNow();
+        QueueComputerCanvasRefresh();
 
         if (MoneyManager.Instance != null)
         {
@@ -630,14 +632,75 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
     private IEnumerator RefreshComputerCanvasNextFrame()
     {
         yield return null;
-        canvasRefreshRoutine = null;
         if (!IsOpen)
+        {
+            canvasRefreshRoutine = null;
             yield break;
+        }
 
+        RebuildComputerLayoutNow();
+
+        // Nested ContentSizeFitters and generated cards can publish their final
+        // preferred sizes one frame after the parent window. Rebuild once more
+        // with those settled values instead of waiting for a resolution change.
+        yield return null;
+        if (IsOpen)
+            RebuildComputerLayoutNow();
+
+        canvasRefreshRoutine = null;
+    }
+
+    private void QueueComputerCanvasRefresh()
+    {
+        if (!IsOpen)
+            return;
+
+        if (canvasRefreshRoutine != null)
+            StopCoroutine(canvasRefreshRoutine);
+        canvasRefreshRoutine = StartCoroutine(RefreshComputerCanvasNextFrame());
+    }
+
+    private void RebuildComputerLayoutNow()
+    {
+        if (!IsOpen)
+            return;
+
+        // Refresh the safe-area/window anchors only after the active Canvas has
+        // a valid scaled rect, then resolve nested groups from the leaves upward.
+        responsiveLayout?.RefreshLayout();
         Canvas.ForceUpdateCanvases();
+
         if (appWindow != null && appWindow.gameObject.activeSelf)
             appWindow.RefreshContentLayout();
+
+        RectTransform desktopRect = desktopRoot.transform as RectTransform;
+        ForceRebuildActiveLayoutTree(desktopRect);
+        Canvas.ForceUpdateCanvases();
+
         responsiveLayout?.RefreshDynamicContent();
+        ForceRebuildActiveLayoutTree(desktopRect);
+        Canvas.ForceUpdateCanvases();
+    }
+
+    private static void ForceRebuildActiveLayoutTree(RectTransform root)
+    {
+        if (root == null)
+            return;
+
+        RectTransform[] rects = root.GetComponentsInChildren<RectTransform>(false);
+        for (int i = rects.Length - 1; i >= 0; i--)
+        {
+            RectTransform rect = rects[i];
+            if (rect == null || !rect.gameObject.activeInHierarchy)
+                continue;
+            if (rect.GetComponent<LayoutGroup>() == null &&
+                rect.GetComponent<ContentSizeFitter>() == null)
+                continue;
+
+            LayoutRebuilder.ForceRebuildLayoutImmediate(rect);
+        }
+
+        LayoutRebuilder.ForceRebuildLayoutImmediate(root);
     }
 
     public void OpenApp(int appIndex)
@@ -666,6 +729,8 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
 
         appWindow.RefreshContentLayout();
         responsiveLayout?.RefreshDynamicContent();
+        RebuildComputerLayoutNow();
+        QueueComputerCanvasRefresh();
     }
 
     private void ResolveResponsiveLayout()
@@ -742,22 +807,22 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
             }
         }
 
-        AddRow(null, "Restaurant status", IsShiftActive ? "Service is currently running" : "Pre-opening management phase",
+        AddRow(GetAppIcon(ManagementComputerApp.Dashboard), "Restaurant status", IsShiftActive ? "Service is currently running" : "Pre-opening management phase",
             IsShiftActive ? "OPEN" : "CLOSED", string.Empty, null, false);
-        AddRow(null, "Today's menu", "Products available to the notepad, customers, kitchen and bar",
+        AddRow(GetAppIcon(ManagementComputerApp.Menu), "Today's menu", "Products available to the notepad, customers, kitchen and bar",
             menuCount.ToString(), "OPEN MENU", () => OpenApp((int)ManagementComputerApp.Menu));
-        AddRow(null, "Scheduled staff", "One employee can be scheduled for each role",
+        AddRow(GetAppIcon(ManagementComputerApp.Staff), "Scheduled staff", "One employee can be scheduled for each role",
             (EmployeeManager.Instance != null ? EmployeeManager.Instance.AssignedEmployeeCount : 0).ToString(),
             "OPEN STAFF", () => OpenApp((int)ManagementComputerApp.Staff));
-        AddRow(null, "Inventory", "Ingredient stock shared with restaurant orders",
+        AddRow(GetAppIcon(ManagementComputerApp.Restock), "Inventory", "Ingredient stock shared with restaurant orders",
             InventoryManager.Instance != null ? InventoryManager.Instance.Items.Count + " items" : "Unavailable",
             "RESTOCK", () => OpenApp((int)ManagementComputerApp.Restock));
 
         CasualDiningPolishManager polish = CasualDiningPolishManager.EnsureInstance();
-        AddRow(null, "Restaurant rating", "Operational quality, separate from Alien Approval",
+        AddRow(GetAppIcon(ManagementComputerApp.Objectives), "Restaurant rating", "Operational quality, separate from Alien Approval",
             polish.RestaurantStars.ToString("0.0") + " / 5",
             string.Empty, null, false);
-        AddRow(null, "Latest alien review", polish.GetLatestReviewText(),
+        AddRow(GetAppIcon(ManagementComputerApp.Dashboard), "Latest alien review", polish.GetLatestReviewText(),
             string.Empty, string.Empty, null, false);
 
         appWindow.SetMessage($"Day {day} setup. Changes lock when the shift starts.");
@@ -784,6 +849,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         ManagementComputerHRPanel panel = Instantiate(hrPanelPrefab, appWindow.Content);
         panel.name = "HRBoard";
         panel.Bind(manager, editable);
+        panel.GetComponent<UIRevealAnimation>()?.Play();
 
         appWindow.SetMessage(editable
             ? "Hire applicants, keep up to three workers per role, and choose one active worker for the shift."
@@ -817,6 +883,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
             !IsShiftActive && MenuAvailabilityManager.Instance != null,
             SetMenuAvailability,
             SetMenuPrice);
+        panel.GetComponent<UIRevealAnimation>()?.Play();
         appWindow.SetMessage(string.Empty);
     }
 
@@ -848,6 +915,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
             RestockOrderManager.EnsureInstance(),
             GetExpectedCustomers(),
             ConfirmRestockOrder);
+        panel.GetComponent<UIRevealAnimation>()?.Play();
         appWindow.SetMessage(string.Empty);
     }
 
@@ -902,6 +970,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         ManagementEquipmentSectionUI sectionUI = Instantiate(sectionPrefab, appWindow.Content);
         sectionUI.gameObject.SetActive(true);
         sectionUI.Bind(title, subtitle);
+        sectionUI.GetComponent<UIRevealAnimation>()?.Play();
 
         foreach (Equipment equipment in manager.AllEquipment)
         {
@@ -935,6 +1004,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
                     manager.Purchase(captured.itemID);
                     PopulateAgain(ManagementComputerApp.Equipment);
                 });
+            card.GetComponent<UIRevealAnimation>()?.Play();
         }
 
         sectionUI.Reflow(true);
@@ -1031,23 +1101,53 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
             objectives.RollObjectivesForDay(CurrentDay, maxGroups);
         }
 
-        AddObjectiveRow("MANDATORY", objectives.ActiveMandatory);
-        AddObjectiveRow("SECONDARY", objectives.ActiveSecondary);
-        AddObjectiveRow("BONUS", objectives.ActiveBonus);
+        AddObjectiveRow(
+            mandatoryObjectiveIcon != null
+                ? mandatoryObjectiveIcon
+                : GetAppIcon(ManagementComputerApp.Objectives),
+            "MANDATORY",
+            objectives.ActiveMandatory,
+            ManagementRowCategory.Mandatory);
+        AddObjectiveRow(
+            secondaryObjectiveIcon != null
+                ? secondaryObjectiveIcon
+                : GetAppIcon(ManagementComputerApp.Objectives),
+            "SECONDARY",
+            objectives.ActiveSecondary,
+            ManagementRowCategory.Secondary);
+        AddObjectiveRow(
+            bonusObjectiveIcon != null
+                ? bonusObjectiveIcon
+                : GetAppIcon(ManagementComputerApp.Objectives),
+            "BONUS",
+            objectives.ActiveBonus,
+            ManagementRowCategory.Bonus);
 
         if (objectives.HasPreviousDayResult)
         {
-            AddRow(null, "Previous result", "Day " + objectives.LastResultDay,
+            AddRow(GetAppIcon(ManagementComputerApp.Dashboard), "Previous result", "Day " + objectives.LastResultDay,
                 objectives.LastGrade.ToString(), string.Empty, null, false);
         }
 
         appWindow.SetMessage("Alien demands are evaluated automatically at the end of the shift.");
     }
 
-    private void AddObjectiveRow(string label, ObjectiveDefinition objective)
+    private void AddObjectiveRow(
+        Sprite icon,
+        string label,
+        ObjectiveDefinition objective,
+        ManagementRowCategory category)
     {
         string description = objective != null ? objective.GetDescription(CurrentDay) : "Not configured";
-        AddRow(null, label, description, string.Empty, string.Empty, null, false);
+        if (rowPrefab == null || appWindow == null || appWindow.Content == null)
+            return;
+
+        ManagementComputerRowUI row = Instantiate(rowPrefab, appWindow.Content);
+        row.gameObject.SetActive(true);
+        row.ApplyPresentation(false);
+        row.BindCategory(icon, label, description, category);
+        row.GetComponent<UIRevealAnimation>()?.Play(
+            Mathf.Min(0.12f, Mathf.Max(0, appWindow.Content.childCount - 1) * 0.025f));
     }
 
     private bool ConfirmRestockOrder(IReadOnlyList<RestockCartLine> cart)
@@ -1229,6 +1329,8 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         }
 
         appWindow.RefreshContentLayout();
+        RebuildComputerLayoutNow();
+        QueueComputerCanvasRefresh();
     }
 
     private StartChecklistSnapshot BuildStartChecklist()
@@ -1468,6 +1570,8 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         row.gameObject.SetActive(true);
         row.ApplyPresentation(false);
         row.BindReadiness(icon, title, details, state, action, callback);
+        row.GetComponent<UIRevealAnimation>()?.Play(
+            Mathf.Min(0.12f, Mathf.Max(0, appWindow.Content.childCount - 1) * 0.025f));
     }
 
     private void AddRow(Sprite icon, string title, string details, string value, string action,
@@ -1480,6 +1584,8 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         row.gameObject.SetActive(true);
         row.ApplyPresentation(currentAppUsesCards);
         row.Bind(icon, title, details, value, action, callback, enabled);
+        row.GetComponent<UIRevealAnimation>()?.Play(
+            Mathf.Min(0.12f, Mathf.Max(0, appWindow.Content.childCount - 1) * 0.025f));
     }
 
     private static bool UsesCardLayout(ManagementComputerApp app)

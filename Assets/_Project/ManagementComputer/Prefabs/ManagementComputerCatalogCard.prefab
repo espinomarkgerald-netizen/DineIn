@@ -631,6 +631,7 @@ GameObject:
   - component: {fileID: 2016020676946690972}
   - component: {fileID: 4525438438410791026}
   - component: {fileID: 2822700365527745692}
+  - component: {fileID: 5945571647949654998}
   m_Layer: 0
   m_Name: Minus
   m_TagString: Untagged
@@ -740,6 +741,22 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &5945571647949654998
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2735903436009028672}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ae518a3822a951440b34123525b5779c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  button: {fileID: 0}
+  visualTarget: {fileID: 0}
+  pressedScale: 0.96
+  duration: 0.07
 --- !u!1 &2819154504859854193
 GameObject:
   m_ObjectHideFlags: 0
@@ -841,6 +858,9 @@ GameObject:
   - component: {fileID: 8276522313138660085}
   - component: {fileID: 4560094615034082279}
   - component: {fileID: 4999164550074299704}
+  - component: {fileID: 9143544018962268067}
+  - component: {fileID: 1516760371081458495}
+  - component: {fileID: 5614214546264948577}
   m_Layer: 0
   m_Name: ManagementComputerCatalogCard
   m_TagString: Untagged
@@ -1006,6 +1026,51 @@ MonoBehaviour:
   expiryWarningColor: {r: 0.82, g: 0.12, b: 0.12, a: 1}
   incomingAccentColor: {r: 0.08, g: 0.42, b: 0.78, a: 1}
   warningAccentColor: {r: 0.92, g: 0.55, b: 0.08, a: 1}
+--- !u!225 &9143544018962268067
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3053699549292701423}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
+--- !u!114 &1516760371081458495
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3053699549292701423}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe341889b92b4d1a855ba2fbc44cdfae, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  playOnEnable: 0
+  duration: 0.14
+  delay: 0
+  startScale: 0.97
+  startOffset: {x: 0, y: 0}
+--- !u!114 &5614214546264948577
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3053699549292701423}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ae518a3822a951440b34123525b5779c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  button: {fileID: 0}
+  visualTarget: {fileID: 0}
+  pressedScale: 0.96
+  duration: 0.07
 --- !u!1 &3394977858515396002
 GameObject:
   m_ObjectHideFlags: 0
@@ -1506,6 +1571,7 @@ GameObject:
   - component: {fileID: 5174876197559950175}
   - component: {fileID: 1822717198857989658}
   - component: {fileID: 6534437316361564599}
+  - component: {fileID: 3375033144367082639}
   m_Layer: 0
   m_Name: Plus
   m_TagString: Untagged
@@ -1615,3 +1681,19 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &3375033144367082639
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7438663487772750231}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ae518a3822a951440b34123525b5779c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  button: {fileID: 0}
+  visualTarget: {fileID: 0}
+  pressedScale: 0.96
+  duration: 0.07

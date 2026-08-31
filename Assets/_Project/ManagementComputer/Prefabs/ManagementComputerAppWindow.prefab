@@ -779,6 +779,7 @@ GameObject:
   - component: {fileID: 9122762692115562436}
   - component: {fileID: 3512941830613489691}
   - component: {fileID: 2333402530131371819}
+  - component: {fileID: 6973786684599854174}
   m_Layer: 0
   m_Name: WindowCloseButton
   m_TagString: Untagged
@@ -888,6 +889,22 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &6973786684599854174
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4341793426408033900}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ae518a3822a951440b34123525b5779c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  button: {fileID: 0}
+  visualTarget: {fileID: 0}
+  pressedScale: 0.96
+  duration: 0.07
 --- !u!1 &5604402899338742813
 GameObject:
   m_ObjectHideFlags: 0
@@ -1275,6 +1292,7 @@ GameObject:
   - component: {fileID: 3710640008496134859}
   - component: {fileID: 3933535965785242899}
   - component: {fileID: 8816447432395700312}
+  - component: {fileID: 5987386352739637217}
   m_Layer: 0
   m_Name: WindowFooterButton
   m_TagString: Untagged
@@ -1384,6 +1402,22 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &5987386352739637217
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7492356320577996343}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ae518a3822a951440b34123525b5779c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  button: {fileID: 0}
+  visualTarget: {fileID: 0}
+  pressedScale: 0.96
+  duration: 0.07
 --- !u!1 &8006478297917567938
 GameObject:
   m_ObjectHideFlags: 0

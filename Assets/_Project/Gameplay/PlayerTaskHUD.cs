@@ -52,6 +52,9 @@ public sealed class PlayerTaskHUD : MonoBehaviour
     [SerializeField] private bool useLobbyHudRedesignLayout = true;
     [SerializeField] private bool hideLegacyObjectivesButton = true;
     [SerializeField] private bool manualPanelStaysOpen = true;
+    [Tooltip("Use the transforms, sizes, colors, and icon tints saved in the combined LobbyHUD prefab.")]
+    [SerializeField] private bool preserveAuthoredPresentation;
+    [SerializeField] private Vector2 authoredPanelSlideOffset = new Vector2(80f, 0f);
     [SerializeField] private Vector2 redesignedButtonPosition = new Vector2(-76f, -350f);
     [SerializeField] private Vector2 redesignedButtonSize = new Vector2(96f, 116f);
     [SerializeField] private Vector2 redesignedPanelSize = new Vector2(292f, 164f);
@@ -96,6 +99,12 @@ public sealed class PlayerTaskHUD : MonoBehaviour
     private Vector2 effectivePanelHiddenPosition;
     private Vector2Int lastLayoutScreenSize = new Vector2Int(-1, -1);
     private Rect lastLayoutSafeArea = new Rect(-1f, -1f, -1f, -1f);
+    private Vector3 authoredButtonScale = Vector3.one;
+    private Vector3 authoredPanelScale = Vector3.one;
+    private Vector3 authoredBadgeScale = Vector3.one;
+    private Color authoredTaskIconColor = Color.white;
+    private Color authoredPanelColor = Color.white;
+    private bool authoredColorsCaptured;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetStatics()
@@ -136,6 +145,13 @@ public sealed class PlayerTaskHUD : MonoBehaviour
         if (existing != null)
             return existing;
 
+        LobbyHUDRoot combinedRoot = LobbyHUDRoot.EnsureInstance();
+        PlayerTaskHUD combined = combinedRoot != null
+            ? combinedRoot.GetComponentInChildren<PlayerTaskHUD>(true)
+            : null;
+        if (combined != null)
+            return combined;
+
         PlayerTaskHUD prefab = Resources.Load<PlayerTaskHUD>(ResourcePath);
         if (prefab == null)
         {
@@ -144,6 +160,104 @@ public sealed class PlayerTaskHUD : MonoBehaviour
         }
 
         return Instantiate(prefab);
+    }
+
+    /// <summary>
+    /// Connects the task presenter to the designer-authored TaskButton and
+    /// TaskMessage that already live inside the combined LobbyHUD prefab.
+    /// This is also a runtime safety net for older copies of the prefab that
+    /// have not yet been resaved by the editor authoring pass.
+    /// </summary>
+    public static PlayerTaskHUD EnsureCombinedBinding(LobbyHUDRedesign controls)
+    {
+        if (controls == null)
+            return null;
+
+        // The original task prefab also carried the detailed restock guidance
+        // source. Keep that source when the visuals are hosted by LobbyHUD.
+        if (controls.GetComponent<PlayerTaskRestockSource>() == null)
+            controls.gameObject.AddComponent<PlayerTaskRestockSource>();
+
+        Transform safeArea = controls.transform.Find("SafeArea");
+        Transform taskButtonTransform = safeArea != null
+            ? safeArea.Find("TaskButton")
+            : null;
+        Transform taskMessageTransform = safeArea != null
+            ? safeArea.Find("TaskMessage")
+            : null;
+        if (taskButtonTransform == null || taskMessageTransform == null)
+            return controls.GetComponent<PlayerTaskHUD>();
+
+        Button authoredButton = taskButtonTransform.GetComponent<Button>();
+        RectTransform authoredButtonRect = taskButtonTransform as RectTransform;
+        Image authoredButtonImage = taskButtonTransform.GetComponent<Image>();
+        Transform taskIconTransform = taskButtonTransform.Find("TaskIcon");
+        Image authoredTaskIcon = taskIconTransform != null
+            ? taskIconTransform.GetComponent<Image>()
+            : null;
+
+        Transform badgeTransform = taskButtonTransform.Find("ReminderBadge");
+        GameObject authoredBadge = badgeTransform != null
+            ? badgeTransform.gameObject
+            : null;
+        RectTransform authoredBadgeRect = badgeTransform as RectTransform;
+        TMP_Text authoredBadgeText = badgeTransform != null
+            ? badgeTransform.GetComponentInChildren<TMP_Text>(true)
+            : null;
+
+        RectTransform authoredPanelRect = taskMessageTransform as RectTransform;
+        CanvasGroup authoredPanelGroup = taskMessageTransform.GetComponent<CanvasGroup>();
+        Image authoredPanelImage = taskMessageTransform.GetComponent<Image>();
+        Transform actionTransform = taskMessageTransform.Find("Action");
+        Transform detailTransform = taskMessageTransform.Find("Detail");
+        TMP_Text authoredTaskText = actionTransform != null
+            ? actionTransform.GetComponent<TMP_Text>()
+            : null;
+        TMP_Text authoredDetailText = detailTransform != null
+            ? detailTransform.GetComponent<TMP_Text>()
+            : null;
+
+        if (authoredButton == null || authoredButtonRect == null ||
+            authoredPanelRect == null || authoredTaskText == null)
+            return controls.GetComponent<PlayerTaskHUD>();
+
+        PlayerTaskHUD presenter = controls.GetComponent<PlayerTaskHUD>();
+        if (presenter != null && presenter.taskButton == authoredButton &&
+            presenter.panelRect == authoredPanelRect &&
+            presenter.preserveAuthoredPresentation)
+            return presenter;
+
+        // A legacy standalone presenter can only exist here in an upgraded
+        // project session. Retire it before attaching the combined presenter
+        // so it cannot draw a second Task button for one frame or longer.
+        if (presenter == null && Instance != null &&
+            Instance.GetComponentInParent<LobbyHUDRoot>() == null)
+        {
+            Destroy(Instance.gameObject);
+            Instance = null;
+        }
+
+        presenter = presenter != null
+            ? presenter
+            : controls.gameObject.AddComponent<PlayerTaskHUD>();
+        presenter.ConfigureCombinedPresentation(
+            controls.GetComponent<Canvas>(),
+            controls.GetComponent<CanvasGroup>(),
+            authoredButton,
+            authoredButtonRect,
+            authoredButtonImage,
+            authoredTaskIcon,
+            authoredBadge,
+            authoredBadgeRect,
+            authoredBadgeText,
+            taskMessageTransform.gameObject,
+            authoredPanelRect,
+            authoredPanelGroup,
+            authoredPanelImage,
+            authoredTaskText,
+            authoredDetailText);
+        presenter.InitializePresentation();
+        return presenter;
     }
 
     private void Awake()
@@ -155,7 +269,14 @@ public sealed class PlayerTaskHUD : MonoBehaviour
         }
 
         Instance = this;
-        DontDestroyOnLoad(gameObject);
+        if (GetComponentInParent<LobbyHUDRoot>() == null)
+            DontDestroyOnLoad(gameObject);
+
+        InitializePresentation();
+    }
+
+    private void InitializePresentation()
+    {
 
         PlayerTaskBubbleFocus.BackgroundAlpha = backgroundTaskBubbleAlpha;
         if (taskButton != null)
@@ -169,14 +290,57 @@ public sealed class PlayerTaskHUD : MonoBehaviour
             objectivesButton.onClick.AddListener(OnObjectivesButtonClicked);
         }
 
-        if (panelImage != null)
+        if (!preserveAuthoredPresentation && panelImage != null)
             panelImage.color = panelColor;
 
+        CaptureAuthoredPresentation();
         RefreshLobbyLayout(true);
         ApplyPanelImmediate(false);
         SetBadge(false);
         RefreshSceneVisibility();
         RefreshFromGuidance(false);
+    }
+
+    private void ConfigureCombinedPresentation(
+        Canvas configuredCanvas,
+        CanvasGroup configuredHudGroup,
+        Button configuredTaskButton,
+        RectTransform configuredButtonRect,
+        Image configuredButtonImage,
+        Image configuredTaskIcon,
+        GameObject configuredReminderBadge,
+        RectTransform configuredReminderBadgeRect,
+        TMP_Text configuredReminderBadgeText,
+        GameObject configuredPanelRoot,
+        RectTransform configuredPanelRect,
+        CanvasGroup configuredPanelGroup,
+        Image configuredPanelImage,
+        TMP_Text configuredTaskText,
+        TMP_Text configuredDetailText)
+    {
+        hudCanvas = configuredCanvas;
+        hudGroup = configuredHudGroup;
+        supportedScenes = new[] { "Lobby1", "RestockScene" };
+        taskButton = configuredTaskButton;
+        buttonRect = configuredButtonRect;
+        buttonImage = configuredButtonImage;
+        taskIcon = configuredTaskIcon;
+        reminderBadge = configuredReminderBadge;
+        reminderBadgeRect = configuredReminderBadgeRect;
+        reminderBadgeText = configuredReminderBadgeText;
+        panelRoot = configuredPanelRoot;
+        panelRect = configuredPanelRect;
+        panelGroup = configuredPanelGroup;
+        panelImage = configuredPanelImage;
+        taskText = configuredTaskText;
+        detailText = configuredDetailText;
+        objectivesButton = null;
+        objectivesButtonRect = null;
+        objectivesIcon = null;
+        useLobbyHudRedesignLayout = false;
+        hideLegacyObjectivesButton = true;
+        manualPanelStaysOpen = true;
+        preserveAuthoredPresentation = true;
     }
 
     private void OnEnable()
@@ -353,7 +517,12 @@ public sealed class PlayerTaskHUD : MonoBehaviour
             completionRoutine = null;
         }
 
+        RestoreAuthoredColors();
+
         string compositeKey = task.Source + ":" + task.Key;
+        bool completedPreviousStep = animate &&
+                                     !string.IsNullOrEmpty(currentCompositeKey) &&
+                                     compositeKey != currentCompositeKey;
         bool newStep = compositeKey != currentCompositeKey;
         currentCompositeKey = compositeKey;
 
@@ -365,9 +534,9 @@ public sealed class PlayerTaskHUD : MonoBehaviour
             detailText.gameObject.SetActive(!string.IsNullOrWhiteSpace(task.Detail));
         }
 
-        if (taskIcon != null)
+        if (!preserveAuthoredPresentation && taskIcon != null)
             taskIcon.color = activeButtonColor;
-        if (panelImage != null)
+        if (!preserveAuthoredPresentation && panelImage != null)
             panelImage.color = panelColor;
 
         if (!newStep)
@@ -375,8 +544,16 @@ public sealed class PlayerTaskHUD : MonoBehaviour
 
         SetBadge(false);
         reminderAt = float.PositiveInfinity;
-        pendingAutomaticShow = true;
         PlayButtonBounce();
+
+        if (completedPreviousStep)
+        {
+            pendingAutomaticShow = false;
+            StartCompletionPresentation();
+            return;
+        }
+
+        pendingAutomaticShow = true;
     }
 
     private void OnTaskButtonClicked()
@@ -424,9 +601,14 @@ public sealed class PlayerTaskHUD : MonoBehaviour
             return;
 
         panelOpen = false;
-        if (scheduleReminder && PlayerTaskGuidance.Current.IsValid &&
-            float.IsPositiveInfinity(reminderAt))
-            reminderAt = Time.unscaledTime + reminderDelaySeconds;
+        if (scheduleReminder && PlayerTaskGuidance.Current.IsValid)
+        {
+            // Once the readable guidance panel has closed, leave a clear
+            // reminder on the Task button immediately. Waiting for a second
+            // long timer made the HUD look inactive even though a task was
+            // still waiting for the player.
+            reminderAt = Time.unscaledTime + 0.1f;
+        }
         StartPanelTransition(false);
     }
 
@@ -443,8 +625,11 @@ public sealed class PlayerTaskHUD : MonoBehaviour
         Vector2 targetPosition = show ? effectivePanelShownPosition : effectivePanelHiddenPosition;
         float startAlpha = panelGroup != null ? panelGroup.alpha : (show ? 0f : 1f);
         float targetAlpha = show ? 1f : 0f;
-        float startScale = panelRect.localScale.x;
-        float targetScale = show ? 1f : panelHiddenScale;
+        Vector3 startScale = panelRect.localScale;
+        Vector3 shownScale = preserveAuthoredPresentation
+            ? authoredPanelScale
+            : Vector3.one;
+        Vector3 targetScale = show ? shownScale : shownScale * panelHiddenScale;
         float elapsed = 0f;
 
         while (elapsed < slideSeconds)
@@ -453,14 +638,14 @@ public sealed class PlayerTaskHUD : MonoBehaviour
             float t = Mathf.Clamp01(elapsed / slideSeconds);
             float eased = t * t * (3f - 2f * t);
             panelRect.anchoredPosition = Vector2.LerpUnclamped(startPosition, targetPosition, eased);
-            panelRect.localScale = Vector3.one * Mathf.LerpUnclamped(startScale, targetScale, eased);
+            panelRect.localScale = Vector3.LerpUnclamped(startScale, targetScale, eased);
             if (panelGroup != null)
                 panelGroup.alpha = Mathf.Lerp(startAlpha, targetAlpha, eased);
             yield return null;
         }
 
         panelRect.anchoredPosition = targetPosition;
-        panelRect.localScale = Vector3.one * targetScale;
+        panelRect.localScale = targetScale;
         if (panelGroup != null)
             panelGroup.alpha = targetAlpha;
         if (!show && panelRoot != null)
@@ -476,7 +661,12 @@ public sealed class PlayerTaskHUD : MonoBehaviour
         if (panelRect != null)
         {
             panelRect.anchoredPosition = show ? effectivePanelShownPosition : effectivePanelHiddenPosition;
-            panelRect.localScale = Vector3.one * (show ? 1f : panelHiddenScale);
+            Vector3 shownScale = preserveAuthoredPresentation
+                ? authoredPanelScale
+                : Vector3.one;
+            panelRect.localScale = show
+                ? shownScale
+                : shownScale * panelHiddenScale;
         }
         if (panelGroup != null)
             panelGroup.alpha = show ? 1f : 0f;
@@ -498,16 +688,22 @@ public sealed class PlayerTaskHUD : MonoBehaviour
         {
             elapsed += Time.unscaledDeltaTime;
             float t = Mathf.Clamp01(elapsed / buttonBounceSeconds);
-            float scale;
+            float scaleMultiplier;
             if (t < 0.45f)
-                scale = Mathf.Lerp(1f, newTaskBounceScale, Smooth(t / 0.45f));
+                scaleMultiplier = Mathf.Lerp(
+                    1f,
+                    newTaskBounceScale,
+                    Smooth(t / 0.45f));
             else
-                scale = Mathf.Lerp(newTaskBounceScale, 1f, BackOut((t - 0.45f) / 0.55f));
-            buttonRect.localScale = Vector3.one * scale;
+                scaleMultiplier = Mathf.Lerp(
+                    newTaskBounceScale,
+                    1f,
+                    BackOut((t - 0.45f) / 0.55f));
+            buttonRect.localScale = authoredButtonScale * scaleMultiplier;
             yield return null;
         }
 
-        buttonRect.localScale = Vector3.one;
+        buttonRect.localScale = authoredButtonScale;
         buttonRoutine = null;
     }
 
@@ -539,10 +735,10 @@ public sealed class PlayerTaskHUD : MonoBehaviour
             float scale = t < 0.65f
                 ? Mathf.Lerp(0f, badgePopScale, Smooth(t / 0.65f))
                 : Mathf.Lerp(badgePopScale, 1f, Smooth((t - 0.65f) / 0.35f));
-            reminderBadgeRect.localScale = Vector3.one * scale;
+            reminderBadgeRect.localScale = authoredBadgeScale * scale;
             yield return null;
         }
-        reminderBadgeRect.localScale = Vector3.one;
+        reminderBadgeRect.localScale = authoredBadgeScale;
         badgeRoutine = null;
     }
 
@@ -562,6 +758,9 @@ public sealed class PlayerTaskHUD : MonoBehaviour
             detailText.text = "READY FOR THE NEXT JOB";
             detailText.gameObject.SetActive(true);
         }
+        // Completion is deliberate feedback, not a layout/style override.
+        // It may temporarily turn green, then the designer's exact colors are
+        // restored for the next task.
         if (taskIcon != null)
             taskIcon.color = completionColor;
         if (panelImage != null)
@@ -571,7 +770,18 @@ public sealed class PlayerTaskHUD : MonoBehaviour
         ShowPanel(completionVisibleSeconds, false);
         yield return new WaitForSecondsRealtime(completionVisibleSeconds);
 
-        if (!PlayerTaskGuidance.Current.IsValid)
+        if (PlayerTaskGuidance.Current.IsValid)
+        {
+            // A completed step may immediately unlock the next step in the
+            // same guide (truck -> stockroom -> shelf). After the green
+            // confirmation, present the latest authoritative task.
+            completionRoutine = null;
+            currentCompositeKey = string.Empty;
+            RestoreAuthoredColors();
+            RefreshFromGuidance(false);
+            yield break;
+        }
+        else
         {
             HidePanel(false);
             ApplyIdleStyle();
@@ -581,14 +791,62 @@ public sealed class PlayerTaskHUD : MonoBehaviour
 
     private void ApplyIdleStyle()
     {
+        if (preserveAuthoredPresentation)
+        {
+            RestoreAuthoredColors();
+            return;
+        }
+
         if (taskIcon != null)
             taskIcon.color = idleButtonColor;
         if (panelImage != null)
             panelImage.color = panelColor;
     }
 
+    private void CaptureAuthoredPresentation()
+    {
+        if (!preserveAuthoredPresentation || panelRect == null)
+            return;
+
+        // The RectTransform saved in Prefab Mode is the visible position.
+        // Animation may offset it temporarily, but the authored placement,
+        // dimensions, anchors, color, and icon tint remain authoritative.
+        panelShownPosition = panelRect.anchoredPosition;
+        panelHiddenPosition = panelShownPosition + authoredPanelSlideOffset;
+        effectivePanelShownPosition = panelShownPosition;
+        effectivePanelHiddenPosition = panelHiddenPosition;
+        authoredPanelScale = panelRect.localScale;
+        authoredButtonScale = buttonRect != null
+            ? buttonRect.localScale
+            : Vector3.one;
+        authoredBadgeScale = reminderBadgeRect != null
+            ? reminderBadgeRect.localScale
+            : Vector3.one;
+        authoredTaskIconColor = taskIcon != null ? taskIcon.color : Color.white;
+        authoredPanelColor = panelImage != null ? panelImage.color : Color.white;
+        authoredColorsCaptured = true;
+    }
+
+    private void RestoreAuthoredColors()
+    {
+        if (!preserveAuthoredPresentation || !authoredColorsCaptured)
+            return;
+
+        if (taskIcon != null)
+            taskIcon.color = authoredTaskIconColor;
+        if (panelImage != null)
+            panelImage.color = authoredPanelColor;
+    }
+
     private void RefreshLobbyLayout(bool force)
     {
+        if (preserveAuthoredPresentation)
+        {
+            effectivePanelShownPosition = panelShownPosition;
+            effectivePanelHiddenPosition = panelHiddenPosition;
+            return;
+        }
+
         if (!useLobbyHudRedesignLayout || buttonRect == null || panelRect == null)
         {
             effectivePanelShownPosition = panelShownPosition;
@@ -656,6 +914,43 @@ public sealed class PlayerTaskHUD : MonoBehaviour
     }
 
 #if UNITY_EDITOR
+    public bool UsesCombinedAuthoredPresentation => preserveAuthoredPresentation;
+
+    public void ConfigureCombinedPrefabForEditor(
+        Canvas configuredCanvas,
+        CanvasGroup configuredHudGroup,
+        Button configuredTaskButton,
+        RectTransform configuredButtonRect,
+        Image configuredButtonImage,
+        Image configuredTaskIcon,
+        GameObject configuredReminderBadge,
+        RectTransform configuredReminderBadgeRect,
+        TMP_Text configuredReminderBadgeText,
+        GameObject configuredPanelRoot,
+        RectTransform configuredPanelRect,
+        CanvasGroup configuredPanelGroup,
+        Image configuredPanelImage,
+        TMP_Text configuredTaskText,
+        TMP_Text configuredDetailText)
+    {
+        ConfigureCombinedPresentation(
+            configuredCanvas,
+            configuredHudGroup,
+            configuredTaskButton,
+            configuredButtonRect,
+            configuredButtonImage,
+            configuredTaskIcon,
+            configuredReminderBadge,
+            configuredReminderBadgeRect,
+            configuredReminderBadgeText,
+            configuredPanelRoot,
+            configuredPanelRect,
+            configuredPanelGroup,
+            configuredPanelImage,
+            configuredTaskText,
+            configuredDetailText);
+    }
+
     public bool EnsureLobbyHudLayoutForEditor(Sprite configuredTaskIcon)
     {
         const int currentVersion = 1;

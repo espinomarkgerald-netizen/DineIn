@@ -1676,6 +1676,8 @@ public class LobbyAutonomousService : MonoBehaviour
         FoodTrayInteractable interactable = tray.GetComponent<FoodTrayInteractable>();
         if (interactable == null || !interactable.IsCleanupPickable)
             return false;
+        if (interactable.IsComplaintRemoval)
+            return true;
         CustomerGroup group = tray.TargetGroup;
         return group == null || group.state == CustomerGroup.GroupState.Leaving ||
                group.state == CustomerGroup.GroupState.AngryLeft ||

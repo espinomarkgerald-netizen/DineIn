@@ -1,5 +1,6 @@
 using System.Collections;
 using UnityEngine;
+using UnityEngine.UI;
 
 /// <summary>
 /// Small reusable reveal transition for authored UI prefabs. It uses unscaled
@@ -20,6 +21,7 @@ public sealed class UIRevealAnimation : MonoBehaviour
     private RectTransform rect;
     private Vector2 visiblePosition;
     private Coroutine routine;
+    private bool animateAnchoredPosition;
 
     private void Awake()
     {
@@ -49,6 +51,7 @@ public sealed class UIRevealAnimation : MonoBehaviour
     {
         ResolveReferences();
         CaptureVisiblePosition();
+        animateAnchoredPosition = CanAnimateAnchoredPosition();
         if (!isActiveAndEnabled || LevelOneUIAccessibility.ReducedMotion || duration <= 0f)
         {
             ApplyVisibleState();
@@ -64,7 +67,7 @@ public sealed class UIRevealAnimation : MonoBehaviour
     {
         canvasGroup.alpha = 0f;
         transform.localScale = Vector3.one * startScale;
-        if (rect != null)
+        if (animateAnchoredPosition && rect != null)
             rect.anchoredPosition = visiblePosition + startOffset;
 
         float waited = 0f;
@@ -82,7 +85,7 @@ public sealed class UIRevealAnimation : MonoBehaviour
             float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / safeDuration));
             canvasGroup.alpha = t;
             transform.localScale = Vector3.one * Mathf.Lerp(startScale, 1f, t);
-            if (rect != null)
+            if (animateAnchoredPosition && rect != null)
                 rect.anchoredPosition = Vector2.Lerp(visiblePosition + startOffset, visiblePosition, t);
             yield return null;
         }
@@ -101,8 +104,23 @@ public sealed class UIRevealAnimation : MonoBehaviour
 
     private void CaptureVisiblePosition()
     {
-        if (rect != null && routine == null)
+        if (rect != null && routine == null && CanAnimateAnchoredPosition())
             visiblePosition = rect.anchoredPosition;
+    }
+
+    private bool CanAnimateAnchoredPosition()
+    {
+        if (rect == null || startOffset.sqrMagnitude <= 0.0001f)
+            return false;
+
+        // Layout Groups own the anchored position of their direct children.
+        // Writing that value from an animation after a layout rebuild leaves
+        // runtime-created cards at their prefab position until a resolution
+        // change happens to rebuild the layout again.
+        LayoutGroup parentLayout = rect.parent != null
+            ? rect.parent.GetComponent<LayoutGroup>()
+            : null;
+        return parentLayout == null || !parentLayout.isActiveAndEnabled;
     }
 
     private void ApplyVisibleState()
@@ -110,7 +128,7 @@ public sealed class UIRevealAnimation : MonoBehaviour
         if (canvasGroup != null)
             canvasGroup.alpha = 1f;
         transform.localScale = Vector3.one;
-        if (rect != null)
+        if (animateAnchoredPosition && CanAnimateAnchoredPosition() && rect != null)
             rect.anchoredPosition = visiblePosition;
     }
 

@@ -24,6 +24,8 @@ public static class MobileUILayoutRegressionTest
         ValidateManagementComputerScaling();
         ValidateManagementComputerMobileAuthoring();
         ValidateRealme8SizingEnvelope();
+        ValidateCashierLandscapeResponsiveness();
+        ValidateManagementLandscapeResponsiveness();
         ValidateAuthoredNewGameMenuScene();
         ValidateLoadingCanvasProtection();
         ValidateDevConsoleAuthorizationBoundary();
@@ -43,8 +45,8 @@ public static class MobileUILayoutRegressionTest
         Assert(IsInspectorField<OrderChecklistUI>("mobileRootScaleMultiplier") &&
                IsInspectorField<OrderChecklistUI>("mobileCustomerMessagePosition"),
             "Notepad mobile scale/header layout is no longer Inspector-editable.");
-        Assert(IsInspectorField<CashierRegisterUI>("mobilePanelScale") &&
-               IsInspectorField<CashierRegisterUI>("mobileCompactItemsWidth"),
+        Assert(IsInspectorField<CashierRegisterUI>("mobileCompactItemsWidth") &&
+               IsInspectorField<CashierRegisterUI>("desktopCompactItemsWidth"),
             "Cashier mobile layout is no longer Inspector-editable.");
         Assert(IsInspectorField<ManagementComputerResponsiveLayout>("mobileLandscapeWindowMin") &&
                IsInspectorField<ManagementComputerResponsiveLayout>("appButtonColumns") &&
@@ -722,8 +724,7 @@ public static class MobileUILayoutRegressionTest
         float lobbyCanvasScale = screenHeight / 450f;
         float notepadScale = 0.5f * OrderChecklistUI.MobileRootScaleMultiplier * lobbyCanvasScale;
         Vector2 notepadCardPixels = new Vector2(174f, 218f) * notepadScale;
-        Vector2 cashierPanelPixels = new Vector2(700f, 350f) *
-                                     CashierRegisterUI.MobilePanelScale * lobbyCanvasScale;
+        Vector2 cashierPanelPixels = new Vector2(630f, 407.4194f) * lobbyCanvasScale;
         float computerCanvasScale = screenWidth / 1920f;
         Vector2 computerLogicalScreen = new Vector2(
             screenWidth / computerCanvasScale,
@@ -742,13 +743,82 @@ public static class MobileUILayoutRegressionTest
         Assert(notepadCardPixels.x >= 140f && notepadCardPixels.x <= 150f &&
                notepadCardPixels.y >= 175f && notepadCardPixels.y <= 185f,
             $"Notepad choices escaped their mobile readability envelope ({notepadCardPixels.x:0.0} x {notepadCardPixels.y:0.0}px).");
-        Assert(cashierPanelPixels.x >= 1000f && cashierPanelPixels.x <= 1060f &&
-               cashierPanelPixels.y >= 500f && cashierPanelPixels.y <= 530f &&
+        Assert(cashierPanelPixels.x >= 800f && cashierPanelPixels.x <= 820f &&
+               cashierPanelPixels.y >= 510f && cashierPanelPixels.y <= 530f &&
                cashierPanelPixels.x < screenWidth && cashierPanelPixels.y < screenHeight,
             $"Cashier panel no longer fits the phone ({cashierPanelPixels.x:0.0} x {cashierPanelPixels.y:0.0}px).");
         Assert(computerWindowPixels.x >= 1200f && computerWindowPixels.x < screenWidth &&
                computerWindowPixels.y >= 500f && computerWindowPixels.y < screenHeight,
             $"Management workspace escaped the phone safe frame ({computerWindowPixels.x:0.0} x {computerWindowPixels.y:0.0}px).");
+    }
+
+    private static void ValidateCashierLandscapeResponsiveness()
+    {
+        Vector2 panelSize = new Vector2(630f, 407.4194f);
+        Vector2 referenceResolution = new Vector2(800f, 450f);
+        Vector2Int[] landscapeSizes =
+        {
+            new Vector2Int(1920, 1080),
+            new Vector2Int(2160, 1080),
+            new Vector2Int(2340, 1080),
+            new Vector2Int(2560, 1440)
+        };
+
+        for (int i = 0; i < landscapeSizes.Length; i++)
+        {
+            Vector2Int screen = landscapeSizes[i];
+            // CanvasMainHUD uses CanvasScaler Expand: choose the smaller axis
+            // scale so the complete authored panel remains visible.
+            float canvasScale = Mathf.Min(
+                screen.x / referenceResolution.x,
+                screen.y / referenceResolution.y);
+            Vector2 panelPixels = panelSize * canvasScale;
+            float horizontalMargin = (screen.x - panelPixels.x) * 0.5f;
+            float verticalMargin = (screen.y - panelPixels.y) * 0.5f;
+
+            Assert(horizontalMargin >= 0f && verticalMargin >= 0f,
+                $"Cashier panel escapes {screen.x} x {screen.y} " +
+                $"({panelPixels.x:0.0} x {panelPixels.y:0.0}px).");
+            Assert(Mathf.Approximately(panelPixels.x / panelPixels.y,
+                                       panelSize.x / panelSize.y),
+                $"Cashier panel proportions changed at {screen.x} x {screen.y}.");
+        }
+    }
+
+    private static void ValidateManagementLandscapeResponsiveness()
+    {
+        Vector2 referenceResolution = new Vector2(1600f, 900f);
+        Vector2 anchorSpan =
+            ManagementComputerResponsiveLayout.MobileLandscapeWindowMax -
+            ManagementComputerResponsiveLayout.MobileLandscapeWindowMin;
+        Vector2Int[] landscapeSizes =
+        {
+            new Vector2Int(1920, 1080),
+            new Vector2Int(2160, 1080),
+            new Vector2Int(2340, 1080),
+            new Vector2Int(2560, 1440)
+        };
+
+        for (int i = 0; i < landscapeSizes.Length; i++)
+        {
+            Vector2Int screen = landscapeSizes[i];
+            // MatchWidthOrHeight at 0.5 uses the geometric mean. The management
+            // window then fills proportional safe-area anchors and its grids reflow.
+            float canvasScale = Mathf.Sqrt(
+                (screen.x / referenceResolution.x) *
+                (screen.y / referenceResolution.y));
+            Vector2 logicalScreen = new Vector2(
+                screen.x / canvasScale,
+                screen.y / canvasScale);
+            Vector2 windowPixels =
+                (Vector2.Scale(anchorSpan, logicalScreen) - Vector2.one * 16f) *
+                canvasScale;
+
+            Assert(windowPixels.x > 0f && windowPixels.y > 0f &&
+                   windowPixels.x < screen.x && windowPixels.y < screen.y,
+                $"Management window escapes {screen.x} x {screen.y} " +
+                $"({windowPixels.x:0.0} x {windowPixels.y:0.0}px).");
+        }
     }
 
     private static void ValidateAuthoredNewGameMenuScene()

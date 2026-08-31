@@ -11,6 +11,14 @@ public enum ReadinessVisualState
     Blocked
 }
 
+public enum ManagementRowCategory
+{
+    Neutral,
+    Mandatory,
+    Secondary,
+    Bonus
+}
+
 /// <summary>Reusable, prefab-backed row used by every management computer app.</summary>
 public sealed class ManagementComputerRowUI : MonoBehaviour
 {
@@ -23,6 +31,16 @@ public sealed class ManagementComputerRowUI : MonoBehaviour
 
     [Header("Editor Preview")]
     [SerializeField] private bool previewPortraitCard = true;
+
+    [Header("Section Card Colours (Editable)")]
+    [SerializeField] private Color neutralPanelColor = new Color(0.91f, 0.96f, 1f, 1f);
+    [SerializeField] private Color neutralAccentColor = new Color(0.08f, 0.36f, 0.62f, 1f);
+    [SerializeField] private Color mandatoryPanelColor = new Color(1f, 0.89f, 0.88f, 1f);
+    [SerializeField] private Color mandatoryAccentColor = new Color(0.78f, 0.16f, 0.16f, 1f);
+    [SerializeField] private Color secondaryPanelColor = new Color(0.88f, 0.95f, 1f, 1f);
+    [SerializeField] private Color secondaryAccentColor = new Color(0.08f, 0.47f, 0.76f, 1f);
+    [SerializeField] private Color bonusPanelColor = new Color(1f, 0.96f, 0.79f, 1f);
+    [SerializeField] private Color bonusAccentColor = new Color(0.76f, 0.48f, 0.04f, 1f);
 
     private bool cardPresentation;
 
@@ -61,7 +79,7 @@ public sealed class ManagementComputerRowUI : MonoBehaviour
     {
         Image background = GetComponent<Image>();
         if (background != null)
-            background.color = Color.white;
+            background.color = sprite != null ? neutralPanelColor : Color.white;
 
         if (icon != null)
         {
@@ -86,6 +104,44 @@ public sealed class ManagementComputerRowUI : MonoBehaviour
 
         if (actionLabel != null) actionLabel.text = action ?? string.Empty;
         ApplyActionState(!string.IsNullOrWhiteSpace(action));
+    }
+
+    public void BindCategory(
+        Sprite sprite,
+        string title,
+        string details,
+        ManagementRowCategory category)
+    {
+        Bind(sprite, title, details, string.Empty, string.Empty, null, false);
+
+        Color panel = neutralPanelColor;
+        Color accent = neutralAccentColor;
+        switch (category)
+        {
+            case ManagementRowCategory.Mandatory:
+                panel = mandatoryPanelColor;
+                accent = mandatoryAccentColor;
+                break;
+            case ManagementRowCategory.Secondary:
+                panel = secondaryPanelColor;
+                accent = secondaryAccentColor;
+                break;
+            case ManagementRowCategory.Bonus:
+                panel = bonusPanelColor;
+                accent = bonusAccentColor;
+                break;
+        }
+
+        Image background = GetComponent<Image>();
+        if (background != null)
+            background.color = panel;
+        if (titleText != null)
+        {
+            titleText.color = accent;
+            titleText.fontStyle = FontStyles.Bold;
+        }
+        if (detailsText != null)
+            detailsText.color = new Color(0.16f, 0.23f, 0.31f, 1f);
     }
 
     public void BindReadiness(

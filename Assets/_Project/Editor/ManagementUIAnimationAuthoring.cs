@@ -40,7 +40,22 @@ internal static class ManagementUIAnimationAuthoring
             false, 0.16f, 0.98f, new Vector2(0f, -8f)),
         new Target(
             "Assets/_Project/ManagementComputer/Prefabs/ManagementEmployeeCard.prefab",
-            false, 0.16f, 0.96f, Vector2.zero)
+            false, 0.16f, 0.96f, Vector2.zero),
+        new Target(
+            "Assets/_Project/ManagementComputer/Prefabs/ManagementComputerCatalogPanel.prefab",
+            false, 0.18f, 0.98f, Vector2.zero),
+        new Target(
+            "Assets/_Project/ManagementComputer/Prefabs/ManagementComputerCatalogCard.prefab",
+            false, 0.14f, 0.97f, Vector2.zero),
+        new Target(
+            "Assets/_Project/ManagementComputer/Prefabs/ManagementComputerCheckoutLine.prefab",
+            false, 0.12f, 0.98f, new Vector2(0f, -5f)),
+        new Target(
+            "Assets/_Project/Resources/ManagementComputer/ManagementEquipmentSection.prefab",
+            false, 0.16f, 0.98f, new Vector2(0f, -6f)),
+        new Target(
+            "Assets/_Project/Resources/ManagementComputer/ManagementEquipmentCard.prefab",
+            false, 0.14f, 0.97f, Vector2.zero)
     };
 
     static ManagementUIAnimationAuthoring()

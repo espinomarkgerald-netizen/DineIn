@@ -18,13 +18,14 @@ public sealed class ManagementEquipmentSectionUI : MonoBehaviour
     [SerializeField] private ManagementEquipmentCardUI cardPrefab;
 
     [Header("Responsive Grid")]
-    [SerializeField, Min(220f)] private float minimumCardWidth = 280f;
-    [SerializeField, Min(240f)] private float cardHeight = 330f;
-    [SerializeField, Min(0f)] private float horizontalSpacing = 18f;
-    [SerializeField, Min(0f)] private float verticalSpacing = 18f;
-    [SerializeField, Min(0f)] private float sidePadding = 14f;
-    [SerializeField, Min(0f)] private float headerHeight = 92f;
-    [SerializeField, Range(1, 4)] private int maximumColumns = 3;
+    [SerializeField, Min(220f)] private float minimumCardWidth = 260f;
+    [SerializeField, Min(220f)] private float maximumCardWidth = 330f;
+    [SerializeField, Min(240f)] private float cardHeight = 300f;
+    [SerializeField, Min(0f)] private float horizontalSpacing = 16f;
+    [SerializeField, Min(0f)] private float verticalSpacing = 16f;
+    [SerializeField, Min(0f)] private float sidePadding = 12f;
+    [SerializeField, Min(0f)] private float headerHeight = 88f;
+    [SerializeField, Range(1, 4)] private int maximumColumns = 4;
 
     private int itemCount;
     private float lastWidth = -1f;
@@ -105,7 +106,11 @@ public sealed class ManagementEquipmentSectionUI : MonoBehaviour
                              (minimumCardWidth + horizontalSpacing)),
             1,
             maximumColumns);
-        float cardWidth = (available - horizontalSpacing * (columns - 1)) / columns;
+        float availablePerCard =
+            (available - horizontalSpacing * (columns - 1)) / columns;
+        float cardWidth = Mathf.Min(
+            Mathf.Max(minimumCardWidth, maximumCardWidth),
+            availablePerCard);
         int count = Application.isPlaying
             ? itemCount
             : cardsContainer.childCount;
@@ -116,6 +121,7 @@ public sealed class ManagementEquipmentSectionUI : MonoBehaviour
         grid.constraintCount = columns;
         grid.cellSize = new Vector2(cardWidth, cardHeight);
         grid.spacing = new Vector2(horizontalSpacing, verticalSpacing);
+        grid.childAlignment = TextAnchor.UpperLeft;
         grid.padding = new RectOffset(
             Mathf.RoundToInt(sidePadding),
             Mathf.RoundToInt(sidePadding),

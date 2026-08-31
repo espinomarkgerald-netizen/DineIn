@@ -16,6 +16,7 @@ public sealed class ManagerComplaintMarker : MonoBehaviour
     private Action clicked;
     private float pulseSpeed = 3.6f;
     private float pulseScale = 1.12f;
+    private float visibleScale = 1.4f;
 
     public Vector3 WorldPosition => target != null
         ? target.position + worldOffset
@@ -26,12 +27,14 @@ public sealed class ManagerComplaintMarker : MonoBehaviour
         Vector3 offset,
         float configuredPulseSpeed,
         float configuredPulseScale,
+        float configuredVisibleScale,
         Action onClicked)
     {
         target = followTarget;
         worldOffset = offset;
         pulseSpeed = Mathf.Max(0.1f, configuredPulseSpeed);
         pulseScale = Mathf.Max(1f, configuredPulseScale);
+        visibleScale = Mathf.Max(1f, configuredVisibleScale);
         clicked = onClicked;
 
         if (button != null)
@@ -75,7 +78,7 @@ public sealed class ManagerComplaintMarker : MonoBehaviour
         if (visual != null)
         {
             float pulse = (Mathf.Sin(Time.unscaledTime * pulseSpeed) + 1f) * 0.5f;
-            visual.localScale = Vector3.one * Mathf.Lerp(1f, pulseScale, pulse);
+            visual.localScale = Vector3.one * visibleScale * Mathf.Lerp(1f, pulseScale, pulse);
         }
     }
 

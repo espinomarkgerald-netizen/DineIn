@@ -12,6 +12,9 @@ public sealed class ManagementEmployeeCardUI : MonoBehaviour
     [SerializeField] private TMP_Text nameText;
     [SerializeField] private TMP_Text roleText;
     [SerializeField] private TMP_Text starsText;
+    [SerializeField] private Image[] ratingStars;
+    [SerializeField] private Sprite filledStarSprite;
+    [SerializeField] private Sprite emptyStarSprite;
     [SerializeField] private TMP_Text statsText;
     [SerializeField] private TMP_Text proText;
     [SerializeField] private TMP_Text conText;
@@ -60,6 +63,18 @@ public sealed class ManagementEmployeeCardUI : MonoBehaviour
         secondaryLabel = configuredSecondaryLabel;
     }
 
+#if UNITY_EDITOR
+    public void ConfigureRatingIcons(
+        Image[] configuredStars,
+        Sprite configuredFilledStar,
+        Sprite configuredEmptyStar)
+    {
+        ratingStars = configuredStars;
+        filledStarSprite = configuredFilledStar;
+        emptyStarSprite = configuredEmptyStar;
+    }
+#endif
+
     public void Bind(
         EmployeeData employee,
         SalaryConfig salaryConfig,
@@ -81,10 +96,7 @@ public sealed class ManagementEmployeeCardUI : MonoBehaviour
             avatarInitial.text = employee != null && !string.IsNullOrWhiteSpace(employeeName)
                 ? employeeName.Substring(0, 1).ToUpperInvariant()
                 : "+";
-        if (starsText != null)
-            starsText.text = employee != null
-                ? new string('★', Mathf.Clamp(employee.stars, 1, 5)) + new string('☆', 5 - Mathf.Clamp(employee.stars, 1, 5))
-                : "☆☆☆☆☆";
+        ApplyRating(employee != null ? Mathf.Clamp(employee.stars, 1, 5) : 0);
         if (statsText != null)
             statsText.text = employee != null
                 ? $"SPEED  {employee.speed}%\nACCURACY  {employee.accuracy}%\nRELIABILITY  {employee.reliability}%" +
@@ -126,6 +138,35 @@ public sealed class ManagementEmployeeCardUI : MonoBehaviour
         button.interactable = enabled && callback != null;
         button.gameObject.SetActive(!string.IsNullOrWhiteSpace(action));
         if (label != null) label.text = action ?? string.Empty;
+    }
+
+    private void ApplyRating(int stars)
+    {
+        bool useIcons = ratingStars != null && ratingStars.Length > 0 &&
+                        filledStarSprite != null && emptyStarSprite != null;
+        if (starsText != null)
+        {
+            starsText.gameObject.SetActive(!useIcons);
+            if (!useIcons)
+            {
+                starsText.text = stars > 0
+                    ? new string('★', stars) + new string('☆', Mathf.Max(0, 5 - stars))
+                    : "☆☆☆☆☆";
+            }
+        }
+
+        if (!useIcons)
+            return;
+
+        for (int i = 0; i < ratingStars.Length; i++)
+        {
+            Image star = ratingStars[i];
+            if (star == null)
+                continue;
+            star.sprite = i < stars ? filledStarSprite : emptyStarSprite;
+            star.enabled = star.sprite != null;
+            star.preserveAspect = true;
+        }
     }
 
     private static Color GetRoleColor(EmployeeRole role)

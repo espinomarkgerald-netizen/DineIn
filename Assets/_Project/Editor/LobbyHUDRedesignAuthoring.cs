@@ -11,7 +11,7 @@ using UnityEngine.UI;
 [InitializeOnLoad]
 internal static class LobbyHUDRedesignAuthoring
 {
-    private const int CurrentVisualVersion = 2;
+    private const int CurrentVisualVersion = 5;
     private const string PrefabPath = "Assets/_Project/Resources/UI/LobbyHUDRedesign.prefab";
     private const string BlueFramePath =
         "Assets/_Project/MainMenu/NewDesign/UI Elements/PNG/Blue/Double/button_rectangle_depth_flat.png";

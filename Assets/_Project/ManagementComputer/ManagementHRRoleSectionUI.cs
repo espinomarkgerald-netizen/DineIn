@@ -18,9 +18,9 @@ public sealed class ManagementHRRoleSectionUI : MonoBehaviour
 
     [Header("Single Rail Layout (Editable)")]
     [SerializeField] private Vector2 singleRailLabelPosition = new Vector2(0f, -68f);
-    [SerializeField] private Vector2 singleRailScrollPosition = new Vector2(0f, -249f);
-    [SerializeField, Min(120f)] private float singleRailScrollHeight = 330f;
-    [SerializeField, Min(240f)] private float singleRailSectionHeight = 430f;
+    [SerializeField] private Vector2 singleRailScrollPosition = new Vector2(0f, -230f);
+    [SerializeField, Min(120f)] private float singleRailScrollHeight = 286f;
+    [SerializeField, Min(240f)] private float singleRailSectionHeight = 380f;
 
     public EmployeeRole Role { get; private set; }
     public RectTransform EmployedContent => employedContent;
@@ -84,6 +84,7 @@ public sealed class ManagementHRRoleSectionUI : MonoBehaviour
             empty.name = "Empty_" + role;
             empty.Bind(null, manager.salaryConfig, "EMPTY POSITION", string.Empty, null, false,
                 string.Empty, null, false);
+            empty.GetComponent<UIRevealAnimation>()?.Play();
         }
         else if (showEmployed)
         {
@@ -106,6 +107,7 @@ public sealed class ManagementHRRoleSectionUI : MonoBehaviour
                         if (manager.FireEmployee(captured)) onRosterChanged?.Invoke();
                     },
                     editable);
+                card.GetComponent<UIRevealAnimation>()?.Play();
             }
         }
 
@@ -133,6 +135,7 @@ public sealed class ManagementHRRoleSectionUI : MonoBehaviour
                         if (manager.DeclineApplicant(captured)) onRosterChanged?.Invoke();
                     },
                     editable);
+                card.GetComponent<UIRevealAnimation>()?.Play();
             }
         }
 

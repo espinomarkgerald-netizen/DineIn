@@ -536,6 +536,9 @@ public class CustomerGroup : MonoBehaviour
     private bool firstDeliveryCompleted;
     private int wrongDeliveryCount;
     private FoodTray activeFoodTray;
+    private FoodTray complaintFoodTray;
+    private bool managerComplaintRetryUsed;
+    private Coroutine eatingRoutine;
 
     [HideInInspector] public Booth assignedBooth;
 
@@ -1120,6 +1123,8 @@ public class CustomerGroup : MonoBehaviour
         shouldShowAngryThoughtOnLeave = false;
         firstDeliveryCompleted = false;
         wrongDeliveryCount = 0;
+        complaintFoodTray = null;
+        managerComplaintRetryUsed = false;
     }
 
     private void GenerateSimpleBundleOrder()
@@ -1675,12 +1680,14 @@ public class CustomerGroup : MonoBehaviour
 
         if (isBurntFood)
         {
+            complaintFoodTray = sourceTray;
             HandleBurntDelivery();
             return;
         }
 
         if (!isCorrectOrder)
         {
+            complaintFoodTray = sourceTray;
             HandleWrongDelivery();
             return;
         }
@@ -1691,7 +1698,9 @@ public class CustomerGroup : MonoBehaviour
         ClearEatingBubble();
 
         GameDayManager.Instance?.RegisterFoodDelivered();
-        StartCoroutine(EatThenNeedBill());
+        if (eatingRoutine != null)
+            StopCoroutine(eatingRoutine);
+        eatingRoutine = StartCoroutine(EatThenNeedBill());
     }
 
     public void ReceiveWrongFoodFromWaiter()
@@ -1699,17 +1708,64 @@ public class CustomerGroup : MonoBehaviour
         if (state != GroupState.OrderTaken && state != GroupState.Eating)
             return;
 
+        if (complaintFoodTray == null)
+            complaintFoodTray = activeFoodTray;
         HandleWrongDelivery();
+    }
+
+    /// <summary>
+    /// Starts one of the day's rolled complaint encounters while this group is
+    /// eating. This uses the normal complaint request path, so real mistakes and
+    /// scheduled encounters share the same daily allowance and pacing rules.
+    /// </summary>
+    public bool TryBeginScheduledManagerComplaint(ManagerComplaintType type)
+    {
+        if (state != GroupState.Eating || !CanReceiveManagerComplaint)
+            return false;
+
+        complaintFoodTray = activeFoodTray;
+        ManagerComplaintSystem complaintSystem = ManagerComplaintSystem.EnsureInstance();
+        if (complaintSystem == null || !complaintSystem.TryRequestComplaint(this, type))
+        {
+            complaintFoodTray = null;
+            return false;
+        }
+
+        StopEatingRoutineForServiceFailure();
+        waitingForRemake = true;
+        shouldShowAngryThoughtOnLeave = true;
+
+        if (type == ManagerComplaintType.WrongOrder)
+        {
+            receivedWrongOrder = true;
+            wrongDeliveryCount++;
+            CasualDiningPolishManager.EnsureInstance().RegisterIncident(
+                DailyIncidentType.WrongOrder);
+        }
+        else
+        {
+            CasualDiningPolishManager.EnsureInstance().RegisterIncident(
+                DailyIncidentType.OrderFailed);
+        }
+
+        return true;
     }
 
     private void HandleWrongDelivery()
     {
+        StopEatingRoutineForServiceFailure();
         CasualDiningPolishManager.EnsureInstance().RegisterIncident(
             DailyIncidentType.WrongOrder);
         receivedWrongOrder = true;
         waitingForRemake = true;
         shouldShowAngryThoughtOnLeave = true;
         wrongDeliveryCount++;
+
+        if (managerComplaintRetryUsed)
+        {
+            EndFailedFinalComplaintRetry();
+            return;
+        }
 
         ManagerComplaintSystem complaintSystem = ManagerComplaintSystem.EnsureInstance();
         if (complaintSystem != null && complaintSystem.TryRequestComplaint(
@@ -1722,10 +1778,17 @@ public class CustomerGroup : MonoBehaviour
 
     private void HandleBurntDelivery()
     {
+        StopEatingRoutineForServiceFailure();
         CasualDiningPolishManager.EnsureInstance().RegisterIncident(
             DailyIncidentType.OrderFailed);
         waitingForRemake = true;
         shouldShowAngryThoughtOnLeave = true;
+
+        if (managerComplaintRetryUsed)
+        {
+            EndFailedFinalComplaintRetry();
+            return;
+        }
 
         ManagerComplaintSystem complaintSystem = ManagerComplaintSystem.EnsureInstance();
         if (complaintSystem != null && complaintSystem.TryRequestComplaint(
@@ -1736,9 +1799,18 @@ public class CustomerGroup : MonoBehaviour
         ContinueUnresolvedDeliveryFailure();
     }
 
+    private void StopEatingRoutineForServiceFailure()
+    {
+        if (eatingRoutine == null)
+            return;
+
+        StopCoroutine(eatingRoutine);
+        eatingRoutine = null;
+    }
+
     private void ContinueUnresolvedDeliveryFailure()
     {
-
+        MarkComplaintTrayForCleanup();
         if (!angryResultLocked)
         {
             angryResultLocked = true;
@@ -1804,7 +1876,7 @@ public class CustomerGroup : MonoBehaviour
 
     public void ResolveManagerComplaint(
         ManagerComplaintResponseQuality quality,
-        ManagerComplaintType _)
+        ManagerComplaintType type)
     {
         if (!managerComplaintPending)
             return;
@@ -1823,6 +1895,10 @@ public class CustomerGroup : MonoBehaviour
 
         if (quality == ManagerComplaintResponseQuality.Professional)
         {
+            MarkComplaintTrayForCleanup();
+            if (type == ManagerComplaintType.WrongOrder)
+                managerComplaintRetryUsed = true;
+
             angryResultLocked = false;
             receivedWrongOrder = false;
             shouldShowAngryThoughtOnLeave = false;
@@ -1844,6 +1920,7 @@ public class CustomerGroup : MonoBehaviour
             return;
         }
 
+        MarkComplaintTrayForCleanup();
         ClearOrderBubble();
         ClearBillBubble();
         ClearTableNumber();
@@ -1868,6 +1945,67 @@ public class CustomerGroup : MonoBehaviour
         }
 
         StartLeaving(false);
+    }
+
+    private void MarkComplaintTrayForCleanup()
+    {
+        if (complaintFoodTray == null)
+            return;
+
+        FoodTrayInteractable interactable =
+            complaintFoodTray.GetComponent<FoodTrayInteractable>();
+        interactable?.MarkForComplaintRemoval();
+        complaintFoodTray = null;
+    }
+
+    private void EndFailedFinalComplaintRetry()
+    {
+        MarkComplaintTrayForCleanup();
+        if (!angryResultLocked)
+        {
+            angryResultLocked = true;
+            ReportFinalResult(FinalResult.Angry);
+        }
+
+        ShowThought(angryComments, angryFaceSprite);
+        SetState(GroupState.AngryLeft);
+        ClearOrderBubble();
+        ClearBillBubble();
+        ClearTableNumber();
+        ClearMoneyBubble();
+        ClearEatingBubble();
+        StartLeaving(false);
+    }
+
+    public void ShowRefundPopup(int amount)
+    {
+        if (tipPopupPrefab == null || amount <= 0 || groupUiAnchor == null)
+            return;
+
+        GameObject instance = Instantiate(tipPopupPrefab);
+        instance.name = $"{name}_RefundPopup";
+
+        RectTransform rootRect = instance.GetComponent<RectTransform>();
+        if (rootRect != null)
+        {
+            rootRect.localScale = Vector3.one;
+            rootRect.anchoredPosition3D = Vector3.zero;
+        }
+
+        CanvasGroup[] canvasGroups = instance.GetComponentsInChildren<CanvasGroup>(true);
+        for (int i = 0; i < canvasGroups.Length; i++)
+        {
+            canvasGroups[i].alpha = 1f;
+            canvasGroups[i].interactable = false;
+            canvasGroups[i].blocksRaycasts = false;
+        }
+
+        UIFollowWorldPoint follow = instance.GetComponentInChildren<UIFollowWorldPoint>(true);
+        if (follow != null)
+            ConfigureCustomerBubble(follow);
+
+        TipPopupUI ui = instance.GetComponentInChildren<TipPopupUI>(true);
+        ui?.ShowLoss(amount);
     }
 
     public void ReceiveBillFromWaiter()
@@ -1895,6 +2033,7 @@ public class CustomerGroup : MonoBehaviour
         float eat = UnityEngine.Random.Range(minEatSeconds, maxEatSeconds) * mult;
         yield return new WaitForSeconds(eat);
 
+        eatingRoutine = null;
         ClearEatingBubble();
         hasReceivedBill = false;
         SetState(GroupState.NeedsBill);

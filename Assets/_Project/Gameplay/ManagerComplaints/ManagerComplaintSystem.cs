@@ -6,8 +6,8 @@ using UnityEngine.UI;
 
 /// <summary>
 /// Owns the Manager complaint loop. Each day rolls a saved 0/1/2/3 encounter
-/// allowance, while real incidents, safe timing, coached answers and the debug
-/// path remain authoritative.
+/// allowance shared by real incidents and paced automatic encounters, while
+/// safe timing, coached answers and the debug path remain authoritative.
 /// </summary>
 public sealed class ManagerComplaintSystem : MonoBehaviour
 {
@@ -56,6 +56,7 @@ public sealed class ManagerComplaintSystem : MonoBehaviour
     private int dailyComplaintAllowance;
     private int complaintsToday;
     private float lastComplaintShiftElapsedSeconds = -10000f;
+    private float nextAutomaticSearchUnscaledTime;
     private MainCameraController focusedCamera;
     private Vector3 savedCameraTarget;
     private float savedCameraZoom;
@@ -134,6 +135,7 @@ public sealed class ManagerComplaintSystem : MonoBehaviour
         {
             if (worldMarker != null)
                 CancelActiveComplaint(false);
+            TryStartAutomaticComplaint();
             return;
         }
 
@@ -217,6 +219,50 @@ public sealed class ManagerComplaintSystem : MonoBehaviour
         return true;
     }
 
+    private void TryStartAutomaticComplaint()
+    {
+        if (settings == null || !settings.automaticallyCreateAllowedComplaints ||
+            Time.timeScale <= 0f || GameDayManager.Instance == null ||
+            !GameDayManager.Instance.ServiceActive)
+            return;
+
+        if (Time.unscaledTime < nextAutomaticSearchUnscaledTime)
+            return;
+
+        nextAutomaticSearchUnscaledTime = Time.unscaledTime +
+            Mathf.Max(0.05f, settings.automaticSearchIntervalSeconds);
+
+        if (!CanUseAuthenticEncounter(CurrentDay()))
+            return;
+
+        CustomerGroup[] groups = FindObjectsByType<CustomerGroup>(
+            FindObjectsInactive.Exclude,
+            FindObjectsSortMode.None);
+        CustomerGroup candidate = null;
+        int eligibleCount = 0;
+
+        for (int i = 0; i < groups.Length; i++)
+        {
+            CustomerGroup group = groups[i];
+            if (group == null || !group.CanReceiveManagerComplaint ||
+                group.state != CustomerGroup.GroupState.Eating)
+                continue;
+
+            eligibleCount++;
+            if (Random.Range(0, eligibleCount) == 0)
+                candidate = group;
+        }
+
+        if (candidate == null)
+            return;
+
+        ManagerComplaintType type = Random.value <
+            Mathf.Clamp01(settings.automaticBurntFoodChance)
+                ? ManagerComplaintType.BurntFood
+                : ManagerComplaintType.WrongOrder;
+        candidate.TryBeginScheduledManagerComplaint(type);
+    }
+
     public void FillSaveData(GameSaveData data)
     {
         if (data == null)
@@ -258,6 +304,7 @@ public sealed class ManagerComplaintSystem : MonoBehaviour
         dailyComplaintAllowance = 0;
         complaintsToday = 0;
         lastComplaintShiftElapsedSeconds = -10000f;
+        nextAutomaticSearchUnscaledTime = 0f;
     }
 
     private bool CanUseAuthenticEncounter(int day)
@@ -309,6 +356,7 @@ public sealed class ManagerComplaintSystem : MonoBehaviour
         lastComplaintShiftElapsedSeconds = -10000f;
 
         dailyComplaintAllowance = settings.RollDailyComplaintAllowance(Random.value);
+        nextAutomaticSearchUnscaledTime = 0f;
 
         GameSaveManager.Instance?.RequestSave();
     }
@@ -339,6 +387,7 @@ public sealed class ManagerComplaintSystem : MonoBehaviour
             settings.markerWorldOffset,
             settings.markerPulseSpeed,
             settings.markerPulseScale,
+            settings.visibleMarkerScale,
             OpenActiveComplaint);
     }
 
@@ -463,11 +512,22 @@ public sealed class ManagerComplaintSystem : MonoBehaviour
             ? Mathf.CeilToInt(orderTotal * Mathf.Max(0f, response.orderCostMultiplier))
             : 0;
         if (cost > 0)
-            MoneyManager.Instance?.ForceSpend(
-                cost,
-                quality == ManagerComplaintResponseQuality.Professional
-                    ? "Manager complaint remake"
-                    : "Manager complaint refund");
+        {
+            if (quality == ManagerComplaintResponseQuality.Acceptable)
+            {
+                if (DailyFinanceBridge.Instance != null)
+                    DailyFinanceBridge.Instance.ApplyRefund(cost, "Manager complaint refund");
+                else
+                    MoneyManager.Instance?.ForceSpend(cost, "Manager complaint refund");
+
+                activeGroup.ShowRefundPopup(cost);
+                GameDayManager.Instance?.RefreshRevenueUI();
+            }
+            else
+            {
+                MoneyManager.Instance?.ForceSpend(cost, "Manager complaint remake");
+            }
+        }
 
         activeGroup.ResolveManagerComplaint(quality, activeType);
         SetResponseButtonsInteractable(false);

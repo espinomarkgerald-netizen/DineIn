@@ -5,8 +5,6 @@ using UnityEngine.UI;
 
 public class CashierRegisterUI : MonoBehaviour
 {
-    public const float MobilePanelScale = 1.15f;
-
     public static CashierRegisterUI Instance { get; private set; }
 
     public static event System.Action OnHidden;
@@ -59,7 +57,6 @@ public class CashierRegisterUI : MonoBehaviour
     [SerializeField] private TutorialHintTextUI tutorialHint;
 
     [Header("Mobile Presentation (Editable)")]
-    [SerializeField, Range(0.8f, 1.5f)] private float mobilePanelScale = MobilePanelScale;
     [SerializeField, Min(80f)] private float mobileCompactItemsWidth = 146f;
     [SerializeField, Min(28f)] private float mobileCompactItemsHeight = 46f;
     [SerializeField, Min(28f)] private float mobileCompactMaximumCellWidth = 52f;
@@ -132,7 +129,6 @@ public class CashierRegisterUI : MonoBehaviour
 
         Instance = this;
 
-        ApplyMobilePresentation();
         ResolveRoot();
         BindButtons();
         ResetDisplay();
@@ -450,22 +446,6 @@ public class CashierRegisterUI : MonoBehaviour
             TutorialManager.Instance.OnCashierConfirmed(paidGroup);
 
         CloseRegister();
-    }
-
-    private void ApplyMobilePresentation()
-    {
-        if (!Application.isMobilePlatform)
-            return;
-
-        // The register already has a balanced two-column layout, so enlarging the
-        // complete panel preserves that composition while using the spare phone
-        // margins. It remains below the 576 px vertical budget on a Realme 8 5G.
-        Transform panel = transform.Find("Panel");
-        if (panel is RectTransform panelRect)
-        {
-            panelRect.localScale = new Vector3(mobilePanelScale, mobilePanelScale, 1f);
-            panelRect.anchoredPosition = Vector2.zero;
-        }
     }
 
     /// <summary>

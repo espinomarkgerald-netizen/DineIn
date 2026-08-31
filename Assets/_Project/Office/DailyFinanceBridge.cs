@@ -78,6 +78,20 @@ public class DailyFinanceBridge : MonoBehaviour
             MoneyManager.Instance.Earn(amount, description);
     }
 
+    /// <summary>
+    /// Records a customer refund against both today's sales and the restaurant's
+    /// money. Sales cannot become negative, while the money manager keeps its
+    /// existing floor-at-zero behavior and transaction history.
+    /// </summary>
+    public void ApplyRefund(int amount, string description = "Customer Refund")
+    {
+        if (amount <= 0)
+            return;
+
+        earnedToday = Mathf.Max(0, earnedToday - amount);
+        MoneyManager.Instance?.ForceSpend(amount, description);
+    }
+
     public bool SpendMoney(int amount, string description = "Daily Expense")
     {
         if (amount <= 0)

@@ -38,6 +38,8 @@ public sealed class LobbyPauseMenu : MonoBehaviour
     private Color buttonHighlightTint = Color.white;
     private Color buttonPressedTint = new Color(0.72f, 0.88f, 0.95f, 1f);
     private bool paused;
+    private bool usingCombinedHudView;
+    private LobbyPauseMenuView combinedHudView;
     private float previousTimeScale = 1f;
     private Coroutine openRoutine;
 
@@ -55,6 +57,15 @@ public sealed class LobbyPauseMenu : MonoBehaviour
         if (musicSlider != null) musicSlider.onValueChanged.RemoveListener(SetMusicVolume);
         if (sfxSlider != null) sfxSlider.onValueChanged.RemoveListener(SetSfxVolume);
         if (paused) Time.timeScale = 1f;
+        if (usingCombinedHudView && combinedHudView != null)
+        {
+            Transform generatedSettings = pauseWindow != null
+                ? pauseWindow.Find("SettingsContent")
+                : null;
+            if (generatedSettings != null)
+                Destroy(generatedSettings.gameObject);
+            LobbyHUDRoot.Instance?.ReleasePauseMenuView(combinedHudView);
+        }
     }
 
     private void LateUpdate()
@@ -68,9 +79,25 @@ public sealed class LobbyPauseMenu : MonoBehaviour
 
     private void BuildUI()
     {
-        GameObject prefab = Resources.Load<GameObject>(PausePrefabResourceName);
-        GameObject canvasObject = prefab != null ? Instantiate(prefab, transform, false) : CreateVisualTree(transform);
-        LobbyPauseMenuView view = canvasObject.GetComponent<LobbyPauseMenuView>();
+        LobbyHUDRoot combinedRoot = LobbyHUDRoot.EnsureInstance();
+        combinedHudView = combinedRoot != null ? combinedRoot.AcquirePauseMenuView() : null;
+        usingCombinedHudView = combinedHudView != null;
+
+        GameObject canvasObject;
+        LobbyPauseMenuView view;
+        if (usingCombinedHudView)
+        {
+            view = combinedHudView;
+            canvasObject = view.gameObject;
+        }
+        else
+        {
+            GameObject prefab = Resources.Load<GameObject>(PausePrefabResourceName);
+            canvasObject = prefab != null
+                ? Instantiate(prefab, transform, false)
+                : CreateVisualTree(transform);
+            view = canvasObject.GetComponent<LobbyPauseMenuView>();
+        }
         if (view == null || view.PauseButton == null || view.Overlay == null ||
             view.ResumeButton == null || view.GameMenuButton == null)
         {

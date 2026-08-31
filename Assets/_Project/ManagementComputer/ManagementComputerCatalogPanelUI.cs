@@ -52,6 +52,18 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
     [SerializeField, Min(0f)] private float cardSpacing = 12f;
     [SerializeField, Min(220f)] private float rightRailPreferredWidth = 380f;
 
+    [Header("Menu Layout (Editable)")]
+    [SerializeField] private Vector2 menuCardSize = new Vector2(260f, 280f);
+    [SerializeField, Range(1, 5)] private int menuMaximumColumns = 4;
+    [SerializeField, Range(0.22f, 0.5f)] private float menuRightRailProportion = 0.3f;
+    [SerializeField] private Vector2 menuRightRailWidthRange = new Vector2(360f, 480f);
+
+    [Header("Restock Layout (Editable)")]
+    [SerializeField] private Vector2 restockCardSize = new Vector2(250f, 292f);
+    [SerializeField, Range(1, 4)] private int restockMaximumColumns = 3;
+    [SerializeField, Range(0.28f, 0.55f)] private float restockRightRailProportion = 0.39f;
+    [SerializeField] private Vector2 restockRightRailWidthRange = new Vector2(440f, 580f);
+
     [Header("Mobile Catalog Layout (Editable)")]
     [SerializeField, Range(0.3f, 0.6f)] private float mobileRightRailProportion = 0.42f;
     [SerializeField] private Vector2 mobileRightRailWidthRange = new Vector2(440f, 560f);
@@ -79,6 +91,7 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
     private Func<IReadOnlyList<RestockCartLine>, bool> confirmOrder;
     private bool reviewMode;
     private bool committingOrder;
+    private bool showingMenu = true;
     private ItemData extraOrderArmedItem;
     private Vector2 lastPanelSize;
     private InventoryManager subscribedInventory;
@@ -233,6 +246,7 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
 
     private void SetMode(bool menu)
     {
+        showingMenu = menu;
         if (menuDetailsRoot != null)
             menuDetailsRoot.SetActive(menu);
         if (restockCartRoot != null)
@@ -254,6 +268,7 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
             ManagementComputerCatalogCardUI card = Instantiate(cardPrefab, cardContent);
             card.gameObject.SetActive(true);
             menuCards[product] = card;
+            card.GetComponent<UIRevealAnimation>()?.Play(Mathf.Min(0.12f, i * 0.018f));
         }
     }
 
@@ -401,6 +416,7 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
             ManagementComputerCatalogCardUI card = Instantiate(cardPrefab, cardContent);
             card.gameObject.SetActive(true);
             restockCards[item] = card;
+            card.GetComponent<UIRevealAnimation>()?.Play(Mathf.Min(0.12f, i * 0.018f));
         }
     }
 
@@ -766,14 +782,27 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
         lastPanelSize = root.rect.size;
         float width = Mathf.Max(480f, lastPanelSize.x);
         bool mobile = UsesMobileLayout;
-        float railMinimum = mobile
-            ? Mathf.Min(mobileRightRailWidthRange.x, mobileRightRailWidthRange.y)
-            : 300f;
-        float railMaximum = mobile
-            ? Mathf.Max(mobileRightRailWidthRange.x, mobileRightRailWidthRange.y)
-            : Mathf.Max(300f, rightRailPreferredWidth);
+        Vector2 authoredRailRange = showingMenu
+            ? menuRightRailWidthRange
+            : restockRightRailWidthRange;
+        Vector2 activeRailRange = mobile
+            ? new Vector2(
+                Mathf.Max(authoredRailRange.x, mobileRightRailWidthRange.x),
+                Mathf.Max(authoredRailRange.y, mobileRightRailWidthRange.y))
+            : authoredRailRange;
+        float railMinimum = Mathf.Max(280f, Mathf.Min(activeRailRange.x, activeRailRange.y));
+        float railMaximum = Mathf.Max(
+            railMinimum,
+            Mathf.Max(
+                Mathf.Max(activeRailRange.x, activeRailRange.y),
+                rightRailPreferredWidth));
+        float railProportion = showingMenu
+            ? menuRightRailProportion
+            : restockRightRailProportion;
+        if (mobile)
+            railProportion = Mathf.Max(railProportion, mobileRightRailProportion);
         float railWidth = Mathf.Clamp(
-            width * (mobile ? mobileRightRailProportion : 0.34f),
+            width * railProportion,
             railMinimum,
             railMaximum);
         if (rightRailLayout != null)
@@ -788,25 +817,39 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
             return;
         }
 
-        Vector2 targetCardSize = mobile ? mobilePreferredCardSize : preferredCardSize;
+        Vector2 authoredCardSize = showingMenu ? menuCardSize : restockCardSize;
+        if (authoredCardSize.x <= 0f || authoredCardSize.y <= 0f)
+            authoredCardSize = preferredCardSize;
+        Vector2 targetCardSize = mobile
+            ? new Vector2(
+                Mathf.Max(authoredCardSize.x, mobilePreferredCardSize.x * 0.9f),
+                Mathf.Max(authoredCardSize.y, mobilePreferredCardSize.y * 0.9f))
+            : authoredCardSize;
         float estimatedLeftWidth = Mathf.Max(220f, width - railWidth - 52f);
-        int columns = estimatedLeftWidth >= targetCardSize.x * 2f + cardSpacing * 3f
-            ? Mathf.Max(1, preferredColumns)
-            : 1;
+        int configuredMaximum = showingMenu ? menuMaximumColumns : restockMaximumColumns;
+        int maximumColumns = Mathf.Max(
+            1,
+            configuredMaximum > 0 ? configuredMaximum : preferredColumns);
+        int columnsThatFit = Mathf.Max(
+            1,
+            Mathf.FloorToInt((estimatedLeftWidth + cardSpacing) /
+                             (Mathf.Max(160f, targetCardSize.x) + cardSpacing)));
+        int columns = Mathf.Min(maximumColumns, columnsThatFit);
         float usableWidth = estimatedLeftWidth - cardGrid.padding.left - cardGrid.padding.right -
                             Mathf.Max(0, columns - 1) * cardSpacing;
-        float cardWidth = Mathf.Clamp(
-            usableWidth / columns,
-            mobile ? 236f : 204f,
-            targetCardSize.x * (mobile ? 1.25f : 1.35f));
-        float cardHeight = Mathf.Clamp(
-            cardWidth * (targetCardSize.y / Mathf.Max(1f, targetCardSize.x)),
-            mobile ? 284f : 248f,
-            targetCardSize.y * 1.12f);
+        float cardWidth = Mathf.Min(targetCardSize.x, usableWidth / columns);
+        cardWidth = Mathf.Max(mobile ? 226f : 204f, cardWidth);
+        float cardHeight = targetCardSize.y *
+                           (cardWidth / Mathf.Max(1f, targetCardSize.x));
+        cardHeight = Mathf.Clamp(
+            cardHeight,
+            mobile ? 268f : 238f,
+            targetCardSize.y);
         cardGrid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
         cardGrid.constraintCount = columns;
         cardGrid.cellSize = new Vector2(cardWidth, cardHeight);
         cardGrid.spacing = Vector2.one * cardSpacing;
+        cardGrid.childAlignment = TextAnchor.UpperLeft;
 
         if (cardContent != null)
             LayoutRebuilder.MarkLayoutForRebuild(cardContent);

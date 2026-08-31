@@ -24,6 +24,8 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
     [SerializeField] private RectTransform safeAreaRoot;
     [SerializeField] private bool respectDeviceSafeArea = true;
     [SerializeField] private Vector4 safeAreaPadding = new Vector4(18f, 18f, 18f, 18f);
+    [Tooltip("Keep the SafeArea RectTransform exactly where it is authored in the combined LobbyHUD prefab.")]
+    [SerializeField] private bool preserveAuthoredSafeArea;
 
     [Header("Live Customer Panel")]
     [SerializeField] private RectTransform livePanel;
@@ -63,8 +65,15 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
     private Vector2 liveToggleVelocity;
     private float nextCountRefresh;
     private float nextInteractionRefresh;
+    private string selectedInteractionName = string.Empty;
     private Vector2Int lastScreenSize = new Vector2Int(-1, -1);
     private Rect lastSafeArea = new Rect(-1f, -1f, -1f, -1f);
+    private bool authoredVisibilityCaptured;
+    private bool livePanelAuthoredActive;
+    private bool liveToggleAuthoredActive;
+    private bool cameraAuthoredActive;
+    private bool computerAuthoredActive;
+    private bool newspaperAuthoredActive;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetStatics()
@@ -99,6 +108,13 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
         if (existing != null)
             return existing;
 
+        LobbyHUDRoot combinedRoot = LobbyHUDRoot.EnsureInstance();
+        LobbyHUDRedesign combined = combinedRoot != null
+            ? combinedRoot.GetComponentInChildren<LobbyHUDRedesign>(true)
+            : null;
+        if (combined != null)
+            return combined;
+
         LobbyHUDRedesign prefab = Resources.Load<LobbyHUDRedesign>(ResourcePath);
         if (prefab != null)
             return Instantiate(prefab);
@@ -125,11 +141,14 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
         }
 
         Instance = this;
-        DontDestroyOnLoad(gameObject);
+        if (GetComponentInParent<LobbyHUDRoot>() == null)
+            DontDestroyOnLoad(gameObject);
         ResolveCanvas();
         if (!TryBindVisualTree())
             BuildVisualTree();
         WireButtons();
+        CaptureAuthoredVisibility();
+        CaptureAuthoredLayout();
         liveExpanded = livePanelStartsExpanded;
         ApplyPanelImmediate();
         ApplySafeArea(true);
@@ -176,20 +195,89 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
 
     public void RefreshVisibility()
     {
-        bool visible = SceneManager.GetActiveScene().name == LobbySceneName && !GameplayUIBlocker.IsBlocked();
+        string activeScene = SceneManager.GetActiveScene().name;
+        bool inLobby = activeScene == LobbySceneName;
+        bool inRestock = activeScene == "RestockScene";
+        bool taskHudScene = inLobby || inRestock;
+        bool visible = taskHudScene && !GameplayUIBlocker.IsBlocked();
+        if (!inLobby)
+        {
+            selectedInteractionName = string.Empty;
+            if (interactionLabel != null)
+                interactionLabel.gameObject.SetActive(false);
+        }
         if (hudCanvas != null)
-            hudCanvas.enabled = SceneManager.GetActiveScene().name == LobbySceneName;
+            hudCanvas.enabled = taskHudScene;
         if (hudGroup != null)
         {
             hudGroup.alpha = visible ? 1f : 0f;
             hudGroup.interactable = visible;
             hudGroup.blocksRaycasts = visible;
         }
+
+        SetLobbyOnlyControlsVisible(inLobby);
+    }
+
+    private void CaptureAuthoredVisibility()
+    {
+        livePanelAuthoredActive = livePanel != null && livePanel.gameObject.activeSelf;
+        liveToggleAuthoredActive = liveToggleRect != null && liveToggleRect.gameObject.activeSelf;
+        cameraAuthoredActive = cameraButton != null && cameraButton.gameObject.activeSelf;
+        computerAuthoredActive = computerButton != null && computerButton.gameObject.activeSelf;
+        newspaperAuthoredActive = newspaperButton != null && newspaperButton.gameObject.activeSelf;
+        authoredVisibilityCaptured = true;
+    }
+
+    private void SetLobbyOnlyControlsVisible(bool visible)
+    {
+        if (!authoredVisibilityCaptured)
+            return;
+
+        if (livePanel != null)
+            livePanel.gameObject.SetActive(visible && livePanelAuthoredActive);
+        if (liveToggleRect != null)
+            liveToggleRect.gameObject.SetActive(visible && liveToggleAuthoredActive);
+        if (cameraButton != null)
+            cameraButton.gameObject.SetActive(visible && cameraAuthoredActive);
+        if (computerButton != null)
+            computerButton.gameObject.SetActive(visible && computerAuthoredActive);
+        if (newspaperButton != null)
+            newspaperButton.gameObject.SetActive(visible && newspaperAuthoredActive);
     }
 
     private void ToggleLivePanel()
     {
         liveExpanded = !liveExpanded;
+    }
+
+    private void CaptureAuthoredLayout()
+    {
+        if (!preserveAuthoredSafeArea)
+            return;
+
+        if (livePanel != null)
+        {
+            Vector2 hiddenOffset = livePanelHiddenPosition - livePanelShownPosition;
+            livePanelShownPosition = livePanel.anchoredPosition;
+            livePanelHiddenPosition = livePanelShownPosition + hiddenOffset;
+        }
+
+        if (liveToggleRect != null)
+        {
+            Vector2 hiddenOffset = liveToggleHiddenPosition - liveToggleShownPosition;
+            liveToggleShownPosition = liveToggleRect.anchoredPosition;
+            liveToggleHiddenPosition = liveToggleShownPosition + hiddenOffset;
+        }
+    }
+
+    /// <summary>
+    /// Makes the combined LobbyHUD prefab's RectTransforms authoritative.
+    /// The designer can move and resize the controls in Prefab Mode without
+    /// Play Mode applying a second safe-area layout over those edits.
+    /// </summary>
+    public void UseCombinedAuthoredLayout()
+    {
+        preserveAuthoredSafeArea = true;
     }
 
     private void AnimateLivePanel()
@@ -294,13 +382,23 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
         IInteractable target = movement != null
             ? movement.LockedTarget ?? movement.CurrentTarget
             : null;
-        string targetName = target != null ? GetReadableInteractionName(target) : string.Empty;
-        bool show = !string.IsNullOrWhiteSpace(targetName);
+        if (target != null)
+        {
+            string targetName = GetReadableInteractionName(target);
+            if (!string.IsNullOrWhiteSpace(targetName))
+                selectedInteractionName = targetName;
+        }
+
+        // The last explicitly selected interactable remains named until the
+        // player chooses another one.  PlayerMovement may clear CurrentTarget
+        // as soon as an interaction finishes; clearing the HUD at that moment
+        // made the label flash instead of behaving like the Canva design.
+        bool show = !string.IsNullOrWhiteSpace(selectedInteractionName);
         if (interactionLabel != null)
         {
             interactionLabel.gameObject.SetActive(show);
-            if (show && interactionLabel.text != targetName)
-                interactionLabel.text = targetName;
+            if (show && interactionLabel.text != selectedInteractionName)
+                interactionLabel.text = selectedInteractionName;
         }
     }
 
@@ -326,9 +424,38 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
 
         Booth booth = component.GetComponentInParent<Booth>();
         if (booth != null)
-            return NicifyObjectName(booth.gameObject.name, "Booth");
+            return GetBoothDisplayName(booth.gameObject.name);
 
         return NicifyObjectName(component.gameObject.name, "Work Station");
+    }
+
+    private static string GetBoothDisplayName(string rawName)
+    {
+        bool isLongTable = !string.IsNullOrWhiteSpace(rawName) &&
+                           rawName.IndexOf(
+                               "long table",
+                               System.StringComparison.OrdinalIgnoreCase) >= 0;
+        string seatingName = isLongTable ? "Long Table" : "Booth";
+        if (string.IsNullOrWhiteSpace(rawName))
+            return seatingName;
+
+        // Scene instances use internal names such as "Booth.008 5".  The
+        // final number is the player-facing booth number; the model/import
+        // suffix must never leak into the HUD.
+        int end = rawName.Length - 1;
+        while (end >= 0 && !char.IsDigit(rawName[end]))
+            end--;
+        if (end < 0)
+            return seatingName;
+
+        int start = end;
+        while (start > 0 && char.IsDigit(rawName[start - 1]))
+            start--;
+
+        string number = rawName.Substring(start, end - start + 1);
+        return int.TryParse(number, out int parsed)
+            ? $"{seatingName} {parsed}"
+            : seatingName;
     }
 
     private static string NicifyObjectName(string rawName, string fallback)
@@ -433,7 +560,8 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
 
     private void ApplySafeArea(bool force)
     {
-        if (safeAreaRoot == null || Screen.width <= 0 || Screen.height <= 0)
+        if (preserveAuthoredSafeArea || safeAreaRoot == null ||
+            Screen.width <= 0 || Screen.height <= 0)
             return;
 
         Vector2Int size = new Vector2Int(Screen.width, Screen.height);
@@ -536,7 +664,10 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
         RectTransform rect = root.GetComponent<RectTransform>();
         SetAnchor(rect, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f));
         rect.anchoredPosition = new Vector2(30f, -160f);
-        rect.sizeDelta = new Vector2(108f, 92f);
+        // The supplied camera artwork has generous transparent padding.  The
+        // larger editable box makes the visible camera match the Canva HUD
+        // without replacing or cropping the designer's source sprite.
+        rect.sizeDelta = new Vector2(150f, 128f);
         root.GetComponent<Image>().preserveAspect = true;
         cameraButton = root.AddComponent<Button>();
         ConfigureButton(cameraButton);
@@ -548,7 +679,7 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
         RectTransform rect = root.GetComponent<RectTransform>();
         SetAnchor(rect, Vector2.zero, Vector2.zero, Vector2.zero);
         rect.anchoredPosition = new Vector2(28f, 22f);
-        rect.sizeDelta = new Vector2(178f, 178f);
+        rect.sizeDelta = new Vector2(205f, 205f);
         computerButton = root.AddComponent<Button>();
         ConfigureButton(computerButton);
 
@@ -556,7 +687,10 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
         Image image = icon.GetComponent<Image>();
         image.preserveAspect = true;
         image.raycastTarget = false;
-        Stretch(image.rectTransform, 25f);
+        // DashboardIcon also contains transparent breathing room.  Let the
+        // icon rect extend beyond the frame so the actual monitor artwork
+        // fills the button while the button hit target stays unchanged.
+        Stretch(image.rectTransform, -30f);
     }
 
     private void BuildNewspaperButton(Transform parent)
@@ -565,7 +699,7 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
         RectTransform rect = root.GetComponent<RectTransform>();
         SetAnchor(rect, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f));
         rect.anchoredPosition = new Vector2(-76f, -82f);
-        rect.sizeDelta = new Vector2(90f, 112f);
+        rect.sizeDelta = new Vector2(200f, 220f);
         root.GetComponent<Image>().preserveAspect = true;
         newspaperButton = root.AddComponent<Button>();
         ConfigureButton(newspaperButton);
@@ -580,13 +714,13 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
     private void BuildInteractionLabel(Transform parent)
     {
         interactionLabel = CreateText(
-            "InteractionLabel", parent, "Booth 1", 42f,
+            "InteractionLabel", parent, "Booth 1", 64f,
             TextAlignmentOptions.BottomRight, white);
         RectTransform rect = interactionLabel.rectTransform;
         Vector2 bottomRight = new Vector2(1f, 0f);
         SetAnchor(rect, bottomRight, bottomRight, bottomRight);
-        rect.anchoredPosition = new Vector2(-120f, 30f);
-        rect.sizeDelta = new Vector2(520f, 90f);
+        rect.anchoredPosition = new Vector2(-92f, 34f);
+        rect.sizeDelta = new Vector2(620f, 112f);
         interactionLabel.outlineColor = new Color(0f, 0f, 0f, 0.75f);
         interactionLabel.outlineWidth = 0.2f;
         interactionLabel.gameObject.SetActive(false);
@@ -668,6 +802,12 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
 
 #if UNITY_EDITOR
     public int AuthoredVisualVersion => authoredVisualVersion;
+    public bool PreservesAuthoredSafeArea => preserveAuthoredSafeArea;
+
+    public void ConfigureCombinedPrefabForEditor()
+    {
+        UseCombinedAuthoredLayout();
+    }
 
     public void ConfigureForEditor(
         Sprite configuredBlueFrame,

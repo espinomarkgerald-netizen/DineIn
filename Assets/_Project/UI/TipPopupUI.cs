@@ -15,7 +15,11 @@ public class TipPopupUI : MonoBehaviour
     [SerializeField] private float peakScale = 1.08f;
     [SerializeField] private float endScale = 1f;
 
+    [Header("Money Loss")]
+    [SerializeField] private Color lossColor = new Color(0.95f, 0.18f, 0.2f, 1f);
+
     private Coroutine playRoutine;
+    private Color normalTextColor = Color.white;
 
     private void Awake()
     {
@@ -25,6 +29,9 @@ public class TipPopupUI : MonoBehaviour
         if (animatedRoot == null)
             animatedRoot = transform as RectTransform;
 
+        if (amountText != null)
+            normalTextColor = amountText.color;
+
         if (canvasGroup != null)
             canvasGroup.alpha = 1f;
     }
@@ -32,7 +39,27 @@ public class TipPopupUI : MonoBehaviour
     public void Show(int amount)
     {
         if (amountText != null)
+        {
             amountText.text = $"+₱{amount} TIP";
+            amountText.color = normalTextColor;
+        }
+
+        Play();
+    }
+
+    public void ShowLoss(int amount)
+    {
+        if (amountText != null)
+        {
+            amountText.text = $"-₱{Mathf.Abs(amount):N0}";
+            amountText.color = lossColor;
+        }
+
+        Play();
+    }
+
+    private void Play()
+    {
 
         if (playRoutine != null)
             StopCoroutine(playRoutine);

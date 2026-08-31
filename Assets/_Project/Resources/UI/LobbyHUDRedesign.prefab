@@ -111,7 +111,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
   m_AnchoredPosition: {x: 30, y: -160}
-  m_SizeDelta: {x: 108, y: 92}
+  m_SizeDelta: {x: 130, y: 130}
   m_Pivot: {x: 0, y: 1}
 --- !u!222 &1305960825230220702
 CanvasRenderer:
@@ -254,7 +254,7 @@ Canvas:
   m_OverridePixelPerfect: 0
   m_SortingBucketNormalizedSize: 0
   m_VertexColorAlwaysGammaSpace: 0
-  m_AdditionalShaderChannelsFlag: 0
+  m_AdditionalShaderChannelsFlag: 25
   m_UpdateRectTransformForStandalone: 0
   m_SortingLayerID: 0
   m_SortingOrder: 225
@@ -351,7 +351,7 @@ MonoBehaviour:
   computerIcon: {fileID: 21300000, guid: f84e165ead64df54daa8aad978ee2969, type: 3}
   newspaperIcon: {fileID: 21300000, guid: aa6e510cd26dc19498c2ee56e1512cf9, type: 3}
   font: {fileID: 11400000, guid: 44132a242d69e514eaf236194f4a06cf, type: 2}
-  authoredVisualVersion: 2
+  authoredVisualVersion: 5
   blue: {r: 0.12, g: 0.59, b: 0.95, a: 0.98}
   white: {r: 0.98, g: 0.99, b: 1, a: 1}
   ink: {r: 0.04, g: 0.12, b: 0.19, a: 1}
@@ -391,7 +391,7 @@ RectTransform:
   m_AnchorMin: {x: 1, y: 0.5}
   m_AnchorMax: {x: 1, y: 0.5}
   m_AnchoredPosition: {x: -76, y: -82}
-  m_SizeDelta: {x: 90, y: 112}
+  m_SizeDelta: {x: 200, y: 220}
   m_Pivot: {x: 1, y: 0.5}
 --- !u!222 &4067777139625313089
 CanvasRenderer:
@@ -510,7 +510,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: -50, y: -50}
+  m_SizeDelta: {x: 60, y: 60}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &1859912005204963029
 CanvasRenderer:
@@ -664,7 +664,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
   m_AnchoredPosition: {x: 28, y: 22}
-  m_SizeDelta: {x: 178, y: 178}
+  m_SizeDelta: {x: 205, y: 205}
   m_Pivot: {x: 0, y: 0}
 --- !u!222 &1588395372285647667
 CanvasRenderer:
@@ -952,7 +952,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 4294966522
   m_fontColor: {r: 0.98, g: 0.99, b: 1, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -965,12 +965,12 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 22
+  m_fontSize: 20.6
   m_fontSizeBase: 22
   m_fontWeight: 400
   m_enableAutoSizing: 1
@@ -1048,8 +1048,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 1, y: 0}
   m_AnchorMax: {x: 1, y: 0}
-  m_AnchoredPosition: {x: -120, y: 30}
-  m_SizeDelta: {x: 520, y: 90}
+  m_AnchoredPosition: {x: -92, y: 34}
+  m_SizeDelta: {x: 620, y: 112}
   m_Pivot: {x: 1, y: 0}
 --- !u!222 &1589743655068191632
 CanvasRenderer:
@@ -1106,8 +1106,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 42
-  m_fontSizeBase: 42
+  m_fontSize: 64
+  m_fontSizeBase: 64
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -1224,7 +1224,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 4294966522
   m_fontColor: {r: 0.98, g: 0.99, b: 1, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -1237,7 +1237,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2

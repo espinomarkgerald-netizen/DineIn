@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 6186931896435948259}
   - component: {fileID: 5348423033031583204}
   - component: {fileID: 7393151872580624487}
+  - component: {fileID: 2526655419993069357}
   m_Layer: 0
   m_Name: BuyButton
   m_TagString: Untagged
@@ -121,6 +122,22 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &2526655419993069357
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 568265748956296698}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ae518a3822a951440b34123525b5779c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  button: {fileID: 0}
+  visualTarget: {fileID: 0}
+  pressedScale: 0.96
+  duration: 0.07
 --- !u!1 &648838731843933578
 GameObject:
   m_ObjectHideFlags: 0
@@ -633,6 +650,8 @@ GameObject:
   - component: {fileID: 7027983976236564515}
   - component: {fileID: 8957297053633404963}
   - component: {fileID: 5153207960164219229}
+  - component: {fileID: 6203169791282473969}
+  - component: {fileID: 1166396106576356254}
   m_Layer: 0
   m_Name: ManagementEquipmentCard
   m_TagString: Untagged
@@ -747,6 +766,35 @@ MonoBehaviour:
   availableColor: {r: 0.05, g: 0.4, b: 0.67, a: 1}
   lockedColor: {r: 0.46, g: 0.52, b: 0.6, a: 1}
   ownedColor: {r: 0.08, g: 0.56, b: 0.31, a: 1}
+--- !u!225 &6203169791282473969
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6091446827273616453}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
+--- !u!114 &1166396106576356254
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6091446827273616453}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe341889b92b4d1a855ba2fbc44cdfae, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  playOnEnable: 0
+  duration: 0.14
+  delay: 0
+  startScale: 0.97
+  startOffset: {x: 0, y: 0}
 --- !u!1 &7368885033290330375
 GameObject:
   m_ObjectHideFlags: 0

@@ -28,6 +28,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
     private bool uiHiddenUntilStateChange;
     private bool claimedByStaff;
     private bool staffCarried;
+    private bool complaintRemoval;
     private TrayMode modeBeforeStaffPickup = TrayMode.None;
     private TrayPickupQueue queueBeforeStaffPickup;
     private float readySince;
@@ -37,6 +38,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
     public bool AutoReturnHome => false;
     public bool IsDeliveryPickable => mode == TrayMode.Delivery;
     public bool IsCleanupPickable => mode == TrayMode.Cleanup;
+    public bool IsComplaintRemoval => complaintRemoval;
     public bool IsStaffCarried => staffCarried;
     public TrayMode CurrentMode => mode;
     public float ReadySince => readySince;
@@ -116,6 +118,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
             queueOwner.Unregister(this);
 
         ClearStaffPickupSnapshot();
+        complaintRemoval = false;
         mode = TrayMode.Delivery;
         queueOwner = queue;
         readySince = Time.time;
@@ -136,6 +139,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
             queueBeforeStaffPickup.Unregister(this);
 
         mode = TrayMode.None;
+        complaintRemoval = false;
         queueOwner = null;
         readySince = 0f;
         claimedByStaff = false;
@@ -159,6 +163,16 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
         pickupRequested = false;
         uiHiddenUntilStateChange = false;
         RefreshUI();
+    }
+
+    /// <summary>
+    /// Makes food rejected during a Manager complaint available to the existing
+    /// busser cleanup workflow even though the customer is still seated.
+    /// </summary>
+    public void MarkForComplaintRemoval()
+    {
+        complaintRemoval = true;
+        SetCleanupPickable(true);
     }
 
     /// <summary>

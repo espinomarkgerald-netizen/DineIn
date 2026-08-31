@@ -162,6 +162,9 @@ public sealed class ManagementComputerHRPanel : MonoBehaviour
 
         foreach (EmployeeRole role in roles)
         {
+            if (showApplicants && !showEmployed && !HasApplicantsForRole(role))
+                continue;
+
             ManagementHRRoleSectionUI section = Instantiate(sectionPrefab, sectionsRoot);
             section.name = "Role_" + role;
             section.gameObject.SetActive(true);
@@ -173,7 +176,23 @@ public sealed class ManagementComputerHRPanel : MonoBehaviour
                 RefreshCurrentView,
                 showEmployed,
                 showApplicants);
+            section.GetComponent<UIRevealAnimation>()?.Play();
         }
+    }
+
+    private bool HasApplicantsForRole(EmployeeRole role)
+    {
+        if (manager == null || manager.allEmployees == null)
+            return false;
+
+        for (int i = 0; i < manager.allEmployees.Count; i++)
+        {
+            EmployeeData employee = manager.allEmployees[i];
+            if (employee != null && !employee.hired && employee.role == role)
+                return true;
+        }
+
+        return false;
     }
 
     private void FinalizeLayout()

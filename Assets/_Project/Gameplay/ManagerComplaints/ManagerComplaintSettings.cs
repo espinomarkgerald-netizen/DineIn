@@ -73,6 +73,14 @@ public sealed class ManagerComplaintSettings : ScriptableObject
     [Min(0f)] public float minimumSecondsBetweenComplaints = 120f;
     [Min(0f)] public float stopNewComplaintsBeforeCloseSeconds = 60f;
 
+    [Header("Automatic Encounters")]
+    [Tooltip("Creates the day's rolled complaint encounters during otherwise successful service, so players can experience the Manager response system without deliberately making an order mistake.")]
+    public bool automaticallyCreateAllowedComplaints = true;
+    [Tooltip("How often the system looks for an eligible seated group. This uses real time so accelerated development tests do not skip short eating windows.")]
+    [Min(0.05f)] public float automaticSearchIntervalSeconds = 0.2f;
+    [Tooltip("Chance that an automatic encounter uses the burnt-food scenario. Remaining encounters use wrong order.")]
+    [Range(0f, 1f)] public float automaticBurntFoodChance = 0.35f;
+
     [Header("Legacy Occurrence (save compatibility; no longer used)")]
     [HideInInspector]
     [Range(0, 2)] public int maximumEncountersPerWeek = 2;
@@ -86,6 +94,8 @@ public sealed class ManagerComplaintSettings : ScriptableObject
     [Min(0.1f)] public float responseFeedbackSeconds = 2.2f;
     [Min(0.1f)] public float markerPulseSpeed = 3.6f;
     [Range(1f, 1.5f)] public float markerPulseScale = 1.12f;
+    [Tooltip("Scale applied only to the marker over a visible complaining customer/table. The screen-edge pointer keeps its existing size.")]
+    [Range(1f, 2f)] public float visibleMarkerScale = 1.4f;
     [Min(0f)] public float screenEdgePadding = 58f;
     public Vector3 markerWorldOffset = new Vector3(0f, 0.65f, 0f);
 
