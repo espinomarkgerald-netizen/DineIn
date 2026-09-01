@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -31,6 +32,8 @@ public sealed class ManagementComputerHRPanel : MonoBehaviour
 
     private EmployeeManager manager;
     private bool editable;
+    private Coroutine applicantFocusRoutine;
+    private Coroutine scrollRestoreRoutine;
 
     public EmployeeDepartment CurrentDepartment { get; private set; }
     public ManagementHRView CurrentView { get; private set; }
@@ -111,6 +114,8 @@ public sealed class ManagementComputerHRPanel : MonoBehaviour
 
     public void ShowDepartment(EmployeeDepartment department)
     {
+        CancelApplicantFocus();
+        CancelScrollRestore();
         CurrentDepartment = department;
         bool lobby = department == EmployeeDepartment.Lobby;
         CurrentView = lobby ? ManagementHRView.Lobby : ManagementHRView.Kitchen;
@@ -128,17 +133,26 @@ public sealed class ManagementComputerHRPanel : MonoBehaviour
 
         BuildSections(EmployeeRoleCatalog.GetRoles(department), true, false);
         FinalizeLayout();
+        PlayPanelTransition();
     }
 
     public void ShowApplicants()
     {
+        CancelApplicantFocus();
+        CancelScrollRestore();
         CurrentView = ManagementHRView.Applicants;
         ClearSections();
         manager?.MarkApplicantsSeen();
 
-        if (departmentTitle != null) departmentTitle.text = "ALL APPLICANTS";
+        bool hasApplicants = HasAnyApplicants();
+
+        if (departmentTitle != null)
+            departmentTitle.text = hasApplicants ? "ALL APPLICANTS" : "NO APPLICANTS AVAILABLE";
         if (departmentDescription != null)
-            departmentDescription.text = manager != null
+            departmentDescription.text = !hasApplicants && manager != null
+                ? "The applicant pool is empty • New applicants arrive on Day " +
+                  manager.ApplicantNextRefreshDay
+                : manager != null
                 ? "Compare role, ratings and asking salary • Full refresh on Day " +
                   manager.ApplicantNextRefreshDay
                 : "Compare every current applicant";
@@ -150,6 +164,25 @@ public sealed class ManagementComputerHRPanel : MonoBehaviour
         BuildSections(EmployeeRoleCatalog.KitchenRoles, false, true);
         RefreshApplicantBadge();
         FinalizeLayout();
+        PlayPanelTransition();
+    }
+
+    public void ShowApplicantsForRole(EmployeeRole role)
+    {
+        bool hasMatchingApplicant = HasApplicantsForRole(role);
+        ShowApplicants();
+
+        if (!hasMatchingApplicant)
+        {
+            if (departmentTitle != null) departmentTitle.text = "NO MATCHING APPLICANTS";
+            if (departmentDescription != null)
+                departmentDescription.text = manager != null
+                    ? $"No {role} applicant is currently available • New applicants refresh on Day {manager.ApplicantNextRefreshDay}"
+                    : $"No {role} applicant is currently available";
+            return;
+        }
+
+        applicantFocusRoutine = StartCoroutine(FocusApplicantsAfterLayout(role));
     }
 
     private void BuildSections(
@@ -175,7 +208,8 @@ public sealed class ManagementComputerHRPanel : MonoBehaviour
                 editable,
                 RefreshCurrentView,
                 showEmployed,
-                showApplicants);
+                showApplicants,
+                ShowApplicantsForRole);
             section.GetComponent<UIRevealAnimation>()?.Play();
         }
     }
@@ -193,6 +227,122 @@ public sealed class ManagementComputerHRPanel : MonoBehaviour
         }
 
         return false;
+    }
+
+    private bool HasAnyApplicants()
+    {
+        if (manager == null || manager.allEmployees == null)
+            return false;
+
+        for (int i = 0; i < manager.allEmployees.Count; i++)
+        {
+            EmployeeData employee = manager.allEmployees[i];
+            if (employee != null && !employee.hired)
+                return true;
+        }
+
+        return false;
+    }
+
+    private IEnumerator FocusApplicantsAfterLayout(EmployeeRole role)
+    {
+        yield return null;
+        Canvas.ForceUpdateCanvases();
+        LayoutRebuilder.ForceRebuildLayoutImmediate(sectionsRoot);
+        Canvas.ForceUpdateCanvases();
+
+        ManagementHRRoleSectionUI matchingSection = null;
+        ManagementHRRoleSectionUI[] sections = sectionsRoot.GetComponentsInChildren<ManagementHRRoleSectionUI>(false);
+        for (int i = 0; i < sections.Length; i++)
+        {
+            if (sections[i].Role == role)
+            {
+                matchingSection = sections[i];
+                break;
+            }
+        }
+
+        if (matchingSection == null)
+        {
+            applicantFocusRoutine = null;
+            yield break;
+        }
+
+        ScrollSectionIntoView(matchingSection.transform as RectTransform);
+        if (matchingSection.ApplicantScroll != null)
+        {
+            matchingSection.ApplicantScroll.StopMovement();
+            matchingSection.ApplicantScroll.horizontalNormalizedPosition = 0f;
+        }
+
+        yield return new WaitForSecondsRealtime(0.22f);
+        ManagementEmployeeCardUI[] cards = matchingSection.ApplicantContent
+            .GetComponentsInChildren<ManagementEmployeeCardUI>(false);
+        for (int i = 0; i < cards.Length; i++)
+        {
+            if (cards[i].Employee != null && cards[i].Employee.role == role)
+                cards[i].PlayAttentionBop();
+        }
+
+        applicantFocusRoutine = null;
+    }
+
+    private void ScrollSectionIntoView(RectTransform sectionRect)
+    {
+        if (sectionRect == null || bodyScroll == null || bodyScroll.content == null)
+            return;
+
+        RectTransform viewport = bodyScroll.viewport != null
+            ? bodyScroll.viewport
+            : bodyScroll.transform as RectTransform;
+        if (viewport == null)
+            return;
+
+        Bounds bounds = RectTransformUtility.CalculateRelativeRectTransformBounds(viewport, sectionRect);
+        float deltaY = viewport.rect.center.y - bounds.center.y;
+        Vector2 position = bodyScroll.content.anchoredPosition;
+        position.y += deltaY;
+        float maximumY = Mathf.Max(0f, bodyScroll.content.rect.height - viewport.rect.height);
+        position.y = Mathf.Clamp(position.y, 0f, maximumY);
+        bodyScroll.StopMovement();
+        bodyScroll.content.anchoredPosition = position;
+    }
+
+    private void CancelApplicantFocus()
+    {
+        if (applicantFocusRoutine == null)
+            return;
+
+        StopCoroutine(applicantFocusRoutine);
+        applicantFocusRoutine = null;
+    }
+
+    private IEnumerator RestoreScrollAfterLayout(float normalizedPosition)
+    {
+        yield return null;
+        Canvas.ForceUpdateCanvases();
+        if (sectionsRoot != null)
+            LayoutRebuilder.ForceRebuildLayoutImmediate(sectionsRoot);
+        RestoreBodyScrollPosition(normalizedPosition);
+        scrollRestoreRoutine = null;
+    }
+
+    private void RestoreBodyScrollPosition(float normalizedPosition)
+    {
+        if (bodyScroll == null)
+            return;
+
+        bodyScroll.StopMovement();
+        bodyScroll.verticalNormalizedPosition = Mathf.Clamp01(normalizedPosition);
+    }
+
+    private void CancelScrollRestore()
+    {
+        if (scrollRestoreRoutine == null)
+            return;
+
+        StopCoroutine(scrollRestoreRoutine);
+        scrollRestoreRoutine = null;
     }
 
     private void FinalizeLayout()
@@ -248,7 +398,14 @@ public sealed class ManagementComputerHRPanel : MonoBehaviour
     private void RefreshCurrentView()
     {
         if (CurrentView == ManagementHRView.Applicants)
+        {
+            float previousPosition = bodyScroll != null
+                ? bodyScroll.verticalNormalizedPosition
+                : 1f;
             ShowApplicants();
+            RestoreBodyScrollPosition(previousPosition);
+            scrollRestoreRoutine = StartCoroutine(RestoreScrollAfterLayout(previousPosition));
+        }
         else
             ShowDepartment(CurrentDepartment);
     }
@@ -276,5 +433,10 @@ public sealed class ManagementComputerHRPanel : MonoBehaviour
         if (button != null && button.targetGraphic is Image image)
             image.color = selected ? new Color(0.08f, 0.55f, 0.88f) : new Color(0.12f, 0.27f, 0.42f);
         if (label != null) label.color = Color.white;
+    }
+
+    private void PlayPanelTransition()
+    {
+        GetComponent<UIRevealAnimation>()?.Play();
     }
 }

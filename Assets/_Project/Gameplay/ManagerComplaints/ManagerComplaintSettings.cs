@@ -95,9 +95,9 @@ public sealed class ManagerComplaintSettings : ScriptableObject
     [Min(0.1f)] public float markerPulseSpeed = 3.6f;
     [Range(1f, 1.5f)] public float markerPulseScale = 1.12f;
     [Tooltip("Scale applied only to the marker over a visible complaining customer/table. The screen-edge pointer keeps its existing size.")]
-    [Range(1f, 2f)] public float visibleMarkerScale = 1.4f;
+    [Range(1f, 4f)] public float visibleMarkerScale = 3f;
     [Min(0f)] public float screenEdgePadding = 58f;
-    public Vector3 markerWorldOffset = new Vector3(0f, 0.65f, 0f);
+    public Vector3 markerWorldOffset = new Vector3(0f, 1.45f, 0f);
 
     [Header("Camera Focus")]
     [Min(1f)] public float focusedOrthographicSize = 7f;

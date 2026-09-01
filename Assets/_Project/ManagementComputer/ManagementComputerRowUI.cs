@@ -19,6 +19,19 @@ public enum ManagementRowCategory
     Bonus
 }
 
+public enum FinanceRowKind
+{
+    Header,
+    Section,
+    Balance,
+    Income,
+    Expense,
+    Detail,
+    Total,
+    NetPositive,
+    NetNegative
+}
+
 /// <summary>Reusable, prefab-backed row used by every management computer app.</summary>
 public sealed class ManagementComputerRowUI : MonoBehaviour
 {
@@ -42,7 +55,22 @@ public sealed class ManagementComputerRowUI : MonoBehaviour
     [SerializeField] private Color bonusPanelColor = new Color(1f, 0.96f, 0.79f, 1f);
     [SerializeField] private Color bonusAccentColor = new Color(0.76f, 0.48f, 0.04f, 1f);
 
+    [Header("Finance Receipt Style (Editable)")]
+    [SerializeField] private Color financePaperColor = new Color(0.985f, 0.98f, 0.95f, 1f);
+    [SerializeField] private Color financeHeaderColor = new Color(0.86f, 0.94f, 0.99f, 1f);
+    [SerializeField] private Color financeSectionColor = new Color(0.93f, 0.96f, 0.98f, 1f);
+    [SerializeField] private Color financeInkColor = new Color(0.10f, 0.16f, 0.22f, 1f);
+    [SerializeField] private Color financeMutedColor = new Color(0.34f, 0.40f, 0.47f, 1f);
+    [SerializeField] private Color financeIncomeColor = new Color(0.07f, 0.48f, 0.27f, 1f);
+    [SerializeField] private Color financeExpenseColor = new Color(0.76f, 0.16f, 0.16f, 1f);
+    [SerializeField] private Color financeDividerColor = new Color(0.58f, 0.67f, 0.74f, 0.42f);
+    [SerializeField, Min(48f)] private float financeHeaderHeight = 108f;
+    [SerializeField, Min(40f)] private float financeSectionHeight = 58f;
+    [SerializeField, Min(64f)] private float financeRowHeight = 88f;
+    [SerializeField, Min(64f)] private float financeTotalHeight = 98f;
+
     private bool cardPresentation;
+    private Image financeDivider;
 
 #if UNITY_EDITOR
     private void OnValidate()
@@ -77,6 +105,9 @@ public sealed class ManagementComputerRowUI : MonoBehaviour
         UnityAction onAction,
         bool actionEnabled = true)
     {
+        if (financeDivider != null)
+            financeDivider.gameObject.SetActive(false);
+
         Image background = GetComponent<Image>();
         if (background != null)
             background.color = sprite != null ? neutralPanelColor : Color.white;
@@ -104,6 +135,16 @@ public sealed class ManagementComputerRowUI : MonoBehaviour
 
         if (actionLabel != null) actionLabel.text = action ?? string.Empty;
         ApplyActionState(!string.IsNullOrWhiteSpace(action));
+    }
+
+    public void BindFinance(
+        string title,
+        string details,
+        string amount,
+        FinanceRowKind kind)
+    {
+        Bind(null, title, details, amount, string.Empty, null, false);
+        ApplyFinanceLayout(kind);
     }
 
     public void BindCategory(
@@ -289,6 +330,153 @@ public sealed class ManagementComputerRowUI : MonoBehaviour
     {
         if (!cardPresentation)
             ApplyWideRowLayout(hasAction);
+    }
+
+    private void ApplyFinanceLayout(FinanceRowKind kind)
+    {
+        bool header = kind == FinanceRowKind.Header;
+        bool section = kind == FinanceRowKind.Section;
+        bool total = kind == FinanceRowKind.Total ||
+                     kind == FinanceRowKind.NetPositive ||
+                     kind == FinanceRowKind.NetNegative;
+        float height = header
+            ? financeHeaderHeight
+            : section ? financeSectionHeight : total ? financeTotalHeight : financeRowHeight;
+
+        LayoutElement layout = GetComponent<LayoutElement>();
+        RectTransform root = transform as RectTransform;
+        if (layout != null)
+        {
+            layout.minHeight = height;
+            layout.preferredHeight = height;
+            layout.minWidth = -1f;
+            layout.preferredWidth = -1f;
+            layout.flexibleWidth = 1f;
+        }
+        if (root != null)
+            root.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, height);
+
+        if (icon != null)
+            icon.gameObject.SetActive(false);
+        if (actionButton != null)
+            actionButton.gameObject.SetActive(false);
+
+        Image background = GetComponent<Image>();
+        if (background != null)
+            background.color = header
+                ? financeHeaderColor
+                : section ? financeSectionColor : financePaperColor;
+
+        if (section)
+        {
+            SetStretch(titleText != null ? titleText.rectTransform : null, 24f, 24f, 8f, 8f);
+            if (titleText != null)
+            {
+                titleText.alignment = TextAlignmentOptions.MidlineLeft;
+                titleText.color = neutralAccentColor;
+                titleText.fontStyle = FontStyles.Bold;
+            }
+            if (detailsText != null) detailsText.gameObject.SetActive(false);
+            if (valueText != null) valueText.gameObject.SetActive(false);
+            ConfigureAutosizing(titleText, 19f, 25f, TextWrappingModes.NoWrap);
+        }
+        else if (header)
+        {
+            SetTopStretch(titleText != null ? titleText.rectTransform : null, 24f, 24f, 15f, 38f);
+            SetTopStretch(detailsText != null ? detailsText.rectTransform : null, 24f, 24f, 55f, 30f);
+            if (valueText != null) valueText.gameObject.SetActive(false);
+            if (titleText != null)
+            {
+                titleText.alignment = TextAlignmentOptions.Center;
+                titleText.color = neutralAccentColor;
+                titleText.fontStyle = FontStyles.Bold;
+            }
+            if (detailsText != null)
+            {
+                detailsText.gameObject.SetActive(true);
+                detailsText.alignment = TextAlignmentOptions.Center;
+                detailsText.color = financeMutedColor;
+                detailsText.fontStyle = FontStyles.Normal;
+            }
+            ConfigureAutosizing(titleText, 22f, 31f, TextWrappingModes.NoWrap);
+            ConfigureAutosizing(detailsText, 15f, 20f, TextWrappingModes.NoWrap);
+        }
+        else
+        {
+            if (detailsText != null) detailsText.gameObject.SetActive(true);
+            if (valueText != null) valueText.gameObject.SetActive(true);
+            SetStretch(titleText != null ? titleText.rectTransform : null, 24f, 252f, 42f, 10f);
+            SetStretch(detailsText != null ? detailsText.rectTransform : null, 24f, 252f, 10f, 48f);
+            SetFixed(valueText != null ? valueText.rectTransform : null,
+                new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
+                new Vector2(-24f, 0f), new Vector2(218f, height - 20f));
+
+            if (titleText != null)
+            {
+                titleText.alignment = TextAlignmentOptions.MidlineLeft;
+                titleText.color = financeInkColor;
+                titleText.fontStyle = total ? FontStyles.Bold : FontStyles.Normal;
+            }
+            if (detailsText != null)
+            {
+                detailsText.alignment = TextAlignmentOptions.MidlineLeft;
+                detailsText.color = financeMutedColor;
+                detailsText.fontStyle = FontStyles.Normal;
+            }
+            if (valueText != null)
+            {
+                valueText.alignment = TextAlignmentOptions.MidlineRight;
+                valueText.fontStyle = FontStyles.Bold;
+                valueText.color = kind == FinanceRowKind.Income || kind == FinanceRowKind.NetPositive
+                    ? financeIncomeColor
+                    : kind == FinanceRowKind.Expense || kind == FinanceRowKind.Detail ||
+                      kind == FinanceRowKind.NetNegative
+                        ? financeExpenseColor
+                        : neutralAccentColor;
+            }
+
+            ConfigureAutosizing(titleText, total ? 19f : 17f, total ? 25f : 23f,
+                TextWrappingModes.NoWrap);
+            ConfigureAutosizing(detailsText, 14f, 18f, TextWrappingModes.NoWrap);
+            ConfigureAutosizing(valueText, total ? 20f : 17f, total ? 27f : 23f,
+                TextWrappingModes.NoWrap);
+        }
+
+        EnsureFinanceDivider();
+        if (financeDivider != null)
+        {
+            financeDivider.gameObject.SetActive(!header);
+            financeDivider.color = total ? neutralAccentColor : financeDividerColor;
+        }
+    }
+
+    private void EnsureFinanceDivider()
+    {
+        if (financeDivider != null)
+            return;
+
+        Transform existing = transform.Find("Finance Divider");
+        if (existing != null)
+            financeDivider = existing.GetComponent<Image>();
+        if (financeDivider == null)
+        {
+            GameObject dividerObject = new GameObject(
+                "Finance Divider",
+                typeof(RectTransform),
+                typeof(CanvasRenderer),
+                typeof(Image));
+            dividerObject.transform.SetParent(transform, false);
+            financeDivider = dividerObject.GetComponent<Image>();
+            financeDivider.raycastTarget = false;
+        }
+
+        RectTransform divider = financeDivider.rectTransform;
+        divider.anchorMin = new Vector2(0f, 0f);
+        divider.anchorMax = new Vector2(1f, 0f);
+        divider.pivot = new Vector2(0.5f, 0f);
+        divider.anchoredPosition = Vector2.zero;
+        divider.sizeDelta = new Vector2(0f, 2f);
+        financeDivider.transform.SetAsLastSibling();
     }
 
     private static void ConfigureAutosizing(

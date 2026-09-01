@@ -377,7 +377,7 @@ public static class MobileUILayoutRegressionTest
         Assert(catalog != null, "Management-computer catalog prefab is missing or invalid.");
         SerializedObject catalogSettings = new SerializedObject(catalog);
         Vector2 mobileCard = catalogSettings.FindProperty("mobilePreferredCardSize").vector2Value;
-        Assert(mobileCard.x >= 260f && mobileCard.y >= 320f &&
+        Assert(mobileCard.x >= 248f && mobileCard.y >= 292f &&
                catalogSettings.FindProperty("mobileControlHeight").floatValue >= 64f,
             "Menu/Restock cards or controls became too small for phones.");
 
@@ -517,11 +517,11 @@ public static class MobileUILayoutRegressionTest
             Assert(!manager.allEmployees.Exists(employee =>
                     employee != null && employee.EmployeeID == expiringID),
                 "A one-day applicant remained after their availability expired.");
-            Assert(manager.HasUnseenApplicants,
-                "Replacement applicants did not raise the Staff notification.");
+            Assert(!manager.HasUnseenApplicants,
+                "Applicant removal incorrectly raised a new-applicant notification.");
             Assert(manager.allEmployees.FindAll(employee =>
-                    employee != null && !employee.hired && employee.role == EmployeeRole.Host).Count == 3,
-                "The expired applicant slot was not refilled immediately.");
+                    employee != null && !employee.hired && employee.role == EmployeeRole.Host).Count == 0,
+                "The expired applicant slot was refilled before the scheduled refresh.");
 
             manager.MarkApplicantsSeen();
             Assert(!manager.HasUnseenApplicants,
@@ -540,11 +540,33 @@ public static class MobileUILayoutRegressionTest
                     employee != null && !employee.hired && dayTwoApplicants.Contains(employee.EmployeeID)),
                 "The scheduled applicant refresh reused an expired cohort.");
 
+            manager.MarkApplicantsSeen();
+            EmployeeData declined = manager.allEmployees.Find(employee =>
+                employee != null && !employee.hired && employee.role == EmployeeRole.Host);
+            int hostApplicantsBeforeDecline = manager.allEmployees.FindAll(employee =>
+                employee != null && !employee.hired && employee.role == EmployeeRole.Host).Count;
+            Assert(manager.DeclineApplicant(declined),
+                "A valid applicant could not be declined.");
+            Assert(manager.allEmployees.FindAll(employee =>
+                    employee != null && !employee.hired && employee.role == EmployeeRole.Host).Count ==
+                   hostApplicantsBeforeDecline - 1,
+                "Declining an applicant generated an immediate replacement.");
+            Assert(!manager.HasUnseenApplicants,
+                "Declining an applicant incorrectly raised a new-applicant notification.");
+
+            EmployeeData remainingHost;
+            while ((remainingHost = manager.allEmployees.Find(employee =>
+                       employee != null && !employee.hired && employee.role == EmployeeRole.Host)) != null)
+            {
+                Assert(manager.DeclineApplicant(remainingHost),
+                    "A remaining Host applicant could not be declined.");
+            }
+
             GameSaveData save = new GameSaveData();
             manager.FillSaveData(save);
             Assert(save.employeeApplicantNextRefreshDay == 5 &&
                    save.employeeApplicantLastProcessedDay == 3 &&
-                   save.employeeApplicantsUnseen,
+                   !save.employeeApplicantsUnseen,
                 "Applicant refresh/notification state did not persist to the save model.");
 
             save.currentDay = 3;
@@ -552,6 +574,9 @@ public static class MobileUILayoutRegressionTest
             manager.ApplySaveData(save);
             Assert(manager.ApplicantNextRefreshDay == 5,
                 "A legacy weekly applicant schedule was not migrated to every other day.");
+            Assert(manager.allEmployees.FindAll(employee =>
+                    employee != null && !employee.hired && employee.role == EmployeeRole.Host).Count == 0,
+                "Loading the save refilled a deliberately depleted applicant role.");
         }
         finally
         {

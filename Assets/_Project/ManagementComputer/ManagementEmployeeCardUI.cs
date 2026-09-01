@@ -1,3 +1,5 @@
+using System;
+using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
@@ -24,6 +26,22 @@ public sealed class ManagementEmployeeCardUI : MonoBehaviour
     [SerializeField] private TMP_Text primaryLabel;
     [SerializeField] private Button secondaryButton;
     [SerializeField] private TMP_Text secondaryLabel;
+    [SerializeField] private Button emptySlotButton;
+
+    [Header("Applicant Attention (Editable)")]
+    [SerializeField, Range(1f, 1.2f)] private float attentionBopScale = 1.06f;
+    [SerializeField, Min(0.1f)] private float attentionBopDuration = 0.45f;
+    [SerializeField, Range(1, 3)] private int attentionBopCount = 2;
+
+    [Header("Action Feedback (Editable)")]
+    [SerializeField, Min(0.05f)] private float positiveFeedbackDuration = 0.12f;
+    [SerializeField, Range(1f, 1.12f)] private float positiveFeedbackScale = 1.04f;
+    [SerializeField, Min(0.08f)] private float declineDuration = 0.18f;
+    [SerializeField, Range(0.8f, 1f)] private float declineEndScale = 0.92f;
+
+    private Coroutine attentionRoutine;
+    private Coroutine actionRoutine;
+    private CanvasGroup canvasGroup;
 
     public EmployeeData Employee { get; private set; }
     public Button PrimaryButton => primaryButton;
@@ -44,7 +62,8 @@ public sealed class ManagementEmployeeCardUI : MonoBehaviour
         Button configuredPrimary,
         TMP_Text configuredPrimaryLabel,
         Button configuredSecondary,
-        TMP_Text configuredSecondaryLabel)
+        TMP_Text configuredSecondaryLabel,
+        Button configuredEmptySlotButton = null)
     {
         accent = configuredAccent;
         avatarBackground = configuredAvatarBackground;
@@ -61,6 +80,7 @@ public sealed class ManagementEmployeeCardUI : MonoBehaviour
         primaryLabel = configuredPrimaryLabel;
         secondaryButton = configuredSecondary;
         secondaryLabel = configuredSecondaryLabel;
+        emptySlotButton = configuredEmptySlotButton;
     }
 
 #if UNITY_EDITOR
@@ -84,7 +104,8 @@ public sealed class ManagementEmployeeCardUI : MonoBehaviour
         bool primaryEnabled,
         string secondaryAction,
         UnityAction onSecondary,
-        bool secondaryEnabled)
+        bool secondaryEnabled,
+        UnityAction onEmptySlot = null)
     {
         Employee = employee;
         string employeeName = employee != null ? employee.employeeName : "Empty Slot";
@@ -120,6 +141,164 @@ public sealed class ManagementEmployeeCardUI : MonoBehaviour
 
         ConfigureButton(primaryButton, primaryLabel, primaryAction, onPrimary, primaryEnabled);
         ConfigureButton(secondaryButton, secondaryLabel, secondaryAction, onSecondary, secondaryEnabled);
+        ConfigureEmptySlotButton(employee == null ? onEmptySlot : null);
+    }
+
+    public void PlayAttentionBop()
+    {
+        if (!isActiveAndEnabled || actionRoutine != null)
+            return;
+
+        if (attentionRoutine != null)
+            StopCoroutine(attentionRoutine);
+        attentionRoutine = StartCoroutine(AttentionBopRoutine());
+    }
+
+    public void PlayPositiveFeedback(Func<bool> action, UnityAction onSuccess)
+    {
+        StartActionFeedback(PositiveFeedbackRoutine(action, onSuccess));
+    }
+
+    public void PlayDeclineRemoval(Func<bool> action, UnityAction onSuccess)
+    {
+        StartActionFeedback(DeclineRemovalRoutine(action, onSuccess));
+    }
+
+    private void StartActionFeedback(IEnumerator routine)
+    {
+        if (!isActiveAndEnabled || actionRoutine != null)
+            return;
+
+        if (attentionRoutine != null)
+        {
+            StopCoroutine(attentionRoutine);
+            attentionRoutine = null;
+        }
+
+        canvasGroup = canvasGroup != null ? canvasGroup : GetComponent<CanvasGroup>();
+        if (canvasGroup != null)
+            canvasGroup.interactable = false;
+        transform.localScale = Vector3.one;
+        actionRoutine = StartCoroutine(routine);
+    }
+
+    private IEnumerator PositiveFeedbackRoutine(Func<bool> action, UnityAction onSuccess)
+    {
+        float duration = LevelOneUIAccessibility.ReducedMotion
+            ? 0f
+            : Mathf.Max(0.05f, positiveFeedbackDuration);
+        float elapsed = 0f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float progress = Mathf.Clamp01(elapsed / duration);
+            float pulse = Mathf.Sin(progress * Mathf.PI);
+            transform.localScale = Vector3.one * Mathf.Lerp(1f, positiveFeedbackScale, pulse);
+            yield return null;
+        }
+
+        RestoreActionVisuals();
+        bool succeeded = action != null && action.Invoke();
+        actionRoutine = null;
+        if (succeeded)
+            onSuccess?.Invoke();
+    }
+
+    private IEnumerator DeclineRemovalRoutine(Func<bool> action, UnityAction onSuccess)
+    {
+        float duration = LevelOneUIAccessibility.ReducedMotion
+            ? 0f
+            : Mathf.Max(0.08f, declineDuration);
+        float elapsed = 0f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float progress = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / duration));
+            if (canvasGroup != null)
+                canvasGroup.alpha = 1f - progress;
+            transform.localScale = Vector3.one * Mathf.Lerp(1f, declineEndScale, progress);
+            yield return null;
+        }
+
+        bool succeeded = action != null && action.Invoke();
+        actionRoutine = null;
+        if (succeeded)
+        {
+            onSuccess?.Invoke();
+            yield break;
+        }
+
+        RestoreActionVisuals();
+    }
+
+    private void RestoreActionVisuals()
+    {
+        transform.localScale = Vector3.one;
+        if (canvasGroup == null)
+            return;
+        canvasGroup.alpha = 1f;
+        canvasGroup.interactable = true;
+    }
+
+    private void ConfigureEmptySlotButton(UnityAction onEmptySlot)
+    {
+        if (emptySlotButton == null && avatarBackground != null && onEmptySlot != null)
+        {
+            emptySlotButton = avatarBackground.GetComponent<Button>();
+            if (emptySlotButton == null)
+                emptySlotButton = avatarBackground.gameObject.AddComponent<Button>();
+            emptySlotButton.targetGraphic = avatarBackground;
+            emptySlotButton.transition = Selectable.Transition.None;
+        }
+
+        if (emptySlotButton == null)
+            return;
+
+        emptySlotButton.onClick.RemoveAllListeners();
+        if (onEmptySlot != null)
+            emptySlotButton.onClick.AddListener(onEmptySlot);
+        emptySlotButton.interactable = onEmptySlot != null;
+    }
+
+    private IEnumerator AttentionBopRoutine()
+    {
+        transform.localScale = Vector3.one;
+        if (LevelOneUIAccessibility.ReducedMotion)
+        {
+            attentionRoutine = null;
+            yield break;
+        }
+
+        float duration = Mathf.Max(0.1f, attentionBopDuration);
+        int count = Mathf.Clamp(attentionBopCount, 1, 3);
+        float elapsed = 0f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float progress = Mathf.Clamp01(elapsed / duration);
+            float wave = Mathf.Abs(Mathf.Sin(progress * Mathf.PI * count));
+            float eased = wave * wave * (3f - 2f * wave);
+            transform.localScale = Vector3.one * Mathf.Lerp(1f, attentionBopScale, eased);
+            yield return null;
+        }
+
+        transform.localScale = Vector3.one;
+        attentionRoutine = null;
+    }
+
+    private void OnDisable()
+    {
+        if (attentionRoutine != null)
+        {
+            StopCoroutine(attentionRoutine);
+            attentionRoutine = null;
+        }
+        if (actionRoutine != null)
+        {
+            StopCoroutine(actionRoutine);
+            actionRoutine = null;
+        }
+        RestoreActionVisuals();
     }
 
     private static void ConfigureButton(

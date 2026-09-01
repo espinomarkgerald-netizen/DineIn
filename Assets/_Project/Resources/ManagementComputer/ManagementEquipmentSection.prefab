@@ -565,13 +565,13 @@ MonoBehaviour:
   grid: {fileID: 4208671310863564466}
   sectionLayout: {fileID: 2005762972542204455}
   cardPrefab: {fileID: 5153207960164219229, guid: 791d729492da0884cb557b1192598a03, type: 3}
-  minimumCardWidth: 260
-  maximumCardWidth: 330
-  cardHeight: 300
-  horizontalSpacing: 16
-  verticalSpacing: 16
+  minimumCardWidth: 238
+  maximumCardWidth: 258
+  cardHeight: 280
+  horizontalSpacing: 14
+  verticalSpacing: 14
   sidePadding: 12
-  headerHeight: 88
+  headerHeight: 80
   maximumColumns: 4
 --- !u!225 &7252672044967631356
 CanvasGroup:

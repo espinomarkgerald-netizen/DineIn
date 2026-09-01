@@ -18,13 +18,13 @@ public sealed class ManagementEquipmentSectionUI : MonoBehaviour
     [SerializeField] private ManagementEquipmentCardUI cardPrefab;
 
     [Header("Responsive Grid")]
-    [SerializeField, Min(220f)] private float minimumCardWidth = 260f;
-    [SerializeField, Min(220f)] private float maximumCardWidth = 330f;
-    [SerializeField, Min(240f)] private float cardHeight = 300f;
-    [SerializeField, Min(0f)] private float horizontalSpacing = 16f;
-    [SerializeField, Min(0f)] private float verticalSpacing = 16f;
+    [SerializeField, Min(220f)] private float minimumCardWidth = 238f;
+    [SerializeField, Min(220f)] private float maximumCardWidth = 258f;
+    [SerializeField, Min(240f)] private float cardHeight = 280f;
+    [SerializeField, Min(0f)] private float horizontalSpacing = 14f;
+    [SerializeField, Min(0f)] private float verticalSpacing = 14f;
     [SerializeField, Min(0f)] private float sidePadding = 12f;
-    [SerializeField, Min(0f)] private float headerHeight = 88f;
+    [SerializeField, Min(0f)] private float headerHeight = 80f;
     [SerializeField, Range(1, 4)] private int maximumColumns = 4;
 
     private int itemCount;

@@ -2740,21 +2740,21 @@ MonoBehaviour:
   secondaryCartButton: {fileID: 7589314404763164566}
   secondaryCartLabel: {fileID: 1077932116353029775}
   checkoutLinePrefab: {fileID: 93543098479877575, guid: 67b7813df2a4398479ca3e21199b50a0, type: 3}
-  preferredCardSize: {x: 250, y: 300}
+  preferredCardSize: {x: 238, y: 280}
   preferredColumns: 2
-  cardSpacing: 12
+  cardSpacing: 14
   rightRailPreferredWidth: 380
-  menuCardSize: {x: 260, y: 280}
+  menuCardSize: {x: 238, y: 260}
   menuMaximumColumns: 4
   menuRightRailProportion: 0.3
   menuRightRailWidthRange: {x: 360, y: 480}
-  restockCardSize: {x: 250, y: 292}
+  restockCardSize: {x: 238, y: 292}
   restockMaximumColumns: 3
   restockRightRailProportion: 0.39
   restockRightRailWidthRange: {x: 440, y: 580}
   mobileRightRailProportion: 0.42
   mobileRightRailWidthRange: {x: 440, y: 560}
-  mobilePreferredCardSize: {x: 280, y: 336}
+  mobilePreferredCardSize: {x: 252, y: 298}
   mobileControlHeight: 68
   mobileSmallButtonWidth: 112
   mobileMenuIconSize: 104

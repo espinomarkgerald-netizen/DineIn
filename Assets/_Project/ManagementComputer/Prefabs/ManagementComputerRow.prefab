@@ -131,6 +131,18 @@ MonoBehaviour:
   secondaryAccentColor: {r: 0.08, g: 0.47, b: 0.76, a: 1}
   bonusPanelColor: {r: 1, g: 0.96, b: 0.79, a: 1}
   bonusAccentColor: {r: 0.76, g: 0.48, b: 0.04, a: 1}
+  financePaperColor: {r: 0.985, g: 0.98, b: 0.95, a: 1}
+  financeHeaderColor: {r: 0.86, g: 0.94, b: 0.99, a: 1}
+  financeSectionColor: {r: 0.93, g: 0.96, b: 0.98, a: 1}
+  financeInkColor: {r: 0.1, g: 0.16, b: 0.22, a: 1}
+  financeMutedColor: {r: 0.34, g: 0.4, b: 0.47, a: 1}
+  financeIncomeColor: {r: 0.07, g: 0.48, b: 0.27, a: 1}
+  financeExpenseColor: {r: 0.76, g: 0.16, b: 0.16, a: 1}
+  financeDividerColor: {r: 0.58, g: 0.67, b: 0.74, a: 0.42}
+  financeHeaderHeight: 108
+  financeSectionHeight: 58
+  financeRowHeight: 88
+  financeTotalHeight: 98
 --- !u!225 &8967367858733364419
 CanvasGroup:
   m_ObjectHideFlags: 0

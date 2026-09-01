@@ -29,9 +29,9 @@ MonoBehaviour:
   responseFeedbackSeconds: 2.2
   markerPulseSpeed: 3.6
   markerPulseScale: 1.12
-  visibleMarkerScale: 1.4
+  visibleMarkerScale: 3
   screenEdgePadding: 58
-  markerWorldOffset: {x: 0, y: 0.65, z: 0}
+  markerWorldOffset: {x: 0, y: 1.45, z: 0}
   focusedOrthographicSize: 7
   cameraFramingOffset: {x: 0, y: 0, z: -0.8}
   wrongOrder:

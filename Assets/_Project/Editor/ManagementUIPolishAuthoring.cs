@@ -63,11 +63,11 @@ internal static class ManagementUIPolishAuthoring
 
             SerializedObject serialized = new SerializedObject(panel);
             bool changed = false;
-            changed |= SetVector2IfMissing(serialized, "menuCardSize", new Vector2(260f, 280f));
+            changed |= SetVector2IfMissing(serialized, "menuCardSize", new Vector2(238f, 260f));
             changed |= SetIntIfMissing(serialized, "menuMaximumColumns", 4);
             changed |= SetFloatIfMissing(serialized, "menuRightRailProportion", 0.3f);
             changed |= SetVector2IfMissing(serialized, "menuRightRailWidthRange", new Vector2(360f, 480f));
-            changed |= SetVector2IfMissing(serialized, "restockCardSize", new Vector2(250f, 292f));
+            changed |= SetVector2IfMissing(serialized, "restockCardSize", new Vector2(238f, 292f));
             changed |= SetIntIfMissing(serialized, "restockMaximumColumns", 3);
             changed |= SetFloatIfMissing(serialized, "restockRightRailProportion", 0.39f);
             changed |= SetVector2IfMissing(serialized, "restockRightRailWidthRange", new Vector2(440f, 580f));
@@ -87,13 +87,13 @@ internal static class ManagementUIPolishAuthoring
 
             SerializedObject serialized = new SerializedObject(section);
             bool changed = false;
-            changed |= ReplaceFloat(serialized, "minimumCardWidth", 280f, 260f);
-            changed |= SetFloatIfMissing(serialized, "maximumCardWidth", 330f);
-            changed |= ReplaceFloat(serialized, "cardHeight", 330f, 300f);
-            changed |= ReplaceFloat(serialized, "horizontalSpacing", 18f, 16f);
-            changed |= ReplaceFloat(serialized, "verticalSpacing", 18f, 16f);
+            changed |= ReplaceFloat(serialized, "minimumCardWidth", 280f, 238f);
+            changed |= SetFloatIfMissing(serialized, "maximumCardWidth", 258f);
+            changed |= ReplaceFloat(serialized, "cardHeight", 330f, 280f);
+            changed |= ReplaceFloat(serialized, "horizontalSpacing", 18f, 14f);
+            changed |= ReplaceFloat(serialized, "verticalSpacing", 18f, 14f);
             changed |= ReplaceFloat(serialized, "sidePadding", 14f, 12f);
-            changed |= ReplaceFloat(serialized, "headerHeight", 92f, 88f);
+            changed |= ReplaceFloat(serialized, "headerHeight", 92f, 80f);
             if (changed)
                 serialized.ApplyModifiedPropertiesWithoutUndo();
             return changed;

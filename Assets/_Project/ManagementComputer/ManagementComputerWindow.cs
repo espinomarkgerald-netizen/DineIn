@@ -31,11 +31,17 @@ public sealed class ManagementComputerWindow : MonoBehaviour
     [SerializeField, Min(1)] private int mobileCardRows = 2;
     [SerializeField] private Vector2 mobileCardSizeRange = new Vector2(236f, 282f);
 
+    [Header("Finance Statement Layout (Editable)")]
+    [SerializeField, Min(0f)] private float financeHorizontalPadding = 28f;
+    [SerializeField, Min(0f)] private float financeVerticalPadding = 18f;
+    [SerializeField, Min(0f)] private float financeRowSpacing = 2f;
+
     private VerticalLayoutGroup verticalLayout;
     private LayoutElement contentHeightOverride;
     private ContentSizeFitter contentSizeFitter;
     private bool useCardLayout;
     private bool useEmbeddedPanelLayout;
+    private bool useFinanceStatementLayout;
 
     public RectTransform Content => content;
     public Button FooterButton => footerButton;
@@ -102,6 +108,12 @@ public sealed class ManagementComputerWindow : MonoBehaviour
         ApplyContentLayout();
     }
 
+    public void SetFinanceStatementLayout(bool financeStatement)
+    {
+        useFinanceStatementLayout = financeStatement;
+        ApplyContentLayout();
+    }
+
     public void RefreshContentLayout()
     {
         ApplyContentLayout();
@@ -144,10 +156,17 @@ public sealed class ManagementComputerWindow : MonoBehaviour
         if (verticalLayout != null)
         {
             verticalLayout.enabled = !useCardLayout && !useEmbeddedPanelLayout;
-            int listPadding = Mathf.RoundToInt(UsesMobileLayout ? mobileContentPadding : 12f);
+            int horizontalPadding = Mathf.RoundToInt(useFinanceStatementLayout
+                ? financeHorizontalPadding
+                : UsesMobileLayout ? mobileContentPadding : 12f);
+            int verticalPadding = Mathf.RoundToInt(useFinanceStatementLayout
+                ? financeVerticalPadding
+                : UsesMobileLayout ? mobileContentPadding : 12f);
             verticalLayout.padding = new RectOffset(
-                listPadding, listPadding, listPadding, listPadding);
-            verticalLayout.spacing = UsesMobileLayout ? mobileContentSpacing : 12f;
+                horizontalPadding, horizontalPadding, verticalPadding, verticalPadding);
+            verticalLayout.spacing = useFinanceStatementLayout
+                ? financeRowSpacing
+                : UsesMobileLayout ? mobileContentSpacing : 12f;
         }
 
         if (useEmbeddedPanelLayout)

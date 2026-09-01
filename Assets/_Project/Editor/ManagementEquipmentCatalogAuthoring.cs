@@ -76,19 +76,19 @@ public static class ManagementEquipmentCatalogAuthoring
 
         GameObject root = CreateRect("ManagementEquipmentCard", null);
         RectTransform rootRect = root.GetComponent<RectTransform>();
-        rootRect.sizeDelta = new Vector2(340f, 330f);
+        rootRect.sizeDelta = new Vector2(248f, 280f);
         Image background = root.AddComponent<Image>();
         background.sprite = frame;
         background.type = Image.Type.Sliced;
-        background.color = new Color(0.88f, 0.95f, 1f, 1f);
+        background.color = new Color(0.96f, 0.97f, 1f, 1f);
         LayoutElement layout = root.AddComponent<LayoutElement>();
-        layout.minWidth = 260f;
-        layout.preferredWidth = 340f;
-        layout.minHeight = 330f;
-        layout.preferredHeight = 330f;
+        layout.minWidth = 238f;
+        layout.preferredWidth = 248f;
+        layout.minHeight = 280f;
+        layout.preferredHeight = 280f;
 
         GameObject iconPanel = CreateRect("IconPanel", root.transform);
-        SetAnchors(iconPanel.GetComponent<RectTransform>(), new Vector2(0.055f, 0.53f), new Vector2(0.945f, 0.955f), Vector2.zero, Vector2.zero);
+        SetAnchors(iconPanel.GetComponent<RectTransform>(), new Vector2(0.055f, 0.545f), new Vector2(0.945f, 0.955f), Vector2.zero, Vector2.zero);
         Image iconPanelImage = iconPanel.AddComponent<Image>();
         iconPanelImage.sprite = frame;
         iconPanelImage.type = Image.Type.Sliced;
@@ -100,31 +100,34 @@ public static class ManagementEquipmentCatalogAuthoring
         icon.preserveAspect = true;
         icon.raycastTarget = false;
 
-        TMP_Text title = CreateText("Title", root.transform, font, 25f, FontStyles.Bold, TextAlignmentOptions.Center, new Color(0.03f, 0.19f, 0.31f, 1f));
-        SetAnchors(title.rectTransform, new Vector2(0.055f, 0.41f), new Vector2(0.945f, 0.53f), Vector2.zero, Vector2.zero);
+        TMP_Text title = CreateText("Title", root.transform, font, 23f, FontStyles.Bold, TextAlignmentOptions.Center, new Color(0.03f, 0.19f, 0.31f, 1f));
+        SetAnchors(title.rectTransform, new Vector2(0.055f, 0.425f), new Vector2(0.945f, 0.545f), Vector2.zero, Vector2.zero);
         title.enableAutoSizing = true;
         title.fontSizeMin = 17f;
-        title.fontSizeMax = 25f;
+        title.fontSizeMax = 23f;
 
-        TMP_Text description = CreateText("Description", root.transform, font, 16f, FontStyles.Normal, TextAlignmentOptions.TopLeft, new Color(0.12f, 0.24f, 0.34f, 1f));
-        SetAnchors(description.rectTransform, new Vector2(0.075f, 0.235f), new Vector2(0.925f, 0.41f), Vector2.zero, Vector2.zero);
+        TMP_Text description = CreateText("Description", root.transform, font, 17f, FontStyles.Normal, TextAlignmentOptions.TopLeft, new Color(0.12f, 0.24f, 0.34f, 1f));
+        SetAnchors(description.rectTransform, new Vector2(0.07f, 0.27f), new Vector2(0.93f, 0.425f), Vector2.zero, Vector2.zero);
+        description.enableAutoSizing = true;
+        description.fontSizeMin = 14f;
+        description.fontSizeMax = 17f;
         description.textWrappingMode = TextWrappingModes.Normal;
         description.overflowMode = TextOverflowModes.Ellipsis;
 
-        TMP_Text availability = CreateText("Availability", root.transform, font, 14f, FontStyles.Bold, TextAlignmentOptions.Left, new Color(0.05f, 0.40f, 0.67f, 1f));
-        SetAnchors(availability.rectTransform, new Vector2(0.075f, 0.165f), new Vector2(0.58f, 0.235f), Vector2.zero, Vector2.zero);
+        TMP_Text availability = CreateText("Availability", root.transform, font, 15f, FontStyles.Bold, TextAlignmentOptions.Left, new Color(0.05f, 0.40f, 0.67f, 1f));
+        SetAnchors(availability.rectTransform, new Vector2(0.07f, 0.19f), new Vector2(0.58f, 0.27f), Vector2.zero, Vector2.zero);
         availability.enableAutoSizing = true;
-        availability.fontSizeMin = 10f;
-        availability.fontSizeMax = 14f;
+        availability.fontSizeMin = 12f;
+        availability.fontSizeMax = 15f;
 
-        TMP_Text price = CreateText("Price", root.transform, font, 18f, FontStyles.Bold, TextAlignmentOptions.Right, new Color(0.05f, 0.40f, 0.67f, 1f));
-        SetAnchors(price.rectTransform, new Vector2(0.56f, 0.165f), new Vector2(0.925f, 0.235f), Vector2.zero, Vector2.zero);
+        TMP_Text price = CreateText("Price", root.transform, font, 19f, FontStyles.Bold, TextAlignmentOptions.Right, new Color(0.05f, 0.40f, 0.67f, 1f));
+        SetAnchors(price.rectTransform, new Vector2(0.56f, 0.19f), new Vector2(0.93f, 0.27f), Vector2.zero, Vector2.zero);
         price.enableAutoSizing = true;
-        price.fontSizeMin = 12f;
-        price.fontSizeMax = 18f;
+        price.fontSizeMin = 14f;
+        price.fontSizeMax = 19f;
 
         GameObject buttonObject = CreateRect("BuyButton", root.transform);
-        SetAnchors(buttonObject.GetComponent<RectTransform>(), new Vector2(0.075f, 0.035f), new Vector2(0.925f, 0.155f), Vector2.zero, Vector2.zero);
+        SetAnchors(buttonObject.GetComponent<RectTransform>(), new Vector2(0.07f, 0.025f), new Vector2(0.93f, 0.17f), Vector2.zero, Vector2.zero);
         Image buttonImage = buttonObject.AddComponent<Image>();
         buttonImage.sprite = blueButton;
         buttonImage.type = Image.Type.Sliced;
@@ -141,7 +144,7 @@ public static class ManagementEquipmentCatalogAuthoring
         Stretch(buttonLabel.rectTransform, 12f, 8f);
 
         GameObject ownedObject = CreateRect("OwnedBadge", root.transform);
-        SetAnchors(ownedObject.GetComponent<RectTransform>(), new Vector2(0.075f, 0.035f), new Vector2(0.925f, 0.155f), Vector2.zero, Vector2.zero);
+        SetAnchors(ownedObject.GetComponent<RectTransform>(), new Vector2(0.07f, 0.025f), new Vector2(0.93f, 0.17f), Vector2.zero, Vector2.zero);
         Image ownedBadge = ownedObject.AddComponent<Image>();
         ownedBadge.sprite = greenButton;
         ownedBadge.type = Image.Type.Sliced;
@@ -227,9 +230,9 @@ public static class ManagementEquipmentCatalogAuthoring
         grid.startAxis = GridLayoutGroup.Axis.Horizontal;
         grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
         grid.constraintCount = 2;
-        grid.cellSize = new Vector2(340f, 330f);
-        grid.spacing = new Vector2(18f, 18f);
-        grid.padding = new RectOffset(14, 14, 0, 0);
+        grid.cellSize = new Vector2(248f, 280f);
+        grid.spacing = new Vector2(14f, 14f);
+        grid.padding = new RectOffset(12, 12, 0, 0);
 
         ManagementEquipmentSectionUI section = root.AddComponent<ManagementEquipmentSectionUI>();
         section.ConfigureReferences(title, subtitle, divider, cards, grid, sectionLayout, cardPrefab);

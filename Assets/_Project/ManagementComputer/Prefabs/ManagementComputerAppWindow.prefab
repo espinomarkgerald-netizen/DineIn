@@ -647,6 +647,9 @@ MonoBehaviour:
   mobileContentSpacing: 14
   mobileCardRows: 2
   mobileCardSizeRange: {x: 236, y: 282}
+  financeHorizontalPadding: 28
+  financeVerticalPadding: 18
+  financeRowSpacing: 2
 --- !u!225 &8666340312146230365
 CanvasGroup:
   m_ObjectHideFlags: 0

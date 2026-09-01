@@ -47,19 +47,19 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
     [SerializeField] private ManagementComputerCheckoutLineUI checkoutLinePrefab;
 
     [Header("Responsive Card Grid")]
-    [SerializeField] private Vector2 preferredCardSize = new Vector2(250f, 300f);
+    [SerializeField] private Vector2 preferredCardSize = new Vector2(238f, 280f);
     [SerializeField, Min(1)] private int preferredColumns = 2;
-    [SerializeField, Min(0f)] private float cardSpacing = 12f;
+    [SerializeField, Min(0f)] private float cardSpacing = 14f;
     [SerializeField, Min(220f)] private float rightRailPreferredWidth = 380f;
 
     [Header("Menu Layout (Editable)")]
-    [SerializeField] private Vector2 menuCardSize = new Vector2(260f, 280f);
+    [SerializeField] private Vector2 menuCardSize = new Vector2(238f, 260f);
     [SerializeField, Range(1, 5)] private int menuMaximumColumns = 4;
     [SerializeField, Range(0.22f, 0.5f)] private float menuRightRailProportion = 0.3f;
     [SerializeField] private Vector2 menuRightRailWidthRange = new Vector2(360f, 480f);
 
     [Header("Restock Layout (Editable)")]
-    [SerializeField] private Vector2 restockCardSize = new Vector2(250f, 292f);
+    [SerializeField] private Vector2 restockCardSize = new Vector2(238f, 292f);
     [SerializeField, Range(1, 4)] private int restockMaximumColumns = 3;
     [SerializeField, Range(0.28f, 0.55f)] private float restockRightRailProportion = 0.39f;
     [SerializeField] private Vector2 restockRightRailWidthRange = new Vector2(440f, 580f);
@@ -67,7 +67,7 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
     [Header("Mobile Catalog Layout (Editable)")]
     [SerializeField, Range(0.3f, 0.6f)] private float mobileRightRailProportion = 0.42f;
     [SerializeField] private Vector2 mobileRightRailWidthRange = new Vector2(440f, 560f);
-    [SerializeField] private Vector2 mobilePreferredCardSize = new Vector2(280f, 336f);
+    [SerializeField] private Vector2 mobilePreferredCardSize = new Vector2(252f, 298f);
     [SerializeField, Min(44f)] private float mobileControlHeight = 68f;
     [SerializeField, Min(44f)] private float mobileSmallButtonWidth = 112f;
     [SerializeField, Min(44f)] private float mobileMenuIconSize = 104f;

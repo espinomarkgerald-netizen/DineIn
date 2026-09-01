@@ -715,6 +715,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         currentAppUsesCards = UsesCardLayout(app);
         appWindow.SetContentLayout(currentAppUsesCards);
         appWindow.SetEmbeddedPanelLayout(UsesEmbeddedCatalogLayout(app));
+        appWindow.SetFinanceStatementLayout(app == ManagementComputerApp.Finances);
 
         switch (app)
         {
@@ -1016,7 +1017,8 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         EmployeeManager employees = EmployeeManager.Instance;
         int payroll = employees != null && employees.salaryConfig != null ? employees.CalculateTotalPayroll() : 0;
         int earnedToday = bridge != null ? bridge.EarnedToday : 0;
-        int paidExpenses = 0;
+        int paidOperatingExpenses = 0;
+        int paidPayroll = 0;
         bool payrollPaid = false;
         List<MoneyTransactionSaveEntry> expenseEntries = new List<MoneyTransactionSaveEntry>();
 
@@ -1032,54 +1034,70 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
                     transaction.adjustment || transaction.amountDelta >= 0)
                     continue;
 
-                paidExpenses += -transaction.amountDelta;
-                expenseEntries.Add(transaction);
                 if (string.Equals(transaction.description, "Payroll", StringComparison.OrdinalIgnoreCase))
+                {
                     payrollPaid = true;
+                    paidPayroll += -transaction.amountDelta;
+                }
+                else
+                {
+                    paidOperatingExpenses += -transaction.amountDelta;
+                    expenseEntries.Add(transaction);
+                }
             }
         }
 
         int pendingPayroll = payrollPaid ? 0 : payroll;
-        int totalExpenses = paidExpenses + pendingPayroll;
+        int totalExpenses = paidOperatingExpenses + paidPayroll + pendingPayroll;
         int projectedNet = earnedToday - totalExpenses;
 
-        AddRow(null, "Cash balance", "Available for restocking and equipment", MoneyText, string.Empty, null, false);
-        AddRow(null, "Revenue today", "Completed customer payments", "₱" + earnedToday, string.Empty, null, false);
-        AddRow(null, "Paid expenses today", "Restock, equipment, penalties and other completed deductions",
-            "₱" + paidExpenses, string.Empty, null, false);
-        AddRow(null,
+        AddFinanceRow(
+            "DAILY FINANCE STATEMENT",
+            "DAY " + CurrentDay + "  •  RESTAURANT OPERATIONS REPORT",
+            string.Empty,
+            FinanceRowKind.Header);
+        AddFinanceRow("AVAILABLE CASH", "Available for restocking and equipment",
+            MoneyText, FinanceRowKind.Balance);
+
+        AddFinanceRow("REVENUE", string.Empty, string.Empty, FinanceRowKind.Section);
+        AddFinanceRow("Customer payments", "Completed sales received today",
+            "+₱" + earnedToday, FinanceRowKind.Income);
+
+        AddFinanceRow("EXPENSES", string.Empty, string.Empty, FinanceRowKind.Section);
+        AddFinanceRow("Operating expenses", "Restock, equipment, penalties and other deductions",
+            "-₱" + paidOperatingExpenses, FinanceRowKind.Expense);
+        AddFinanceRow(
             payrollPaid ? "Payroll paid" : "Scheduled payroll",
             payrollPaid
                 ? "Automatically deducted during end-of-day settlement"
                 : "Will be deducted automatically at the end of the day",
-            "₱" + payroll,
-            string.Empty,
-            null,
-            false);
-        AddRow(null, "Total daily expenses", "Paid expenses plus scheduled payroll",
-            "₱" + totalExpenses, string.Empty, null, false);
-        AddRow(null, "Projected net", "Revenue minus all of today's expenses",
-            (projectedNet >= 0 ? "+₱" : "-₱") + Mathf.Abs(projectedNet), string.Empty, null, false);
+            "-₱" + (payrollPaid ? paidPayroll : payroll),
+            FinanceRowKind.Expense);
 
         if (expenseEntries.Count == 0)
         {
-            AddRow(null, "Expense details", "No expenses have been paid yet today",
-                "₱0", string.Empty, null, false);
+            AddFinanceRow("Other deductions", "No other deductions recorded today",
+                "₱0", FinanceRowKind.Detail);
         }
         else
         {
             for (int i = expenseEntries.Count - 1, shown = 0; i >= 0 && shown < 12; i--, shown++)
             {
                 MoneyTransactionSaveEntry expense = expenseEntries[i];
-                AddRow(null,
+                AddFinanceRow(
                     string.IsNullOrWhiteSpace(expense.description) ? "Expense" : expense.description,
                     "Paid today",
                     "-₱" + Mathf.Abs(expense.amountDelta),
-                    string.Empty,
-                    null,
-                    false);
+                    FinanceRowKind.Detail);
             }
         }
+
+        AddFinanceRow("SUMMARY", string.Empty, string.Empty, FinanceRowKind.Section);
+        AddFinanceRow("Total expenses", "Operating costs, payroll and other deductions",
+            "-₱" + totalExpenses, FinanceRowKind.Total);
+        AddFinanceRow("Projected net", "Revenue minus all expenses for today",
+            (projectedNet >= 0 ? "+₱" : "-₱") + Mathf.Abs(projectedNet),
+            projectedNet >= 0 ? FinanceRowKind.NetPositive : FinanceRowKind.NetNegative);
 
         appWindow.SetMessage(
             "Payroll is automatic. Expense details show actual wallet deductions for the current day only.");
@@ -1586,6 +1604,23 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         row.Bind(icon, title, details, value, action, callback, enabled);
         row.GetComponent<UIRevealAnimation>()?.Play(
             Mathf.Min(0.12f, Mathf.Max(0, appWindow.Content.childCount - 1) * 0.025f));
+    }
+
+    private void AddFinanceRow(
+        string title,
+        string details,
+        string amount,
+        FinanceRowKind kind)
+    {
+        if (rowPrefab == null || appWindow == null || appWindow.Content == null)
+            return;
+
+        ManagementComputerRowUI row = Instantiate(rowPrefab, appWindow.Content);
+        row.gameObject.SetActive(true);
+        row.ApplyPresentation(false);
+        row.BindFinance(title, details, amount, kind);
+        row.GetComponent<UIRevealAnimation>()?.Play(
+            Mathf.Min(0.12f, Mathf.Max(0, appWindow.Content.childCount - 1) * 0.018f));
     }
 
     private static bool UsesCardLayout(ManagementComputerApp app)

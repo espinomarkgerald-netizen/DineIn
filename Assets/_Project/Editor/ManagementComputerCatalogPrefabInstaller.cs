@@ -60,36 +60,40 @@ public static class ManagementComputerCatalogPrefabInstaller
 
         GameObject root = CreateUIObject("ManagementComputerCatalogCard", null);
         RectTransform rootRect = root.GetComponent<RectTransform>();
-        rootRect.sizeDelta = new Vector2(250f, 300f);
+        rootRect.sizeDelta = new Vector2(238f, 280f);
         Image background = AddImage(root, new Color(0.96f, 0.97f, 1f, 1f));
         Button cardButton = root.AddComponent<Button>();
         cardButton.targetGraphic = background;
         cardButton.navigation = new Navigation { mode = Navigation.Mode.None };
         LayoutElement cardLayout = root.AddComponent<LayoutElement>();
         cardLayout.minWidth = 204f;
-        cardLayout.preferredWidth = 250f;
-        cardLayout.minHeight = 248f;
-        cardLayout.preferredHeight = 300f;
+        cardLayout.preferredWidth = 238f;
+        cardLayout.minHeight = 238f;
+        cardLayout.preferredHeight = 280f;
 
         Image icon = CreateImage("Icon", root.transform, null, Color.white);
-        SetTopFixed(icon.rectTransform, 0.5f, 12f, 76f, 76f);
+        SetTopFixed(icon.rectTransform, 0.5f, 10f, 82f, 82f);
 
-        TMP_Text title = CreateText("Name", root.transform, "ITEM NAME", 18f, FontStyles.Bold, Ink);
-        SetTopStretch(title.rectTransform, 10f, 10f, 88f, 31f);
+        TMP_Text title = CreateText("Name", root.transform, "ITEM NAME", 20f, FontStyles.Bold, Ink);
+        SetTopStretch(title.rectTransform, 12f, 12f, 94f, 33f);
         title.alignment = TextAlignmentOptions.Center;
+        title.fontSizeMin = 16f;
 
-        TMP_Text meta = CreateText("Meta", root.transform, "12 units • Dry", 13f, FontStyles.Normal, Ink);
-        SetTopStretch(meta.rectTransform, 10f, 10f, 119f, 23f);
+        TMP_Text meta = CreateText("Meta", root.transform, "12 units • Dry", 15f, FontStyles.Normal, Ink);
+        SetTopStretch(meta.rectTransform, 12f, 12f, 127f, 24f);
         meta.alignment = TextAlignmentOptions.Center;
+        meta.fontSizeMin = 12f;
 
-        TMP_Text status = CreateText("Status", root.transform, "OUT OF STOCK\nExpires Day 8", 13f, FontStyles.Normal, Ink);
-        SetTopStretch(status.rectTransform, 10f, 10f, 143f, 49f);
+        TMP_Text status = CreateText("Status", root.transform, "OUT OF STOCK\nExpires Day 8", 15f, FontStyles.Normal, Ink);
+        SetTopStretch(status.rectTransform, 12f, 12f, 151f, 56f);
         status.alignment = TextAlignmentOptions.Center;
+        status.fontSizeMin = 12f;
         status.textWrappingMode = TextWrappingModes.Normal;
 
-        TMP_Text price = CreateText("Price", root.transform, "₱100 / box", 17f, FontStyles.Bold, Blue);
-        SetTopStretch(price.rectTransform, 10f, 10f, 190f, 28f);
+        TMP_Text price = CreateText("Price", root.transform, "₱100 / box", 19f, FontStyles.Bold, Blue);
+        SetTopStretch(price.rectTransform, 12f, 12f, 207f, 27f);
         price.alignment = TextAlignmentOptions.Center;
+        price.fontSizeMin = 15f;
 
         GameObject quantityRoot = CreateUIObject("QuantityControls", root.transform);
         RectTransform quantityRect = quantityRoot.GetComponent<RectTransform>();
@@ -218,8 +222,8 @@ public static class ManagementComputerCatalogPrefabInstaller
         Stretch(catalogScroll.transform as RectTransform, 10f, 10f, 10f, 66f);
         GridLayoutGroup grid = cardContent.gameObject.AddComponent<GridLayoutGroup>();
         grid.padding = new RectOffset(10, 10, 10, 10);
-        grid.spacing = new Vector2(12f, 12f);
-        grid.cellSize = new Vector2(250f, 300f);
+        grid.spacing = new Vector2(14f, 14f);
+        grid.cellSize = new Vector2(238f, 280f);
         grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
         grid.constraintCount = 2;
         grid.startAxis = GridLayoutGroup.Axis.Horizontal;

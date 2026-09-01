@@ -104,7 +104,9 @@ public class EmployeeManager : MonoBehaviour
 
     public void EnsureEmployeesGenerated()
     {
-        if (allEmployees == null || allEmployees.Count == 0)
+        if (allEmployees == null)
+            allEmployees = new List<EmployeeData>();
+        if (allEmployees.Count == 0 && !applicantPoolsInitialized)
             GenerateEmployees();
 
         MigrateLegacyKitchenRoles();
@@ -155,9 +157,6 @@ public class EmployeeManager : MonoBehaviour
         if (GetHiredCount(employee.role) == 1 && GetAssignedEmployee(employee.role) == null)
             AssignEmployeeForDay(employee);
 
-        if (EnsureApplicantPool(employee.role, CurrentDay()))
-            NotifyNewApplicants();
-
         GameSaveManager.Instance?.RequestSave();
         return true;
     }
@@ -189,10 +188,7 @@ public class EmployeeManager : MonoBehaviour
         if (employee == null || employee.hired || SlotsLocked)
             return false;
 
-        EmployeeRole role = employee.role;
         RemoveEmployee(employee);
-        if (EnsureApplicantPool(role, CurrentDay()))
-            NotifyNewApplicants();
         AssignmentsChanged?.Invoke();
         GameSaveManager.Instance?.RequestSave();
         return true;
@@ -330,7 +326,7 @@ public class EmployeeManager : MonoBehaviour
 
     public void ApplySaveData(GameSaveData data)
     {
-        if (data?.employees == null || data.employees.Count == 0)
+        if (data?.employees == null)
             return;
 
         allEmployees.Clear();
@@ -374,13 +370,10 @@ public class EmployeeManager : MonoBehaviour
             : latestAllowedRefresh;
         applicantLastProcessedDay = Mathf.Max(0, data.employeeApplicantLastProcessedDay);
         applicantsUnseen = data.employeeApplicantsUnseen;
-        applicantPoolsInitialized = HasApplicantForEverySupportedRole();
+        // A saved pool with missing roles (or no applicants left) is valid.
+        // It must remain depleted until the configured applicant refresh day.
+        applicantPoolsInitialized = true;
         RebuildRoleGroups();
-        if (!applicantPoolsInitialized)
-        {
-            EnsureApplicantPools(loadedDay);
-            applicantPoolsInitialized = true;
-        }
 
         AssignMissingApplicantExpiryDays(loadedDay);
         AutoAssignSoleHires();
@@ -515,7 +508,7 @@ public class EmployeeManager : MonoBehaviour
     {
         currentDay = Mathf.Max(1, currentDay);
         refreshIntervalDays = Mathf.Max(1, refreshIntervalDays);
-        if (allEmployees == null || allEmployees.Count == 0 || generator == null)
+        if (allEmployees == null || generator == null)
             return;
 
         if (applicantNextRefreshDay <= 0)
@@ -527,15 +520,19 @@ public class EmployeeManager : MonoBehaviour
             return;
 
         bool fullRefresh = currentDay >= applicantNextRefreshDay;
-        int removed = RemoveExpiredApplicants(currentDay, fullRefresh);
-        applicantPoolsInitialized = false;
-        int added = EnsureApplicantPools(currentDay);
-        applicantPoolsInitialized = true;
+        RemoveExpiredApplicants(currentDay, fullRefresh);
+        int added = 0;
+        if (fullRefresh)
+        {
+            applicantPoolsInitialized = false;
+            added = EnsureApplicantPools(currentDay);
+            applicantPoolsInitialized = true;
+        }
         applicantLastProcessedDay = currentDay;
         if (fullRefresh)
             applicantNextRefreshDay = currentDay + refreshIntervalDays;
 
-        if (removed > 0 || added > 0)
+        if (added > 0)
             NotifyNewApplicants();
 
         GameSaveManager.Instance?.RequestSave();
