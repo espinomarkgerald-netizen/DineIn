@@ -9,6 +9,10 @@ using UnityEngine;
 [DefaultExecutionOrder(-460)]
 public sealed class LevelOneUIAccessibility : MonoBehaviour
 {
+    // Matches the existing iris-transition safeguard. Loading/layout spikes on
+    // slower devices must not consume an entire short UI animation in one frame.
+    public const float MaximumAnimationFrameDelta = 0.05f;
+
     private const string ReducedMotionKey = "DineIn.ReducedMotion";
     private const string LargeTextKey = "DineIn.LargeText";
     private const string HighContrastKey = "DineIn.HighContrast";
@@ -18,6 +22,12 @@ public sealed class LevelOneUIAccessibility : MonoBehaviour
     public static bool LargeText => PlayerPrefs.GetInt(LargeTextKey, 0) != 0;
     public static bool HighContrast => PlayerPrefs.GetInt(HighContrastKey, 0) != 0;
     public static event Action SettingsChanged;
+
+    public static float UnscaledAnimationDeltaTime =>
+        Mathf.Min(Mathf.Max(0f, Time.unscaledDeltaTime), MaximumAnimationFrameDelta);
+
+    public static float ScaledAnimationDeltaTime =>
+        Mathf.Min(Mathf.Max(0f, Time.deltaTime), MaximumAnimationFrameDelta);
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetStatics()

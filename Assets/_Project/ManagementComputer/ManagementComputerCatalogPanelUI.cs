@@ -47,19 +47,19 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
     [SerializeField] private ManagementComputerCheckoutLineUI checkoutLinePrefab;
 
     [Header("Responsive Card Grid")]
-    [SerializeField] private Vector2 preferredCardSize = new Vector2(238f, 280f);
+    [SerializeField] private Vector2 preferredCardSize = new Vector2(248f, 316f);
     [SerializeField, Min(1)] private int preferredColumns = 2;
     [SerializeField, Min(0f)] private float cardSpacing = 14f;
     [SerializeField, Min(220f)] private float rightRailPreferredWidth = 380f;
 
     [Header("Menu Layout (Editable)")]
-    [SerializeField] private Vector2 menuCardSize = new Vector2(238f, 260f);
+    [SerializeField] private Vector2 menuCardSize = new Vector2(248f, 228f);
     [SerializeField, Range(1, 5)] private int menuMaximumColumns = 4;
     [SerializeField, Range(0.22f, 0.5f)] private float menuRightRailProportion = 0.3f;
     [SerializeField] private Vector2 menuRightRailWidthRange = new Vector2(360f, 480f);
 
     [Header("Restock Layout (Editable)")]
-    [SerializeField] private Vector2 restockCardSize = new Vector2(238f, 292f);
+    [SerializeField] private Vector2 restockCardSize = new Vector2(248f, 316f);
     [SerializeField, Range(1, 4)] private int restockMaximumColumns = 3;
     [SerializeField, Range(0.28f, 0.55f)] private float restockRightRailProportion = 0.39f;
     [SerializeField] private Vector2 restockRightRailWidthRange = new Vector2(440f, 580f);
@@ -67,7 +67,6 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
     [Header("Mobile Catalog Layout (Editable)")]
     [SerializeField, Range(0.3f, 0.6f)] private float mobileRightRailProportion = 0.42f;
     [SerializeField] private Vector2 mobileRightRailWidthRange = new Vector2(440f, 560f);
-    [SerializeField] private Vector2 mobilePreferredCardSize = new Vector2(252f, 298f);
     [SerializeField, Min(44f)] private float mobileControlHeight = 68f;
     [SerializeField, Min(44f)] private float mobileSmallButtonWidth = 112f;
     [SerializeField, Min(44f)] private float mobileMenuIconSize = 104f;
@@ -238,7 +237,7 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
             orderManager.OrdersChanged += HandleOrdersChanged;
 
         SetText(contextText,
-            $"Expected visitors today: {expectedCustomers}. Choose container quantities, then review your order.");
+            $"Expected visitors today: {expectedCustomers}. Choose how many boxes to order, then review your cart.");
         BuildRestockCards();
         RefreshRestockView();
         ApplyResponsiveLayout();
@@ -820,11 +819,7 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
         Vector2 authoredCardSize = showingMenu ? menuCardSize : restockCardSize;
         if (authoredCardSize.x <= 0f || authoredCardSize.y <= 0f)
             authoredCardSize = preferredCardSize;
-        Vector2 targetCardSize = mobile
-            ? new Vector2(
-                Mathf.Max(authoredCardSize.x, mobilePreferredCardSize.x * 0.9f),
-                Mathf.Max(authoredCardSize.y, mobilePreferredCardSize.y * 0.9f))
-            : authoredCardSize;
+        Vector2 targetCardSize = authoredCardSize;
         float estimatedLeftWidth = Mathf.Max(220f, width - railWidth - 52f);
         int configuredMaximum = showingMenu ? menuMaximumColumns : restockMaximumColumns;
         int maximumColumns = Mathf.Max(
@@ -838,13 +833,9 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
         float usableWidth = estimatedLeftWidth - cardGrid.padding.left - cardGrid.padding.right -
                             Mathf.Max(0, columns - 1) * cardSpacing;
         float cardWidth = Mathf.Min(targetCardSize.x, usableWidth / columns);
-        cardWidth = Mathf.Max(mobile ? 226f : 204f, cardWidth);
+        cardWidth = Mathf.Max(220f, cardWidth);
         float cardHeight = targetCardSize.y *
                            (cardWidth / Mathf.Max(1f, targetCardSize.x));
-        cardHeight = Mathf.Clamp(
-            cardHeight,
-            mobile ? 268f : 238f,
-            targetCardSize.y);
         cardGrid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
         cardGrid.constraintCount = columns;
         cardGrid.cellSize = new Vector2(cardWidth, cardHeight);
@@ -865,7 +856,7 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
                 GetComponentInParent<ManagementComputerResponsiveLayout>(true);
             return responsive != null
                 ? responsive.UsesMobileLayout
-                : Application.isMobilePlatform;
+                : false;
         }
     }
 

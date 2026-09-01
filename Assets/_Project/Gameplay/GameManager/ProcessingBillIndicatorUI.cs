@@ -49,7 +49,10 @@ public class ProcessingBillIndicatorUI : MonoBehaviour
 
         float targetX = isShowing ? shownX : hiddenX;
         Vector2 pos = panelRect.anchoredPosition;
-        pos.x = Mathf.Lerp(pos.x, targetX, Time.deltaTime * slideSpeed);
+        pos.x = Mathf.Lerp(
+            pos.x,
+            targetX,
+            LevelOneUIAccessibility.ScaledAnimationDeltaTime * slideSpeed);
         panelRect.anchoredPosition = pos;
     }
 

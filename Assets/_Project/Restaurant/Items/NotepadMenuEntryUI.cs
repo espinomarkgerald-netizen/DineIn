@@ -746,7 +746,7 @@ public sealed class NotepadMenuEntryUI : MonoBehaviour
         float elapsed = 0f;
         while (elapsed < duration)
         {
-            elapsed += Time.unscaledDeltaTime;
+            elapsed += LevelOneUIAccessibility.UnscaledAnimationDeltaTime;
             float progress = Mathf.Clamp01(elapsed / duration);
             float pulse = Mathf.Max(0f, Mathf.Sin(progress * Mathf.PI * 4f));
             target.localScale = Vector3.one * (1f + pulse * 0.24f);

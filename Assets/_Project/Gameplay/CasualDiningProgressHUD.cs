@@ -516,7 +516,7 @@ public sealed class CasualDiningProgressHUD : MonoBehaviour
     private void AnimateProgress(float now)
     {
         bool reduced = LevelOneUIAccessibility.ReducedMotion;
-        float delta = Mathf.Max(0.0001f, Time.unscaledDeltaTime);
+        float delta = Mathf.Max(0.0001f, LevelOneUIAccessibility.UnscaledAnimationDeltaTime);
         if (reduced)
         {
             currentMoneyFill = targetMoneyFill;
@@ -577,9 +577,10 @@ public sealed class CasualDiningProgressHUD : MonoBehaviour
         }
         else
         {
-            float step = Time.unscaledDeltaTime / toggleAnimationSeconds;
+            float animationDelta = LevelOneUIAccessibility.UnscaledAnimationDeltaTime;
+            float step = animationDelta / toggleAnimationSeconds;
             panelRect.sizeDelta = Vector2.Lerp(panelRect.sizeDelta, target, 1f - Mathf.Pow(0.001f, step));
-            panelGroup.alpha = Mathf.MoveTowards(panelGroup.alpha, targetAlpha, Time.unscaledDeltaTime / toggleAnimationSeconds);
+            panelGroup.alpha = Mathf.MoveTowards(panelGroup.alpha, targetAlpha, animationDelta / toggleAnimationSeconds);
         }
         panelGroup.interactable = false;
         panelGroup.blocksRaycasts = false;

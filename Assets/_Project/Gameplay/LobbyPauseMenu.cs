@@ -374,7 +374,7 @@ public sealed class LobbyPauseMenu : MonoBehaviour
         pauseWindow.localScale = Vector3.one * 0.88f;
         while (elapsed < duration)
         {
-            elapsed += Time.unscaledDeltaTime;
+            elapsed += LevelOneUIAccessibility.UnscaledAnimationDeltaTime;
             float t = Mathf.Clamp01(elapsed / duration);
             float eased = 1f - Mathf.Pow(1f - t, 3f);
             float scale = Mathf.LerpUnclamped(0.88f, 1.03f, eased);

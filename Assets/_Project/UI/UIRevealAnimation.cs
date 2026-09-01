@@ -73,7 +73,7 @@ public sealed class UIRevealAnimation : MonoBehaviour
         float waited = 0f;
         while (waited < wait)
         {
-            waited += Time.unscaledDeltaTime;
+            waited += LevelOneUIAccessibility.UnscaledAnimationDeltaTime;
             yield return null;
         }
 
@@ -81,7 +81,7 @@ public sealed class UIRevealAnimation : MonoBehaviour
         float safeDuration = Mathf.Max(0.01f, duration);
         while (elapsed < safeDuration)
         {
-            elapsed += Time.unscaledDeltaTime;
+            elapsed += LevelOneUIAccessibility.UnscaledAnimationDeltaTime;
             float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / safeDuration));
             canvasGroup.alpha = t;
             transform.localScale = Vector3.one * Mathf.Lerp(startScale, 1f, t);

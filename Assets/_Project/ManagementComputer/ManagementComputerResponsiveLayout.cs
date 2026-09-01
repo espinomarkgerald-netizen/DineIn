@@ -57,7 +57,10 @@ public sealed class ManagementComputerResponsiveLayout : MonoBehaviour
     public RectTransform SafeAreaRoot => safeAreaRoot;
     public RectTransform AppWindow => appWindow;
     public RectTransform[] AppButtons => appButtons;
-    public bool UsesMobileLayout => Application.isMobilePlatform || previewMobileLayoutInEditor;
+    // Layout selection must be deterministic across Editor, Device Simulator,
+    // Windows and Android. This explicit authored preview toggle is serialized in
+    // the prefab, so a platform can no longer silently select another composition.
+    public bool UsesMobileLayout => previewMobileLayoutInEditor;
 
     public void ConfigureReferences(
         RectTransform configuredSafeAreaRoot,

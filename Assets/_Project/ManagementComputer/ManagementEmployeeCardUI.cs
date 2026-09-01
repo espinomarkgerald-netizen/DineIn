@@ -190,7 +190,7 @@ public sealed class ManagementEmployeeCardUI : MonoBehaviour
         float elapsed = 0f;
         while (elapsed < duration)
         {
-            elapsed += Time.unscaledDeltaTime;
+            elapsed += LevelOneUIAccessibility.UnscaledAnimationDeltaTime;
             float progress = Mathf.Clamp01(elapsed / duration);
             float pulse = Mathf.Sin(progress * Mathf.PI);
             transform.localScale = Vector3.one * Mathf.Lerp(1f, positiveFeedbackScale, pulse);
@@ -212,7 +212,7 @@ public sealed class ManagementEmployeeCardUI : MonoBehaviour
         float elapsed = 0f;
         while (elapsed < duration)
         {
-            elapsed += Time.unscaledDeltaTime;
+            elapsed += LevelOneUIAccessibility.UnscaledAnimationDeltaTime;
             float progress = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / duration));
             if (canvasGroup != null)
                 canvasGroup.alpha = 1f - progress;
@@ -274,7 +274,7 @@ public sealed class ManagementEmployeeCardUI : MonoBehaviour
         float elapsed = 0f;
         while (elapsed < duration)
         {
-            elapsed += Time.unscaledDeltaTime;
+            elapsed += LevelOneUIAccessibility.UnscaledAnimationDeltaTime;
             float progress = Mathf.Clamp01(elapsed / duration);
             float wave = Mathf.Abs(Mathf.Sin(progress * Mathf.PI * count));
             float eased = wave * wave * (3f - 2f * wave);

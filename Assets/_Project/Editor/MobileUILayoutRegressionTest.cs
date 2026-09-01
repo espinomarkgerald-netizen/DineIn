@@ -36,17 +36,19 @@ public static class MobileUILayoutRegressionTest
         ValidateCasualDiningFeedbackFeatures();
         Debug.Log(
             "[MobileUILayoutRegressionTest] PASS — authored canvas coordinates are preserved " +
-            "while full-screen panels, persistent HUD sizing, and physical touch targets " +
-            "match the 1280 x 576 Android policy.");
+            "and Editor/build layout parity, first-load scrolling, persistent HUD sizing, " +
+            "and physical touch targets match the Android policy.");
     }
 
     private static void ValidateInspectorEditableMobileUI()
     {
         Assert(IsInspectorField<OrderChecklistUI>("mobileRootScaleMultiplier") &&
-               IsInspectorField<OrderChecklistUI>("mobileCustomerMessagePosition"),
+               IsInspectorField<OrderChecklistUI>("mobileCustomerMessagePosition") &&
+               IsInspectorField<OrderChecklistUI>("useAlternateMobilePresentation"),
             "Notepad mobile scale/header layout is no longer Inspector-editable.");
         Assert(IsInspectorField<CashierRegisterUI>("mobileCompactItemsWidth") &&
-               IsInspectorField<CashierRegisterUI>("desktopCompactItemsWidth"),
+               IsInspectorField<CashierRegisterUI>("desktopCompactItemsWidth") &&
+               IsInspectorField<CashierRegisterUI>("useAlternateCompactPresentation"),
             "Cashier mobile layout is no longer Inspector-editable.");
         Assert(IsInspectorField<ManagementComputerResponsiveLayout>("mobileLandscapeWindowMin") &&
                IsInspectorField<ManagementComputerResponsiveLayout>("appButtonColumns") &&
@@ -59,7 +61,8 @@ public static class MobileUILayoutRegressionTest
                IsInspectorField<ManagementComputerWindow>("mobileCloseButtonSize") &&
                IsInspectorField<ManagementComputerWindow>("mobileCardSizeRange"),
             "Management-computer app-window sizing is no longer Inspector-editable.");
-        Assert(IsInspectorField<ManagementComputerCatalogPanelUI>("mobilePreferredCardSize") &&
+        Assert(IsInspectorField<ManagementComputerCatalogPanelUI>("menuCardSize") &&
+               IsInspectorField<ManagementComputerCatalogPanelUI>("restockCardSize") &&
                IsInspectorField<ManagementComputerCatalogPanelUI>("mobileControlHeight") &&
                IsInspectorField<ManagementComputerCatalogPanelUI>("mobileRightRailWidthRange"),
             "Management-computer catalog sizing is no longer Inspector-editable.");
@@ -315,12 +318,17 @@ public static class MobileUILayoutRegressionTest
         try
         {
             CanvasScaler scaler = root.GetComponent<CanvasScaler>();
+            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+            scaler.matchWidthOrHeight = 0.5f;
+            Vector2 authoredReference = scaler.referenceResolution;
+            CanvasScaler.ScreenMatchMode authoredMode = scaler.screenMatchMode;
+            float authoredMatch = scaler.matchWidthOrHeight;
             MobileUIAccessibility.ConfigureCanvasForMobile(scaler);
 
-            Assert(scaler.screenMatchMode == CanvasScaler.ScreenMatchMode.MatchWidthOrHeight,
-                "Management computer did not use its mobile readability policy.");
-            Assert(Mathf.Approximately(scaler.matchWidthOrHeight, 0f),
-                "Management computer mobile scaling became too large or too small.");
+            Assert(scaler.referenceResolution == authoredReference &&
+                   scaler.screenMatchMode == authoredMode &&
+                   Mathf.Approximately(scaler.matchWidthOrHeight, authoredMatch),
+                "Android changed the management-computer CanvasScaler away from its authored Editor values.");
         }
         finally
         {
@@ -349,6 +357,8 @@ public static class MobileUILayoutRegressionTest
             "Management-computer desktop no longer covers every app button.");
 
         SerializedObject desktop = new SerializedObject(responsive);
+        Assert(!desktop.FindProperty("previewMobileLayoutInEditor").boolValue,
+            "Management computer defaults to an alternate layout instead of its authored Editor layout.");
         Vector2 mobileReference = desktop.FindProperty("mobileReferenceResolution").vector2Value;
         float touchTarget = desktop.FindProperty("minimumTouchTarget").floatValue;
         Sprite wideSprite = desktop.FindProperty("wideButtonSprite").objectReferenceValue as Sprite;
@@ -376,8 +386,11 @@ public static class MobileUILayoutRegressionTest
             : null;
         Assert(catalog != null, "Management-computer catalog prefab is missing or invalid.");
         SerializedObject catalogSettings = new SerializedObject(catalog);
-        Vector2 mobileCard = catalogSettings.FindProperty("mobilePreferredCardSize").vector2Value;
-        Assert(mobileCard.x >= 248f && mobileCard.y >= 292f &&
+        Vector2 menuCard = catalogSettings.FindProperty("menuCardSize").vector2Value;
+        Vector2 restockCard = catalogSettings.FindProperty("restockCardSize").vector2Value;
+        Assert(menuCard.x >= 220f && menuCard.y >= 204f &&
+               restockCard.x >= 220f && restockCard.y >= 292f &&
+               menuCard.y < restockCard.y &&
                catalogSettings.FindProperty("mobileControlHeight").floatValue >= 64f,
             "Menu/Restock cards or controls became too small for phones.");
 
@@ -747,17 +760,17 @@ public static class MobileUILayoutRegressionTest
         float touchPixels = MobileUIAccessibility.MinimumCanvasTouchSizeForScale(
             screenHeight / 1080f) * (screenHeight / 1080f);
         float lobbyCanvasScale = screenHeight / 450f;
-        float notepadScale = 0.5f * OrderChecklistUI.MobileRootScaleMultiplier * lobbyCanvasScale;
+        float notepadScale = 0.5f * lobbyCanvasScale;
         Vector2 notepadCardPixels = new Vector2(174f, 218f) * notepadScale;
         Vector2 cashierPanelPixels = new Vector2(630f, 407.4194f) * lobbyCanvasScale;
-        float computerCanvasScale = screenWidth / 1920f;
+        float computerCanvasScale = Mathf.Sqrt(
+            (screenWidth / 1920f) * (screenHeight / 1080f));
         Vector2 computerLogicalScreen = new Vector2(
             screenWidth / computerCanvasScale,
             screenHeight / computerCanvasScale);
         Vector2 computerWindowPixels = Vector2.Scale(
-            ManagementComputerResponsiveLayout.MobileLandscapeWindowMax -
-            ManagementComputerResponsiveLayout.MobileLandscapeWindowMin,
-            computerLogicalScreen) * computerCanvasScale - Vector2.one * (16f * computerCanvasScale);
+            new Vector2(0.985f, 0.955f) - new Vector2(0.15f, 0.055f),
+            computerLogicalScreen) * computerCanvasScale - Vector2.one * (20f * computerCanvasScale);
 
         Assert(pausePixels >= 70f && pausePixels <= 76f,
             $"Pause HUD escaped its readable mobile size envelope ({pausePixels:0.0}px).");
@@ -765,14 +778,14 @@ public static class MobileUILayoutRegressionTest
             $"Task HUD escaped its readable mobile size envelope ({taskPixels:0.0}px).");
         Assert(Mathf.Approximately(touchPixels, 72f),
             $"Physical touch target is no longer 72px ({touchPixels:0.0}px).");
-        Assert(notepadCardPixels.x >= 140f && notepadCardPixels.x <= 150f &&
-               notepadCardPixels.y >= 175f && notepadCardPixels.y <= 185f,
-            $"Notepad choices escaped their mobile readability envelope ({notepadCardPixels.x:0.0} x {notepadCardPixels.y:0.0}px).");
+        Assert(notepadCardPixels.x >= 108f && notepadCardPixels.x <= 114f &&
+               notepadCardPixels.y >= 136f && notepadCardPixels.y <= 142f,
+            $"Notepad choices no longer match their authored Editor size ({notepadCardPixels.x:0.0} x {notepadCardPixels.y:0.0}px).");
         Assert(cashierPanelPixels.x >= 800f && cashierPanelPixels.x <= 820f &&
                cashierPanelPixels.y >= 510f && cashierPanelPixels.y <= 530f &&
                cashierPanelPixels.x < screenWidth && cashierPanelPixels.y < screenHeight,
             $"Cashier panel no longer fits the phone ({cashierPanelPixels.x:0.0} x {cashierPanelPixels.y:0.0}px).");
-        Assert(computerWindowPixels.x >= 1200f && computerWindowPixels.x < screenWidth &&
+        Assert(computerWindowPixels.x >= 1000f && computerWindowPixels.x < screenWidth &&
                computerWindowPixels.y >= 500f && computerWindowPixels.y < screenHeight,
             $"Management workspace escaped the phone safe frame ({computerWindowPixels.x:0.0} x {computerWindowPixels.y:0.0}px).");
     }
@@ -812,10 +825,8 @@ public static class MobileUILayoutRegressionTest
 
     private static void ValidateManagementLandscapeResponsiveness()
     {
-        Vector2 referenceResolution = new Vector2(1600f, 900f);
-        Vector2 anchorSpan =
-            ManagementComputerResponsiveLayout.MobileLandscapeWindowMax -
-            ManagementComputerResponsiveLayout.MobileLandscapeWindowMin;
+        Vector2 referenceResolution = new Vector2(1920f, 1080f);
+        Vector2 anchorSpan = new Vector2(0.985f, 0.955f) - new Vector2(0.15f, 0.055f);
         Vector2Int[] landscapeSizes =
         {
             new Vector2Int(1920, 1080),
@@ -836,7 +847,7 @@ public static class MobileUILayoutRegressionTest
                 screen.x / canvasScale,
                 screen.y / canvasScale);
             Vector2 windowPixels =
-                (Vector2.Scale(anchorSpan, logicalScreen) - Vector2.one * 16f) *
+                (Vector2.Scale(anchorSpan, logicalScreen) - Vector2.one * 20f) *
                 canvasScale;
 
             Assert(windowPixels.x > 0f && windowPixels.y > 0f &&

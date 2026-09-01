@@ -296,10 +296,12 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
         {
             livePanel.anchoredPosition = Vector2.SmoothDamp(
                 livePanel.anchoredPosition, panelTarget, ref livePanelVelocity,
-                panelAnimationSeconds, Mathf.Infinity, Time.unscaledDeltaTime);
+                panelAnimationSeconds, Mathf.Infinity,
+                LevelOneUIAccessibility.UnscaledAnimationDeltaTime);
             liveToggleRect.anchoredPosition = Vector2.SmoothDamp(
                 liveToggleRect.anchoredPosition, toggleTarget, ref liveToggleVelocity,
-                panelAnimationSeconds, Mathf.Infinity, Time.unscaledDeltaTime);
+                panelAnimationSeconds, Mathf.Infinity,
+                LevelOneUIAccessibility.UnscaledAnimationDeltaTime);
         }
 
         if (liveToggleArrow != null)

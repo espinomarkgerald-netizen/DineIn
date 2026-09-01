@@ -138,7 +138,7 @@ public sealed class UnlockCelebrationUI : MonoBehaviour
         panel.localScale = Vector3.one * (responsivePanelScale * 0.72f);
         while (elapsed < entranceDuration)
         {
-            elapsed += Time.unscaledDeltaTime;
+            elapsed += LevelOneUIAccessibility.UnscaledAnimationDeltaTime;
             float t = Mathf.Clamp01(elapsed / entranceDuration);
             float eased = 1f - Mathf.Pow(1f - t, 3f);
             float bounce = Mathf.Sin(t * Mathf.PI) * 0.08f;

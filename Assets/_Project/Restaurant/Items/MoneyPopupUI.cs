@@ -28,7 +28,7 @@ public class MoneyPopupUI : MonoBehaviour
 
     private void Update()
     {
-        t += Time.deltaTime;
+        t += LevelOneUIAccessibility.ScaledAnimationDeltaTime;
         float a = Mathf.Clamp01(t / duration);
 
         rt.anchoredPosition = startPos + Vector2.up * (risePixels * a);

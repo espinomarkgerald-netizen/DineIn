@@ -147,7 +147,7 @@ public class UIFlowManager : MonoBehaviour
 
         while (t < 1f)
         {
-            t += Time.deltaTime / slideDuration;
+            t += LevelOneUIAccessibility.ScaledAnimationDeltaTime / slideDuration;
             float eased = EaseInOut(t);
             from.panel.anchoredPosition = Vector2.Lerp(fromStart, fromEnd, eased);
             yield return null;
@@ -161,7 +161,7 @@ public class UIFlowManager : MonoBehaviour
 
         while (t < 1f)
         {
-            t += Time.deltaTime / slideDuration;
+            t += LevelOneUIAccessibility.ScaledAnimationDeltaTime / slideDuration;
             float eased = EaseInOut(t);
             to.panel.anchoredPosition = Vector2.Lerp(toStart, toEnd, eased);
             yield return null;

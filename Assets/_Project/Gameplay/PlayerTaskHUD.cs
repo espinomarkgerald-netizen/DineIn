@@ -476,7 +476,7 @@ public sealed class PlayerTaskHUD : MonoBehaviour
         float elapsed = 0f;
         while (elapsed < buttonBounceSeconds)
         {
-            elapsed += Time.unscaledDeltaTime;
+            elapsed += LevelOneUIAccessibility.UnscaledAnimationDeltaTime;
             float t = Mathf.Clamp01(elapsed / buttonBounceSeconds);
             float scale = t < 0.45f
                 ? Mathf.Lerp(1f, newTaskBounceScale, Smooth(t / 0.45f))
@@ -634,7 +634,7 @@ public sealed class PlayerTaskHUD : MonoBehaviour
 
         while (elapsed < slideSeconds)
         {
-            elapsed += Time.unscaledDeltaTime;
+            elapsed += LevelOneUIAccessibility.UnscaledAnimationDeltaTime;
             float t = Mathf.Clamp01(elapsed / slideSeconds);
             float eased = t * t * (3f - 2f * t);
             panelRect.anchoredPosition = Vector2.LerpUnclamped(startPosition, targetPosition, eased);
@@ -686,7 +686,7 @@ public sealed class PlayerTaskHUD : MonoBehaviour
         float elapsed = 0f;
         while (elapsed < buttonBounceSeconds)
         {
-            elapsed += Time.unscaledDeltaTime;
+            elapsed += LevelOneUIAccessibility.UnscaledAnimationDeltaTime;
             float t = Mathf.Clamp01(elapsed / buttonBounceSeconds);
             float scaleMultiplier;
             if (t < 0.45f)
@@ -730,7 +730,7 @@ public sealed class PlayerTaskHUD : MonoBehaviour
         reminderBadgeRect.localScale = Vector3.zero;
         while (elapsed < duration)
         {
-            elapsed += Time.unscaledDeltaTime;
+            elapsed += LevelOneUIAccessibility.UnscaledAnimationDeltaTime;
             float t = Mathf.Clamp01(elapsed / duration);
             float scale = t < 0.65f
                 ? Mathf.Lerp(0f, badgePopScale, Smooth(t / 0.65f))

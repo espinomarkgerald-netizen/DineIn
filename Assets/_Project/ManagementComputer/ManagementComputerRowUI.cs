@@ -245,7 +245,8 @@ public sealed class ManagementComputerRowUI : MonoBehaviour
 
         LayoutElement layout = GetComponent<LayoutElement>();
         RectTransform root = transform as RectTransform;
-        float height = Application.isMobilePlatform
+        bool alternateTouchPresentation = UsesAlternateTouchPresentation;
+        float height = alternateTouchPresentation
             ? asCard ? 270f : 168f
             : asCard ? 228f : 148f;
         if (layout != null)
@@ -253,10 +254,10 @@ public sealed class ManagementComputerRowUI : MonoBehaviour
             layout.minHeight = height;
             layout.preferredHeight = height;
             layout.minWidth = asCard
-                ? Application.isMobilePlatform ? 190f : 176f
+                ? alternateTouchPresentation ? 190f : 176f
                 : -1f;
             layout.preferredWidth = asCard
-                ? Application.isMobilePlatform ? 222f : 190f
+                ? alternateTouchPresentation ? 222f : 190f
                 : -1f;
             layout.flexibleWidth = asCard ? 0f : 1f;
         }
@@ -267,6 +268,16 @@ public sealed class ManagementComputerRowUI : MonoBehaviour
             ApplyCardLayout();
         else
             ApplyWideRowLayout(true);
+    }
+
+    private bool UsesAlternateTouchPresentation
+    {
+        get
+        {
+            ManagementComputerResponsiveLayout responsive =
+                GetComponentInParent<ManagementComputerResponsiveLayout>(true);
+            return responsive != null && responsive.UsesMobileLayout;
+        }
     }
 
     private void ApplyCardLayout()

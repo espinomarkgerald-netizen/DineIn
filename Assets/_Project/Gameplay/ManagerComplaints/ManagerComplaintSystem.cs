@@ -659,7 +659,7 @@ public sealed class ManagerComplaintSystem : MonoBehaviour
         const float duration = 0.2f;
         while (elapsed < duration && panel != null)
         {
-            elapsed += Time.unscaledDeltaTime;
+            elapsed += LevelOneUIAccessibility.UnscaledAnimationDeltaTime;
             float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / duration));
             panel.localScale = Vector3.one * Mathf.LerpUnclamped(0.88f, 1f, t);
             yield return null;

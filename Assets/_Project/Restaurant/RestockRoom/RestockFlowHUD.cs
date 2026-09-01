@@ -559,7 +559,7 @@ public sealed class RestockFlowHUD : MonoBehaviour
         float duration = Mathf.Max(0.05f, hotbarGrowSeconds);
         while (elapsed < duration && rect != null)
         {
-            elapsed += Time.unscaledDeltaTime;
+            elapsed += LevelOneUIAccessibility.UnscaledAnimationDeltaTime;
             float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / duration));
             rect.SetSizeWithCurrentAnchors(
                 RectTransform.Axis.Horizontal,
@@ -613,7 +613,7 @@ public sealed class RestockFlowHUD : MonoBehaviour
         const float slideSeconds = 0.18f;
         while (elapsed < slideSeconds)
         {
-            elapsed += Time.unscaledDeltaTime;
+            elapsed += LevelOneUIAccessibility.UnscaledAnimationDeltaTime;
             float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / slideSeconds));
             rect.anchoredPosition = Vector2.LerpUnclamped(hidden, roomMessageShownPosition, t);
             roomMessageCanvasGroup.alpha = t;
@@ -628,7 +628,7 @@ public sealed class RestockFlowHUD : MonoBehaviour
         const float hideSeconds = 0.16f;
         while (elapsed < hideSeconds)
         {
-            elapsed += Time.unscaledDeltaTime;
+            elapsed += LevelOneUIAccessibility.UnscaledAnimationDeltaTime;
             float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / hideSeconds));
             rect.anchoredPosition = Vector2.LerpUnclamped(roomMessageShownPosition, hidden, t);
             roomMessageCanvasGroup.alpha = 1f - t;
@@ -668,7 +668,7 @@ public sealed class RestockFlowHUD : MonoBehaviour
             float elapsed = 0f;
             while (elapsed < pickupPopSeconds)
             {
-                elapsed += Time.unscaledDeltaTime;
+                elapsed += LevelOneUIAccessibility.UnscaledAnimationDeltaTime;
                 float t = Mathf.Clamp01(elapsed / Mathf.Max(0.05f, pickupPopSeconds));
                 float scale = Mathf.LerpUnclamped(0f, 1f, 1f - Mathf.Pow(1f - t, 3f));
                 slot.transform.localScale = Vector3.one * scale;
@@ -702,7 +702,7 @@ public sealed class RestockFlowHUD : MonoBehaviour
         float elapsed = 0f;
         while (elapsed < duration && slot != null)
         {
-            elapsed += Time.unscaledDeltaTime;
+            elapsed += LevelOneUIAccessibility.UnscaledAnimationDeltaTime;
             float t = Mathf.Clamp01(elapsed / duration);
             float scale = t < 0.5f
                 ? Mathf.Lerp(1f, returnPunchScale, t * 2f)

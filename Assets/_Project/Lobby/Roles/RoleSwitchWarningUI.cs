@@ -46,7 +46,7 @@ public class RoleSwitchWarningUI : MonoBehaviour
         float t = 0f;
         while (t < slideDuration)
         {
-            t += Time.deltaTime;
+            t += LevelOneUIAccessibility.ScaledAnimationDeltaTime;
             float k = Mathf.Clamp01(t / slideDuration);
             panel.anchoredPosition = Vector2.Lerp(start, end, k);
             yield return null;

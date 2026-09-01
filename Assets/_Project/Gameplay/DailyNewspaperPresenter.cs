@@ -198,11 +198,11 @@ public sealed class DailyNewspaperPresenter : MonoBehaviour
         float duration = reducedMotion
             ? 0.18f
             : settings != null ? Mathf.Max(0.2f, settings.openingAnimationSeconds) : 0.78f;
-        double started = Time.realtimeSinceStartupAsDouble;
+        float elapsed = 0f;
 
         while (version == animationVersion)
         {
-            float elapsed = (float)(Time.realtimeSinceStartupAsDouble - started);
+            elapsed += LevelOneUIAccessibility.UnscaledAnimationDeltaTime;
             float normalized = Mathf.Clamp01(elapsed / duration);
             float eased = reducedMotion
                 ? Mathf.SmoothStep(0f, 1f, normalized)

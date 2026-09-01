@@ -248,7 +248,7 @@ namespace UI.Effects
 
                     while (elapsed < spinDuration)
                     {
-                        elapsed += Time.deltaTime;
+                        elapsed += LevelOneUIAccessibility.ScaledAnimationDeltaTime;
                         float rawT = Mathf.Clamp01(elapsed / spinDuration);
                         float easedT = EaseInOutCubic(rawT);
 
@@ -310,7 +310,7 @@ namespace UI.Effects
                     float flipElapsed = 0f;
                     while (flipElapsed < flipDuration)
                     {
-                        flipElapsed += Time.deltaTime;
+                        flipElapsed += LevelOneUIAccessibility.ScaledAnimationDeltaTime;
                         float t = flipElapsed / flipDuration;
                         float yAngle = Mathf.Lerp(0f, 360f, EaseInOutCubic(t));
                         entry.rectTransform.localRotation = Quaternion.Euler(0, yAngle, 0);
@@ -348,7 +348,7 @@ namespace UI.Effects
             float elapsed = 0f;
             while (elapsed < duration)
             {
-                elapsed += Time.deltaTime;
+                elapsed += LevelOneUIAccessibility.ScaledAnimationDeltaTime;
                 float rawT = Mathf.Clamp01(elapsed / duration);
                 float t = easeFunc != null ? easeFunc(rawT) : EaseOutQuad(rawT);
 

@@ -69,6 +69,8 @@ public class OrderChecklistUI : MonoBehaviour
         new Color(1f, 0.88f, 0.86f, 1f);
 
     [Header("Mobile Layout (Editable)")]
+    [Tooltip("Uses the alternate notepad composition on every platform so it can be previewed exactly in the Editor.")]
+    [SerializeField] private bool useAlternateMobilePresentation;
     [SerializeField, Range(0.8f, 1.6f)] private float mobileRootScaleMultiplier =
         MobileRootScaleMultiplier;
     [SerializeField] private Vector2 mobileCustomerMessageSize = new Vector2(300f, 150f);
@@ -234,7 +236,7 @@ public class OrderChecklistUI : MonoBehaviour
             rootScaleCaptured = true;
         }
 
-        if (Application.isMobilePlatform)
+        if (useAlternateMobilePresentation)
         {
             root.localScale = new Vector3(
                 authoredRootScale.x * mobileRootScaleMultiplier,
@@ -338,15 +340,15 @@ public class OrderChecklistUI : MonoBehaviour
             return;
 
         RectTransform messageRect = customerMessageText.rectTransform;
-        messageRect.sizeDelta = Application.isMobilePlatform
+        messageRect.sizeDelta = useAlternateMobilePresentation
             ? mobileCustomerMessageSize
             : new Vector2(280f, 150f);
         customerMessageText.margin = Vector4.zero;
         customerMessageText.enableAutoSizing = true;
-        customerMessageText.fontSizeMin = Application.isMobilePlatform
+        customerMessageText.fontSizeMin = useAlternateMobilePresentation
             ? mobileMessageMinimumFontSize
             : 14f;
-        customerMessageText.fontSizeMax = Application.isMobilePlatform
+        customerMessageText.fontSizeMax = useAlternateMobilePresentation
             ? Mathf.Max(mobileMessageMinimumFontSize, mobileMessageMaximumFontSize)
             : 20f;
         customerMessageText.textWrappingMode = TextWrappingModes.Normal;
@@ -357,7 +359,7 @@ public class OrderChecklistUI : MonoBehaviour
 
     private void ApplyMobileOrderHeaderLayout()
     {
-        if (!Application.isMobilePlatform)
+        if (!useAlternateMobilePresentation)
             return;
 
         // Keep the portrait, message, and requested-order strip as three distinct
@@ -1034,12 +1036,12 @@ public class OrderChecklistUI : MonoBehaviour
         if (products.Count == 0)
             return;
 
-        float iconSize = Application.isMobilePlatform
+        float iconSize = useAlternateMobilePresentation
             ? products.Count > 1 ? 50f : 66f
             : products.Count > 1 ? 42f : 54f;
         float iconsWidth = products.Count * iconSize + Mathf.Max(0, products.Count - 1) * 2f;
-        float entryWidth = Mathf.Max(Application.isMobilePlatform ? 92f : 78f, iconsWidth + 28f);
-        float entryHeight = Application.isMobilePlatform ? 88f : 76f;
+        float entryWidth = Mathf.Max(useAlternateMobilePresentation ? 92f : 78f, iconsWidth + 28f);
+        float entryHeight = useAlternateMobilePresentation ? 88f : 76f;
 
         GameObject entryObject = new GameObject($"Order Line - {line.displayName}",
             typeof(RectTransform), typeof(LayoutElement));

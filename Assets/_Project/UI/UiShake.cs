@@ -54,7 +54,7 @@ public class UIShake : MonoBehaviour
     {
         if (!shake || rect == null) return;
 
-        t += Time.unscaledDeltaTime;
+        t += LevelOneUIAccessibility.UnscaledAnimationDeltaTime;
 
         float angle = maxAngle;
         if (rampUp)

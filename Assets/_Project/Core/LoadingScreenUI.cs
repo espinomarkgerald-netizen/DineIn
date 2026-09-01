@@ -117,7 +117,7 @@ public class LoadingScreenUI : MonoBehaviour
     {
         if (table == null || tableHitTarget == null) return;
 
-        float dt = Time.unscaledDeltaTime;
+        float dt = LevelOneUIAccessibility.UnscaledAnimationDeltaTime;
         tableTimer += dt;
 
         float safeCycle = Mathf.Max(0.1f, cycleDuration);
@@ -187,7 +187,7 @@ public class LoadingScreenUI : MonoBehaviour
         }
 
         float halfDuration = Mathf.Max(0.01f, tipFadeSeconds * 0.5f);
-        for (float elapsed = 0f; elapsed < halfDuration; elapsed += Time.unscaledDeltaTime)
+        for (float elapsed = 0f; elapsed < halfDuration; elapsed += LevelOneUIAccessibility.UnscaledAnimationDeltaTime)
         {
             tipsCanvasGroup.alpha = 1f - Mathf.Clamp01(elapsed / halfDuration);
             yield return null;
@@ -195,7 +195,7 @@ public class LoadingScreenUI : MonoBehaviour
 
         tipsCanvasGroup.alpha = 0f;
         tipsText.text = message;
-        for (float elapsed = 0f; elapsed < halfDuration; elapsed += Time.unscaledDeltaTime)
+        for (float elapsed = 0f; elapsed < halfDuration; elapsed += LevelOneUIAccessibility.UnscaledAnimationDeltaTime)
         {
             tipsCanvasGroup.alpha = Mathf.Clamp01(elapsed / halfDuration);
             yield return null;

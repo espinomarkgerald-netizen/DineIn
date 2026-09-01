@@ -79,7 +79,7 @@ public class TipPopupUI : MonoBehaviour
 
         while (t < duration)
         {
-            t += Time.deltaTime;
+            t += LevelOneUIAccessibility.ScaledAnimationDeltaTime;
             float p = Mathf.Clamp01(t / duration);
             float eased = EaseOutCubic(p);
 

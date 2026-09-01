@@ -226,7 +226,7 @@ public sealed class ManagementHRRoleSectionUI : MonoBehaviour
         float elapsed = 0f;
         while (elapsed < duration)
         {
-            elapsed += Time.unscaledDeltaTime;
+            elapsed += LevelOneUIAccessibility.UnscaledAnimationDeltaTime;
             float progress = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / duration));
             for (int i = 0; i < remainingCards.Count; i++)
                 remainingCards[i].anchoredPosition = Vector2.Lerp(startPositions[i], targetPositions[i], progress);

@@ -77,7 +77,11 @@ public sealed class MobileUIAccessibility : MonoBehaviour
             FindObjectsSortMode.None);
         for (int i = 0; i < buttons.Length; i++)
         {
-            EnsureMobileVisualSize(buttons[i]);
+            // Keep authored visuals identical between the Editor/Device Simulator
+            // and a player build. Only persistent HUD controls opt into a larger
+            // visible size; modal/workspace controls receive an invisible hit area
+            // below without changing their RectTransforms or layout elements.
+            EnsurePersistentHudVisualSize(buttons[i]);
             EnsureTouchArea(buttons[i]);
         }
 
@@ -127,14 +131,11 @@ public sealed class MobileUIAccessibility : MonoBehaviour
             return;
         }
 
-        // The computer is a touch-first workspace. Width scaling gives its text and
-        // controls the largest uniform scale that still fits a landscape phone.
+        // The management computer is authored and previewed against this scaler.
+        // A second Android-only scaler policy made the final build use a different
+        // coordinate system than the Editor and Device Simulator.
         if (NameMatches(canvasName, "ManagementComputerCanvas"))
-        {
-            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
-            scaler.matchWidthOrHeight = 0f;
             return;
-        }
 
         // Expand selects the smaller of the width/height scale factors. The complete
         // authored reference rectangle therefore remains visible on extra-wide phones
@@ -217,7 +218,7 @@ public sealed class MobileUIAccessibility : MonoBehaviour
         return MinimumPhysicalTouchPixels / Mathf.Max(0.01f, canvasScale);
     }
 
-    private static void EnsureMobileVisualSize(Button button)
+    private static void EnsurePersistentHudVisualSize(Button button)
     {
         if (button == null || button.transform is not RectTransform rect)
             return;
@@ -228,13 +229,9 @@ public sealed class MobileUIAccessibility : MonoBehaviour
         if (canvas == null)
             return;
 
-        float minimumPixels = 0f;
-        if (IsWidthScaledPersistentHud(canvas.name))
-            minimumPixels = MinimumPersistentHudPixels;
-        else if (NameMatches(canvas.name, "ManagementComputerCanvas") ||
-                 HasAncestorComponent<CashierRegisterUI>(button.transform) ||
-                 HasAncestorComponent<OrderChecklistUI>(button.transform))
-            minimumPixels = MinimumWorkspaceControlPixels;
+        float minimumPixels = IsWidthScaledPersistentHud(canvas.name)
+            ? MinimumPersistentHudPixels
+            : 0f;
         if (minimumPixels <= 0f)
             return;
 

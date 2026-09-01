@@ -95,7 +95,7 @@ public sealed class UISubtlePressFeedback : MonoBehaviour,
         float safeDuration = Mathf.Max(0.01f, duration);
         while (elapsed < safeDuration)
         {
-            elapsed += Time.unscaledDeltaTime;
+            elapsed += LevelOneUIAccessibility.UnscaledAnimationDeltaTime;
             float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / safeDuration));
             ApplyScale(Vector3.LerpUnclamped(start, target, t));
             yield return null;

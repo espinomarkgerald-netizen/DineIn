@@ -639,13 +639,17 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         }
 
         RebuildComputerLayoutNow();
+        appWindow?.ResetInitialScrollsAfterLayout(false);
 
         // Nested ContentSizeFitters and generated cards can publish their final
         // preferred sizes one frame after the parent window. Rebuild once more
         // with those settled values instead of waiting for a resolution change.
         yield return null;
         if (IsOpen)
+        {
             RebuildComputerLayoutNow();
+            appWindow?.ResetInitialScrollsAfterLayout(true);
+        }
 
         canvasRefreshRoutine = null;
     }

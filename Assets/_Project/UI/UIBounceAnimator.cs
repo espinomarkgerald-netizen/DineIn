@@ -93,7 +93,10 @@ public class UIElementAnimator : MonoBehaviour
     {
         while (Vector3.Distance(rect.localScale, target) > 0.01f)
         {
-            rect.localScale = Vector3.Lerp(rect.localScale, target, Time.unscaledDeltaTime * scaleSpeed);
+            rect.localScale = Vector3.Lerp(
+                rect.localScale,
+                target,
+                LevelOneUIAccessibility.UnscaledAnimationDeltaTime * scaleSpeed);
             yield return null;
         }
 
@@ -130,7 +133,7 @@ public class UIElementAnimator : MonoBehaviour
 
         while (t < 1f)
         {
-            t += Time.unscaledDeltaTime / Mathf.Max(0.001f, duration);
+            t += LevelOneUIAccessibility.UnscaledAnimationDeltaTime / Mathf.Max(0.001f, duration);
             float eased = 1f - Mathf.Pow(1f - t, 3f);
             rect.localScale = Vector3.LerpUnclamped(from, to, eased);
             yield return null;

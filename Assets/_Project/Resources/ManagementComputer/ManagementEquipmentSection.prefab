@@ -111,7 +111,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: -92}
-  m_SizeDelta: {x: 0, y: 300}
+  m_SizeDelta: {x: 0, y: 316}
   m_Pivot: {x: 0.5, y: 1}
 --- !u!114 &4208671310863564466
 MonoBehaviour:
@@ -133,7 +133,7 @@ MonoBehaviour:
   m_ChildAlignment: 0
   m_StartCorner: 0
   m_StartAxis: 0
-  m_CellSize: {x: 281.33334, y: 300}
+  m_CellSize: {x: 262, y: 316}
   m_Spacing: {x: 16, y: 16}
   m_Constraint: 1
   m_ConstraintCount: 3
@@ -524,7 +524,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 410}
+  m_SizeDelta: {x: 0, y: 418}
   m_Pivot: {x: 0.5, y: 1}
 --- !u!114 &2005762972542204455
 MonoBehaviour:
@@ -540,9 +540,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_IgnoreLayout: 0
   m_MinWidth: -1
-  m_MinHeight: 410
+  m_MinHeight: 418
   m_PreferredWidth: -1
-  m_PreferredHeight: 410
+  m_PreferredHeight: 418
   m_FlexibleWidth: -1
   m_FlexibleHeight: -1
   m_LayoutPriority: 1
@@ -566,10 +566,10 @@ MonoBehaviour:
   sectionLayout: {fileID: 2005762972542204455}
   cardPrefab: {fileID: 5153207960164219229, guid: 791d729492da0884cb557b1192598a03, type: 3}
   minimumCardWidth: 238
-  maximumCardWidth: 258
-  cardHeight: 280
-  horizontalSpacing: 14
-  verticalSpacing: 14
+  maximumCardWidth: 262
+  cardHeight: 316
+  horizontalSpacing: 16
+  verticalSpacing: 16
   sidePadding: 12
   headerHeight: 80
   maximumColumns: 4

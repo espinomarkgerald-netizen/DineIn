@@ -338,7 +338,7 @@ public class BurgerLoadingAnimation : MonoBehaviour
         float t = 0f;
         while (t < duration)
         {
-            t += Time.deltaTime;
+            t += LevelOneUIAccessibility.ScaledAnimationDeltaTime;
             float eased = easeFn(Mathf.Clamp01(t / duration));
 
             for (int i = 0; i < layers.Length; i++)
@@ -380,7 +380,7 @@ public class BurgerLoadingAnimation : MonoBehaviour
         float t = 0f;
         while (t < duration)
         {
-            t += Time.deltaTime;
+            t += LevelOneUIAccessibility.ScaledAnimationDeltaTime;
             float linear = Mathf.Clamp01(t / duration);
             float alphaEase = SmoothStep01(linear);
 
@@ -450,7 +450,7 @@ public class BurgerLoadingAnimation : MonoBehaviour
         float t = 0f;
         while (t < layerAnimDuration)
         {
-            t += Time.deltaTime;
+            t += LevelOneUIAccessibility.ScaledAnimationDeltaTime;
             float lerpT = Mathf.Clamp01(t / layerAnimDuration);
 
             float eased;

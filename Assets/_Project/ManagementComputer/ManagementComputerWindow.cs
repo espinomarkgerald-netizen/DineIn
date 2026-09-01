@@ -42,6 +42,7 @@ public sealed class ManagementComputerWindow : MonoBehaviour
     private bool useCardLayout;
     private bool useEmbeddedPanelLayout;
     private bool useFinanceStatementLayout;
+    private bool initialScrollResetPending;
 
     public RectTransform Content => content;
     public Button FooterButton => footerButton;
@@ -83,6 +84,7 @@ public sealed class ManagementComputerWindow : MonoBehaviour
     public void Open(string windowTitle)
     {
         gameObject.SetActive(true);
+        initialScrollResetPending = true;
         GetComponent<UIRevealAnimation>()?.Play();
         if (titleText != null) titleText.text = windowTitle;
         ApplyMobileChromeAndTypography();
@@ -117,6 +119,8 @@ public sealed class ManagementComputerWindow : MonoBehaviour
     public void RefreshContentLayout()
     {
         ApplyContentLayout();
+        if (initialScrollResetPending)
+            ResetAllScrollRectsToStart();
     }
 
     private void OnRectTransformDimensionsChange()
@@ -319,7 +323,7 @@ public sealed class ManagementComputerWindow : MonoBehaviour
                 GetComponentInParent<ManagementComputerResponsiveLayout>(true);
             return responsive != null
                 ? responsive.UsesMobileLayout
-                : Application.isMobilePlatform;
+                : false;
         }
     }
 
@@ -342,6 +346,7 @@ public sealed class ManagementComputerWindow : MonoBehaviour
         if (scrollRect == null)
             return;
 
+        initialScrollResetPending = false;
         normalizedPosition = Mathf.Clamp01(normalizedPosition);
         Canvas.ForceUpdateCanvases();
         if (content != null)
@@ -372,6 +377,39 @@ public sealed class ManagementComputerWindow : MonoBehaviour
             scrollRect.horizontalNormalizedPosition = 1f - normalizedPosition;
         else
             scrollRect.verticalNormalizedPosition = normalizedPosition;
+    }
+
+    /// <summary>
+    /// Keeps newly populated ScrollRects at their authored starting edge while
+    /// nested layout groups publish their final sizes over the first two frames.
+    /// </summary>
+    public void ResetInitialScrollsAfterLayout(bool complete)
+    {
+        if (!initialScrollResetPending)
+            return;
+
+        ResetAllScrollRectsToStart();
+        if (complete)
+            initialScrollResetPending = false;
+    }
+
+    private void ResetAllScrollRectsToStart()
+    {
+        ScrollRect[] scrolls = GetComponentsInChildren<ScrollRect>(false);
+        for (int i = 0; i < scrolls.Length; i++)
+        {
+            ScrollRect activeScroll = scrolls[i];
+            if (activeScroll == null || !activeScroll.gameObject.activeInHierarchy)
+                continue;
+
+            if (activeScroll.content != null)
+                LayoutRebuilder.ForceRebuildLayoutImmediate(activeScroll.content);
+            activeScroll.StopMovement();
+            if (activeScroll.horizontal)
+                activeScroll.horizontalNormalizedPosition = 0f;
+            if (activeScroll.vertical)
+                activeScroll.verticalNormalizedPosition = 1f;
+        }
     }
 
     public void ClearRows()

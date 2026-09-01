@@ -132,7 +132,7 @@ public class WarningSlideUI : MonoBehaviour
 
         while (t < duration)
         {
-            t += Time.unscaledDeltaTime;
+            t += LevelOneUIAccessibility.UnscaledAnimationDeltaTime;
             float k = Mathf.Clamp01(t / duration);
             k = Mathf.SmoothStep(0f, 1f, k);
 

@@ -177,7 +177,7 @@ public class AnimatedPanel : MonoBehaviour
         float t = 0f;
         while (t < duration)
         {
-            t += Time.unscaledDeltaTime;
+            t += LevelOneUIAccessibility.UnscaledAnimationDeltaTime;
             float normalized = Mathf.Clamp01(t / duration);
             float eased = ease.Evaluate(normalized);
 

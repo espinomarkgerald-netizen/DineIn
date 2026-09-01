@@ -1804,7 +1804,7 @@ public class GameDayManager : MonoBehaviour
             const float duration = 0.24f;
             while (elapsed < duration)
             {
-                elapsed += Time.unscaledDeltaTime;
+                elapsed += LevelOneUIAccessibility.UnscaledAnimationDeltaTime;
                 float t = Mathf.Clamp01(elapsed / duration);
                 float overshoot = 1f + Mathf.Sin(t * Mathf.PI) * 0.2f;
                 star.transform.localScale = finalScale * (t * overshoot);
@@ -1996,7 +1996,7 @@ public class GameDayManager : MonoBehaviour
         const float duration = 0.28f;
         while (elapsed < duration)
         {
-            elapsed += Time.unscaledDeltaTime;
+            elapsed += LevelOneUIAccessibility.UnscaledAnimationDeltaTime;
             float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / duration));
             group.alpha = t;
             if (rect != null)

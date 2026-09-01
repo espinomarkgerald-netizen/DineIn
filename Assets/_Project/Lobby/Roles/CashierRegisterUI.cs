@@ -57,6 +57,8 @@ public class CashierRegisterUI : MonoBehaviour
     [SerializeField] private TutorialHintTextUI tutorialHint;
 
     [Header("Mobile Presentation (Editable)")]
+    [Tooltip("Uses the alternate compact values on every platform so the Editor remains the source of truth.")]
+    [SerializeField] private bool useAlternateCompactPresentation;
     [SerializeField, Min(80f)] private float mobileCompactItemsWidth = 146f;
     [SerializeField, Min(28f)] private float mobileCompactItemsHeight = 46f;
     [SerializeField, Min(28f)] private float mobileCompactMaximumCellWidth = 52f;
@@ -82,16 +84,16 @@ public class CashierRegisterUI : MonoBehaviour
     // The Lobby1 Food/Drink rows are 230 px wide. Keep a dedicated price
     // column and a visible gap so a full four-person order cannot collide
     // with, or render outside, its row.
-    private float CompactItemsWidth => Application.isMobilePlatform
+    private float CompactItemsWidth => useAlternateCompactPresentation
         ? mobileCompactItemsWidth
         : desktopCompactItemsWidth;
-    private float CompactItemsHeight => Application.isMobilePlatform
+    private float CompactItemsHeight => useAlternateCompactPresentation
         ? mobileCompactItemsHeight
         : desktopCompactItemsHeight;
-    private float CompactMaxCellWidth => Application.isMobilePlatform
+    private float CompactMaxCellWidth => useAlternateCompactPresentation
         ? mobileCompactMaximumCellWidth
         : desktopCompactMaximumCellWidth;
-    private float CompactPriceWidth => Application.isMobilePlatform
+    private float CompactPriceWidth => useAlternateCompactPresentation
         ? mobileCompactPriceWidth
         : desktopCompactPriceWidth;
 
@@ -696,7 +698,7 @@ public class CashierRegisterUI : MonoBehaviour
             cell.sizeDelta = new Vector2(cellWidth, CompactItemsHeight);
 
             float pictureWidth = Mathf.Max(4f, cellWidth - 12f);
-            float maximumIconSize = Application.isMobilePlatform ? 32f : 24f;
+            float maximumIconSize = useAlternateCompactPresentation ? 32f : 24f;
             float iconSize = Mathf.Min(maximumIconSize, pictureWidth / line.products.Count);
             float iconsWidth = iconSize * line.products.Count;
             float startX = Mathf.Max(0f, (pictureWidth - iconsWidth) * 0.5f);
@@ -737,10 +739,10 @@ public class CashierRegisterUI : MonoBehaviour
 
             TextMeshProUGUI quantityText = quantityObject.GetComponent<TextMeshProUGUI>();
             quantityText.text = $"x{Mathf.Max(1, line.quantity)}";
-            quantityText.fontSize = Application.isMobilePlatform ? 14f : 11f;
+            quantityText.fontSize = useAlternateCompactPresentation ? 14f : 11f;
             quantityText.enableAutoSizing = true;
             quantityText.fontSizeMin = 7f;
-            quantityText.fontSizeMax = Application.isMobilePlatform ? 14f : 11f;
+            quantityText.fontSizeMax = useAlternateCompactPresentation ? 14f : 11f;
             quantityText.fontStyle = FontStyles.Bold;
             quantityText.alignment = TextAlignmentOptions.BottomRight;
             quantityText.color = Color.white;

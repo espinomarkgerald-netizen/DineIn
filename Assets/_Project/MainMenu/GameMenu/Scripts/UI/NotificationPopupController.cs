@@ -268,7 +268,7 @@ public class NotificationPopupController : MonoBehaviour
         float elapsed = 0f;
         while (elapsed < duration)
         {
-            elapsed += Time.unscaledDeltaTime;
+            elapsed += LevelOneUIAccessibility.UnscaledAnimationDeltaTime;
             float progress = closeButtonPunchCurve.Evaluate(Mathf.Clamp01(elapsed / duration));
             target.localScale = Vector3.LerpUnclamped(fromScale, toScale, progress);
             yield return null;
@@ -354,7 +354,7 @@ public class NotificationPopupController : MonoBehaviour
             float elapsed = 0f;
             while (elapsed < request.displayDuration && !hideRequested)
             {
-                elapsed += Time.unscaledDeltaTime;
+                elapsed += LevelOneUIAccessibility.UnscaledAnimationDeltaTime;
                 yield return null;
             }
         }
@@ -385,7 +385,7 @@ public class NotificationPopupController : MonoBehaviour
         {
             // unscaledDeltaTime so popups still animate smoothly even if
             // Time.timeScale is 0 (paused) or slowed down.
-            elapsed += Time.unscaledDeltaTime;
+            elapsed += LevelOneUIAccessibility.UnscaledAnimationDeltaTime;
             float progress = slideCurve.Evaluate(Mathf.Clamp01(elapsed / duration));
 
             panelRect.anchoredPosition = Vector2.LerpUnclamped(fromPos, toPos, progress);

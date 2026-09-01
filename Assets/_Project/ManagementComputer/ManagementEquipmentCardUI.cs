@@ -14,6 +14,7 @@ public sealed class ManagementEquipmentCardUI : MonoBehaviour
     [SerializeField] private Button actionButton;
     [SerializeField] private TMP_Text actionLabel;
     [SerializeField] private Image ownedBadge;
+    [SerializeField] private ManagementItemCardFeedback feedback;
 
     [Header("State Colours")]
     [SerializeField] private Color availableColor = new Color(0.05f, 0.40f, 0.67f, 1f);
@@ -81,11 +82,31 @@ public sealed class ManagementEquipmentCardUI : MonoBehaviour
         if (ownedBadge != null)
             ownedBadge.gameObject.SetActive(purchased);
 
+        ManagementItemCardFeedback cardFeedback = GetFeedback();
+        if (cardFeedback != null)
+        {
+            string state = purchased
+                ? "Owned and ready to use"
+                : unlocked ? "Available for ₱" + equipment.cost :
+                    "Unlocks on day " + Mathf.Max(1, equipment.dayToUnlock);
+            cardFeedback.SetTooltip(
+                equipment.displayName,
+                (description ?? string.Empty) + "\n" + state);
+            cardFeedback.SetSelected(purchased);
+        }
+
         if (actionButton != null)
         {
             actionButton.onClick.RemoveAllListeners();
             if (purchaseAction != null)
-                actionButton.onClick.AddListener(purchaseAction);
+                actionButton.onClick.AddListener(() =>
+                {
+                    ManagementItemCardFeedback activeFeedback = GetFeedback();
+                    if (activeFeedback != null)
+                        activeFeedback.PlaySuccessFeedback(purchaseAction);
+                    else
+                        purchaseAction.Invoke();
+                });
             actionButton.interactable = storeEditable && canBuy && !purchased && unlocked && purchaseAction != null;
             actionButton.gameObject.SetActive(!purchased);
         }
@@ -95,5 +116,12 @@ public sealed class ManagementEquipmentCardUI : MonoBehaviour
                 : !storeEditable
                     ? "SERVICE ACTIVE"
                     : canBuy ? "BUY" : "NOT ENOUGH";
+    }
+
+    private ManagementItemCardFeedback GetFeedback()
+    {
+        if (feedback == null)
+            feedback = GetComponent<ManagementItemCardFeedback>();
+        return feedback;
     }
 }

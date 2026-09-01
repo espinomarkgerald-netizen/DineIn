@@ -168,7 +168,9 @@ public class LobbyTaskUI : MonoBehaviour
 
         while (time < duration)
         {
-            time += useUnscaledTime ? Time.unscaledDeltaTime : Time.deltaTime;
+            time += useUnscaledTime
+                ? LevelOneUIAccessibility.UnscaledAnimationDeltaTime
+                : LevelOneUIAccessibility.ScaledAnimationDeltaTime;
             float t = Mathf.Clamp01(time / duration);
             t = t * t * (3f - 2f * t);
 
