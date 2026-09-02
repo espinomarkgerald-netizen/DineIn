@@ -21,7 +21,7 @@ MonoBehaviour:
   kitchenItemType: 10
   sprite: {fileID: 21300000, guid: aafb0fc8476ba554a9d060531110ecce, type: 3}
   servingPrefab: {fileID: 0}
-  dayToUnlock: 5
+  dayToUnlock: 15
   ingredients:
   - item: {fileID: 11400000, guid: cd100000000000000000000000000002, type: 2}
     amount: 1

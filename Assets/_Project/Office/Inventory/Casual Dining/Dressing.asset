@@ -18,7 +18,7 @@ MonoBehaviour:
   displayName: Dressing
   unitsPerBox: 20
   requiredStorage: 1
-  containerType: 2
+  containerType: 0
   worldContainerPrefab: {fileID: 7163686026178324243, guid: 29f19047587c15147b51a21bd3a31c76, type: 3}
   gridFootprint: {x: 1, y: 1}
   boxCost: 240
@@ -26,4 +26,4 @@ MonoBehaviour:
   shelfLifeDays: 10
   wrongStorageSpoilageMultiplier: 3
   sprite: {fileID: 21300000, guid: 7dc3854c6e7f0ed4b9df577b0253df09, type: 3}
-  dayToUnlock: 9
+  dayToUnlock: 3

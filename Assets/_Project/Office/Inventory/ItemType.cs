@@ -26,5 +26,11 @@ public enum ItemType
     Dressing,
     CannedTomato,
     Butter,
-    BouillonCube
+    BouillonCube,
+    IcedTeaPowder,
+    OrangeJuicePowder,
+    CucumberLemonadePowder,
+    PineappleJuicePowder,
+    MangoJuicePowder,
+    FourSeasonsJuicePowder
 }

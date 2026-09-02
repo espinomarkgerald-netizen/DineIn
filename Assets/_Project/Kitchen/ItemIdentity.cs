@@ -16,7 +16,13 @@ public enum ItemTypeKitchen {
     PorkChop,
     GarlicButterShrimp,
     FriedSalmon,
-    CaesarSalad
+    CaesarSalad,
+    IcedTeaPitcher,
+    OrangeJuicePitcher,
+    CucumberLemonadePitcher,
+    PineappleJuicePitcher,
+    MangoJuicePitcher,
+    FourSeasonsJuicePitcher
 }
 
 public class ItemIdentity : MonoBehaviour {

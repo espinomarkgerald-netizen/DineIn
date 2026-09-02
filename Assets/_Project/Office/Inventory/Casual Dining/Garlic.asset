@@ -26,4 +26,4 @@ MonoBehaviour:
   shelfLifeDays: 14
   wrongStorageSpoilageMultiplier: 3
   sprite: {fileID: 21300000, guid: 04b1f46a6b9761242a14193b0991d7b4, type: 3}
-  dayToUnlock: 1
+  dayToUnlock: 6

@@ -18,8 +18,8 @@ MonoBehaviour:
   displayName: Bouillon Cube
   unitsPerBox: 40
   requiredStorage: 0
-  containerType: 1
-  worldContainerPrefab: {fileID: 7570070349438791313, guid: d3fcbda821d55cb4bb2077bcc8ff52fb, type: 3}
+  containerType: 0
+  worldContainerPrefab: {fileID: 7163686026178324243, guid: 29f19047587c15147b51a21bd3a31c76, type: 3}
   gridFootprint: {x: 1, y: 1}
   boxCost: 160
   averageUsagePerCustomer: 0.18

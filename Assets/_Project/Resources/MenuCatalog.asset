@@ -12,6 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 42a50358ca6b4d5eb56513c0720939c1, type: 3}
   m_Name: MenuCatalog
   m_EditorClassIdentifier: 
+  restaurantType: 0
+  sceneNames: []
   products:
   - {fileID: 11400000, guid: edaf5c0e3af958946a66152437a2106c, type: 2}
   - {fileID: 11400000, guid: dbf95199eafdb55449eeca2f3431c97f, type: 2}
@@ -47,3 +49,12 @@ MonoBehaviour:
     - {fileID: 11400000, guid: dbf95199eafdb55449eeca2f3431c97f, type: 2}
     useCustomPrice: 1
     customPrice: 179
+  ingredients:
+  - {fileID: 11400000, guid: fa70f398aa0054b4d9981d18e83af534, type: 2}
+  - {fileID: 11400000, guid: 9971ccd47beceb54db728151ab87f93a, type: 2}
+  - {fileID: 11400000, guid: f3a9b1fb93fec2b44bdb2a888d3db4fb, type: 2}
+  - {fileID: 11400000, guid: 69cc4862a76fc1542bbcb2ba9bbff83b, type: 2}
+  - {fileID: 11400000, guid: 20abafb43ed2b9a4e88ff9064f655c1f, type: 2}
+  - {fileID: 11400000, guid: b32890b307b693b44bb82cdd6505a12a, type: 2}
+  - {fileID: 11400000, guid: 70830520795d900449881daee8ed45ad, type: 2}
+  - {fileID: 11400000, guid: 2dc7af590d2f8034fa4956e75867995a, type: 2}

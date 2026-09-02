@@ -17,7 +17,7 @@ MonoBehaviour:
   restaurantType: 1
   displayName: Lemon
   unitsPerBox: 30
-  requiredStorage: 0
+  requiredStorage: 1
   containerType: 1
   worldContainerPrefab: {fileID: 7570070349438791313, guid: d3fcbda821d55cb4bb2077bcc8ff52fb, type: 3}
   gridFootprint: {x: 1, y: 1}
@@ -26,4 +26,4 @@ MonoBehaviour:
   shelfLifeDays: 10
   wrongStorageSpoilageMultiplier: 3
   sprite: {fileID: 21300000, guid: a9efa72c4561f804b8dba7f28dde17c2, type: 3}
-  dayToUnlock: 5
+  dayToUnlock: 3
