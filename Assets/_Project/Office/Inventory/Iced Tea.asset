@@ -20,7 +20,7 @@ MonoBehaviour:
   containerType: 0
   worldContainerPrefab: {fileID: 7163686026178324243, guid: 29f19047587c15147b51a21bd3a31c76, type: 3}
   gridFootprint: {x: 1, y: 1}
-  boxCost: 150
+  boxCost: 110
   averageUsagePerCustomer: 0.2
   shelfLifeDays: 7
   wrongStorageSpoilageMultiplier: 3

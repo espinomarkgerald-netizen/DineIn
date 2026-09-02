@@ -303,8 +303,11 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
         string description = string.IsNullOrWhiteSpace(product.descriptionText)
             ? product.category + " menu item"
             : product.descriptionText;
+        MenuPriceGuidance guidance = MenuPriceValueService.GetGuidance(product);
         SetText(menuDescriptionText,
-            description + $"\nUnlock day {Mathf.Max(1, product.dayToUnlock)}");
+            description + $" • Unlock day {Mathf.Max(1, product.dayToUnlock)}" +
+            $"\n<b>Ingredient Cost:</b> ₱{Mathf.CeilToInt(guidance.CostPerServing)}" +
+            $"\n<b>Suggested Price:</b> ₱{guidance.RecommendedMinimum} – ₱{guidance.RecommendedMaximum}");
         SetMenuIcon(product.sprite);
 
         if (menuPriceInput != null)

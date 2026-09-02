@@ -28,6 +28,8 @@ public static class ManagementComputerInstaller
     private static readonly Color DarkText = new Color(0.08f, 0.14f, 0.22f, 1f);
 
     private static TMP_FontAsset gameFont;
+    private static TMP_FontAsset readableFont;
+    private static TMP_FontAsset readableBoldFont;
     private static Sprite uiSprite;
 
     [MenuItem("Tools/Dine In/Install Management Computer in Lobby1 %#F6")]
@@ -42,9 +44,17 @@ public static class ManagementComputerInstaller
         EnsureFolder("Assets/_Project/ManagementComputer");
         EnsureFolder(PrefabFolder);
         gameFont = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(
-            "Assets/TextMesh Pro/Examples & Extras/Resources/Fonts & Materials/Anton SDF.asset");
+            "Assets/_Project/UI/Assets/Fonts/Anton/Anton-Regular SDF.asset");
         if (gameFont == null)
             gameFont = TMP_Settings.defaultFontAsset;
+        readableFont = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(
+            "Assets/_Project/UI/Assets/Fonts/Atkinson_Hyperlegible/AtkinsonHyperlegible-Regular SDF.asset");
+        readableBoldFont = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(
+            "Assets/_Project/UI/Assets/Fonts/Atkinson_Hyperlegible/AtkinsonHyperlegible-Bold SDF.asset");
+        if (readableFont == null)
+            readableFont = TMP_Settings.defaultFontAsset;
+        if (readableBoldFont == null)
+            readableBoldFont = readableFont;
         uiSprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
 
         ManagementComputerRowUI rowPrefab = EnsureRowPrefab();
@@ -110,10 +120,15 @@ public static class ManagementComputerInstaller
 
         UnlockManager unlocks = EnsureComponent<UnlockManager>(systems);
         InventoryManager inventory = EnsureComponent<InventoryManager>(systems);
-        List<ItemData> items = LoadAllAssets<ItemData>()
-            .OrderBy(item => item.dayToUnlock)
-            .ThenBy(item => item.displayName)
-            .ToList();
+        MenuCatalog.ClearCachedDefault();
+        MenuCatalog activeCatalog = MenuCatalog.Default;
+        List<ItemData> items = activeCatalog != null
+            ? activeCatalog.Ingredients
+                .Where(item => item != null)
+                .OrderBy(item => item.dayToUnlock)
+                .ThenBy(item => item.displayName)
+                .ToList()
+            : new List<ItemData>();
         inventory.ConfigureItems(items);
 
         EmployeeGenerator generator = EnsureComponent<EmployeeGenerator>(systems);
@@ -265,6 +280,7 @@ public static class ManagementComputerInstaller
             window,
             rowPrefab,
             hrPanelPrefab);
+        controller.ConfigureTypography(gameFont, readableFont, readableBoldFont);
         EditorUtility.SetDirty(controller);
     }
 

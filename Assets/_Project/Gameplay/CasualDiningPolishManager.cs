@@ -603,8 +603,25 @@ public sealed class CasualDiningPolishManager : MonoBehaviour
             {
                 existing.itemID = item.StableItemId;
                 existing.itemType = item.itemType;
-                if (existing.baseCost <= 0 && item.boxCost > 0)
-                    existing.baseCost = item.boxCost;
+                int authoredCost = Mathf.Max(0, item.boxCost);
+                if (existing.baseCost > 0 && authoredCost > 0 &&
+                    existing.baseCost != authoredCost)
+                {
+                    float currentMultiplier = existing.currentCost /
+                                              (float)existing.baseCost;
+                    float previousMultiplier = existing.previousCost > 0
+                        ? existing.previousCost / (float)existing.baseCost
+                        : currentMultiplier;
+                    existing.baseCost = authoredCost;
+                    existing.currentCost = Mathf.Max(0,
+                        Mathf.RoundToInt(authoredCost * currentMultiplier));
+                    existing.previousCost = Mathf.Max(0,
+                        Mathf.RoundToInt(authoredCost * previousMultiplier));
+                }
+                else if (existing.baseCost <= 0 && authoredCost > 0)
+                {
+                    existing.baseCost = authoredCost;
+                }
                 if (existing.currentCost < 0)
                     existing.currentCost = Mathf.Max(0, item.boxCost);
             }

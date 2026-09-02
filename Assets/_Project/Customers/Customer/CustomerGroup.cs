@@ -483,6 +483,17 @@ public class CustomerGroup : MonoBehaviour
         "Unbelievable."
     };
 
+    [Header("Price Rejection Comments")]
+    [SerializeField] private string[] priceRejectionComments =
+    {
+        "That's too expensive!",
+        "I'm not paying that much.",
+        "Those prices are ridiculous!",
+        "I'll eat somewhere cheaper.",
+        "Not worth that price.",
+        "That's way over my budget."
+    };
+
     [Header("Line Waiting Comments")]
     [SerializeField]
     private string[] lineAngryComments =
@@ -538,6 +549,7 @@ public class CustomerGroup : MonoBehaviour
     private FoodTray activeFoodTray;
     private FoodTray complaintFoodTray;
     private bool managerComplaintRetryUsed;
+    private bool priceRejectionHandled;
     private Coroutine eatingRoutine;
 
     [HideInInspector] public Booth assignedBooth;
@@ -1044,6 +1056,9 @@ public class CustomerGroup : MonoBehaviour
             yield break;
         }
 
+        if (TryRejectCurrentOrderForPrice())
+            yield break;
+
         if (currentOrderNumber < 0)
         {
             currentOrderNumber = OrderNumberManager.Instance != null
@@ -1125,6 +1140,38 @@ public class CustomerGroup : MonoBehaviour
         wrongDeliveryCount = 0;
         complaintFoodTray = null;
         managerComplaintRetryUsed = false;
+        priceRejectionHandled = false;
+    }
+
+    private bool TryRejectCurrentOrderForPrice()
+    {
+        if (priceRejectionHandled || currentOrder == null ||
+            currentOrder.lines == null || currentOrder.lines.Count == 0)
+            return false;
+
+        float rejectionChance = MenuPriceValueService.GetOrderRejectionChance(
+            currentOrder.lines);
+        if (rejectionChance <= 0f || UnityEngine.Random.value >= rejectionChance)
+            return false;
+
+        priceRejectionHandled = true;
+        string message = GetRandomComment(priceRejectionComments);
+        if (string.IsNullOrWhiteSpace(message))
+            message = "That's too expensive!";
+        ShowCustomThought(message, unhappyFaceSprite);
+
+        currentOrder.Clear();
+        submittedOrder?.Clear();
+        isPlayerReviewingOrder = false;
+        isOrderPaused = false;
+        ClearOrderBubble();
+        ClearBillBubble();
+        ClearTableNumber();
+        ClearMoneyBubble();
+        ClearEatingBubble();
+        SetState(GroupState.UnhappyLeft);
+        StartLeaving(false);
+        return true;
     }
 
     private void GenerateSimpleBundleOrder()
@@ -1174,8 +1221,9 @@ public class CustomerGroup : MonoBehaviour
 
         List<Recipe> availableDrinks = catalog.GetProducts(MenuProductCategory.Drink);
         availableDrinks.RemoveAll(drinkProduct => !HasProductStock(drinkProduct));
+        bool restaurantServesDrinks = catalog.GetProducts(MenuProductCategory.Drink, false).Count > 0;
 
-        if (validMeals.Count == 0 || availableDrinks.Count == 0)
+        if (validMeals.Count == 0 || (restaurantServesDrinks && availableDrinks.Count == 0))
         {
             currentOrder.name = "No Food Available";
             currentOrder.quantity = 1;
@@ -1199,11 +1247,14 @@ public class CustomerGroup : MonoBehaviour
                 AddOrIncrementOrderLine(mealLines, meal);
                 allProducts.AddRange(meal.ResolveProducts(catalog));
 
-                Recipe drink = availableDrinks[UnityEngine.Random.Range(0, availableDrinks.Count)];
-                OrderLine drinkLine = new OrderLine();
-                drinkLine.SetProduct(drink);
-                AddOrIncrementOrderLine(drinkLines, drinkLine);
-                allProducts.Add(drink);
+                if (restaurantServesDrinks)
+                {
+                    Recipe drink = availableDrinks[UnityEngine.Random.Range(0, availableDrinks.Count)];
+                    OrderLine drinkLine = new OrderLine();
+                    drinkLine.SetProduct(drink);
+                    AddOrIncrementOrderLine(drinkLines, drinkLine);
+                    allProducts.Add(drink);
+                }
             }
 
             if (LobbyStockBridge.Instance != null &&

@@ -15,29 +15,42 @@ public static class MobileUILayoutRegressionTest
     [MenuItem("Tools/Dine In/Validate Mobile UI Scaling")]
     public static void Run()
     {
-        ValidateReferenceResolution(new Vector2(1920f, 1080f));
-        ValidateReferenceResolution(new Vector2(800f, 450f));
-        ValidateReferenceResolution(new Vector2(800f, 600f));
-        ValidatePersistentHudScaling("PlayerTaskHUD(Clone)");
-        ValidatePersistentHudScaling("CasualDiningProgressHUD(Clone)");
-        ValidatePersistentHudScaling("LobbyPauseMenu(Clone)");
-        ValidateManagementComputerScaling();
-        ValidateManagementComputerMobileAuthoring();
-        ValidateRealme8SizingEnvelope();
-        ValidateCashierLandscapeResponsiveness();
-        ValidateManagementLandscapeResponsiveness();
-        ValidateAuthoredNewGameMenuScene();
-        ValidateLoadingCanvasProtection();
-        ValidateDevConsoleAuthorizationBoundary();
-        ValidateInspectorEditableMobileUI();
-        ValidateSmoothScrollPolicy();
-        ValidateRestockContainerQuantityLifecycle();
-        ValidateRestockInteractionPrefabs();
-        ValidateCasualDiningFeedbackFeatures();
-        Debug.Log(
-            "[MobileUILayoutRegressionTest] PASS — authored canvas coordinates are preserved " +
-            "and Editor/build layout parity, first-load scrolling, persistent HUD sizing, " +
-            "and physical touch targets match the Android policy.");
+        GameSaveManager saveManager = GameSaveManager.Instance;
+        bool previouslySuppressedWrites = saveManager != null && saveManager.SuppressWritesForTests;
+        if (saveManager != null)
+            saveManager.SuppressWritesForTests = true;
+
+        try
+        {
+            ValidateReferenceResolution(new Vector2(1920f, 1080f));
+            ValidateReferenceResolution(new Vector2(800f, 450f));
+            ValidateReferenceResolution(new Vector2(800f, 600f));
+            ValidatePersistentHudScaling("PlayerTaskHUD(Clone)");
+            ValidatePersistentHudScaling("CasualDiningProgressHUD(Clone)");
+            ValidatePersistentHudScaling("LobbyPauseMenu(Clone)");
+            ValidateManagementComputerScaling();
+            ValidateManagementComputerMobileAuthoring();
+            ValidateRealme8SizingEnvelope();
+            ValidateCashierLandscapeResponsiveness();
+            ValidateManagementLandscapeResponsiveness();
+            ValidateAuthoredNewGameMenuScene();
+            ValidateLoadingCanvasProtection();
+            ValidateDevConsoleAuthorizationBoundary();
+            ValidateInspectorEditableMobileUI();
+            ValidateSmoothScrollPolicy();
+            ValidateRestockContainerQuantityLifecycle();
+            ValidateRestockInteractionPrefabs();
+            ValidateCasualDiningFeedbackFeatures();
+            Debug.Log(
+                "[MobileUILayoutRegressionTest] PASS — authored canvas coordinates are preserved " +
+                "and Editor/build layout parity, first-load scrolling, persistent HUD sizing, " +
+                "and physical touch targets match the Android policy.");
+        }
+        finally
+        {
+            if (saveManager != null)
+                saveManager.SuppressWritesForTests = previouslySuppressedWrites;
+        }
     }
 
     private static void ValidateInspectorEditableMobileUI()
@@ -440,6 +453,8 @@ public static class MobileUILayoutRegressionTest
     {
         ValidateApplicantLifecycleAndSoleHire();
         ValidateFinanceLedgerPersistence();
+        ValidateFinanceReportAndMenuPricing();
+        ValidateEconomyBalance();
 
         const string complaintSettingsPath =
             "Assets/_Project/Resources/ManagerComplaints/ManagerComplaintSettings.asset";
@@ -602,6 +617,12 @@ public static class MobileUILayoutRegressionTest
     private static void ValidateFinanceLedgerPersistence()
     {
         MoneyManager previous = MoneyManager.Instance;
+        GameSaveManager saveManager = GameSaveManager.Instance;
+#if UNITY_EDITOR
+        bool previouslySuppressedWrites = saveManager != null && saveManager.SuppressWritesForTests;
+        if (saveManager != null)
+            saveManager.SuppressWritesForTests = true;
+#endif
         GameObject sourceObject = new GameObject("Finance Ledger Regression Source");
         GameObject restoredObject = new GameObject("Finance Ledger Regression Restored");
         try
@@ -620,18 +641,166 @@ public static class MobileUILayoutRegressionTest
 
             GameSaveData save = new GameSaveData();
             source.FillSaveData(save);
+            save.financeHistory.Add(new DailyFinanceSummarySaveEntry
+            {
+                day = 4,
+                sales = 1800,
+                expenses = 700,
+                netProfit = 1100
+            });
             MoneyManager restored = restoredObject.AddComponent<MoneyManager>();
             restored.ApplySaveData(save);
             Assert(restored.Money == 600 &&
                    ContainsTransaction(restored.DailyTransactions, "Payroll", -225),
                 "Finance ledger did not survive save/load.");
+            Assert(restored.CompletedFinanceHistory.Count == 1 &&
+                   restored.CompletedFinanceHistory[0].day == 4 &&
+                   restored.CompletedFinanceHistory[0].netProfit == 1100,
+                "Completed Finance history did not survive save/load.");
+            restored.ResetFinanceHistory();
+            Assert(restored.CompletedFinanceHistory.Count == 0 &&
+                   restored.DailyTransactions.Count == 0,
+                "Starting a new run did not clear the previous run's Finance history.");
         }
         finally
         {
+#if UNITY_EDITOR
+            if (saveManager != null)
+                saveManager.SuppressWritesForTests = previouslySuppressedWrites;
+#endif
             MoneyManager.Instance = previous;
             UnityEngine.Object.DestroyImmediate(sourceObject);
             UnityEngine.Object.DestroyImmediate(restoredObject);
             MoneyManager.Instance = previous;
+        }
+    }
+
+    private static void ValidateFinanceReportAndMenuPricing()
+    {
+        List<MoneyTransactionSaveEntry> ledger = new List<MoneyTransactionSaveEntry>
+        {
+            new MoneyTransactionSaveEntry { day = 12, amountDelta = 17600, description = "Daily Earnings" },
+            new MoneyTransactionSaveEntry { day = 12, amountDelta = 850, description = "Tips / Bonuses" },
+            new MoneyTransactionSaveEntry { day = 12, amountDelta = -3120, description = "Restock delivery order" },
+            new MoneyTransactionSaveEntry { day = 12, amountDelta = -2660, description = "Payroll" },
+            new MoneyTransactionSaveEntry { day = 12, amountDelta = -500, description = "Customer Refund" },
+            new MoneyTransactionSaveEntry { day = 12, amountDelta = -1000, description = "Equipment purchase" }
+        };
+        FinanceDayReport report = FinanceReportCalculator.BuildDay(12, ledger, 0, 123753);
+        Assert(report.TotalRevenue == 18450 && report.TotalExpenses == 7280 &&
+               report.NetProfit == 11170 && report.cashBalance == 123753,
+            "Finance TODAY values no longer match the real categorized ledger.");
+        Assert(report.ingredientRestock == 3120 && report.staffPayroll == 2660 &&
+               report.refunds == 500 && report.otherCosts == 1000,
+            "Finance receipt categories no longer separate restock, payroll, refunds and other costs.");
+
+        FinanceDayReport liveReport = FinanceReportCalculator.BuildDay(
+            12,
+            new List<MoneyTransactionSaveEntry>
+            {
+                new MoneyTransactionSaveEntry
+                    { day = 12, amountDelta = 900, description = "Customer payment" },
+                new MoneyTransactionSaveEntry
+                    { day = 12, amountDelta = -120, description = "Restock delivery order" }
+            },
+            2660,
+            5000,
+            includePaidPayroll: false);
+        Assert(liveReport.staffPayroll == 0 && liveReport.TotalExpenses == 120,
+            "Live Finance is counting scheduled payroll before it is paid.");
+
+        float normal = MenuPriceValueService.GetRejectionChanceForRatio(0.95f);
+        float slight = MenuPriceValueService.GetRejectionChanceForRatio(1.1f);
+        float clear = MenuPriceValueService.GetRejectionChanceForRatio(1.8f);
+        float extreme = MenuPriceValueService.GetRejectionChanceForRatio(4f);
+        Assert(normal == 0f && slight > 0f && slight < clear && clear < extreme && extreme >= 0.9f,
+            "Menu price rejection is no longer gradual from normal to extreme pricing.");
+
+        ItemData cheapIngredient = ScriptableObject.CreateInstance<ItemData>();
+        ItemData costlyIngredient = ScriptableObject.CreateInstance<ItemData>();
+        Recipe simpleRecipe = ScriptableObject.CreateInstance<Recipe>();
+        Recipe costlyRecipe = ScriptableObject.CreateInstance<Recipe>();
+        try
+        {
+            cheapIngredient.unitsPerBox = 10;
+            cheapIngredient.boxCost = 100;
+            costlyIngredient.unitsPerBox = 10;
+            costlyIngredient.boxCost = 300;
+            simpleRecipe.sellPrice = 50;
+            simpleRecipe.ingredients = new List<RecipeIngredient>
+            {
+                new RecipeIngredient { item = cheapIngredient, amount = 1 }
+            };
+            costlyRecipe.sellPrice = 50;
+            costlyRecipe.ingredients = new List<RecipeIngredient>
+            {
+                new RecipeIngredient { item = costlyIngredient, amount = 2 }
+            };
+            MenuPriceGuidance simple = MenuPriceValueService.GetGuidance(simpleRecipe);
+            MenuPriceGuidance costly = MenuPriceValueService.GetGuidance(costlyRecipe);
+            Assert(simple.CostPerServing < costly.CostPerServing &&
+                   simple.RecommendedMaximum < costly.RecommendedMaximum,
+                "Recommended menu pricing no longer responds to each recipe's ingredient cost.");
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(simpleRecipe);
+            UnityEngine.Object.DestroyImmediate(costlyRecipe);
+            UnityEngine.Object.DestroyImmediate(cheapIngredient);
+            UnityEngine.Object.DestroyImmediate(costlyIngredient);
+        }
+    }
+
+    private static void ValidateEconomyBalance()
+    {
+        ItemData buns = AssetDatabase.LoadAssetAtPath<ItemData>(
+            "Assets/_Project/Office/Inventory/Buns.asset");
+        ItemData patty = AssetDatabase.LoadAssetAtPath<ItemData>(
+            "Assets/_Project/Office/Inventory/Patty.asset");
+        ItemData chicken = AssetDatabase.LoadAssetAtPath<ItemData>(
+            "Assets/_Project/Office/Inventory/Drumstick.asset");
+        ItemData coke = AssetDatabase.LoadAssetAtPath<ItemData>(
+            "Assets/_Project/Office/Inventory/Coke.asset");
+        ItemData fries = AssetDatabase.LoadAssetAtPath<ItemData>(
+            "Assets/_Project/Office/Inventory/French Fry Bag.asset");
+        Assert(buns != null && patty != null && chicken != null && coke != null && fries != null,
+            "Balanced ingredient assets are missing.");
+        Assert(patty.CostPerUnit > buns.CostPerUnit &&
+               chicken.CostPerUnit > coke.CostPerUnit &&
+               patty.CostPerUnit > fries.CostPerUnit,
+            "Ingredient costs no longer preserve sensible per-serving value tiers.");
+
+        UnityEngine.Random.State previousRandom = UnityEngine.Random.state;
+        GameObject generatorObject = new GameObject("Salary Band Regression Generator");
+        try
+        {
+            UnityEngine.Random.InitState(7319);
+            EmployeeGenerator generator = generatorObject.AddComponent<EmployeeGenerator>();
+            generator.GenerateEmployees();
+            Assert(generator.employees.Count > 0,
+                "Employee generation produced no applicants for salary validation.");
+
+            foreach (RestaurantSalaryTier tier in Enum.GetValues(typeof(RestaurantSalaryTier)))
+            {
+                SalaryConfig.GetRange(tier, out int minimum, out int maximum);
+                int lowest = int.MaxValue;
+                int highest = int.MinValue;
+                foreach (EmployeeData employee in generator.employees)
+                {
+                    int salary = SalaryConfig.GetSalaryForTier(employee, tier);
+                    Assert(salary >= minimum && salary <= maximum,
+                        $"Generated {tier} salary ₱{salary} is outside ₱{minimum}–₱{maximum}.");
+                    lowest = Mathf.Min(lowest, salary);
+                    highest = Mathf.Max(highest, salary);
+                }
+                Assert(highest > lowest,
+                    $"Generated {tier} salaries no longer respond to employee quality.");
+            }
+        }
+        finally
+        {
+            UnityEngine.Random.state = previousRandom;
+            UnityEngine.Object.DestroyImmediate(generatorObject);
         }
     }
 

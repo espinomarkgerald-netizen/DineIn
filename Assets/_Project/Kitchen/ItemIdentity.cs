@@ -8,7 +8,15 @@ public enum ItemTypeKitchen {
     Fries,
     Coke,
     Pineapple,
-    IcedTea
+    IcedTea,
+
+    // Restaurant-specific products are appended for serialized compatibility.
+    RoastedChicken,
+    TomatoSoup,
+    PorkChop,
+    GarlicButterShrimp,
+    FriedSalmon,
+    CaesarSalad
 }
 
 public class ItemIdentity : MonoBehaviour {

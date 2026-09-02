@@ -108,12 +108,7 @@ public class EmployeeData
         if (useManualSalary)
             return manualSalary;
 
-        int baseSalary = config.GetBaseSalary(role);
-        int starValue = stars * config.salaryPerStar;
-
-        float total = (baseSalary + starValue) * performanceMultiplier + bonusFlat;
-
-        return Mathf.RoundToInt(total);
+        return config != null ? config.GetSalary(this) : 0;
     }
 
     public string GetPrimaryPro()

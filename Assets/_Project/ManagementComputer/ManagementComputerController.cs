@@ -47,6 +47,11 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
     [SerializeField] private ManagementComputerCatalogUIConfig catalogUIConfig;
     [SerializeField] private ManagementComputerResponsiveLayout responsiveLayout;
 
+    [Header("Management Typography")]
+    [SerializeField] private TMP_FontAsset displayFont;
+    [SerializeField] private TMP_FontAsset readableFont;
+    [SerializeField] private TMP_FontAsset readableBoldFont;
+
     [Header("Objectives Presentation (Editable)")]
     [SerializeField] private Sprite mandatoryObjectiveIcon;
     [SerializeField] private Sprite secondaryObjectiveIcon;
@@ -118,13 +123,26 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         hrPanelPrefab = configuredHRPanelPrefab;
     }
 
+    public void ConfigureTypography(
+        TMP_FontAsset configuredDisplayFont,
+        TMP_FontAsset configuredReadableFont,
+        TMP_FontAsset configuredReadableBoldFont)
+    {
+        displayFont = configuredDisplayFont;
+        readableFont = configuredReadableFont;
+        readableBoldFont = configuredReadableBoldFont;
+    }
+
     private void Awake()
     {
         ResolveResponsiveLayout();
         ResolveStaffNotificationBadge();
         WireButtons();
         if (appWindow != null)
+        {
             appWindow.Initialize(CloseApp);
+            appWindow.SetTypography(displayFont, readableFont, readableBoldFont);
+        }
 
         if (desktopRoot != null)
             desktopRoot.SetActive(false);
@@ -732,6 +750,11 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
             case ManagementComputerApp.Objectives: PopulateObjectives(); break;
         }
 
+        // Menu and Restock contain the dense, phone-readable information that
+        // uses Atkinson. Staff and Equipment retain their already-approved type.
+        if (app == ManagementComputerApp.Menu || app == ManagementComputerApp.Restock)
+            ApplyReadableTypography(appWindow.Content);
+
         appWindow.RefreshContentLayout();
         responsiveLayout?.RefreshDynamicContent();
         RebuildComputerLayoutNow();
@@ -1019,92 +1042,37 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
     {
         DailyFinanceBridge bridge = DailyFinanceBridge.Instance;
         EmployeeManager employees = EmployeeManager.Instance;
-        int payroll = employees != null && employees.salaryConfig != null ? employees.CalculateTotalPayroll() : 0;
-        int earnedToday = bridge != null ? bridge.EarnedToday : 0;
-        int paidOperatingExpenses = 0;
-        int paidPayroll = 0;
-        bool payrollPaid = false;
-        List<MoneyTransactionSaveEntry> expenseEntries = new List<MoneyTransactionSaveEntry>();
+        int payroll = employees != null && employees.salaryConfig != null
+            ? employees.CalculateTotalPayroll()
+            : bridge != null ? bridge.EmployeeCostToday : 0;
+        MoneyManager money = MoneyManager.Instance;
+        FinanceDayReport report = FinanceReportCalculator.BuildDay(
+            CurrentDay,
+            money != null ? money.DailyTransactions : null,
+            payroll,
+            money != null ? money.Money : 0,
+            bridge != null ? bridge.EarnedToday : 0,
+            bridge != null ? bridge.IngredientCostToday : 0,
+            includePaidPayroll: false);
 
-        IReadOnlyList<MoneyTransactionSaveEntry> transactions = MoneyManager.Instance != null
-            ? MoneyManager.Instance.DailyTransactions
+        GameObject panelObject = new GameObject(
+            "Management Finance Panel",
+            typeof(RectTransform));
+        panelObject.layer = appWindow.Content.gameObject.layer;
+        panelObject.transform.SetParent(appWindow.Content, false);
+        ManagementFinancePanelUI panel = panelObject.AddComponent<ManagementFinancePanelUI>();
+        Image styleImage = rowPrefab != null ? rowPrefab.GetComponent<Image>() : null;
+        TMP_Text styleText = rowPrefab != null
+            ? rowPrefab.GetComponentInChildren<TMP_Text>(true)
             : null;
-        if (transactions != null)
-        {
-            for (int i = 0; i < transactions.Count; i++)
-            {
-                MoneyTransactionSaveEntry transaction = transactions[i];
-                if (transaction == null || transaction.day != CurrentDay ||
-                    transaction.adjustment || transaction.amountDelta >= 0)
-                    continue;
-
-                if (string.Equals(transaction.description, "Payroll", StringComparison.OrdinalIgnoreCase))
-                {
-                    payrollPaid = true;
-                    paidPayroll += -transaction.amountDelta;
-                }
-                else
-                {
-                    paidOperatingExpenses += -transaction.amountDelta;
-                    expenseEntries.Add(transaction);
-                }
-            }
-        }
-
-        int pendingPayroll = payrollPaid ? 0 : payroll;
-        int totalExpenses = paidOperatingExpenses + paidPayroll + pendingPayroll;
-        int projectedNet = earnedToday - totalExpenses;
-
-        AddFinanceRow(
-            "DAILY FINANCE STATEMENT",
-            "DAY " + CurrentDay + "  •  RESTAURANT OPERATIONS REPORT",
-            string.Empty,
-            FinanceRowKind.Header);
-        AddFinanceRow("AVAILABLE CASH", "Available for restocking and equipment",
-            MoneyText, FinanceRowKind.Balance);
-
-        AddFinanceRow("REVENUE", string.Empty, string.Empty, FinanceRowKind.Section);
-        AddFinanceRow("Customer payments", "Completed sales received today",
-            "+₱" + earnedToday, FinanceRowKind.Income);
-
-        AddFinanceRow("EXPENSES", string.Empty, string.Empty, FinanceRowKind.Section);
-        AddFinanceRow("Operating expenses", "Restock, equipment, penalties and other deductions",
-            "-₱" + paidOperatingExpenses, FinanceRowKind.Expense);
-        AddFinanceRow(
-            payrollPaid ? "Payroll paid" : "Scheduled payroll",
-            payrollPaid
-                ? "Automatically deducted during end-of-day settlement"
-                : "Will be deducted automatically at the end of the day",
-            "-₱" + (payrollPaid ? paidPayroll : payroll),
-            FinanceRowKind.Expense);
-
-        if (expenseEntries.Count == 0)
-        {
-            AddFinanceRow("Other deductions", "No other deductions recorded today",
-                "₱0", FinanceRowKind.Detail);
-        }
-        else
-        {
-            for (int i = expenseEntries.Count - 1, shown = 0; i >= 0 && shown < 12; i--, shown++)
-            {
-                MoneyTransactionSaveEntry expense = expenseEntries[i];
-                AddFinanceRow(
-                    string.IsNullOrWhiteSpace(expense.description) ? "Expense" : expense.description,
-                    "Paid today",
-                    "-₱" + Mathf.Abs(expense.amountDelta),
-                    FinanceRowKind.Detail);
-            }
-        }
-
-        AddFinanceRow("SUMMARY", string.Empty, string.Empty, FinanceRowKind.Section);
-        AddFinanceRow("Total expenses", "Operating costs, payroll and other deductions",
-            "-₱" + totalExpenses, FinanceRowKind.Total);
-        AddFinanceRow("Projected net", "Revenue minus all expenses for today",
-            (projectedNet >= 0 ? "+₱" : "-₱") + Mathf.Abs(projectedNet),
-            projectedNet >= 0 ? FinanceRowKind.NetPositive : FinanceRowKind.NetNegative);
-
-        appWindow.SetMessage(
-            "Payroll is automatic. Expense details show actual wallet deductions for the current day only.");
+        panel.Initialize(
+            styleImage != null ? styleImage.sprite : null,
+            displayFont != null ? displayFont : styleText != null ? styleText.font : null,
+            readableFont != null ? readableFont : styleText != null ? styleText.font : null,
+            readableBoldFont,
+            report,
+            money != null ? money.CompletedFinanceHistory : null);
+        appWindow.SetMessage(string.Empty);
     }
 
     private void PopulateObjectives()
@@ -1638,7 +1606,8 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
     {
         return app == ManagementComputerApp.Staff ||
                app == ManagementComputerApp.Menu ||
-               app == ManagementComputerApp.Restock;
+               app == ManagementComputerApp.Restock ||
+               app == ManagementComputerApp.Finances;
     }
 
     private void PopulateAgain(ManagementComputerApp app)
@@ -1649,6 +1618,22 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         OpenApp((int)app);
         appWindow?.RestoreVerticalNormalizedPositionNextFrame(scrollPosition);
         RefreshStatusBar();
+    }
+
+    private void ApplyReadableTypography(Transform root)
+    {
+        if (root == null || readableFont == null)
+            return;
+
+        TMP_Text[] labels = root.GetComponentsInChildren<TMP_Text>(true);
+        for (int i = 0; i < labels.Length; i++)
+        {
+            TMP_Text label = labels[i];
+            if (label == null)
+                continue;
+            bool bold = (label.fontStyle & FontStyles.Bold) != 0;
+            label.font = bold && readableBoldFont != null ? readableBoldFont : readableFont;
+        }
     }
 
     private ManagementComputerCatalogUIConfig GetCatalogUIConfig()

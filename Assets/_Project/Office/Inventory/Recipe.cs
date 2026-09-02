@@ -21,6 +21,8 @@ public class Recipe : ScriptableObject
     [Tooltip("Stable unique ID used by orders and save data. Never reuse an ID for a different product.")]
     public string recipeID;
     public string recipeName;
+    [Tooltip("Restaurant catalog this menu product belongs to.")]
+    public RestaurantType restaurantType = RestaurantType.FastFood;
     public MenuProductCategory category = MenuProductCategory.Food;
     [Tooltip("Disabling this removes the product from customer orders, the notepad, and kitchen menu pools.")]
     public bool availableOnMenu = true;

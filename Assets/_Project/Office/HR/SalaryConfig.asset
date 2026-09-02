@@ -30,3 +30,4 @@ MonoBehaviour:
   - role: 8
     baseSalary: 120
   salaryPerStar: 50
+  restaurantTier: 1

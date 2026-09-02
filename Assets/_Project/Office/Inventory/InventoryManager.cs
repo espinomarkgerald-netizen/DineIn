@@ -26,6 +26,9 @@ public class InventoryManager : MonoBehaviour
         {
             Instance = this;
             DontDestroyOnLoad(gameObject);
+            MenuCatalog activeCatalog = MenuCatalog.Default;
+            if (activeCatalog != null && activeCatalog.Ingredients.Count > 0)
+                items = new List<ItemData>(activeCatalog.Ingredients);
             InitializeInventory();
         }
         else

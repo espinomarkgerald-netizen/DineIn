@@ -14,6 +14,8 @@ public class MoneyManager : MonoBehaviour
     [SerializeField] private List<string> transactionLog = new List<string>();
     [SerializeField] private List<MoneyTransactionSaveEntry> dailyTransactions =
         new List<MoneyTransactionSaveEntry>();
+    [SerializeField] private List<DailyFinanceSummarySaveEntry> completedFinanceHistory =
+        new List<DailyFinanceSummarySaveEntry>();
 
     public event Action<int> OnMoneyChanged;
 
@@ -132,6 +134,52 @@ public class MoneyManager : MonoBehaviour
 
     public IReadOnlyList<string> TransactionLog => transactionLog;
     public IReadOnlyList<MoneyTransactionSaveEntry> DailyTransactions => dailyTransactions;
+    public IReadOnlyList<DailyFinanceSummarySaveEntry> CompletedFinanceHistory =>
+        completedFinanceHistory;
+
+    public void RecordCompletedFinanceDay(int day)
+    {
+        if (day <= 0)
+            return;
+
+        DailyFinanceBridge bridge = DailyFinanceBridge.Instance;
+        FinanceDayReport report = FinanceReportCalculator.BuildDay(
+            day,
+            dailyTransactions,
+            0,
+            Money,
+            bridge != null ? bridge.EarnedToday : 0,
+            bridge != null ? bridge.IngredientCostToday : 0);
+        DailyFinanceSummarySaveEntry summary = FinanceReportCalculator.ToSummary(report);
+        UpsertFinanceSummary(summary);
+    }
+
+    private void UpsertFinanceSummary(DailyFinanceSummarySaveEntry summary)
+    {
+        if (summary == null || summary.day <= 0)
+            return;
+        completedFinanceHistory ??= new List<DailyFinanceSummarySaveEntry>();
+        int index = completedFinanceHistory.FindIndex(entry =>
+            entry != null && entry.day == summary.day);
+        DailyFinanceSummarySaveEntry copy = new DailyFinanceSummarySaveEntry
+        {
+            day = summary.day,
+            sales = Mathf.Max(0, summary.sales),
+            expenses = Mathf.Max(0, summary.expenses),
+            netProfit = summary.netProfit
+        };
+        if (index >= 0)
+            completedFinanceHistory[index] = copy;
+        else
+            completedFinanceHistory.Add(copy);
+
+        completedFinanceHistory.Sort((left, right) => left.day.CompareTo(right.day));
+        const int retainedDays = 90;
+        if (completedFinanceHistory.Count > retainedDays)
+            completedFinanceHistory.RemoveRange(
+                0,
+                completedFinanceHistory.Count - retainedDays);
+    }
 
     private void NotifyMoneyChanged()
     {
@@ -211,6 +259,13 @@ public class MoneyManager : MonoBehaviour
         SetMoney(startingMoney, "Bankruptcy Reset");
     }
 
+    public void ResetFinanceHistory()
+    {
+        transactionLog?.Clear();
+        dailyTransactions?.Clear();
+        completedFinanceHistory?.Clear();
+    }
+
     public void FillSaveData(GameSaveData data)
     {
         if (data == null)
@@ -231,6 +286,23 @@ public class MoneyManager : MonoBehaviour
                 description = entry.description,
                 adjustment = entry.adjustment
             });
+        }
+        data.financeHistory ??= new List<DailyFinanceSummarySaveEntry>();
+        data.financeHistory.Clear();
+        if (completedFinanceHistory != null)
+        {
+            foreach (DailyFinanceSummarySaveEntry entry in completedFinanceHistory)
+            {
+                if (entry == null)
+                    continue;
+                data.financeHistory.Add(new DailyFinanceSummarySaveEntry
+                {
+                    day = entry.day,
+                    sales = entry.sales,
+                    expenses = entry.expenses,
+                    netProfit = entry.netProfit
+                });
+            }
         }
         Debug.Log("[MoneyManager] FillSaveData saved money = " + Money);
     }
@@ -256,6 +328,46 @@ public class MoneyManager : MonoBehaviour
                     adjustment = entry.adjustment
                 });
             }
+        }
+        completedFinanceHistory ??= new List<DailyFinanceSummarySaveEntry>();
+        completedFinanceHistory.Clear();
+        if (data.financeHistory != null)
+        {
+            foreach (DailyFinanceSummarySaveEntry entry in data.financeHistory)
+                UpsertFinanceSummary(entry);
+        }
+
+        // Older saves already contain the source transaction ledger. Rebuild
+        // recent completed days once rather than discarding that history.
+        if (completedFinanceHistory.Count == 0 && dailyTransactions.Count > 0)
+        {
+            HashSet<int> days = new HashSet<int>();
+            foreach (MoneyTransactionSaveEntry entry in dailyTransactions)
+            {
+                if (entry != null && entry.day > 0 && entry.day < data.currentDay)
+                    days.Add(entry.day);
+            }
+            foreach (int day in days)
+            {
+                FinanceDayReport report = FinanceReportCalculator.BuildDay(
+                    day,
+                    dailyTransactions,
+                    0,
+                    Money);
+                UpsertFinanceSummary(FinanceReportCalculator.ToSummary(report));
+            }
+        }
+        if (completedFinanceHistory.Count == 0 && data.lastDailyRestaurantSnapshot != null)
+        {
+            DailyRestaurantSnapshotSaveData snapshot = data.lastDailyRestaurantSnapshot;
+            UpsertFinanceSummary(new DailyFinanceSummarySaveEntry
+            {
+                day = snapshot.day,
+                sales = Mathf.Max(0, snapshot.revenue),
+                expenses = Mathf.Max(0,
+                    snapshot.ingredientCost + snapshot.employeeCost + snapshot.otherCosts),
+                netProfit = snapshot.profit
+            });
         }
         Debug.Log("[MoneyManager] ApplySaveData loaded money = " + Money);
         NotifyMoneyChanged();

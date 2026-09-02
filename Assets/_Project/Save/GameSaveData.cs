@@ -132,6 +132,15 @@ public class DailyRestaurantSnapshotSaveData
 }
 
 [Serializable]
+public class DailyFinanceSummarySaveEntry
+{
+    public int day;
+    public int sales;
+    public int expenses;
+    public int netProfit;
+}
+
+[Serializable]
 public class NewspaperTemplateUseSaveEntry
 {
     public string section;
@@ -188,6 +197,8 @@ public class GameSaveData
     public int approval = 50;
     public List<MoneyTransactionSaveEntry> moneyTransactions =
         new List<MoneyTransactionSaveEntry>();
+    public List<DailyFinanceSummarySaveEntry> financeHistory =
+        new List<DailyFinanceSummarySaveEntry>();
 
     public List<string> unlockedRecipeIDs = new List<string>();
     public List<string> unlockedEquipmentIDs = new List<string>();

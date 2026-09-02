@@ -20,6 +20,8 @@ public class ItemData : ScriptableObject
     [Tooltip("Stable ID used by restock orders and saves. Leave empty only for legacy items; the ItemType name is used as a fallback.")]
     public string itemID;
     public ItemType itemType;
+    [Tooltip("Restaurant catalog this ingredient belongs to.")]
+    public RestaurantType restaurantType = RestaurantType.FastFood;
 
     [Header("Name")]
     public string displayName;

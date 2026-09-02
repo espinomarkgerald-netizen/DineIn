@@ -1,6 +1,14 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
+
+public enum RestaurantType
+{
+    FastFood,
+    CasualDining,
+    FineDining
+}
 
 [Serializable]
 public class MenuBundle
@@ -65,30 +73,92 @@ public class MenuCatalog : ScriptableObject
 {
     private const string ResourcesPath = "MenuCatalog";
 
+    [Header("Restaurant")]
+    [SerializeField] private RestaurantType restaurantType = RestaurantType.FastFood;
+    [Tooltip("Scene names that use this catalog. An explicit restaurant selection can override this mapping.")]
+    [SerializeField] private List<string> sceneNames = new List<string>();
+
+    [Header("Catalog")]
     [SerializeField] private List<Recipe> products = new List<Recipe>();
     [SerializeField] private List<MenuBundle> foodBundles = new List<MenuBundle>();
+    [SerializeField] private List<ItemData> ingredients = new List<ItemData>();
 
     private static MenuCatalog cachedDefault;
+    private static string cachedSceneName;
+    private static bool hasRestaurantOverride;
+    private static RestaurantType restaurantOverride;
     private Dictionary<string, Recipe> byId;
     private Dictionary<string, Recipe> byDisplayName;
 
+    public RestaurantType RestaurantType => restaurantType;
     public IReadOnlyList<Recipe> Products => products;
     public IReadOnlyList<MenuBundle> FoodBundles => foodBundles;
+    public IReadOnlyList<ItemData> Ingredients => ingredients;
 
     public static MenuCatalog Default
     {
         get
         {
-            if (cachedDefault == null)
-                cachedDefault = Resources.Load<MenuCatalog>(ResourcesPath);
+            string sceneName = SceneManager.GetActiveScene().name;
+            if (cachedDefault == null ||
+                (!hasRestaurantOverride && !string.Equals(cachedSceneName, sceneName, StringComparison.Ordinal)))
+            {
+                cachedDefault = ResolveActiveCatalog(sceneName);
+                cachedSceneName = sceneName;
+            }
 
             return cachedDefault;
         }
     }
 
+    public static void SetActiveRestaurantType(RestaurantType type)
+    {
+        restaurantOverride = type;
+        hasRestaurantOverride = true;
+        ClearCachedDefault();
+    }
+
+    public static void ClearActiveRestaurantOverride()
+    {
+        hasRestaurantOverride = false;
+        ClearCachedDefault();
+    }
+
     public static void ClearCachedDefault()
     {
         cachedDefault = null;
+        cachedSceneName = null;
+    }
+
+    private static MenuCatalog ResolveActiveCatalog(string sceneName)
+    {
+        MenuCatalog[] catalogs = Resources.LoadAll<MenuCatalog>(string.Empty);
+        if (hasRestaurantOverride)
+        {
+            for (int i = 0; i < catalogs.Length; i++)
+                if (catalogs[i] != null && catalogs[i].restaurantType == restaurantOverride)
+                    return catalogs[i];
+        }
+        else if (!string.IsNullOrWhiteSpace(sceneName))
+        {
+            for (int i = 0; i < catalogs.Length; i++)
+                if (catalogs[i] != null && catalogs[i].MatchesScene(sceneName))
+                    return catalogs[i];
+        }
+
+        return Resources.Load<MenuCatalog>(ResourcesPath);
+    }
+
+    private bool MatchesScene(string sceneName)
+    {
+        if (sceneNames == null || string.IsNullOrWhiteSpace(sceneName))
+            return false;
+
+        for (int i = 0; i < sceneNames.Count; i++)
+            if (string.Equals(sceneNames[i]?.Trim(), sceneName, StringComparison.OrdinalIgnoreCase))
+                return true;
+
+        return false;
     }
 
     public Recipe FindProduct(string idOrDisplayName)
@@ -314,6 +384,22 @@ public class MenuCatalog : ScriptableObject
                 Debug.LogError($"[MenuCatalog] Product '{product.name}' is missing a stable ID.", this);
             else if (!ids.Add(product.ProductId))
                 Debug.LogError($"[MenuCatalog] Duplicate product ID '{product.ProductId}'.", this);
+
+            if (product.restaurantType != restaurantType)
+                Debug.LogError($"[MenuCatalog] Product '{product.name}' belongs to {product.restaurantType}, not {restaurantType}.", this);
+        }
+
+        HashSet<string> ingredientIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        for (int i = 0; i < ingredients.Count; i++)
+        {
+            ItemData ingredient = ingredients[i];
+            if (ingredient == null)
+                continue;
+
+            if (!ingredientIds.Add(ingredient.StableItemId))
+                Debug.LogError($"[MenuCatalog] Duplicate ingredient ID '{ingredient.StableItemId}'.", this);
+            if (ingredient.restaurantType != restaurantType)
+                Debug.LogError($"[MenuCatalog] Ingredient '{ingredient.name}' belongs to {ingredient.restaurantType}, not {restaurantType}.", this);
         }
     }
 }

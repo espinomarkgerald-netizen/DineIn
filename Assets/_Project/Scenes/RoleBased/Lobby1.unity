@@ -20573,6 +20573,9 @@ MonoBehaviour:
   hrPanelPrefab: {fileID: 8721124776717305892, guid: a7fa65f93f7d4014fa2e8ebad2bb289a, type: 3}
   catalogUIConfig: {fileID: 0}
   responsiveLayout: {fileID: 0}
+  displayFont: {fileID: 11400000, guid: f21ac8ed5118a3e4ba1da956ec12a91f, type: 2}
+  readableFont: {fileID: 11400000, guid: 78f97b0e3ca0e3d4295c4602ecbb0baa, type: 2}
+  readableBoldFont: {fileID: 11400000, guid: eb59d6c9fc048674fbacb266c62dd77c, type: 2}
   mandatoryObjectiveIcon: {fileID: 21300000, guid: 1030174c15bb787488fc9e6badfcd81a, type: 3}
   secondaryObjectiveIcon: {fileID: 21300000, guid: c06915c328c3710429cdbea73baf345c, type: 3}
   bonusObjectiveIcon: {fileID: 21300000, guid: afbddaad0e7a22846b5cd70515b18224, type: 3}

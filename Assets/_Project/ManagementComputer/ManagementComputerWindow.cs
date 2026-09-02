@@ -81,6 +81,19 @@ public sealed class ManagementComputerWindow : MonoBehaviour
         }
     }
 
+    public void SetTypography(
+        TMP_FontAsset displayFont,
+        TMP_FontAsset readableFont,
+        TMP_FontAsset readableBoldFont)
+    {
+        if (titleText != null && displayFont != null)
+            titleText.font = displayFont;
+        if (messageText != null && readableFont != null)
+            messageText.font = readableFont;
+        if (footerLabel != null)
+            footerLabel.font = readableBoldFont != null ? readableBoldFont : readableFont;
+    }
+
     public void Open(string windowTitle)
     {
         gameObject.SetActive(true);

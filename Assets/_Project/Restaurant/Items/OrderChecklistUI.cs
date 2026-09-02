@@ -668,6 +668,9 @@ public class OrderChecklistUI : MonoBehaviour
         List<MenuBundle> bundles = catalog.GetFoodBundles(false);
         List<Recipe> drinks = catalog.GetProducts(MenuProductCategory.Drink, false);
 
+        if (drinkTabButton != null)
+            drinkTabButton.gameObject.SetActive(drinks.Count > 0);
+
         for (int i = 0; i < foods.Count; i++)
             CreateProductEntry(foodContentRoot, foods[i]);
 
@@ -689,6 +692,8 @@ public class OrderChecklistUI : MonoBehaviour
             foodScrollRect.verticalNormalizedPosition = 1f;
         if (drinkScrollRect != null)
             drinkScrollRect.verticalNormalizedPosition = 1f;
+
+        ShowFoodTab();
     }
 
     private void CreateProductEntry(RectTransform parent, Recipe product)
@@ -1474,7 +1479,9 @@ public class OrderChecklistUI : MonoBehaviour
             return false;
         }
 
-        if (drinkCount != expectedMeals)
+        bool restaurantServesDrinks =
+            catalog.GetProducts(MenuProductCategory.Drink, false).Count > 0;
+        if (restaurantServesDrinks && drinkCount != expectedMeals)
         {
             ShowWarning($"Select exactly {expectedMeals} drink{(expectedMeals == 1 ? string.Empty : "s")} for this group.");
             return false;

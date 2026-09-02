@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1e5d1a0d830632446bbf9c3cce255d59, type: 3}
+  m_Name: Roasted Chicken
+  m_EditorClassIdentifier:
+  recipeID: casual-roasted-chicken
+  recipeName: Roasted Chicken
+  restaurantType: 1
+  category: 0
+  availableOnMenu: 1
+  menuSortOrder: 1
+  kitchenItemType: 7
+  sprite: {fileID: 21300000, guid: 4dd2c34e92d3ff549898be38dc5c6945, type: 3}
+  servingPrefab: {fileID: 0}
+  dayToUnlock: 1
+  ingredients:
+  - item: {fileID: 11400000, guid: cd100000000000000000000000000001, type: 2}
+    amount: 1
+  - item: {fileID: 11400000, guid: cd100000000000000000000000000009, type: 2}
+    amount: 1
+  - item: {fileID: 11400000, guid: cd100000000000000000000000000003, type: 2}
+    amount: 1
+  - item: {fileID: 11400000, guid: cd100000000000000000000000000006, type: 2}
+    amount: 1
+  sellPrice: 245
+  descriptionText: Whole chicken roasted with garlic, oil, and seasoning.

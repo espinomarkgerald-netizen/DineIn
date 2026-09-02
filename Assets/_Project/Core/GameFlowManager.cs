@@ -52,6 +52,7 @@ public class GameFlowManager : MonoBehaviour
     [SerializeField] private DayHalf currentDayHalf = DayHalf.Morning;
     [SerializeField] private bool lobbyCompleted;
     [SerializeField] private bool kitchenCompleted;
+    private int financeSettledDay = -1;
 
     [Header("UI")]
     [SerializeField] private TMP_Text dayText;
@@ -169,6 +170,7 @@ public class GameFlowManager : MonoBehaviour
 
     public void StartNewDay()
     {
+        financeSettledDay = -1;
         if (useSingleRestaurantFlow)
         {
             if (campaignCompleted)
@@ -327,7 +329,9 @@ public class GameFlowManager : MonoBehaviour
         kitchenCompleted = false;
         campaignCompleted = false;
         restaurantSessionState = RestaurantSessionState.None;
+        financeSettledDay = -1;
 
+        MoneyManager.Instance?.ResetFinanceHistory();
         MoneyManager.Instance?.ResetToStartingMoney();
         AlienApprovalManager.Instance?.ResetApproval();
         DailyObjectiveManager.Instance?.ResetForNewRun();
@@ -387,6 +391,16 @@ public class GameFlowManager : MonoBehaviour
 
     public void EndOfDayFinance()
     {
+        // The legacy kitchen flow reaches this once when the timer ends and once
+        // again when the report is confirmed. Settle expenses only once, while
+        // still refreshing the saved summary with any orders completed meanwhile.
+        if (financeSettledDay == currentDay)
+        {
+            MoneyManager.Instance?.RecordCompletedFinanceDay(currentDay);
+            return;
+        }
+
+        financeSettledDay = currentDay;
         if (EmployeeManager.Instance != null)
         {
             int payroll = EmployeeManager.Instance.CalculateTotalPayroll();
@@ -395,6 +409,7 @@ public class GameFlowManager : MonoBehaviour
 
         FinanceManager.Instance?.DeductAllExpenses();
         FinanceManager.Instance?.PrintDailyReport();
+        MoneyManager.Instance?.RecordCompletedFinanceDay(currentDay);
     }
 
     public void EvaluateEndOfDay()
@@ -714,6 +729,7 @@ public class GameFlowManager : MonoBehaviour
 
     private void PrepareRestaurantDay()
     {
+        financeSettledDay = -1;
         currentDay = Mathf.Clamp(currentDay, 1, campaignDayLimit);
         currentPhase = GamePhase.Restaurant;
         currentDayHalf = DayHalf.None;
