@@ -3056,10 +3056,15 @@ MonoBehaviour:
   groupSpawner: {fileID: 597439887}
   suppressAutomaticSpawningDuringOpening: 1
   restoreAutomaticSpawningAfterOpening: 1
-  startAutomatically: 1
+  allowCustomerSpawning: 0
+  allowStaffSpawning: 0
+  startAutomatically: 0
+  currentStepIndex: 13
   steps:
   - id: welcome
+    phase: 0
     speaker: Big Boss
+    objective: Learn the restaurant controls
     message: Welcome to Dine In!
     portrait: {fileID: 21300000, guid: c6ec8f164086386409335a7aa7a53270, type: 3}
     stepType: 0
@@ -3068,6 +3073,7 @@ MonoBehaviour:
     highlightTarget: {fileID: 0}
     restrictUnrelatedInteractions: 1
   - id: controls_introduction
+    phase: 0
     speaker: Big Boss
     message: Before we open the restaurant, let me show you the basic controls.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
@@ -3077,6 +3083,7 @@ MonoBehaviour:
     highlightTarget: {fileID: 0}
     restrictUnrelatedInteractions: 1
   - id: pan_instruction
+    phase: 0
     speaker: Big Boss
     message: Swipe across the screen to move the camera around the restaurant.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
@@ -3086,6 +3093,7 @@ MonoBehaviour:
     highlightTarget: {fileID: 0}
     restrictUnrelatedInteractions: 1
   - id: pan_practice
+    phase: 0
     speaker: Big Boss
     message: 
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
@@ -3095,61 +3103,540 @@ MonoBehaviour:
     highlightTarget: {fileID: 0}
     restrictUnrelatedInteractions: 1
   - id: pan_success
+    phase: 0
     speaker: Big Boss
     message: Great job! You can use that anytime to look around your restaurant.
     portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
-    stepType: 0
+    stepType: 2
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
     restrictUnrelatedInteractions: 1
   - id: interaction_introduction
+    phase: 0
     speaker: Big Boss
-    message: Now let's try interacting with something. Just tap an object you want
-      to use.
+    message: 'Tap the highlighted booth once to interact with it.'
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
-    highlightTarget: {fileID: 0}
+    highlightTarget: {fileID: 1398435356}
     restrictUnrelatedInteractions: 1
   - id: tap_practice
+    phase: 0
     speaker: Big Boss
     message: 
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 12
     hintMode: 2
-    highlightTarget: {fileID: 569230126}
+    highlightTarget: {fileID: 1398435356}
     restrictUnrelatedInteractions: 1
   - id: tap_success
+    phase: 0
     speaker: Big Boss
     message: Nice! You're picking it up quickly.
     portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
-    stepType: 0
+    stepType: 2
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
     restrictUnrelatedInteractions: 1
-  - id: interaction_summary
+  - id: hud_introduction
+    phase: 1
     speaker: Big Boss
-    message: You'll use tapping to interact with customers, tables, equipment, and
-      other important objects.
-    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
-    stepType: 0
-    requiredAction: 0
-    hintMode: 0
-    highlightTarget: {fileID: 0}
-    restrictUnrelatedInteractions: 1
-  - id: first_customer
-    speaker: Big Boss
-    message: Now let's help your first customer.
+    message: 'Before customers arrive, let us look at your restaurant controls.'
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
     restrictUnrelatedInteractions: 0
+    uiTargetKey: ''
+    isPlaceholder: 0
+  - id: hud_alien_approval
+    phase: 1
+    speaker: Big Boss
+    message: 'This is your Alien Approval.'
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    restrictUnrelatedInteractions: 0
+    uiTargetKey: AlienApproval
+    isPlaceholder: 0
+  - id: hud_money
+    phase: 1
+    speaker: Big Boss
+    message: 'This shows how much you earned today.'
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    restrictUnrelatedInteractions: 1
+    uiTargetKey: TodaySales
+    objective: Learn the sales display
+    isPlaceholder: 0
+  - id: hud_money_target
+    phase: 1
+    speaker: Big Boss
+    message: 'The amount after the slash is today''s sales target.'
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    restrictUnrelatedInteractions: 1
+    uiTargetKey: TodaySalesValue
+    isPlaceholder: 0
+  - id: hud_money_progress
+    phase: 1
+    speaker: Big Boss
+    message: 'This bar fills as your sales get closer to the target.'
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    restrictUnrelatedInteractions: 1
+    uiTargetKey: TodaySalesTrack
+    isPlaceholder: 0
+  - id: hud_neutral_angry
+    phase: 1
+    speaker: Big Boss
+    message: 'This tracks neutral customer results today.'
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    restrictUnrelatedInteractions: 1
+    uiTargetKey: 'Neutral'
+    actionKey: ''
+    objective: 'Learn the restaurant controls'
+    isPlaceholder: 0
+  - id: hud_angry
+    phase: 1
+    speaker: Big Boss
+    message: 'This tracks angry customer results today.'
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    restrictUnrelatedInteractions: 1
+    uiTargetKey: 'Angry'
+    actionKey: ''
+    objective: ''
+    isPlaceholder: 0
+  - id: hud_live_customer_panel
+    phase: 1
+    speaker: Big Boss
+    message: 'This is your Live Customer Panel.'
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    restrictUnrelatedInteractions: 1
+    uiTargetKey: 'LivePanel'
+    actionKey: ''
+    objective: ''
+    isPlaceholder: 0
+  - id: hud_live_counts
+    phase: 1
+    speaker: Big Boss
+    message: 'These counts track groups during service.'
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    restrictUnrelatedInteractions: 1
+    uiTargetKey: 'LiveCounts'
+    actionKey: ''
+    objective: ''
+    isPlaceholder: 0
+  - id: hud_newspaper
+    phase: 1
+    speaker: Big Boss
+    message: 'Open the newspaper to read the latest issue.'
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 1
+    requiredAction: 0
+    hintMode: 2
+    highlightTarget: {fileID: 0}
+    restrictUnrelatedInteractions: 1
+    uiTargetKey: 'NewspaperButton'
+    actionKey: 'Newspaper.Open'
+    objective: ''
+    isPlaceholder: 0
+  - id: hud_newspaper_success
+    phase: 1
+    speaker: Big Boss
+    message: 'Good! You opened the newspaper.'
+    portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
+    stepType: 2
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    restrictUnrelatedInteractions: 1
+    uiTargetKey: ''
+    actionKey: ''
+    objective: ''
+    isPlaceholder: 0
+  - id: hud_newspaper_read
+    phase: 1
+    speaker: Big Boss
+    message: 'Each issue reports your restaurant''s recent results.'
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    restrictUnrelatedInteractions: 1
+    uiTargetKey: ''
+    actionKey: ''
+    objective: ''
+    isPlaceholder: 0
+  - id: hud_newspaper_close
+    phase: 1
+    speaker: Big Boss
+    message: 'Tap X to close the newspaper.'
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 1
+    requiredAction: 0
+    hintMode: 2
+    highlightTarget: {fileID: 0}
+    restrictUnrelatedInteractions: 1
+    uiTargetKey: 'NewspaperClose'
+    actionKey: 'Newspaper.Close'
+    objective: ''
+    isPlaceholder: 0
+  - id: hud_newspaper_closed
+    phase: 1
+    speaker: Big Boss
+    message: 'Great! Let us check your tasks next.'
+    portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
+    stepType: 2
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    restrictUnrelatedInteractions: 1
+    uiTargetKey: ''
+    actionKey: ''
+    objective: ''
+    isPlaceholder: 0
+  - id: hud_task_button
+    phase: 1
+    speaker: Big Boss
+    message: 'Tap Task to see your current objective.'
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 1
+    requiredAction: 0
+    hintMode: 2
+    highlightTarget: {fileID: 0}
+    restrictUnrelatedInteractions: 1
+    uiTargetKey: 'TaskButton'
+    actionKey: 'Task.Open'
+    objective: ''
+    isPlaceholder: 0
+  - id: hud_task_message
+    phase: 1
+    speaker: Big Boss
+    message: 'Your current objective appears here.'
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    restrictUnrelatedInteractions: 1
+    uiTargetKey: 'TaskMessage'
+    actionKey: ''
+    objective: ''
+    isPlaceholder: 0
+  - id: hud_task_success
+    phase: 1
+    speaker: Big Boss
+    message: 'Check Task whenever you need a reminder.'
+    portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
+    stepType: 2
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    restrictUnrelatedInteractions: 1
+    uiTargetKey: ''
+    actionKey: ''
+    objective: ''
+    isPlaceholder: 0
+  - id: hud_camera_button
+    phase: 1
+    speaker: Big Boss
+    message: 'Tap Camera to return the view to your manager.'
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 1
+    requiredAction: 0
+    hintMode: 2
+    highlightTarget: {fileID: 0}
+    restrictUnrelatedInteractions: 1
+    uiTargetKey: 'CameraButton'
+    actionKey: 'Camera.Focus'
+    objective: ''
+    isPlaceholder: 0
+  - id: hud_camera_success
+    phase: 1
+    speaker: Big Boss
+    message: 'Perfect! That brings your manager back into view.'
+    portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
+    stepType: 2
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    restrictUnrelatedInteractions: 1
+    uiTargetKey: ''
+    actionKey: ''
+    objective: ''
+    isPlaceholder: 0
+  - id: hud_computer_button
+    phase: 1
+    speaker: Big Boss
+    message: 'Tap Computer. Your manager will walk there.'
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 1
+    requiredAction: 0
+    hintMode: 2
+    highlightTarget: {fileID: 0}
+    restrictUnrelatedInteractions: 1
+    uiTargetKey: 'ComputerButton'
+    actionKey: 'Computer.Open'
+    objective: 'Open the Management Computer'
+    isPlaceholder: 0
+  - id: hud_computer_success
+    phase: 1
+    speaker: Big Boss
+    message: 'You are at the Management Computer.'
+    portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
+    stepType: 2
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    restrictUnrelatedInteractions: 1
+    uiTargetKey: ''
+    actionKey: ''
+    objective: ''
+    isPlaceholder: 0
+  - id: management_dashboard_open
+    phase: 2
+    speaker: Big Boss
+    message: 'Open Dashboard for a restaurant overview.'
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 1
+    requiredAction: 0
+    hintMode: 2
+    highlightTarget: {fileID: 0}
+    restrictUnrelatedInteractions: 1
+    uiTargetKey: 'DashboardButton'
+    actionKey: 'Management.Dashboard'
+    objective: 'Explore the Management Dashboard'
+    isPlaceholder: 0
+  - id: management_dashboard
+    phase: 2
+    speaker: Big Boss
+    message: 'Dashboard shows your restaurant''s current status.'
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    restrictUnrelatedInteractions: 1
+    uiTargetKey: 'ManagementOverview'
+    actionKey: ''
+    objective: ''
+    isPlaceholder: 0
+  - id: management_dashboard_success
+    phase: 2
+    speaker: Big Boss
+    message: 'Good! Next we will prepare your staff.'
+    portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
+    stepType: 2
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    restrictUnrelatedInteractions: 1
+    uiTargetKey: ''
+    actionKey: ''
+    objective: ''
+    isPlaceholder: 0
+  - id: management_staff
+    phase: 2
+    speaker: Big Boss
+    message: 'TODO Tutorial: Management Staff lesson'
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    restrictUnrelatedInteractions: 0
+    uiTargetKey: ''
+    isPlaceholder: 1
+  - id: management_menu
+    phase: 2
+    speaker: Big Boss
+    message: 'TODO Tutorial: Management Menu lesson'
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    restrictUnrelatedInteractions: 0
+    uiTargetKey: ''
+    isPlaceholder: 1
+  - id: management_equipment
+    phase: 2
+    speaker: Big Boss
+    message: 'TODO Tutorial: Management Equipment lesson'
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    restrictUnrelatedInteractions: 0
+    uiTargetKey: ''
+    isPlaceholder: 1
+  - id: management_finance
+    phase: 2
+    speaker: Big Boss
+    message: 'TODO Tutorial: Management Finance lesson'
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    restrictUnrelatedInteractions: 0
+    uiTargetKey: ''
+    isPlaceholder: 1
+  - id: management_objectives
+    phase: 2
+    speaker: Big Boss
+    message: 'TODO Tutorial: Management Objectives lesson'
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    restrictUnrelatedInteractions: 0
+    uiTargetKey: ''
+    isPlaceholder: 1
+  - id: management_restock
+    phase: 2
+    speaker: Big Boss
+    message: 'TODO Tutorial: Restock checkout lesson (Management always ends here)'
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    restrictUnrelatedInteractions: 0
+    uiTargetKey: ''
+    isPlaceholder: 1
+  - id: physical_restocking
+    phase: 3
+    speaker: Big Boss
+    message: 'TODO Tutorial: Truck delivery lesson, then individual storage lessons'
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    restrictUnrelatedInteractions: 0
+    uiTargetKey: ''
+    isPlaceholder: 1
+  - id: return_to_computer
+    phase: 4
+    speaker: Big Boss
+    message: 'TODO Tutorial: Return to Computer and Start Shift lessons'
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    restrictUnrelatedInteractions: 0
+    uiTargetKey: ''
+    isPlaceholder: 1
+  - id: staff_receptionist
+    phase: 5
+    speaker: Big Boss
+    message: 'TODO Tutorial: Receptionist lesson'
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    restrictUnrelatedInteractions: 0
+    uiTargetKey: ''
+    isPlaceholder: 1
+  - id: staff_waiter
+    phase: 5
+    speaker: Big Boss
+    message: 'TODO Tutorial: Waiter lesson'
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    restrictUnrelatedInteractions: 0
+    uiTargetKey: ''
+    isPlaceholder: 1
+  - id: staff_busser
+    phase: 5
+    speaker: Big Boss
+    message: 'TODO Tutorial: Busser lesson'
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    restrictUnrelatedInteractions: 0
+    uiTargetKey: ''
+    isPlaceholder: 1
+  - id: staff_cashier
+    phase: 5
+    speaker: Big Boss
+    message: 'TODO Tutorial: Cashier lesson'
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    restrictUnrelatedInteractions: 0
+    uiTargetKey: ''
+    isPlaceholder: 1
+  - id: normal_gameplay
+    phase: 6
+    speaker: Big Boss
+    message: 'TODO Tutorial: Complete the real customer lifecycle and release gameplay'
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    restrictUnrelatedInteractions: 0
+    uiTargetKey: ''
+    isPlaceholder: 1
+  - id: completed
+    phase: 7
+    speaker: Big Boss
+    message: 'TODO Tutorial: Local completion, persistence in a later pass'
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    restrictUnrelatedInteractions: 0
+    uiTargetKey: ''
+    isPlaceholder: 1
 --- !u!4 &208201888
 Transform:
   m_ObjectHideFlags: 0
@@ -5314,7 +5801,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 118, y: 118}
+  m_SizeDelta: {x: 168, y: 168}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!225 &307386370
 CanvasGroup:
@@ -5381,14 +5868,20 @@ MonoBehaviour:
   handRect: {fileID: 307386369}
   handImage: {fileID: 307386371}
   canvasGroup: {fileID: 307386370}
+  handOpenSprite: {fileID: 21300000, guid: 856cb8c6539684149bb009ed987202c4, type: 3}
+  handClickSprite: {fileID: 21300000, guid: f8e5cded8043f6f4bb77eb55fda14a48, type: 3}
   targetCanvas: {fileID: 1113496783}
   worldCamera: {fileID: 863227610}
+  swipeCycleSeconds: 2.1
+  swipeTravelCanvasFraction: 0.22
+  swipePressHoldFraction: 0.12
+  swipeDragEndFraction: 0.76
+  tapCycleSeconds: 1.15
+  tapOffset: {x: 30, y: -30}
+  tapPressDownAmount: 14
+  handDisplaySize: 168
   swipeSprite: {fileID: 21300000, guid: 856cb8c6539684149bb009ed987202c4, type: 3}
   tapSprite: {fileID: 21300000, guid: f8e5cded8043f6f4bb77eb55fda14a48, type: 3}
-  swipeCycleSeconds: 1.45
-  tapCycleSeconds: 0.9
-  swipeTravelCanvasFraction: 0.13
-  tapOffset: {x: 30, y: -24}
 --- !u!1 &309941077
 GameObject:
   m_ObjectHideFlags: 0
@@ -18267,9 +18760,9 @@ MonoBehaviour:
   m_fontSize: 30
   m_fontSizeBase: 30
   m_fontWeight: 400
-  m_enableAutoSizing: 0
+  m_enableAutoSizing: 1
   m_fontSizeMin: 18
-  m_fontSizeMax: 72
+  m_fontSizeMax: 30
   m_fontStyle: 0
   m_HorizontalAlignment: 2
   m_VerticalAlignment: 512

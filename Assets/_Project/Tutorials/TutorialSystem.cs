@@ -6,10 +6,17 @@ public sealed class TutorialSystem : MonoBehaviour
 {
     public const string TutorialCompletedSaveKey = "TutorialCompleted";
 
+    public enum TutorialPhase
+    {
+        BasicControls, HUDTour, Management, PhysicalRestocking,
+        ReturnToComputer, StaffRoles, NormalGameplay, Completed
+    }
+
     public enum TutorialStepType
     {
         ManualContinue,
-        WaitForGameplayAction
+        WaitForGameplayAction,
+        Success
     }
 
     public enum TutorialAction
@@ -40,6 +47,7 @@ public sealed class TutorialSystem : MonoBehaviour
     public sealed class TutorialStep
     {
         [SerializeField] private string id;
+        [SerializeField] private TutorialPhase phase;
         [SerializeField] private string speaker = "Big Boss";
         [SerializeField, TextArea(2, 5)] private string message;
         [SerializeField] private Sprite portrait;
@@ -48,8 +56,17 @@ public sealed class TutorialSystem : MonoBehaviour
         [SerializeField] private TutorialHintMode hintMode = TutorialHintMode.None;
         [SerializeField] private Transform highlightTarget;
         [SerializeField] private bool restrictUnrelatedInteractions;
+        [SerializeField] private RectTransform uiFocusTarget;
+        [Tooltip("Optional scene-local binding for UI created at runtime (e.g. AlienApproval).")]
+        [SerializeField] private string uiTargetKey;
+        [SerializeField] private string actionKey;
+        [SerializeField] private UnityEngine.Object requiredContext;
+        [SerializeField] private string objective;
+        [Tooltip("Stops here until this lesson is implemented. Never auto-completes gameplay.")]
+        [SerializeField] private bool isPlaceholder;
 
         public string Id => id;
+        public TutorialPhase Phase => phase;
         public string Speaker => speaker;
         public string Message => message;
         public Sprite Portrait => portrait;
@@ -58,17 +75,26 @@ public sealed class TutorialSystem : MonoBehaviour
         public TutorialHintMode HintMode => hintMode;
         public Transform HighlightTarget => highlightTarget;
         public bool RestrictUnrelatedInteractions => restrictUnrelatedInteractions;
+        public RectTransform UIFocusTarget => uiFocusTarget;
+        public string UITargetKey => uiTargetKey;
+        public string ActionKey => actionKey;
+        public UnityEngine.Object RequiredContext => requiredContext;
+        public string Objective => objective;
+        public bool IsPlaceholder => isPlaceholder;
     }
 
     public static TutorialSystem Instance { get; private set; }
     public static bool IsTutorialMode =>
         Instance != null && Instance.isActiveAndEnabled && Instance.gameObject.activeInHierarchy;
-    public static bool TutorialCompleted => PlayerPrefs.GetInt(TutorialCompletedSaveKey, 0) != 0;
+    // TODO Tutorial: persist completion through the real save flow in a later pass.
+    public static bool TutorialCompleted => Instance != null && Instance.tutorialCompleted;
 
     [Header("Tutorial UI")]
     [SerializeField] private TutorialDialogueUI dialogueUI;
     [SerializeField] private TutorialTargetIndicator targetIndicator;
     [SerializeField] private TutorialHandIndicator handIndicator;
+    [SerializeField] private TutorialUIFocusMask uiFocusMask;
+    [SerializeField] private TutorialSceneBindings sceneBindings;
 
     [Header("Gameplay Event Sources")]
     [SerializeField] private MainCameraController cameraController;
@@ -80,10 +106,21 @@ public sealed class TutorialSystem : MonoBehaviour
     [SerializeField] private bool restoreAutomaticSpawningAfterOpening = true;
     [SerializeField] private bool startAutomatically = true;
 
-    [Header("Opening Steps")]
+    [Header("Linear Steps (stop at the first TODO)")]
     [SerializeField] private TutorialStep[] steps = Array.Empty<TutorialStep>();
 
-    private int currentStepIndex = -1;
+    [Header("Runtime Tracking")]
+    [SerializeField] private TutorialPhase currentPhase;
+    [SerializeField] private int currentStepIndex = -1;
+    [SerializeField] private bool waitingForNext;
+    [SerializeField] private bool waitingForPlayerAction;
+    [SerializeField] private bool skeletonEndpointReached;
+    [SerializeField] private bool tutorialCompleted;
+    [SerializeField] private string currentObjective;
+    [SerializeField] private bool allowCustomerSpawning;
+    [SerializeField] private bool allowStaffSpawning;
+    private RectTransform currentUIFocus;
+    private TutorialUIActionAdapter uiActionAdapter;
     private bool openingComplete;
     private bool rememberedAutoSpawn;
     private bool spawnStateCaptured;
@@ -92,15 +129,26 @@ public sealed class TutorialSystem : MonoBehaviour
     public event Action<TutorialAction, UnityEngine.Object> GameplayActionReported;
     public event Action<bool> InteractionRestrictionChanged;
     public event Action OpeningSequenceCompleted;
+    public event Action<TutorialPhase> PhaseChanged;
+    public event Action<string> ObjectiveChanged;
+    public event Action SkeletonEndpointReached;
 
+    public TutorialPhase CurrentPhase => currentPhase;
+    public bool IsWaitingForNext => waitingForNext;
+    public bool IsSkeletonEndpointReached => skeletonEndpointReached;
+    public bool IsComplete => tutorialCompleted;
+    public bool AllowCustomerSpawning => allowCustomerSpawning;
+    public bool AllowStaffSpawning => allowStaffSpawning;
+    public string CurrentObjective => currentObjective;
     public int CurrentStepIndex => currentStepIndex;
     public TutorialStep CurrentStep =>
         steps != null && currentStepIndex >= 0 && currentStepIndex < steps.Length ? steps[currentStepIndex] : null;
     public int StepCount => steps != null ? steps.Length : 0;
     public bool IsOpeningComplete => openingComplete;
     public bool IsWaitingForGameplayAction =>
-        CurrentStep != null && CurrentStep.StepType == TutorialStepType.WaitForGameplayAction;
+        waitingForPlayerAction;
     public bool AreUnrelatedInteractionsRestricted =>
+        !skeletonEndpointReached && !tutorialCompleted && isActiveAndEnabled &&
         CurrentStep != null && CurrentStep.RestrictUnrelatedInteractions;
 
     private void Awake()
@@ -132,6 +180,15 @@ public sealed class TutorialSystem : MonoBehaviour
         if (groupSpawner == null)
             groupSpawner = FindFirstObjectByType<GroupSpawner>(FindObjectsInactive.Include);
 
+        if (sceneBindings == null)
+            sceneBindings = GetComponent<TutorialSceneBindings>();
+        if (sceneBindings == null)
+            sceneBindings = gameObject.AddComponent<TutorialSceneBindings>();
+        uiActionAdapter = GetComponent<TutorialUIActionAdapter>();
+        if (uiActionAdapter == null) uiActionAdapter = gameObject.AddComponent<TutorialUIActionAdapter>();
+        if (uiFocusMask == null && dialogueUI != null)
+            uiFocusMask = TutorialUIFocusMask.Create(dialogueUI.transform.parent);
+
         SubscribeToGameplayEvents();
         CaptureAndSuppressAutomaticSpawning();
     }
@@ -140,6 +197,8 @@ public sealed class TutorialSystem : MonoBehaviour
     {
         if (startAutomatically)
             StartTutorial();
+        else if (CurrentStep != null)
+            ShowCurrentStep(); // Rebind an inspector-selected step after dialogue Awake.
     }
 
     private void OnDestroy()
@@ -152,12 +211,32 @@ public sealed class TutorialSystem : MonoBehaviour
         RestoreAutomaticSpawning();
     }
 
+    private void OnDisable()
+    {
+        ClearGuidance();
+        PlayerTaskGuidance.ClearTask("Lobby1Tutorial");
+        waitingForNext = waitingForPlayerAction = false;
+        InteractionRestrictionChanged?.Invoke(false);
+    }
+
+    private void OnEnable()
+    {
+        if (Instance == null) Instance = this;
+        SubscribeToGameplayEvents();
+        if (CurrentStep != null && !tutorialCompleted)
+            ShowCurrentStep();
+    }
+
     public void StartTutorial()
     {
         if (!IsTutorialMode)
             return;
 
         openingComplete = false;
+        tutorialCompleted = skeletonEndpointReached = false;
+        waitingForNext = waitingForPlayerAction = false;
+        allowCustomerSpawning = allowStaffSpawning = false;
+        SetObjective(string.Empty);
         currentStepIndex = -1;
         CaptureAndSuppressAutomaticSpawning();
         AdvanceToNextStep();
@@ -166,9 +245,14 @@ public sealed class TutorialSystem : MonoBehaviour
     public void AdvanceManualStep()
     {
         TutorialStep step = CurrentStep;
-        if (step == null || step.StepType != TutorialStepType.ManualContinue)
+        if (step == null || !waitingForNext)
             return;
 
+        if (step.StepType == TutorialStepType.WaitForGameplayAction)
+        {
+            BeginWaitingForAction();
+            return;
+        }
         AdvanceToNextStep();
     }
 
@@ -177,10 +261,10 @@ public sealed class TutorialSystem : MonoBehaviour
         GameplayActionReported?.Invoke(action, context);
 
         TutorialStep step = CurrentStep;
-        if (step == null || step.StepType != TutorialStepType.WaitForGameplayAction)
+        if (step == null || !waitingForPlayerAction || !string.IsNullOrEmpty(step.ActionKey))
             return false;
 
-        if (step.RequiredAction != action)
+        if (action == TutorialAction.None || step.RequiredAction != action || !ContextMatches(step, context))
             return false;
 
         if (action == TutorialAction.TableInteracted &&
@@ -191,6 +275,30 @@ public sealed class TutorialSystem : MonoBehaviour
         return true;
     }
 
+    // Tutorial-side adapters subscribe to REAL system events, then report their key here.
+    // A future Button.onClick relay can use this without changing its gameplay script.
+    public bool NotifyAction(string actionKey, UnityEngine.Object context = null)
+    {
+        TutorialStep step = CurrentStep;
+        if (!waitingForPlayerAction || step == null || string.IsNullOrEmpty(actionKey) ||
+            !string.Equals(step.ActionKey, actionKey, StringComparison.Ordinal) || !ContextMatches(step, context))
+            return false;
+        AdvanceToNextStep();
+        return true;
+    }
+
+    private static bool ContextMatches(TutorialStep step, UnityEngine.Object context)
+    {
+        if (step.RequiredContext == null) return true;
+        if (step.RequiredContext == context) return true;
+        Transform expected = ObjectTransform(step.RequiredContext);
+        Transform actual = ObjectTransform(context);
+        return TargetsMatch(expected, actual);
+    }
+
+    private static Transform ObjectTransform(UnityEngine.Object value) =>
+        value is GameObject go ? go.transform : value is Component component ? component.transform : null;
+
     public static bool ReportGameplayAction(TutorialAction action, UnityEngine.Object context = null)
     {
         return IsTutorialMode && Instance.NotifyGameplayAction(action, context);
@@ -198,12 +306,35 @@ public sealed class TutorialSystem : MonoBehaviour
 
     public static void MarkTutorialCompleted()
     {
-        PlayerPrefs.SetInt(TutorialCompletedSaveKey, 1);
-        PlayerPrefs.Save();
+        // Only the implemented final step may complete the tutorial; TODOs never do.
+        if (!IsTutorialMode || Instance.CurrentPhase != TutorialPhase.Completed ||
+            Instance.CurrentStep == null || Instance.CurrentStep.IsPlaceholder) return;
+        Instance.tutorialCompleted = true;
+        Instance.allowCustomerSpawning = Instance.allowStaffSpawning = true;
+        Instance.CompleteOpeningSequence();
+    }
+
+    public void SetObjective(string message)
+    {
+        currentObjective = message ?? string.Empty;
+        ObjectiveChanged?.Invoke(currentObjective);
+        PlayerTaskGuidance.SetTask("Lobby1Tutorial", "tutorial_objective", currentObjective,
+            string.Empty, 10000, null, PlayerTaskCategory.None);
+    }
+
+    public void SetSpawnPermissions(bool customers, bool staff)
+    {
+        allowCustomerSpawning = customers;
+        allowStaffSpawning = staff;
+        // TODO Tutorial: connect real spawners through tutorial-side adapters.
+        // Staff lesson -> (false, true); Start Shift -> controlled customer;
+        // completion -> normal spawning/autonomy. These flags alone do not spawn NPCs.
     }
 
     private void AdvanceToNextStep()
     {
+        ClearGuidance();
+        waitingForNext = waitingForPlayerAction = false;
         currentStepIndex++;
         if (currentStepIndex >= StepCount)
         {
@@ -223,36 +354,82 @@ public sealed class TutorialSystem : MonoBehaviour
             return;
         }
 
-        if (targetIndicator != null)
+        ClearGuidance();
+        waitingForNext = waitingForPlayerAction = false;
+        if (currentPhase != step.Phase)
         {
-            if (step.HintMode == TutorialHintMode.Tap && step.HighlightTarget != null)
-                targetIndicator.Show(step.HighlightTarget);
-            else
-                targetIndicator.Hide();
+            currentPhase = step.Phase;
+            PhaseChanged?.Invoke(currentPhase);
         }
-
-        if (handIndicator != null)
+        if (!string.IsNullOrEmpty(step.Objective)) SetObjective(step.Objective);
+        if (step.IsPlaceholder)
         {
-            if (step.HintMode == TutorialHintMode.Swipe)
-                handIndicator.ShowSwipeHint();
-            else if (step.HintMode == TutorialHintMode.Tap)
-                handIndicator.ShowTapHint(step.HighlightTarget);
-            else
-                handIndicator.HideHint();
+            skeletonEndpointReached = true;
+            openingComplete = true;
+            PlayerTaskGuidance.ClearTask("Lobby1Tutorial");
+            dialogueUI?.ShowWaiting(step.Speaker, "That's all for now.", step.Portrait);
+            InteractionRestrictionChanged?.Invoke(false);
+            StepChanged?.Invoke(currentStepIndex, step);
+            SkeletonEndpointReached?.Invoke();
+            return;
         }
-
-        if (dialogueUI != null)
+        skeletonEndpointReached = false;
+        currentUIFocus = step.UIFocusTarget != null ? step.UIFocusTarget : sceneBindings.ResolveUI(step.UITargetKey);
+        sceneBindings.BeginUIFocus(currentUIFocus);
+        if ((!string.IsNullOrEmpty(step.UITargetKey) || step.UIFocusTarget != null) && currentUIFocus == null)
         {
-            if (step.StepType == TutorialStepType.ManualContinue)
-                dialogueUI.ShowManual(step.Speaker, step.Message, step.Portrait, AdvanceManualStep);
-            else if (step.HintMode != TutorialHintMode.None)
-                dialogueUI.HideDialogue();
-            else
-                dialogueUI.ShowWaiting(step.Speaker, step.Message, step.Portrait);
+            Debug.LogError("[TutorialSystem] Missing UI target for step " + step.Id, this);
+            dialogueUI?.ShowWaiting(step.Speaker, "This lesson's target is unavailable.", step.Portrait);
+            return;
         }
-
+        if (step.Phase == TutorialPhase.Completed)
+        {
+            MarkTutorialCompleted();
+            return;
+        }
+        if (step.StepType == TutorialStepType.WaitForGameplayAction && string.IsNullOrEmpty(step.Message))
+            BeginWaitingForAction(); // Existing Basic Controls already has separate explanation steps.
+        else
+        {
+            ShowFocus(false);
+            waitingForNext = true;
+            dialogueUI?.ShowManual(step.Speaker, step.Message, step.Portrait, AdvanceManualStep);
+            dialogueUI?.SetFocusTarget(currentUIFocus);
+        }
         InteractionRestrictionChanged?.Invoke(step.RestrictUnrelatedInteractions);
         StepChanged?.Invoke(currentStepIndex, step);
+    }
+
+    public void BeginWaitingForAction()
+    {
+        TutorialStep step = CurrentStep;
+        if (step == null || step.IsPlaceholder || step.StepType != TutorialStepType.WaitForGameplayAction ||
+            (!waitingForNext && waitingForPlayerAction)) return;
+        waitingForNext = false;
+        waitingForPlayerAction = true;
+        dialogueUI?.HideDialogue();
+        ShowFocus(true);
+        if (step.HintMode == TutorialHintMode.Swipe) handIndicator?.ShowSwipeHint();
+        else if (step.HintMode == TutorialHintMode.Tap)
+            handIndicator?.ShowTapHint(currentUIFocus != null ? currentUIFocus : step.HighlightTarget);
+        uiActionAdapter?.Begin(this, currentUIFocus);
+    }
+
+    private void ShowFocus(bool allowTargetInput)
+    {
+        if (currentUIFocus != null) uiFocusMask?.Show(currentUIFocus, allowTargetInput);
+        else if (CurrentStep.HighlightTarget != null) targetIndicator?.Show(CurrentStep.HighlightTarget);
+    }
+
+    private void ClearGuidance()
+    {
+        dialogueUI?.SetFocusTarget(null);
+        uiActionAdapter?.StopWaiting();
+        if (sceneBindings != null) sceneBindings.EndUIFocus();
+        if (uiFocusMask != null) uiFocusMask.Hide();
+        if (targetIndicator != null) targetIndicator.Hide();
+        if (handIndicator != null) handIndicator.HideHint();
+        if (dialogueUI != null) dialogueUI.HideDialogue();
     }
 
     private void CompleteOpeningSequence()
@@ -270,7 +447,10 @@ public sealed class TutorialSystem : MonoBehaviour
             handIndicator.HideHint();
 
         InteractionRestrictionChanged?.Invoke(false);
-        RestoreAutomaticSpawning();
+        waitingForNext = waitingForPlayerAction = false;
+        uiFocusMask?.Hide();
+        // Reaching the end of a skeleton is not full tutorial completion.
+        if (tutorialCompleted) RestoreAutomaticSpawning();
         OpeningSequenceCompleted?.Invoke();
     }
 

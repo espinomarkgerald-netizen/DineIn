@@ -24,6 +24,9 @@ public class TutorialDialogueUI : MonoBehaviour
 
     private string currentFullMessage = string.Empty;
     private bool isTyping;
+    private RectTransform focusTarget;
+    private Vector3 portraitHome;
+    private readonly Vector3[] focusCorners = new Vector3[4];
 
     public bool IsVisible => root != null ? root.activeSelf : gameObject.activeSelf;
     public string Speaker => speakerText != null ? speakerText.text : string.Empty;
@@ -33,6 +36,32 @@ public class TutorialDialogueUI : MonoBehaviour
 
     private void Awake()
     {
+        // The tutorial dialogue stays above its focus mask, including its NEXT button.
+        // Only attach this layer for the scene-local TutorialSystem, not legacy tutorials.
+        if (FindFirstObjectByType<TutorialSystem>(FindObjectsInactive.Include) != null)
+        {
+            Canvas layer = GetComponent<Canvas>();
+            if (layer == null) layer = gameObject.AddComponent<Canvas>();
+            layer.overrideSorting = true;
+            layer.sortingOrder = 32761;
+            if (GetComponent<GraphicRaycaster>() == null) gameObject.AddComponent<GraphicRaycaster>();
+            // Reserve the space occupied by NEXT so longer lines cannot sit behind it.
+            if (bodyText != null && nextButton != null)
+            {
+                RectTransform body = bodyText.rectTransform;
+                ((RectTransform)nextButton.transform).GetWorldCorners(focusCorners);
+                float top = body.parent.InverseTransformPoint(focusCorners[0]).y - 4f;
+                float bottom = body.localPosition.y + body.rect.yMin;
+                if (top > bottom && top < body.localPosition.y + body.rect.yMax)
+                {
+                    body.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, top - bottom);
+                    Vector3 position = body.localPosition;
+                    position.y = bottom + (top - bottom) * body.pivot.y;
+                    body.localPosition = position;
+                }
+            }
+        }
+        if (portraitImage != null) portraitHome = portraitImage.rectTransform.localPosition;
         if (nextButton != null)
         {
             nextButton.onClick.RemoveAllListeners();
@@ -40,6 +69,41 @@ public class TutorialDialogueUI : MonoBehaviour
         }
 
         HideImmediate();
+    }
+
+    public void SetFocusTarget(RectTransform target) => focusTarget = target;
+
+    private void LateUpdate()
+    {
+        if (portraitImage == null) return;
+        RectTransform portrait = portraitImage.rectTransform;
+        portrait.localPosition = portraitHome;
+        if (focusTarget == null || !IsVisible) return;
+        // Keep the real HUD in its authored position. Move Big Boss to the
+        // opposite side only when his portrait would cover the focused UI.
+        if (ScreenBounds(portrait).Overlaps(ScreenBounds(focusTarget)))
+        {
+            RectTransform parent = portrait.parent as RectTransform;
+            Vector3 position = portraitHome;
+            position.x = 2f * (parent != null ? parent.rect.center.x : 0f) - position.x;
+            portrait.localPosition = position;
+        }
+    }
+
+    private Rect ScreenBounds(RectTransform rect)
+    {
+        Canvas canvas = rect.GetComponentInParent<Canvas>();
+        Camera camera = canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay ? canvas.worldCamera : null;
+        rect.GetWorldCorners(focusCorners);
+        Vector2 min = new Vector2(float.MaxValue, float.MaxValue);
+        Vector2 max = new Vector2(float.MinValue, float.MinValue);
+        foreach (Vector3 corner in focusCorners)
+        {
+            Vector2 screen = RectTransformUtility.WorldToScreenPoint(camera, corner);
+            min = Vector2.Min(min, screen);
+            max = Vector2.Max(max, screen);
+        }
+        return Rect.MinMaxRect(min.x, min.y, max.x, max.y);
     }
 
     public void ShowManual(string speaker, string message, Action onNext)

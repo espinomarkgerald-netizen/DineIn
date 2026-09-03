@@ -14,13 +14,18 @@ public sealed class TutorialTargetIndicator : MonoBehaviour
     [SerializeField] private float pulseSpeed = 5f;
 
     private Transform currentTarget;
+    private bool initialized;
 
     public Transform CurrentTarget => currentTarget;
     public bool IsVisible => indicatorRect != null && indicatorRect.gameObject.activeSelf &&
                              (canvasGroup == null || canvasGroup.alpha > 0.001f);
 
-    private void Awake()
+    private void Awake() => Initialize();
+
+    private void Initialize()
     {
+        if (initialized) return;
+        initialized = true;
         if (indicatorRect == null)
             indicatorRect = transform as RectTransform;
 
@@ -53,6 +58,7 @@ public sealed class TutorialTargetIndicator : MonoBehaviour
 
     public void Show(Transform target)
     {
+        Initialize();
         currentTarget = target;
 
         if (indicatorRect == null)
@@ -118,7 +124,7 @@ public sealed class TutorialTargetIndicator : MonoBehaviour
         if (cameraToUse == null)
             return;
 
-        Vector3 screenPoint = cameraToUse.WorldToScreenPoint(currentTarget.position);
+        Vector3 screenPoint = cameraToUse.WorldToScreenPoint(TutorialWorldTargetGeometry.Center(currentTarget));
         if (screenPoint.z < 0f)
         {
             if (canvasGroup != null)
@@ -137,5 +143,12 @@ public sealed class TutorialTargetIndicator : MonoBehaviour
             canvasRect, screenPoint, canvasCamera, out Vector2 canvasPoint);
         indicatorRect.anchoredPosition = canvasPoint;
         indicatorRect.sizeDelta = worldTargetSize;
+        if (TutorialWorldTargetGeometry.TryGetScreenRect(currentTarget, cameraToUse, out Rect screenRect))
+        {
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, screenRect.min, canvasCamera, out Vector2 min);
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, screenRect.max, canvasCamera, out Vector2 max);
+            indicatorRect.anchoredPosition = (min + max) * 0.5f;
+            indicatorRect.sizeDelta = max - min + uiPadding;
+        }
     }
 }
