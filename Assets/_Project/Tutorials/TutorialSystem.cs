@@ -62,6 +62,13 @@ public sealed class TutorialSystem : MonoBehaviour
         [SerializeField] private string actionKey;
         [SerializeField] private UnityEngine.Object requiredContext;
         [SerializeField] private string objective;
+
+        [Header("Completion Effects")]
+        [Tooltip("IMPORTANT: use this only on the FINAL Staff lesson step. Staff stay blocked until this step completes.")]
+        [SerializeField] private bool enableStaffSpawningOnComplete;
+        [Tooltip("Use later on the Start Shift / controlled customer milestone, not during early tutorial phases.")]
+        [SerializeField] private bool enableCustomerSpawningOnComplete;
+
         [Tooltip("Stops here until this lesson is implemented. Never auto-completes gameplay.")]
         [SerializeField] private bool isPlaceholder;
 
@@ -80,6 +87,8 @@ public sealed class TutorialSystem : MonoBehaviour
         public string ActionKey => actionKey;
         public UnityEngine.Object RequiredContext => requiredContext;
         public string Objective => objective;
+        public bool EnableStaffSpawningOnComplete => enableStaffSpawningOnComplete;
+        public bool EnableCustomerSpawningOnComplete => enableCustomerSpawningOnComplete;
         public bool IsPlaceholder => isPlaceholder;
     }
 
@@ -131,6 +140,8 @@ public sealed class TutorialSystem : MonoBehaviour
     public event Action OpeningSequenceCompleted;
     public event Action<TutorialPhase> PhaseChanged;
     public event Action<string> ObjectiveChanged;
+    public event Action<bool, bool> SpawnPermissionsChanged;
+    public event Action<TutorialStep> StepCompleted;
     public event Action SkeletonEndpointReached;
 
     public TutorialPhase CurrentPhase => currentPhase;
@@ -235,7 +246,7 @@ public sealed class TutorialSystem : MonoBehaviour
         openingComplete = false;
         tutorialCompleted = skeletonEndpointReached = false;
         waitingForNext = waitingForPlayerAction = false;
-        allowCustomerSpawning = allowStaffSpawning = false;
+        SetSpawnPermissions(false, false);
         SetObjective(string.Empty);
         currentStepIndex = -1;
         CaptureAndSuppressAutomaticSpawning();
@@ -253,7 +264,7 @@ public sealed class TutorialSystem : MonoBehaviour
             BeginWaitingForAction();
             return;
         }
-        AdvanceToNextStep();
+        CompleteCurrentStepAndAdvance();
     }
 
     public bool NotifyGameplayAction(TutorialAction action, UnityEngine.Object context = null)
@@ -271,7 +282,7 @@ public sealed class TutorialSystem : MonoBehaviour
             !TargetsMatch(step.HighlightTarget, context as Transform))
             return false;
 
-        AdvanceToNextStep();
+        CompleteCurrentStepAndAdvance();
         return true;
     }
 
@@ -283,7 +294,7 @@ public sealed class TutorialSystem : MonoBehaviour
         if (!waitingForPlayerAction || step == null || string.IsNullOrEmpty(actionKey) ||
             !string.Equals(step.ActionKey, actionKey, StringComparison.Ordinal) || !ContextMatches(step, context))
             return false;
-        AdvanceToNextStep();
+        CompleteCurrentStepAndAdvance();
         return true;
     }
 
@@ -310,7 +321,7 @@ public sealed class TutorialSystem : MonoBehaviour
         if (!IsTutorialMode || Instance.CurrentPhase != TutorialPhase.Completed ||
             Instance.CurrentStep == null || Instance.CurrentStep.IsPlaceholder) return;
         Instance.tutorialCompleted = true;
-        Instance.allowCustomerSpawning = Instance.allowStaffSpawning = true;
+        Instance.SetSpawnPermissions(true, true);
         Instance.CompleteOpeningSequence();
     }
 
@@ -324,11 +335,30 @@ public sealed class TutorialSystem : MonoBehaviour
 
     public void SetSpawnPermissions(bool customers, bool staff)
     {
+        if (allowCustomerSpawning == customers && allowStaffSpawning == staff)
+            return;
+
         allowCustomerSpawning = customers;
         allowStaffSpawning = staff;
-        // TODO Tutorial: connect real spawners through tutorial-side adapters.
-        // Staff lesson -> (false, true); Start Shift -> controlled customer;
-        // completion -> normal spawning/autonomy. These flags alone do not spawn NPCs.
+        SpawnPermissionsChanged?.Invoke(allowCustomerSpawning, allowStaffSpawning);
+
+        // IMPORTANT: TutorialSystem owns only permission state. Tutorial-only gates/adapters
+        // apply it to scene instances. Shared customer/staff gameplay scripts stay untouched.
+    }
+
+    private void CompleteCurrentStepAndAdvance()
+    {
+        TutorialStep completed = CurrentStep;
+        if (completed == null)
+            return;
+
+        bool customers = allowCustomerSpawning || completed.EnableCustomerSpawningOnComplete;
+        bool staff = allowStaffSpawning || completed.EnableStaffSpawningOnComplete;
+        if (customers != allowCustomerSpawning || staff != allowStaffSpawning)
+            SetSpawnPermissions(customers, staff);
+
+        StepCompleted?.Invoke(completed);
+        AdvanceToNextStep();
     }
 
     private void AdvanceToNextStep()
