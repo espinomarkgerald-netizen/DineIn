@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
@@ -11,6 +12,7 @@ public class MainCameraController : MonoBehaviour
     [SerializeField] private float panSmoothTime = 0.08f;
     [SerializeField] private bool requireRightMouseOnPC = true;
     [SerializeField] private bool blockPanOverUI = true;
+    [SerializeField, Min(1f)] private float panGestureThresholdPixels = 32f;
 
     [Header("Zoom (Orthographic Size)")]
     [SerializeField] private float zoomSmoothTime = 0.10f;
@@ -37,6 +39,11 @@ public class MainCameraController : MonoBehaviour
 
     private bool isDragging;
     private Vector2 lastPointerPos;
+    private Vector2 accumulatedPanPixels;
+    private float accumulatedPanDistance;
+    private bool panGestureReported;
+
+    public event Action<Vector2> CameraPanned;
 
     public Camera Cam => cam;
     public float NormalizedZoom => cam != null
@@ -134,6 +141,8 @@ public class MainCameraController : MonoBehaviour
         if (Input.touchCount >= 2)
         {
             isDragging = false;
+            accumulatedPanPixels = Vector2.zero;
+            accumulatedPanDistance = 0f;
             return;
         }
 
@@ -146,7 +155,7 @@ public class MainCameraController : MonoBehaviour
 
             if (t.phase == TouchPhase.Began)
             {
-                isDragging = true;
+                BeginPanGesture();
                 lastPointerPos = t.position;
             }
             else if (t.phase == TouchPhase.Moved && isDragging)
@@ -154,6 +163,7 @@ public class MainCameraController : MonoBehaviour
                 Vector2 delta = t.position - lastPointerPos;
                 lastPointerPos = t.position;
                 PanByScreenDelta(delta);
+                RecordPanGesture(delta);
             }
             else if (t.phase == TouchPhase.Ended || t.phase == TouchPhase.Canceled)
             {
@@ -172,7 +182,7 @@ public class MainCameraController : MonoBehaviour
             if (blockPanOverUI && EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
                 return;
 
-            isDragging = true;
+            BeginPanGesture();
             lastPointerPos = Input.mousePosition;
         }
         else if (dragHeld && isDragging)
@@ -181,11 +191,37 @@ public class MainCameraController : MonoBehaviour
             Vector2 delta = current - lastPointerPos;
             lastPointerPos = current;
             PanByScreenDelta(delta);
+            RecordPanGesture(delta);
         }
         else if (dragUp)
         {
             isDragging = false;
         }
+    }
+
+    private void BeginPanGesture()
+    {
+        isDragging = true;
+        accumulatedPanPixels = Vector2.zero;
+        accumulatedPanDistance = 0f;
+        panGestureReported = false;
+    }
+
+    private void RecordPanGesture(Vector2 screenDelta)
+    {
+        if (!isDragging || panGestureReported)
+            return;
+
+        accumulatedPanPixels += screenDelta;
+        accumulatedPanDistance += screenDelta.magnitude;
+        if (accumulatedPanDistance < panGestureThresholdPixels)
+            return;
+
+        panGestureReported = true;
+        Vector2 reportedMovement = accumulatedPanPixels.sqrMagnitude > 0.001f
+            ? accumulatedPanPixels
+            : screenDelta;
+        CameraPanned?.Invoke(reportedMovement);
     }
 
     private void PanByScreenDelta(Vector2 screenDelta)

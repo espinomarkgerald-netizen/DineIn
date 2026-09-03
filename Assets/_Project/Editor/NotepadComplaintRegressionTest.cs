@@ -107,7 +107,7 @@ public static class NotepadComplaintRegressionTest
                     break;
 
                 case Phase.WaitingForLayout:
-                    if (Elapsed >= 10d)
+                    if (Elapsed >= 2.5d)
                     {
                         ValidateNotepadLayout();
                         PrepareComplaintReplacement();
@@ -129,15 +129,7 @@ public static class NotepadComplaintRegressionTest
     {
         notepad = FindFirst<OrderChecklistUI>();
         Assert(notepad != null, "Lobby1 has no OrderChecklistUI.");
-        EnsureVisibleInGameView(notepad.transform);
         notepad.gameObject.SetActive(true);
-        notepad.transform.SetAsLastSibling();
-
-        Canvas previewCanvas = notepad.GetComponent<Canvas>();
-        if (previewCanvas == null)
-            previewCanvas = notepad.gameObject.AddComponent<Canvas>();
-        previewCanvas.overrideSorting = true;
-        previewCanvas.sortingOrder = short.MaxValue - 1;
 
         Invoke(notepad, "ResolveUIReferences");
         Invoke(notepad, "RefreshResponsiveLayout");
@@ -164,32 +156,6 @@ public static class NotepadComplaintRegressionTest
         LayoutRebuilder.ForceRebuildLayoutImmediate(requestedRoot);
         Canvas.ForceUpdateCanvases();
         SetPhase(Phase.WaitingForLayout);
-    }
-
-    private static void EnsureVisibleInGameView(Transform notepadTransform)
-    {
-        if (notepadTransform == null)
-            return;
-
-        Canvas canvas = notepadTransform.GetComponentInParent<Canvas>(true);
-        Transform current = notepadTransform;
-        while (current != null)
-        {
-            current.gameObject.SetActive(true);
-            CanvasGroup group = current.GetComponent<CanvasGroup>();
-            if (group != null)
-                group.alpha = 1f;
-
-            if (canvas != null && current == canvas.transform)
-                break;
-            current = current.parent;
-        }
-
-        if (canvas != null)
-        {
-            canvas.enabled = true;
-            canvas.targetDisplay = 0;
-        }
     }
 
     private static void ValidateNotepadLayout()

@@ -59,6 +59,7 @@ public class GroupSpawner : MonoBehaviour
     private MainCameraController cameraController;
 
     public bool TakeoutEnabled => takeoutEnabled;
+    public bool AutoSpawnEnabled => autoSpawn;
     public bool GreenEnabled => greenEnabled;
     public bool PinkEnabled => pinkEnabled;
     public bool BlueEnabled => blueEnabled;
@@ -120,6 +121,19 @@ public class GroupSpawner : MonoBehaviour
 
     /// <summary>Returns the number of groups spawned so far this shift.</summary>
     public int GroupsSpawnedThisShift => groupsSpawnedThisShift;
+
+    /// <summary>
+    /// Allows a scene-level flow controller (such as the tutorial) to pause and
+    /// restore automatic spawning without changing the normal spawn pipeline.
+    /// Manual SpawnGroup calls remain available for controlled sequences.
+    /// </summary>
+    public void SetAutoSpawn(bool enabled)
+    {
+        autoSpawn = enabled;
+
+        if (!enabled)
+            timer = 0f;
+    }
 
     /// <summary>Enables or disables the takeout spawn path at runtime.</summary>
     public void SetTakeoutEnabled(bool enabled) { takeoutEnabled = enabled; }
