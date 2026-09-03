@@ -19,6 +19,7 @@ public class OrderChecklistUI : MonoBehaviour
     [SerializeField] private TMP_Text customerMessageText;
     [SerializeField] private TMP_Text customerTypeText;
     [SerializeField] private Image customerImage;
+    [SerializeField] private RectTransform customerInformationRoot;
     [SerializeField] private RectTransform requestedIconsRoot;
     [SerializeField] private RectTransform availableItemsRoot;
 
@@ -84,6 +85,18 @@ public class OrderChecklistUI : MonoBehaviour
     [SerializeField] private Vector2 mobileRequestedIconsPosition = new Vector2(-610f, -145f);
     [SerializeField] private Vector2 mobileRequestedIconsSize = new Vector2(150f, 100f);
     [SerializeField, Range(0.5f, 1.25f)] private float mobileConfirmButtonScale = 0.78f;
+
+    [Header("Responsive Notepad Content")]
+    [SerializeField] private Vector2 customerInformationAreaSize = new Vector2(740f, 780f);
+    [SerializeField] private Vector2 customerInformationAreaPosition = new Vector2(-390f, 0f);
+    [SerializeField] private Vector2 customerMessageSize = new Vector2(430f, 200f);
+    [SerializeField] private Vector2 customerMessagePosition = new Vector2(115f, 190f);
+    [SerializeField] private Vector2 requestedOrderAreaSize = new Vector2(700f, 180f);
+    [SerializeField] private Vector2 requestedOrderAreaPosition = new Vector2(0f, -45f);
+    [SerializeField] private Vector2 availabilityAreaSize = new Vector2(700f, 176f);
+    [SerializeField] private Vector2 availabilityAreaPosition = new Vector2(0f, -280f);
+    [SerializeField] private Vector2 menuViewportSize = new Vector2(690f, 638f);
+    [SerializeField] private Vector2 menuViewportPosition = new Vector2(-1f, -8f);
 
     private TMP_FontAsset notepadFont;
     private NotepadMenuEntryUI reviewFocusEntry;
@@ -263,7 +276,10 @@ public class OrderChecklistUI : MonoBehaviour
             root.sizeDelta = requiredSizeDelta;
 
         ApplyCustomerMessageBounds();
-        ApplyMobileOrderHeaderLayout();
+        ApplyCustomerInformationLayout();
+        ApplyMenuOrderPanelLayout();
+        foodContentRoot = EnsureMenuLayout(foodContentRoot, foodScrollRect);
+        drinkContentRoot = EnsureMenuLayout(drinkContentRoot, drinkScrollRect);
         FinalizeMenuLayout(foodContentRoot, foodScrollRect);
         FinalizeMenuLayout(drinkContentRoot, drinkScrollRect);
         AlignMenuScrollbars();
@@ -331,6 +347,21 @@ public class OrderChecklistUI : MonoBehaviour
             scrollbarRect.anchorMin.x);
         Vector2 position = scrollbarRect.anchoredPosition;
         position.x = targetInParent.x - anchorReferenceX + scrollbarHorizontalOffset;
+        if (scrollRect.transform is RectTransform scrollRectTransform)
+        {
+            Vector3 scrollCenterWorld = scrollRectTransform.TransformPoint(
+                scrollRectTransform.rect.center);
+            Vector3 scrollCenterInParent = alignmentParent.InverseTransformPoint(
+                scrollCenterWorld);
+            float anchorReferenceY = Mathf.Lerp(
+                alignmentParent.rect.yMin,
+                alignmentParent.rect.yMax,
+                scrollbarRect.anchorMin.y);
+            position.y = scrollCenterInParent.y - anchorReferenceY;
+            scrollbarRect.SetSizeWithCurrentAnchors(
+                RectTransform.Axis.Vertical,
+                Mathf.Max(80f, scrollRectTransform.rect.height - 18f));
+        }
         scrollbarRect.anchoredPosition = position;
     }
 
@@ -340,10 +371,8 @@ public class OrderChecklistUI : MonoBehaviour
             return;
 
         RectTransform messageRect = customerMessageText.rectTransform;
-        messageRect.sizeDelta = useAlternateMobilePresentation
-            ? mobileCustomerMessageSize
-            : new Vector2(280f, 150f);
-        customerMessageText.margin = Vector4.zero;
+        messageRect.sizeDelta = customerMessageSize;
+        customerMessageText.margin = new Vector4(4f, 4f, 4f, 4f);
         customerMessageText.enableAutoSizing = true;
         customerMessageText.fontSizeMin = useAlternateMobilePresentation
             ? mobileMessageMinimumFontSize
@@ -353,42 +382,211 @@ public class OrderChecklistUI : MonoBehaviour
             : 20f;
         customerMessageText.textWrappingMode = TextWrappingModes.Normal;
         customerMessageText.overflowMode = TextOverflowModes.Ellipsis;
-        customerMessageText.alignment = TextAlignmentOptions.MidlineLeft;
+        customerMessageText.alignment = TextAlignmentOptions.TopLeft;
         customerMessageText.raycastTarget = false;
     }
 
-    private void ApplyMobileOrderHeaderLayout()
+    private void ApplyCustomerInformationLayout()
     {
-        if (!useAlternateMobilePresentation)
+        if (customerInformationRoot == null && tableNumberText != null)
+            customerInformationRoot = tableNumberText.transform.parent as RectTransform;
+        if (customerInformationRoot == null)
             return;
 
-        // Keep the portrait, message, and requested-order strip as three distinct
-        // regions. The old positions let longer dialogue visually run into the menu
-        // column after the notepad was enlarged for phones.
+        ConfigureRuntimeRect(
+            customerInformationRoot,
+            new Vector2(0.5f, 0.5f),
+            new Vector2(0.5f, 0.5f),
+            new Vector2(0.5f, 0.5f),
+            customerInformationAreaPosition,
+            customerInformationAreaSize);
+
+        // OrderView is the bounded customer-information region. All content is
+        // positioned within this one coordinate space so it cannot drift behind
+        // the independent menu panel as the canvas scales.
         if (customerImage != null)
         {
             RectTransform imageRect = customerImage.rectTransform;
-            imageRect.anchoredPosition = mobileCustomerImagePosition;
-            imageRect.sizeDelta = mobileCustomerImageSize;
+            ParentToCustomerInformationArea(imageRect);
+            ConfigureRuntimeRect(imageRect,
+                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f), new Vector2(-260f, 190f),
+                new Vector2(200f, 200f));
         }
 
         if (customerTypeText != null)
-            customerTypeText.rectTransform.anchoredPosition = mobileCustomerTypePosition;
+        {
+            RectTransform typeRect = customerTypeText.rectTransform;
+            ParentToCustomerInformationArea(typeRect);
+            ConfigureRuntimeRect(typeRect,
+                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f), new Vector2(-250f, 342f),
+                new Vector2(220f, 46f));
+            customerTypeText.enableAutoSizing = true;
+            customerTypeText.fontSizeMin = 16f;
+            customerTypeText.fontSizeMax = 22f;
+            customerTypeText.alignment = TextAlignmentOptions.Center;
+            customerTypeText.textWrappingMode = TextWrappingModes.Normal;
+            customerTypeText.overflowMode = TextOverflowModes.Ellipsis;
+        }
+
         if (tableNumberText != null)
-            tableNumberText.rectTransform.anchoredPosition = mobileTableNumberPosition;
+        {
+            RectTransform tableRect = tableNumberText.rectTransform;
+            ParentToCustomerInformationArea(tableRect);
+            ConfigureRuntimeRect(tableRect,
+                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f), new Vector2(160f, 342f),
+                new Vector2(330f, 50f));
+            tableNumberText.alignment = TextAlignmentOptions.Center;
+        }
+
         if (customerMessageText != null)
-            customerMessageText.rectTransform.anchoredPosition = mobileCustomerMessagePosition;
+        {
+            RectTransform messageRect = customerMessageText.rectTransform;
+            ParentToCustomerInformationArea(messageRect);
+            ConfigureRuntimeRect(messageRect,
+                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f), customerMessagePosition,
+                customerMessageSize);
+        }
+
         if (requestedIconsRoot != null)
         {
-            requestedIconsRoot.anchoredPosition = mobileRequestedIconsPosition;
-            requestedIconsRoot.sizeDelta = mobileRequestedIconsSize;
+            ParentToCustomerInformationArea(requestedIconsRoot);
+            ConfigureRuntimeRect(requestedIconsRoot,
+                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f), requestedOrderAreaPosition,
+                requestedOrderAreaSize);
+        }
+
+        if (availableItemsRoot != null)
+        {
+            ParentToCustomerInformationArea(availableItemsRoot);
+            ConfigureRuntimeRect(availableItemsRoot,
+                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f), availabilityAreaPosition,
+                availabilityAreaSize);
+        }
+
+        TMP_Text availabilityHeading = FindText("Products Availability:");
+        if (availabilityHeading != null)
+        {
+            RectTransform headingRect = availabilityHeading.rectTransform;
+            ParentToCustomerInformationArea(headingRect);
+            ConfigureRuntimeRect(headingRect,
+                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f), new Vector2(0f, -168f),
+                new Vector2(700f, 36f));
+            availabilityHeading.alignment = TextAlignmentOptions.MidlineLeft;
+            availabilityHeading.textWrappingMode = TextWrappingModes.Normal;
+            availabilityHeading.overflowMode = TextOverflowModes.Ellipsis;
+        }
+    }
+
+    private void ParentToCustomerInformationArea(RectTransform child)
+    {
+        if (child != null && customerInformationRoot != null &&
+            child.parent != customerInformationRoot)
+            child.SetParent(customerInformationRoot, false);
+    }
+
+    private void ApplyMenuOrderPanelLayout()
+    {
+        ConfigureMenuViewport(foodScrollRect);
+        ConfigureMenuViewport(drinkScrollRect);
+
+        RectTransform tabRoot = foodTabButton != null
+            ? foodTabButton.transform.parent as RectTransform
+            : drinkTabButton != null ? drinkTabButton.transform.parent as RectTransform : null;
+        if (tabRoot != null)
+        {
+            tabRoot.anchorMin = tabRoot.anchorMax = new Vector2(0.5f, 0.5f);
+            tabRoot.pivot = new Vector2(0.5f, 0.5f);
+            tabRoot.anchoredPosition = new Vector2(menuViewportPosition.x, 350f);
+            tabRoot.sizeDelta = new Vector2(456f, 62f);
+            tabRoot.localScale = Vector3.one;
+
+            HorizontalLayoutGroup tabLayout =
+                tabRoot.GetComponent<HorizontalLayoutGroup>();
+            if (tabLayout == null)
+                tabLayout = tabRoot.gameObject.AddComponent<HorizontalLayoutGroup>();
+            tabLayout.enabled = true;
+            tabLayout.padding = new RectOffset(0, 0, 3, 3);
+            tabLayout.spacing = 16f;
+            tabLayout.childAlignment = TextAnchor.MiddleCenter;
+            tabLayout.childControlWidth = false;
+            tabLayout.childControlHeight = false;
+            tabLayout.childForceExpandWidth = false;
+            tabLayout.childForceExpandHeight = false;
+        }
+
+        ConfigureTabButton(foodTabButton);
+        ConfigureTabButton(drinkTabButton);
+        if (tabRoot != null)
+        {
+            LayoutRebuilder.ForceRebuildLayoutImmediate(tabRoot);
+            RectTransform menuViewport = foodScrollRect != null
+                ? foodScrollRect.transform as RectTransform
+                : drinkScrollRect != null ? drinkScrollRect.transform as RectTransform : null;
+            AlignHorizontalCenters(tabRoot, menuViewport);
         }
 
         if (confirmButton != null && confirmButton.transform is RectTransform confirmRect)
-            confirmRect.localScale = new Vector3(
-                mobileConfirmButtonScale,
-                mobileConfirmButtonScale,
-                1f);
+        {
+            confirmRect.anchorMin = confirmRect.anchorMax = new Vector2(0.5f, 0.5f);
+            confirmRect.pivot = new Vector2(0.5f, 0.5f);
+            confirmRect.anchoredPosition = new Vector2(-10f, -370f);
+            float scale = useAlternateMobilePresentation ? mobileConfirmButtonScale : 0.72f;
+            confirmRect.localScale = new Vector3(scale, scale, 1f);
+        }
+    }
+
+    private void ConfigureMenuViewport(ScrollRect scrollRect)
+    {
+        if (scrollRect == null || !(scrollRect.transform is RectTransform rect))
+            return;
+
+        rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.anchoredPosition = menuViewportPosition;
+        rect.sizeDelta = menuViewportSize;
+        rect.localScale = Vector3.one;
+    }
+
+    private static void ConfigureTabButton(Button button)
+    {
+        if (button == null || !(button.transform is RectTransform rect))
+            return;
+
+        rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.anchoredPosition = Vector2.zero;
+        rect.sizeDelta = new Vector2(220f, 56f);
+        rect.localScale = Vector3.one;
+    }
+
+    private static void AlignHorizontalCenters(RectTransform target, RectTransform reference)
+    {
+        if (target == null || reference == null)
+            return;
+
+        Transform common = target.parent;
+        while (common != null && !reference.IsChildOf(common))
+            common = common.parent;
+
+        if (common == null)
+            return;
+
+        Bounds targetBounds = RectTransformUtility.CalculateRelativeRectTransformBounds(
+            common,
+            target);
+        Bounds referenceBounds = RectTransformUtility.CalculateRelativeRectTransformBounds(
+            common,
+            reference);
+        Vector3 worldOffset = common.TransformVector(
+            new Vector3(referenceBounds.center.x - targetBounds.center.x, 0f, 0f));
+        target.position += worldOffset;
     }
 
     public void Open(CustomerGroup customerGroup)
@@ -557,6 +755,11 @@ public class OrderChecklistUI : MonoBehaviour
             customerTypeText = FindText("CustomerType");
         if (customerImage == null)
             customerImage = FindImage("CustomerImage");
+        if (customerInformationRoot == null)
+            customerInformationRoot = FindRectTransform("OrderView") ??
+                (tableNumberText != null
+                    ? tableNumberText.transform.parent as RectTransform
+                    : null);
         if (tutorialHint == null)
             tutorialHint = GetComponent<TutorialHintTextUI>();
 
@@ -644,14 +847,15 @@ public class OrderChecklistUI : MonoBehaviour
         ResolveUIReferences();
         ResolveNotepadFont();
         BindStaticButtons();
+        EnsureReviewPanel();
         HideReviewPanel(false);
         menuEntries.Clear();
 
         ClearChildren(foodContentRoot);
         ClearChildren(drinkContentRoot);
         ClearChildren(availableItemsRoot);
-        EnsureMenuLayout(foodContentRoot, foodScrollRect);
-        EnsureMenuLayout(drinkContentRoot, drinkScrollRect);
+        foodContentRoot = EnsureMenuLayout(foodContentRoot, foodScrollRect);
+        drinkContentRoot = EnsureMenuLayout(drinkContentRoot, drinkScrollRect);
 
         if (catalog == null)
         {
@@ -987,16 +1191,29 @@ public class OrderChecklistUI : MonoBehaviour
             return;
 
         ClearChildren(requestedIconsRoot);
-        HorizontalLayoutGroup layout = requestedIconsRoot.GetComponent<HorizontalLayoutGroup>();
-        if (layout == null)
-            layout = requestedIconsRoot.gameObject.AddComponent<HorizontalLayoutGroup>();
+        HorizontalLayoutGroup horizontal =
+            requestedIconsRoot.GetComponent<HorizontalLayoutGroup>();
+        if (horizontal != null)
+            horizontal.enabled = false;
 
-        layout.childAlignment = TextAnchor.MiddleCenter;
-        layout.spacing = 8f;
-        layout.childControlWidth = false;
-        layout.childControlHeight = false;
-        layout.childForceExpandWidth = false;
-        layout.childForceExpandHeight = false;
+        GridLayoutGroup layout = requestedIconsRoot.GetComponent<GridLayoutGroup>();
+        if (layout == null)
+            layout = requestedIconsRoot.gameObject.AddComponent<GridLayoutGroup>();
+
+        const int columnCount = 4;
+        const float spacingX = 12f;
+        const float spacingY = 8f;
+        float width = Mathf.Max(620f, requestedIconsRoot.rect.width);
+        float cellWidth = (width - spacingX * (columnCount - 1)) / columnCount;
+        layout.enabled = true;
+        layout.childAlignment = TextAnchor.UpperLeft;
+        layout.startCorner = GridLayoutGroup.Corner.UpperLeft;
+        layout.startAxis = GridLayoutGroup.Axis.Horizontal;
+        layout.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+        layout.constraintCount = columnCount;
+        layout.cellSize = new Vector2(cellWidth, 82f);
+        layout.spacing = new Vector2(spacingX, spacingY);
+        layout.padding = new RectOffset(0, 0, 2, 2);
 
         List<CustomerGroup.OrderLine> displayLines = new List<CustomerGroup.OrderLine>();
         if (requestedOrderLines.Count > 0)
@@ -1041,12 +1258,19 @@ public class OrderChecklistUI : MonoBehaviour
         if (products.Count == 0)
             return;
 
-        float iconSize = useAlternateMobilePresentation
-            ? products.Count > 1 ? 50f : 66f
-            : products.Count > 1 ? 42f : 54f;
-        float iconsWidth = products.Count * iconSize + Mathf.Max(0, products.Count - 1) * 2f;
-        float entryWidth = Mathf.Max(useAlternateMobilePresentation ? 92f : 78f, iconsWidth + 28f);
-        float entryHeight = useAlternateMobilePresentation ? 88f : 76f;
+        GridLayoutGroup layout = requestedIconsRoot.GetComponent<GridLayoutGroup>();
+        float entryWidth = layout != null ? layout.cellSize.x : 166f;
+        float entryHeight = layout != null ? layout.cellSize.y : 82f;
+        const float quantityWidth = 48f;
+        const float iconSpacing = 4f;
+        float availableIconWidth = Mathf.Max(52f, entryWidth - quantityWidth - 12f);
+        float iconSize = products.Count > 1
+            ? Mathf.Clamp(
+                (availableIconWidth - iconSpacing * (products.Count - 1)) /
+                products.Count,
+                34f,
+                54f)
+            : 70f;
 
         GameObject entryObject = new GameObject($"Order Line - {line.displayName}",
             typeof(RectTransform), typeof(LayoutElement));
@@ -1061,7 +1285,6 @@ public class OrderChecklistUI : MonoBehaviour
         element.minHeight = entryHeight;
         element.preferredHeight = entryHeight;
 
-        float startX = -iconsWidth * 0.5f + iconSize * 0.5f - 8f;
         for (int i = 0; i < products.Count; i++)
         {
             GameObject iconObject = new GameObject($"Icon - {products[i].DisplayName}",
@@ -1069,10 +1292,11 @@ public class OrderChecklistUI : MonoBehaviour
             iconObject.layer = entryObject.layer;
             RectTransform iconRect = iconObject.GetComponent<RectTransform>();
             iconRect.SetParent(entryRect, false);
-            iconRect.anchorMin = new Vector2(0.5f, 0.5f);
-            iconRect.anchorMax = new Vector2(0.5f, 0.5f);
-            iconRect.pivot = new Vector2(0.5f, 0.5f);
-            iconRect.anchoredPosition = new Vector2(startX + i * (iconSize + 2f), 6f);
+            iconRect.anchorMin = new Vector2(0f, 0.5f);
+            iconRect.anchorMax = new Vector2(0f, 0.5f);
+            iconRect.pivot = new Vector2(0f, 0.5f);
+            float xOffset = 4f + i * (iconSize + iconSpacing);
+            iconRect.anchoredPosition = new Vector2(xOffset, 0f);
             iconRect.sizeDelta = new Vector2(iconSize, iconSize);
 
             Image image = iconObject.GetComponent<Image>();
@@ -1087,18 +1311,18 @@ public class OrderChecklistUI : MonoBehaviour
         quantityObject.layer = entryObject.layer;
         RectTransform quantityRect = quantityObject.GetComponent<RectTransform>();
         quantityRect.SetParent(entryRect, false);
-        quantityRect.anchorMin = new Vector2(1f, 0f);
-        quantityRect.anchorMax = new Vector2(1f, 0f);
-        quantityRect.pivot = new Vector2(1f, 0f);
-        quantityRect.anchoredPosition = Vector2.zero;
-        quantityRect.sizeDelta = new Vector2(38f, 28f);
+        quantityRect.anchorMin = new Vector2(1f, 0.5f);
+        quantityRect.anchorMax = new Vector2(1f, 0.5f);
+        quantityRect.pivot = new Vector2(1f, 0.5f);
+        quantityRect.anchoredPosition = new Vector2(-6f, 0f);
+        quantityRect.sizeDelta = new Vector2(quantityWidth, 36f);
 
         TextMeshProUGUI quantityText = quantityObject.GetComponent<TextMeshProUGUI>();
         ApplyNotepadFont(quantityText);
         quantityText.text = $"x{Mathf.Max(1, line.quantity)}";
-        quantityText.fontSize = 20f;
+        quantityText.fontSize = 22f;
         quantityText.fontStyle = FontStyles.Bold;
-        quantityText.alignment = TextAlignmentOptions.BottomRight;
+        quantityText.alignment = TextAlignmentOptions.MidlineRight;
         quantityText.color = Color.white;
         quantityText.raycastTarget = false;
         quantityText.textWrappingMode = TextWrappingModes.NoWrap;
@@ -1111,20 +1335,33 @@ public class OrderChecklistUI : MonoBehaviour
 
         ClearChildren(availableItemsRoot);
 
-        HorizontalLayoutGroup layout = availableItemsRoot.GetComponent<HorizontalLayoutGroup>();
-        if (layout == null)
-            layout = availableItemsRoot.gameObject.AddComponent<HorizontalLayoutGroup>();
+        HorizontalLayoutGroup horizontal =
+            availableItemsRoot.GetComponent<HorizontalLayoutGroup>();
+        if (horizontal != null)
+            horizontal.enabled = false;
 
-        layout.childAlignment = TextAnchor.MiddleCenter;
-        layout.spacing = 8f;
-        layout.childControlWidth = false;
-        layout.childControlHeight = false;
-        layout.childForceExpandWidth = false;
-        layout.childForceExpandHeight = false;
+        GridLayoutGroup layout = availableItemsRoot.GetComponent<GridLayoutGroup>();
+        if (layout == null)
+            layout = availableItemsRoot.gameObject.AddComponent<GridLayoutGroup>();
+
+        float width = Mathf.Max(560f, availableItemsRoot.rect.width);
+        const float horizontalSpacing = 16f;
+        layout.enabled = true;
+        layout.childAlignment = TextAnchor.UpperLeft;
+        layout.startCorner = GridLayoutGroup.Corner.UpperLeft;
+        layout.startAxis = GridLayoutGroup.Axis.Horizontal;
+        layout.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+        layout.constraintCount = 2;
+        layout.cellSize = new Vector2((width - horizontalSpacing) * 0.5f, 42f);
+        layout.spacing = new Vector2(horizontalSpacing, 6f);
+        layout.padding = new RectOffset(0, 0, 0, 0);
 
         for (int i = 0; i < foods.Count; i++)
         {
             Recipe product = foods[i];
+            if (product == null)
+                continue;
+
             int stock = LobbyStockBridge.Instance != null
                 ? LobbyStockBridge.Instance.GetProductStock(product)
                 : 0;
@@ -1134,19 +1371,23 @@ public class OrderChecklistUI : MonoBehaviour
             item.layer = availableItemsRoot.gameObject.layer;
             RectTransform rect = item.GetComponent<RectTransform>();
             rect.SetParent(availableItemsRoot, false);
-            rect.sizeDelta = new Vector2(118f, 42f);
+            rect.sizeDelta = layout.cellSize;
 
             LayoutElement element = item.GetComponent<LayoutElement>();
-            element.preferredWidth = 118f;
-            element.preferredHeight = 42f;
+            element.preferredWidth = layout.cellSize.x;
+            element.preferredHeight = layout.cellSize.y;
 
             TextMeshProUGUI text = item.AddComponent<TextMeshProUGUI>();
             ApplyNotepadFont(text);
-            text.fontSize = 17f;
-            text.alignment = TextAlignmentOptions.Center;
+            text.enableAutoSizing = true;
+            text.fontSizeMin = 14f;
+            text.fontSizeMax = 18f;
+            text.alignment = TextAlignmentOptions.MidlineLeft;
             text.color = Color.white;
             text.raycastTarget = false;
-            text.textWrappingMode = TextWrappingModes.NoWrap;
+            text.margin = new Vector4(4f, 0f, 4f, 0f);
+            text.textWrappingMode = TextWrappingModes.Normal;
+            text.overflowMode = TextOverflowModes.Ellipsis;
             text.text = $"{product.DisplayName}: {Mathf.Max(0, stock)}";
         }
     }
@@ -1472,19 +1713,31 @@ public class OrderChecklistUI : MonoBehaviour
                 selectedProducts.AddRange(lineProducts);
         }
 
-        int expectedMeals = Mathf.Max(1, group != null ? group.Size : 1);
-        if (mealCount != expectedMeals)
+        if (selectedLines.Count == 0 || selectedProducts.Count == 0)
         {
-            ShowWarning($"Select exactly {expectedMeals} meal{(expectedMeals == 1 ? string.Empty : "s")} for this group.");
+            ShowWarning("Please select at least one item for this order.");
             return false;
         }
 
-        bool restaurantServesDrinks =
-            catalog.GetProducts(MenuProductCategory.Drink, false).Count > 0;
-        if (restaurantServesDrinks && drinkCount != expectedMeals)
+        bool hasSpecificRequestedOrder =
+            requestedOrderLines.Count > 0 || requestedProducts.Count > 0;
+
+        if (!hasSpecificRequestedOrder)
         {
-            ShowWarning($"Select exactly {expectedMeals} drink{(expectedMeals == 1 ? string.Empty : "s")} for this group.");
-            return false;
+            int expectedMeals = Mathf.Max(1, group != null ? group.Size : 1);
+            if (mealCount != expectedMeals)
+            {
+                ShowWarning($"Select exactly {expectedMeals} meal{(expectedMeals == 1 ? string.Empty : "s")} for this group.");
+                return false;
+            }
+
+            bool restaurantServesDrinks =
+                catalog.GetProducts(MenuProductCategory.Drink, false).Count > 0;
+            if (restaurantServesDrinks && drinkCount != expectedMeals)
+            {
+                ShowWarning($"Select exactly {expectedMeals} drink{(expectedMeals == 1 ? string.Empty : "s")} for this group.");
+                return false;
+            }
         }
 
         orderName = selectedLines.Count == 1
@@ -1832,18 +2085,52 @@ public class OrderChecklistUI : MonoBehaviour
         rect.localScale = Vector3.one;
     }
 
-    private static void EnsureMenuLayout(RectTransform root, ScrollRect scrollRect)
+    private static RectTransform EnsureMenuLayout(RectTransform root, ScrollRect scrollRect)
     {
         if (root == null)
-            return;
+            return null;
 
         VerticalLayoutGroup layout = root.GetComponent<VerticalLayoutGroup>();
-        if (layout != null)
+        GridLayoutGroup grid = root.GetComponent<GridLayoutGroup>();
+
+        // GridLayoutGroup and VerticalLayoutGroup cannot coexist on the same object.
+        // Preserve the authored content object and put the runtime grid beneath it.
+        if (grid == null && layout != null)
+        {
             layout.enabled = false;
 
-        GridLayoutGroup grid = root.GetComponent<GridLayoutGroup>();
-        if (grid != null)
-            grid.enabled = false;
+            const string gridRootName = "Notepad Grid Content";
+            RectTransform gridRoot = root.Find(gridRootName) as RectTransform;
+            if (gridRoot == null)
+            {
+                GameObject gridObject = new GameObject(
+                    gridRootName,
+                    typeof(RectTransform),
+                    typeof(GridLayoutGroup));
+                gridObject.layer = root.gameObject.layer;
+                gridRoot = gridObject.GetComponent<RectTransform>();
+                gridRoot.SetParent(root, false);
+            }
+
+            ConfigureRuntimeRect(
+                gridRoot,
+                new Vector2(0f, 1f),
+                new Vector2(0f, 1f),
+                new Vector2(0f, 1f),
+                Vector2.zero,
+                root.rect.size);
+
+            ContentSizeFitter authoredFitter = root.GetComponent<ContentSizeFitter>();
+            if (authoredFitter != null)
+                authoredFitter.enabled = false;
+
+            root = gridRoot;
+            grid = root.GetComponent<GridLayoutGroup>();
+        }
+
+        if (grid == null)
+            grid = root.gameObject.AddComponent<GridLayoutGroup>();
+        grid.enabled = true;
 
         root.anchorMin = root.anchorMax = new Vector2(0f, 1f);
         root.pivot = new Vector2(0f, 1f);
@@ -1857,10 +2144,13 @@ public class OrderChecklistUI : MonoBehaviour
         {
             scrollRect.horizontal = false;
             scrollRect.vertical = true;
+            scrollRect.content = root;
             scrollRect.verticalNormalizedPosition = 1f;
             if (scrollRect.verticalScrollbar != null)
                 scrollRect.verticalScrollbar.gameObject.SetActive(true);
         }
+
+        return root;
     }
 
     private static void FinalizeMenuLayout(RectTransform root, ScrollRect scrollRect)
@@ -1872,17 +2162,36 @@ public class OrderChecklistUI : MonoBehaviour
         const float padding = 12f;
         const float spacing = 12f;
 
-        Vector2 authoredCardSize = GetAuthoredCardSize(root);
-        float cardWidth = authoredCardSize.x;
-        float cardHeight = authoredCardSize.y;
-
-        float availableWidth = Mathf.Max(cardWidth, viewport.width - padding * 2f);
-        int columnCount = Mathf.Clamp(
-            Mathf.FloorToInt((availableWidth + spacing) / (cardWidth + spacing)),
-            1,
-            3);
+        float availableWidth = Mathf.Max(1f, viewport.width - padding * 2f);
+        const int columnCount = 3;
+        float cardWidth = Mathf.Max(
+            176f,
+            (availableWidth - spacing * (columnCount - 1)) / columnCount);
+        const float visibleRows = 2f;
+        float cardHeight = Mathf.Clamp(
+            (Mathf.Max(1f, viewport.height - padding * 2f) -
+             spacing * (visibleRows - 1f)) / visibleRows,
+            270f,
+            310f);
         float gridWidth = columnCount * cardWidth + Mathf.Max(0, columnCount - 1) * spacing;
         float horizontalInset = Mathf.Max(padding, (viewport.width - gridWidth) * 0.5f);
+
+        GridLayoutGroup grid = root.GetComponent<GridLayoutGroup>();
+        if (grid == null)
+            return;
+        grid.enabled = true;
+        grid.startCorner = GridLayoutGroup.Corner.UpperLeft;
+        grid.startAxis = GridLayoutGroup.Axis.Horizontal;
+        grid.childAlignment = TextAnchor.UpperLeft;
+        grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+        grid.constraintCount = columnCount;
+        grid.cellSize = new Vector2(cardWidth, cardHeight);
+        grid.spacing = new Vector2(spacing, spacing);
+        grid.padding = new RectOffset(
+            Mathf.RoundToInt(horizontalInset),
+            Mathf.RoundToInt(horizontalInset),
+            Mathf.RoundToInt(padding),
+            Mathf.RoundToInt(padding));
 
         int itemCount = 0;
         for (int i = 0; i < root.childCount; i++)
@@ -1891,15 +2200,11 @@ public class OrderChecklistUI : MonoBehaviour
             if (card == null)
                 continue;
 
-            int column = itemCount % columnCount;
-            int row = itemCount / columnCount;
-            card.anchorMin = card.anchorMax = new Vector2(0f, 1f);
-            card.pivot = new Vector2(0f, 1f);
-            card.anchoredPosition = new Vector2(
-                horizontalInset + column * (cardWidth + spacing),
-                -padding - row * (cardHeight + spacing));
             card.sizeDelta = new Vector2(cardWidth, cardHeight);
             card.localScale = Vector3.one;
+
+            NotepadMenuEntryUI entry = card.GetComponent<NotepadMenuEntryUI>();
+            entry?.ApplyGridCardLayout(new Vector2(cardWidth, cardHeight));
 
             itemCount++;
         }
@@ -1911,6 +2216,7 @@ public class OrderChecklistUI : MonoBehaviour
         root.sizeDelta = new Vector2(
             viewport.width,
             Mathf.Max(viewport.height, requiredHeight));
+        LayoutRebuilder.ForceRebuildLayoutImmediate(root);
     }
 
     private static Vector2 GetAuthoredCardSize(RectTransform root)

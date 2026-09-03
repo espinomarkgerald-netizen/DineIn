@@ -320,6 +320,12 @@ public sealed class ManagementComputerWindow : MonoBehaviour
             if (text == null || text == titleText || text == messageText || text == footerLabel)
                 continue;
 
+            // Menu/Restock cards apply their own size hierarchy after every
+            // bind. A window-wide mobile minimum is too large for their compact
+            // stock cells and can make TMP ellipsis render an empty result.
+            if (text.GetComponentInParent<ManagementComputerCatalogCardUI>() != null)
+                continue;
+
             bool buttonLabel = text.GetComponentInParent<Button>() != null;
             ConfigureText(
                 text,

@@ -43,6 +43,8 @@ public sealed class ManagementComputerResponsiveLayout : MonoBehaviour
     [Header("Mobile Touch & Blue Double Theme (Editable)")]
     [SerializeField] private Sprite wideButtonSprite;
     [SerializeField] private Sprite squareButtonSprite;
+
+    public Sprite WideButtonSprite => wideButtonSprite;
     [SerializeField, Min(44f)] private float minimumTouchTarget = 68f;
     [SerializeField, Min(0f)] private float minimumScrollbarThickness = 28f;
     [SerializeField, Min(8f)] private float mobileBodyTextMinimum = 19f;
@@ -168,6 +170,12 @@ public sealed class ManagementComputerResponsiveLayout : MonoBehaviour
             if (text == null)
                 continue;
 
+            // Catalog cards already own carefully fitted phone-readable type.
+            // Raising every dense card label to the global body minimum can
+            // leave TMP with no glyph that fits its fixed stat/status rect.
+            if (text.GetComponentInParent<ManagementComputerCatalogCardUI>() != null)
+                continue;
+
             bool buttonLabel = text.GetComponentInParent<Button>() != null;
             ConfigureText(text, buttonLabel ? mobileButtonTextMinimum : mobileBodyTextMinimum);
         }
@@ -280,6 +288,9 @@ public sealed class ManagementComputerResponsiveLayout : MonoBehaviour
             return;
 
         string objectName = button.name;
+        Transform parent = button.transform.parent;
+        if (parent != null && parent.name == "CatalogCategoryTabs")
+            return;
         if (objectName.IndexOf("Close", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
             objectName.IndexOf("Exit", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
             objectName.IndexOf("Secondary", System.StringComparison.OrdinalIgnoreCase) >= 0)

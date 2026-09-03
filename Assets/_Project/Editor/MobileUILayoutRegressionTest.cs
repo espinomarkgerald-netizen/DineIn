@@ -930,7 +930,8 @@ public static class MobileUILayoutRegressionTest
             screenHeight / 1080f) * (screenHeight / 1080f);
         float lobbyCanvasScale = screenHeight / 450f;
         float notepadScale = 0.5f * lobbyCanvasScale;
-        Vector2 notepadCardPixels = new Vector2(174f, 218f) * notepadScale;
+        // The notepad now uses a wider two-column grid with three visible rows.
+        Vector2 notepadCardPixels = new Vector2(304f, 196.67f) * notepadScale;
         Vector2 cashierPanelPixels = new Vector2(630f, 407.4194f) * lobbyCanvasScale;
         float computerCanvasScale = Mathf.Sqrt(
             (screenWidth / 1920f) * (screenHeight / 1080f));
@@ -947,8 +948,8 @@ public static class MobileUILayoutRegressionTest
             $"Task HUD escaped its readable mobile size envelope ({taskPixels:0.0}px).");
         Assert(Mathf.Approximately(touchPixels, 72f),
             $"Physical touch target is no longer 72px ({touchPixels:0.0}px).");
-        Assert(notepadCardPixels.x >= 108f && notepadCardPixels.x <= 114f &&
-               notepadCardPixels.y >= 136f && notepadCardPixels.y <= 142f,
+        Assert(notepadCardPixels.x >= 190f && notepadCardPixels.x <= 198f &&
+               notepadCardPixels.y >= 122f && notepadCardPixels.y <= 130f,
             $"Notepad choices no longer match their authored Editor size ({notepadCardPixels.x:0.0} x {notepadCardPixels.y:0.0}px).");
         Assert(cashierPanelPixels.x >= 800f && cashierPanelPixels.x <= 820f &&
                cashierPanelPixels.y >= 510f && cashierPanelPixels.y <= 530f &&

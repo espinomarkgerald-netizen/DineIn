@@ -18,6 +18,10 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
     [SerializeField] private GridLayoutGroup cardGrid;
     [SerializeField] private ManagementComputerCatalogCardUI cardPrefab;
 
+    [Header("Catalog Categories (Runtime-authored from this prefab)")]
+    [SerializeField, Min(44f)] private float categoryTabHeight = 48f;
+    [SerializeField, Min(210f)] private float categoryTabsWidth = 250f;
+
     [Header("Right Rail")]
     [SerializeField] private LayoutElement rightRailLayout;
     [SerializeField] private TMP_Text rightHeaderText;
@@ -78,6 +82,10 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
     private readonly Dictionary<ItemData, ManagementComputerCatalogCardUI> restockCards =
         new Dictionary<ItemData, ManagementComputerCatalogCardUI>();
     private readonly Dictionary<ItemData, int> cart = new Dictionary<ItemData, int>();
+    private readonly Dictionary<ItemData, int> restockProgressionDays =
+        new Dictionary<ItemData, int>();
+    private readonly HashSet<ItemData> foodRestockItems = new HashSet<ItemData>();
+    private readonly HashSet<ItemData> drinkRestockItems = new HashSet<ItemData>();
 
     private Recipe selectedRecipe;
     private bool menuEditable;
@@ -94,6 +102,15 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
     private ItemData extraOrderArmedItem;
     private Vector2 lastPanelSize;
     private InventoryManager subscribedInventory;
+    private MenuProductCategory activeCategory = MenuProductCategory.Food;
+    private RectTransform categoryTabsRoot;
+    private Button foodTabButton;
+    private Button drinksTabButton;
+    private TMP_Text foodTabLabel;
+    private TMP_Text drinksTabLabel;
+    private bool catalogScrollOffsetsCaptured;
+    private Vector2 authoredCatalogScrollOffsetMin;
+    private Vector2 authoredCatalogScrollOffsetMax;
 
     public void ConfigureReferences(
         TMP_Text configuredContext,
@@ -151,6 +168,7 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
 
     private void OnEnable()
     {
+        StretchToAvailableParent();
         ApplyResponsiveLayout();
     }
 
@@ -177,6 +195,8 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
     {
         UnsubscribeInventory();
         SetMode(menu: true);
+        activeCategory = MenuProductCategory.Food;
+        EnsureCategoryTabs();
         menuEditable = editable;
         setMenuAvailability = availabilitySetter;
         setMenuPrice = priceSetter;
@@ -191,10 +211,12 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
             }
         }
 
-        menuProducts.Sort((a, b) => a.menuSortOrder.CompareTo(b.menuSortOrder));
+        menuProducts.Sort(CompareMenuProgression);
         SetText(contextText, "Select a menu item to view its price and recipe details.");
         BuildMenuCards();
-        SelectRecipe(menuProducts.Count > 0 ? menuProducts[0] : null);
+        SelectRecipe(FindFirstMenuProduct(activeCategory));
+        ApplyCategoryFilter(false);
+        UpdateCategoryTabVisuals();
         ApplyResponsiveLayout();
     }
 
@@ -207,6 +229,8 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
     {
         SubscribeInventory();
         SetMode(menu: false);
+        activeCategory = MenuProductCategory.Food;
+        EnsureCategoryTabs();
         storageConfig = configuredStorage;
         confirmOrder = orderConfirmation;
         expectedCustomers = Mathf.Max(1, configuredExpectedCustomers);
@@ -225,10 +249,8 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
             }
         }
 
-        restockItems.Sort((a, b) => string.Compare(
-            a.displayName,
-            b.displayName,
-            StringComparison.OrdinalIgnoreCase));
+        BuildRestockProgressionMetadata();
+        restockItems.Sort(CompareRestockProgression);
 
         if (orderManager != null)
             orderManager.OrdersChanged -= HandleOrdersChanged;
@@ -240,6 +262,8 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
             $"Expected visitors today: {expectedCustomers}. Choose how many boxes to order, then review your cart.");
         BuildRestockCards();
         RefreshRestockView();
+        ApplyCategoryFilter(false);
+        UpdateCategoryTabVisuals();
         ApplyResponsiveLayout();
     }
 
@@ -251,6 +275,229 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
         if (restockCartRoot != null)
             restockCartRoot.SetActive(!menu);
         SetMessage(string.Empty);
+    }
+
+    private void EnsureCategoryTabs()
+    {
+        if (categoryTabsRoot != null || catalogScroll == null)
+            return;
+
+        RectTransform scrollRect = catalogScroll.transform as RectTransform;
+        RectTransform catalogRoot = scrollRect != null ? scrollRect.parent as RectTransform : null;
+        if (scrollRect == null || catalogRoot == null)
+            return;
+
+        if (!catalogScrollOffsetsCaptured)
+        {
+            authoredCatalogScrollOffsetMin = scrollRect.offsetMin;
+            authoredCatalogScrollOffsetMax = scrollRect.offsetMax;
+            catalogScrollOffsetsCaptured = true;
+        }
+
+        float height = Mathf.Clamp(categoryTabHeight, 44f, 52f);
+        GameObject tabs = new GameObject("CatalogCategoryTabs", typeof(RectTransform));
+        tabs.transform.SetParent(catalogRoot, false);
+        categoryTabsRoot = tabs.transform as RectTransform;
+        categoryTabsRoot.anchorMin = new Vector2(0f, 1f);
+        categoryTabsRoot.anchorMax = new Vector2(0f, 1f);
+        categoryTabsRoot.pivot = new Vector2(0f, 1f);
+        categoryTabsRoot.anchoredPosition = new Vector2(16f, -66f);
+        categoryTabsRoot.sizeDelta = new Vector2(Mathf.Max(210f, categoryTabsWidth), height);
+        categoryTabsRoot.SetSiblingIndex(Mathf.Min(1, catalogRoot.childCount - 1));
+
+        foodTabButton = CreateCategoryTab(
+            "FoodTab",
+            "FOOD",
+            new Vector2(0f, 0f),
+            new Vector2(0.48f, 1f),
+            out foodTabLabel);
+        drinksTabButton = CreateCategoryTab(
+            "DrinksTab",
+            "DRINKS",
+            new Vector2(0.52f, 0f),
+            new Vector2(1f, 1f),
+            out drinksTabLabel);
+
+        foodTabButton.onClick.AddListener(() => SetCategory(MenuProductCategory.Food));
+        drinksTabButton.onClick.AddListener(() => SetCategory(MenuProductCategory.Drink));
+
+        Vector2 scrollOffsetMax = authoredCatalogScrollOffsetMax;
+        scrollOffsetMax.y -= height + 8f;
+        scrollRect.offsetMin = authoredCatalogScrollOffsetMin;
+        scrollRect.offsetMax = scrollOffsetMax;
+        UpdateCategoryTabVisuals();
+    }
+
+    private Button CreateCategoryTab(
+        string objectName,
+        string labelValue,
+        Vector2 anchorMin,
+        Vector2 anchorMax,
+        out TMP_Text label)
+    {
+        GameObject tab = new GameObject(
+            objectName,
+            typeof(RectTransform),
+            typeof(CanvasRenderer),
+            typeof(Image),
+            typeof(Button));
+        tab.transform.SetParent(categoryTabsRoot, false);
+        RectTransform rect = tab.transform as RectTransform;
+        SetAnchors(rect, anchorMin, anchorMax);
+
+        Image image = tab.GetComponent<Image>();
+        ManagementComputerResponsiveLayout responsive =
+            GetComponentInParent<ManagementComputerResponsiveLayout>(true);
+        if (responsive != null && responsive.WideButtonSprite != null)
+        {
+            image.sprite = responsive.WideButtonSprite;
+            image.type = Image.Type.Sliced;
+        }
+        image.raycastTarget = true;
+        Button button = tab.GetComponent<Button>();
+        button.targetGraphic = image;
+        button.transition = Selectable.Transition.ColorTint;
+        ColorBlock colors = button.colors;
+        colors.highlightedColor = new Color(1f, 1f, 1f, 0.94f);
+        colors.pressedColor = new Color(0.88f, 0.92f, 0.96f, 1f);
+        colors.selectedColor = Color.white;
+        colors.disabledColor = new Color(1f, 1f, 1f, 0.55f);
+        colors.colorMultiplier = 1f;
+        button.colors = colors;
+        tab.AddComponent<UISubtlePressFeedback>();
+
+        GameObject textObject = new GameObject(
+            "Label",
+            typeof(RectTransform),
+            typeof(CanvasRenderer),
+            typeof(TextMeshProUGUI));
+        textObject.transform.SetParent(tab.transform, false);
+        label = textObject.GetComponent<TextMeshProUGUI>();
+        if (contextText != null && contextText.font != null)
+            label.font = contextText.font;
+        label.text = labelValue;
+        label.fontSize = 17f;
+        label.fontStyle = FontStyles.Bold;
+        label.alignment = TextAlignmentOptions.Center;
+        label.textWrappingMode = TextWrappingModes.NoWrap;
+        label.raycastTarget = false;
+        SetAnchors(label.rectTransform, Vector2.zero, Vector2.one);
+        return button;
+    }
+
+    private void SetCategory(MenuProductCategory category)
+    {
+        if (activeCategory == category)
+            return;
+
+        activeCategory = category;
+        UpdateCategoryTabVisuals();
+        ApplyCategoryFilter(true);
+
+        if (showingMenu)
+            SelectRecipe(FindFirstMenuProduct(activeCategory));
+        else
+            RefreshRestockView();
+
+        if (catalogScroll != null)
+            catalogScroll.verticalNormalizedPosition = 1f;
+        if (cardContent != null)
+            LayoutRebuilder.ForceRebuildLayoutImmediate(cardContent);
+    }
+
+    private void ApplyCategoryFilter(bool animateNewCards)
+    {
+        int revealIndex = 0;
+        if (showingMenu)
+        {
+            foreach (KeyValuePair<Recipe, ManagementComputerCatalogCardUI> entry in menuCards)
+            {
+                bool visible = entry.Key != null && entry.Key.category == activeCategory;
+                SetCardVisibility(entry.Value, visible, animateNewCards, revealIndex);
+                if (visible)
+                    revealIndex++;
+            }
+        }
+        else
+        {
+            foreach (KeyValuePair<ItemData, ManagementComputerCatalogCardUI> entry in restockCards)
+            {
+                bool visible = IsRestockItemInCategory(entry.Key, activeCategory);
+                SetCardVisibility(entry.Value, visible, animateNewCards, revealIndex);
+                if (visible)
+                    revealIndex++;
+            }
+        }
+
+        if (cardContent != null)
+            LayoutRebuilder.MarkLayoutForRebuild(cardContent);
+    }
+
+    private static void SetCardVisibility(
+        ManagementComputerCatalogCardUI card,
+        bool visible,
+        bool animate,
+        int revealIndex)
+    {
+        if (card == null)
+            return;
+
+        bool wasVisible = card.gameObject.activeSelf;
+        if (wasVisible != visible)
+            card.gameObject.SetActive(visible);
+        if (visible)
+            card.RestoreExpectedVisualState();
+        if (visible && animate && !wasVisible)
+            card.GetComponent<UIRevealAnimation>()?.Play(Mathf.Min(0.1f, revealIndex * 0.018f));
+    }
+
+    private void UpdateCategoryTabVisuals()
+    {
+        SetCategoryTabVisual(foodTabButton, foodTabLabel,
+            activeCategory == MenuProductCategory.Food);
+        SetCategoryTabVisual(drinksTabButton, drinksTabLabel,
+            activeCategory == MenuProductCategory.Drink);
+    }
+
+    private static void SetCategoryTabVisual(Button button, TMP_Text label, bool selected)
+    {
+        if (button != null && button.targetGraphic is Image image)
+            image.color = selected
+                ? new Color(0.12f, 0.57f, 0.84f, 1f)
+                : new Color(0.22f, 0.34f, 0.48f, 1f);
+        if (label != null)
+        {
+            SetText(label, button == null || button.name.StartsWith("Food", StringComparison.Ordinal)
+                ? "FOOD"
+                : "DRINKS");
+            label.color = Color.white;
+        }
+    }
+
+    private Recipe FindFirstMenuProduct(MenuProductCategory category)
+    {
+        for (int i = 0; i < menuProducts.Count; i++)
+            if (menuProducts[i] != null && menuProducts[i].category == category)
+                return menuProducts[i];
+        return null;
+    }
+
+    private static int CompareMenuProgression(Recipe a, Recipe b)
+    {
+        if (ReferenceEquals(a, b))
+            return 0;
+        if (a == null)
+            return 1;
+        if (b == null)
+            return -1;
+
+        int day = Mathf.Max(1, a.dayToUnlock).CompareTo(Mathf.Max(1, b.dayToUnlock));
+        if (day != 0)
+            return day;
+        int authored = a.menuSortOrder.CompareTo(b.menuSortOrder);
+        return authored != 0
+            ? authored
+            : string.Compare(a.DisplayName, b.DisplayName, StringComparison.OrdinalIgnoreCase);
     }
 
     private void BuildMenuCards()
@@ -265,9 +512,11 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
         {
             Recipe product = menuProducts[i];
             ManagementComputerCatalogCardUI card = Instantiate(cardPrefab, cardContent);
-            card.gameObject.SetActive(true);
+            bool visible = product.category == activeCategory;
+            card.gameObject.SetActive(visible);
             menuCards[product] = card;
-            card.GetComponent<UIRevealAnimation>()?.Play(Mathf.Min(0.12f, i * 0.018f));
+            if (visible)
+                card.GetComponent<UIRevealAnimation>()?.Play(Mathf.Min(0.12f, i * 0.018f));
         }
     }
 
@@ -416,9 +665,11 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
         {
             ItemData item = restockItems[i];
             ManagementComputerCatalogCardUI card = Instantiate(cardPrefab, cardContent);
-            card.gameObject.SetActive(true);
+            bool visible = IsRestockItemInCategory(item, activeCategory);
+            card.gameObject.SetActive(visible);
             restockCards[item] = card;
-            card.GetComponent<UIRevealAnimation>()?.Play(Mathf.Min(0.12f, i * 0.018f));
+            if (visible)
+                card.GetComponent<UIRevealAnimation>()?.Play(Mathf.Min(0.12f, i * 0.018f));
         }
     }
 
@@ -449,6 +700,87 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
         RebuildCartLines();
         RefreshCartSummary();
         ConfigureCartButtons();
+        ApplyCategoryFilter(false);
+    }
+
+    private void BuildRestockProgressionMetadata()
+    {
+        restockProgressionDays.Clear();
+        foodRestockItems.Clear();
+        drinkRestockItems.Clear();
+
+        MenuCatalog catalog = MenuCatalog.Default;
+        IReadOnlyList<Recipe> products = catalog != null ? catalog.Products : null;
+        if (products != null)
+        {
+            for (int productIndex = 0; productIndex < products.Count; productIndex++)
+            {
+                Recipe product = products[productIndex];
+                if (product == null || product.ingredients == null)
+                    continue;
+
+                int day = Mathf.Max(1, product.dayToUnlock);
+                for (int ingredientIndex = 0;
+                     ingredientIndex < product.ingredients.Count;
+                     ingredientIndex++)
+                {
+                    ItemData item = product.ingredients[ingredientIndex]?.item;
+                    if (item == null)
+                        continue;
+
+                    if (!restockProgressionDays.TryGetValue(item, out int existingDay) ||
+                        day < existingDay)
+                        restockProgressionDays[item] = day;
+
+                    if (product.category == MenuProductCategory.Drink)
+                        drinkRestockItems.Add(item);
+                    else
+                        foodRestockItems.Add(item);
+                }
+            }
+        }
+
+        for (int i = 0; i < restockItems.Count; i++)
+        {
+            ItemData item = restockItems[i];
+            if (item == null)
+                continue;
+            if (!restockProgressionDays.ContainsKey(item))
+                restockProgressionDays[item] = Mathf.Max(1, item.dayToUnlock);
+            if (!foodRestockItems.Contains(item) && !drinkRestockItems.Contains(item))
+                foodRestockItems.Add(item);
+        }
+    }
+
+    private int CompareRestockProgression(ItemData a, ItemData b)
+    {
+        if (ReferenceEquals(a, b))
+            return 0;
+        if (a == null)
+            return 1;
+        if (b == null)
+            return -1;
+
+        int day = GetIngredientProgressionDay(a).CompareTo(GetIngredientProgressionDay(b));
+        return day != 0
+            ? day
+            : string.Compare(a.displayName, b.displayName, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private int GetIngredientProgressionDay(ItemData item)
+    {
+        if (item != null && restockProgressionDays.TryGetValue(item, out int day))
+            return Mathf.Max(1, day);
+        return item != null ? Mathf.Max(1, item.dayToUnlock) : int.MaxValue;
+    }
+
+    private bool IsRestockItemInCategory(ItemData item, MenuProductCategory category)
+    {
+        if (item == null)
+            return false;
+        return category == MenuProductCategory.Drink
+            ? drinkRestockItems.Contains(item)
+            : foodRestockItems.Contains(item);
     }
 
     private void RebuildCartLines()
@@ -710,7 +1042,7 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
         if (item == null)
             return false;
         int day = GameFlowManager.Instance != null ? GameFlowManager.Instance.CurrentDay : 1;
-        return item.dayToUnlock <= day ||
+        return GetIngredientProgressionDay(item) <= day ||
                (UnlockManager.Instance != null && UnlockManager.Instance.IsIngredientUnlocked(item));
     }
 
@@ -781,9 +1113,11 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
         if (root == null)
             return;
 
+        StretchToAvailableParent();
+        bool mobile = UsesMobileLayout;
+        ApplyFullHeightContentLayout(mobile);
         lastPanelSize = root.rect.size;
         float width = Mathf.Max(480f, lastPanelSize.x);
-        bool mobile = UsesMobileLayout;
         Vector2 authoredRailRange = showingMenu
             ? menuRightRailWidthRange
             : restockRightRailWidthRange;
@@ -849,6 +1183,124 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
             LayoutRebuilder.MarkLayoutForRebuild(cardContent);
 
         ApplyMobileControls(mobile);
+    }
+
+    private void StretchToAvailableParent()
+    {
+        RectTransform root = transform as RectTransform;
+        if (root == null || root.parent is not RectTransform)
+            return;
+
+        // Menu and Restock are embedded panels. Their parent owns the management
+        // window bounds, so the catalog should consume those bounds instead of
+        // retaining the prefab's 1000 x 620 authoring size.
+        root.anchorMin = Vector2.zero;
+        root.anchorMax = Vector2.one;
+        root.pivot = new Vector2(0.5f, 0.5f);
+        root.offsetMin = Vector2.zero;
+        root.offsetMax = Vector2.zero;
+    }
+
+    private void ApplyFullHeightContentLayout(bool mobile)
+    {
+        if (catalogScroll != null && catalogScroll.transform.parent is RectTransform catalogRoot)
+        {
+            LayoutElement catalogLayout = catalogRoot.GetComponent<LayoutElement>();
+            if (catalogLayout != null)
+                catalogLayout.flexibleHeight = 1f;
+
+            if (catalogScrollOffsetsCaptured)
+            {
+                float tabHeight = Mathf.Clamp(categoryTabHeight, 44f, 52f);
+                RectTransform scrollRect = catalogScroll.transform as RectTransform;
+                scrollRect.offsetMin = new Vector2(
+                    authoredCatalogScrollOffsetMin.x,
+                    Mathf.Max(8f, authoredCatalogScrollOffsetMin.y));
+                scrollRect.offsetMax = new Vector2(
+                    authoredCatalogScrollOffsetMax.x,
+                    authoredCatalogScrollOffsetMax.y - tabHeight - 8f);
+            }
+        }
+
+        if (rightRailLayout != null)
+            rightRailLayout.flexibleHeight = 1f;
+
+        RectTransform details = menuDetailsRoot != null
+            ? menuDetailsRoot.transform as RectTransform
+            : null;
+        if (details != null)
+        {
+            details.anchorMin = Vector2.zero;
+            details.anchorMax = Vector2.one;
+            details.offsetMin = Vector2.zero;
+            details.offsetMax = new Vector2(0f, -50f);
+        }
+
+        RectTransform ingredientScroll = menuDetailsRoot != null
+            ? menuDetailsRoot.transform.Find("IngredientScroll") as RectTransform
+            : null;
+        if (ingredientScroll != null)
+        {
+            ingredientScroll.anchorMin = Vector2.zero;
+            ingredientScroll.anchorMax = Vector2.one;
+            ingredientScroll.pivot = new Vector2(0.5f, 0.5f);
+            ingredientScroll.offsetMin = new Vector2(12f, 76f);
+            ingredientScroll.offsetMax = new Vector2(-12f, -314f);
+        }
+
+        RectTransform availability = menuAvailabilityButton != null
+            ? menuAvailabilityButton.transform as RectTransform
+            : null;
+        float bottomControlHeight = mobile
+            ? Mathf.Max(54f, mobileControlHeight)
+            : 54f;
+        float lowerContentTop = 10f + bottomControlHeight + 12f;
+        if (availability != null)
+        {
+            availability.anchorMin = new Vector2(0f, 0f);
+            availability.anchorMax = new Vector2(1f, 0f);
+            availability.pivot = new Vector2(0.5f, 0f);
+            availability.anchoredPosition = new Vector2(0f, 10f);
+            availability.sizeDelta = new Vector2(-24f, bottomControlHeight);
+        }
+
+        if (ingredientScroll != null)
+            ingredientScroll.offsetMin = new Vector2(12f, lowerContentTop);
+
+        RectTransform cart = restockCartRoot != null
+            ? restockCartRoot.transform as RectTransform
+            : null;
+        if (cart != null)
+        {
+            cart.anchorMin = Vector2.zero;
+            cart.anchorMax = Vector2.one;
+            cart.offsetMin = Vector2.zero;
+            cart.offsetMax = new Vector2(0f, -50f);
+        }
+
+        RectTransform cartScroll = restockCartRoot != null
+            ? restockCartRoot.transform.Find("CartScroll") as RectTransform
+            : null;
+        if (cartScroll != null)
+        {
+            cartScroll.anchorMin = Vector2.zero;
+            cartScroll.anchorMax = Vector2.one;
+            cartScroll.pivot = new Vector2(0.5f, 0.5f);
+            cartScroll.offsetMin = new Vector2(10f, lowerContentTop + 96f);
+            cartScroll.offsetMax = new Vector2(-10f, -8f);
+        }
+
+        RectTransform cartSummary = cartSummaryText != null
+            ? cartSummaryText.rectTransform
+            : null;
+        if (cartSummary != null)
+        {
+            cartSummary.anchorMin = new Vector2(0f, 0f);
+            cartSummary.anchorMax = new Vector2(1f, 0f);
+            cartSummary.pivot = new Vector2(0.5f, 0f);
+            cartSummary.anchoredPosition = new Vector2(0f, lowerContentTop);
+            cartSummary.sizeDelta = new Vector2(-24f, 88f);
+        }
     }
 
     private bool UsesMobileLayout
@@ -919,7 +1371,7 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
     {
         if (rightMessageText == null)
             return;
-        rightMessageText.text = message ?? string.Empty;
+        SetText(rightMessageText, message);
         rightMessageText.color = warning
             ? new Color(0.78f, 0.18f, 0.18f)
             : new Color(0.18f, 0.28f, 0.38f);
@@ -927,8 +1379,29 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
 
     private static void SetText(TMP_Text target, string value)
     {
-        if (target != null)
-            target.text = value ?? string.Empty;
+        if (target == null)
+            return;
+
+        if (!target.gameObject.activeSelf)
+            target.gameObject.SetActive(true);
+        target.enabled = true;
+        Color color = target.color;
+        color.a = 1f;
+        target.color = color;
+        target.canvasRenderer.SetAlpha(1f);
+        target.text = value ?? string.Empty;
+        target.SetAllDirty();
+    }
+
+    private static void SetAnchors(RectTransform rect, Vector2 anchorMin, Vector2 anchorMax)
+    {
+        if (rect == null)
+            return;
+        rect.anchorMin = anchorMin;
+        rect.anchorMax = anchorMax;
+        rect.anchoredPosition = Vector2.zero;
+        rect.sizeDelta = Vector2.zero;
+        rect.pivot = new Vector2(0.5f, 0.5f);
     }
 
     private static void ClearChildren(RectTransform parent)

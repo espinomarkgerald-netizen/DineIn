@@ -1240,6 +1240,11 @@ public class CustomerGroup : MonoBehaviour
             List<OrderLine> mealLines = new List<OrderLine>();
             List<OrderLine> drinkLines = new List<OrderLine>();
             List<Recipe> allProducts = new List<Recipe>();
+            bool usesSharedPitchers = restaurantServesDrinks &&
+                                      catalog.RestaurantType == RestaurantType.CasualDining;
+            Recipe sharedPitcher = usesSharedPitchers
+                ? availableDrinks[UnityEngine.Random.Range(0, availableDrinks.Count)]
+                : null;
 
             for (int memberIndex = 0; memberIndex < dinerCount; memberIndex++)
             {
@@ -1247,7 +1252,7 @@ public class CustomerGroup : MonoBehaviour
                 AddOrIncrementOrderLine(mealLines, meal);
                 allProducts.AddRange(meal.ResolveProducts(catalog));
 
-                if (restaurantServesDrinks)
+                if (restaurantServesDrinks && !usesSharedPitchers)
                 {
                     Recipe drink = availableDrinks[UnityEngine.Random.Range(0, availableDrinks.Count)];
                     OrderLine drinkLine = new OrderLine();
@@ -1255,6 +1260,16 @@ public class CustomerGroup : MonoBehaviour
                     AddOrIncrementOrderLine(drinkLines, drinkLine);
                     allProducts.Add(drink);
                 }
+            }
+
+            if (usesSharedPitchers && sharedPitcher != null)
+            {
+                int pitcherQuantity = GetCasualDiningPitcherQuantity(dinerCount);
+                OrderLine pitcherLine = new OrderLine();
+                pitcherLine.SetProduct(sharedPitcher, pitcherQuantity);
+                drinkLines.Add(pitcherLine);
+                for (int pitcher = 0; pitcher < pitcherQuantity; pitcher++)
+                    allProducts.Add(sharedPitcher);
             }
 
             if (LobbyStockBridge.Instance != null &&
@@ -1277,6 +1292,11 @@ public class CustomerGroup : MonoBehaviour
         }
 
         currentOrder.SetLines(generatedLines, catalog);
+    }
+
+    public static int GetCasualDiningPitcherQuantity(int groupSize)
+    {
+        return Mathf.Clamp(Mathf.CeilToInt(Mathf.Max(1, groupSize) / 2f), 1, 2);
     }
 
     private static void AddOrIncrementOrderLine(
@@ -1630,6 +1650,12 @@ public class CustomerGroup : MonoBehaviour
         if (state != GroupState.ReadyToOrder)
             return false;
 
+        // A complaint remake is a distinct kitchen job. Reusing the delivered
+        // order number makes KitchenManager correctly reject it as already
+        // completed, which used to leave the customer waiting forever.
+        if (waitingForRemake)
+            AssignFreshOrderNumberForRemake();
+
         ConfirmOrder(food, drink);
 
         if (orderBubbleInstance != null)
@@ -1802,6 +1828,30 @@ public class CustomerGroup : MonoBehaviour
         return true;
     }
 
+    private void AssignFreshOrderNumberForRemake()
+    {
+        int previousOrderNumber = currentOrderNumber;
+        if (OrderNumberManager.Instance != null)
+        {
+            int nextOrderNumber = OrderNumberManager.Instance.GetNextOrderNumber();
+            if (nextOrderNumber == previousOrderNumber)
+                nextOrderNumber = OrderNumberManager.Instance.GetNextOrderNumber();
+            currentOrderNumber = nextOrderNumber;
+            return;
+        }
+
+        // Match the existing fallback policy while guaranteeing that this retry
+        // cannot collide with its own completed kitchen job.
+        int fallback;
+        do
+        {
+            fallback = UnityEngine.Random.Range(100, 999);
+        }
+        while (fallback == previousOrderNumber);
+
+        currentOrderNumber = fallback;
+    }
+
     private void HandleWrongDelivery()
     {
         StopEatingRoutineForServiceFailure();
@@ -1947,8 +1997,7 @@ public class CustomerGroup : MonoBehaviour
         if (quality == ManagerComplaintResponseQuality.Professional)
         {
             MarkComplaintTrayForCleanup();
-            if (type == ManagerComplaintType.WrongOrder)
-                managerComplaintRetryUsed = true;
+            managerComplaintRetryUsed = true;
 
             angryResultLocked = false;
             receivedWrongOrder = false;

@@ -58,7 +58,7 @@ public class Recipe : ScriptableObject
     {
         get
         {
-            if (UnlockManager.Instance == null ||
+            if (UnlockManager.Instance != null &&
                 UnlockManager.Instance.IsRecipeUnlocked(recipeID))
                 return true;
 

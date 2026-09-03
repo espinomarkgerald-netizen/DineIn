@@ -52,7 +52,8 @@ public sealed class UIRevealAnimation : MonoBehaviour
         ResolveReferences();
         CaptureVisiblePosition();
         animateAnchoredPosition = CanAnimateAnchoredPosition();
-        if (!isActiveAndEnabled || LevelOneUIAccessibility.ReducedMotion || duration <= 0f)
+        if (!Application.isPlaying || !isActiveAndEnabled ||
+            LevelOneUIAccessibility.ReducedMotion || duration <= 0f)
         {
             ApplyVisibleState();
             return;
@@ -61,6 +62,17 @@ public sealed class UIRevealAnimation : MonoBehaviour
         if (routine != null)
             StopCoroutine(routine);
         routine = StartCoroutine(Reveal(Mathf.Max(0f, delay + additionalDelay)));
+    }
+
+    /// <summary>
+    /// Normalizes a reveal that is no longer running without interrupting an
+    /// intentional in-progress transition.
+    /// </summary>
+    public void RestoreVisibleStateIfIdle()
+    {
+        ResolveReferences();
+        if (routine == null)
+            ApplyVisibleState();
     }
 
     private IEnumerator Reveal(float wait)

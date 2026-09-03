@@ -544,6 +544,73 @@ public sealed class NotepadMenuEntryUI : MonoBehaviour
         ConfigureText(quantityText, 17f, 21f, TextWrappingModes.NoWrap);
     }
 
+    /// <summary>
+    /// Reflows the existing card references for the three-column notepad grid.
+    /// Data and controls are unchanged; only presentation is normalized so
+    /// two comfortable rows fit in the shared landscape viewport.
+    /// </summary>
+    public void ApplyGridCardLayout(Vector2 size)
+    {
+        ResolvePrefabReferences();
+        if (!HasRequiredReferences())
+            return;
+
+        float width = Mathf.Max(176f, size.x);
+        float height = Mathf.Max(270f, size.y);
+        RectTransform root = transform as RectTransform;
+        LayoutElement layout = GetComponent<LayoutElement>();
+        if (root != null)
+            root.sizeDelta = new Vector2(width, height);
+        if (layout != null)
+        {
+            layout.minWidth = width;
+            layout.preferredWidth = width;
+            layout.minHeight = height;
+            layout.preferredHeight = height;
+            layout.flexibleWidth = 0f;
+            layout.flexibleHeight = 0f;
+        }
+
+        float iconHeight = Mathf.Clamp(height * 0.38f, 104f, 122f);
+        ConfigureRect(iconRoot, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+            new Vector2(0.5f, 1f), new Vector2(0f, -12f),
+            new Vector2(Mathf.Min(180f, width - 26f), iconHeight));
+        ConfigureRect(nameText.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f),
+            new Vector2(0.5f, 1f), new Vector2(0f, -(iconHeight + 18f)),
+            new Vector2(-18f, 38f));
+        ConfigureRect(statusText.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f),
+            new Vector2(0.5f, 1f), new Vector2(0f, -(iconHeight + 61f)),
+            new Vector2(-22f, 22f));
+        ConfigureRect(priceText.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f),
+            new Vector2(0.5f, 1f), new Vector2(0f, -(iconHeight + 89f)),
+            new Vector2(-22f, 28f));
+        ConfigureRect(decreaseButton.transform as RectTransform,
+            new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(0f, 0f),
+            new Vector2(14f, 14f), new Vector2(48f, 48f));
+        ConfigureRect(quantityText.rectTransform,
+            new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+            new Vector2(0f, 14f), new Vector2(64f, 48f));
+        ConfigureRect(increaseButton.transform as RectTransform,
+            new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(1f, 0f),
+            new Vector2(-14f, 14f), new Vector2(48f, 48f));
+        ConfigureRect(selectionMark.rectTransform,
+            new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 0.5f),
+            new Vector2(3f, 0f), new Vector2(6f, -10f));
+
+        nameText.alignment = TextAlignmentOptions.Center;
+        statusText.alignment = TextAlignmentOptions.Center;
+        priceText.alignment = TextAlignmentOptions.Center;
+        stockText.gameObject.SetActive(false);
+        ConfigureText(nameText, 15f, 21f, TextWrappingModes.Normal);
+        ConfigureText(statusText, 13f, 17f, TextWrappingModes.NoWrap);
+        ConfigureText(priceText, 16f, 20f, TextWrappingModes.NoWrap);
+        ConfigureText(quantityText, 18f, 22f, TextWrappingModes.NoWrap);
+
+        SetIcons(Kind == EntryKind.Bundle
+            ? Bundle != null ? Bundle.products : null
+            : Product != null ? new List<Recipe> { Product } : null);
+    }
+
     private void CaptureAuthoredCardSize()
     {
         authoredCardSize = GetCurrentCardSize();
@@ -573,7 +640,7 @@ public sealed class NotepadMenuEntryUI : MonoBehaviour
 
         return Product != null && Product.category == MenuProductCategory.Drink
             ? "Drink"
-            : "Menu item";
+            : "Food";
     }
 
     private static void ConfigureText(
@@ -814,7 +881,15 @@ public sealed class NotepadMenuEntryUI : MonoBehaviour
             return;
 
         int count = products.Count;
-        float iconSize = count <= 1 ? 68f : Mathf.Clamp(86f / count, 26f, 40f);
+        float availableHeight = iconRoot != null
+            ? Mathf.Max(1f, iconRoot.rect.height)
+            : 82f;
+        float availableWidth = iconRoot != null
+            ? Mathf.Max(1f, iconRoot.rect.width)
+            : 170f;
+        float iconSize = count <= 1
+            ? Mathf.Clamp(Mathf.Min(availableHeight, availableWidth) - 4f, 76f, 112f)
+            : Mathf.Clamp((availableWidth - (count - 1) * 4f) / count, 38f, 64f);
         float spacing = count <= 1 ? 0f : 4f;
         float totalWidth = count * iconSize + (count - 1) * spacing;
         float start = -totalWidth * 0.5f + iconSize * 0.5f;

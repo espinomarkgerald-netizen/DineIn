@@ -2720,6 +2720,8 @@ MonoBehaviour:
   cardContent: {fileID: 6302698879271447415}
   cardGrid: {fileID: 30399753709515567}
   cardPrefab: {fileID: 4999164550074299704, guid: 37402877c3ec86b4fa753506d1dad272, type: 3}
+  categoryTabHeight: 52
+  categoryTabsWidth: 250
   rightRailLayout: {fileID: 5108289755543267181}
   rightHeaderText: {fileID: 8120922000320879131}
   rightMessageText: {fileID: 8386694447889862551}

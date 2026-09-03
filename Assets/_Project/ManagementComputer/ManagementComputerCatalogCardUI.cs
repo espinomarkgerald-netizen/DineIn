@@ -56,6 +56,17 @@ public sealed class ManagementComputerCatalogCardUI : MonoBehaviour
     public Button MinusButton => minusButton;
     public Button PlusButton => plusButton;
 
+    private void OnEnable()
+    {
+        RestoreExpectedVisualState();
+    }
+
+    public void RestoreExpectedVisualState()
+    {
+        RestoreTextVisuals();
+        GetComponent<UIRevealAnimation>()?.RestoreVisibleStateIfIdle();
+    }
+
     public void ConfigureReferences(
         Image configuredBackground,
         Button configuredCardButton,
@@ -84,6 +95,7 @@ public sealed class ManagementComputerCatalogCardUI : MonoBehaviour
 
     public void BindMenu(Recipe product, bool selected, Action<Recipe> onSelected)
     {
+        RestoreExpectedVisualState();
         BoundProduct = product;
         BoundItem = null;
         bool unlocked = product != null && product.IsUnlocked;
@@ -93,7 +105,7 @@ public sealed class ManagementComputerCatalogCardUI : MonoBehaviour
         SetText(titleText, product != null ? product.DisplayName : "Missing product");
         SetText(metaText, product != null ? product.category.ToString() : string.Empty);
         SetStatusText(!unlocked
-            ? "LOCKED"
+            ? "LOCKED • DAY " + Mathf.Max(1, product.dayToUnlock)
             : onMenu ? "ON MENU" : "NOT ON MENU");
         SetText(priceText, product != null ? "₱" + product.EffectiveSellPrice : "₱0");
 
@@ -143,6 +155,7 @@ public sealed class ManagementComputerCatalogCardUI : MonoBehaviour
         bool canIncrease,
         Action<ItemData, int> onQuantityChanged)
     {
+        RestoreExpectedVisualState();
         BoundItem = item;
         BoundProduct = null;
         projection ??= RestockStockProjection.Calculate(item, 1);
@@ -289,8 +302,55 @@ public sealed class ManagementComputerCatalogCardUI : MonoBehaviour
 
     private static void SetText(TMP_Text target, string value)
     {
-        if (target != null)
-            target.text = value ?? string.Empty;
+        if (target == null)
+            return;
+
+        RestoreTextVisual(target);
+        target.text = value ?? string.Empty;
+        target.SetAllDirty();
+        target.ForceMeshUpdate(true, true);
+    }
+
+    private void RestoreTextVisuals()
+    {
+        RestoreTextVisual(titleText);
+        RestoreTextVisual(metaText);
+        RestoreTextVisual(statusText);
+        RestoreTextVisual(priceText);
+        RestoreTextVisual(inStockLabelText);
+        RestoreTextVisual(inStockValueText);
+        RestoreTextVisual(neededTodayLabelText);
+        RestoreTextVisual(neededTodayValueText);
+        RestoreTextVisual(quantityText);
+    }
+
+    private static void RestoreTextVisual(TMP_Text text)
+    {
+        if (text == null)
+            return;
+
+        Transform parent = text.transform.parent;
+        ManagementComputerCatalogCardUI card = text.GetComponentInParent<ManagementComputerCatalogCardUI>();
+        while (parent != null && card != null && parent != card.transform)
+        {
+            CanvasGroup group = parent.GetComponent<CanvasGroup>();
+            if (group != null)
+                group.alpha = 1f;
+            parent = parent.parent;
+        }
+
+        if (!text.gameObject.activeSelf)
+            text.gameObject.SetActive(true);
+        text.enabled = true;
+        Color color = text.color;
+        color.a = 1f;
+        text.color = color;
+        text.canvasRenderer.SetAlpha(1f);
+        text.canvasRenderer.cull = false;
+        text.UpdateMeshPadding();
+        text.RecalculateMasking();
+        text.RecalculateClipping();
+        text.SetAllDirty();
     }
 
     private static void BindQuantityButton(
@@ -585,6 +645,7 @@ public sealed class ManagementComputerCatalogCardUI : MonoBehaviour
         text.fontSizeMin = minimumSize;
         text.fontSizeMax = maximumSize;
         text.fontStyle = style;
+        RestoreTextVisual(text);
     }
 
     private void SetQuantity(int value)
@@ -594,7 +655,7 @@ public sealed class ManagementComputerCatalogCardUI : MonoBehaviour
 
         bool changed = displayedQuantity >= 0 && displayedQuantity != value;
         displayedQuantity = value;
-        quantityText.text = value.ToString();
+        SetText(quantityText, value.ToString());
         if (!changed || !isActiveAndEnabled || LevelOneUIAccessibility.ReducedMotion)
             return;
 
@@ -611,7 +672,7 @@ public sealed class ManagementComputerCatalogCardUI : MonoBehaviour
         value ??= string.Empty;
         bool changed = displayedStatus != null && displayedStatus != value;
         displayedStatus = value;
-        statusText.text = value;
+        SetText(statusText, value);
         if (!changed || !isActiveAndEnabled || LevelOneUIAccessibility.ReducedMotion)
             return;
 
