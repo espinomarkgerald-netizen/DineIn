@@ -16,7 +16,9 @@ public class BoothAssignArrowManager : MonoBehaviour
 
     private GameObject activeArrow;
     private GameObject activeAnchor;
+    private Booth activeSuggestedBooth;
     private Booth[] booths;
+    public Booth ActiveSuggestedBooth => activeSuggestedBooth;
 
     private void Awake()
     {
@@ -84,6 +86,7 @@ public class BoothAssignArrowManager : MonoBehaviour
             Destroy(activeAnchor);
             activeAnchor = null;
         }
+        activeSuggestedBooth = null;
     }
 
     private void SpawnArrowForBooth(Booth booth, Camera cam)
@@ -93,6 +96,7 @@ public class BoothAssignArrowManager : MonoBehaviour
 
         activeArrow = Instantiate(arrowPrefab);
         activeArrow.name = $"AssignArrow_{booth.name}";
+        activeSuggestedBooth = booth;
 
         RectTransform rect = activeArrow.GetComponent<RectTransform>();
         if (rect != null)
@@ -103,8 +107,7 @@ public class BoothAssignArrowManager : MonoBehaviour
 
         activeAnchor = new GameObject("Tutorial Booth Arrow Anchor");
         activeAnchor.transform.SetParent(booth.transform, true);
-        Bounds bounds = CalculateActiveBounds(booth);
-        activeAnchor.transform.position = new Vector3(bounds.center.x, bounds.max.y, bounds.center.z);
+        activeAnchor.transform.position = CalculateLiveTableAnchor(booth);
         Transform anchor = activeAnchor.transform;
 
         BoothAssignArrowUI ui = activeArrow.GetComponent<BoothAssignArrowUI>();
@@ -126,23 +129,56 @@ public class BoothAssignArrowManager : MonoBehaviour
         return GetBestBooth(group);
     }
 
-    private static Bounds CalculateActiveBounds(Booth booth)
+    public Transform GetSuggestionTarget(CustomerGroup group)
     {
-        bool found = false;
-        Bounds combined = new Bounds(booth.transform.position, Vector3.zero);
+        if (activeSuggestedBooth != null && IsValidBooth(activeSuggestedBooth, group) && activeAnchor != null)
+            return activeAnchor.transform;
+        return GetSuggestedBooth(group)?.transform;
+    }
+
+    private static Vector3 CalculateLiveTableAnchor(Booth booth)
+    {
+        Vector3 seatCenter = Vector3.zero;
+        float seatTop = float.NegativeInfinity;
+        int activeSeats = 0;
+        foreach (Transform seat in booth.seats)
+        {
+            if (seat == null || !seat.gameObject.activeInHierarchy || SeatAnchor.IsSeatOccupied(seat)) continue;
+            seatCenter += seat.position;
+            seatTop = Mathf.Max(seatTop, seat.position.y);
+            activeSeats++;
+        }
+        if (activeSeats > 0) seatCenter /= activeSeats;
+        else seatCenter = booth.transform.position;
+
+        float tableTop = float.NegativeInfinity;
+        float nearestSqr = float.PositiveInfinity;
+        Vector3 tableCenter = seatCenter;
         foreach (Renderer renderer in booth.GetComponentsInChildren<Renderer>(false))
         {
             if (!renderer.enabled || !renderer.gameObject.activeInHierarchy) continue;
-            if (!found) { combined = renderer.bounds; found = true; }
-            else combined.Encapsulate(renderer.bounds);
+            Vector3 delta = renderer.bounds.center - seatCenter;
+            delta.y = 0f;
+            if (delta.sqrMagnitude > nearestSqr) continue;
+            nearestSqr = delta.sqrMagnitude;
+            tableCenter = renderer.bounds.center;
+            tableTop = renderer.bounds.max.y;
         }
-        foreach (Collider collider in booth.GetComponentsInChildren<Collider>(false))
+        if (float.IsPositiveInfinity(nearestSqr))
         {
-            if (!collider.enabled || !collider.gameObject.activeInHierarchy) continue;
-            if (!found) { combined = collider.bounds; found = true; }
-            else combined.Encapsulate(collider.bounds);
+            foreach (Collider collider in booth.GetComponentsInChildren<Collider>(false))
+            {
+                if (!collider.enabled || collider.isTrigger || !collider.gameObject.activeInHierarchy) continue;
+                Vector3 delta = collider.bounds.center - seatCenter;
+                delta.y = 0f;
+                if (delta.sqrMagnitude > nearestSqr) continue;
+                nearestSqr = delta.sqrMagnitude;
+                tableCenter = collider.bounds.center;
+                tableTop = collider.bounds.max.y;
+            }
         }
-        return combined;
+        if (float.IsNegativeInfinity(tableTop)) tableTop = float.IsNegativeInfinity(seatTop) ? booth.transform.position.y : seatTop;
+        return new Vector3(tableCenter.x, tableTop, tableCenter.z);
     }
 
     private Booth GetBestBooth(CustomerGroup group)
@@ -232,13 +268,23 @@ public class BoothAssignArrowManager : MonoBehaviour
         if (booth == null || group == null)
             return false;
 
+        if (!booth.gameObject.activeInHierarchy || booth.approachPoint == null ||
+            !booth.approachPoint.gameObject.activeInHierarchy)
+            return false;
+
         if (booth.CurrentGroup != null)
             return false;
 
         if (booth.seats == null)
             return false;
 
-        int seatCount = booth.seats.Count;
+        int seatCount = 0;
+        for (int i = 0; i < booth.seats.Count; i++)
+        {
+            Transform seat = booth.seats[i];
+            if (seat == null || !seat.gameObject.activeInHierarchy || SeatAnchor.IsSeatOccupied(seat)) continue;
+            seatCount++;
+        }
         int groupSize = group.Size;
 
         if (seatCount < groupSize)

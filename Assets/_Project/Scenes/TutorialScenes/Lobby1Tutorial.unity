@@ -5466,25 +5466,6 @@ MonoBehaviour:
   - id: staff_receptionist
     phase: 5
     speaker: Big Boss
-    message: First, the Receptionist welcomes waiting customers and seats them.
-    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
-    stepType: 0
-    requiredAction: 0
-    hintMode: 0
-    highlightTarget: {fileID: 0}
-    worldTargetKey: TutorialCustomer
-    restrictUnrelatedInteractions: 1
-    uiFocusTarget: {fileID: 0}
-    uiTargetKey: 
-    actionKey: 
-    requiredContext: {fileID: 0}
-    objective: Seat the first customer
-    enableStaffSpawningOnComplete: 0
-    enableCustomerSpawningOnComplete: 0
-    isPlaceholder: 0
-  - id: staff_customer_arrive
-    phase: 5
-    speaker: Big Boss
     message: 
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
@@ -5495,16 +5476,16 @@ MonoBehaviour:
     restrictUnrelatedInteractions: 0
     uiFocusTarget: {fileID: 0}
     uiTargetKey: 
-    actionKey: Customer.Arrived
+    actionKey: Customer.FrontOfLine
     requiredContext: {fileID: 0}
-    objective: 
+    objective: Seat the first customer
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
-  - id: staff_receptionist_queue
+  - id: staff_customer_arrive
     phase: 5
     speaker: Big Boss
-    message: This customer is waiting. Their patience falls while they stay in the queue.
+    message: Wait for the customer to fall in line. Always serve the customer who came first.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
@@ -5572,6 +5553,44 @@ MonoBehaviour:
     uiFocusTarget: {fileID: 0}
     uiTargetKey: CustomerGreetButton
     actionKey: Customer.Greeted
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: staff_receptionist_seat_button
+    phase: 5
+    speaker: Big Boss
+    message: Now press Seat Table to choose where this customer will sit.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: CustomerSeatButton
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: staff_receptionist_seat_mode
+    phase: 5
+    speaker: Big Boss
+    message: 
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 1
+    requiredAction: 0
+    hintMode: 2
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: CustomerSeatButton
+    actionKey: Customer.SeatModeStarted
     requiredContext: {fileID: 0}
     objective: 
     enableStaffSpawningOnComplete: 0
@@ -5691,10 +5710,10 @@ MonoBehaviour:
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
-  - id: staff_waiter_requested
+  - id: staff_waiter_food_tab_explain
     phase: 5
     speaker: Big Boss
-    message: These are the exact items the customer requested.
+    message: Choose FOOD first.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
@@ -5703,8 +5722,27 @@ MonoBehaviour:
     worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey: NotepadRequested
+    uiTargetKey: NotepadFoodTab
     actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: staff_waiter_food_tab
+    phase: 5
+    speaker: Big Boss
+    message: 
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 1
+    requiredAction: 0
+    hintMode: 2
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: NotepadFoodTab
+    actionKey: Customer.NotepadFoodTab
     requiredContext: {fileID: 0}
     objective: 
     enableStaffSpawningOnComplete: 0
@@ -5713,7 +5751,7 @@ MonoBehaviour:
   - id: staff_waiter_select_food_explain
     phase: 5
     speaker: Big Boss
-    message: First, select the requested food and set its shown quantity.
+    message: Press + on Tomato Soup once.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
@@ -5722,7 +5760,7 @@ MonoBehaviour:
     worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey: NotepadFoodItem
+    uiTargetKey: NotepadFoodAdjust
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
@@ -5741,55 +5779,17 @@ MonoBehaviour:
     worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey: NotepadFoodItem
-    actionKey: Customer.NotepadFoodSelected
+    uiTargetKey: NotepadFoodAdjust
+    actionKey: Customer.NotepadFoodQuantity
     requiredContext: {fileID: 0}
     objective: 
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
-  - id: staff_waiter_select_drink_explain
+  - id: staff_waiter_drink_tab_explain
     phase: 5
     speaker: Big Boss
-    message: Now select the requested drink and set its shown quantity.
-    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
-    stepType: 0
-    requiredAction: 0
-    hintMode: 0
-    highlightTarget: {fileID: 0}
-    worldTargetKey:
-    restrictUnrelatedInteractions: 1
-    uiFocusTarget: {fileID: 0}
-    uiTargetKey: NotepadDrinkItem
-    actionKey:
-    requiredContext: {fileID: 0}
-    objective:
-    enableStaffSpawningOnComplete: 0
-    enableCustomerSpawningOnComplete: 0
-    isPlaceholder: 0
-  - id: staff_waiter_select_drink
-    phase: 5
-    speaker: Big Boss
-    message:
-    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
-    stepType: 1
-    requiredAction: 0
-    hintMode: 2
-    highlightTarget: {fileID: 0}
-    worldTargetKey:
-    restrictUnrelatedInteractions: 1
-    uiFocusTarget: {fileID: 0}
-    uiTargetKey: NotepadDrinkItem
-    actionKey: Customer.NotepadDrinkSelected
-    requiredContext: {fileID: 0}
-    objective:
-    enableStaffSpawningOnComplete: 0
-    enableCustomerSpawningOnComplete: 0
-    isPlaceholder: 0
-  - id: staff_waiter_confirm_explain
-    phase: 5
-    speaker: Big Boss
-    message: Now confirm the order.
+    message: Now choose DRINKS.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
@@ -5798,14 +5798,14 @@ MonoBehaviour:
     worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey: NotepadConfirm
+    uiTargetKey: NotepadDrinkTab
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
-  - id: staff_waiter_confirm
+  - id: staff_waiter_drink_tab
     phase: 5
     speaker: Big Boss
     message: 
@@ -5817,10 +5817,124 @@ MonoBehaviour:
     worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey: NotepadConfirm
-    actionKey: Customer.OrderConfirmed
+    uiTargetKey: NotepadDrinkTab
+    actionKey: Customer.NotepadDrinkTab
     requiredContext: {fileID: 0}
     objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: staff_waiter_select_drink_explain
+    phase: 5
+    speaker: Big Boss
+    message: Press + on Iced Tea Pitcher once.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: NotepadDrinkAdjust
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: staff_waiter_select_drink
+    phase: 5
+    speaker: Big Boss
+    message: 
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 1
+    requiredAction: 0
+    hintMode: 2
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: NotepadDrinkAdjust
+    actionKey: Customer.NotepadDrinkQuantity
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: staff_waiter_check_explain
+    phase: 5
+    speaker: Big Boss
+    message: Now check the order.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey:
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: NotepadConfirm
+    actionKey:
+    requiredContext: {fileID: 0}
+    objective:
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: staff_waiter_check
+    phase: 5
+    speaker: Big Boss
+    message:
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 1
+    requiredAction: 0
+    hintMode: 2
+    highlightTarget: {fileID: 0}
+    worldTargetKey:
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: NotepadConfirm
+    actionKey: Customer.NotepadChecked
+    requiredContext: {fileID: 0}
+    objective:
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: staff_waiter_confirm_explain
+    phase: 5
+    speaker: Big Boss
+    message: The order matches. Press Confirm Order.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey:
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: NotepadReviewSubmit
+    actionKey:
+    requiredContext: {fileID: 0}
+    objective:
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: staff_waiter_confirm
+    phase: 5
+    speaker: Big Boss
+    message:
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 1
+    requiredAction: 0
+    hintMode: 2
+    highlightTarget: {fileID: 0}
+    worldTargetKey:
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: NotepadReviewSubmit
+    actionKey: Customer.OrderConfirmed
+    requiredContext: {fileID: 0}
+    objective:
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -5890,10 +6004,10 @@ MonoBehaviour:
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey: TutorialFoodTray
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey: 
+    uiTargetKey: TrayPickupButton
     actionKey: 
     requiredContext: {fileID: 0}
     objective: Serve the food
@@ -5909,10 +6023,10 @@ MonoBehaviour:
     requiredAction: 0
     hintMode: 2
     highlightTarget: {fileID: 0}
-    worldTargetKey: TutorialFoodTray
+    worldTargetKey: 
     restrictUnrelatedInteractions: 0
     uiFocusTarget: {fileID: 0}
-    uiTargetKey: 
+    uiTargetKey: TrayPickupButton
     actionKey: Customer.TrayPickedUp
     requiredContext: {fileID: 0}
     objective: 
@@ -5961,82 +6075,6 @@ MonoBehaviour:
     phase: 5
     speaker: Big Boss
     message: The food is served. Let the customer finish eating.
-    portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
-    stepType: 2
-    requiredAction: 0
-    hintMode: 0
-    highlightTarget: {fileID: 0}
-    worldTargetKey: TutorialCustomer
-    restrictUnrelatedInteractions: 1
-    uiFocusTarget: {fileID: 0}
-    uiTargetKey: 
-    actionKey: 
-    requiredContext: {fileID: 0}
-    objective: 
-    enableStaffSpawningOnComplete: 0
-    enableCustomerSpawningOnComplete: 0
-    isPlaceholder: 0
-  - id: staff_busser_wait
-    phase: 5
-    speaker: Big Boss
-    message:
-    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
-    stepType: 1
-    requiredAction: 0
-    hintMode: 0
-    highlightTarget: {fileID: 0}
-    worldTargetKey: TutorialCustomer
-    restrictUnrelatedInteractions: 0
-    uiFocusTarget: {fileID: 0}
-    uiTargetKey:
-    actionKey: Customer.ReadyForCleanup
-    requiredContext: {fileID: 0}
-    objective:
-    enableStaffSpawningOnComplete: 0
-    enableCustomerSpawningOnComplete: 0
-    isPlaceholder: 0
-  - id: staff_busser
-    phase: 5
-    speaker: Big Boss
-    message: The Busser clears the used tray so the table can be used again.
-    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
-    stepType: 0
-    requiredAction: 0
-    hintMode: 0
-    highlightTarget: {fileID: 0}
-    worldTargetKey: TutorialCleanupTray
-    restrictUnrelatedInteractions: 1
-    uiFocusTarget: {fileID: 0}
-    uiTargetKey: 
-    actionKey: 
-    requiredContext: {fileID: 0}
-    objective: Clear the used tray
-    enableStaffSpawningOnComplete: 0
-    enableCustomerSpawningOnComplete: 0
-    isPlaceholder: 0
-  - id: staff_busser_clean
-    phase: 5
-    speaker: Big Boss
-    message: 
-    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
-    stepType: 1
-    requiredAction: 0
-    hintMode: 2
-    highlightTarget: {fileID: 0}
-    worldTargetKey: TutorialCleanupTray
-    restrictUnrelatedInteractions: 0
-    uiFocusTarget: {fileID: 0}
-    uiTargetKey: 
-    actionKey: Customer.TrayCleaned
-    requiredContext: {fileID: 0}
-    objective: 
-    enableStaffSpawningOnComplete: 0
-    enableCustomerSpawningOnComplete: 0
-    isPlaceholder: 0
-  - id: staff_busser_success
-    phase: 5
-    speaker: Big Boss
-    message: The used tray is cleared.
     portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
     stepType: 2
     requiredAction: 0
@@ -6118,10 +6156,10 @@ MonoBehaviour:
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey: TutorialBill
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey:
+    uiTargetKey: BillPickupButton
     actionKey:
     requiredContext: {fileID: 0}
     objective:
@@ -6137,10 +6175,10 @@ MonoBehaviour:
     requiredAction: 0
     hintMode: 2
     highlightTarget: {fileID: 0}
-    worldTargetKey: TutorialBill
+    worldTargetKey: 
     restrictUnrelatedInteractions: 0
     uiFocusTarget: {fileID: 0}
-    uiTargetKey:
+    uiTargetKey: BillPickupButton
     actionKey: Customer.BillPickedUp
     requiredContext: {fileID: 0}
     objective:
@@ -6194,10 +6232,10 @@ MonoBehaviour:
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey: TutorialPayment
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey: 
+    uiTargetKey: PaymentPickupButton
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
@@ -6213,10 +6251,10 @@ MonoBehaviour:
     requiredAction: 0
     hintMode: 2
     highlightTarget: {fileID: 0}
-    worldTargetKey: TutorialPayment
+    worldTargetKey: 
     restrictUnrelatedInteractions: 0
     uiFocusTarget: {fileID: 0}
-    uiTargetKey: 
+    uiTargetKey: PaymentPickupButton
     actionKey: Customer.PaymentPickedUp
     requiredContext: {fileID: 0}
     objective: 
@@ -6273,7 +6311,7 @@ MonoBehaviour:
     worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey: CashierChangeControls
+    uiTargetKey: CashierNextMoneyButton
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
@@ -6292,7 +6330,7 @@ MonoBehaviour:
     worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey: CashierChangeControls
+    uiTargetKey: CashierNextMoneyButton
     actionKey: Customer.ChangeCorrect
     requiredContext: {fileID: 0}
     objective: 
@@ -6332,6 +6370,82 @@ MonoBehaviour:
     uiFocusTarget: {fileID: 0}
     uiTargetKey: CashierConfirm
     actionKey: Customer.PaymentCompleted
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: staff_busser_wait
+    phase: 5
+    speaker: Big Boss
+    message:
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 1
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: TutorialCustomer
+    restrictUnrelatedInteractions: 0
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey:
+    actionKey: Customer.ReadyForCleanup
+    requiredContext: {fileID: 0}
+    objective:
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: staff_busser
+    phase: 5
+    speaker: Big Boss
+    message: The Busser clears the used tray so the table can be used again.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey:
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: CleanupPickupButton
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: Clear the used tray
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: staff_busser_clean
+    phase: 5
+    speaker: Big Boss
+    message: 
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 1
+    requiredAction: 0
+    hintMode: 2
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 0
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: CleanupPickupButton
+    actionKey: Customer.TrayCleaned
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: staff_busser_success
+    phase: 5
+    speaker: Big Boss
+    message: The used tray is cleared.
+    portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
+    stepType: 2
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: TutorialCustomer
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: 
     requiredContext: {fileID: 0}
     objective: 
     enableStaffSpawningOnComplete: 0

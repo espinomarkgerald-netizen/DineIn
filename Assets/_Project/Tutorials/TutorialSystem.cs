@@ -540,6 +540,28 @@ public sealed class TutorialSystem : MonoBehaviour
             handIndicator?.ShowTypingHint(currentUIFocus);
     }
 
+    /// <summary>
+    /// Retargets an active tutorial action to a replacement runtime UI control.
+    /// Service bubbles and cashier controls can be rebuilt or change after each
+    /// real click, so retaining their old RectTransform would leave the mask stale.
+    /// </summary>
+    public void RefreshLiveActionTarget(RectTransform liveTarget)
+    {
+        TutorialStep step = CurrentStep;
+        if (!waitingForPlayerAction || step == null || liveTarget == null ||
+            currentUIFocus == liveTarget)
+            return;
+
+        currentUIFocus = liveTarget;
+        sceneBindings?.BeginUIFocus(currentUIFocus);
+        dialogueUI?.SetFocusTarget(currentUIFocus);
+        uiFocusMask?.Show(currentUIFocus, true);
+        uiActionAdapter?.Begin(this, currentUIFocus);
+
+        if (step.HintMode == TutorialHintMode.Tap)
+            handIndicator?.ShowTapHint(currentUIFocus);
+    }
+
     private void ShowFocus(bool allowTargetInput)
     {
         if (CurrentStep != null && CurrentStep.HintMode == TutorialHintMode.Drag)

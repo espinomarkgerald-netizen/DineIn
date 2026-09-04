@@ -284,13 +284,24 @@ public sealed class TutorialSceneBindings : MonoBehaviour
             case "RestockBoxActions":
                 return FindFirstObjectByType<TutorialRestockFlowBridge>(FindObjectsInactive.Include)?.ResolveUI(key);
             case "CustomerGreetButton":
+            case "CustomerSeatButton":
             case "OrderBubble":
+            case "TrayPickupButton":
+            case "CleanupPickupButton":
+            case "BillPickupButton":
+            case "PaymentPickupButton":
             case "NotepadRoot":
             case "NotepadRequested":
             case "NotepadCorrectItem":
+            case "NotepadFoodTab":
+            case "NotepadDrinkTab":
+            case "NotepadFoodAdjust":
+            case "NotepadDrinkAdjust":
+            case "NotepadReviewSubmit":
             case "NotepadConfirm":
             case "CashierRoot":
             case "CashierChangeControls":
+            case "CashierNextMoneyButton":
             case "CashierConfirm":
                 return FindFirstObjectByType<TutorialCustomerFlowBridge>(FindObjectsInactive.Include)?.ResolveUI(key);
         }
