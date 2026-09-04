@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Reflection;
 using TMPro;
 using UnityEngine;
@@ -25,13 +26,15 @@ public sealed class TutorialRestockFlowBridge : MonoBehaviour
     private int startingFrozen;
     private bool roomWasOpen;
     private bool bootstrapped;
+    private Button guardedExitButton;
+    private Coroutine exitInputGuardRoutine;
+    private ManagerPlayer guardedManager;
+    private RestockStorageContainer placedDryContainer;
+    private bool placedBoxDragObserved;
+    private readonly Dictionary<PlayerMovement, bool> suppressedStaffInputs = new();
+    private bool loggedStaffInputSuppression;
 
-    private IEnumerator Start()
-    {
-        tutorial = GetComponent<TutorialSystem>();
-        yield return null;
-        Bootstrap();
-    }
+    private void Awake() => tutorial = GetComponent<TutorialSystem>();
 
     public void Bootstrap()
     {
@@ -59,7 +62,10 @@ public sealed class TutorialRestockFlowBridge : MonoBehaviour
 
     private void Update()
     {
-        if (!bootstrapped) Bootstrap();
+        UpdatePhysicalRestockInputGate();
+        if (!bootstrapped && tutorial != null &&
+            tutorial.CurrentPhase >= TutorialSystem.TutorialPhase.PhysicalRestocking)
+            Bootstrap();
         if (coordinator != null && coordinator.IsRestockRoomOpen)
             KeepTutorialOverlayVisible();
         if (tutorial == null || !tutorial.IsWaitingForGameplayAction || tutorial.CurrentStep == null)
@@ -77,12 +83,66 @@ public sealed class TutorialRestockFlowBridge : MonoBehaviour
             startingDry = manager != null ? manager.GetHotbarContainerCount(RestockStorageType.Dry) : 0;
             startingFrozen = manager != null ? manager.GetHotbarContainerCount(RestockStorageType.Frozen) : 0;
             roomWasOpen = coordinator != null && coordinator.IsRestockRoomOpen;
+            placedBoxDragObserved = false;
         }
+
+        if (step.ActionKey == "Management.CloseAfterRestock")
+            EnsureExitInputGuard();
+        else
+            RemoveExitInputGuard();
 
         if (!IsComplete(step.ActionKey)) return;
         string key = step.ActionKey;
+        if (key == "Restock.StoreDry")
+            placedDryContainer = FindPlacedDryContainer();
         observedStep = null;
         tutorial.NotifyAction(key);
+    }
+
+    private void UpdatePhysicalRestockInputGate()
+    {
+        bool shouldSuppress = tutorial != null &&
+                              (tutorial.CurrentPhase == TutorialSystem.TutorialPhase.PhysicalRestocking ||
+                               tutorial.CurrentPhase == TutorialSystem.TutorialPhase.ReturnToComputer);
+        if (!shouldSuppress)
+        {
+            RestoreStaffInputHandlers();
+            return;
+        }
+
+        PlayerMovement managerMovement = ManagerPlayer.Active != null
+            ? ManagerPlayer.Active.Movement
+            : null;
+        FieldInfo controlledField = typeof(PlayerMovement).GetField("isPlayerControlled", PrivateInstance);
+        int newlySuppressed = 0;
+        foreach (PlayerMovement movement in FindObjectsByType<PlayerMovement>(
+                     FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+        {
+            if (movement == null || movement == managerMovement || suppressedStaffInputs.ContainsKey(movement))
+                continue;
+
+            bool wasControlled = controlledField != null &&
+                                 controlledField.GetValue(movement) is bool value && value;
+            suppressedStaffInputs.Add(movement, wasControlled);
+            movement.SetPlayerControlled(false);
+            newlySuppressed++;
+        }
+
+        if (newlySuppressed > 0 && !loggedStaffInputSuppression)
+        {
+            loggedStaffInputSuppression = true;
+            Debug.Log("[TutorialRestock] Disabled duplicate click handlers on tutorial staff while the manager performs the physical Restock lesson.", this);
+        }
+    }
+
+    private void RestoreStaffInputHandlers()
+    {
+        if (suppressedStaffInputs.Count == 0) return;
+        foreach (KeyValuePair<PlayerMovement, bool> entry in suppressedStaffInputs)
+            if (entry.Key != null)
+                entry.Key.SetPlayerControlled(entry.Value);
+        suppressedStaffInputs.Clear();
+        loggedStaffInputSuppression = false;
     }
 
     private static void KeepTutorialOverlayVisible()
@@ -123,6 +183,15 @@ public sealed class TutorialRestockFlowBridge : MonoBehaviour
             case "Restock.StoreDry":
                 return manager != null && startingDry > 0 &&
                        manager.GetHotbarContainerCount(RestockStorageType.Dry) < startingDry;
+            case "Restock.BoxActionsShown":
+                return IsBoxActionPanelVisible(ResolvePlacedDryBox());
+            case "Restock.BoxActionsHidden":
+            {
+                DraggableStorageBox box = ResolvePlacedDryBox();
+                if (box == null) return false;
+                if (IsBoxBeingDragged(box)) placedBoxDragObserved = true;
+                return placedBoxDragObserved && !IsBoxActionPanelVisible(box);
+            }
             case "Restock.SwitchFreezer":
                 return coordinator != null && coordinator.IsRestockRoomOpen &&
                        CurrentRoom == RestockStorageType.Frozen;
@@ -171,6 +240,8 @@ public sealed class TutorialRestockFlowBridge : MonoBehaviour
                          FindObjectsInactive.Exclude, FindObjectsSortMode.None))
                 if (grid.StorageType == wanted) return grid.transform;
         }
+        if (key == "RestockPlacedDryBox")
+            return ResolvePlacedDryBox()?.transform;
         return null;
     }
 
@@ -195,7 +266,108 @@ public sealed class TutorialRestockFlowBridge : MonoBehaviour
         }
         if (key == "RestockSwitchRoom") return FindActiveButton("SwitchRoomToFreezer");
         if (key == "RestockExit") return FindActiveButton("ExitButton");
+        if (key == "RestockBoxActions")
+        {
+            DraggableStorageBox box = ResolvePlacedDryBox();
+            if (box == null) return null;
+            Button keep = FindBoxButton(box, "KeepButton");
+            Button discard = FindBoxButton(box, "ThrowAwayButton");
+            Transform root = keep != null && discard != null && keep.transform.parent == discard.transform.parent
+                ? keep.transform.parent
+                : keep != null ? keep.transform : discard != null ? discard.transform : null;
+            return root as RectTransform;
+        }
         return null;
+    }
+
+    private void EnsureExitInputGuard()
+    {
+        if (guardedExitButton != null) return;
+        ManagementComputerController computer = FindFirstObjectByType<ManagementComputerController>(
+            FindObjectsInactive.Include);
+        if (computer == null) return;
+        foreach (Button candidate in computer.GetComponentsInChildren<Button>(true))
+        {
+            if (candidate == null || candidate.name != "ExitButton") continue;
+            guardedExitButton = candidate;
+            guardedExitButton.onClick.AddListener(BeginExitInputGuard);
+            break;
+        }
+    }
+
+    private void RemoveExitInputGuard()
+    {
+        if (guardedExitButton != null)
+            guardedExitButton.onClick.RemoveListener(BeginExitInputGuard);
+        guardedExitButton = null;
+    }
+
+    private void BeginExitInputGuard()
+    {
+        if (tutorial == null || tutorial.CurrentStep?.ActionKey != "Management.CloseAfterRestock")
+            return;
+
+        guardedManager = ManagerPlayer.Active;
+        if (guardedManager == null) return;
+        guardedManager.SetExternalInputSuppressed(true);
+        if (exitInputGuardRoutine != null) StopCoroutine(exitInputGuardRoutine);
+        exitInputGuardRoutine = StartCoroutine(ReleaseExitInputAfterPointer());
+        Debug.Log("[TutorialRestock] Management EXIT release guarded so it cannot click through into a world task.", this);
+    }
+
+    private IEnumerator ReleaseExitInputAfterPointer()
+    {
+        yield return new WaitForEndOfFrame();
+        while (Input.GetMouseButton(0) || Input.touchCount > 0)
+            yield return null;
+        yield return null;
+        if (guardedManager != null)
+            guardedManager.SetExternalInputSuppressed(false);
+        guardedManager = null;
+        exitInputGuardRoutine = null;
+    }
+
+    private DraggableStorageBox ResolvePlacedDryBox()
+    {
+        if (placedDryContainer != null && placedDryContainer.gameObject.activeInHierarchy)
+            return placedDryContainer.GetComponent<DraggableStorageBox>();
+        placedDryContainer = FindPlacedDryContainer();
+        return placedDryContainer != null ? placedDryContainer.GetComponent<DraggableStorageBox>() : null;
+    }
+
+    private static RestockStorageContainer FindPlacedDryContainer()
+    {
+        foreach (RestockStorageContainer container in FindObjectsByType<RestockStorageContainer>(
+                     FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+            if (container != null && container.Item != null &&
+                container.CurrentStorage == RestockStorageType.Dry &&
+                container.Item.requiredStorage == RestockStorageType.Dry &&
+                container.GetComponent<DraggableStorageBox>() != null)
+                return container;
+        return null;
+    }
+
+    private static bool IsBoxActionPanelVisible(DraggableStorageBox box)
+    {
+        Button keep = FindBoxButton(box, "KeepButton");
+        Button discard = FindBoxButton(box, "ThrowAwayButton");
+        return (keep != null && keep.gameObject.activeInHierarchy) ||
+               (discard != null && discard.gameObject.activeInHierarchy);
+    }
+
+    private static Button FindBoxButton(DraggableStorageBox box, string buttonName)
+    {
+        if (box == null) return null;
+        foreach (Button button in box.GetComponentsInChildren<Button>(true))
+            if (button != null && button.name == buttonName)
+                return button;
+        return null;
+    }
+
+    private static bool IsBoxBeingDragged(DraggableStorageBox box)
+    {
+        FieldInfo field = typeof(DraggableStorageBox).GetField("isDragging", PrivateInstance);
+        return field != null && box != null && field.GetValue(box) is bool value && value;
     }
 
     private static RectTransform FindActiveButton(string objectName)
@@ -203,5 +375,16 @@ public sealed class TutorialRestockFlowBridge : MonoBehaviour
         foreach (Button button in FindObjectsByType<Button>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
             if (button.name == objectName) return button.transform as RectTransform;
         return null;
+    }
+
+    private void OnDisable()
+    {
+        RestoreStaffInputHandlers();
+        RemoveExitInputGuard();
+        if (exitInputGuardRoutine != null) StopCoroutine(exitInputGuardRoutine);
+        exitInputGuardRoutine = null;
+        if (guardedManager != null)
+            guardedManager.SetExternalInputSuppressed(false);
+        guardedManager = null;
     }
 }

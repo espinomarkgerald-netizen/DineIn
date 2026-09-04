@@ -27,6 +27,9 @@ EditorBuildSettings:
     path: Assets/_Project/Scenes/RoleBased/Lobby1.unity
     guid: c684353cf753d9e47888198224870397
   - enabled: 1
+    path: Assets/_Project/Scenes/TutorialScenes/Lobby1Tutorial.unity
+    guid: 00f87c1ebdbf917448b4c68bfab9a894
+  - enabled: 1
     path: Assets/_Project/Scenes/RoleBased/Kitchen.unity
     guid: 4ef4f1fb1085f4d41a118d68e4b48794
   - enabled: 1

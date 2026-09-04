@@ -6,7 +6,7 @@ using TMPro;
 [DisallowMultipleComponent]
 public sealed class TutorialHandIndicator : MonoBehaviour
 {
-    public enum HintMode { Hidden, Swipe, Tap, Zoom, Typing }
+    public enum HintMode { Hidden, Swipe, Tap, Zoom, Typing, Drag }
 
     [Header("Hand Image")]
     [SerializeField] private RectTransform handRect;
@@ -53,6 +53,9 @@ public sealed class TutorialHandIndicator : MonoBehaviour
     private Image mouseLegend;
     private Image cursorImage;
     private TMP_Text typingCue;
+    private TMP_Text dragCue;
+    private Transform dragEndTarget;
+    private Vector2 dragEndOffset;
 
     public HintMode Mode => mode;
     public Transform CurrentTarget => currentTarget;
@@ -94,21 +97,31 @@ public sealed class TutorialHandIndicator : MonoBehaviour
     private void EnsureHintRoot()
     {
         if (hintRoot != null) return;
-        Transform parent = targetCanvas != null ? targetCanvas.transform : transform.parent;
-        GameObject root = new GameObject("Tutorial Top Input Hints", typeof(RectTransform), typeof(Canvas));
+        GameObject root = new GameObject("Tutorial Top Input Hints", typeof(RectTransform),
+            typeof(Canvas), typeof(CanvasGroup));
         root.layer = gameObject.layer;
-        root.transform.SetParent(parent, false);
+        // A scene-root overlay survives panels disabling/rebuilding their own
+        // canvases (Computer, Menu, Restock, Notepad and Cashier).
+        root.transform.SetParent(null, false);
         hintRoot = (RectTransform)root.transform;
         hintRoot.anchorMin = Vector2.zero;
         hintRoot.anchorMax = Vector2.one;
         hintRoot.offsetMin = hintRoot.offsetMax = Vector2.zero;
         Canvas layer = root.GetComponent<Canvas>();
+        layer.renderMode = RenderMode.ScreenSpaceOverlay;
         layer.overrideSorting = true;
         layer.sortingOrder = 32767;
+        CanvasGroup input = root.GetComponent<CanvasGroup>();
+        input.interactable = false;
+        input.blocksRaycasts = false;
+        // Move the real Hand / Hand Click image into the same topmost canvas.
+        handRect.SetParent(hintRoot, false);
+        handRect.SetAsLastSibling();
         pinchPartner = CreateImage("Pinch Partner", handOpenSprite, handDisplaySize);
         mouseLegend = CreateImage("Mouse Legend", mouseSprite, mouseDisplaySize);
         cursorImage = CreateImage("Cursor", cursorSprite, cursorDisplaySize);
         typingCue = CreateTypingCue();
+        dragCue = CreateCue("Drag Hold Cue", new Vector2(320f, 64f));
         SetAuxiliaryVisible(false, false, false);
     }
 
@@ -149,6 +162,28 @@ public sealed class TutorialHandIndicator : MonoBehaviour
         return text;
     }
 
+    private TMP_Text CreateCue(string objectName, Vector2 size)
+    {
+        GameObject go = new GameObject(objectName, typeof(RectTransform),
+            typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        go.layer = gameObject.layer;
+        go.transform.SetParent(hintRoot, false);
+        TextMeshProUGUI text = go.GetComponent<TextMeshProUGUI>();
+        text.raycastTarget = false;
+        text.alignment = TextAlignmentOptions.Center;
+        text.textWrappingMode = TextWrappingModes.NoWrap;
+        text.fontSize = 24f;
+        text.fontStyle = FontStyles.Bold;
+        text.color = new Color(1f, 0.88f, 0.22f, 1f);
+        text.outlineColor = new Color32(8, 18, 28, 255);
+        text.outlineWidth = 0.22f;
+        text.rectTransform.anchorMin = text.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+        text.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+        text.rectTransform.sizeDelta = size;
+        text.gameObject.SetActive(false);
+        return text;
+    }
+
     private void LateUpdate()
     {
         if (mode == HintMode.Hidden || !gameObject.activeSelf) return;
@@ -156,6 +191,7 @@ public sealed class TutorialHandIndicator : MonoBehaviour
         else if (mode == HintMode.Swipe) AnimateSwipe();
         else if (mode == HintMode.Zoom) AnimateZoom();
         else if (mode == HintMode.Typing) AnimateTyping();
+        else if (mode == HintMode.Drag) AnimateDrag();
     }
 
     public void ShowSwipeHint()
@@ -197,13 +233,40 @@ public sealed class TutorialHandIndicator : MonoBehaviour
         if (typingCue != null) typingCue.gameObject.SetActive(true);
     }
 
+    public void ShowDragHint(Transform start, Transform end)
+    {
+        if (start == null || end == null) { HideHint(); return; }
+        Begin(HintMode.Drag, start);
+        dragEndTarget = end;
+        dragEndOffset = Vector2.zero;
+        mobilePresentation = TutorialInputTerminology.IsMobile;
+        if (mobilePresentation) ShowMobileHand(handOpenSprite);
+        else ShowPC(mouseSprite);
+        if (dragCue != null) dragCue.gameObject.SetActive(true);
+    }
+
+    public void ShowSmallDragHint(Transform target)
+    {
+        if (target == null) { HideHint(); return; }
+        Begin(HintMode.Drag, target);
+        dragEndTarget = target;
+        dragEndOffset = new Vector2(64f, 18f);
+        mobilePresentation = TutorialInputTerminology.IsMobile;
+        if (mobilePresentation) ShowMobileHand(handOpenSprite);
+        else ShowPC(mouseSprite);
+        if (dragCue != null) dragCue.gameObject.SetActive(true);
+    }
+
     public void HideHint()
     {
         mode = HintMode.Hidden;
         currentTarget = null;
+        dragEndTarget = null;
+        dragEndOffset = Vector2.zero;
         if (canvasGroup != null) canvasGroup.alpha = 0f;
         SetAuxiliaryVisible(false, false, false);
         if (typingCue != null) typingCue.gameObject.SetActive(false);
+        if (dragCue != null) dragCue.gameObject.SetActive(false);
         gameObject.SetActive(false);
     }
 
@@ -234,6 +297,7 @@ public sealed class TutorialHandIndicator : MonoBehaviour
         }
         SetAuxiliaryVisible(false, false, false);
         if (typingCue != null) typingCue.gameObject.SetActive(false);
+        if (dragCue != null) dragCue.gameObject.SetActive(false);
     }
 
     private void ShowMobileHand(Sprite sprite)
@@ -342,6 +406,57 @@ public sealed class TutorialHandIndicator : MonoBehaviour
         position.x = Mathf.Clamp(position.x, bounds.xMin + halfWidth, bounds.xMax - halfWidth);
         position.y = Mathf.Clamp(position.y, bounds.yMin + halfHeight, bounds.yMax - halfHeight);
         typingCue.rectTransform.anchoredPosition = position;
+    }
+
+    private void AnimateDrag()
+    {
+        if (!TryGetTargetCanvasPosition(currentTarget, out Vector2 start) ||
+            !TryGetTargetCanvasPosition(dragEndTarget, out Vector2 end))
+            return;
+
+        end += dragEndOffset;
+        float n = Mathf.Repeat(Time.unscaledTime - cycleStartedAt, 2.55f) / 2.55f;
+        bool held = n >= .16f && n < .80f;
+        bool released = n >= .80f;
+        float travel = n < .24f ? 0f : n < .74f
+            ? Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(.24f, .74f, n))
+            : 1f;
+        float fade = n > .90f ? 1f - Mathf.InverseLerp(.90f, 1f, n) : 1f;
+        Vector2 position = Vector2.LerpUnclamped(start, end, travel);
+
+        if (mobilePresentation)
+        {
+            SetHandSprite(held ? handClickSprite : handOpenSprite);
+            float scale = held ? .88f : 1f;
+            Vector2 fingertip = held ? new Vector2(.33f, .70f) : new Vector2(.375f, .80f);
+            Vector2 tip = Vector2.Scale(fingertip - handRect.pivot, handRect.rect.size) * scale;
+            handRect.anchoredPosition = position - tip;
+            handRect.localScale = Vector3.one * scale;
+            if (canvasGroup != null) canvasGroup.alpha = fade;
+        }
+        else
+        {
+            cursorImage.rectTransform.anchoredPosition = position + new Vector2(12f, -12f);
+            cursorImage.rectTransform.localScale = Vector3.one * (held ? .84f : 1f);
+            Color cursorColor = cursorImage.color;
+            cursorColor.a = fade;
+            cursorImage.color = cursorColor;
+            mouseLegend.sprite = held && mouseLeftClickSprite != null
+                ? mouseLeftClickSprite : mouseSprite;
+            mouseLegend.rectTransform.localScale = new Vector3(1f, held ? .90f : 1f, 1f);
+        }
+
+        if (dragCue != null)
+        {
+            dragCue.text = released ? "RELEASE" : held
+                ? (mobilePresentation ? "PRESS + HOLD" : "HOLD LEFT CLICK")
+                : (mobilePresentation ? "TOUCH THE BOX" : "MOVE TO THE BOX");
+            Vector2 cueAnchor = mobilePresentation ? position : mouseLegend.rectTransform.anchoredPosition;
+            dragCue.rectTransform.anchoredPosition = cueAnchor + Vector2.down * 78f;
+            Color cueColor = dragCue.color;
+            cueColor.a = fade;
+            dragCue.color = cueColor;
+        }
     }
 
     private void SetAuxiliaryVisible(bool pinch, bool mouse, bool cursor)

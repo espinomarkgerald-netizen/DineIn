@@ -26,6 +26,9 @@ public sealed class TutorialUIActionAdapter : MonoBehaviour
     private bool originalAvailability;
     private int originalPrice;
     private int originalOrderCount;
+    private int expectedSavedPrice = -1;
+    private int lastLoggedSavedPrice = int.MinValue;
+    private bool saveClickLogged;
 
     /// <returns>True when the required real state was already satisfied.</returns>
     public bool Begin(TutorialSystem owner, RectTransform target)
@@ -37,6 +40,16 @@ public sealed class TutorialUIActionAdapter : MonoBehaviour
         tutorial = owner;
         step = owner.CurrentStep;
         CaptureRealState(target);
+        if (string.Equals(step.ActionKey, "Management.MenuSavePrice", StringComparison.Ordinal))
+        {
+            Debug.Log($"[TutorialMenu] Step {owner.CurrentStepIndex} waiting for: " +
+                      $"id={step.Id}, type={step.StepType}, requiredAction={step.RequiredAction}, " +
+                      $"actionKey={step.ActionKey}, context={(step.RequiredContext != null ? step.RequiredContext.name : "<none>")}, " +
+                      $"uiTargetKey={step.UITargetKey}", this);
+            Debug.Log($"[TutorialMenu] Recipe: {(recipe != null ? recipe.DisplayName : "<null>")}; " +
+                      $"Original price: {originalPrice}; Typed price: {expectedSavedPrice}; " +
+                      "observer=TutorialSystem/TutorialUIActionAdapter", this);
+        }
         if (string.Equals(step.ActionKey, "Management.StaffSetActive", StringComparison.Ordinal) &&
             employee != null && employee.assigned)
         {
@@ -100,9 +113,13 @@ public sealed class TutorialUIActionAdapter : MonoBehaviour
         employee = employeeCard != null ? employeeCard.Employee : null;
         originalEmployeeHired = employee != null && employee.hired;
 
+        ManagementComputerCatalogPanelUI catalogPanel =
+            target.GetComponentInParent<ManagementComputerCatalogPanelUI>();
         ManagementComputerCatalogCardUI catalogCard =
             target.GetComponentInParent<ManagementComputerCatalogCardUI>();
         input = target.GetComponent<TMP_InputField>() ?? target.GetComponentInChildren<TMP_InputField>(false);
+        if (input == null && catalogPanel != null)
+            input = catalogPanel.GetComponentInChildren<TMP_InputField>(false);
         recipe = catalogCard != null ? catalogCard.BoundProduct : GetSelectedRecipe(target);
         if (string.Equals(step?.ActionKey, "Management.MenuSavePrice", StringComparison.Ordinal) &&
             PriceEditedRecipe != null)
@@ -110,6 +127,17 @@ public sealed class TutorialUIActionAdapter : MonoBehaviour
         item = catalogCard != null ? catalogCard.BoundItem : null;
         originalAvailability = recipe != null && MenuAvailabilityManager.IsProductAvailable(recipe);
         originalPrice = recipe != null ? recipe.EffectiveSellPrice : -1;
+        if (string.Equals(step?.ActionKey, "Management.MenuSavePrice", StringComparison.Ordinal))
+        {
+            expectedSavedPrice = EditedMenuPrice;
+            if (input != null && int.TryParse(input.text, out int finalTypedPrice) && finalTypedPrice >= 0)
+            {
+                expectedSavedPrice = finalTypedPrice;
+                // Step 56 may have observed the first digit of a multi-digit edit.
+                // Step 58 owns the final value that the real SAVE callback will read.
+                EditedMenuPrice = finalTypedPrice;
+            }
+        }
         originalOrderCount = RestockOrderManager.Instance != null
             ? RestockOrderManager.Instance.Orders.Count : 0;
     }
@@ -118,6 +146,11 @@ public sealed class TutorialUIActionAdapter : MonoBehaviour
     {
         if (tutorial == null || tutorial.CurrentStep != step || !tutorial.IsWaitingForGameplayAction)
             return;
+        if (!saveClickLogged && string.Equals(step.ActionKey, "Management.MenuSavePrice", StringComparison.Ordinal))
+        {
+            saveClickLogged = true;
+            Debug.Log("[TutorialMenu] Save pointer/click detected.", this);
+        }
         MarkObserved();
     }
 
@@ -133,7 +166,20 @@ public sealed class TutorialUIActionAdapter : MonoBehaviour
 
     private void LateUpdate()
     {
-        if (!clicked || Time.frameCount <= clickedFrame || tutorial == null ||
+        bool menuSave = step != null && string.Equals(
+            step.ActionKey, "Management.MenuSavePrice", StringComparison.Ordinal);
+        if (menuSave && recipe != null && recipe.EffectiveSellPrice != lastLoggedSavedPrice)
+        {
+            lastLoggedSavedPrice = recipe.EffectiveSellPrice;
+            Debug.Log($"[TutorialMenu] Saved recipe price after UI rebuild: {lastLoggedSavedPrice}; " +
+                      $"expected final typed price: {expectedSavedPrice}; " +
+                      $"condition {(lastLoggedSavedPrice == expectedSavedPrice && lastLoggedSavedPrice != originalPrice ? "matched" : "did not match")}", this);
+        }
+        bool stateDrivenAction = step != null &&
+            (menuSave ||
+             step.ActionKey.StartsWith("Shift.", StringComparison.Ordinal));
+        if ((!clicked && !stateDrivenAction) ||
+            (clicked && Time.frameCount <= clickedFrame) || tutorial == null ||
             tutorial.CurrentStep != step || !tutorial.IsWaitingForGameplayAction)
             return;
         if (!IsRealActionComplete(step.ActionKey)) return;
@@ -147,8 +193,12 @@ public sealed class TutorialUIActionAdapter : MonoBehaviour
             PriceEditedRecipe = recipe;
             EditedMenuPrice = editedPrice;
         }
-        StopWaiting();
-        owner.NotifyAction(key);
+        if (menuSave)
+            Debug.Log($"[TutorialMenu] NotifyAction: {key}", this);
+        bool matched = owner.NotifyAction(key);
+        if (menuSave)
+            Debug.Log($"[TutorialMenu] Step condition {(matched ? "matched" : "did not match")}; " +
+                      $"current index is now {owner.CurrentStepIndex}.", this);
     }
 
     private bool IsRealActionComplete(string actionKey)
@@ -163,6 +213,27 @@ public sealed class TutorialUIActionAdapter : MonoBehaviour
                 return FindManagementComputer()?.IsOpen == true;
             case "Management.CloseAfterRestock":
                 return FindManagementComputer()?.IsOpen == false;
+            case "Shift.OpenChecklist":
+            {
+                ManagementComputerController computer = FindManagementComputer();
+                return computer?.AppWindow != null &&
+                       computer.AppWindow.gameObject.activeInHierarchy &&
+                       computer.AppWindow.FooterButton != null &&
+                       computer.AppWindow.FooterButton.gameObject.activeInHierarchy;
+            }
+            case "Shift.OpenDayIntro":
+            {
+                RectTransform play = null;
+                foreach (RectTransform candidate in FindObjectsByType<RectTransform>(
+                             FindObjectsInactive.Include, FindObjectsSortMode.None))
+                    if (candidate.name == "PlayButton")
+                    {
+                        play = candidate;
+                        break;
+                    }
+                return FindManagementComputer()?.IsOpen == false &&
+                       play != null && play.gameObject.activeInHierarchy;
+            }
             case "Shift.Start":
                 return GameDayManager.Instance != null && GameDayManager.Instance.ShiftRunning;
 
@@ -194,8 +265,8 @@ public sealed class TutorialUIActionAdapter : MonoBehaviour
             case "Management.MenuPriceChanged":
                 return TryReadChangedPrice(out _);
             case "Management.MenuSavePrice":
-                return recipe != null && recipe == PriceEditedRecipe && EditedMenuPrice >= 0 &&
-                       recipe.EffectiveSellPrice == EditedMenuPrice &&
+                return recipe != null && recipe == PriceEditedRecipe && expectedSavedPrice >= 0 &&
+                       recipe.EffectiveSellPrice == expectedSavedPrice &&
                        recipe.EffectiveSellPrice != originalPrice;
             case "Management.MenuAvailability":
                 return recipe != null &&
@@ -351,6 +422,9 @@ public sealed class TutorialUIActionAdapter : MonoBehaviour
         employee = null;
         recipe = null;
         item = null;
+        expectedSavedPrice = -1;
+        lastLoggedSavedPrice = int.MinValue;
+        saveClickLogged = false;
     }
 
     private void OnDisable() => StopWaiting();

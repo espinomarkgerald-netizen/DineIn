@@ -177,6 +177,8 @@ public sealed class TutorialSceneBindings : MonoBehaviour
                 return ResolveControl(key);
             case "NewspaperClose":
                 return FindNamedUI("Close Newspaper");
+            case "ShiftPlayButton":
+                return FindNamedUI("PlayButton");
 
             // ── Management Computer navigation ───────────────────────────────
             case "DashboardButton":
@@ -265,13 +267,32 @@ public sealed class TutorialSceneBindings : MonoBehaviour
             case "RestockOrderNow": return ResolveManagementButtonByLabel("ORDER NOW");
             case "ManagementExit": return ResolveManagementDesktopButton("ExitButton", "EXIT");
             case "ManagementStartShift": return ResolveManagementDesktopButton("StartShiftButton", "START SHIFT");
+            case "ManagementConfirmStartShift":
+            {
+                ManagementComputerController computer = FindManagementComputer();
+                Button footer = computer != null && computer.AppWindow != null
+                    ? computer.AppWindow.FooterButton : null;
+                return footer != null && footer.gameObject.activeInHierarchy
+                    ? footer.transform as RectTransform : null;
+            }
             case "RestockGetOrders":
             case "RestockHotbar":
             case "RestockDrySlot":
             case "RestockFrozenSlot":
             case "RestockSwitchRoom":
             case "RestockExit":
+            case "RestockBoxActions":
                 return FindFirstObjectByType<TutorialRestockFlowBridge>(FindObjectsInactive.Include)?.ResolveUI(key);
+            case "CustomerGreetButton":
+            case "OrderBubble":
+            case "NotepadRoot":
+            case "NotepadRequested":
+            case "NotepadCorrectItem":
+            case "NotepadConfirm":
+            case "CashierRoot":
+            case "CashierChangeControls":
+            case "CashierConfirm":
+                return FindFirstObjectByType<TutorialCustomerFlowBridge>(FindObjectsInactive.Include)?.ResolveUI(key);
         }
 
         // Future detailed page targets (staff slots, applicant cards, menu controls,
@@ -283,7 +304,11 @@ public sealed class TutorialSceneBindings : MonoBehaviour
     public Transform ResolveWorld(string key)
     {
         if (string.IsNullOrEmpty(key)) return null;
-        return FindFirstObjectByType<TutorialRestockFlowBridge>(FindObjectsInactive.Include)?.ResolveWorld(key);
+        Transform restock = FindFirstObjectByType<TutorialRestockFlowBridge>(
+            FindObjectsInactive.Include)?.ResolveWorld(key);
+        if (restock != null) return restock;
+        return FindFirstObjectByType<TutorialCustomerFlowBridge>(
+            FindObjectsInactive.Include)?.ResolveWorld(key);
     }
 
     private static RectTransform ResolveControl(string path) =>

@@ -43,7 +43,8 @@ public sealed class TutorialSystem : MonoBehaviour
         Swipe,
         Tap,
         Zoom,
-        Typing
+        Typing,
+        Drag
     }
 
     [Serializable]
@@ -101,7 +102,6 @@ public sealed class TutorialSystem : MonoBehaviour
     public static TutorialSystem Instance { get; private set; }
     public static bool IsTutorialMode =>
         Instance != null && Instance.isActiveAndEnabled && Instance.gameObject.activeInHierarchy;
-    // TODO Tutorial: persist completion through the real save flow in a later pass.
     public static bool TutorialCompleted => Instance != null && Instance.tutorialCompleted;
 
     [Header("Tutorial UI")]
@@ -155,6 +155,7 @@ public sealed class TutorialSystem : MonoBehaviour
     public event Action<string> ObjectiveChanged;
     public event Action<bool, bool> SpawnPermissionsChanged;
     public event Action<TutorialStep> StepCompleted;
+    public event Action TutorialCompletedChanged;
     public event Action SkeletonEndpointReached;
 
     public TutorialPhase CurrentPhase => currentPhase;
@@ -188,6 +189,12 @@ public sealed class TutorialSystem : MonoBehaviour
         TutorialInputTerminology.Configure(tutorialInputMode);
         if (gameObject.scene.name == "Lobby1Tutorial" && GetComponent<TutorialRestockFlowBridge>() == null)
             gameObject.AddComponent<TutorialRestockFlowBridge>();
+        if (gameObject.scene.name == "Lobby1Tutorial" && GetComponent<TutorialCustomerFlowBridge>() == null)
+            gameObject.AddComponent<TutorialCustomerFlowBridge>();
+        if (gameObject.scene.name == "Lobby1Tutorial" && GetComponent<TutorialShiftReadinessBridge>() == null)
+            gameObject.AddComponent<TutorialShiftReadinessBridge>();
+        if (gameObject.scene.name == "Lobby1Tutorial" && GetComponent<TutorialCompletionFlow>() == null)
+            gameObject.AddComponent<TutorialCompletionFlow>();
 
         if (dialogueUI == null)
             dialogueUI = FindFirstObjectByType<TutorialDialogueUI>(FindObjectsInactive.Include);
@@ -323,8 +330,15 @@ public sealed class TutorialSystem : MonoBehaviour
     public bool NotifyAction(string actionKey, UnityEngine.Object context = null)
     {
         TutorialStep step = CurrentStep;
+        bool keyMatches = step != null && string.Equals(step.ActionKey, actionKey, StringComparison.Ordinal);
+        bool contextMatches = step != null && ContextMatches(step, context);
+        if (string.Equals(actionKey, "Management.MenuSavePrice", StringComparison.Ordinal) ||
+            (step != null && string.Equals(step.ActionKey, "Management.MenuSavePrice", StringComparison.Ordinal)))
+            Debug.Log($"[TutorialMenu] NotifyAction received at index {currentStepIndex}: sent={actionKey}, " +
+                      $"expected={(step != null ? step.ActionKey : "<no step>")}, waiting={waitingForPlayerAction}, " +
+                      $"keyMatch={keyMatches}, contextMatch={contextMatches}", this);
         if (!waitingForPlayerAction || step == null || string.IsNullOrEmpty(actionKey) ||
-            !string.Equals(step.ActionKey, actionKey, StringComparison.Ordinal) || !ContextMatches(step, context))
+            !keyMatches || !contextMatches)
             return false;
         CompleteCurrentStepAndAdvance();
         return true;
@@ -353,7 +367,10 @@ public sealed class TutorialSystem : MonoBehaviour
         if (!IsTutorialMode || Instance.CurrentPhase != TutorialPhase.Completed ||
             Instance.CurrentStep == null || Instance.CurrentStep.IsPlaceholder) return;
         Instance.tutorialCompleted = true;
+        PlayerPrefs.SetInt(TutorialCompletedSaveKey, 1);
+        PlayerPrefs.Save();
         Instance.SetSpawnPermissions(true, true);
+        Instance.TutorialCompletedChanged?.Invoke();
         Instance.CompleteOpeningSequence();
     }
 
@@ -503,8 +520,17 @@ public sealed class TutorialSystem : MonoBehaviour
         waitingForPlayerAction = true;
         dialogueUI?.HideDialogue();
         ShowFocus(true);
-        if (uiActionAdapter != null && uiActionAdapter.Begin(this, currentUIFocus))
+        if (step.HintMode == TutorialHintMode.Drag)
+        {
+            if (string.Equals(step.ActionKey, "Restock.BoxActionsHidden", StringComparison.Ordinal))
+                handIndicator?.ShowSmallDragHint(currentWorldFocus);
+            else
+                handIndicator?.ShowDragHint(currentUIFocus, currentWorldFocus);
             return;
+        }
+        // UI observers and visual hints run together. The observer verifies the
+        // real click/state; it must not suppress the hand/cursor demonstration.
+        uiActionAdapter?.Begin(this, currentUIFocus);
         if (step.HintMode == TutorialHintMode.Swipe) handIndicator?.ShowSwipeHint();
         else if (step.HintMode == TutorialHintMode.Tap)
             handIndicator?.ShowTapHint(currentUIFocus != null ? currentUIFocus : currentWorldFocus);
@@ -516,6 +542,15 @@ public sealed class TutorialSystem : MonoBehaviour
 
     private void ShowFocus(bool allowTargetInput)
     {
+        if (CurrentStep != null && CurrentStep.HintMode == TutorialHintMode.Drag)
+        {
+            // A hotbar-to-world drag must be able to leave the UI target and reach
+            // the shelf. The hand/cursor and world indicator provide focus without
+            // a fullscreen raycast surface intercepting the real drop.
+            uiFocusMask?.Hide();
+            if (currentWorldFocus != null) targetIndicator?.Show(currentWorldFocus);
+            return;
+        }
         if (currentUIFocus != null) uiFocusMask?.Show(currentUIFocus, allowTargetInput);
         else if (currentWorldFocus != null) targetIndicator?.Show(currentWorldFocus);
     }

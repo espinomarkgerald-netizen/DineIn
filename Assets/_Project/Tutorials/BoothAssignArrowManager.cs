@@ -15,6 +15,7 @@ public class BoothAssignArrowManager : MonoBehaviour
     [SerializeField] private float arrowScale = 0.7f;
 
     private GameObject activeArrow;
+    private GameObject activeAnchor;
     private Booth[] booths;
 
     private void Awake()
@@ -78,6 +79,11 @@ public class BoothAssignArrowManager : MonoBehaviour
             Destroy(activeArrow);
             activeArrow = null;
         }
+        if (activeAnchor != null)
+        {
+            Destroy(activeAnchor);
+            activeAnchor = null;
+        }
     }
 
     private void SpawnArrowForBooth(Booth booth, Camera cam)
@@ -95,7 +101,11 @@ public class BoothAssignArrowManager : MonoBehaviour
             rect.anchoredPosition3D = Vector3.zero;
         }
 
-        Transform anchor = booth.tableNumberAnchor != null ? booth.tableNumberAnchor : booth.transform;
+        activeAnchor = new GameObject("Tutorial Booth Arrow Anchor");
+        activeAnchor.transform.SetParent(booth.transform, true);
+        Bounds bounds = CalculateActiveBounds(booth);
+        activeAnchor.transform.position = new Vector3(bounds.center.x, bounds.max.y, bounds.center.z);
+        Transform anchor = activeAnchor.transform;
 
         BoothAssignArrowUI ui = activeArrow.GetComponent<BoothAssignArrowUI>();
         if (ui != null)
@@ -108,6 +118,31 @@ public class BoothAssignArrowManager : MonoBehaviour
             if (follow != null)
                 follow.Init(anchor, worldOffset, cam);
         }
+    }
+
+    public Booth GetSuggestedBooth(CustomerGroup group)
+    {
+        if (booths == null || booths.Length == 0) RefreshBooths();
+        return GetBestBooth(group);
+    }
+
+    private static Bounds CalculateActiveBounds(Booth booth)
+    {
+        bool found = false;
+        Bounds combined = new Bounds(booth.transform.position, Vector3.zero);
+        foreach (Renderer renderer in booth.GetComponentsInChildren<Renderer>(false))
+        {
+            if (!renderer.enabled || !renderer.gameObject.activeInHierarchy) continue;
+            if (!found) { combined = renderer.bounds; found = true; }
+            else combined.Encapsulate(renderer.bounds);
+        }
+        foreach (Collider collider in booth.GetComponentsInChildren<Collider>(false))
+        {
+            if (!collider.enabled || !collider.gameObject.activeInHierarchy) continue;
+            if (!found) { combined = collider.bounds; found = true; }
+            else combined.Encapsulate(collider.bounds);
+        }
+        return combined;
     }
 
     private Booth GetBestBooth(CustomerGroup group)

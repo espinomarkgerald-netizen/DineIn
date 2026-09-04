@@ -29,6 +29,8 @@ MonoBehaviour:
   - m_enabled: 1
     m_path: Assets/_Project/Scenes/RoleBased/Lobby1.unity
   - m_enabled: 1
+    m_path: Assets/_Project/Scenes/TutorialScenes/Lobby1Tutorial.unity
+  - m_enabled: 1
     m_path: Assets/_Project/Scenes/RoleBased/RestockScene.unity
   m_ScriptingDefines: []
   m_PlayerSettingsYaml:
