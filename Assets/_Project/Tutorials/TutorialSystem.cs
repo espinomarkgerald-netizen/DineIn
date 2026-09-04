@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 
+[DefaultExecutionOrder(-9000)]
 [DisallowMultipleComponent]
 public sealed class TutorialSystem : MonoBehaviour
 {
@@ -40,7 +41,9 @@ public sealed class TutorialSystem : MonoBehaviour
     {
         None,
         Swipe,
-        Tap
+        Tap,
+        Zoom,
+        Typing
     }
 
     [Serializable]
@@ -55,6 +58,8 @@ public sealed class TutorialSystem : MonoBehaviour
         [SerializeField] private TutorialAction requiredAction = TutorialAction.None;
         [SerializeField] private TutorialHintMode hintMode = TutorialHintMode.None;
         [SerializeField] private Transform highlightTarget;
+        [Tooltip("Optional tutorial-side binding for world objects created at runtime.")]
+        [SerializeField] private string worldTargetKey;
         [SerializeField] private bool restrictUnrelatedInteractions;
         [SerializeField] private RectTransform uiFocusTarget;
         [Tooltip("Optional scene-local binding for UI created at runtime (e.g. AlienApproval).")]
@@ -81,6 +86,7 @@ public sealed class TutorialSystem : MonoBehaviour
         public TutorialAction RequiredAction => requiredAction;
         public TutorialHintMode HintMode => hintMode;
         public Transform HighlightTarget => highlightTarget;
+        public string WorldTargetKey => worldTargetKey;
         public bool RestrictUnrelatedInteractions => restrictUnrelatedInteractions;
         public RectTransform UIFocusTarget => uiFocusTarget;
         public string UITargetKey => uiTargetKey;
@@ -104,6 +110,10 @@ public sealed class TutorialSystem : MonoBehaviour
     [SerializeField] private TutorialHandIndicator handIndicator;
     [SerializeField] private TutorialUIFocusMask uiFocusMask;
     [SerializeField] private TutorialSceneBindings sceneBindings;
+
+    [Header("Tutorial Input Presentation")]
+    [Tooltip("Auto follows the runtime platform. Mobile and PC force tutorial wording and hint art for Editor testing.")]
+    [SerializeField] private TutorialInputMode tutorialInputMode = TutorialInputMode.Auto;
 
     [Header("Gameplay Event Sources")]
     [SerializeField] private MainCameraController cameraController;
@@ -129,7 +139,10 @@ public sealed class TutorialSystem : MonoBehaviour
     [SerializeField] private bool allowCustomerSpawning;
     [SerializeField] private bool allowStaffSpawning;
     private RectTransform currentUIFocus;
+    private Transform currentWorldFocus;
     private TutorialUIActionAdapter uiActionAdapter;
+    private TutorialUIAutoScroller uiAutoScroller;
+    private int presentationRevision;
     private bool openingComplete;
     private bool rememberedAutoSpawn;
     private bool spawnStateCaptured;
@@ -172,6 +185,9 @@ public sealed class TutorialSystem : MonoBehaviour
         }
 
         Instance = this;
+        TutorialInputTerminology.Configure(tutorialInputMode);
+        if (gameObject.scene.name == "Lobby1Tutorial" && GetComponent<TutorialRestockFlowBridge>() == null)
+            gameObject.AddComponent<TutorialRestockFlowBridge>();
 
         if (dialogueUI == null)
             dialogueUI = FindFirstObjectByType<TutorialDialogueUI>(FindObjectsInactive.Include);
@@ -197,6 +213,18 @@ public sealed class TutorialSystem : MonoBehaviour
             sceneBindings = gameObject.AddComponent<TutorialSceneBindings>();
         uiActionAdapter = GetComponent<TutorialUIActionAdapter>();
         if (uiActionAdapter == null) uiActionAdapter = gameObject.AddComponent<TutorialUIActionAdapter>();
+        uiAutoScroller = GetComponent<TutorialUIAutoScroller>();
+        if (uiAutoScroller == null) uiAutoScroller = gameObject.AddComponent<TutorialUIAutoScroller>();
+        if (GetComponent<TutorialCameraZoomObserver>() == null)
+            gameObject.AddComponent<TutorialCameraZoomObserver>();
+        if (GetComponent<TutorialBoothAvailability>() == null)
+            gameObject.AddComponent<TutorialBoothAvailability>();
+        if (GetComponent<TutorialStaffSpawnGate>() == null)
+            gameObject.AddComponent<TutorialStaffSpawnGate>();
+        if (GetComponent<TutorialRestaurantCatalogContext>() == null)
+            gameObject.AddComponent<TutorialRestaurantCatalogContext>();
+        if (GetComponent<TutorialDayContext>() == null)
+            gameObject.AddComponent<TutorialDayContext>();
         if (uiFocusMask == null && dialogueUI != null)
             uiFocusMask = TutorialUIFocusMask.Create(dialogueUI.transform.parent);
 
@@ -215,6 +243,7 @@ public sealed class TutorialSystem : MonoBehaviour
     private void OnDestroy()
     {
         UnsubscribeFromGameplayEvents();
+        TutorialInputTerminology.Configure(TutorialInputMode.Auto);
 
         if (Instance == this)
             Instance = null;
@@ -224,7 +253,7 @@ public sealed class TutorialSystem : MonoBehaviour
 
     private void OnDisable()
     {
-        ClearGuidance();
+        ClearGuidance(false);
         PlayerTaskGuidance.ClearTask("Lobby1Tutorial");
         waitingForNext = waitingForPlayerAction = false;
         InteractionRestrictionChanged?.Invoke(false);
@@ -247,6 +276,7 @@ public sealed class TutorialSystem : MonoBehaviour
         tutorialCompleted = skeletonEndpointReached = false;
         waitingForNext = waitingForPlayerAction = false;
         SetSpawnPermissions(false, false);
+        TutorialUIActionAdapter.ClearSessionState();
         SetObjective(string.Empty);
         currentStepIndex = -1;
         CaptureAndSuppressAutomaticSpawning();
@@ -259,12 +289,14 @@ public sealed class TutorialSystem : MonoBehaviour
         if (step == null || !waitingForNext)
             return;
 
-        if (step.StepType == TutorialStepType.WaitForGameplayAction)
-        {
-            BeginWaitingForAction();
-            return;
-        }
-        CompleteCurrentStepAndAdvance();
+        waitingForNext = false; // Debounce NEXT while the authored panel animates out.
+        Action continuation = step.StepType == TutorialStepType.WaitForGameplayAction
+            ? BeginWaitingForAction
+            : CompleteCurrentStepAndAdvance;
+        if (dialogueUI != null)
+            dialogueUI.HideDialogueAnimated(continuation);
+        else
+            continuation();
     }
 
     public bool NotifyGameplayAction(TutorialAction action, UnityEngine.Object context = null)
@@ -363,7 +395,7 @@ public sealed class TutorialSystem : MonoBehaviour
 
     private void AdvanceToNextStep()
     {
-        ClearGuidance();
+        ClearGuidance(true);
         waitingForNext = waitingForPlayerAction = false;
         currentStepIndex++;
         if (currentStepIndex >= StepCount)
@@ -384,7 +416,7 @@ public sealed class TutorialSystem : MonoBehaviour
             return;
         }
 
-        ClearGuidance();
+        ClearGuidance(true);
         waitingForNext = waitingForPlayerAction = false;
         if (currentPhase != step.Phase)
         {
@@ -394,6 +426,7 @@ public sealed class TutorialSystem : MonoBehaviour
         if (!string.IsNullOrEmpty(step.Objective)) SetObjective(step.Objective);
         if (step.IsPlaceholder)
         {
+            uiFocusMask?.Hide();
             skeletonEndpointReached = true;
             openingComplete = true;
             PlayerTaskGuidance.ClearTask("Lobby1Tutorial");
@@ -404,10 +437,15 @@ public sealed class TutorialSystem : MonoBehaviour
             return;
         }
         skeletonEndpointReached = false;
+        sceneBindings.PrepareForStep(step.UITargetKey);
         currentUIFocus = step.UIFocusTarget != null ? step.UIFocusTarget : sceneBindings.ResolveUI(step.UITargetKey);
+        currentWorldFocus = step.HighlightTarget != null
+            ? step.HighlightTarget
+            : sceneBindings.ResolveWorld(step.WorldTargetKey);
         sceneBindings.BeginUIFocus(currentUIFocus);
         if ((!string.IsNullOrEmpty(step.UITargetKey) || step.UIFocusTarget != null) && currentUIFocus == null)
         {
+            uiFocusMask?.Hide();
             Debug.LogError("[TutorialSystem] Missing UI target for step " + step.Id, this);
             dialogueUI?.ShowWaiting(step.Speaker, "This lesson's target is unavailable.", step.Portrait);
             return;
@@ -417,13 +455,39 @@ public sealed class TutorialSystem : MonoBehaviour
             MarkTutorialCompleted();
             return;
         }
+        if (currentUIFocus != null)
+        {
+            int revision = ++presentationRevision;
+            uiFocusMask?.Hold();
+            uiAutoScroller.Prepare(currentUIFocus, () =>
+            {
+                if (revision != presentationRevision || CurrentStep != step)
+                    return;
+                if (uiFocusMask != null)
+                    uiFocusMask.TransitionTo(currentUIFocus, false, () =>
+                    {
+                        if (revision == presentationRevision && CurrentStep == step)
+                            PresentCurrentStep(step, true);
+                    });
+                else
+                    PresentCurrentStep(step, true);
+            });
+            return;
+        }
+        uiFocusMask?.Hide();
+        PresentCurrentStep(step, false);
+    }
+
+    private void PresentCurrentStep(TutorialStep step, bool focusReady)
+    {
         if (step.StepType == TutorialStepType.WaitForGameplayAction && string.IsNullOrEmpty(step.Message))
             BeginWaitingForAction(); // Existing Basic Controls already has separate explanation steps.
         else
         {
-            ShowFocus(false);
+            if (!focusReady) ShowFocus(false);
             waitingForNext = true;
-            dialogueUI?.ShowManual(step.Speaker, step.Message, step.Portrait, AdvanceManualStep);
+            dialogueUI?.ShowManual(step.Speaker,
+                TutorialInputTerminology.Resolve(step.Message), step.Portrait, AdvanceManualStep);
             dialogueUI?.SetFocusTarget(currentUIFocus);
         }
         InteractionRestrictionChanged?.Invoke(step.RestrictUnrelatedInteractions);
@@ -439,24 +503,36 @@ public sealed class TutorialSystem : MonoBehaviour
         waitingForPlayerAction = true;
         dialogueUI?.HideDialogue();
         ShowFocus(true);
+        if (uiActionAdapter != null && uiActionAdapter.Begin(this, currentUIFocus))
+            return;
         if (step.HintMode == TutorialHintMode.Swipe) handIndicator?.ShowSwipeHint();
         else if (step.HintMode == TutorialHintMode.Tap)
-            handIndicator?.ShowTapHint(currentUIFocus != null ? currentUIFocus : step.HighlightTarget);
-        uiActionAdapter?.Begin(this, currentUIFocus);
+            handIndicator?.ShowTapHint(currentUIFocus != null ? currentUIFocus : currentWorldFocus);
+        else if (step.HintMode == TutorialHintMode.Zoom)
+            handIndicator?.ShowZoomHint(TutorialInputTerminology.IsMobile);
+        else if (step.HintMode == TutorialHintMode.Typing)
+            handIndicator?.ShowTypingHint(currentUIFocus);
     }
 
     private void ShowFocus(bool allowTargetInput)
     {
         if (currentUIFocus != null) uiFocusMask?.Show(currentUIFocus, allowTargetInput);
-        else if (CurrentStep.HighlightTarget != null) targetIndicator?.Show(CurrentStep.HighlightTarget);
+        else if (currentWorldFocus != null) targetIndicator?.Show(currentWorldFocus);
     }
 
-    private void ClearGuidance()
+    private void ClearGuidance(bool preserveMask = false)
     {
+        presentationRevision++;
+        currentWorldFocus = null;
+        uiAutoScroller?.Cancel();
         dialogueUI?.SetFocusTarget(null);
         uiActionAdapter?.StopWaiting();
         if (sceneBindings != null) sceneBindings.EndUIFocus();
-        if (uiFocusMask != null) uiFocusMask.Hide();
+        if (uiFocusMask != null)
+        {
+            if (preserveMask) uiFocusMask.Hold();
+            else uiFocusMask.Hide();
+        }
         if (targetIndicator != null) targetIndicator.Hide();
         if (handIndicator != null) handIndicator.HideHint();
         if (dialogueUI != null) dialogueUI.HideDialogue();

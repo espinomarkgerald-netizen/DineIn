@@ -1,340 +1,408 @@
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
-/// <summary>
-/// Renders animated hand demonstration hints inside the tutorial canvas.
-/// Supports a looping swipe gesture (Hand → HandClick → Hand drag) and a
-/// looping tap gesture at a world/UI target (Hand → HandClick → Hand).
-/// All timing uses unscaled time so gameplay Time.timeScale never affects it.
-/// </summary>
+/// <summary>Reusable top-layer Mobile hand or PC mouse/cursor demonstration.</summary>
 [DisallowMultipleComponent]
 public sealed class TutorialHandIndicator : MonoBehaviour
 {
-    public enum HintMode
-    {
-        Hidden,
-        Swipe,
-        Tap
-    }
+    public enum HintMode { Hidden, Swipe, Tap, Zoom, Typing }
 
-    // ── Serialised fields ───────────────────────────────────────────────────
     [Header("Hand Image")]
     [SerializeField] private RectTransform handRect;
     [SerializeField] private Image handImage;
     [SerializeField] private CanvasGroup canvasGroup;
 
-    [Header("Sprites")]
-    [Tooltip("Open / resting hand — Hand.png")]
+    [Header("Mobile Sprites")]
     [SerializeField] private Sprite handOpenSprite;
-    [Tooltip("Pressed / clicking hand — Hand Click.png")]
     [SerializeField] private Sprite handClickSprite;
+
+    [Header("PC Sprites")]
+    [SerializeField] private Sprite cursorSprite;
+    [SerializeField] private Sprite mouseSprite;
+    [SerializeField] private Sprite mouseLeftClickSprite;
+    [SerializeField] private Sprite mouseRightClickSprite;
+    [SerializeField] private Sprite mouseScrollSprite;
 
     [Header("Canvas Reference")]
     [SerializeField] private Canvas targetCanvas;
     [SerializeField] private Camera worldCamera;
 
-    [Header("Swipe Settings")]
+    [Header("Timing")]
     [SerializeField, Min(0.5f)] private float swipeCycleSeconds = 2.1f;
-    [Tooltip("Hand travels this fraction of canvas width left to right")]
     [SerializeField, Range(0.05f, 0.4f)] private float swipeTravelCanvasFraction = 0.22f;
-    [Tooltip("How long the initial press phase holds (fraction of cycle)")]
-    [SerializeField, Range(0f, 0.3f)] private float swipePressHoldFraction = 0.12f;
-    [Tooltip("Where the drag phase ends (fraction of cycle)")]
-    [SerializeField, Range(0.3f, 0.9f)] private float swipeDragEndFraction = 0.76f;
-
-    [Header("Tap Settings")]
     [SerializeField, Min(0.3f)] private float tapCycleSeconds = 1.15f;
-    [SerializeField] private Vector2 tapOffset = new Vector2(30f, -30f);
-    [Tooltip("How far the hand moves down on press (canvas units)")]
-    [SerializeField] private float tapPressDownAmount = 14f;
+    [SerializeField, Min(0.5f)] private float zoomCycleSeconds = 2f;
 
     [Header("Visual")]
-    [Tooltip("Base rendered size of the hand in canvas units (before scale)")]
     [SerializeField] private float handDisplaySize = 168f;
+    [SerializeField] private float cursorDisplaySize = 76f;
+    [SerializeField] private float mouseDisplaySize = 104f;
 
-    // Legacy field names kept for backwards-compat with old scene YAML.
-    // They are redirected into handOpenSprite / handClickSprite during
-    // Awake so scenes saved before the rename still work without manual
-    // Inspector tweaks.
+    // Retained so old scene YAML remains compatible.
     [SerializeField] private Sprite swipeSprite;
     [SerializeField] private Sprite tapSprite;
 
-    // ── Runtime state ───────────────────────────────────────────────────────
-    private HintMode mode = HintMode.Hidden;
+    private HintMode mode;
     private Transform currentTarget;
     private float cycleStartedAt;
     private bool initialized;
+    private bool mobilePresentation;
+    private RectTransform hintRoot;
+    private Image pinchPartner;
+    private Image mouseLegend;
+    private Image cursorImage;
+    private TMP_Text typingCue;
 
-    // ── Public API ──────────────────────────────────────────────────────────
-    public HintMode  Mode           => mode;
-    public Transform CurrentTarget  => currentTarget;
-    public bool      IsVisible      => mode != HintMode.Hidden && gameObject.activeSelf;
-    public Sprite    CurrentSprite  => handImage != null ? handImage.sprite : null;
+    public HintMode Mode => mode;
+    public Transform CurrentTarget => currentTarget;
+    public bool IsVisible => mode != HintMode.Hidden && gameObject.activeSelf;
+    public Sprite CurrentSprite => handImage != null ? handImage.sprite : null;
 
-    // ── Unity lifecycle ─────────────────────────────────────────────────────
     private void Awake() => Initialize();
 
     private void Initialize()
     {
         if (initialized) return;
         initialized = true;
-        // Migrate legacy field values if new fields were left blank.
-        if (handOpenSprite  == null && swipeSprite != null) handOpenSprite  = swipeSprite;
-        if (handClickSprite == null && tapSprite   != null) handClickSprite = tapSprite;
-
-        // Auto-resolve references if Inspector left them blank.
-        if (handRect    == null) handRect    = transform as RectTransform;
-        if (handImage   == null) handImage   = GetComponent<Image>();
+        if (handOpenSprite == null) handOpenSprite = swipeSprite;
+        if (handClickSprite == null) handClickSprite = tapSprite;
+        if (handRect == null) handRect = transform as RectTransform;
+        if (handImage == null) handImage = GetComponent<Image>();
         if (canvasGroup == null) canvasGroup = GetComponent<CanvasGroup>();
-        if (targetCanvas == null)
-            targetCanvas = GetComponentInParent<Canvas>(true);
-        if (worldCamera == null)
-            worldCamera = Camera.main;
+        if (targetCanvas == null) targetCanvas = GetComponentInParent<Canvas>(true);
+        if (worldCamera == null) worldCamera = Camera.main;
 
-        // One reusable hand remains above the UI focus mask without intercepting input.
-        Canvas hintLayer = GetComponent<Canvas>();
-        if (hintLayer == null) hintLayer = gameObject.AddComponent<Canvas>();
-        hintLayer.overrideSorting = true;
-        hintLayer.sortingOrder = 32762;
-
-        // Guarantee correct Image settings.
+        Canvas ownCanvas = GetComponent<Canvas>();
+        if (ownCanvas == null) ownCanvas = gameObject.AddComponent<Canvas>();
+        ownCanvas.overrideSorting = true;
+        ownCanvas.sortingOrder = 32767;
         if (handImage != null)
         {
             handImage.preserveAspect = true;
-            handImage.raycastTarget  = false;
+            handImage.raycastTarget = false;
         }
-
+        if (canvasGroup != null)
+        {
+            canvasGroup.interactable = false;
+            canvasGroup.blocksRaycasts = false;
+        }
+        EnsureHintRoot();
         HideHint();
+    }
+
+    private void EnsureHintRoot()
+    {
+        if (hintRoot != null) return;
+        Transform parent = targetCanvas != null ? targetCanvas.transform : transform.parent;
+        GameObject root = new GameObject("Tutorial Top Input Hints", typeof(RectTransform), typeof(Canvas));
+        root.layer = gameObject.layer;
+        root.transform.SetParent(parent, false);
+        hintRoot = (RectTransform)root.transform;
+        hintRoot.anchorMin = Vector2.zero;
+        hintRoot.anchorMax = Vector2.one;
+        hintRoot.offsetMin = hintRoot.offsetMax = Vector2.zero;
+        Canvas layer = root.GetComponent<Canvas>();
+        layer.overrideSorting = true;
+        layer.sortingOrder = 32767;
+        pinchPartner = CreateImage("Pinch Partner", handOpenSprite, handDisplaySize);
+        mouseLegend = CreateImage("Mouse Legend", mouseSprite, mouseDisplaySize);
+        cursorImage = CreateImage("Cursor", cursorSprite, cursorDisplaySize);
+        typingCue = CreateTypingCue();
+        SetAuxiliaryVisible(false, false, false);
+    }
+
+    private Image CreateImage(string objectName, Sprite sprite, float size)
+    {
+        GameObject go = new GameObject(objectName, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        go.layer = gameObject.layer;
+        go.transform.SetParent(hintRoot, false);
+        Image image = go.GetComponent<Image>();
+        image.sprite = sprite;
+        image.preserveAspect = true;
+        image.raycastTarget = false;
+        image.rectTransform.anchorMin = image.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+        image.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+        image.rectTransform.sizeDelta = Vector2.one * size;
+        return image;
+    }
+
+    private TMP_Text CreateTypingCue()
+    {
+        GameObject go = new GameObject("Price Typing Cue", typeof(RectTransform),
+            typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        go.layer = gameObject.layer;
+        go.transform.SetParent(hintRoot, false);
+        TextMeshProUGUI text = go.GetComponent<TextMeshProUGUI>();
+        text.raycastTarget = false;
+        text.alignment = TextAlignmentOptions.Center;
+        text.textWrappingMode = TextWrappingModes.NoWrap;
+        text.fontSize = 28f;
+        text.fontStyle = FontStyles.Bold;
+        text.color = new Color(1f, 0.88f, 0.22f, 1f);
+        text.outlineColor = new Color32(8, 18, 28, 255);
+        text.outlineWidth = 0.22f;
+        text.rectTransform.anchorMin = text.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+        text.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+        text.rectTransform.sizeDelta = new Vector2(250f, 84f);
+        text.gameObject.SetActive(false);
+        return text;
     }
 
     private void LateUpdate()
     {
-        if (mode == HintMode.Hidden || !gameObject.activeSelf || handRect == null)
-            return;
-
-        switch (mode)
-        {
-            case HintMode.Swipe: AnimateSwipe(); break;
-            case HintMode.Tap:   AnimateTap();   break;
-        }
+        if (mode == HintMode.Hidden || !gameObject.activeSelf) return;
+        if (mode == HintMode.Tap) AnimateTap();
+        else if (mode == HintMode.Swipe) AnimateSwipe();
+        else if (mode == HintMode.Zoom) AnimateZoom();
+        else if (mode == HintMode.Typing) AnimateTyping();
     }
 
-    // ── Public methods ──────────────────────────────────────────────────────
-
-    /// <summary>Starts the looping swipe (camera-pan) hand demonstration.</summary>
     public void ShowSwipeHint()
     {
-        Initialize();
-        ResetVisualState();
-        mode           = HintMode.Swipe;
-        currentTarget  = null;
-        cycleStartedAt = Time.unscaledTime;
-        gameObject.SetActive(true);
-        transform.SetAsLastSibling();
-
-        SetSprite(handOpenSprite);
-        if (handRect != null)
-        {
-            handRect.sizeDelta       = new Vector2(handDisplaySize, handDisplaySize);
-            handRect.anchoredPosition = SwipeStartPosition();
-        }
-        if (canvasGroup != null)
-            canvasGroup.alpha = 1f;
+        Begin(HintMode.Swipe, null);
+        mobilePresentation = TutorialInputTerminology.IsMobile;
+        if (mobilePresentation) ShowMobileHand(handClickSprite);
+        else ShowPC(mouseRightClickSprite);
     }
 
-    /// <summary>Starts the looping tap (interaction) hand demonstration at a world/UI target.</summary>
     public void ShowTapHint(Transform target)
     {
-        Initialize();
         if (target == null) { HideHint(); return; }
-
-        ResetVisualState();
-        mode           = HintMode.Tap;
-        currentTarget  = target;
-        cycleStartedAt = Time.unscaledTime;
-        gameObject.SetActive(true);
-        transform.SetAsLastSibling();
-
-        SetSprite(handOpenSprite);
-        if (handRect != null)
-            handRect.sizeDelta = new Vector2(handDisplaySize, handDisplaySize);
-        if (canvasGroup != null)
-            canvasGroup.alpha = 1f;
+        Begin(HintMode.Tap, target);
+        mobilePresentation = TutorialInputTerminology.IsMobile;
+        if (mobilePresentation) ShowMobileHand(handOpenSprite);
+        else ShowPC(mouseSprite);
     }
 
-    /// <summary>Immediately stops all animation and hides the hand.</summary>
+    public void ShowZoomHint(bool mobile)
+    {
+        Begin(HintMode.Zoom, null);
+        mobilePresentation = mobile;
+        if (mobilePresentation)
+        {
+            ShowMobileHand(handOpenSprite);
+            pinchPartner.gameObject.SetActive(true);
+            pinchPartner.sprite = handOpenSprite;
+            pinchPartner.rectTransform.localScale = new Vector3(-1f, 1f, 1f);
+        }
+        else ShowPC(mouseScrollSprite);
+    }
+
+    public void ShowTypingHint(Transform target)
+    {
+        if (target == null) { HideHint(); return; }
+        Begin(HintMode.Typing, target);
+        if (canvasGroup != null) canvasGroup.alpha = 0f;
+        if (typingCue != null) typingCue.gameObject.SetActive(true);
+    }
+
     public void HideHint()
     {
-        mode          = HintMode.Hidden;
+        mode = HintMode.Hidden;
         currentTarget = null;
-        ResetVisualState();
+        if (canvasGroup != null) canvasGroup.alpha = 0f;
+        SetAuxiliaryVisible(false, false, false);
+        if (typingCue != null) typingCue.gameObject.SetActive(false);
         gameObject.SetActive(false);
     }
 
-    // ── Internal helpers ────────────────────────────────────────────────────
-
-    private void ResetVisualState()
+    private void Begin(HintMode nextMode, Transform target)
     {
+        Initialize();
+        mode = nextMode;
+        currentTarget = target;
+        cycleStartedAt = Time.unscaledTime;
+        gameObject.SetActive(true);
+        transform.SetAsLastSibling();
+        if (hintRoot != null) hintRoot.SetAsLastSibling();
+        if (cursorImage != null)
+        {
+            cursorImage.color = Color.white;
+            cursorImage.rectTransform.localScale = Vector3.one;
+        }
+        if (mouseLegend != null)
+        {
+            mouseLegend.color = Color.white;
+            mouseLegend.rectTransform.localScale = Vector3.one;
+        }
         if (handRect != null)
         {
-            handRect.localScale    = Vector3.one;
+            handRect.sizeDelta = Vector2.one * handDisplaySize;
+            handRect.localScale = Vector3.one;
             handRect.localRotation = Quaternion.identity;
-            handRect.sizeDelta     = new Vector2(handDisplaySize, handDisplaySize);
         }
-        if (canvasGroup != null)
-            canvasGroup.alpha = 0f;
-        SetSprite(handOpenSprite);
+        SetAuxiliaryVisible(false, false, false);
+        if (typingCue != null) typingCue.gameObject.SetActive(false);
     }
 
-    private void SetSprite(Sprite sprite)
+    private void ShowMobileHand(Sprite sprite)
     {
-        if (handImage == null || sprite == null) return;
-        if (handImage.sprite == sprite) return;
-        handImage.sprite  = sprite;
-        handImage.enabled = true;
-        handImage.SetAllDirty();   // force immediate mesh rebuild
+        SetHandSprite(sprite);
+        if (canvasGroup != null) canvasGroup.alpha = 1f;
     }
 
-    // ── Swipe animation ─────────────────────────────────────────────────────
+    private void ShowPC(Sprite legendSprite)
+    {
+        if (canvasGroup != null) canvasGroup.alpha = 0f;
+        SetAuxiliaryVisible(false, true, true);
+        mouseLegend.sprite = legendSprite != null ? legendSprite : mouseSprite;
+        cursorImage.sprite = cursorSprite;
+        mouseLegend.rectTransform.anchoredPosition = MouseLegendPosition();
+    }
+
+    private void AnimateTap()
+    {
+        if (!TryGetTargetCanvasPosition(currentTarget, out Vector2 target)) return;
+        float n = Mathf.Repeat(Time.unscaledTime - cycleStartedAt, tapCycleSeconds) / tapCycleSeconds;
+        float press = n < .2f ? 0f : n < .4f ? Mathf.SmoothStep(0f, 1f, (n - .2f) / .2f) :
+            n < .6f ? 1f : n < .8f ? Mathf.SmoothStep(1f, 0f, (n - .6f) / .2f) : 0f;
+        if (mobilePresentation)
+        {
+            bool down = press > .5f;
+            SetHandSprite(down ? handClickSprite : handOpenSprite);
+            float scale = Mathf.Lerp(1f, .86f, press);
+            Vector2 fingertip = down ? new Vector2(.33f, .70f) : new Vector2(.375f, .80f);
+            Vector2 tip = Vector2.Scale(fingertip - handRect.pivot, handRect.rect.size) * scale;
+            handRect.anchoredPosition = target - tip + Vector2.up * (14f * (1f - press));
+            handRect.localScale = Vector3.one * scale;
+        }
+        else
+        {
+            cursorImage.rectTransform.anchoredPosition = target + new Vector2(12f, -12f);
+            cursorImage.rectTransform.localScale = Vector3.one * Mathf.Lerp(1f, .82f, press);
+            mouseLegend.sprite = press > .5f && mouseLeftClickSprite != null ? mouseLeftClickSprite : mouseSprite;
+            mouseLegend.rectTransform.localScale = new Vector3(1f, Mathf.Lerp(1f, .9f, press), 1f);
+        }
+    }
 
     private void AnimateSwipe()
     {
-        float normalized = Mathf.Repeat(Time.unscaledTime - cycleStartedAt, swipeCycleSeconds)
-                           / swipeCycleSeconds;
-        UpdateSwipePose(normalized);
+        float n = Mathf.Repeat(Time.unscaledTime - cycleStartedAt, swipeCycleSeconds) / swipeCycleSeconds;
+        float move = n < .16f ? 0f : n < .76f ? Mathf.SmoothStep(0f, 1f, (n - .16f) / .6f) : 1f;
+        float fade = n > .88f ? 1f - Mathf.InverseLerp(.88f, 1f, n) : 1f;
+        float travel = SwipeTravel();
+        if (mobilePresentation)
+        {
+            SetHandSprite(n < .16f ? handClickSprite : handOpenSprite);
+            handRect.anchoredPosition = new Vector2(Mathf.Lerp(-travel, travel, move), n < .16f ? -6f : 0f);
+            handRect.localScale = Vector3.one * (n < .16f ? .9f : 1f);
+            if (canvasGroup != null) canvasGroup.alpha = fade;
+        }
+        else
+        {
+            mouseLegend.sprite = n < .78f && mouseRightClickSprite != null ? mouseRightClickSprite : mouseSprite;
+            cursorImage.rectTransform.anchoredPosition = new Vector2(Mathf.Lerp(-travel, travel, move), 0f);
+            Color c = cursorImage.color; c.a = fade; cursorImage.color = c;
+        }
     }
 
-    private Vector2 SwipeStartPosition()
+    private void AnimateZoom()
     {
-        float travel = SwipeTravel();
-        return new Vector2(-travel, 0f);
+        float n = Mathf.Repeat(Time.unscaledTime - cycleStartedAt, zoomCycleSeconds) / zoomCycleSeconds;
+        if (mobilePresentation)
+        {
+            float approach = n < .18f ? 0f : n < .58f ? Mathf.SmoothStep(0f, 1f, (n - .18f) / .4f) : n < .72f ? 1f : 0f;
+            bool pressed = n >= .10f && n < .72f;
+            float spacing = Mathf.Lerp(150f, 55f, approach);
+            SetHandSprite(pressed ? handClickSprite : handOpenSprite);
+            pinchPartner.sprite = pressed ? handClickSprite : handOpenSprite;
+            handRect.anchoredPosition = new Vector2(-spacing, 0f);
+            pinchPartner.rectTransform.anchoredPosition = new Vector2(spacing, 0f);
+            float scale = pressed ? .92f : 1f;
+            handRect.localScale = Vector3.one * scale;
+            pinchPartner.rectTransform.localScale = new Vector3(-scale, scale, 1f);
+        }
+        else
+        {
+            float wave = Mathf.Sin(n * Mathf.PI * 2f);
+            mouseLegend.sprite = mouseScrollSprite != null ? mouseScrollSprite : mouseSprite;
+            mouseLegend.rectTransform.localScale = Vector3.one * (1f + .05f * Mathf.Abs(wave));
+            cursorImage.rectTransform.anchoredPosition = new Vector2(0f, wave * 18f);
+        }
+    }
+
+    private void AnimateTyping()
+    {
+        if (typingCue == null || !TryGetTargetCanvasPosition(currentTarget, out Vector2 target))
+            return;
+
+        int typed = Mathf.Clamp(Mathf.FloorToInt(
+            Mathf.Repeat(Time.unscaledTime - cycleStartedAt, 2f) / 0.45f), 0, 3);
+        bool caret = Mathf.Repeat(Time.unscaledTime, 0.7f) < 0.42f;
+        string digits = typed == 0 ? "_ _ _" : typed == 1 ? "1 _ _" :
+            typed == 2 ? "1 2 _" : "1 2 0";
+        typingCue.text = "TYPE\n[ " + digits + (caret ? " |" : "  ") + " ]";
+
+        Rect bounds = hintRoot != null ? hintRoot.rect : new Rect(-800f, -450f, 1600f, 900f);
+        float direction = target.y > bounds.center.y ? -1f : 1f;
+        Vector2 position = target + Vector2.up * direction * 76f;
+        float halfWidth = typingCue.rectTransform.rect.width * 0.5f;
+        float halfHeight = typingCue.rectTransform.rect.height * 0.5f;
+        position.x = Mathf.Clamp(position.x, bounds.xMin + halfWidth, bounds.xMax - halfWidth);
+        position.y = Mathf.Clamp(position.y, bounds.yMin + halfHeight, bounds.yMax - halfHeight);
+        typingCue.rectTransform.anchoredPosition = position;
+    }
+
+    private void SetAuxiliaryVisible(bool pinch, bool mouse, bool cursor)
+    {
+        if (pinchPartner != null) pinchPartner.gameObject.SetActive(pinch);
+        if (mouseLegend != null) mouseLegend.gameObject.SetActive(mouse);
+        if (cursorImage != null) cursorImage.gameObject.SetActive(cursor);
+    }
+
+    private void SetHandSprite(Sprite sprite)
+    {
+        if (handImage != null && sprite != null) handImage.sprite = sprite;
     }
 
     private float SwipeTravel()
     {
-        RectTransform cr = targetCanvas != null ? targetCanvas.transform as RectTransform : null;
-        float w = cr != null ? cr.rect.width : 1600f;
-        return Mathf.Clamp(w * swipeTravelCanvasFraction, 130f, 320f);
+        RectTransform canvasRect = targetCanvas != null ? targetCanvas.transform as RectTransform : null;
+        float width = canvasRect != null ? canvasRect.rect.width : 1600f;
+        return Mathf.Clamp(width * swipeTravelCanvasFraction, 130f, 320f);
     }
 
-    private void UpdateSwipePose(float n)
+    private Vector2 MouseLegendPosition()
     {
-        // Phase 1  [0 .. swipePressHoldFraction)
-        //   Show HandClick — finger touches the screen, hand stationary at left.
-        // Phase 2  [swipePressHoldFraction .. swipeDragEndFraction)
-        //   Show Hand (open) — drag smoothly to the right.
-        // Phase 3  [swipeDragEndFraction .. 0.90)
-        //   Hand open — slow stop at right edge.
-        // Phase 4  [0.90 .. 1.00)
-        //   Fade out — invisible snap back to left for seamless loop.
-
-        float travel = SwipeTravel();
-        float startX = -travel;
-        float endX   =  travel;
-
-        bool pressing = n < swipePressHoldFraction;
-        SetSprite(pressing ? handClickSprite : handOpenSprite);
-
-        // Horizontal position
-        float moveT;
-        if (n < swipePressHoldFraction)
-            moveT = 0f;
-        else if (n < swipeDragEndFraction)
-            moveT = Mathf.SmoothStep(0f, 1f,
-                (n - swipePressHoldFraction) / (swipeDragEndFraction - swipePressHoldFraction));
-        else
-            moveT = 1f;
-
-        float xPos  = Mathf.Lerp(startX, endX, moveT);
-        float yPos  = pressing ? -6f : 0f;   // slight downward shift when pressed
-        if (handRect != null)
-            handRect.anchoredPosition = new Vector2(xPos, yPos);
-
-        // Scale: slight crush on press
-        float scale = pressing ? Mathf.Lerp(1f, 0.90f, n / swipePressHoldFraction) : 1f;
-        if (handRect != null)
-            handRect.localScale = Vector3.one * scale;
-
-        // Alpha: full until near end, then fade out for clean loop
-        float alpha = n > 0.88f ? 1f - Mathf.InverseLerp(0.88f, 1f, n) : 1f;
-        if (canvasGroup != null)
-            canvasGroup.alpha = alpha;
+        Rect r = hintRoot != null ? hintRoot.rect : new Rect(-800f, -450f, 1600f, 900f);
+        bool targetOnRight = currentTarget != null &&
+                             TryGetTargetCanvasPosition(currentTarget, out Vector2 point) &&
+                             point.x > r.center.x;
+        float x = targetOnRight
+            ? r.xMin + mouseDisplaySize * .85f
+            : r.xMax - mouseDisplaySize * .85f;
+        return new Vector2(x, r.center.y);
     }
-
-    // ── Tap animation ───────────────────────────────────────────────────────
-
-    private void AnimateTap()
-    {
-        if (!TryGetTargetCanvasPosition(currentTarget, out Vector2 targetPos))
-        {
-            if (canvasGroup != null) canvasGroup.alpha = 0f;
-            return;
-        }
-        if (canvasGroup != null) canvasGroup.alpha = 1f;
-
-        float normalized = Mathf.Repeat(Time.unscaledTime - cycleStartedAt, tapCycleSeconds)
-                           / tapCycleSeconds;
-        UpdateTapPose(normalized, targetPos);
-    }
-
-    private void UpdateTapPose(float n, Vector2 targetPos)
-    {
-        // Phase 0  [0.00 – 0.20)   Hand open — hovering above target
-        // Phase 1  [0.20 – 0.40)   Hand open → HandClick — press down
-        // Phase 2  [0.40 – 0.60)   HandClick — held pressed
-        // Phase 3  [0.60 – 0.80)   HandClick → Hand open — lift
-        // Phase 4  [0.80 – 1.00)   Hand open — pause before next cycle
-
-        bool isPressed = n >= 0.20f && n < 0.80f;
-        SetSprite(isPressed ? handClickSprite : handOpenSprite);
-
-        float pressT;
-        if      (n < 0.20f) pressT = 0f;
-        else if (n < 0.40f) pressT = Mathf.SmoothStep(0f, 1f, (n - 0.20f) / 0.20f);
-        else if (n < 0.60f) pressT = 1f;
-        else if (n < 0.80f) pressT = Mathf.SmoothStep(1f, 0f, (n - 0.60f) / 0.20f);
-        else                pressT = 0f;
-
-        if (handRect != null)
-        {
-            float scale = Mathf.Lerp(1f, 0.86f, pressT);
-            // Anchor the visible fingertip, not the centre of the whole image.
-            // These normalized points belong to the two Hand sprites, not a lesson.
-            Vector2 fingertip = isPressed ? new Vector2(0.33f, 0.70f) : new Vector2(0.375f, 0.80f);
-            Vector2 tipFromPivot = Vector2.Scale(fingertip - handRect.pivot, handRect.rect.size) * scale;
-            handRect.anchoredPosition = targetPos - tipFromPivot + Vector2.up * (tapPressDownAmount * (1f - pressT));
-            handRect.localScale = Vector3.one * scale;
-        }
-    }
-
-    // ── World → Canvas coordinate conversion ────────────────────────────────
 
     private bool TryGetTargetCanvasPosition(Transform target, out Vector2 canvasPosition)
     {
         canvasPosition = Vector2.zero;
-        RectTransform canvasRect = targetCanvas != null
-            ? targetCanvas.transform as RectTransform : null;
+        RectTransform canvasRect = hintRoot != null ? hintRoot :
+            targetCanvas != null ? targetCanvas.transform as RectTransform : null;
         if (target == null || canvasRect == null) return false;
-
-        Vector3 screenPoint;
+        if (target is RectTransform && target.GetComponent<Button>() == null)
+        {
+            Button nestedButton = target.GetComponentInChildren<Button>(false);
+            if (nestedButton != null)
+                target = nestedButton.transform;
+        }
+        Vector3 screen;
         if (target is RectTransform targetRect)
         {
-            Canvas sourceCanvas = targetRect.GetComponentInParent<Canvas>();
-            Camera eventCam = sourceCanvas == null || sourceCanvas.renderMode == RenderMode.ScreenSpaceOverlay
-                ? null : sourceCanvas.worldCamera;
-            screenPoint = RectTransformUtility.WorldToScreenPoint(eventCam, targetRect.TransformPoint(targetRect.rect.center));
+            Canvas source = targetRect.GetComponentInParent<Canvas>();
+            Camera eventCamera = source == null || source.renderMode == RenderMode.ScreenSpaceOverlay ? null : source.worldCamera;
+            screen = RectTransformUtility.WorldToScreenPoint(eventCamera, targetRect.TransformPoint(targetRect.rect.center));
         }
         else
         {
-            Camera cam = worldCamera != null ? worldCamera : Camera.main;
-            if (cam == null) return false;
-            screenPoint = cam.WorldToScreenPoint(TutorialWorldTargetGeometry.Center(target));
-            if (screenPoint.z <= 0f) return false;
+            Camera camera = worldCamera != null ? worldCamera : Camera.main;
+            if (camera == null) return false;
+            screen = camera.WorldToScreenPoint(TutorialWorldTargetGeometry.Center(target));
+            if (screen.z <= 0f) return false;
         }
-
-        Camera canvasCam = targetCanvas.renderMode == RenderMode.ScreenSpaceOverlay
-            ? null : targetCanvas.worldCamera;
-        return RectTransformUtility.ScreenPointToLocalPointInRectangle(
-            canvasRect, screenPoint, canvasCam, out canvasPosition);
+        Canvas canvas = hintRoot != null ? hintRoot.GetComponent<Canvas>() : targetCanvas;
+        Camera canvasCamera = canvas == null || canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
+        return RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, screen, canvasCamera, out canvasPosition);
     }
 }

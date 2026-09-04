@@ -3051,27 +3051,35 @@ MonoBehaviour:
   dialogueUI: {fileID: 569516588}
   targetIndicator: {fileID: 1218730145}
   handIndicator: {fileID: 307386373}
+  uiFocusMask: {fileID: 0}
+  sceneBindings: {fileID: 0}
+  tutorialInputMode: 0
   cameraController: {fileID: 1683000275}
   tapSelector: {fileID: 1989281914}
   groupSpawner: {fileID: 597439887}
   suppressAutomaticSpawningDuringOpening: 1
   restoreAutomaticSpawningAfterOpening: 1
-  allowCustomerSpawning: 0
-  allowStaffSpawning: 0
-  startAutomatically: 0
-  currentStepIndex: 13
+  startAutomatically: 1
   steps:
   - id: welcome
     phase: 0
     speaker: Big Boss
-    objective: Learn the restaurant controls
     message: Welcome to Dine In!
     portrait: {fileID: 21300000, guid: c6ec8f164086386409335a7aa7a53270, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: Learn the restaurant controls
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
   - id: controls_introduction
     phase: 0
     speaker: Big Boss
@@ -3081,17 +3089,35 @@ MonoBehaviour:
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
   - id: pan_instruction
     phase: 0
     speaker: Big Boss
-    message: Swipe across the screen to move the camera around the restaurant.
+    message: '{PAN_INSTRUCTION}'
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
   - id: pan_practice
     phase: 0
     speaker: Big Boss
@@ -3101,7 +3127,16 @@ MonoBehaviour:
     requiredAction: 11
     hintMode: 1
     highlightTarget: {fileID: 0}
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
   - id: pan_success
     phase: 0
     speaker: Big Boss
@@ -3111,17 +3146,92 @@ MonoBehaviour:
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: zoom_instruction
+    phase: 0
+    speaker: Big Boss
+    message: '{ZOOM_INSTRUCTION}'
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: zoom_practice
+    phase: 0
+    speaker: Big Boss
+    message: 
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 1
+    requiredAction: 0
+    hintMode: 3
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: Camera.Zoom
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: zoom_success
+    phase: 0
+    speaker: Big Boss
+    message: Good! You can zoom whenever you need a closer look.
+    portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
+    stepType: 2
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
   - id: interaction_introduction
     phase: 0
     speaker: Big Boss
-    message: 'Tap the highlighted booth once to interact with it.'
+    message: '{INTERACTION_INSTRUCTION}'
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 1398435356}
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
   - id: tap_practice
     phase: 0
     speaker: Big Boss
@@ -3131,7 +3241,16 @@ MonoBehaviour:
     requiredAction: 12
     hintMode: 2
     highlightTarget: {fileID: 1398435356}
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
   - id: tap_success
     phase: 0
     speaker: Big Boss
@@ -3141,430 +3260,2015 @@ MonoBehaviour:
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
   - id: hud_introduction
     phase: 1
     speaker: Big Boss
-    message: 'Before customers arrive, let us look at your restaurant controls.'
+    message: Before customers arrive, let us look at your restaurant controls.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
+    worldTargetKey: 
     restrictUnrelatedInteractions: 0
-    uiTargetKey: ''
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   - id: hud_alien_approval
     phase: 1
     speaker: Big Boss
-    message: 'This is your Alien Approval.'
+    message: This is your Alien Approval.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
+    worldTargetKey: 
     restrictUnrelatedInteractions: 0
+    uiFocusTarget: {fileID: 0}
     uiTargetKey: AlienApproval
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   - id: hud_money
     phase: 1
     speaker: Big Boss
-    message: 'This shows how much you earned today.'
+    message: This shows how much you earned today.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
     uiTargetKey: TodaySales
+    actionKey: 
+    requiredContext: {fileID: 0}
     objective: Learn the sales display
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   - id: hud_money_target
     phase: 1
     speaker: Big Boss
-    message: 'The amount after the slash is today''s sales target.'
+    message: The amount after the slash is today's sales target.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
     uiTargetKey: TodaySalesValue
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   - id: hud_money_progress
     phase: 1
     speaker: Big Boss
-    message: 'This bar fills as your sales get closer to the target.'
+    message: This bar fills as your sales get closer to the target.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
     uiTargetKey: TodaySalesTrack
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   - id: hud_neutral_angry
     phase: 1
     speaker: Big Boss
-    message: 'This tracks neutral customer results today.'
+    message: This tracks unsatisfied customer results today.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
-    uiTargetKey: 'Neutral'
-    actionKey: ''
-    objective: 'Learn the restaurant controls'
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: Unsatisfied
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: Learn the restaurant controls
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   - id: hud_angry
     phase: 1
     speaker: Big Boss
-    message: 'This tracks angry customer results today.'
+    message: This tracks angry customer results today.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
-    uiTargetKey: 'Angry'
-    actionKey: ''
-    objective: ''
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: Angry
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   - id: hud_live_customer_panel
     phase: 1
     speaker: Big Boss
-    message: 'This is your Live Customer Panel.'
+    message: This is your Live Customer Panel.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
-    uiTargetKey: 'LivePanel'
-    actionKey: ''
-    objective: ''
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: LivePanel
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   - id: hud_live_counts
     phase: 1
     speaker: Big Boss
-    message: 'These counts track groups during service.'
+    message: These counts track groups during service.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
-    uiTargetKey: 'LiveCounts'
-    actionKey: ''
-    objective: ''
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: LiveCounts
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   - id: hud_newspaper
     phase: 1
     speaker: Big Boss
-    message: 'Open the newspaper to read the latest issue.'
+    message: Open the newspaper to read the latest issue.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
     hintMode: 2
     highlightTarget: {fileID: 0}
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
-    uiTargetKey: 'NewspaperButton'
-    actionKey: 'Newspaper.Open'
-    objective: ''
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: NewspaperButton
+    actionKey: Newspaper.Open
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   - id: hud_newspaper_success
     phase: 1
     speaker: Big Boss
-    message: 'Good! You opened the newspaper.'
+    message: Good! You opened the newspaper.
     portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
     stepType: 2
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
-    uiTargetKey: ''
-    actionKey: ''
-    objective: ''
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   - id: hud_newspaper_read
     phase: 1
     speaker: Big Boss
-    message: 'Each issue reports your restaurant''s recent results.'
+    message: Each issue reports your restaurant's recent results.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
-    uiTargetKey: ''
-    actionKey: ''
-    objective: ''
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   - id: hud_newspaper_close
     phase: 1
     speaker: Big Boss
-    message: 'Tap X to close the newspaper.'
+    message: '{INTERACT} X to close the newspaper.'
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
     hintMode: 2
     highlightTarget: {fileID: 0}
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
-    uiTargetKey: 'NewspaperClose'
-    actionKey: 'Newspaper.Close'
-    objective: ''
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: NewspaperClose
+    actionKey: Newspaper.Close
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   - id: hud_newspaper_closed
     phase: 1
     speaker: Big Boss
-    message: 'Great! Let us check your tasks next.'
+    message: Great! Let us check your tasks next.
     portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
     stepType: 2
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
-    uiTargetKey: ''
-    actionKey: ''
-    objective: ''
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   - id: hud_task_button
     phase: 1
     speaker: Big Boss
-    message: 'Tap Task to see your current objective.'
+    message: '{INTERACT} Task to see your current objective.'
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
     hintMode: 2
     highlightTarget: {fileID: 0}
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
-    uiTargetKey: 'TaskButton'
-    actionKey: 'Task.Open'
-    objective: ''
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: TaskButton
+    actionKey: Task.Open
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   - id: hud_task_message
     phase: 1
     speaker: Big Boss
-    message: 'Your current objective appears here.'
+    message: Your current objective appears here.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
-    uiTargetKey: 'TaskMessage'
-    actionKey: ''
-    objective: ''
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: TaskMessage
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   - id: hud_task_success
     phase: 1
     speaker: Big Boss
-    message: 'Check Task whenever you need a reminder.'
+    message: Check Task whenever you need a reminder.
     portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
     stepType: 2
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
-    uiTargetKey: ''
-    actionKey: ''
-    objective: ''
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   - id: hud_camera_button
     phase: 1
     speaker: Big Boss
-    message: 'Tap Camera to return the view to your manager.'
+    message: '{INTERACT} Camera to return the view to your manager.'
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
     hintMode: 2
     highlightTarget: {fileID: 0}
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
-    uiTargetKey: 'CameraButton'
-    actionKey: 'Camera.Focus'
-    objective: ''
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: CameraButton
+    actionKey: Camera.Focus
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   - id: hud_camera_success
     phase: 1
     speaker: Big Boss
-    message: 'Perfect! That brings your manager back into view.'
+    message: Perfect! That brings your manager back into view.
     portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
     stepType: 2
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
-    uiTargetKey: ''
-    actionKey: ''
-    objective: ''
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   - id: hud_computer_button
     phase: 1
     speaker: Big Boss
-    message: 'Tap Computer. Your manager will walk there.'
+    message: '{INTERACT} Computer. Your manager will walk there.'
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
     hintMode: 2
     highlightTarget: {fileID: 0}
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
-    uiTargetKey: 'ComputerButton'
-    actionKey: 'Computer.Open'
-    objective: 'Open the Management Computer'
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: ComputerButton
+    actionKey: Computer.Open
+    requiredContext: {fileID: 0}
+    objective: Open the Management Computer
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   - id: hud_computer_success
     phase: 1
     speaker: Big Boss
-    message: 'You are at the Management Computer.'
+    message: You are at the Management Computer.
     portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
     stepType: 2
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
-    uiTargetKey: ''
-    actionKey: ''
-    objective: ''
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   - id: management_dashboard_open
     phase: 2
     speaker: Big Boss
-    message: 'Open Dashboard for a restaurant overview.'
+    message: Open Dashboard for a restaurant overview.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
     hintMode: 2
     highlightTarget: {fileID: 0}
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
-    uiTargetKey: 'DashboardButton'
-    actionKey: 'Management.Dashboard'
-    objective: 'Explore the Management Dashboard'
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: DashboardButton
+    actionKey: Management.Dashboard
+    requiredContext: {fileID: 0}
+    objective: Explore the Management Dashboard
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   - id: management_dashboard
     phase: 2
     speaker: Big Boss
-    message: 'Dashboard shows your restaurant''s current status.'
+    message: Dashboard shows your restaurant's current status.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
-    uiTargetKey: 'ManagementOverview'
-    actionKey: ''
-    objective: ''
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: ManagementOverview
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   - id: management_dashboard_success
     phase: 2
     speaker: Big Boss
-    message: 'Good! Next we will prepare your staff.'
+    message: Good! Next we will prepare your staff.
     portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
     stepType: 2
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
-    uiTargetKey: ''
-    actionKey: ''
-    objective: ''
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
-  - id: management_staff
+  - id: management_staff_open
     phase: 2
     speaker: Big Boss
-    message: 'TODO Tutorial: Management Staff lesson'
+    message: '{INTERACT} Staff to open staff management.'
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 1
+    requiredAction: 0
+    hintMode: 2
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: StaffButton
+    actionKey: Management.Staff
+    requiredContext: {fileID: 0}
+    objective: Learn Staff Management
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_staff_slots
+    phase: 2
+    speaker: Big Boss
+    message: Lobby groups your front-of-house roles.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    restrictUnrelatedInteractions: 0
-    uiTargetKey: ''
-    isPlaceholder: 1
-  - id: management_menu
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: StaffLobbyButton
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_staff_roles
     phase: 2
     speaker: Big Boss
-    message: 'TODO Tutorial: Management Menu lesson'
+    message: Kitchen groups Chef and Barista roles.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    restrictUnrelatedInteractions: 0
-    uiTargetKey: ''
-    isPlaceholder: 1
-  - id: management_equipment
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: StaffKitchenButton
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_staff_applicants
     phase: 2
     speaker: Big Boss
-    message: 'TODO Tutorial: Management Equipment lesson'
+    message: '{INTERACT} Applicants to see people available to hire.'
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 1
+    requiredAction: 0
+    hintMode: 2
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: StaffApplicantsButton
+    actionKey: Management.StaffApplicants
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_staff_applicant_card
+    phase: 2
+    speaker: Big Boss
+    message: Each applicant card belongs to one role.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    restrictUnrelatedInteractions: 0
-    uiTargetKey: ''
-    isPlaceholder: 1
-  - id: management_finance
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: StaffApplicantCard
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_staff_salary
     phase: 2
     speaker: Big Boss
-    message: 'TODO Tutorial: Management Finance lesson'
+    message: Salary shows what this applicant costs each shift.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    restrictUnrelatedInteractions: 0
-    uiTargetKey: ''
-    isPlaceholder: 1
-  - id: management_objectives
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: StaffSalary
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_staff_rating
     phase: 2
     speaker: Big Boss
-    message: 'TODO Tutorial: Management Objectives lesson'
+    message: Ratings and stats help you compare applicants.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    restrictUnrelatedInteractions: 0
-    uiTargetKey: ''
-    isPlaceholder: 1
-  - id: management_restock
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: StaffRating
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_staff_hire
     phase: 2
     speaker: Big Boss
-    message: 'TODO Tutorial: Restock checkout lesson (Management always ends here)'
+    message: '{INTERACT} Hire on the highlighted applicant.'
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 1
+    requiredAction: 0
+    hintMode: 2
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: StaffHire
+    actionKey: Management.StaffHire
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_staff_hired
+    phase: 2
+    speaker: Big Boss
+    message: Good. That employee is now hired.
+    portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
+    stepType: 2
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_staff_assigned
+    phase: 2
+    speaker: Big Boss
+    message: Here is your newly hired employee. One worker per role can be ACTIVE
+      for the shift.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    restrictUnrelatedInteractions: 0
-    uiTargetKey: ''
-    isPlaceholder: 1
-  - id: physical_restocking
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: StaffAssigned
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_staff_set_active
+    phase: 2
+    speaker: Big Boss
+    message: Set this worker ACTIVE for the shift if they are not active already.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 1
+    requiredAction: 0
+    hintMode: 2
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: StaffSetActive
+    actionKey: Management.StaffSetActive
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_staff_fire
+    phase: 2
+    speaker: Big Boss
+    message: Hired staff cards also provide Fire when you need to free a slot.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: StaffFire
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_staff_complete
+    phase: 2
+    speaker: Big Boss
+    message: Staff Management is ready. Your tutorial staff can now appear.
+    portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
+    stepType: 2
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 1
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_menu_open
+    phase: 2
+    speaker: Big Boss
+    message: '{INTERACT} Menu to open the Casual Dining Menu Editor.'
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 1
+    requiredAction: 0
+    hintMode: 2
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: MenuButton
+    actionKey: Management.Menu
+    requiredContext: {fileID: 0}
+    objective: Learn Menu Management
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_menu_categories
+    phase: 2
+    speaker: Big Boss
+    message: Food and Drinks are separated by these category tabs.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: MenuCategories
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_menu_food
+    phase: 2
+    speaker: Big Boss
+    message: '{INTERACT} Food to view dishes.'
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 1
+    requiredAction: 0
+    hintMode: 2
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: MenuFoodTab
+    actionKey: Management.MenuFood
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_menu_item_explain
+    phase: 2
+    speaker: Big Boss
+    message: This is an unlocked Casual Dining menu item.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: MenuItems
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_menu_items
+    phase: 2
+    speaker: Big Boss
+    message: '{INTERACT} the highlighted item to select it.'
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 1
+    requiredAction: 0
+    hintMode: 2
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: MenuItemSelect
+    actionKey: Management.MenuSelect
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_menu_item_details
+    phase: 2
+    speaker: Big Boss
+    message: These details show the selected item and its ingredients.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: MenuItemDetails
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_menu_price
+    phase: 2
+    speaker: Big Boss
+    message: Price is what customers pay for the selected item.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: MenuPrice
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_menu_price_focus
+    phase: 2
+    speaker: Big Boss
+    message: 
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 1
+    requiredAction: 0
+    hintMode: 2
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: MenuPrice
+    actionKey: Management.MenuPriceFocus
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_menu_price_type
+    phase: 2
+    speaker: Big Boss
+    message: 
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 1
+    requiredAction: 0
+    hintMode: 4
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: MenuPrice
+    actionKey: Management.MenuPriceChanged
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_menu_price_changed
+    phase: 2
+    speaker: Big Boss
+    message: Good. Now save that new price.
+    portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
+    stepType: 2
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_menu_price_save
+    phase: 2
+    speaker: Big Boss
+    message: 
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 1
+    requiredAction: 0
+    hintMode: 2
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: MenuSavePrice
+    actionKey: Management.MenuSavePrice
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_menu_price_saved
+    phase: 2
+    speaker: Big Boss
+    message: Price saved.
+    portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
+    stepType: 2
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_menu_cost
+    phase: 2
+    speaker: Big Boss
+    message: Ingredient Cost and Suggested Price help you choose a sensible price.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: MenuIngredientCost
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_menu_availability
+    phase: 2
+    speaker: Big Boss
+    message: On Menu means customers can order it. Not On Menu removes it from today's
+      choices.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: MenuAvailability
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_menu_availability_action
+    phase: 2
+    speaker: Big Boss
+    message: '{INTERACT} the availability control once.'
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 1
+    requiredAction: 0
+    hintMode: 2
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: MenuAvailability
+    actionKey: Management.MenuAvailability
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_menu_locked
+    phase: 2
+    speaker: Big Boss
+    message: In normal play, this status shows when later menu items unlock.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: MenuLocked
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_equipment_open
+    phase: 2
+    speaker: Big Boss
+    message: '{INTERACT} Equipment to open the Equipment Store.'
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 1
+    requiredAction: 0
+    hintMode: 2
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: EquipmentButton
+    actionKey: Management.Equipment
+    requiredContext: {fileID: 0}
+    objective: Learn Equipment Management
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_equipment_catalog
+    phase: 2
+    speaker: Big Boss
+    message: Equipment is grouped into restaurant items and upgrades.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: EquipmentCatalog
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_equipment_card
+    phase: 2
+    speaker: Big Boss
+    message: Each card shows its price and whether it is available or already owned.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: EquipmentCard
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_equipment_effect
+    phase: 2
+    speaker: Big Boss
+    message: Upgrades improve restaurant efficiency. No purchase is required now.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: EquipmentCard
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_finance_open
+    phase: 2
+    speaker: Big Boss
+    message: '{INTERACT} Finances to open the Finance Report.'
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 1
+    requiredAction: 0
+    hintMode: 2
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: FinanceButton
+    actionKey: Management.Finance
+    requiredContext: {fileID: 0}
+    objective: Learn the Finance Report
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_finance_sales
+    phase: 2
+    speaker: Big Boss
+    message: Sales So Far is the revenue earned today.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: FinanceSales
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_finance_expenses
+    phase: 2
+    speaker: Big Boss
+    message: Expenses So Far is today's spending.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: FinanceExpenses
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_finance_net
+    phase: 2
+    speaker: Big Boss
+    message: Current Net is sales minus expenses.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: FinanceNet
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_finance_balance
+    phase: 2
+    speaker: Big Boss
+    message: Cash Balance is the money currently available.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: FinanceBalance
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_finance_today
+    phase: 2
+    speaker: Big Boss
+    message: Today shows the detailed statement for this shift.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: FinanceToday
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_finance_history
+    phase: 2
+    speaker: Big Boss
+    message: History stores completed daily reports.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: FinanceHistory
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_objectives_open
+    phase: 2
+    speaker: Big Boss
+    message: '{INTERACT} Objectives to view Alien Demands.'
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 1
+    requiredAction: 0
+    hintMode: 2
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: ObjectivesButton
+    actionKey: Management.Objectives
+    requiredContext: {fileID: 0}
+    objective: Learn Objectives
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_objective
+    phase: 2
+    speaker: Big Boss
+    message: Mandatory objectives are required for restaurant progress.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: ObjectiveMandatory
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_objective_progress
+    phase: 2
+    speaker: Big Boss
+    message: Secondary objectives provide extra goals.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: ObjectiveSecondary
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_objective_reward
+    phase: 2
+    speaker: Big Boss
+    message: Bonus objectives offer another optional target.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: ObjectiveBonus
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_restock_open
+    phase: 2
+    speaker: Big Boss
+    message: Restock is last because checkout sends you back into the restaurant.
+      {INTERACT} Restock.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 1
+    requiredAction: 0
+    hintMode: 2
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: RestockButton
+    actionKey: Management.Restock
+    requiredContext: {fileID: 0}
+    objective: Learn Restocking
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_restock_categories
+    phase: 2
+    speaker: Big Boss
+    message: Food and Drinks separate the ingredient catalog.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: RestockCategories
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_restock_status
+    phase: 2
+    speaker: Big Boss
+    message: LOW, READY, and OVERSTOCKED show each ingredient's stock condition.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: RestockStatus
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_restock_in_stock
+    phase: 2
+    speaker: Big Boss
+    message: In Stock is how many portions you already have.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: RestockInStock
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_restock_needed
+    phase: 2
+    speaker: Big Boss
+    message: Needed Today estimates what this shift requires.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: RestockNeeded
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_restock_quantity
+    phase: 2
+    speaker: Big Boss
+    message: '{INTERACT} plus to add one Dry Storage ingredient.'
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 1
+    requiredAction: 0
+    hintMode: 2
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: RestockDryPlus
+    actionKey: Management.RestockAddDry
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_restock_dry_success
+    phase: 2
+    speaker: Big Boss
+    message: The Dry Storage ingredient is in the cart.
+    portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
+    stepType: 2
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_restock_add_cold
+    phase: 2
+    speaker: Big Boss
+    message: '{INTERACT} plus to add the highlighted second ingredient.'
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 1
+    requiredAction: 0
+    hintMode: 2
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: RestockColdPlus
+    actionKey: Management.RestockAddCold
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_restock_cart
+    phase: 2
+    speaker: Big Boss
+    message: The Shopping Cart lists your planned order and storage use.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: RestockCart
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_restock_checkout
+    phase: 2
+    speaker: Big Boss
+    message: '{INTERACT} Checkout to review the order.'
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 1
+    requiredAction: 0
+    hintMode: 2
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: RestockCheckout
+    actionKey: Management.RestockCheckout
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_restock_order
+    phase: 2
+    speaker: Big Boss
+    message: '{INTERACT} Order Now to place the order.'
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 1
+    requiredAction: 0
+    hintMode: 2
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: RestockOrderNow
+    actionKey: Management.RestockOrder
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: management_restock_ordered
+    phase: 2
+    speaker: Big Boss
+    message: Order placed. The real delivery ledger now contains it.
+    portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
+    stepType: 2
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: physical_restocking_intro
     phase: 3
     speaker: Big Boss
-    message: 'TODO Tutorial: Truck delivery lesson, then individual storage lessons'
+    message: Your delivery is on the way. Leave the computer so we can collect it.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: ManagementExit
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: Collect the delivery
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: physical_close_computer
+    phase: 3
+    speaker: Big Boss
+    message: 
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 1
+    requiredAction: 0
+    hintMode: 2
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: ManagementExit
+    actionKey: Management.CloseAfterRestock
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: physical_delivery_wait
+    phase: 3
+    speaker: Big Boss
+    message: 
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 1
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
     restrictUnrelatedInteractions: 0
-    uiTargetKey: ''
-    isPlaceholder: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: Restock.WaitForDelivery
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: physical_truck_explain
+    phase: 3
+    speaker: Big Boss
+    message: The truck has arrived. Interact with it to open the delivery.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: RestockTruck
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: physical_truck_action
+    phase: 3
+    speaker: Big Boss
+    message: 
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 1
+    requiredAction: 0
+    hintMode: 2
+    highlightTarget: {fileID: 0}
+    worldTargetKey: RestockTruck
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: Restock.TruckOpened
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: physical_get_orders_explain
+    phase: 3
+    speaker: Big Boss
+    message: Hold GET ORDERS to move the delivered boxes into the Restocking Hotbar.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: RestockGetOrders
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: physical_get_orders_action
+    phase: 3
+    speaker: Big Boss
+    message: 
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 1
+    requiredAction: 0
+    hintMode: 2
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: RestockGetOrders
+    actionKey: Restock.GetOrders
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: physical_hotbar_explain
+    phase: 3
+    speaker: Big Boss
+    message: These are your delivered boxes. Their counts fall as you place them
+      on shelves.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: RestockHotbar
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: Put the delivery away
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: physical_dry_explain
+    phase: 3
+    speaker: Big Boss
+    message: Dry ingredients go in Dry Storage. Enter it first.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: RestockDryEntrance
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: physical_dry_enter
+    phase: 3
+    speaker: Big Boss
+    message: 
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 1
+    requiredAction: 0
+    hintMode: 2
+    highlightTarget: {fileID: 0}
+    worldTargetKey: RestockDryEntrance
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: Restock.EnterDry
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: physical_dry_slot
+    phase: 3
+    speaker: Big Boss
+    message: Drag the dry ingredient from this hotbar slot onto an open shelf cell.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: RestockDrySlot
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: physical_dry_store
+    phase: 3
+    speaker: Big Boss
+    message: 
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 1
+    requiredAction: 0
+    hintMode: 1
+    highlightTarget: {fileID: 0}
+    worldTargetKey: RestockDryShelf
+    restrictUnrelatedInteractions: 0
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: Restock.StoreDry
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: physical_dry_success
+    phase: 3
+    speaker: Big Boss
+    message: Dry stock stored.
+    portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
+    stepType: 2
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: physical_freezer_explain
+    phase: 3
+    speaker: Big Boss
+    message: Now switch to the Freezer for the cold ingredient.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: RestockSwitchRoom
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: physical_freezer_switch
+    phase: 3
+    speaker: Big Boss
+    message: 
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 1
+    requiredAction: 0
+    hintMode: 2
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: RestockSwitchRoom
+    actionKey: Restock.SwitchFreezer
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: physical_frozen_slot
+    phase: 3
+    speaker: Big Boss
+    message: Drag the cold ingredient from this slot onto an open Freezer shelf cell.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: RestockFrozenSlot
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: physical_frozen_store
+    phase: 3
+    speaker: Big Boss
+    message: 
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 1
+    requiredAction: 0
+    hintMode: 1
+    highlightTarget: {fileID: 0}
+    worldTargetKey: RestockFrozenShelf
+    restrictUnrelatedInteractions: 0
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: Restock.StoreFrozen
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: physical_stocked_success
+    phase: 3
+    speaker: Big Boss
+    message: Nice work. Everything is stocked and ready.
+    portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
+    stepType: 2
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: physical_exit_explain
+    phase: 3
+    speaker: Big Boss
+    message: Exit the stock room and return to the restaurant.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: RestockExit
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: physical_exit_action
+    phase: 3
+    speaker: Big Boss
+    message: 
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 1
+    requiredAction: 0
+    hintMode: 2
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: RestockExit
+    actionKey: Restock.ExitRoom
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
   - id: return_to_computer
     phase: 4
     speaker: Big Boss
-    message: 'TODO Tutorial: Return to Computer and Start Shift lessons'
+    message: Return to the Management Computer.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    restrictUnrelatedInteractions: 0
-    uiTargetKey: ''
-    isPlaceholder: 1
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: ComputerButton
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: Return to the Management Computer
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: return_computer_action
+    phase: 4
+    speaker: Big Boss
+    message: 
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 1
+    requiredAction: 0
+    hintMode: 2
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: ComputerButton
+    actionKey: Computer.Open
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: start_shift_explain
+    phase: 4
+    speaker: Big Boss
+    message: That is everything we need before opening. Press START SHIFT.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: ManagementStartShift
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: Start the shift
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: start_shift_action
+    phase: 4
+    speaker: Big Boss
+    message: 
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 1
+    requiredAction: 0
+    hintMode: 2
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: ManagementStartShift
+    actionKey: Shift.Start
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 1
+    isPlaceholder: 0
+  - id: start_shift_success
+    phase: 4
+    speaker: Big Boss
+    message: The restaurant is open. Now we will follow one customer through service.
+    portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
+    stepType: 2
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
   - id: staff_receptionist
     phase: 5
     speaker: Big Boss
@@ -3574,8 +5278,15 @@ MonoBehaviour:
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
+    worldTargetKey: 
     restrictUnrelatedInteractions: 0
-    uiTargetKey: ''
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
     isPlaceholder: 1
   - id: staff_waiter
     phase: 5
@@ -3586,8 +5297,15 @@ MonoBehaviour:
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
+    worldTargetKey: 
     restrictUnrelatedInteractions: 0
-    uiTargetKey: ''
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
     isPlaceholder: 1
   - id: staff_busser
     phase: 5
@@ -3598,8 +5316,15 @@ MonoBehaviour:
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
+    worldTargetKey: 
     restrictUnrelatedInteractions: 0
-    uiTargetKey: ''
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
     isPlaceholder: 1
   - id: staff_cashier
     phase: 5
@@ -3610,8 +5335,15 @@ MonoBehaviour:
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
+    worldTargetKey: 
     restrictUnrelatedInteractions: 0
-    uiTargetKey: ''
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
     isPlaceholder: 1
   - id: normal_gameplay
     phase: 6
@@ -3622,8 +5354,15 @@ MonoBehaviour:
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
+    worldTargetKey: 
     restrictUnrelatedInteractions: 0
-    uiTargetKey: ''
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
     isPlaceholder: 1
   - id: completed
     phase: 7
@@ -3634,9 +5373,25 @@ MonoBehaviour:
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
+    worldTargetKey: 
     restrictUnrelatedInteractions: 0
-    uiTargetKey: ''
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
     isPlaceholder: 1
+  currentPhase: 0
+  currentStepIndex: -1
+  waitingForNext: 0
+  waitingForPlayerAction: 0
+  skeletonEndpointReached: 0
+  tutorialCompleted: 0
+  currentObjective: 
+  allowCustomerSpawning: 0
+  allowStaffSpawning: 0
 --- !u!4 &208201888
 Transform:
   m_ObjectHideFlags: 0
@@ -5870,16 +7625,20 @@ MonoBehaviour:
   canvasGroup: {fileID: 307386370}
   handOpenSprite: {fileID: 21300000, guid: 856cb8c6539684149bb009ed987202c4, type: 3}
   handClickSprite: {fileID: 21300000, guid: f8e5cded8043f6f4bb77eb55fda14a48, type: 3}
+  cursorSprite: {fileID: 21300000, guid: b2769b1d631a89c4eb70c221e5521917, type: 3}
+  mouseSprite: {fileID: 21300000, guid: 2e1c66cf52fa74c4db6385dd90af3d50, type: 3}
+  mouseLeftClickSprite: {fileID: 21300000, guid: 777d788d6e82651429d769b83a63e143, type: 3}
+  mouseRightClickSprite: {fileID: 21300000, guid: 06f03eeaca3e7ec458d909895d770498, type: 3}
+  mouseScrollSprite: {fileID: 21300000, guid: 8b2aa50f3f1e32b42b5563587372dd34, type: 3}
   targetCanvas: {fileID: 1113496783}
   worldCamera: {fileID: 863227610}
   swipeCycleSeconds: 2.1
   swipeTravelCanvasFraction: 0.22
-  swipePressHoldFraction: 0.12
-  swipeDragEndFraction: 0.76
   tapCycleSeconds: 1.15
-  tapOffset: {x: 30, y: -30}
-  tapPressDownAmount: 14
+  zoomCycleSeconds: 2
   handDisplaySize: 168
+  cursorDisplaySize: 76
+  mouseDisplaySize: 104
   swipeSprite: {fileID: 21300000, guid: 856cb8c6539684149bb009ed987202c4, type: 3}
   tapSprite: {fileID: 21300000, guid: f8e5cded8043f6f4bb77eb55fda14a48, type: 3}
 --- !u!1 &309941077
@@ -10051,7 +11810,10 @@ MonoBehaviour:
   portraitImage: {fileID: 558544116}
   nextButton: {fileID: 831590748}
   typeSpeed: 0.018
-  portraitFadeDuration: 0.08
+  portraitBopDuration: 0.22
+  portraitBopStartScale: 0.94
+  portraitBopPeakScale: 1.06
+  portraitBopLift: 5
 --- !u!1 &575297651
 GameObject:
   m_ObjectHideFlags: 0

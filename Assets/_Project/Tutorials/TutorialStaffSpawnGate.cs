@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -25,10 +26,15 @@ public sealed class TutorialStaffSpawnGate : MonoBehaviour
     [Tooltip("If tutorial staff already exist as scene objects instead of being spawned, assign their ROOT objects here. They stay inactive until staff permission opens.")]
     [SerializeField] private GameObject[] tutorialStaffObjectsToActivate = Array.Empty<GameObject>();
 
+    [Header("Lobby1Tutorial Auto Binding")]
+    [Tooltip("When no roots are assigned, use the four scene-local RoleManager staff characters. The independent ManagerPlayer is never included.")]
+    [SerializeField] private bool autoBindLobbyStaff = true;
+
     private bool[] originalSpawnerEnabled = Array.Empty<bool>();
     private bool captured;
     private bool subscribed;
     private bool lastAllowed;
+    private RoleManager lobbyRoles;
 
     public bool StaffAllowed => tutorial != null && tutorial.AllowStaffSpawning;
 
@@ -37,6 +43,8 @@ public sealed class TutorialStaffSpawnGate : MonoBehaviour
         if (tutorial == null)
             tutorial = FindFirstObjectByType<TutorialSystem>(FindObjectsInactive.Include);
 
+        AutoBindLobbyStaffObjects();
+        AutoBindLobbyStaffSpawner();
         CaptureOriginalSpawnerStates();
 
         // HARD GATE: staff are blocked immediately, before ordinary Start methods run.
@@ -56,6 +64,17 @@ public sealed class TutorialStaffSpawnGate : MonoBehaviour
         // TutorialSystem may initialize after this component's Awake. Re-apply the
         // authoritative permission once all Awake calls are complete.
         ApplyStaffPermission(StaffAllowed, true);
+    }
+
+    private void LateUpdate()
+    {
+        // Some scene services refresh role objects from saved assignments after Start.
+        // Keep the tutorial-owned roots absent until the final Staff lesson releases them.
+        if (StaffAllowed || tutorialStaffObjectsToActivate == null)
+            return;
+        foreach (GameObject staffRoot in tutorialStaffObjectsToActivate)
+            if (staffRoot != null && staffRoot.activeSelf)
+                staffRoot.SetActive(false);
     }
 
     private void OnDisable()
@@ -107,6 +126,43 @@ public sealed class TutorialStaffSpawnGate : MonoBehaviour
         }
     }
 
+    private void AutoBindLobbyStaffObjects()
+    {
+        if (!autoBindLobbyStaff ||
+            (tutorialStaffObjectsToActivate != null && tutorialStaffObjectsToActivate.Length > 0))
+            return;
+
+        lobbyRoles = FindFirstObjectByType<RoleManager>(FindObjectsInactive.Include);
+        if (lobbyRoles == null)
+            return;
+
+        List<GameObject> roots = new List<GameObject>(4);
+        AddUnique(roots, lobbyRoles.host);
+        AddUnique(roots, lobbyRoles.waiter);
+        AddUnique(roots, lobbyRoles.busser);
+        AddUnique(roots, lobbyRoles.cashier);
+        tutorialStaffObjectsToActivate = roots.ToArray();
+    }
+
+    private void AutoBindLobbyStaffSpawner()
+    {
+        if (staffSpawnersToGate != null && staffSpawnersToGate.Length > 0)
+            return;
+
+        LobbyAutonomousService service = FindFirstObjectByType<LobbyAutonomousService>(
+            FindObjectsInactive.Include);
+        if (service != null)
+            staffSpawnersToGate = new Behaviour[] { service };
+    }
+
+    private static void AddUnique(List<GameObject> roots, GameObject candidate)
+    {
+        // ManagerPlayer is the restaurant manager used throughout the opening and
+        // must remain visible. Only the separate scene-local staff role objects gate.
+        if (candidate != null && candidate.GetComponent<ManagerPlayer>() == null && !roots.Contains(candidate))
+            roots.Add(candidate);
+    }
+
     private void ApplyStaffPermission(bool allowed, bool force)
     {
         if (!force && lastAllowed == allowed)
@@ -139,6 +195,11 @@ public sealed class TutorialStaffSpawnGate : MonoBehaviour
                 if (staffRoot != null && staffRoot.activeSelf != allowed)
                     staffRoot.SetActive(allowed);
         }
+
+        // Late activation must never hand player control to a staff character.
+        // They remain ordinary pre-shift idle staff until the real Start Shift flow.
+        if (allowed && lobbyRoles != null)
+            lobbyRoles.DisablePlayerRoleControl();
     }
 
     private void RestoreSpawnerStates()
