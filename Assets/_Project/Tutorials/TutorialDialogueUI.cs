@@ -22,6 +22,70 @@ public class TutorialDialogueUI : MonoBehaviour
     [SerializeField, Range(1f, 1.2f)] private float portraitBopPeakScale = 1.06f;
     [SerializeField, Min(0f)] private float portraitBopLift = 5f;
 
+    private TutorialSystem.TutorialStep chatterStep;
+    private float chatterWaitStarted;
+    private bool chatterShown, chatterActive;
+    private CanvasGroup chatterInput;
+    private bool previousChatterRaycasts, previousChatterInteractable;
+
+    private void Update()
+    {
+        TutorialSystem tutorial = TutorialSystem.Instance;
+        var step = tutorial != null ? tutorial.CurrentStep : null;
+        bool waiting = tutorial != null && tutorial.IsWaitingForGameplayAction &&
+                       step != null && step.Phase != TutorialSystem.TutorialPhase.NormalGameplay;
+        if (chatterStep != step || !waiting)
+        {
+            if (chatterActive) Hide();
+            chatterStep = step;
+            chatterWaitStarted = Time.unscaledTime;
+            chatterShown = false;
+            return;
+        }
+        if (chatterShown || IsVisible || Time.unscaledTime - chatterWaitStarted < 2.75f) return;
+        string line = WaitLine(step.ActionKey);
+        if (line == null) return;
+        chatterShown = true;
+        ShowAuto("Big Boss", line, step.Portrait, 4f);
+        GameObject panel = root != null ? root : gameObject;
+        chatterInput = panel.GetComponent<CanvasGroup>();
+        if (chatterInput == null) chatterInput = panel.AddComponent<CanvasGroup>();
+        previousChatterRaycasts = chatterInput.blocksRaycasts;
+        previousChatterInteractable = chatterInput.interactable;
+        chatterInput.blocksRaycasts = false;
+        chatterInput.interactable = false;
+        chatterActive = true;
+    }
+
+    private static string WaitLine(string action)
+    {
+        switch (action)
+        {
+            case "Computer.Open": return "Most of your planning happens at the computer. You'll be visiting it often.";
+            case "Restock.TruckOpened": return "Those boxes are the ingredients we ordered earlier.";
+            case "Restock.WaitForDelivery": return "Our ingredients are on their way. We'll collect them when the truck arrives.";
+            case "Restock.ExitRoom": return "That's the stock handled. Let's get back to the lobby.";
+            case "Customer.FrontOfLine": return "They're making their way to the front. We'll greet them once they're ready.";
+            case "Customer.Seated": return "Give them a moment to get settled.";
+            case "Customer.NotepadOpened": return "Keep an eye on those bubbles. They'll tell you when a customer needs something.";
+            case "Customer.FoodDelivered": return "The table number helps you keep track of who you're serving.";
+            case "Customer.NeedsBill": return "They're enjoying their meal. Keep an eye on the lobby while they eat.";
+            case "Customer.FoodReady": return "While the kitchen handles that, keep an eye on the rest of the lobby.";
+            case "Customer.CashierOpened": return "Head over to the register. We'll take care of their payment there.";
+            default: return null;
+        }
+    }
+
+    private void RestoreChatterInput()
+    {
+        if (chatterActive && chatterInput != null)
+        {
+            chatterInput.blocksRaycasts = previousChatterRaycasts;
+            chatterInput.interactable = previousChatterInteractable;
+        }
+        chatterActive = false;
+    }
+
     private Coroutine typingRoutine;
     private Coroutine autoHideRoutine;
     private Coroutine portraitRoutine;
@@ -38,6 +102,12 @@ public class TutorialDialogueUI : MonoBehaviour
     public string Message => bodyText != null ? bodyText.text : string.Empty;
     public Sprite Portrait => portraitImage != null ? portraitImage.sprite : null;
     public bool IsManualAdvanceVisible => nextButton != null && nextButton.gameObject.activeSelf;
+
+    public void ApplyDebugBop(float peak, float duration)
+    {
+        portraitBopPeakScale = Mathf.Clamp(peak, 1f, 1.2f);
+        portraitBopDuration = Mathf.Clamp(duration, .05f, 1f);
+    }
 
     private void Awake()
     {
@@ -157,6 +227,7 @@ public class TutorialDialogueUI : MonoBehaviour
 
     public void Hide()
     {
+        RestoreChatterInput();
         StopAllPresentationRoutines();
         manualNextAction = null;
         isTyping = false;
@@ -166,6 +237,7 @@ public class TutorialDialogueUI : MonoBehaviour
 
     public void HideImmediate()
     {
+        RestoreChatterInput();
         StopAllPresentationRoutines();
         manualNextAction = null;
         isTyping = false;
@@ -176,6 +248,7 @@ public class TutorialDialogueUI : MonoBehaviour
 
     private void ShowInternal(string speaker, string message, Sprite portrait, bool manualMode)
     {
+        RestoreChatterInput();
         if (typingRoutine != null) StopCoroutine(typingRoutine);
         if (autoHideRoutine != null) StopCoroutine(autoHideRoutine);
         typingRoutine = autoHideRoutine = null;

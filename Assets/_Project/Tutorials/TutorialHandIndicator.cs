@@ -6,7 +6,7 @@ using TMPro;
 [DisallowMultipleComponent]
 public sealed class TutorialHandIndicator : MonoBehaviour
 {
-    public enum HintMode { Hidden, Swipe, Tap, Zoom, Typing, Drag }
+    public enum HintMode { Hidden, Swipe, Tap, Zoom, Typing, Drag, Hold }
 
     [Header("Hand Image")]
     [SerializeField] private RectTransform handRect;
@@ -68,6 +68,9 @@ public sealed class TutorialHandIndicator : MonoBehaviour
     {
         if (initialized) return;
         initialized = true;
+        handDisplaySize = 180f;
+        cursorDisplaySize = 56f;
+        mouseDisplaySize = 160f;
         if (handOpenSprite == null) handOpenSprite = swipeSprite;
         if (handClickSprite == null) handClickSprite = tapSprite;
         if (handRect == null) handRect = transform as RectTransform;
@@ -187,11 +190,34 @@ public sealed class TutorialHandIndicator : MonoBehaviour
     private void LateUpdate()
     {
         if (mode == HintMode.Hidden || !gameObject.activeSelf) return;
+        // Restock disables lobby canvases, including this detached overlay.
+        // Restore only our own hint canvases while a tutorial hint is active.
+        if (hintRoot != null) hintRoot.GetComponent<Canvas>().enabled = true;
+        Canvas own = GetComponent<Canvas>();
+        if (own != null) own.enabled = true;
+        if (cursorImage != null) cursorImage.rectTransform.localScale = Vector3.one;
+        if (handRect != null) handRect.localScale = Vector3.one;
         if (mode == HintMode.Tap) AnimateTap();
         else if (mode == HintMode.Swipe) AnimateSwipe();
         else if (mode == HintMode.Zoom) AnimateZoom();
         else if (mode == HintMode.Typing) AnimateTyping();
-        else if (mode == HintMode.Drag) AnimateDrag();
+        else if (mode == HintMode.Drag || mode == HintMode.Hold) AnimateDrag();
+        float age = Time.unscaledTime - cycleStartedAt;
+        float pop = 1f + .16f * Mathf.Sin(Mathf.Clamp01(age / .28f) * Mathf.PI);
+        if (mobilePresentation && handRect != null) handRect.localScale *= pop;
+        if (!mobilePresentation && cursorImage != null) cursorImage.rectTransform.localScale *= pop;
+    }
+
+    public void ApplyDebugTuning(float cursor, float mouse, float hand)
+    {
+        Initialize();
+        cursorDisplaySize = 56f * Mathf.Clamp(cursor, .25f, 3f);
+        mouseDisplaySize = 160f * Mathf.Clamp(mouse, .25f, 3f);
+        handDisplaySize = 180f * Mathf.Clamp(hand, .25f, 3f);
+        if (cursorImage != null) cursorImage.rectTransform.sizeDelta = Vector2.one * cursorDisplaySize;
+        if (mouseLegend != null) mouseLegend.rectTransform.sizeDelta = Vector2.one * mouseDisplaySize;
+        if (handRect != null) handRect.sizeDelta = Vector2.one * handDisplaySize;
+        if (pinchPartner != null) pinchPartner.rectTransform.sizeDelta = Vector2.one * handDisplaySize;
     }
 
     public void ShowSwipeHint()
@@ -243,6 +269,13 @@ public sealed class TutorialHandIndicator : MonoBehaviour
         if (mobilePresentation) ShowMobileHand(handOpenSprite);
         else ShowPC(mouseSprite);
         if (dragCue != null) dragCue.gameObject.SetActive(true);
+    }
+
+    public void ShowHoldHint(Transform target)
+    {
+        if (target == null) { HideHint(); return; }
+        ShowDragHint(target, target);
+        mode = HintMode.Hold;
     }
 
     public void ShowSmallDragHint(Transform target)
@@ -512,6 +545,9 @@ public sealed class TutorialHandIndicator : MonoBehaviour
         else
         {
             Camera camera = worldCamera != null ? worldCamera : Camera.main;
+            if (target.gameObject.scene.name == "RestockScene")
+                foreach (Camera candidate in Camera.allCameras)
+                    if (candidate.gameObject.scene == target.gameObject.scene) { camera = candidate; break; }
             if (camera == null) return false;
             screen = camera.WorldToScreenPoint(TutorialWorldTargetGeometry.Center(target));
             if (screen.z <= 0f) return false;

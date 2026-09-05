@@ -44,7 +44,8 @@ public sealed class TutorialSystem : MonoBehaviour
         Tap,
         Zoom,
         Typing,
-        Drag
+        Drag,
+        Hold
     }
 
     [Serializable]
@@ -128,7 +129,26 @@ public sealed class TutorialSystem : MonoBehaviour
     [Header("Linear Steps (stop at the first TODO)")]
     [SerializeField] private TutorialStep[] steps = Array.Empty<TutorialStep>();
 
+    [Header("Tutorial Debug")]
+    [SerializeField] private bool debugStartEnabled = false;
+    [SerializeField] private TutorialPhase debugStartPhase = TutorialPhase.BasicControls;
+    [SerializeField, Min(0)] private int debugStepOffsetInPhase = 0;
+    [SerializeField, Min(-1)] private int debugStartGlobalStepIndex = -1;
+    [SerializeField] private int debugResolvedGlobalStepIndex = -1;
+
+    [Header("Tutorial Visual Debug Tuning")]
+    [SerializeField, Range(.25f, 3f)] private float debugCursorScale = 1f;
+    [SerializeField, Range(.25f, 3f)] private float debugMouseScale = 1f;
+    [SerializeField, Range(.25f, 3f)] private float debugHandScale = 1f;
+    [SerializeField, Range(0f, 40f)] private float debugFocusPadding = 8f;
+    [SerializeField, Range(1f, 1.2f)] private float debugBigBossBopScale = 1.06f;
+    [SerializeField, Range(.05f, 1f)] private float debugBigBossBopDuration = .22f;
+    private bool debugSession;
+    private Coroutine debugStartRoutine;
+    public bool IsDebugSession => debugSession;
+
     [Header("Runtime Tracking")]
+    [SerializeField] private string currentStepId;
     [SerializeField] private TutorialPhase currentPhase;
     [SerializeField] private int currentStepIndex = -1;
     [SerializeField] private bool waitingForNext;
@@ -260,6 +280,7 @@ public sealed class TutorialSystem : MonoBehaviour
 
     private void OnDisable()
     {
+        if (debugStartRoutine != null) { StopCoroutine(debugStartRoutine); debugStartRoutine = null; }
         ClearGuidance(false);
         PlayerTaskGuidance.ClearTask("Lobby1Tutorial");
         waitingForNext = waitingForPlayerAction = false;
@@ -287,8 +308,64 @@ public sealed class TutorialSystem : MonoBehaviour
         SetObjective(string.Empty);
         currentStepIndex = -1;
         CaptureAndSuppressAutomaticSpawning();
+#if UNITY_EDITOR
+        handIndicator?.ApplyDebugTuning(debugCursorScale, debugMouseScale, debugHandScale);
+        uiFocusMask?.ApplyDebugPadding(debugFocusPadding);
+        dialogueUI?.ApplyDebugBop(debugBigBossBopScale, debugBigBossBopDuration);
+        if (debugStartRoutine != null) StopCoroutine(debugStartRoutine);
+        if (debugStartEnabled)
+        {
+            int resolved = ResolveDebugStart();
+            if (resolved >= 0)
+            {
+                debugSession = true;
+                ClearGuidance();
+                debugStartRoutine = StartCoroutine(StartAtDebugStep(resolved));
+                return;
+            }
+        }
+#endif
         AdvanceToNextStep();
     }
+
+#if UNITY_EDITOR
+    private int ResolveDebugStart()
+    {
+        if (debugStartGlobalStepIndex >= 0 && debugStartGlobalStepIndex < StepCount)
+            return debugStartGlobalStepIndex;
+        if (debugStartGlobalStepIndex < 0)
+        {
+            int offset = Mathf.Max(0, debugStepOffsetInPhase);
+            for (int i = 0; i < StepCount; i++)
+                if (steps[i] != null && steps[i].Phase == debugStartPhase && offset-- == 0) return i;
+        }
+        Debug.LogWarning("[Tutorial Debug] Requested step does not exist; starting normally.", this);
+        return -1;
+    }
+
+    private System.Collections.IEnumerator StartAtDebugStep(int index)
+    {
+        // Let tutorial save isolation and scene Start methods finish first.
+        yield return null;
+        TutorialPhase phase = steps[index].Phase;
+        if (phase >= TutorialPhase.PhysicalRestocking)
+            GetComponent<TutorialRestockFlowBridge>()?.Bootstrap();
+        if (phase >= TutorialPhase.ReturnToComputer)
+        {
+            GetComponent<TutorialDayContext>()?.PrepareCustomerMenu();
+            SetSpawnPermissions(phase == TutorialPhase.StaffRoles, true);
+            if (phase >= TutorialPhase.StaffRoles && phase < TutorialPhase.Completed)
+                GameDayManager.Instance?.StartShift();
+        }
+        if (phase == TutorialPhase.NormalGameplay && steps[index].Id.StartsWith("practice_staff", StringComparison.Ordinal))
+            GetComponent<TutorialBoothAvailability>()?.OpenPracticeBooths();
+        debugResolvedGlobalStepIndex = index;
+        currentStepIndex = index;
+        Debug.Log($"[Tutorial Debug] Starting global index {index}: {steps[index].Id} ({phase}). Action-dependent objects must exist for mid-lesson jumps.", this);
+        ShowCurrentStep(); // No increment: present exactly the resolved serialized step.
+        debugStartRoutine = null;
+    }
+#endif
 
     public void AdvanceManualStep()
     {
@@ -367,8 +444,11 @@ public sealed class TutorialSystem : MonoBehaviour
         if (!IsTutorialMode || Instance.CurrentPhase != TutorialPhase.Completed ||
             Instance.CurrentStep == null || Instance.CurrentStep.IsPlaceholder) return;
         Instance.tutorialCompleted = true;
-        PlayerPrefs.SetInt(TutorialCompletedSaveKey, 1);
-        PlayerPrefs.Save();
+        if (!Instance.IsDebugSession)
+        {
+            PlayerPrefs.SetInt(TutorialCompletedSaveKey, 1);
+            PlayerPrefs.Save();
+        }
         Instance.SetSpawnPermissions(true, true);
         Instance.TutorialCompletedChanged?.Invoke();
         Instance.CompleteOpeningSequence();
@@ -412,6 +492,7 @@ public sealed class TutorialSystem : MonoBehaviour
 
     private void AdvanceToNextStep()
     {
+        restockTargetPending = false;
         ClearGuidance(true);
         waitingForNext = waitingForPlayerAction = false;
         currentStepIndex++;
@@ -427,12 +508,14 @@ public sealed class TutorialSystem : MonoBehaviour
     private void ShowCurrentStep()
     {
         TutorialStep step = CurrentStep;
+        currentStepId = step != null ? step.Id : string.Empty;
         if (step == null)
         {
             CompleteOpeningSequence();
             return;
         }
 
+        restockTargetPending = false;
         ClearGuidance(true);
         waitingForNext = waitingForPlayerAction = false;
         if (currentPhase != step.Phase)
@@ -463,6 +546,7 @@ public sealed class TutorialSystem : MonoBehaviour
         if ((!string.IsNullOrEmpty(step.UITargetKey) || step.UIFocusTarget != null) && currentUIFocus == null)
         {
             uiFocusMask?.Hide();
+            if (step.Phase == TutorialPhase.PhysicalRestocking) { restockTargetPending = true; return; }
             Debug.LogError("[TutorialSystem] Missing UI target for step " + step.Id, this);
             dialogueUI?.ShowWaiting(step.Speaker, "This lesson's target is unavailable.", step.Portrait);
             return;
@@ -506,6 +590,8 @@ public sealed class TutorialSystem : MonoBehaviour
             dialogueUI?.ShowManual(step.Speaker,
                 TutorialInputTerminology.Resolve(step.Message), step.Portrait, AdvanceManualStep);
             dialogueUI?.SetFocusTarget(currentUIFocus);
+            if (step.Phase == TutorialPhase.PhysicalRestocking)
+                ShowRestockHint(step);
         }
         InteractionRestrictionChanged?.Invoke(step.RestrictUnrelatedInteractions);
         StepChanged?.Invoke(currentStepIndex, step);
@@ -531,7 +617,8 @@ public sealed class TutorialSystem : MonoBehaviour
         // UI observers and visual hints run together. The observer verifies the
         // real click/state; it must not suppress the hand/cursor demonstration.
         uiActionAdapter?.Begin(this, currentUIFocus);
-        if (step.HintMode == TutorialHintMode.Swipe) handIndicator?.ShowSwipeHint();
+        if (step.HintMode == TutorialHintMode.Hold) handIndicator?.ShowHoldHint(currentUIFocus);
+        else if (step.HintMode == TutorialHintMode.Swipe) handIndicator?.ShowSwipeHint();
         else if (step.HintMode == TutorialHintMode.Tap)
             handIndicator?.ShowTapHint(currentUIFocus != null ? currentUIFocus : currentWorldFocus);
         else if (step.HintMode == TutorialHintMode.Zoom)
@@ -562,10 +649,67 @@ public sealed class TutorialSystem : MonoBehaviour
             handIndicator?.ShowTapHint(currentUIFocus);
     }
 
+    private bool restockTargetPending;
+    public void RefreshRestockPresentation()
+    {
+        TutorialStep step = CurrentStep;
+        if (step == null || step.Phase != TutorialPhase.PhysicalRestocking) return;
+        RectTransform live = sceneBindings.ResolveUI(step.UITargetKey);
+        Transform world = sceneBindings.ResolveWorld(step.WorldTargetKey);
+        if (!waitingForNext && !waitingForPlayerAction)
+        {
+            if (restockTargetPending && live != null) ShowCurrentStep();
+            return;
+        }
+        if (live == currentUIFocus && world == currentWorldFocus) return;
+        currentUIFocus = live;
+        currentWorldFocus = world;
+        targetIndicator?.Hide();
+        handIndicator?.HideHint();
+        if (live == null && !string.IsNullOrEmpty(step.UITargetKey))
+        {
+            uiFocusMask?.Hide();
+            return;
+        }
+        sceneBindings.BeginUIFocus(live);
+        dialogueUI?.SetFocusTarget(live);
+        ShowFocus(waitingForPlayerAction);
+        if (waitingForPlayerAction && step.HintMode != TutorialHintMode.Drag)
+            uiActionAdapter?.Begin(this, live);
+        ShowRestockHint(step);
+    }
+
+    private void ShowRestockHint(TutorialStep step)
+    {
+        Transform target = currentUIFocus != null ? currentUIFocus : currentWorldFocus;
+        if (step.HintMode == TutorialHintMode.Drag && step.ActionKey == "Restock.BoxActionsHidden")
+            handIndicator?.ShowSmallDragHint(currentWorldFocus);
+        else if (step.HintMode == TutorialHintMode.Drag)
+            handIndicator?.ShowDragHint(currentUIFocus, currentWorldFocus);
+        else if (step.HintMode == TutorialHintMode.Hold)
+            handIndicator?.ShowHoldHint(target);
+        else if (step.HintMode == TutorialHintMode.Tap)
+            handIndicator?.ShowTapHint(target);
+    }
+
     private void ShowFocus(bool allowTargetInput)
     {
         if (CurrentStep != null && CurrentStep.HintMode == TutorialHintMode.Drag)
         {
+            var restock = GetComponent<TutorialRestockFlowBridge>();
+            RectTransform destination = restock != null ? restock.ResolveUI("RestockSlotFocus") : null;
+            if (destination != null && (CurrentStep.ActionKey == "Restock.StoreActive" || CurrentStep.ActionKey == "Restock.StoreSecond"))
+            {
+                uiFocusMask?.Show(destination, true);
+                if (uiFocusMask != null) { uiFocusMask.GesturePassThrough = true; uiFocusMask.raycastTarget = false; }
+                return;
+            }
+            if (CurrentStep.ActionKey == "Restock.BoxActionsHidden" && currentUIFocus != null)
+            {
+                uiFocusMask?.Show(currentUIFocus, true);
+                if (uiFocusMask != null) { uiFocusMask.GesturePassThrough = true; uiFocusMask.raycastTarget = false; }
+                return;
+            }
             // A hotbar-to-world drag must be able to leave the UI target and reach
             // the shelf. The hand/cursor and world indicator provide focus without
             // a fullscreen raycast surface intercepting the real drop.

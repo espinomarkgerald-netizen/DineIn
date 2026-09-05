@@ -37,6 +37,12 @@ public class Recipe : ScriptableObject
     public Sprite sprite;
     [Tooltip("Completed product visual used by trays and, later, kitchen/bar serving stations.")]
     public GameObject servingPrefab;
+    [Tooltip("Local offset from the tray's food/drink anchor.")]
+    public Vector3 servingPositionOffset = Vector3.zero;
+    [Tooltip("Local rotation in degrees relative to the tray anchor.")]
+    public Vector3 servingRotation = Vector3.zero;
+    [Tooltip("Per-axis multiplier of the model's authored scale. One preserves its normal size.")]
+    public Vector3 servingScale = Vector3.one;
 
     [Header("Unlock")]
     public int dayToUnlock = 1;      // The day this recipe becomes available

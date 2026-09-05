@@ -323,19 +323,19 @@ public class FoodTray : MonoBehaviour
                     if (drinkAnchor != null)
                     {
                         spawnedDrink = Instantiate(product.servingPrefab, drinkAnchor);
-                        ResetLocal(spawnedDrink.transform);
+                        ApplyServingTransform(spawnedDrink.transform, product);
                     }
                 }
                 else if (foodIndex == 0 && foodAnchor1 != null)
                 {
                     spawnedFood1 = Instantiate(product.servingPrefab, foodAnchor1);
-                    ResetLocal(spawnedFood1.transform);
+                    ApplyServingTransform(spawnedFood1.transform, product);
                     foodIndex++;
                 }
                 else if (foodIndex == 1 && foodAnchor2 != null)
                 {
                     spawnedFood2 = Instantiate(product.servingPrefab, foodAnchor2);
-                    ResetLocal(spawnedFood2.transform);
+                    ApplyServingTransform(spawnedFood2.transform, product);
                     foodIndex++;
                 }
             }
@@ -433,6 +433,13 @@ public class FoodTray : MonoBehaviour
             case CustomerGroup.DrinkType.IceTea:    return ItemTypeKitchen.IcedTea;
             default:                                return ItemTypeKitchen.Coke;
         }
+    }
+
+    private static void ApplyServingTransform(Transform visual, Recipe product)
+    {
+        visual.localPosition = product.servingPositionOffset;
+        visual.localRotation = Quaternion.Euler(product.servingRotation);
+        visual.localScale = Vector3.Scale(visual.localScale, product.servingScale);
     }
 
     private static void ResetLocal(Transform t)

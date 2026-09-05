@@ -162,6 +162,7 @@ public sealed class ManagerComplaintSystem : MonoBehaviour
         ManagerComplaintType type,
         bool bypassScheduleForDebug = false)
     {
+        if (TutorialSystem.IsTutorialMode) return false;
         if (settings == null || group == null || activeGroup != null ||
             !group.CanReceiveManagerComplaint)
             return false;

@@ -171,8 +171,11 @@ public static class CasualDiningCatalogRegressionTest
                        expectedProductIconRoot, StringComparison.Ordinal),
                 $"{product.DisplayName} is not using its Casual Dining " +
                 (product.category == MenuProductCategory.Food ? "food" : "pitcher") + " sprite.");
-            Assert(product.servingPrefab == null,
-                $"{product.DisplayName} has an unrelated permanent serving model assigned.");
+            if (product.category == MenuProductCategory.Food)
+                Assert(product.servingPrefab != null &&
+                       AssetDatabase.GetAssetPath(product.servingPrefab).StartsWith(
+                           "Assets/_Project/Art/Models/Foods/Casual Dining/", StringComparison.Ordinal),
+                    $"{product.DisplayName} is missing its Casual Dining serving model.");
             Assert(product.ingredients != null && product.ingredients.Count > 0,
                 $"{product.DisplayName} has no recipe ingredients.");
             Assert(kitchenItems.Add(product.kitchenItemType),

@@ -44,6 +44,10 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
     public bool IsRestockRoomOpen => roomOpen;
     public bool IsTransitioning => loading;
     public RestockStorageType ActiveStorageRoom => requestedRoom;
+    public MenuCatalog RestaurantCatalog => MenuCatalog.ForScene(
+        lobbyScene.IsValid() && lobbyScene.isLoaded
+            ? lobbyScene.name
+            : SceneManager.GetActiveScene().name);
 
     private const string LobbySceneName = "Lobby1";
     private const string RestockSceneName = "RestockScene";

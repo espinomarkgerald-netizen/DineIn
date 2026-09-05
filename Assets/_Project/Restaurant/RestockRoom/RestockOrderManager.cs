@@ -211,9 +211,9 @@ public sealed class RestockOrderManager : MonoBehaviour
     public List<ItemData> GetHotbarItems()
     {
         List<ItemData> result = new List<ItemData>();
-        IReadOnlyList<ItemData> catalog = InventoryManager.Instance != null
-            ? InventoryManager.Instance.Items
-            : null;
+        // Product identity comes from the current restaurant, never a persistent
+        // inventory list captured in an earlier scene. Quantities stay in this ledger.
+        IReadOnlyList<ItemData> catalog = CurrentCatalog?.Ingredients;
         if (catalog == null)
             return result;
 
@@ -848,11 +848,13 @@ public sealed class RestockOrderManager : MonoBehaviour
         };
     }
 
+    private static MenuCatalog CurrentCatalog => RestockFlowCoordinator.Instance != null
+        ? RestockFlowCoordinator.Instance.RestaurantCatalog
+        : MenuCatalog.Default;
+
     private static ItemData FindCatalogItem(string itemID, ItemType itemType)
     {
-        IReadOnlyList<ItemData> items = InventoryManager.Instance != null
-            ? InventoryManager.Instance.Items
-            : null;
+        IReadOnlyList<ItemData> items = CurrentCatalog?.Ingredients;
         if (items == null)
             return null;
         for (int i = 0; i < items.Count; i++)

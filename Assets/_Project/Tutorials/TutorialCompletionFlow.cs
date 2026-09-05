@@ -50,6 +50,12 @@ public sealed class TutorialCompletionFlow : MonoBehaviour
 
     private void Finish()
     {
+        if (tutorial != null && tutorial.IsDebugSession)
+        {
+            day?.RestoreExistingCareerNow();
+            Load("NewGameMenu");
+            return;
+        }
         bool revisit = day != null && day.CareerSaveExisted;
         if (revisit) day.RestoreExistingCareerNow(); else day?.CommitFirstCareerDayTwo();
         Load(revisit ? "NewGameMenu" : "Lobby1");

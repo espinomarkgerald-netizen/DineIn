@@ -3958,7 +3958,7 @@ MonoBehaviour:
   - id: management_staff_complete
     phase: 2
     speaker: Big Boss
-    message: Staff Management is ready. Your tutorial staff can now appear.
+    message: Staff Management is ready. Your staff are ready to help.
     portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
     stepType: 2
     requiredAction: 0
@@ -4758,7 +4758,7 @@ MonoBehaviour:
   - id: management_restock_ordered
     phase: 2
     speaker: Big Boss
-    message: Order placed. The real delivery ledger now contains it.
+    message: Order placed. The supplier is preparing your delivery.
     portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
     stepType: 2
     requiredAction: 0
@@ -4838,12 +4838,12 @@ MonoBehaviour:
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
-    hintMode: 0
+    hintMode: 2
     highlightTarget: {fileID: 0}
     worldTargetKey: RestockTruck
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey: 
+    uiTargetKey: RestockTruckFocus
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
@@ -4862,7 +4862,7 @@ MonoBehaviour:
     worldTargetKey: RestockTruck
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey: 
+    uiTargetKey: RestockTruckFocus
     actionKey: Restock.TruckOpened
     requiredContext: {fileID: 0}
     objective: 
@@ -4876,7 +4876,7 @@ MonoBehaviour:
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
-    hintMode: 0
+    hintMode: 6
     highlightTarget: {fileID: 0}
     worldTargetKey: 
     restrictUnrelatedInteractions: 1
@@ -4895,7 +4895,7 @@ MonoBehaviour:
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
-    hintMode: 2
+    hintMode: 6
     highlightTarget: {fileID: 0}
     worldTargetKey: 
     restrictUnrelatedInteractions: 1
@@ -4915,7 +4915,7 @@ MonoBehaviour:
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
-    hintMode: 0
+    hintMode: 2
     highlightTarget: {fileID: 0}
     worldTargetKey: 
     restrictUnrelatedInteractions: 1
@@ -4930,13 +4930,14 @@ MonoBehaviour:
   - id: physical_dry_explain
     phase: 3
     speaker: Big Boss
-    message: Dry ingredients go in Dry Storage. Enter it first.
+    message: Open either Dry Storage or the Freezer. We'll use whichever room you
+      choose.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey: RestockDryEntrance
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: 
@@ -4955,11 +4956,30 @@ MonoBehaviour:
     requiredAction: 0
     hintMode: 2
     highlightTarget: {fileID: 0}
-    worldTargetKey: RestockDryEntrance
-    restrictUnrelatedInteractions: 1
+    worldTargetKey: RestockEntrance
+    restrictUnrelatedInteractions: 0
     uiFocusTarget: {fileID: 0}
     uiTargetKey: 
-    actionKey: Restock.EnterDry
+    actionKey: Restock.EnterAny
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: physical_shelf_explain
+    phase: 3
+    speaker: Big Boss
+    message: Ingredients are stored on these shelves.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 2
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: RestockShelfFocus
+    actionKey: 
     requiredContext: {fileID: 0}
     objective: 
     enableStaffSpawningOnComplete: 0
@@ -4968,17 +4988,16 @@ MonoBehaviour:
   - id: physical_dry_slot
     phase: 3
     speaker: Big Boss
-    message: Press and hold this hotbar box. Drag it onto an open Dry Storage shelf
-      cell, then release.
+    message: This box belongs in this room. Press and hold it.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
-    hintMode: 0
+    hintMode: 6
     highlightTarget: {fileID: 0}
     worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey: RestockDrySlot
+    uiTargetKey: RestockActiveSlot
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
@@ -4994,11 +5013,11 @@ MonoBehaviour:
     requiredAction: 0
     hintMode: 5
     highlightTarget: {fileID: 0}
-    worldTargetKey: RestockDryShelf
+    worldTargetKey: RestockActiveShelf
     restrictUnrelatedInteractions: 0
     uiFocusTarget: {fileID: 0}
-    uiTargetKey: RestockDrySlot
-    actionKey: Restock.StoreDry
+    uiTargetKey: RestockActiveSlot
+    actionKey: Restock.StoreActive
     requiredContext: {fileID: 0}
     objective: 
     enableStaffSpawningOnComplete: 0
@@ -5007,7 +5026,7 @@ MonoBehaviour:
   - id: physical_dry_success
     phase: 3
     speaker: Big Boss
-    message: Dry stock stored.
+    message: Stock placed in the correct storage room.
     portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
     stepType: 2
     requiredAction: 0
@@ -5026,14 +5045,34 @@ MonoBehaviour:
   - id: physical_spoilage_explain
     phase: 3
     speaker: Big Boss
-    message: Be careful not to overstock. Ingredients spoil over time, and spoiled
-      stock means lost money.
+    message: Be careful when buying ingredients. Raw food and other ingredients can
+      spoil over time, so don't buy more than you expect to use.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey: RestockPlacedDryBox
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: physical_overstock_cost
+    phase: 3
+    speaker: Big Boss
+    message: Every ingredient costs money. If stock goes bad, you have to throw it
+      away. Buy what you expect to use, not just enough to fill the shelves.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: 
@@ -5046,16 +5085,17 @@ MonoBehaviour:
   - id: physical_box_select_explain
     phase: 3
     speaker: Big Boss
-    message: Click or tap a placed box to inspect it.
+    message: To check your stored stock or clear some space, click or tap this box
+      on the shelf.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
-    hintMode: 0
+    hintMode: 2
     highlightTarget: {fileID: 0}
-    worldTargetKey: RestockPlacedDryBox
+    worldTargetKey: RestockPlacedBox
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey: 
+    uiTargetKey: RestockPlacedBoxFocus
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
@@ -5071,30 +5111,49 @@ MonoBehaviour:
     requiredAction: 0
     hintMode: 2
     highlightTarget: {fileID: 0}
-    worldTargetKey: RestockPlacedDryBox
-    restrictUnrelatedInteractions: 0
+    worldTargetKey: RestockPlacedBox
+    restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey: 
+    uiTargetKey: RestockPlacedBoxFocus
     actionKey: Restock.BoxActionsShown
     requiredContext: {fileID: 0}
     objective: 
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
-  - id: physical_box_actions_explain
+  - id: physical_box_keep_explain
     phase: 3
     speaker: Big Boss
-    message: KEEP closes these controls. THROW AWAY discards spoiled stock. Keep this
-      tutorial box.
+    message: KEEP closes these controls and leaves your stock here.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
-    hintMode: 0
+    hintMode: 2
     highlightTarget: {fileID: 0}
     worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey: RestockBoxActions
+    uiTargetKey: RestockBoxKeep
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: physical_box_throw_explain
+    phase: 3
+    speaker: Big Boss
+    message: THROW AWAY permanently removes this stock. You lose the money you spent
+      on it, so keep this box.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 2
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: RestockBoxThrowAway
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
@@ -5104,16 +5163,17 @@ MonoBehaviour:
   - id: physical_box_dismiss_explain
     phase: 3
     speaker: Big Boss
-    message: To dismiss the box controls, hold the box and drag it slightly.
+    message: To close these controls without choosing either option, press and hold
+      the box, move it slightly, then release.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
-    hintMode: 0
+    hintMode: 6
     highlightTarget: {fileID: 0}
-    worldTargetKey: RestockPlacedDryBox
+    worldTargetKey: RestockPlacedBox
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey: 
+    uiTargetKey: RestockPlacedBoxFocus
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
@@ -5129,24 +5189,64 @@ MonoBehaviour:
     requiredAction: 0
     hintMode: 5
     highlightTarget: {fileID: 0}
-    worldTargetKey: RestockPlacedDryBox
+    worldTargetKey: RestockPlacedBox
     restrictUnrelatedInteractions: 0
     uiFocusTarget: {fileID: 0}
-    uiTargetKey: 
+    uiTargetKey: RestockPlacedBoxFocus
     actionKey: Restock.BoxActionsHidden
     requiredContext: {fileID: 0}
     objective: 
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
-  - id: physical_freezer_explain
+  - id: physical_box_dismiss_success
     phase: 3
     speaker: Big Boss
-    message: Now switch to the Freezer for the cold ingredient.
+    message: The controls are closed and your stock is kept. Now let's store the
+      other ingredient.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 2
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: physical_storage_types
+    phase: 3
+    speaker: Big Boss
+    message: Different ingredients need different storage. Dry goods belong in Dry
+      Storage, while cold ingredients need the Freezer.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: physical_switch_explain
+    phase: 3
+    speaker: Big Boss
+    message: Use this button to switch to the other storage room.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 2
     highlightTarget: {fileID: 0}
     worldTargetKey: 
     restrictUnrelatedInteractions: 1
@@ -5158,7 +5258,7 @@ MonoBehaviour:
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
-  - id: physical_freezer_switch
+  - id: physical_switch_action
     phase: 3
     speaker: Big Boss
     message: 
@@ -5171,33 +5271,51 @@ MonoBehaviour:
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: RestockSwitchRoom
-    actionKey: Restock.SwitchFreezer
+    actionKey: Restock.SwitchOther
     requiredContext: {fileID: 0}
     objective: 
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
-  - id: physical_frozen_slot
+  - id: physical_second_shelf
     phase: 3
     speaker: Big Boss
-    message: Press and hold this cold box. Drag it onto an open Freezer shelf cell,
-      then release.
+    message: These are the shelves in the other room.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
-    hintMode: 0
+    hintMode: 2
     highlightTarget: {fileID: 0}
     worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey: RestockFrozenSlot
+    uiTargetKey: RestockShelfFocus
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
-  - id: physical_frozen_store
+  - id: physical_second_item
+    phase: 3
+    speaker: Big Boss
+    message: This remaining box belongs here. Press and hold it.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 6
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: RestockActiveSlot
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: physical_second_store
     phase: 3
     speaker: Big Boss
     message: 
@@ -5206,11 +5324,11 @@ MonoBehaviour:
     requiredAction: 0
     hintMode: 5
     highlightTarget: {fileID: 0}
-    worldTargetKey: RestockFrozenShelf
+    worldTargetKey: RestockActiveShelf
     restrictUnrelatedInteractions: 0
     uiFocusTarget: {fileID: 0}
-    uiTargetKey: RestockFrozenSlot
-    actionKey: Restock.StoreFrozen
+    uiTargetKey: RestockActiveSlot
+    actionKey: Restock.StoreSecond
     requiredContext: {fileID: 0}
     objective: 
     enableStaffSpawningOnComplete: 0
@@ -5219,8 +5337,8 @@ MonoBehaviour:
   - id: physical_stocked_success
     phase: 3
     speaker: Big Boss
-    message: Nice work. Everything is stocked and ready.
-    portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
+    message: Both ingredient types are now stored in their correct rooms.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 2
     requiredAction: 0
     hintMode: 0
@@ -5447,7 +5565,9 @@ MonoBehaviour:
   - id: staff_roles_context
     phase: 5
     speaker: Big Boss
-    message: Your staff would normally do these jobs, but it's important for you to know how they work too. Helping them when things get busy is part of your job.
+    message: Your staff would normally do these jobs, but it's important for you
+      to know how they work too. Helping them when things get busy is part of your
+      job.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
@@ -5485,7 +5605,8 @@ MonoBehaviour:
   - id: staff_customer_arrive
     phase: 5
     speaker: Big Boss
-    message: Wait for the customer to fall in line. Always serve the customer who came first.
+    message: Wait for the customer to fall in line. Always serve the customer who
+      came first.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
@@ -5599,7 +5720,7 @@ MonoBehaviour:
   - id: staff_receptionist_booth
     phase: 5
     speaker: Big Boss
-    message: This arrow marks the real available booth for this group.
+    message: This arrow marks an available booth for this group.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
@@ -5643,7 +5764,7 @@ MonoBehaviour:
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey: TutorialCustomer
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: 
@@ -5662,7 +5783,7 @@ MonoBehaviour:
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey: TutorialCustomer
+    worldTargetKey: 
     restrictUnrelatedInteractions: 0
     uiFocusTarget: {fileID: 0}
     uiTargetKey: 
@@ -5681,10 +5802,10 @@ MonoBehaviour:
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey: TutorialCustomer
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey: 
+    uiTargetKey: OrderBubble
     actionKey: 
     requiredContext: {fileID: 0}
     objective: Take the customer order
@@ -5871,32 +5992,32 @@ MonoBehaviour:
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: NotepadConfirm
-    actionKey:
+    actionKey: 
     requiredContext: {fileID: 0}
-    objective:
+    objective: 
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   - id: staff_waiter_check
     phase: 5
     speaker: Big Boss
-    message:
+    message: 
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
     hintMode: 2
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: NotepadConfirm
     actionKey: Customer.NotepadChecked
     requiredContext: {fileID: 0}
-    objective:
+    objective: 
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -5909,45 +6030,45 @@ MonoBehaviour:
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: NotepadReviewSubmit
-    actionKey:
+    actionKey: 
     requiredContext: {fileID: 0}
-    objective:
+    objective: 
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   - id: staff_waiter_confirm
     phase: 5
     speaker: Big Boss
-    message:
+    message: 
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
     hintMode: 2
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: NotepadReviewSubmit
     actionKey: Customer.OrderConfirmed
     requiredContext: {fileID: 0}
-    objective:
+    objective: 
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   - id: staff_waiter_success
     phase: 5
     speaker: Big Boss
-    message: The real order is confirmed and sent for preparation.
+    message: The order is confirmed and sent for preparation.
     portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
     stepType: 2
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey: TutorialCustomer
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: 
@@ -5960,7 +6081,8 @@ MonoBehaviour:
   - id: staff_kitchen_explain
     phase: 5
     speaker: Big Boss
-    message: As the manager of a casual dining restaurant, you don't need to help in the kitchen, so you're good to go there.
+    message: As the manager of a casual dining restaurant, you don't need to help
+      in the kitchen, so you're good to go there.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
@@ -6036,16 +6158,16 @@ MonoBehaviour:
   - id: staff_serve_customer
     phase: 5
     speaker: Big Boss
-    message: Bring the tray to the seated customer.
+    message: Choose the table-number bubble to bring over their tray.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey: TutorialCustomer
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey: 
+    uiTargetKey: DeliveryPopup
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
@@ -6061,10 +6183,10 @@ MonoBehaviour:
     requiredAction: 0
     hintMode: 2
     highlightTarget: {fileID: 0}
-    worldTargetKey: TutorialCustomer
+    worldTargetKey: 
     restrictUnrelatedInteractions: 0
     uiFocusTarget: {fileID: 0}
-    uiTargetKey: 
+    uiTargetKey: DeliveryPopup
     actionKey: Customer.FoodDelivered
     requiredContext: {fileID: 0}
     objective: 
@@ -6080,7 +6202,7 @@ MonoBehaviour:
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey: TutorialCustomer
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: 
@@ -6099,7 +6221,7 @@ MonoBehaviour:
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey: TutorialCustomer
+    worldTargetKey: 
     restrictUnrelatedInteractions: 0
     uiFocusTarget: {fileID: 0}
     uiTargetKey: 
@@ -6112,16 +6234,17 @@ MonoBehaviour:
   - id: staff_cashier
     phase: 5
     speaker: Big Boss
-    message: The Cashier prepares the bill. Interact with the register to request it.
+    message: The customer is ready for the bill. Press the bill request above their
+      table.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey: TutorialCashier
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey: 
+    uiTargetKey: BillRequestPopup
     actionKey: 
     requiredContext: {fileID: 0}
     objective: Complete payment
@@ -6137,10 +6260,10 @@ MonoBehaviour:
     requiredAction: 0
     hintMode: 2
     highlightTarget: {fileID: 0}
-    worldTargetKey: TutorialCashier
+    worldTargetKey: 
     restrictUnrelatedInteractions: 0
     uiFocusTarget: {fileID: 0}
-    uiTargetKey: 
+    uiTargetKey: BillRequestPopup
     actionKey: Customer.BillPrinted
     requiredContext: {fileID: 0}
     objective: 
@@ -6160,16 +6283,16 @@ MonoBehaviour:
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: BillPickupButton
-    actionKey:
+    actionKey: 
     requiredContext: {fileID: 0}
-    objective:
+    objective: 
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   - id: staff_cashier_bill_pickup
     phase: 5
     speaker: Big Boss
-    message:
+    message: 
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
@@ -6181,23 +6304,23 @@ MonoBehaviour:
     uiTargetKey: BillPickupButton
     actionKey: Customer.BillPickedUp
     requiredContext: {fileID: 0}
-    objective:
+    objective: 
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   - id: staff_cashier_bill_deliver_explain
     phase: 5
     speaker: Big Boss
-    message: Deliver the bill to the customer.
+    message: Choose the bill bubble to bring the customer their bill.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey: TutorialCustomer
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey: 
+    uiTargetKey: BillRequestPopup
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
@@ -6213,10 +6336,10 @@ MonoBehaviour:
     requiredAction: 0
     hintMode: 2
     highlightTarget: {fileID: 0}
-    worldTargetKey: TutorialCustomer
+    worldTargetKey: 
     restrictUnrelatedInteractions: 0
     uiFocusTarget: {fileID: 0}
-    uiTargetKey: 
+    uiTargetKey: BillRequestPopup
     actionKey: Customer.BillDelivered
     requiredContext: {fileID: 0}
     objective: 
@@ -6294,6 +6417,84 @@ MonoBehaviour:
     uiFocusTarget: {fileID: 0}
     uiTargetKey: 
     actionKey: Customer.CashierOpened
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: staff_cashier_overview
+    phase: 5
+    speaker: Big Boss
+    message: This is the cash register. Here you can see what the customer paid,
+      the change they need, and their order.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: CashierRoot
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: staff_cashier_display
+    phase: 5
+    speaker: Big Boss
+    message: This display shows the change you are preparing. Every bill or coin
+      you choose will be added here.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: CashierDisplay
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: staff_cashier_received
+    phase: 5
+    speaker: Big Boss
+    message: This is how much the customer paid.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: CashierReceived
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: staff_cashier_required_change
+    phase: 5
+    speaker: Big Boss
+    message: This is how much change the customer should receive. Count it carefully.
+    portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: CashierRequiredChange
+    actionKey: 
     requiredContext: {fileID: 0}
     objective: 
     enableStaffSpawningOnComplete: 0
@@ -6378,19 +6579,19 @@ MonoBehaviour:
   - id: staff_busser_wait
     phase: 5
     speaker: Big Boss
-    message:
+    message: 
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey: TutorialCustomer
+    worldTargetKey: 
     restrictUnrelatedInteractions: 0
     uiFocusTarget: {fileID: 0}
-    uiTargetKey:
+    uiTargetKey: 
     actionKey: Customer.ReadyForCleanup
     requiredContext: {fileID: 0}
-    objective:
+    objective: 
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6403,7 +6604,7 @@ MonoBehaviour:
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: CleanupPickupButton
@@ -6441,13 +6642,148 @@ MonoBehaviour:
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey: TutorialCustomer
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: 
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: practice_player_intro
+    phase: 6
+    speaker: Big Boss
+    message: You've got the basics. I'll step back for a bit. Take care of the next
+      few customers and get a feel for running the lobby on your own.
+    portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: practice_player
+    phase: 6
+    speaker: Big Boss
+    message: 
+    portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
+    stepType: 1
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 0
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: Practice.Player
+    requiredContext: {fileID: 0}
+    objective: Serve three groups on your own
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: practice_staff_intro
+    phase: 6
+    speaker: Big Boss
+    message: Nice work. Now let's see how your staff handles a busier lobby.
+    portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: practice_staff_booths
+    phase: 6
+    speaker: Big Boss
+    message: I've opened three more booths so we can serve more customers.
+    portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: practice_staff_watch
+    phase: 6
+    speaker: Big Boss
+    message: This time, let your staff handle the jobs. Watch how they move through
+      the lobby and work together.
+    portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: practice_staff_help
+    phase: 6
+    speaker: Big Boss
+    message: You can still jump in and help whenever you want.
+    portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
+    stepType: 0
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 1
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: 
+    requiredContext: {fileID: 0}
+    objective: 
+    enableStaffSpawningOnComplete: 0
+    enableCustomerSpawningOnComplete: 0
+    isPlaceholder: 0
+  - id: practice_staff
+    phase: 6
+    speaker: Big Boss
+    message: 
+    portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
+    stepType: 1
+    requiredAction: 0
+    hintMode: 0
+    highlightTarget: {fileID: 0}
+    worldTargetKey: 
+    restrictUnrelatedInteractions: 0
+    uiFocusTarget: {fileID: 0}
+    uiTargetKey: 
+    actionKey: Practice.Staff
+    requiredContext: {fileID: 0}
+    objective: Serve five more groups with your staff
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6489,6 +6825,18 @@ MonoBehaviour:
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
+  debugStartEnabled: 1
+  debugStartPhase: 6
+  debugStepOffsetInPhase: 0
+  debugStartGlobalStepIndex: -1
+  debugResolvedGlobalStepIndex: -1
+  debugCursorScale: 2
+  debugMouseScale: 2
+  debugHandScale: 2
+  debugFocusPadding: 8
+  debugBigBossBopScale: 1.069
+  debugBigBossBopDuration: 0.244
+  currentStepId: 
   currentPhase: 0
   currentStepIndex: 0
   waitingForNext: 0

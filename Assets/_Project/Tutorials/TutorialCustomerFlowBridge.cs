@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.Events;
 using UnityEngine.UI;
 
@@ -22,8 +23,7 @@ public sealed class TutorialCustomerFlowBridge : MonoBehaviour
     private string observedButtonKey;
     private bool observedButtonClicked;
     private UnityAction observedButtonListener;
-    private Button releaseGuardButton;
-    private UnityAction releaseGuardListener;
+    private TutorialServicePointerGuard releaseGuard;
     private Coroutine releaseGuardRoutine;
     private PlayerMovement releaseGuardMovement;
     private bool restoreReleaseGuardControl;
@@ -31,6 +31,14 @@ public sealed class TutorialCustomerFlowBridge : MonoBehaviour
     private FoodTrayInteractable cleanupTray;
     private readonly List<AutoInteractRadius> suppressedBillAutoPickup = new();
     private readonly List<(LobbyAutonomousService service, bool enabled)> autonomous = new();
+    private readonly Dictionary<CustomerGroup, bool> practiceGroups = new();
+    private readonly List<CustomerGroup> departedPracticeGroups = new();
+    private string practiceRound;
+    private int practiceCompleted;
+    private int practiceSpawned;
+    private int pendingPracticeSpawns;
+    private readonly HashSet<CustomerGroup> eatingPermits = new();
+    private bool staffDemonstration;
     public CustomerGroup ActiveGroup => group;
 
     private void Awake() { tutorial = GetComponent<TutorialSystem>(); day = GetComponent<TutorialDayContext>(); }
@@ -59,11 +67,39 @@ public sealed class TutorialCustomerFlowBridge : MonoBehaviour
         GroupSpawner.Instance?.SetAutoSpawn(false); spawnRequested = true;
     }
 
+    private static readonly List<RaycastResult> tutorialPressHits = new();
+    public static bool IsTutorialUIPress(Vector2 position, int pointerId)
+    {
+        if (EventSystem.current == null) return false;
+        tutorialPressHits.Clear();
+        EventSystem.current.RaycastAll(new PointerEventData(EventSystem.current)
+            { position = position, pointerId = pointerId }, tutorialPressHits);
+        foreach (RaycastResult hit in tutorialPressHits)
+            if (hit.module is GraphicRaycaster) return true;
+        return false;
+    }
+
     private void Update()
     {
+        // ManagerPlayer.LateUpdate restores its input flag every frame. Reassert
+        // before PlayerMovement.Update, including the release frame, without
+        // StopForRoleSwitch/SetExternalInputSuppressed cancelling the UI task.
+        if (releaseGuardRoutine != null && releaseGuardMovement != null)
+            releaseGuardMovement.SetPlayerControlled(false);
         if (tutorial == null || tutorial.IsComplete) return;
         CaptureAndSuppressNormalShiftSpawning();
+        // The guided lessons and both rounds share one shift. Customer spawning
+        // is controlled separately; its cap does not stop the ordinary day clock.
+        if (gameDay != null && gameDay.ShiftRunning && gameDay.TimeRemaining < 60f)
+            typeof(GameDayManager).GetField("timeRemaining", PrivateInstance)?.SetValue(gameDay, 60f);
         SuppressAutonomousService();
+        if (tutorial.CurrentStep?.Id == "practice_staff_booths")
+            GetComponent<TutorialBoothAvailability>()?.OpenPracticeBooths();
+        if (tutorial.CurrentPhase == TutorialSystem.TutorialPhase.NormalGameplay)
+        {
+            TickPractice();
+            return;
+        }
         if (day == null) day = GetComponent<TutorialDayContext>();
         if (tutorial.AllowCustomerSpawning && spawnRequested && group == null && GameDayManager.Instance != null &&
             GameDayManager.Instance.ShiftRunning && GroupSpawner.Instance != null)
@@ -91,6 +127,86 @@ public sealed class TutorialCustomerFlowBridge : MonoBehaviour
             if (cleanupTray != null) { cleanupTray.SetCleanupPickable(true); cleanupArmed = true; }
         }
         if (IsComplete(key)) tutorial.NotifyAction(key, group);
+    }
+
+    private IEnumerator StartPracticeStaff()
+    {
+        // Let Unity deliver any first Start before restarting the real service
+        // coroutine stopped for solo practice. Avoid two concurrent service loops.
+        yield return null;
+        foreach (var state in autonomous)
+        {
+            if (state.service == null) continue;
+            state.service.StopAllCoroutines();
+            // Tutorial isolation intentionally keeps IsApplyingSave true. The
+            // normal Start coroutine waits on that career-load flag forever.
+            // Tutorial setup is already complete: bind and run the same real loop.
+            typeof(LobbyAutonomousService).GetMethod("ResolveSceneReferences", PrivateInstance)?.Invoke(state.service, null);
+            if (typeof(LobbyAutonomousService).GetMethod("ServiceLoop", PrivateInstance)?.Invoke(state.service, null) is IEnumerator loop)
+                state.service.StartCoroutine(loop);
+        }
+    }
+
+    private void TickPractice()
+    {
+        if (!tutorial.IsWaitingForGameplayAction) return;
+        string key = tutorial.CurrentStep.ActionKey;
+        if (key != "Practice.Player" && key != "Practice.Staff") return;
+        if (practiceRound != key)
+        {
+            practiceRound = key;
+            practiceCompleted = 0;
+            practiceGroups.Clear();
+            staffDemonstration = key == "Practice.Staff";
+            if (staffDemonstration) StartCoroutine(StartPracticeStaff());
+            foreach (AutoInteractRadius radius in suppressedBillAutoPickup)
+                if (radius != null) radius.enabled = true;
+            suppressedBillAutoPickup.Clear();
+            ClearReleaseGuard();
+            practiceSpawned = 0;
+            pendingPracticeSpawns = staffDemonstration ? 2 : 1;
+            eatingPermits.Clear();
+        }
+        departedPracticeGroups.Clear();
+        foreach (var entry in practiceGroups)
+        {
+            CustomerGroup customer = entry.Key;
+            if (customer != null && customer.state == CustomerGroup.GroupState.Eating && eatingPermits.Add(customer))
+                pendingPracticeSpawns++;
+            if (customer == null)
+            {
+                if (entry.Value) practiceCompleted++;
+                departedPracticeGroups.Add(customer);
+            }
+            else if (customer.state == CustomerGroup.GroupState.Leaving &&
+                     typeof(CustomerGroup).GetField("finalResult", PrivateInstance)?.GetValue(customer) is CustomerGroup.FinalResult result &&
+                     result == CustomerGroup.FinalResult.Happy)
+                departedPracticeGroups.Add(customer);
+        }
+        foreach (CustomerGroup customer in departedPracticeGroups)
+            if (customer == null) practiceGroups.Remove(customer);
+            else practiceGroups[customer] = true;
+        int required = staffDemonstration ? 5 : 3;
+        if (practiceCompleted >= required && practiceGroups.Count == 0)
+        {
+            tutorial.NotifyAction(key);
+            return;
+        }
+        // Eating grants one admission, even while both slots are occupied.
+        // Keep that permit until capacity opens; never turn an Eating customer
+        // into a departed customer just to satisfy the cap.
+        while (practiceGroups.Count < 2 && practiceSpawned < required && pendingPracticeSpawns > 0)
+        {
+            if (GroupSpawner.Instance == null) return;
+            if (day == null) day = GetComponent<TutorialDayContext>();
+            if (day == null || !day.PrepareCustomerMenu()) return;
+            GroupSpawner.Instance.SetAutoSpawn(false);
+            CustomerGroup spawned = GroupSpawner.Instance.SpawnGroup();
+            if (spawned == null) return;
+            practiceGroups.Add(spawned, false);
+            practiceSpawned++;
+            pendingPracticeSpawns--;
+        }
     }
 
     private bool IsComplete(string key)
@@ -206,7 +322,24 @@ public sealed class TutorialCustomerFlowBridge : MonoBehaviour
         return false;
     }
 
+    private TutorialSystem.TutorialStep popupStep;
+    private string popupKey;
+    private RectTransform popupTarget;
+
     public RectTransform ResolveUI(string key)
+    {
+        bool stablePopup = key == "OrderBubble" || key == "DeliveryPopup" || key == "BillRequestPopup" ||
+                           key == "TrayPickupButton" || key == "BillPickupButton" || key == "PaymentPickupButton";
+        if (!stablePopup) return ResolveUIUncached(key);
+        if (popupStep == tutorial?.CurrentStep && popupKey == key && popupTarget != null &&
+            popupTarget.gameObject.activeInHierarchy) return popupTarget;
+        popupStep = tutorial?.CurrentStep;
+        popupKey = key;
+        popupTarget = ResolveUIUncached(key);
+        return popupTarget;
+    }
+
+    private RectTransform ResolveUIUncached(string key)
     {
         if (key == "CustomerGreetButton") return FindGreetButton()?.transform as RectTransform;
         if (key == "CustomerSeatButton") return FindCustomerActionButton("Seat Table")?.transform as RectTransform;
@@ -214,12 +347,23 @@ public sealed class TutorialCustomerFlowBridge : MonoBehaviour
         {
             foreach (OrderBubbleUI bubble in FindObjectsByType<OrderBubbleUI>(FindObjectsInactive.Include, FindObjectsSortMode.None))
             {
-                if (bubble == null || !bubble.gameObject.activeInHierarchy) continue;
+                if (bubble == null || !bubble.gameObject.activeInHierarchy || Read<CustomerGroup>(bubble, "group") != group) continue;
                 Button open = Read<Button>(bubble, "openButton") ?? bubble.GetComponentInChildren<Button>(true);
-                if (open != null) return open.transform as RectTransform;
+                if (VisibleButtonRect(open) != null) return VisibleButtonRect(open);
             }
             return null;
         }
+        if (key == "DeliveryPopup")
+        {
+            foreach (TableNumberUI popup in FindObjectsByType<TableNumberUI>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+                if (Read<CustomerGroup>(popup, "group") == group)
+                {
+                    RectTransform target = VisibleButtonRect(popup.GetComponent<Button>() ?? popup.GetComponentInChildren<Button>(true));
+                    if (target != null) return target;
+                }
+            return null;
+        }
+        if (key == "BillRequestPopup") return ResolveBillRequestPopup();
         if (key == "TrayPickupButton")
             return ResolveTrayPickupButton(FindTray(FoodTrayInteractable.TrayMode.Delivery));
         if (key == "CleanupPickupButton")
@@ -244,7 +388,10 @@ public sealed class TutorialCustomerFlowBridge : MonoBehaviour
                         return entry.transform as RectTransform;
         if (key == "NotepadConfirm") return Read<Button>(note, "confirmButton")?.transform as RectTransform;
         CashierRegisterUI cash = CashierRegisterUI.Instance;
-        if (key == "CashierRoot") return cash != null ? cash.transform as RectTransform : null;
+        if (key == "CashierRoot") return cash != null && cash.IsOpen ? Read<GameObject>(cash, "root")?.transform as RectTransform : null;
+        if (key == "CashierDisplay") return cash != null && cash.IsOpen ? Read<TMPro.TMP_Text>(cash, "cashierChangeText")?.rectTransform : null;
+        if (key == "CashierReceived") return cash != null && cash.IsOpen ? Read<TMPro.TMP_Text>(cash, "receivedText")?.rectTransform : null;
+        if (key == "CashierRequiredChange") return cash != null && cash.IsOpen ? Read<TMPro.TMP_Text>(cash, "changeText")?.rectTransform : null;
         if (key == "CashierChangeControls" || key == "CashierNextMoneyButton")
             return ResolveNextCashierMoneyButton(cash);
         if (key == "CashierConfirm")
@@ -296,6 +443,20 @@ public sealed class TutorialCustomerFlowBridge : MonoBehaviour
     }
     private static T Read<T>(object owner, string field) where T : class => owner?.GetType().GetField(field, PrivateInstance)?.GetValue(owner) as T;
     private static int ReadInt(object owner, string field) => owner?.GetType().GetField(field, PrivateInstance)?.GetValue(owner) is int value ? value : int.MinValue;
+
+    private RectTransform ResolveBillRequestPopup()
+    {
+        if (group == null) return null;
+        foreach (BillBubbleUI bubble in FindObjectsByType<BillBubbleUI>(
+                     FindObjectsInactive.Include, FindObjectsSortMode.None))
+        {
+            if (bubble == null || Read<CustomerGroup>(bubble, "group") != group) continue;
+            RectTransform rect = VisibleButtonRect(bubble.GetComponent<Button>() ??
+                                                   bubble.GetComponentInChildren<Button>(true));
+            if (rect != null) return rect;
+        }
+        return null;
+    }
 
     private RectTransform ResolveTrayPickupButton(FoodTrayInteractable wanted)
     {
@@ -396,7 +557,9 @@ public sealed class TutorialCustomerFlowBridge : MonoBehaviour
             for (int i = 0; i < autonomous.Count; i++)
                 if (autonomous[i].service == service) { known = true; break; }
             if (!known) autonomous.Add((service, service.enabled));
-            service.enabled = false;
+            service.enabled = staffDemonstration;
+            if (tutorial != null && tutorial.CurrentPhase == TutorialSystem.TutorialPhase.NormalGameplay && !staffDemonstration)
+                service.StopAllCoroutines();
         }
     }
 
@@ -494,7 +657,7 @@ public sealed class TutorialCustomerFlowBridge : MonoBehaviour
     private void RefreshLiveUIActionTarget()
     {
         string key = tutorial.CurrentStep?.UITargetKey;
-        if (key != "TrayPickupButton" && key != "CleanupPickupButton" &&
+        if (key != "OrderBubble" && key != "DeliveryPopup" && key != "BillRequestPopup" && key != "TrayPickupButton" && key != "CleanupPickupButton" &&
             key != "BillPickupButton" && key != "PaymentPickupButton" &&
             key != "CashierNextMoneyButton") return;
 
@@ -506,33 +669,32 @@ public sealed class TutorialCustomerFlowBridge : MonoBehaviour
     {
         string key = tutorial.CurrentStep?.UITargetKey;
         bool transientServiceButton = key == "CustomerGreetButton" || key == "CustomerSeatButton" ||
-                                      key == "OrderBubble" || key == "TrayPickupButton" ||
+                                      key == "OrderBubble" || key == "DeliveryPopup" || key == "BillRequestPopup" || key == "TrayPickupButton" ||
                                       key == "CleanupPickupButton" || key == "BillPickupButton" ||
                                       key == "PaymentPickupButton" || key == "CashierConfirm";
         Button live = transientServiceButton ? ResolveUI(key)?.GetComponent<Button>() : null;
-        if (live == releaseGuardButton) return;
+        if (live != null && releaseGuard != null && releaseGuard.gameObject == live.gameObject) return;
 
-        if (releaseGuardButton != null && releaseGuardListener != null)
-            releaseGuardButton.onClick.RemoveListener(releaseGuardListener);
-        releaseGuardButton = live;
-        releaseGuardListener = null;
-        if (releaseGuardButton == null) return;
-
-        releaseGuardListener = GuardDisappearingServiceButtonRelease;
-        releaseGuardButton.onClick.AddListener(releaseGuardListener);
+        if (releaseGuard != null) releaseGuard.End(this);
+        releaseGuard = null;
+        if (live == null) return;
+        releaseGuard = live.GetComponent<TutorialServicePointerGuard>() ??
+                       live.gameObject.AddComponent<TutorialServicePointerGuard>();
+        releaseGuard.Begin(this);
     }
 
-    private void GuardDisappearingServiceButtonRelease()
+    internal void GuardDisappearingServiceButtonPress()
     {
         PlayerMovement movement = RoleManager.Instance != null
             ? RoleManager.Instance.GetActivePlayerMovement()
             : null;
         if (movement == null) return;
 
-        releaseGuardMovement = movement;
-        restoreReleaseGuardControl = movement.IsPlayerControlled();
-        movement.SetPlayerControlled(false);
+        bool wasControlled = movement.IsPlayerControlled();
         if (releaseGuardRoutine != null) StopCoroutine(releaseGuardRoutine);
+        restoreReleaseGuardControl = restoreReleaseGuardControl || wasControlled;
+        releaseGuardMovement = movement;
+        movement.SetPlayerControlled(false);
         releaseGuardRoutine = StartCoroutine(RestoreInputAfterReleasedPointer());
     }
 
@@ -541,7 +703,8 @@ public sealed class TutorialCustomerFlowBridge : MonoBehaviour
         yield return new WaitForEndOfFrame();
         while (Input.GetMouseButton(0) || Input.touchCount > 0)
             yield return null;
-        yield return null;
+        // Restore after release processing, before the next intentional press.
+        yield return new WaitForEndOfFrame();
 
         if (releaseGuardMovement != null && restoreReleaseGuardControl)
             releaseGuardMovement.SetPlayerControlled(true);
@@ -552,10 +715,8 @@ public sealed class TutorialCustomerFlowBridge : MonoBehaviour
 
     private void ClearReleaseGuard()
     {
-        if (releaseGuardButton != null && releaseGuardListener != null)
-            releaseGuardButton.onClick.RemoveListener(releaseGuardListener);
-        releaseGuardButton = null;
-        releaseGuardListener = null;
+        if (releaseGuard != null) releaseGuard.End(this);
+        releaseGuard = null;
         if (releaseGuardRoutine != null) StopCoroutine(releaseGuardRoutine);
         releaseGuardRoutine = null;
         if (releaseGuardMovement != null && restoreReleaseGuardControl)
@@ -566,4 +727,18 @@ public sealed class TutorialCustomerFlowBridge : MonoBehaviour
 
     private static void WriteInt(object owner, string field, int value) =>
         owner?.GetType().GetField(field, PrivateInstance)?.SetValue(owner, value);
+}
+
+/// <summary>Consumes only the pointer gesture that begins on a transient tutorial service button.</summary>
+internal sealed class TutorialServicePointerGuard : MonoBehaviour, IPointerDownHandler
+{
+    private TutorialCustomerFlowBridge owner;
+
+    public void Begin(TutorialCustomerFlowBridge bridge) => owner = bridge;
+    public void End(TutorialCustomerFlowBridge bridge)
+    {
+        if (owner == bridge) owner = null;
+    }
+
+    public void OnPointerDown(PointerEventData eventData) => owner?.GuardDisappearingServiceButtonPress();
 }

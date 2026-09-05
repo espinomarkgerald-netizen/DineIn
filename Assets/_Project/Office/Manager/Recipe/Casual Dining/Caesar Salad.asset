@@ -20,7 +20,10 @@ MonoBehaviour:
   menuSortOrder: 5
   kitchenItemType: 12
   sprite: {fileID: 21300000, guid: 32c95c57de70cdc4bb82200566f00a4c, type: 3}
-  servingPrefab: {fileID: 0}
+  servingPrefab: {fileID: 919132149155446097, guid: a83efec34d8ebe1478c44bcc30afb2ee, type: 3}
+  servingPositionOffset: {x: 0, y: 0, z: 0.0001}
+  servingRotation: {x: 90, y: 0, z: 0}
+  servingScale: {x: 0.003, y: 0.003, z: 0.003}
   dayToUnlock: 3
   ingredients:
   - item: {fileID: 11400000, guid: cd100000000000000000000000000007, type: 2}

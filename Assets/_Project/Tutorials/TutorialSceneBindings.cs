@@ -279,13 +279,22 @@ public sealed class TutorialSceneBindings : MonoBehaviour
             case "RestockHotbar":
             case "RestockDrySlot":
             case "RestockFrozenSlot":
+            case "RestockActiveSlot":
+            case "RestockPlacedBoxFocus":
+            case "RestockBoxKeep":
+            case "RestockBoxThrowAway":
+            case "RestockTruckFocus":
+            case "RestockShelfFocus":
+            case "RestockSlotFocus":
             case "RestockSwitchRoom":
             case "RestockExit":
             case "RestockBoxActions":
                 return FindFirstObjectByType<TutorialRestockFlowBridge>(FindObjectsInactive.Include)?.ResolveUI(key);
             case "CustomerGreetButton":
             case "CustomerSeatButton":
+            case "DeliveryPopup":
             case "OrderBubble":
+            case "BillRequestPopup":
             case "TrayPickupButton":
             case "CleanupPickupButton":
             case "BillPickupButton":
@@ -299,6 +308,9 @@ public sealed class TutorialSceneBindings : MonoBehaviour
             case "NotepadDrinkAdjust":
             case "NotepadReviewSubmit":
             case "NotepadConfirm":
+            case "CashierDisplay":
+            case "CashierReceived":
+            case "CashierRequiredChange":
             case "CashierRoot":
             case "CashierChangeControls":
             case "CashierNextMoneyButton":

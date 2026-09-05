@@ -111,6 +111,11 @@ public class MenuCatalog : ScriptableObject
         }
     }
 
+    // Additive storage scenes belong to their loaded restaurant, not the fallback catalog.
+    // Preserve the isolated tutorial catalog while its explicit override is active.
+    public static MenuCatalog ForScene(string sceneName) =>
+        hasRestaurantOverride ? Default : ResolveActiveCatalog(sceneName);
+
     public static void SetActiveRestaurantType(RestaurantType type)
     {
         restaurantOverride = type;

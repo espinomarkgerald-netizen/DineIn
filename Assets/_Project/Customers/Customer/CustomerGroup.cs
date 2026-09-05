@@ -2462,6 +2462,7 @@ public class CustomerGroup : MonoBehaviour
 
     private void ShowThought(string[] comments, Sprite faceSprite)
     {
+        if (TutorialSystem.IsTutorialMode) return;
         if (thoughtBubblePrefab == null) return;
 
         string message = GetRandomComment(comments);

@@ -13,6 +13,17 @@ public sealed class TutorialBoothAvailability : MonoBehaviour
     private const string TutorialBoothId = "booth01";
     private readonly List<(GameObject booth, bool active)> authoredStates = new();
     private GameObject tutorialBooth;
+    private readonly HashSet<GameObject> practiceBooths = new();
+    public void OpenPracticeBooths()
+    {
+        foreach (var state in authoredStates)
+        {
+            if (practiceBooths.Count >= 3) break;
+            if (state.booth != null && state.booth != tutorialBooth && state.booth.scene == gameObject.scene)
+                practiceBooths.Add(state.booth);
+        }
+        ApplyTutorialAvailability();
+    }
 
     private void Awake()
     {
@@ -39,7 +50,7 @@ public sealed class TutorialBoothAvailability : MonoBehaviour
         foreach (var state in authoredStates)
         {
             if (state.booth == null) continue;
-            bool shouldBeAvailable = state.booth == tutorialBooth;
+            bool shouldBeAvailable = state.booth == tutorialBooth || practiceBooths.Contains(state.booth);
             if (state.booth.activeSelf != shouldBeAvailable)
                 state.booth.SetActive(shouldBeAvailable);
         }

@@ -187,8 +187,24 @@ public class PlayerMovement : MonoBehaviour
             activeCam = found;
     }
 
+    private bool tutorialPressStartedOnUI;
+
     private void Update()
     {
+        // Tutorial popups can disappear on click. Remember the press independently
+        // of ManagerPlayer's control flag; never turn its release into a world task.
+        if (TutorialSystem.IsTutorialMode)
+        {
+            if (Input.touchCount > 0)
+            {
+                Touch touch = Input.GetTouch(0);
+                if (touch.phase == TouchPhase.Began)
+                    tutorialPressStartedOnUI = TutorialCustomerFlowBridge.IsTutorialUIPress(touch.position, touch.fingerId);
+            }
+            else if (Input.GetMouseButtonDown(0))
+                tutorialPressStartedOnUI = TutorialCustomerFlowBridge.IsTutorialUIPress(Input.mousePosition, -1);
+        }
+
         if (activeCam == null) return;
 
         if (isPlayerControlled && state != State.DoingJob)
@@ -213,6 +229,7 @@ public class PlayerMovement : MonoBehaviour
 
         if (Input.GetMouseButtonUp(0))
         {
+            if (TutorialSystem.IsTutorialMode && tutorialPressStartedOnUI) return;
             if (IsPointerOverUI(-1)) return;
 
             float dist = Vector2.Distance(pressStartPos, (Vector2)Input.mousePosition);
@@ -234,6 +251,7 @@ public class PlayerMovement : MonoBehaviour
 
         if (t.phase == TouchPhase.Ended || t.phase == TouchPhase.Canceled)
         {
+            if (TutorialSystem.IsTutorialMode && tutorialPressStartedOnUI) return;
             if (IsPointerOverUI(t.fingerId)) return;
 
             float dist = Vector2.Distance(pressStartPos, t.position);
@@ -802,7 +820,8 @@ public class PlayerMovement : MonoBehaviour
 
         ForceStopAgent();
 
-        if (!string.IsNullOrEmpty(warning))
+        if (!string.IsNullOrEmpty(warning) &&
+            !(TutorialSystem.IsTutorialMode && warning == "That task cannot be reached from here."))
             WarningSlideUI.Instance?.Show(warning);
     }
 

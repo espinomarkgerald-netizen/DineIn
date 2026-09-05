@@ -918,7 +918,9 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
     private void PopulateRestock()
     {
         InventoryManager inventory = InventoryManager.Instance;
-        if (inventory == null || inventory.Items == null)
+        MenuCatalog catalog = MenuCatalog.Default;
+        IReadOnlyList<ItemData> items = catalog != null ? catalog.Ingredients : null;
+        if (inventory == null || items == null)
         {
             appWindow.SetMessage("Inventory system is unavailable.", true);
             return;
@@ -938,7 +940,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
             appWindow.Content);
         panel.gameObject.SetActive(true);
         panel.BindRestock(
-            inventory.Items,
+            items,
             config.StorageConfig,
             RestockOrderManager.EnsureInstance(),
             GetExpectedCustomers(),
