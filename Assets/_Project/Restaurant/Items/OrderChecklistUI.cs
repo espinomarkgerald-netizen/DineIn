@@ -115,6 +115,11 @@ public class OrderChecklistUI : MonoBehaviour
     private bool refreshingResponsiveLayout;
     private bool rootScaleCaptured;
     private Vector3 authoredRootScale;
+    private RectTransform responsiveMenuRoot;
+    private Vector3 authoredMenuPosition;
+    private Vector3 authoredMenuScale;
+    private Vector2 lastLayoutSize;
+    private Rect lastLayoutSafeArea;
 
     public const float MobileRootScaleMultiplier = 1.28f;
 
@@ -223,7 +228,8 @@ public class OrderChecklistUI : MonoBehaviour
         float renderedWidth = root.rect.width * Mathf.Abs(root.localScale.x);
         float renderedHeight = root.rect.height * Mathf.Abs(root.localScale.y);
         bool stretched = root.anchorMin == Vector2.zero && root.anchorMax == Vector2.one;
-        if (!stretched || renderedWidth + 0.5f < parent.rect.width ||
+        if (lastLayoutSize != parent.rect.size || lastLayoutSafeArea != Screen.safeArea ||
+            !stretched || renderedWidth + 0.5f < parent.rect.width ||
             renderedHeight + 0.5f < parent.rect.height)
             RefreshResponsiveLayout();
     }
@@ -283,7 +289,80 @@ public class OrderChecklistUI : MonoBehaviour
         FinalizeMenuLayout(foodContentRoot, foodScrollRect);
         FinalizeMenuLayout(drinkContentRoot, drinkScrollRect);
         AlignMenuScrollbars();
+        FitNotepadColumns(root);
+        lastLayoutSize = parent.rect.size;
+        lastLayoutSafeArea = Screen.safeArea;
         refreshingResponsiveLayout = false;
+    }
+
+    private void FitNotepadColumns(RectTransform root)
+    {
+        if (customerInformationRoot == null || customerInformationRoot.parent != root || foodScrollRect == null)
+            return;
+        if (responsiveMenuRoot == null)
+        {
+            Transform branch = foodScrollRect.transform;
+            while (branch.parent != null && branch.parent != root) branch = branch.parent;
+            if (branch.parent != root || branch == customerInformationRoot) return;
+            responsiveMenuRoot = branch as RectTransform;
+            if (responsiveMenuRoot == null) return;
+            authoredMenuPosition = responsiveMenuRoot.localPosition;
+            authoredMenuScale = responsiveMenuRoot.localScale;
+        }
+        responsiveMenuRoot.localPosition = authoredMenuPosition;
+        responsiveMenuRoot.localScale = authoredMenuScale;
+
+        Canvas owner = root.GetComponentInParent<Canvas>();
+        if (owner != null) owner = owner.rootCanvas;
+        Camera camera = owner == null || owner.renderMode == RenderMode.ScreenSpaceOverlay ? null : owner.worldCamera;
+        Rect safe = Screen.safeArea;
+        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(root, safe.min, camera, out Vector2 min) ||
+            !RectTransformUtility.ScreenPointToLocalPointInRectangle(root, safe.max, camera, out Vector2 max)) return;
+        const float margin = 24f;
+        min = Vector2.Max(min, root.rect.min) + Vector2.one * margin;
+        max = Vector2.Min(max, root.rect.max) - Vector2.one * margin;
+        Rect left = NotepadBounds(root, customerInformationRoot, false);
+        Rect right = NotepadBounds(root, responsiveMenuRoot, true);
+        float available = max.x - min.x;
+        if (available <= 0f || max.y <= min.y) return;
+        // Spend empty spacing first. Only scale the two complete compositions
+        // when their actual content cannot fit, keeping each icon/quantity intact.
+        float gap = Mathf.Clamp(available - left.width - right.width, 12f, 40f);
+        float fit = Mathf.Min(1f, (available - gap) / Mathf.Max(1f, left.width + right.width),
+            (max.y - min.y) / Mathf.Max(1f, Mathf.Max(left.height, right.height)));
+        customerInformationRoot.localScale *= fit;
+        responsiveMenuRoot.localScale *= fit;
+        left = NotepadBounds(root, customerInformationRoot, false);
+        right = NotepadBounds(root, responsiveMenuRoot, true);
+        float rightX = Mathf.Clamp(right.xMin, min.x + left.width + gap, max.x - right.width);
+        float leftX = Mathf.Clamp(left.xMin, min.x, rightX - gap - left.width);
+        customerInformationRoot.localPosition += new Vector3(leftX - left.xMin,
+            Mathf.Clamp(left.yMin, min.y, max.y - left.height) - left.yMin, 0f);
+        responsiveMenuRoot.localPosition += new Vector3(rightX - right.xMin,
+            Mathf.Clamp(right.yMin, min.y, max.y - right.height) - right.yMin, 0f);
+    }
+
+    private static Rect NotepadBounds(RectTransform root, RectTransform group, bool children)
+    {
+        Vector2 min = new Vector2(float.MaxValue, float.MaxValue);
+        Vector2 max = new Vector2(float.MinValue, float.MinValue);
+        Vector3[] corners = new Vector3[4];
+        // The menu background is deliberately oversized. Measure its direct
+        // controls, not that background or the overflowing scroll-list content.
+        int count = children ? group.childCount : 1;
+        for (int i = 0; i < count; i++)
+        {
+            RectTransform rect = children ? group.GetChild(i) as RectTransform : group;
+            if (rect == null) continue;
+            rect.GetWorldCorners(corners);
+            foreach (Vector3 corner in corners)
+            {
+                Vector2 local = root.InverseTransformPoint(corner);
+                min = Vector2.Min(min, local);
+                max = Vector2.Max(max, local);
+            }
+        }
+        return Rect.MinMaxRect(min.x, min.y, max.x, max.y);
     }
 
     private void AlignMenuScrollbars()

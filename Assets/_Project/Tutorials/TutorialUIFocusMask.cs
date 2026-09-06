@@ -13,15 +13,7 @@ public sealed class TutorialUIFocusMask : MaskableGraphic
     [SerializeField, Min(0f)] private float transitionDuration = 0.24f;
 
     private readonly Vector3[] corners = new Vector3[4];
-    private RectTransform geometryTarget;
-    private TutorialSystem.TutorialStep geometryStep;
-    private Vector2 geometryScreen;
-    private Rect geometryRect;
-    private int geometryScene;
     private RectTransform target;
-    private RectTransform stableButton;
-    private Transform stableButtonParent;
-    private readonly Vector3[] stableButtonCorners = new Vector3[4];
     private Rect focusRect;
     private bool allowTargetInput;
     private bool hasFocus;
@@ -71,7 +63,6 @@ public sealed class TutorialUIFocusMask : MaskableGraphic
     public void ApplyDebugPadding(float value)
     {
         padding = Vector2.one * Mathf.Clamp(value, 0f, 40f);
-        geometryTarget = null;
     }
 
     public void Show(RectTransform focusTarget, bool targetMayBeClicked)
@@ -213,39 +204,16 @@ public sealed class TutorialUIFocusMask : MaskableGraphic
     {
         result = default;
         if (source == null || !source.gameObject.activeInHierarchy) return false;
-        // Freeze the screen-space hole for this logical control and lesson.
-        // Restock's explicit world projections still follow their live geometry.
-        bool freeze = !source.name.StartsWith("Live", StringComparison.Ordinal);
-        var step = TutorialSystem.Instance != null ? TutorialSystem.Instance.CurrentStep : null;
-        Vector2 screenSize = new Vector2(Screen.width, Screen.height);
-        int scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().handle;
-        if (freeze && geometryTarget == source && geometryStep == step && geometryScreen == screenSize && geometryScene == scene)
-        { result = geometryRect; return result.width > 0 && result.height > 0; }
+        // Read live geometry: a layout rebuild or scrolling can move a control
+        // without changing its identity, lesson, scene, or screen resolution.
         Canvas sourceCanvas = source.GetComponentInParent<Canvas>();
+        if (sourceCanvas != null) sourceCanvas = sourceCanvas.rootCanvas;
         Camera sourceCamera = sourceCanvas == null || sourceCanvas.renderMode == RenderMode.ScreenSpaceOverlay
             ? null : sourceCanvas.worldCamera;
-        Camera overlayCamera = canvas == null || canvas.renderMode == RenderMode.ScreenSpaceOverlay
-            ? null : canvas.worldCamera;
-        if (source.GetComponent<Button>() != null && source.parent != null)
-        {
-            // Button hover effects animate its transform. Keep its authored focus
-            // geometry while still following parent layout, scrolling and camera motion.
-            if (stableButton != source || stableButtonParent != source.parent)
-            {
-                stableButton = source;
-                stableButtonParent = source.parent;
-                source.GetWorldCorners(corners);
-                for (int i = 0; i < 4; i++)
-                    stableButtonCorners[i] = stableButtonParent.InverseTransformPoint(corners[i]);
-            }
-            for (int i = 0; i < 4; i++)
-                corners[i] = stableButtonParent.TransformPoint(stableButtonCorners[i]);
-        }
-        else
-        {
-            stableButton = null;
-            source.GetWorldCorners(corners);
-        }
+        Canvas overlay = canvas != null ? canvas.rootCanvas : null;
+        Camera overlayCamera = overlay == null || overlay.renderMode == RenderMode.ScreenSpaceOverlay
+            ? null : overlay.worldCamera;
+        source.GetWorldCorners(corners);
         Vector2 min = new Vector2(float.MaxValue, float.MaxValue);
         Vector2 max = new Vector2(float.MinValue, float.MinValue);
         foreach (Vector3 corner in corners)
@@ -262,11 +230,6 @@ public sealed class TutorialUIFocusMask : MaskableGraphic
             Mathf.Clamp(min.y - padding.y, bounds.yMin, bounds.yMax),
             Mathf.Clamp(max.x + padding.x, bounds.xMin, bounds.xMax),
             Mathf.Clamp(max.y + padding.y, bounds.yMin, bounds.yMax));
-        if (freeze && result.width > 0f && result.height > 0f)
-        {
-            geometryTarget = source; geometryStep = step; geometryScreen = screenSize;
-            geometryScene = scene; geometryRect = result;
-        }
         return result.width > 0f && result.height > 0f;
     }
 

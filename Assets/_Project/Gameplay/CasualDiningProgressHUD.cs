@@ -159,6 +159,7 @@ public sealed class CasualDiningProgressHUD : MonoBehaviour
     private float nextLegacyHideAttempt;
     private Vector2Int lastResponsiveScreenSize = new Vector2Int(-1, -1);
     private Rect lastResponsiveSafeArea = new Rect(-1f, -1f, -1f, -1f);
+    private Vector2 lastResponsiveCanvasSize;
     private Vector2 authoredDayTimePosition;
     private bool hasAuthoredDayTimePosition;
 
@@ -440,11 +441,15 @@ public sealed class CasualDiningProgressHUD : MonoBehaviour
 
         Vector2Int screenSize = new Vector2Int(Screen.width, Screen.height);
         Rect safeArea = respectDeviceSafeArea ? Screen.safeArea : new Rect(0f, 0f, Screen.width, Screen.height);
-        if (!force && screenSize == lastResponsiveScreenSize && safeArea == lastResponsiveSafeArea)
+        Vector2 canvasSize = hudCanvas != null && hudCanvas.transform is RectTransform canvasRect
+            ? canvasRect.rect.size : Vector2.zero;
+        if (!force && screenSize == lastResponsiveScreenSize && safeArea == lastResponsiveSafeArea &&
+            canvasSize == lastResponsiveCanvasSize)
             return;
 
         lastResponsiveScreenSize = screenSize;
         lastResponsiveSafeArea = safeArea;
+        lastResponsiveCanvasSize = canvasSize;
         if (Screen.width <= 0 || Screen.height <= 0)
             return;
 
@@ -460,6 +465,8 @@ public sealed class CasualDiningProgressHUD : MonoBehaviour
         ApplyDayTimeVariant(useStacked);
         float objectiveScale = compact ? compactObjectivesScale : 1f;
         objectivesResponsiveRoot.localScale = Vector3.one * objectiveScale;
+        if (useLobbyHudRedesignLayout)
+            LayoutLandscapeRows();
 
         CaptureAuthoredDayTimePosition();
         if (dayTimeRoot != null && hasAuthoredDayTimePosition)
@@ -481,6 +488,52 @@ public sealed class CasualDiningProgressHUD : MonoBehaviour
 
         authoredDayTimePosition = dayTimeRoot.anchoredPosition;
         hasAuthoredDayTimePosition = true;
+    }
+
+    private void LayoutLandscapeRows()
+    {
+        if (panelRect == null || moneyRow == null || approvalRow == null ||
+            neutralRow == null || angryRow == null) return;
+
+        // Each lane is positioned against the available safe rect, not the
+        // authored panel's fixed left edge. Keep all row artwork at full size.
+        objectivesResponsiveRoot.localScale = Vector3.one;
+        objectivesResponsiveRoot.anchorMin = new Vector2(0f, 1f);
+        objectivesResponsiveRoot.anchorMax = Vector2.one;
+        objectivesResponsiveRoot.sizeDelta = new Vector2(0f, objectivesResponsiveRoot.sizeDelta.y);
+        objectivesResponsiveRoot.anchoredPosition = Vector2.zero;
+        panelRect.anchorMin = new Vector2(0f, 1f);
+        panelRect.anchorMax = Vector2.one;
+        panelRect.sizeDelta = new Vector2(0f, panelRect.sizeDelta.y);
+        panelRect.anchoredPosition = new Vector2(0f, redesignedPanelPosition.y);
+
+        const float gap = 18f;
+        float rightWidth = Mathf.Max(moneyRow.rect.width,
+            neutralRow.rect.width + angryRow.rect.width + gap);
+        PlaceRow(moneyRow, Vector2.one, new Vector2(-gap, 0f));
+        PlaceRow(angryRow, Vector2.one, new Vector2(-gap, redesignedAngryPosition.y));
+        PlaceRow(neutralRow, Vector2.one,
+            new Vector2(-gap * 2f - angryRow.rect.width, redesignedNeutralPosition.y));
+
+        float width = safeAreaContent.rect.width;
+        float leftWidth = dayTimeRoot != null
+            ? Mathf.Max(0f, dayTimeRoot.anchoredPosition.x) + dayTimeRoot.rect.width : 250f;
+        float minCenter = leftWidth + gap + approvalRow.rect.width * .5f;
+        float maxCenter = width - rightWidth - gap * 2f - approvalRow.rect.width * .5f;
+        // If a landscape viewport cannot fit all three lanes, use another row
+        // for approval rather than shrinking text or letting the groups overlap.
+        float center = maxCenter >= minCenter
+            ? Mathf.Clamp(width * .5f, minCenter, maxCenter) : width * .5f;
+        float y = maxCenter >= minCenter ? 0f : -Mathf.Max(
+            moneyRow.rect.height, -redesignedAngryPosition.y + angryRow.rect.height) - gap;
+        PlaceRow(approvalRow, new Vector2(.5f, 1f), new Vector2(center - width * .5f, y));
+    }
+
+    private static void PlaceRow(RectTransform row, Vector2 anchor, Vector2 position)
+    {
+        row.anchorMin = row.anchorMax = anchor;
+        row.pivot = anchor;
+        row.anchoredPosition = position;
     }
 
     private void ApplyDayTimeVariant(bool useStacked)
@@ -568,7 +621,8 @@ public sealed class CasualDiningProgressHUD : MonoBehaviour
     private void AnimatePanel()
     {
         if (panelRect == null || panelGroup == null) return;
-        Vector2 target = new Vector2(expandedSize.x, expanded ? expandedSize.y : 0f);
+        Vector2 target = new Vector2(useLobbyHudRedesignLayout ? 0f : expandedSize.x,
+            expanded ? expandedSize.y : 0f);
         float targetAlpha = expanded ? 1f : 0f;
         if (LevelOneUIAccessibility.ReducedMotion)
         {
@@ -588,7 +642,8 @@ public sealed class CasualDiningProgressHUD : MonoBehaviour
 
     private void ApplyExpandedStateImmediate()
     {
-        if (panelRect != null) panelRect.sizeDelta = new Vector2(expandedSize.x, expanded ? expandedSize.y : 0f);
+        if (panelRect != null) panelRect.sizeDelta = new Vector2(
+            useLobbyHudRedesignLayout ? 0f : expandedSize.x, expanded ? expandedSize.y : 0f);
         if (panelGroup != null) panelGroup.alpha = expanded ? 1f : 0f;
     }
 

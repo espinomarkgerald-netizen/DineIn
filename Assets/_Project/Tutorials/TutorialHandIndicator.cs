@@ -64,6 +64,9 @@ public sealed class TutorialHandIndicator : MonoBehaviour
 
     private void Awake() => Initialize();
 
+    private void OnEnable() => Canvas.willRenderCanvases += LateUpdate;
+    private void OnDisable() => Canvas.willRenderCanvases -= LateUpdate;
+
     private void Initialize()
     {
         if (initialized) return;
@@ -101,7 +104,7 @@ public sealed class TutorialHandIndicator : MonoBehaviour
     {
         if (hintRoot != null) return;
         GameObject root = new GameObject("Tutorial Top Input Hints", typeof(RectTransform),
-            typeof(Canvas), typeof(CanvasGroup));
+            typeof(Canvas), typeof(CanvasScaler), typeof(CanvasGroup));
         root.layer = gameObject.layer;
         // A scene-root overlay survives panels disabling/rebuilding their own
         // canvases (Computer, Menu, Restock, Notepad and Cashier).
@@ -114,15 +117,24 @@ public sealed class TutorialHandIndicator : MonoBehaviour
         layer.renderMode = RenderMode.ScreenSpaceOverlay;
         layer.overrideSorting = true;
         layer.sortingOrder = 32767;
+        CanvasScaler scaler = root.GetComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1920f, 1080f);
+        scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.Expand;
         CanvasGroup input = root.GetComponent<CanvasGroup>();
         input.interactable = false;
         input.blocksRaycasts = false;
         // Move the real Hand / Hand Click image into the same topmost canvas.
         handRect.SetParent(hintRoot, false);
+        handRect.anchorMin = handRect.anchorMax = new Vector2(.5f, .5f);
+        handRect.localRotation = Quaternion.identity;
         handRect.SetAsLastSibling();
         pinchPartner = CreateImage("Pinch Partner", handOpenSprite, handDisplaySize);
         mouseLegend = CreateImage("Mouse Legend", mouseSprite, mouseDisplaySize);
         cursorImage = CreateImage("Cursor", cursorSprite, cursorDisplaySize);
+        // The authored cursor tip is 12 units left/up of the center at size 56.
+        // A normalized hotspot stays on the target during scaling and animation.
+        cursorImage.rectTransform.pivot = new Vector2(.5f - 12f / 56f, .5f + 12f / 56f);
         typingCue = CreateTypingCue();
         dragCue = CreateCue("Drag Hold Cue", new Vector2(320f, 64f));
         SetAuxiliaryVisible(false, false, false);
@@ -197,6 +209,7 @@ public sealed class TutorialHandIndicator : MonoBehaviour
         if (own != null) own.enabled = true;
         if (cursorImage != null) cursorImage.rectTransform.localScale = Vector3.one;
         if (handRect != null) handRect.localScale = Vector3.one;
+        if (mouseLegend != null) mouseLegend.rectTransform.anchoredPosition = MouseLegendPosition();
         if (mode == HintMode.Tap) AnimateTap();
         else if (mode == HintMode.Swipe) AnimateSwipe();
         else if (mode == HintMode.Zoom) AnimateZoom();
@@ -326,6 +339,7 @@ public sealed class TutorialHandIndicator : MonoBehaviour
         }
         if (handRect != null)
         {
+            handRect.pivot = new Vector2(.5f, .5f);
             handRect.sizeDelta = Vector2.one * handDisplaySize;
             handRect.localScale = Vector3.one;
             handRect.localRotation = Quaternion.identity;
@@ -364,13 +378,13 @@ public sealed class TutorialHandIndicator : MonoBehaviour
             SetHandSprite(down ? handClickSprite : handOpenSprite);
             float scale = Mathf.Lerp(1f, .86f, press);
             Vector2 fingertip = down ? new Vector2(.33f, .70f) : new Vector2(.375f, .80f);
-            Vector2 tip = Vector2.Scale(fingertip - handRect.pivot, handRect.rect.size) * scale;
-            handRect.anchoredPosition = target - tip + Vector2.up * (14f * (1f - press));
+            handRect.pivot = fingertip;
+            handRect.anchoredPosition = target + Vector2.up * (14f * (1f - press));
             handRect.localScale = Vector3.one * scale;
         }
         else
         {
-            cursorImage.rectTransform.anchoredPosition = target + new Vector2(12f, -12f);
+            cursorImage.rectTransform.anchoredPosition = target;
             cursorImage.rectTransform.localScale = Vector3.one * Mathf.Lerp(1f, .82f, press);
             mouseLegend.sprite = press > .5f && mouseLeftClickSprite != null ? mouseLeftClickSprite : mouseSprite;
             mouseLegend.rectTransform.localScale = new Vector3(1f, Mathf.Lerp(1f, .9f, press), 1f);
@@ -466,14 +480,14 @@ public sealed class TutorialHandIndicator : MonoBehaviour
             SetHandSprite(held ? handClickSprite : handOpenSprite);
             float scale = held ? .88f : 1f;
             Vector2 fingertip = held ? new Vector2(.33f, .70f) : new Vector2(.375f, .80f);
-            Vector2 tip = Vector2.Scale(fingertip - handRect.pivot, handRect.rect.size) * scale;
-            handRect.anchoredPosition = position - tip;
+            handRect.pivot = fingertip;
+            handRect.anchoredPosition = position;
             handRect.localScale = Vector3.one * scale;
             if (canvasGroup != null) canvasGroup.alpha = fade;
         }
         else
         {
-            cursorImage.rectTransform.anchoredPosition = position + new Vector2(12f, -12f);
+            cursorImage.rectTransform.anchoredPosition = position;
             cursorImage.rectTransform.localScale = Vector3.one * (held ? .84f : 1f);
             Color cursorColor = cursorImage.color;
             cursorColor.a = fade;
@@ -537,6 +551,7 @@ public sealed class TutorialHandIndicator : MonoBehaviour
         if (target is RectTransform targetRect)
         {
             Canvas source = targetRect.GetComponentInParent<Canvas>();
+            if (source != null) source = source.rootCanvas;
             Camera eventCamera = source == null || source.renderMode == RenderMode.ScreenSpaceOverlay ? null : source.worldCamera;
             screen = RectTransformUtility.WorldToScreenPoint(eventCamera, targetRect.TransformPoint(targetRect.rect.center));
         }
@@ -551,6 +566,7 @@ public sealed class TutorialHandIndicator : MonoBehaviour
             if (screen.z <= 0f) return false;
         }
         Canvas canvas = hintRoot != null ? hintRoot.GetComponent<Canvas>() : targetCanvas;
+        if (canvas != null) canvas = canvas.rootCanvas;
         Camera canvasCamera = canvas == null || canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
         return RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, screen, canvasCamera, out canvasPosition);
     }
