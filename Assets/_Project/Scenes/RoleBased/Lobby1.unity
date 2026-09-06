@@ -3399,8 +3399,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: 'Customer Message '
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 44132a242d69e514eaf236194f4a06cf, type: 2}
-  m_sharedMaterial: {fileID: 4763482080473113484, guid: 44132a242d69e514eaf236194f4a06cf, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: eb59d6c9fc048674fbacb266c62dd77c, type: 2}
+  m_sharedMaterial: {fileID: 5248934581218175116, guid: eb59d6c9fc048674fbacb266c62dd77c, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -24132,8 +24132,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: 'Customer type: '
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 44132a242d69e514eaf236194f4a06cf, type: 2}
-  m_sharedMaterial: {fileID: 4763482080473113484, guid: 44132a242d69e514eaf236194f4a06cf, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: eb59d6c9fc048674fbacb266c62dd77c, type: 2}
+  m_sharedMaterial: {fileID: 5248934581218175116, guid: eb59d6c9fc048674fbacb266c62dd77c, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -31974,8 +31974,8 @@ MonoBehaviour:
 
 '
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 44132a242d69e514eaf236194f4a06cf, type: 2}
-  m_sharedMaterial: {fileID: 4763482080473113484, guid: 44132a242d69e514eaf236194f4a06cf, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: eb59d6c9fc048674fbacb266c62dd77c, type: 2}
+  m_sharedMaterial: {fileID: 5248934581218175116, guid: eb59d6c9fc048674fbacb266c62dd77c, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -37662,7 +37662,7 @@ MonoBehaviour:
   mobileRequestedIconsSize: {x: 150, y: 100}
   mobileConfirmButtonScale: 0.78
   customerInformationAreaSize: {x: 740, y: 780}
-  customerInformationAreaPosition: {x: -390, y: 0}
+  customerInformationAreaPosition: {x: -425, y: 0}
   customerMessageSize: {x: 430, y: 200}
   customerMessagePosition: {x: 115, y: 190}
   requestedOrderAreaSize: {x: 700, y: 180}

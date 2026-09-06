@@ -88,7 +88,7 @@ public class OrderChecklistUI : MonoBehaviour
 
     [Header("Responsive Notepad Content")]
     [SerializeField] private Vector2 customerInformationAreaSize = new Vector2(740f, 780f);
-    [SerializeField] private Vector2 customerInformationAreaPosition = new Vector2(-390f, 0f);
+    [SerializeField] private Vector2 customerInformationAreaPosition = new Vector2(-425f, 0f);
     [SerializeField] private Vector2 customerMessageSize = new Vector2(430f, 200f);
     [SerializeField] private Vector2 customerMessagePosition = new Vector2(115f, 190f);
     [SerializeField] private Vector2 requestedOrderAreaSize = new Vector2(700f, 180f);
@@ -371,15 +371,16 @@ public class OrderChecklistUI : MonoBehaviour
             return;
 
         RectTransform messageRect = customerMessageText.rectTransform;
-        messageRect.sizeDelta = customerMessageSize;
-        customerMessageText.margin = new Vector4(4f, 4f, 4f, 4f);
+        messageRect.sizeDelta = customerMessageSize + new Vector2(0f, 20f);
+        customerMessageText.margin = new Vector4(8f, 6f, 8f, 6f);
+        customerMessageText.lineSpacing = 4f;
         customerMessageText.enableAutoSizing = true;
         customerMessageText.fontSizeMin = useAlternateMobilePresentation
-            ? mobileMessageMinimumFontSize
-            : 14f;
-        customerMessageText.fontSizeMax = useAlternateMobilePresentation
-            ? Mathf.Max(mobileMessageMinimumFontSize, mobileMessageMaximumFontSize)
+            ? Mathf.Max(20f, mobileMessageMinimumFontSize)
             : 20f;
+        customerMessageText.fontSizeMax = useAlternateMobilePresentation
+            ? Mathf.Max(26f, Mathf.Max(mobileMessageMinimumFontSize, mobileMessageMaximumFontSize))
+            : 26f;
         customerMessageText.textWrappingMode = TextWrappingModes.Normal;
         customerMessageText.overflowMode = TextOverflowModes.Ellipsis;
         customerMessageText.alignment = TextAlignmentOptions.TopLeft;
@@ -398,8 +399,10 @@ public class OrderChecklistUI : MonoBehaviour
             new Vector2(0.5f, 0.5f),
             new Vector2(0.5f, 0.5f),
             new Vector2(0.5f, 0.5f),
-            customerInformationAreaPosition,
+            customerInformationAreaPosition + Vector2.left * 20f,
             customerInformationAreaSize);
+        // Enlarge only the information block; preserve all internal spacing and the menu panel.
+        customerInformationRoot.localScale = Vector3.one * 1.05f;
 
         // OrderView is the bounded customer-information region. All content is
         // positioned within this one coordinate space so it cannot drift behind
@@ -448,7 +451,7 @@ public class OrderChecklistUI : MonoBehaviour
             ConfigureRuntimeRect(messageRect,
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
                 new Vector2(0.5f, 0.5f), customerMessagePosition,
-                customerMessageSize);
+                customerMessageSize + new Vector2(0f, 20f));
         }
 
         if (requestedIconsRoot != null)
@@ -1200,7 +1203,7 @@ public class OrderChecklistUI : MonoBehaviour
         if (layout == null)
             layout = requestedIconsRoot.gameObject.AddComponent<GridLayoutGroup>();
 
-        const int columnCount = 4;
+        const int columnCount = 3;
         const float spacingX = 12f;
         const float spacingY = 8f;
         float width = Mathf.Max(620f, requestedIconsRoot.rect.width);
@@ -1211,7 +1214,7 @@ public class OrderChecklistUI : MonoBehaviour
         layout.startAxis = GridLayoutGroup.Axis.Horizontal;
         layout.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
         layout.constraintCount = columnCount;
-        layout.cellSize = new Vector2(cellWidth, 82f);
+        layout.cellSize = new Vector2(cellWidth, 88f);
         layout.spacing = new Vector2(spacingX, spacingY);
         layout.padding = new RectOffset(0, 0, 2, 2);
 
@@ -1269,8 +1272,8 @@ public class OrderChecklistUI : MonoBehaviour
                 (availableIconWidth - iconSpacing * (products.Count - 1)) /
                 products.Count,
                 34f,
-                54f)
-            : 70f;
+                76f)
+            : 86f;
 
         GameObject entryObject = new GameObject($"Order Line - {line.displayName}",
             typeof(RectTransform), typeof(LayoutElement));
@@ -1311,10 +1314,10 @@ public class OrderChecklistUI : MonoBehaviour
         quantityObject.layer = entryObject.layer;
         RectTransform quantityRect = quantityObject.GetComponent<RectTransform>();
         quantityRect.SetParent(entryRect, false);
-        quantityRect.anchorMin = new Vector2(1f, 0.5f);
-        quantityRect.anchorMax = new Vector2(1f, 0.5f);
-        quantityRect.pivot = new Vector2(1f, 0.5f);
-        quantityRect.anchoredPosition = new Vector2(-6f, 0f);
+        quantityRect.anchorMin = new Vector2(0f, 0.5f);
+        quantityRect.anchorMax = new Vector2(0f, 0.5f);
+        quantityRect.pivot = new Vector2(0f, 0.5f);
+        quantityRect.anchoredPosition = new Vector2(10f + products.Count * iconSize + (products.Count - 1) * iconSpacing, 0f);
         quantityRect.sizeDelta = new Vector2(quantityWidth, 36f);
 
         TextMeshProUGUI quantityText = quantityObject.GetComponent<TextMeshProUGUI>();
@@ -1322,7 +1325,7 @@ public class OrderChecklistUI : MonoBehaviour
         quantityText.text = $"x{Mathf.Max(1, line.quantity)}";
         quantityText.fontSize = 22f;
         quantityText.fontStyle = FontStyles.Bold;
-        quantityText.alignment = TextAlignmentOptions.MidlineRight;
+        quantityText.alignment = TextAlignmentOptions.MidlineLeft;
         quantityText.color = Color.white;
         quantityText.raycastTarget = false;
         quantityText.textWrappingMode = TextWrappingModes.NoWrap;
@@ -2171,8 +2174,8 @@ public class OrderChecklistUI : MonoBehaviour
         float cardHeight = Mathf.Clamp(
             (Mathf.Max(1f, viewport.height - padding * 2f) -
              spacing * (visibleRows - 1f)) / visibleRows,
-            270f,
-            310f);
+            340f,
+            380f);
         float gridWidth = columnCount * cardWidth + Mathf.Max(0, columnCount - 1) * spacing;
         float horizontalInset = Mathf.Max(padding, (viewport.width - gridWidth) * 0.5f);
 

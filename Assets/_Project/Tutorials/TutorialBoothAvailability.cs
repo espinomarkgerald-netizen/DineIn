@@ -13,12 +13,13 @@ public sealed class TutorialBoothAvailability : MonoBehaviour
     private const string TutorialBoothId = "booth01";
     private readonly List<(GameObject booth, bool active)> authoredStates = new();
     private GameObject tutorialBooth;
+    private bool seatingRefreshPending;
     private readonly HashSet<GameObject> practiceBooths = new();
-    public void OpenPracticeBooths()
+    public void OpenPracticeBooths(int additionalBooths = 3)
     {
         foreach (var state in authoredStates)
         {
-            if (practiceBooths.Count >= 3) break;
+            if (practiceBooths.Count >= additionalBooths) break;
             if (state.booth != null && state.booth != tutorialBooth && state.booth.scene == gameObject.scene)
                 practiceBooths.Add(state.booth);
         }
@@ -31,7 +32,7 @@ public sealed class TutorialBoothAvailability : MonoBehaviour
             FindObjectsInactive.Include, FindObjectsSortMode.None);
         foreach (EquipmentLink link in links)
         {
-            if (link == null || string.IsNullOrEmpty(link.itemID) ||
+            if (link == null || link.gameObject.scene != gameObject.scene || string.IsNullOrEmpty(link.itemID) ||
                 !link.itemID.StartsWith("booth", StringComparison.OrdinalIgnoreCase))
                 continue;
 
@@ -52,7 +53,19 @@ public sealed class TutorialBoothAvailability : MonoBehaviour
             if (state.booth == null) continue;
             bool shouldBeAvailable = state.booth == tutorialBooth || practiceBooths.Contains(state.booth);
             if (state.booth.activeSelf != shouldBeAvailable)
+            {
                 state.booth.SetActive(shouldBeAvailable);
+                seatingRefreshPending = true;
+            }
+        }
+
+        // Seating caches active booths. Refresh after changing visibility so newly
+        // opened practice booths participate in the normal availability query.
+        BoothAssignArrowManager seating = BoothAssignArrowManager.Instance;
+        if (seatingRefreshPending && seating != null && seating.gameObject.scene == gameObject.scene)
+        {
+            seating.RefreshBooths();
+            seatingRefreshPending = false;
         }
     }
 

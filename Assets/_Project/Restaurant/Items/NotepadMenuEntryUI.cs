@@ -556,7 +556,7 @@ public sealed class NotepadMenuEntryUI : MonoBehaviour
             return;
 
         float width = Mathf.Max(176f, size.x);
-        float height = Mathf.Max(270f, size.y);
+        float height = Mathf.Max(340f, size.y);
         RectTransform root = transform as RectTransform;
         LayoutElement layout = GetComponent<LayoutElement>();
         if (root != null)
@@ -571,18 +571,18 @@ public sealed class NotepadMenuEntryUI : MonoBehaviour
             layout.flexibleHeight = 0f;
         }
 
-        float iconHeight = Mathf.Clamp(height * 0.38f, 104f, 122f);
+        float iconHeight = Mathf.Clamp(height * 0.38f, 124f, 138f);
         ConfigureRect(iconRoot, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
             new Vector2(0.5f, 1f), new Vector2(0f, -12f),
             new Vector2(Mathf.Min(180f, width - 26f), iconHeight));
         ConfigureRect(nameText.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f),
             new Vector2(0.5f, 1f), new Vector2(0f, -(iconHeight + 18f)),
-            new Vector2(-18f, 38f));
+            new Vector2(-18f, 52f));
         ConfigureRect(statusText.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f),
-            new Vector2(0.5f, 1f), new Vector2(0f, -(iconHeight + 61f)),
+            new Vector2(0.5f, 1f), new Vector2(0f, -(iconHeight + 75f)),
             new Vector2(-22f, 22f));
         ConfigureRect(priceText.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f),
-            new Vector2(0.5f, 1f), new Vector2(0f, -(iconHeight + 89f)),
+            new Vector2(0.5f, 1f), new Vector2(0f, -(iconHeight + 101f)),
             new Vector2(-22f, 28f));
         ConfigureRect(decreaseButton.transform as RectTransform,
             new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(0f, 0f),
@@ -601,8 +601,10 @@ public sealed class NotepadMenuEntryUI : MonoBehaviour
         statusText.alignment = TextAlignmentOptions.Center;
         priceText.alignment = TextAlignmentOptions.Center;
         stockText.gameObject.SetActive(false);
-        ConfigureText(nameText, 15f, 21f, TextWrappingModes.Normal);
-        ConfigureText(statusText, 13f, 17f, TextWrappingModes.NoWrap);
+        ConfigureText(nameText, 17f, 22f, TextWrappingModes.Normal);
+        nameText.maxVisibleLines = 2;
+        nameText.lineSpacing = 2f;
+        ConfigureText(statusText, 15f, 18f, TextWrappingModes.NoWrap);
         ConfigureText(priceText, 16f, 20f, TextWrappingModes.NoWrap);
         ConfigureText(quantityText, 18f, 22f, TextWrappingModes.NoWrap);
 

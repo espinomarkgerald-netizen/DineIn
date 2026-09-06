@@ -33,7 +33,7 @@ public class TutorialDialogueUI : MonoBehaviour
         TutorialSystem tutorial = TutorialSystem.Instance;
         var step = tutorial != null ? tutorial.CurrentStep : null;
         bool waiting = tutorial != null && tutorial.IsWaitingForGameplayAction &&
-                       step != null && step.Phase != TutorialSystem.TutorialPhase.NormalGameplay;
+                       step != null;
         if (chatterStep != step || !waiting)
         {
             if (chatterActive) Hide();
@@ -46,7 +46,17 @@ public class TutorialDialogueUI : MonoBehaviour
         string line = WaitLine(step.ActionKey);
         if (line == null) return;
         chatterShown = true;
-        ShowAuto("Big Boss", line, step.Portrait, 4f);
+        ShowNonBlockingChatter(line);
+    }
+
+    public bool IsChatterActive => chatterActive;
+
+    public bool ShowNonBlockingChatter(string line)
+    {
+        var tutorial = TutorialSystem.Instance;
+        if (IsVisible || tutorial == null || !tutorial.IsWaitingForGameplayAction) return false;
+        chatterStep = tutorial.CurrentStep;
+        ShowAuto("Big Boss", line, chatterStep.Portrait, 4f);
         GameObject panel = root != null ? root : gameObject;
         chatterInput = panel.GetComponent<CanvasGroup>();
         if (chatterInput == null) chatterInput = panel.AddComponent<CanvasGroup>();
@@ -55,6 +65,7 @@ public class TutorialDialogueUI : MonoBehaviour
         chatterInput.blocksRaycasts = false;
         chatterInput.interactable = false;
         chatterActive = true;
+        return true;
     }
 
     private static string WaitLine(string action)

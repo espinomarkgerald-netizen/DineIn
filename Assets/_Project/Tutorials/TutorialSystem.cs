@@ -1,5 +1,7 @@
 using System;
 using UnityEngine;
+using UnityEngine.AI;
+using Unity.AI.Navigation;
 
 [DefaultExecutionOrder(-9000)]
 [DisallowMultipleComponent]
@@ -105,6 +107,11 @@ public sealed class TutorialSystem : MonoBehaviour
         Instance != null && Instance.isActiveAndEnabled && Instance.gameObject.activeInHierarchy;
     public static bool TutorialCompleted => Instance != null && Instance.tutorialCompleted;
 
+    [Header("Lobby Navigation")]
+    [SerializeField] private NavMeshSurface lobbyNavigationSurface;
+    [SerializeField] private NavMeshData lobbyNavigationData;
+    private bool lobbyNavigationReady;
+
     [Header("Tutorial UI")]
     [SerializeField] private TutorialDialogueUI dialogueUI;
     [SerializeField] private TutorialTargetIndicator targetIndicator;
@@ -206,6 +213,7 @@ public sealed class TutorialSystem : MonoBehaviour
         }
 
         Instance = this;
+        InitializeLobbyNavigation();
         TutorialInputTerminology.Configure(tutorialInputMode);
         if (gameObject.scene.name == "Lobby1Tutorial" && GetComponent<TutorialRestockFlowBridge>() == null)
             gameObject.AddComponent<TutorialRestockFlowBridge>();
@@ -259,12 +267,97 @@ public sealed class TutorialSystem : MonoBehaviour
         CaptureAndSuppressAutomaticSpawning();
     }
 
-    private void Start()
+    private bool InitializeLobbyNavigation()
     {
+        if (gameObject.scene.name != "Lobby1Tutorial") return true;
+
+        // A duplicated/open Editor scene can retain a cleared Surface data field.
+        // Keep the authored bake independently; never build navigation at runtime.
+        if (lobbyNavigationSurface == null)
+            foreach (GameObject root in gameObject.scene.GetRootGameObjects())
+                foreach (NavMeshSurface surface in root.GetComponentsInChildren<NavMeshSurface>(true))
+                    if (surface.name == "NavMesh" && surface.agentTypeID == 0)
+                        lobbyNavigationSurface = surface;
+        // The existing scene Surface is authoritative when it already has a bake.
+        if (lobbyNavigationSurface != null && lobbyNavigationSurface.navMeshData != null)
+            lobbyNavigationData = lobbyNavigationSurface.navMeshData;
+#if UNITY_EDITOR
+        // Covers an already-open scene when these new serialized fields are introduced.
+        if (lobbyNavigationData == null)
+            lobbyNavigationData = UnityEditor.AssetDatabase.LoadAssetAtPath<NavMeshData>(
+                UnityEditor.AssetDatabase.GUIDToAssetPath("a4ac8b90dfa28d9458000852c17d5a6b"));
+#endif
+        if (lobbyNavigationSurface == null || lobbyNavigationSurface.gameObject.scene != gameObject.scene ||
+            !lobbyNavigationSurface.isActiveAndEnabled || lobbyNavigationData == null)
+        {
+            Debug.LogError("[Tutorial] Lobby navigation is missing or disabled. Assign the authored lobby bake before starting.", this);
+            return false;
+        }
+
+        if (lobbyNavigationSurface.navMeshData != lobbyNavigationData)
+        {
+            lobbyNavigationSurface.RemoveData();
+            lobbyNavigationSurface.navMeshData = lobbyNavigationData;
+        }
+        // Idempotent; the scene-owned Surface removes its own instance on unload.
+        lobbyNavigationSurface.AddData();
+        return true;
+    }
+
+    private System.Collections.IEnumerator Start()
+    {
+        // Finish scene Awake/OnEnable/Start before sampling or attaching characters.
+        yield return null;
+        if (!InitializeLobbyNavigation()) yield break;
+        lobbyNavigationReady = gameObject.scene.name != "Lobby1Tutorial" || AttachLobbyAgents();
+        if (!lobbyNavigationReady) yield break;
         if (startAutomatically)
             StartTutorial();
         else if (CurrentStep != null)
-            ShowCurrentStep(); // Rebind an inspector-selected step after dialogue Awake.
+            ShowCurrentStep();
+    }
+
+    private bool AttachLobbyAgents()
+    {
+        // Diagnostic only: this package exposes its handle internally. The Surface
+        // remains the sole owner; never add/remove an independent instance here.
+        object handle = typeof(NavMeshSurface).GetField("m_NavMeshDataInstance",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)?.GetValue(lobbyNavigationSurface);
+        string registered = handle is NavMeshDataInstance instance ? instance.valid.ToString() : "unavailable";
+        Debug.Log($"[TutorialNav] Surface active={lobbyNavigationSurface.isActiveAndEnabled}, data={lobbyNavigationSurface.navMeshData.name}, " +
+            $"handleValid={registered}, type={lobbyNavigationSurface.agentTypeID}, position={lobbyNavigationSurface.transform.position}, " +
+            $"rotation={lobbyNavigationSurface.transform.rotation.eulerAngles}, bakePosition={lobbyNavigationData.position}, bakeRotation={lobbyNavigationData.rotation.eulerAngles}", this);
+
+        int active = 0, attached = 0;
+        bool loggedStaff = false;
+        foreach (GameObject root in gameObject.scene.GetRootGameObjects())
+            foreach (NavMeshAgent agent in root.GetComponentsInChildren<NavMeshAgent>(true))
+            {
+                var filter = new NavMeshQueryFilter { agentTypeID = agent.agentTypeID, areaMask = agent.areaMask };
+                Vector3 origin = agent.transform.position;
+                bool sampled = NavMesh.SamplePosition(origin, out NavMeshHit hit, 2f, filter);
+                bool warped = false;
+                if (agent.isActiveAndEnabled)
+                {
+                    active++;
+                    // One bounded startup attempt, only AFTER a matching sample succeeds.
+                    if (!agent.isOnNavMesh && sampled) warped = agent.Warp(hit.position);
+                    if (sampled && agent.isOnNavMesh) attached++;
+                }
+                bool player = agent.GetComponent<ManagerPlayer>() != null;
+                if (player || !loggedStaff)
+                {
+                    if (!player) loggedStaff = true;
+                    Debug.Log($"[TutorialNav] {(player ? "Player" : "Staff")} {agent.name}: position={origin}, " +
+                        $"enabled={agent.isActiveAndEnabled}, type={agent.agentTypeID}, areaMask={agent.areaMask}, " +
+                        $"sample={sampled}, sampledPosition={hit.position}, warp={warped}, onMeshAfter={agent.isOnNavMesh}", agent);
+                }
+            }
+        bool ready = active > 0 && attached == active;
+        Debug.Log($"[TutorialNav] Startup attached={attached}/{active}, ready={ready}, timeScale={Time.timeScale}", this);
+        if (!ready)
+            Debug.LogError("[TutorialNav] Navigation sampling/attachment failed; tutorial progression has not started. Check the one-time surface and agent diagnostics above.", this);
+        return ready;
     }
 
     private void OnDestroy()
@@ -297,7 +390,7 @@ public sealed class TutorialSystem : MonoBehaviour
 
     public void StartTutorial()
     {
-        if (!IsTutorialMode)
+        if (!IsTutorialMode || !lobbyNavigationReady)
             return;
 
         openingComplete = false;
@@ -313,7 +406,7 @@ public sealed class TutorialSystem : MonoBehaviour
         uiFocusMask?.ApplyDebugPadding(debugFocusPadding);
         dialogueUI?.ApplyDebugBop(debugBigBossBopScale, debugBigBossBopDuration);
         if (debugStartRoutine != null) StopCoroutine(debugStartRoutine);
-        if (debugStartEnabled)
+        if (debugStartEnabled && !TutorialGameModeEntry.IsMenuLaunch)
         {
             int resolved = ResolveDebugStart();
             if (resolved >= 0)
@@ -347,6 +440,7 @@ public sealed class TutorialSystem : MonoBehaviour
     {
         // Let tutorial save isolation and scene Start methods finish first.
         yield return null;
+        if (!lobbyNavigationReady) { debugStartRoutine = null; yield break; }
         TutorialPhase phase = steps[index].Phase;
         if (phase >= TutorialPhase.PhysicalRestocking)
             GetComponent<TutorialRestockFlowBridge>()?.Bootstrap();
@@ -556,6 +650,13 @@ public sealed class TutorialSystem : MonoBehaviour
             MarkTutorialCompleted();
             return;
         }
+        if (TryFrameWorldTarget(() => PresentResolvedStep(step))) return;
+        PresentResolvedStep(step);
+    }
+
+    private void PresentResolvedStep(TutorialStep step)
+    {
+        if (CurrentStep != step) return;
         if (currentUIFocus != null)
         {
             int revision = ++presentationRevision;
@@ -617,9 +718,9 @@ public sealed class TutorialSystem : MonoBehaviour
         // UI observers and visual hints run together. The observer verifies the
         // real click/state; it must not suppress the hand/cursor demonstration.
         uiActionAdapter?.Begin(this, currentUIFocus);
-        if (step.HintMode == TutorialHintMode.Hold) handIndicator?.ShowHoldHint(currentUIFocus);
+        if (step.HintMode == TutorialHintMode.Hold) handIndicator?.ShowHoldHint(currentUIFocus != null ? currentUIFocus : currentWorldFocus);
         else if (step.HintMode == TutorialHintMode.Swipe) handIndicator?.ShowSwipeHint();
-        else if (step.HintMode == TutorialHintMode.Tap)
+        else if (step.HintMode == TutorialHintMode.Tap || step.HintMode == TutorialHintMode.None)
             handIndicator?.ShowTapHint(currentUIFocus != null ? currentUIFocus : currentWorldFocus);
         else if (step.HintMode == TutorialHintMode.Zoom)
             handIndicator?.ShowZoomHint(TutorialInputTerminology.IsMobile);
@@ -645,8 +746,9 @@ public sealed class TutorialSystem : MonoBehaviour
         uiFocusMask?.Show(currentUIFocus, true);
         uiActionAdapter?.Begin(this, currentUIFocus);
 
-        if (step.HintMode == TutorialHintMode.Tap)
-            handIndicator?.ShowTapHint(currentUIFocus);
+        if (step.HintMode == TutorialHintMode.Typing) handIndicator?.ShowTypingHint(currentUIFocus);
+        else if (step.HintMode == TutorialHintMode.Hold) handIndicator?.ShowHoldHint(currentUIFocus);
+        else handIndicator?.ShowTapHint(currentUIFocus);
     }
 
     private bool restockTargetPending;
@@ -681,6 +783,7 @@ public sealed class TutorialSystem : MonoBehaviour
 
     private void ShowRestockHint(TutorialStep step)
     {
+        if (step == null) return;
         Transform target = currentUIFocus != null ? currentUIFocus : currentWorldFocus;
         if (step.HintMode == TutorialHintMode.Drag && step.ActionKey == "Restock.BoxActionsHidden")
             handIndicator?.ShowSmallDragHint(currentWorldFocus);
@@ -688,8 +791,96 @@ public sealed class TutorialSystem : MonoBehaviour
             handIndicator?.ShowDragHint(currentUIFocus, currentWorldFocus);
         else if (step.HintMode == TutorialHintMode.Hold)
             handIndicator?.ShowHoldHint(target);
-        else if (step.HintMode == TutorialHintMode.Tap)
+        else if (step.HintMode == TutorialHintMode.Typing) handIndicator?.ShowTypingHint(target);
+        else if (step.HintMode == TutorialHintMode.Tap || step.HintMode == TutorialHintMode.None)
             handIndicator?.ShowTapHint(target);
+    }
+
+    private bool framingWorld;
+    private float offscreenSince = -1f, nextFrameAssist;
+
+    private Transform WorldFramingTarget()
+    {
+        if (currentWorldFocus != null && !(currentWorldFocus is RectTransform)) return currentWorldFocus;
+        Canvas canvas = currentUIFocus != null ? currentUIFocus.GetComponentInParent<Canvas>() : null;
+        return canvas != null && canvas.renderMode == RenderMode.WorldSpace ? currentUIFocus : null;
+    }
+
+    private bool TargetVisible(Transform target, float margin)
+    {
+        Rect screenBounds;
+        Camera camera = cameraController.Cam;
+        if (target is RectTransform rect)
+        {
+            var corners = new Vector3[4]; rect.GetWorldCorners(corners);
+            Vector2 min = new Vector2(float.MaxValue, float.MaxValue), max = new Vector2(float.MinValue, float.MinValue);
+            foreach (Vector3 corner in corners)
+            {
+                Vector3 screen = camera.WorldToScreenPoint(corner);
+                if (screen.z <= 0) return false;
+                min = Vector2.Min(min, screen); max = Vector2.Max(max, screen);
+            }
+            screenBounds = Rect.MinMaxRect(min.x, min.y, max.x, max.y);
+        }
+        else if (!TutorialWorldTargetGeometry.TryGetScreenRect(target, camera, out screenBounds))
+        {
+            Vector3 point = camera.WorldToScreenPoint(target.position);
+            if (point.z <= 0) return false;
+            screenBounds = new Rect(point.x, point.y, 0, 0);
+        }
+        Rect view = camera.pixelRect;
+        return screenBounds.xMin >= view.xMin + view.width * margin && screenBounds.xMax <= view.xMax - view.width * margin &&
+            screenBounds.yMin >= view.yMin + view.height * margin && screenBounds.yMax <= view.yMax - view.height * margin;
+    }
+
+    private bool TryFrameWorldTarget(Action onSettled)
+    {
+        Transform target = WorldFramingTarget();
+        if (framingWorld || target == null || cameraController == null || !cameraController.isActiveAndEnabled ||
+            cameraController.Cam == null || !cameraController.Cam.isActiveAndEnabled || TargetVisible(target, .09f)) return false;
+        StartCoroutine(FrameWorldTarget(target, presentationRevision, onSettled));
+        return true;
+    }
+
+    private System.Collections.IEnumerator FrameWorldTarget(Transform target, int revision, Action onSettled)
+    {
+        framingWorld = true;
+        uiFocusMask?.Hide(); targetIndicator?.Hide(); handIndicator?.HideHint();
+        Vector3 center = target is RectTransform rect ? rect.TransformPoint(rect.rect.center) : TutorialWorldTargetGeometry.Center(target);
+        Plane plane = new Plane(Vector3.up, center);
+        Ray ray = cameraController.Cam.ViewportPointToRay(new Vector3(.5f, .5f, 0));
+        if (plane.Raycast(ray, out float distance))
+        {
+            Vector3 offset = center - ray.GetPoint(distance); offset.y = 0;
+            cameraController.SetRigTargetPosition(cameraController.transform.position + offset);
+            float deadline = Time.unscaledTime + 2f;
+            while (target != null && revision == presentationRevision && Time.unscaledTime < deadline)
+            {
+                yield return null;
+                // Respect a new intentional camera gesture; do not recenter again immediately.
+                if (Input.GetMouseButtonDown(0) || Input.touchCount > 0) break;
+                if (TargetVisible(target, .09f) && Vector3.Distance(cameraController.transform.position, cameraController.GetRigTargetPosition()) < .1f) break;
+            }
+        }
+        yield return null;
+        framingWorld = false; offscreenSince = -1f; nextFrameAssist = Time.unscaledTime + 5f;
+        if (revision == presentationRevision) onSettled?.Invoke();
+    }
+
+    private void Update()
+    {
+        if (framingWorld || Time.unscaledTime < nextFrameAssist || (!waitingForNext && !waitingForPlayerAction)) return;
+        Transform target = WorldFramingTarget();
+        if (target == null || cameraController == null || cameraController.Cam == null || TargetVisible(target, 0f))
+        { offscreenSince = -1f; return; }
+        if (Input.GetMouseButton(0) || Input.touchCount > 0) { offscreenSince = -1f; return; }
+        if (offscreenSince < 0) offscreenSince = Time.unscaledTime;
+        if (Time.unscaledTime - offscreenSince < 2f) return;
+        TryFrameWorldTarget(() =>
+        {
+            ShowFocus(waitingForPlayerAction);
+            if (waitingForPlayerAction) ShowRestockHint(CurrentStep);
+        });
     }
 
     private void ShowFocus(bool allowTargetInput)

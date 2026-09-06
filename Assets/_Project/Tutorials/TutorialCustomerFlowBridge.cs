@@ -11,6 +11,19 @@ using UnityEngine.UI;
 [DefaultExecutionOrder(-8995), DisallowMultipleComponent]
 public sealed class TutorialCustomerFlowBridge : MonoBehaviour
 {
+    private bool loggedCustomerNavigation;
+    private void LogCustomerNavigation(CustomerGroup spawned)
+    {
+        if (loggedCustomerNavigation || spawned == null || spawned.members.Count == 0) return;
+        var agent = spawned.members[0].GetComponent<UnityEngine.AI.NavMeshAgent>();
+        if (agent == null) return;
+        loggedCustomerNavigation = true;
+        var filter = new UnityEngine.AI.NavMeshQueryFilter { agentTypeID = agent.agentTypeID, areaMask = agent.areaMask };
+        bool sampled = UnityEngine.AI.NavMesh.SamplePosition(agent.transform.position, out UnityEngine.AI.NavMeshHit hit, 2f, filter);
+        Debug.Log($"[TutorialNav] First customer {agent.name}: position={agent.transform.position}, enabled={agent.isActiveAndEnabled}, " +
+            $"type={agent.agentTypeID}, areaMask={agent.areaMask}, sample={sampled}, sampledPosition={hit.position}, onMesh={agent.isOnNavMesh}", agent);
+    }
+
     private const BindingFlags PrivateInstance = BindingFlags.Instance | BindingFlags.NonPublic;
     private TutorialSystem tutorial;
     private TutorialDayContext day;
@@ -37,6 +50,8 @@ public sealed class TutorialCustomerFlowBridge : MonoBehaviour
     private int practiceCompleted;
     private int practiceSpawned;
     private int pendingPracticeSpawns;
+    private readonly Queue<string> practicePraise = new();
+    private float nextStaffChatter;
     private readonly HashSet<CustomerGroup> eatingPermits = new();
     private bool staffDemonstration;
     public CustomerGroup ActiveGroup => group;
@@ -107,6 +122,7 @@ public sealed class TutorialCustomerFlowBridge : MonoBehaviour
             if (day != null && !day.PrepareCustomerMenu()) return;
             GroupSpawner.Instance.SetAutoSpawn(false); group = GroupSpawner.Instance.SpawnGroup();
             spawnRequested = group == null;
+            LogCustomerNavigation(group);
             if (group != null)
             {
                 group.SetPatienceSeconds(3600f);
@@ -166,16 +182,28 @@ public sealed class TutorialCustomerFlowBridge : MonoBehaviour
             practiceSpawned = 0;
             pendingPracticeSpawns = staffDemonstration ? 2 : 1;
             eatingPermits.Clear();
+            practicePraise.Clear();
+            nextStaffChatter = Time.unscaledTime + 30f;
+            GetComponent<TutorialBoothAvailability>()?.OpenPracticeBooths(staffDemonstration ? 3 : 1);
         }
         departedPracticeGroups.Clear();
         foreach (var entry in practiceGroups)
         {
             CustomerGroup customer = entry.Key;
-            if (customer != null && customer.state == CustomerGroup.GroupState.Eating && eatingPermits.Add(customer))
+            if (customer != null && customer.assignedBooth != null && customer.state >= CustomerGroup.GroupState.Seated && customer.state < CustomerGroup.GroupState.Leaving && eatingPermits.Add(customer))
                 pendingPracticeSpawns++;
             if (customer == null)
             {
-                if (entry.Value) practiceCompleted++;
+                if (entry.Value)
+                {
+                    practiceCompleted++;
+                    if (!staffDemonstration)
+                        practicePraise.Enqueue(practiceCompleted == 1
+                            ? "Good job! Keep it going — you've got another group to take care of."
+                            : practiceCompleted == 2 ? "Nice work! You're getting the hang of this."
+                            : "Great job. Now let's see how things feel with your staff working alongside you.");
+                }
+                pendingPracticeSpawns++;
                 departedPracticeGroups.Add(customer);
             }
             else if (customer.state == CustomerGroup.GroupState.Leaving &&
@@ -187,14 +215,22 @@ public sealed class TutorialCustomerFlowBridge : MonoBehaviour
             if (customer == null) practiceGroups.Remove(customer);
             else practiceGroups[customer] = true;
         int required = staffDemonstration ? 5 : 3;
-        if (practiceCompleted >= required && practiceGroups.Count == 0)
+        var boss = FindFirstObjectByType<TutorialDialogueUI>(FindObjectsInactive.Include);
+        if (practicePraise.Count > 0 && boss != null && boss.ShowNonBlockingChatter(practicePraise.Peek()))
+            practicePraise.Dequeue();
+        bool downtime = practiceGroups.Count > 0;
+        foreach (var entry in practiceGroups)
+            downtime &= entry.Key != null && entry.Key.state == CustomerGroup.GroupState.Eating;
+        if (staffDemonstration && downtime && Time.unscaledTime >= nextStaffChatter && boss != null &&
+            boss.ShowNonBlockingChatter("Keep an eye on how your staff moves between jobs. You can lend a hand whenever they need it."))
+            nextStaffChatter = Time.unscaledTime + 40f;
+        if (practiceCompleted >= required && practiceGroups.Count == 0 && practicePraise.Count == 0 &&
+            (boss == null || !boss.IsChatterActive))
         {
             tutorial.NotifyAction(key);
             return;
         }
-        // Eating grants one admission, even while both slots are occupied.
-        // Keep that permit until capacity opens; never turn an Eating customer
-        // into a departed customer just to satisfy the cap.
+        // Admit after seating, then refill promptly on departure. Never exceed two live groups.
         while (practiceGroups.Count < 2 && practiceSpawned < required && pendingPracticeSpawns > 0)
         {
             if (GroupSpawner.Instance == null) return;
@@ -203,6 +239,7 @@ public sealed class TutorialCustomerFlowBridge : MonoBehaviour
             GroupSpawner.Instance.SetAutoSpawn(false);
             CustomerGroup spawned = GroupSpawner.Instance.SpawnGroup();
             if (spawned == null) return;
+            LogCustomerNavigation(spawned);
             practiceGroups.Add(spawned, false);
             practiceSpawned++;
             pendingPracticeSpawns--;

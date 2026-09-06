@@ -13,6 +13,18 @@ public class PlayerMovementAnimation
     {
         if (owner == null || owner.Agent == null) return;
 
+        // Animation can tick before navigation attaches, or while a role is disabled.
+        // Do not read isStopped until the agent is active and on the baked mesh.
+        if (!owner.Agent.isActiveAndEnabled || !owner.Agent.isOnNavMesh)
+        {
+            if (owner.Animator != null)
+            {
+                owner.Animator.SetFloat("Speed", 0f);
+                owner.Animator.SetBool("IsMoving", false);
+            }
+            return;
+        }
+
         FaceMovement();
         UpdateAnimator();
     }

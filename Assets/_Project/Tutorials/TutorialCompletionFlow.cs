@@ -39,7 +39,7 @@ public sealed class TutorialCompletionFlow : MonoBehaviour
                 action.onClick = new Button.ButtonClickedEvent();
                 action.onClick.AddListener(Finish);
                 TMP_Text label = Read<TMP_Text>(manager, "resultsActionButtonText");
-                if (label != null) label.text = day != null && day.CareerSaveExisted
+                if (label != null) label.text = TutorialGameModeEntry.IsMenuLaunch || (day != null && day.CareerSaveExisted)
                     ? "RETURN TO GAME MODE" : "START DAY 2";
                 rebound = true;
                 yield break;
@@ -56,9 +56,9 @@ public sealed class TutorialCompletionFlow : MonoBehaviour
             Load("NewGameMenu");
             return;
         }
-        bool revisit = day != null && day.CareerSaveExisted;
-        if (revisit) day.RestoreExistingCareerNow(); else day?.CommitFirstCareerDayTwo();
-        Load(revisit ? "NewGameMenu" : "Lobby1");
+        bool revisit = TutorialGameModeEntry.IsRevisitLaunch || (day != null && day.CareerSaveExisted);
+        if (revisit) day?.RestoreExistingCareerNow(); else day?.CommitFirstCareerDayTwo();
+        Load(revisit || TutorialGameModeEntry.IsMenuLaunch ? "NewGameMenu" : "Lobby1");
     }
 
     private static T Read<T>(object owner, string field) where T : class =>

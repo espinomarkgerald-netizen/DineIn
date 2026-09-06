@@ -23,7 +23,7 @@ MonoBehaviour:
   servingPrefab: {fileID: 919132149155446097, guid: 2ffe3dead0baeb14ea5ef8b885477606, type: 3}
   servingPositionOffset: {x: 0, y: 0, z: 0.0001}
   servingRotation: {x: 90, y: 0, z: 0}
-  servingScale: {x: 0.0025, y: 0.0025, z: 0.0025}
+  servingScale: {x: 0.00375, y: 0.00375, z: 0.00375}
   dayToUnlock: 10
   ingredients:
   - item: {fileID: 11400000, guid: cd100000000000000000000000000004, type: 2}

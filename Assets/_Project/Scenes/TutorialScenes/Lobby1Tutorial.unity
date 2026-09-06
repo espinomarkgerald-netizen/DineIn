@@ -3048,6 +3048,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 722a4afd8ffb9ab498aa42d8f478d7fc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  lobbyNavigationSurface: {fileID: 1636670759}
+  lobbyNavigationData: {fileID: 23800000, guid: a4ac8b90dfa28d9458000852c17d5a6b, type: 2}
   dialogueUI: {fileID: 569516588}
   targetIndicator: {fileID: 1218730145}
   handIndicator: {fileID: 307386373}
@@ -6694,7 +6696,8 @@ MonoBehaviour:
   - id: practice_staff_intro
     phase: 6
     speaker: Big Boss
-    message: Nice work. Now let's see how your staff handles a busier lobby.
+    message: Good luck. This is much closer to what a normal day in the restaurant
+      feels like.
     portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
     stepType: 0
     requiredAction: 0
@@ -6752,7 +6755,8 @@ MonoBehaviour:
   - id: practice_staff_help
     phase: 6
     speaker: Big Boss
-    message: You can still jump in and help whenever you want.
+    message: Your staff will handle their roles, but you can still jump in whenever
+      you need to.
     portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
     stepType: 0
     requiredAction: 0
@@ -7330,8 +7334,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: 'Customer Message '
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 44132a242d69e514eaf236194f4a06cf, type: 2}
-  m_sharedMaterial: {fileID: 4763482080473113484, guid: 44132a242d69e514eaf236194f4a06cf, type: 2}
+  m_fontAsset: {fileID: 0}
+  m_sharedMaterial: {fileID: 5248934581218175116, guid: eb59d6c9fc048674fbacb266c62dd77c, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -28838,8 +28842,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: 'Customer type: '
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 44132a242d69e514eaf236194f4a06cf, type: 2}
-  m_sharedMaterial: {fileID: 4763482080473113484, guid: 44132a242d69e514eaf236194f4a06cf, type: 2}
+  m_fontAsset: {fileID: 0}
+  m_sharedMaterial: {fileID: 5248934581218175116, guid: eb59d6c9fc048674fbacb266c62dd77c, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -36894,8 +36898,8 @@ MonoBehaviour:
 
 '
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 44132a242d69e514eaf236194f4a06cf, type: 2}
-  m_sharedMaterial: {fileID: 4763482080473113484, guid: 44132a242d69e514eaf236194f4a06cf, type: 2}
+  m_fontAsset: {fileID: 0}
+  m_sharedMaterial: {fileID: 5248934581218175116, guid: eb59d6c9fc048674fbacb266c62dd77c, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -42582,7 +42586,7 @@ MonoBehaviour:
   mobileRequestedIconsSize: {x: 150, y: 100}
   mobileConfirmButtonScale: 0.78
   customerInformationAreaSize: {x: 740, y: 780}
-  customerInformationAreaPosition: {x: -390, y: 0}
+  customerInformationAreaPosition: {x: -425, y: 0}
   customerMessageSize: {x: 430, y: 200}
   customerMessagePosition: {x: 115, y: 190}
   requestedOrderAreaSize: {x: 700, y: 180}

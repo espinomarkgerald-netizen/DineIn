@@ -81,7 +81,7 @@ public class GameModePopupController : MonoBehaviour
             return;
 
         ChooseMode(GameModeChoice.Campaign);
-        LoadScene(sceneName);
+        LoadScene(TutorialGameModeEntry.RouteCampaign(sceneName));
     }
 
     /// <summary>Wire this to MultiplayerButton.</summary>

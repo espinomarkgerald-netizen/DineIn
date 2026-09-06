@@ -200,7 +200,7 @@ public sealed class TutorialHandIndicator : MonoBehaviour
         if (mode == HintMode.Tap) AnimateTap();
         else if (mode == HintMode.Swipe) AnimateSwipe();
         else if (mode == HintMode.Zoom) AnimateZoom();
-        else if (mode == HintMode.Typing) AnimateTyping();
+        else if (mode == HintMode.Typing) { AnimateTap(); AnimateTyping(); }
         else if (mode == HintMode.Drag || mode == HintMode.Hold) AnimateDrag();
         float age = Time.unscaledTime - cycleStartedAt;
         float pop = 1f + .16f * Mathf.Sin(Mathf.Clamp01(age / .28f) * Mathf.PI);
@@ -255,7 +255,9 @@ public sealed class TutorialHandIndicator : MonoBehaviour
     {
         if (target == null) { HideHint(); return; }
         Begin(HintMode.Typing, target);
-        if (canvasGroup != null) canvasGroup.alpha = 0f;
+        mobilePresentation = TutorialInputTerminology.IsMobile;
+        if (mobilePresentation) ShowMobileHand(handOpenSprite);
+        else ShowPC(mouseLeftClickSprite);
         if (typingCue != null) typingCue.gameObject.SetActive(true);
     }
 
@@ -335,6 +337,8 @@ public sealed class TutorialHandIndicator : MonoBehaviour
 
     private void ShowMobileHand(Sprite sprite)
     {
+        handImage.enabled = true;
+        handImage.color = Color.white;
         SetHandSprite(sprite);
         if (canvasGroup != null) canvasGroup.alpha = 1f;
     }
@@ -529,12 +533,6 @@ public sealed class TutorialHandIndicator : MonoBehaviour
         RectTransform canvasRect = hintRoot != null ? hintRoot :
             targetCanvas != null ? targetCanvas.transform as RectTransform : null;
         if (target == null || canvasRect == null) return false;
-        if (target is RectTransform && target.GetComponent<Button>() == null)
-        {
-            Button nestedButton = target.GetComponentInChildren<Button>(false);
-            if (nestedButton != null)
-                target = nestedButton.transform;
-        }
         Vector3 screen;
         if (target is RectTransform targetRect)
         {
