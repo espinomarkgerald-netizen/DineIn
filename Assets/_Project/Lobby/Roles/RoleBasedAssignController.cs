@@ -129,6 +129,8 @@ public class RoleBasedAssignController : MonoBehaviour
                 if (group == null)
                     continue;
 
+                if (MultiplayerCustomerInteractionBridge.TryHandle(this, group, cam)) return;
+
                 if (!CanHostSelectGroup(group))
                     return;
 

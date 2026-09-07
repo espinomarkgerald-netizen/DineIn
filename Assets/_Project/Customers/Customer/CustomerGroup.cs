@@ -438,6 +438,23 @@ public class CustomerGroup : MonoBehaviour
 
     private bool hasLineSlotTarget;
     private Vector3 currentLineSlotTarget;
+    // Optional presentation bridge; normal groups never opt into observer mode.
+    public bool IsNetworkObserver { get; set; }
+    public Vector3 QueueDestination => currentLineSlotTarget;
+    public float QueuePatience01 => Mathf.Clamp01(linePatienceRemaining / Mathf.Max(1f, linePatienceSeconds));
+    public bool QueuePatienceVisible => CanUseLinePatience();
+
+    public void PresentObservedQueue(GroupState phase, Vector3 destination, float patience, bool showPatience)
+    {
+        if (!IsNetworkObserver) return;
+        state = phase;
+        currentLineSlotTarget = destination;
+        if (groupUiAnchor != null) groupUiAnchor.position = GetMembersHeadAnchorWorld();
+        ApplyBubbleHeightSetting();
+        if (showPatience) EnsureLinePatienceUI();
+        if (linePatienceInstance != null) linePatienceInstance.SetActive(showPatience);
+        if (linePatienceUI != null && showPatience) linePatienceUI.SetProgress(patience);
+    }
 
     [Header("Happy Comments")]
     [SerializeField]

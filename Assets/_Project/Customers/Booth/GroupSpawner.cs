@@ -2,6 +2,8 @@ using UnityEngine;
 
 public class GroupSpawner : MonoBehaviour
 {
+    public System.Func<bool> SpawnPermission { get; set; }
+    public event System.Action<CustomerGroup, bool> GroupCreated;
     public static GroupSpawner Instance { get; private set; }
 
     [Header("Shared Group Prefab")]
@@ -96,6 +98,7 @@ public class GroupSpawner : MonoBehaviour
 
     private void Update()
     {
+        if (SpawnPermission != null && !SpawnPermission()) return;
         if (!autoSpawn)
             return;
 
@@ -221,6 +224,7 @@ public class GroupSpawner : MonoBehaviour
 
     public CustomerGroup SpawnGroup()
     {
+        if (SpawnPermission != null && !SpawnPermission()) return null;
         if (groupPrefab == null)
         {
             Debug.LogWarning("[GroupSpawner] groupPrefab is not assigned.");
@@ -292,6 +296,7 @@ public class GroupSpawner : MonoBehaviour
         }
 
         groupsSpawnedThisShift++;
+        GroupCreated?.Invoke(group, spawnAsTakeout);
 
         // Apply shift-scaled patience so each group gets the correct timer for this day
         if (ShiftScaler.Instance != null)

@@ -19441,7 +19441,7 @@ RectTransform:
   m_GameObject: {fileID: 1113496780}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 2142882886}
@@ -40756,6 +40756,11 @@ GameObject:
   m_Component:
   - component: {fileID: 2200000501}
   - component: {fileID: 2200000502}
+  - component: {fileID: 2200000503}
+  - component: {fileID: 2200000504}
+  - component: {fileID: 2200000505}
+  - component: {fileID: 2200000506}
+  - component: {fileID: 2200000507}
   m_Layer: 0
   m_Name: Multiplayer Manager Spawn
   m_TagString: Untagged
@@ -40789,6 +40794,74 @@ MonoBehaviour:
   usePartySlots: 1
   spawnPoint: {fileID: 2200000501}
   spawnScatterRadius: 1.5
+--- !u!114 &2200000503
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2200000500}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b461983d20344ed4ad7e2d8103fd8001, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+--- !u!114 &2200000504
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2200000500}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b461983d20344ed4ad7e2d8103fd8003, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+--- !u!114 &2200000505
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2200000500}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b461983d20344ed4ad7e2d8103fd8004, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  receptionist: {fileID: 1470914838}
+  waiter: {fileID: 2076497461}
+  cashier: {fileID: 1946223721}
+  busser: {fileID: 25337819}
+--- !u!114 &2200000506
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2200000500}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b461983d20344ed4ad7e2d8103fd8005, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  roster: {fileID: 2200000505}
+--- !u!114 &2200000507
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2200000500}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b461983d20344ed4ad7e2d8103fd8006, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  spawner: {fileID: 597439887}
+  session: {fileID: 2200000503}
+  networkPrefab: MultiplayerCustomerSpawn
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

@@ -15,6 +15,8 @@ public enum ManagementHRView
 /// <summary>Sticky department/applicant tabs and role sections for the management computer HR app.</summary>
 public sealed class ManagementComputerHRPanel : MonoBehaviour
 {
+    public static event Action<ManagementComputerHRPanel> BeforeBind;
+    public Predicate<EmployeeRole> RoleVisibilityFilter { get; set; }
     [SerializeField] private TMP_Text departmentTitle;
     [SerializeField] private TMP_Text departmentDescription;
     [SerializeField] private Button lobbyTab;
@@ -81,6 +83,7 @@ public sealed class ManagementComputerHRPanel : MonoBehaviour
 
     public void Bind(EmployeeManager configuredManager, bool canEdit)
     {
+        BeforeBind?.Invoke(this);
         if (manager != null)
             manager.ApplicantsRefreshed -= RefreshApplicantBadge;
         manager = configuredManager;
@@ -195,6 +198,7 @@ public sealed class ManagementComputerHRPanel : MonoBehaviour
 
         foreach (EmployeeRole role in roles)
         {
+            if (RoleVisibilityFilter != null && !RoleVisibilityFilter(role)) continue;
             if (showApplicants && !showEmployed && !HasApplicantsForRole(role))
                 continue;
 

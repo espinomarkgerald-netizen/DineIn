@@ -38,6 +38,15 @@ public class NetworkPlayerSpawner : MonoBehaviourPunCallbacks
     /// <summary>Instantiates the local player over the network from the Resources folder.</summary>
     private void SpawnLocalPlayer()
     {
+        if (spawned || !PhotonNetwork.InRoom) return;
+        bool managerScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "Lobby1 Multiplayer";
+        if (managerScene && (gameObject.scene.name != "Lobby1 Multiplayer" ||
+            playerPrefabName != "ManagerMultiplayer")) return;
+        if (PhotonNetwork.LocalPlayer.TagObject is GameObject existing && existing != null)
+        {
+            spawned = true;
+            return;
+        }
         spawned = true;
 
         Vector3 position = Vector3.zero;
@@ -65,6 +74,7 @@ public class NetworkPlayerSpawner : MonoBehaviourPunCallbacks
         }
         else
         {
+            PhotonNetwork.LocalPlayer.TagObject = player;
             Debug.Log($"[NetworkPlayerSpawner] Spawned {player.name} at {position} " +
                       $"(actor #{PhotonNetwork.LocalPlayer.ActorNumber})");
         }
