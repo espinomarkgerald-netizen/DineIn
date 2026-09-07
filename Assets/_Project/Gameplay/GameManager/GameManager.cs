@@ -1752,9 +1752,9 @@ public class GameDayManager : MonoBehaviour
 
         float happyRatio = (float)happyCustomers / CustomersServed;
         if (happyRatio >= 0.8f && cashErrors == 0)
-            return 3;
+            return TutorialCustomerFlowBridge.CapTutorialStars(3);
         if (happyRatio >= 0.55f && cashErrors <= 1)
-            return 2;
+            return TutorialCustomerFlowBridge.CapTutorialStars(2);
         return 1;
     }
 
@@ -1827,6 +1827,14 @@ public class GameDayManager : MonoBehaviour
 
     private string GetShiftStatusText()
     {
+        if (TutorialSystem.IsTutorialMode)
+            return CalculateEarnedStars() switch
+            {
+                3 => "Excellent Service",
+                2 => "Service Needs Improvement",
+                1 => "Needs Improvement",
+                _ => "Quiet Shift"
+            };
         if (CustomersServed <= 0)
             return "Quiet Shift";
 

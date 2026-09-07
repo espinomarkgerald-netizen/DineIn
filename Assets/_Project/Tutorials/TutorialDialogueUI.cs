@@ -51,8 +51,9 @@ public class TutorialDialogueUI : MonoBehaviour
 
     public bool IsChatterActive => chatterActive;
 
-    public bool ShowNonBlockingChatter(string line)
+    public bool ShowNonBlockingChatter(string line, bool replaceChatter = false)
     {
+        if (replaceChatter && chatterActive) Hide();
         var tutorial = TutorialSystem.Instance;
         if (IsVisible || tutorial == null || !tutorial.IsWaitingForGameplayAction) return false;
         chatterStep = tutorial.CurrentStep;

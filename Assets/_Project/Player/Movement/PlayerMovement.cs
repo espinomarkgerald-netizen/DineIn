@@ -303,6 +303,8 @@ public class PlayerMovement : MonoBehaviour
             {
                 var it = interactables[k];
                 if (it == null) continue;
+                if (it is Component tutorialCandidate &&
+                    !TutorialCustomerFlowBridge.AllowsWorldInteraction(tutorialCandidate.transform)) continue;
 
                 if (isCarryingMoney && it is CashierBoothInteractable)
                 {

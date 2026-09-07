@@ -8,7 +8,8 @@ using UnityEngine;
 /// </summary>
 public class NetworkPlayerSpawner : MonoBehaviourPunCallbacks
 {
-    private const string PlayerPrefabName = "Player";
+    [SerializeField] private string playerPrefabName = "Player";
+    [SerializeField] private bool usePartySlots;
 
     [Header("Spawn Settings")]
     [Tooltip("Transform whose position/rotation will be used as the spawn point. Leave null to use Vector3.zero.")]
@@ -45,17 +46,22 @@ public class NetworkPlayerSpawner : MonoBehaviourPunCallbacks
         if (spawnPoint != null)
         {
             // Scatter slightly so players don't stack on top of each other.
-            Vector2 scatter = Random.insideUnitCircle * spawnScatterRadius;
+            int slot = 0;
+            foreach (var member in PhotonNetwork.PlayerList)
+                if (member.ActorNumber < PhotonNetwork.LocalPlayer.ActorNumber) slot++;
+            Vector2 scatter = usePartySlots
+                ? new Vector2(slot % 2, slot / 2) * spawnScatterRadius
+                : Random.insideUnitCircle * spawnScatterRadius;
             position = spawnPoint.position + new Vector3(scatter.x, 0f, scatter.y);
             rotation = spawnPoint.rotation;
         }
 
-        GameObject player = PhotonNetwork.Instantiate(PlayerPrefabName, position, rotation);
+        GameObject player = PhotonNetwork.Instantiate(playerPrefabName, position, rotation);
 
         if (player == null)
         {
             Debug.LogError($"[NetworkPlayerSpawner] PhotonNetwork.Instantiate failed — " +
-                           $"make sure '{PlayerPrefabName}.prefab' is inside a Resources folder.");
+                           $"make sure '{playerPrefabName}.prefab' is inside a Resources folder.");
         }
         else
         {

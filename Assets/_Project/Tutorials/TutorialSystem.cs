@@ -167,6 +167,13 @@ public sealed class TutorialSystem : MonoBehaviour
     [SerializeField] private bool allowStaffSpawning;
     private RectTransform currentUIFocus;
     private Transform currentWorldFocus;
+
+    public bool AllowsGuidedWorldTarget(Transform candidate)
+    {
+        if (!IsWaitingForGameplayAction || candidate == null || currentUIFocus != null || currentWorldFocus == null)
+            return false;
+        return candidate == currentWorldFocus || candidate.IsChildOf(currentWorldFocus) || currentWorldFocus.IsChildOf(candidate);
+    }
     private TutorialUIActionAdapter uiActionAdapter;
     private TutorialUIAutoScroller uiAutoScroller;
     private int presentationRevision;
@@ -636,6 +643,7 @@ public sealed class TutorialSystem : MonoBehaviour
         currentWorldFocus = step.HighlightTarget != null
             ? step.HighlightTarget
             : sceneBindings.ResolveWorld(step.WorldTargetKey);
+        BindWorldMaskProjection();
         sceneBindings.BeginUIFocus(currentUIFocus);
         if ((!string.IsNullOrEmpty(step.UITargetKey) || step.UIFocusTarget != null) && currentUIFocus == null)
         {
@@ -757,7 +765,8 @@ public sealed class TutorialSystem : MonoBehaviour
         TutorialStep step = CurrentStep;
         if (step == null || step.Phase != TutorialPhase.PhysicalRestocking) return;
         RectTransform live = sceneBindings.ResolveUI(step.UITargetKey);
-        Transform world = sceneBindings.ResolveWorld(step.WorldTargetKey);
+        Transform world = currentWorldFocus != null && currentWorldFocus.gameObject.activeInHierarchy
+            ? currentWorldFocus : sceneBindings.ResolveWorld(step.WorldTargetKey);
         if (!waitingForNext && !waitingForPlayerAction)
         {
             if (restockTargetPending && live != null) ShowCurrentStep();
@@ -766,6 +775,7 @@ public sealed class TutorialSystem : MonoBehaviour
         if (live == currentUIFocus && world == currentWorldFocus) return;
         currentUIFocus = live;
         currentWorldFocus = world;
+        BindWorldMaskProjection();
         targetIndicator?.Hide();
         handIndicator?.HideHint();
         if (live == null && !string.IsNullOrEmpty(step.UITargetKey))
@@ -779,6 +789,13 @@ public sealed class TutorialSystem : MonoBehaviour
         if (waitingForPlayerAction && step.HintMode != TutorialHintMode.Drag)
             uiActionAdapter?.Begin(this, live);
         ShowRestockHint(step);
+    }
+
+    private void BindWorldMaskProjection()
+    {
+        string key = CurrentStep?.UITargetKey;
+        bool projected = key == "RestockTruckFocus" || key == "RestockPlacedBoxFocus" || key == "RestockSpoiledBoxFocus";
+        uiFocusMask?.SetWorldProjection(projected ? currentUIFocus : null, projected ? currentWorldFocus : null);
     }
 
     private void ShowRestockHint(TutorialStep step)

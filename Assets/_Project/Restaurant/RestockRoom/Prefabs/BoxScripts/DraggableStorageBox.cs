@@ -836,7 +836,16 @@ public class DraggableStorageBox : MonoBehaviour
         RestockFlowCoordinator.Instance?.ShowMessage(discarded > 0
             ? $"Threw away {itemName}. {discarded} stock removed."
             : $"Threw away the empty {itemName} container. No stock remained to deduct.");
+        InspectionChoiceMade?.Invoke(this, true);
         RemoveEmptyContainer();
+    }
+
+    public event System.Action<DraggableStorageBox, bool> InspectionChoiceMade;
+
+    private void KeepStock()
+    {
+        HideInteractionUI();
+        InspectionChoiceMade?.Invoke(this, false);
     }
 
     /// <summary>
@@ -885,7 +894,8 @@ public class DraggableStorageBox : MonoBehaviour
         if (keepButton != null)
         {
             keepButton.onClick.RemoveListener(HideInteractionUI);
-            keepButton.onClick.AddListener(HideInteractionUI);
+            keepButton.onClick.RemoveListener(KeepStock);
+            keepButton.onClick.AddListener(KeepStock);
         }
 
         if (throwAwayButton != null)

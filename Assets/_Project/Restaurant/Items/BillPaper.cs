@@ -103,6 +103,7 @@ public class BillPaper : MonoBehaviour, IInteractable, ICancelableTaskTarget
 
     public void UI_Pickup()
     {
+        if (!TutorialCustomerFlowBridge.AllowsServiceUI("BillPickupButton")) return;
         if (!CanPickupWithWarning()) return;
         if (RoleManager.Instance == null) return;
 

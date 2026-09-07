@@ -360,6 +360,8 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
 
     public void UI_RequestPickup()
     {
+        if (!TutorialCustomerFlowBridge.AllowsServiceUI(
+            CurrentMode == TrayMode.Cleanup ? "CleanupPickupButton" : "TrayPickupButton")) return;
         if (!CanInteractWithWarning()) return;
         if (RoleManager.Instance == null) return;
 
@@ -385,6 +387,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
 
     private void OnMouseDown()
     {
+        if (!TutorialCustomerFlowBridge.AllowsWorldInteraction(transform)) return;
         UI_RequestPickup();
     }
 

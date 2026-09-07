@@ -8,6 +8,7 @@ public class AutoInteractRadius : MonoBehaviour
 
     public bool IsActiveRoleInRange(StaffRole.Role role)
     {
+        if (!TutorialCustomerFlowBridge.AllowsWorldInteraction(transform)) return false;
         if (RoleManager.Instance == null) return false;
         if (!RoleManager.Instance.IsActiveRoleType(role)) return false;
 

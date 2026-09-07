@@ -24,7 +24,13 @@ public class MusicManager : MonoBehaviour
     private void Awake()
     {
         if (musicSource == null)
-            musicSource = gameObject.AddComponent<AudioSource>();
+            musicSource = GetComponent<AudioSource>() ?? gameObject.AddComponent<AudioSource>();
+
+        if (musicSource.outputAudioMixerGroup == null && mixer != null)
+        {
+            AudioMixerGroup[] groups = mixer.FindMatchingGroups("Master");
+            if (groups.Length > 0) musicSource.outputAudioMixerGroup = groups[0];
+        }
 
         musicSource.loop = loop;
         musicSource.playOnAwake = false;
@@ -39,8 +45,8 @@ public class MusicManager : MonoBehaviour
         if (DineIn.NewMenu.SettingsManager.Instance != null)
             ApplyVolume(DineIn.NewMenu.SettingsManager.Instance.Current.musicVolume);
 
-        if (playOnStart && defaultTrack != null)
-            Play(defaultTrack);
+        if (playOnStart)
+            Play(defaultTrack != null ? defaultTrack : musicSource.clip);
 
         if (DineIn.NewMenu.SettingsManager.Instance != null)
             DineIn.NewMenu.SettingsManager.Instance.OnSettingsLoaded += HandleSettingsLoaded;

@@ -115,6 +115,7 @@ public class MoneyPickup : MonoBehaviour, IInteractable, ICancelableTaskTarget
 
     public void UI_RequestPickup()
     {
+        if (!TutorialCustomerFlowBridge.AllowsServiceUI("PaymentPickupButton")) return;
         if (RoleManager.Instance == null) return;
 
         PlayerMovement mover = RoleManager.Instance.GetActivePlayerMovement();
@@ -150,6 +151,7 @@ public class MoneyPickup : MonoBehaviour, IInteractable, ICancelableTaskTarget
 
     public void UI_RequestCardPayment()
     {
+        if (!TutorialCustomerFlowBridge.AllowsServiceUI("PaymentPickupButton")) return;
         if (!isCardPayment || !IsAvailableForCollection)
             return;
 

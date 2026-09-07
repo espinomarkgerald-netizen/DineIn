@@ -2644,7 +2644,11 @@ public class CustomerGroup : MonoBehaviour
         }
 
         AlienApprovalManager.Instance?.RegisterGroupResult(result);
+        ServiceOutcomeReported?.Invoke(this, result);
     }
+
+    /// <summary>Observation hook; reports the authoritative result once.</summary>
+    public event Action<CustomerGroup, FinalResult> ServiceOutcomeReported;
 
     private void CleanupSeatsAndBoothOnly()
     {
@@ -3246,6 +3250,8 @@ public class CustomerGroup : MonoBehaviour
                 SetState(GroupState.WalkingToLobby);
         }
     }
+
+    public bool HasReachedLineTarget => IsGroupAtLineTarget();
 
     private bool IsGroupAtLineTarget()
     {

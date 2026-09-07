@@ -289,6 +289,8 @@ public sealed class TutorialSceneBindings : MonoBehaviour
             case "RestockSwitchRoom":
             case "RestockExit":
             case "RestockBoxActions":
+            case "RestockSpoiledBoxFocus":
+            case "RestockSpoiledThrowAway":
                 return FindFirstObjectByType<TutorialRestockFlowBridge>(FindObjectsInactive.Include)?.ResolveUI(key);
             case "CustomerGreetButton":
             case "CustomerSeatButton":

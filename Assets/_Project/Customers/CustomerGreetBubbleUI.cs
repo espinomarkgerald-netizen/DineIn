@@ -49,6 +49,8 @@ public class CustomerGreetBubbleUI : MonoBehaviour
     private void OnClick()
     {
         if (group == null) return;
+        if (!TutorialCustomerFlowBridge.AllowsCustomerAction(group,
+                group.hasBeenGreeted ? "Customer.SeatModeStarted" : "Customer.Greeted")) return;
 
         if (!group.hasBeenGreeted)
         {

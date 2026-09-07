@@ -21,6 +21,8 @@ public sealed class TutorialTargetIndicator : MonoBehaviour
                              (canvasGroup == null || canvasGroup.alpha > 0.001f);
 
     private void Awake() => Initialize();
+    private void OnEnable() => Canvas.willRenderCanvases += LateUpdate;
+    private void OnDisable() => Canvas.willRenderCanvases -= LateUpdate;
 
     private void Initialize()
     {
@@ -52,7 +54,9 @@ public sealed class TutorialTargetIndicator : MonoBehaviour
 
         UpdatePosition();
 
-        float pulse = 1f + Mathf.Sin(Time.unscaledTime * pulseSpeed) * pulseAmount;
+        // World bounds follow the final camera pose directly; never pulse their size.
+        float pulse = currentTarget is RectTransform
+            ? 1f + Mathf.Sin(Time.unscaledTime * pulseSpeed) * pulseAmount : 1f;
         indicatorRect.localScale = Vector3.one * pulse;
     }
 
@@ -120,7 +124,7 @@ public sealed class TutorialTargetIndicator : MonoBehaviour
             return;
         }
 
-        Camera cameraToUse = worldCamera != null ? worldCamera : Camera.main;
+        Camera cameraToUse = TutorialWorldTargetGeometry.ResolveCamera(currentTarget, worldCamera);
         if (cameraToUse == null)
             return;
 

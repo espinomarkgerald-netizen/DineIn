@@ -7,9 +7,11 @@ public class PlayerNameTagSetter : MonoBehaviourPunCallbacks
 {
     [SerializeField] private NameTagBillboard nameTag;
     [SerializeField] private Transform followTarget; // optional (head bone)
+    private PhotonView ownerView;
 
     private void Awake()
     {
+        ownerView = GetComponentInParent<PhotonView>();
         if (nameTag == null)
             nameTag = GetComponentInChildren<NameTagBillboard>(true);
     }
@@ -21,31 +23,19 @@ public class PlayerNameTagSetter : MonoBehaviourPunCallbacks
 
     public override void OnPlayerPropertiesUpdate(Player targetPlayer, Hashtable changedProps)
     {
-        if (photonView == null || photonView.Owner == null) return;
-        if (targetPlayer != photonView.Owner) return;
+        if (ownerView == null || ownerView.Owner == null) return;
+        if (targetPlayer != ownerView.Owner) return;
 
-        // if username prop updates later, refresh
-        if (changedProps != null && (changedProps.ContainsKey("Username") || changedProps.ContainsKey("user")))
-            ApplyName();
+        ApplyName();
     }
 
     private void ApplyName()
     {
-        if (nameTag == null || photonView == null || photonView.Owner == null) return;
+        if (nameTag == null || ownerView == null || ownerView.Owner == null) return;
 
-        string finalName = photonView.Owner.NickName;
+        string finalName = ownerView.Owner.NickName;
 
-        // Prefer custom property if you use it
-        var props = photonView.Owner.CustomProperties;
-        if (props != null)
-        {
-            if (props.TryGetValue("Username", out object u) && u != null && !string.IsNullOrEmpty(u.ToString()))
-                finalName = u.ToString();
-            else if (props.TryGetValue("user", out object u2) && u2 != null && !string.IsNullOrEmpty(u2.ToString()))
-                finalName = u2.ToString();
-        }
-
-        nameTag.SetName(string.IsNullOrEmpty(finalName) ? "Player" : finalName);
+        nameTag.SetName(string.IsNullOrWhiteSpace(finalName) ? "Player" : finalName);
 
         if (followTarget != null)
             nameTag.SetFollowTarget(followTarget);

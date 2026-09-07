@@ -4,6 +4,15 @@ using UnityEngine;
 // at a corner or on the floor, so they are not reliable places to ask for a tap.
 public static class TutorialWorldTargetGeometry
 {
+    public static Camera ResolveCamera(Transform target, Camera fallback)
+    {
+        if (target != null && target.gameObject.scene.name == "RestockScene")
+            foreach (Camera camera in Camera.allCameras)
+                if (camera.isActiveAndEnabled && camera.gameObject.scene == target.gameObject.scene)
+                    return camera;
+        return fallback != null && fallback.isActiveAndEnabled ? fallback : Camera.main;
+    }
+
     public static Vector3 Center(Transform target)
     {
         return TryGetBounds(target, out Bounds bounds, out Transform space)

@@ -250,6 +250,7 @@ public class PlayFabAuthManager : MonoBehaviour
         IsLoggedIn = true;
         PlayFabId = result.PlayFabId;
         DisplayName = PlayerPrefs.GetString(PREF_USERNAME, "Player");
+        Photon.Pun.PhotonNetwork.NickName = string.IsNullOrWhiteSpace(DisplayName) ? "Player" : DisplayName.Trim();
 
         if (verboseLogging)
             Debug.Log("PlayFabAuthManager: login succeeded. PlayFabId=" + PlayFabId);
@@ -292,6 +293,7 @@ public class PlayFabAuthManager : MonoBehaviour
         IsLoggedIn = false;
         PlayFabId = null;
         DisplayName = null;
+        Photon.Pun.PhotonNetwork.NickName = "Player";
 
         if (verboseLogging)
             Debug.Log("PlayFabAuthManager: SignOut() called. Local credentials cleared.");

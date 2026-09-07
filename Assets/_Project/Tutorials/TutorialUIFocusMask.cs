@@ -14,6 +14,14 @@ public sealed class TutorialUIFocusMask : MaskableGraphic
 
     private readonly Vector3[] corners = new Vector3[4];
     private RectTransform target;
+    private RectTransform worldProxy;
+    private Transform projectedWorldTarget;
+
+    public void SetWorldProjection(RectTransform proxy, Transform worldTarget)
+    {
+        worldProxy = proxy;
+        projectedWorldTarget = worldTarget;
+    }
     private Rect focusRect;
     private bool allowTargetInput;
     private bool hasFocus;
@@ -47,12 +55,14 @@ public sealed class TutorialUIFocusMask : MaskableGraphic
     protected override void OnEnable()
     {
         base.OnEnable();
+        Canvas.preWillRenderCanvases += RefreshFocus;
         Canvas.willRenderCanvases += RefreshFocus;
     }
 
     protected override void OnDisable()
     {
         Canvas.willRenderCanvases -= RefreshFocus;
+        Canvas.preWillRenderCanvases -= RefreshFocus;
         target = null;
         transitioning = false;
         hasFocus = false;
@@ -184,6 +194,14 @@ public sealed class TutorialUIFocusMask : MaskableGraphic
         }
         if (!TryCalculateRect(target, out Rect next))
         {
+            if (target == worldProxy && projectedWorldTarget != null)
+            {
+                // Off-screen is not a new logical target. Resume projection when visible.
+                hasFocus = false;
+                raycastTarget = false;
+                SetVerticesDirty();
+                return;
+            }
             // Runtime pages can replace cards between frames. Preserve the last stable
             // hole until TutorialSystem resolves the next live target.
             target = null;
@@ -204,12 +222,24 @@ public sealed class TutorialUIFocusMask : MaskableGraphic
     {
         result = default;
         if (source == null || !source.gameObject.activeInHierarchy) return false;
+        // A screen-space proxy represents a cached world object, not a cached screen rect.
+        // Reproject at render time, after camera LateUpdate, without interpolation.
+        if (source == worldProxy && projectedWorldTarget != null)
+        {
+            Camera worldCamera = TutorialWorldTargetGeometry.ResolveCamera(projectedWorldTarget, Camera.main);
+            if (worldCamera == null || !TutorialWorldTargetGeometry.TryGetScreenRect(projectedWorldTarget, worldCamera, out Rect projected))
+                return false;
+            source.position = projected.center;
+            source.sizeDelta = projected.size;
+        }
         // Read live geometry: a layout rebuild or scrolling can move a control
         // without changing its identity, lesson, scene, or screen resolution.
         Canvas sourceCanvas = source.GetComponentInParent<Canvas>();
         if (sourceCanvas != null) sourceCanvas = sourceCanvas.rootCanvas;
         Camera sourceCamera = sourceCanvas == null || sourceCanvas.renderMode == RenderMode.ScreenSpaceOverlay
             ? null : sourceCanvas.worldCamera;
+        if (sourceCanvas != null && sourceCanvas.renderMode == RenderMode.WorldSpace && sourceCamera == null)
+            sourceCamera = Camera.main;
         Canvas overlay = canvas != null ? canvas.rootCanvas : null;
         Camera overlayCamera = overlay == null || overlay.renderMode == RenderMode.ScreenSpaceOverlay
             ? null : overlay.worldCamera;

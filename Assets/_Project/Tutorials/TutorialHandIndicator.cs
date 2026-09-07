@@ -553,14 +553,13 @@ public sealed class TutorialHandIndicator : MonoBehaviour
             Canvas source = targetRect.GetComponentInParent<Canvas>();
             if (source != null) source = source.rootCanvas;
             Camera eventCamera = source == null || source.renderMode == RenderMode.ScreenSpaceOverlay ? null : source.worldCamera;
+            if (source != null && source.renderMode == RenderMode.WorldSpace && eventCamera == null)
+                eventCamera = Camera.main;
             screen = RectTransformUtility.WorldToScreenPoint(eventCamera, targetRect.TransformPoint(targetRect.rect.center));
         }
         else
         {
-            Camera camera = worldCamera != null ? worldCamera : Camera.main;
-            if (target.gameObject.scene.name == "RestockScene")
-                foreach (Camera candidate in Camera.allCameras)
-                    if (candidate.gameObject.scene == target.gameObject.scene) { camera = candidate; break; }
+            Camera camera = TutorialWorldTargetGeometry.ResolveCamera(target, worldCamera);
             if (camera == null) return false;
             screen = camera.WorldToScreenPoint(TutorialWorldTargetGeometry.Center(target));
             if (screen.z <= 0f) return false;

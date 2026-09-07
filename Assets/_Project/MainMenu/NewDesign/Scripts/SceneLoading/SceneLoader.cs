@@ -69,6 +69,8 @@ public class SceneLoader : MonoBehaviour
             spawnedLoadingCanvas = Instantiate(loadingCanvasPrefab);
             spawnedLoadingCanvas.name = loadingCanvasPrefab.name + "_Instance";
             DontDestroyOnLoad(spawnedLoadingCanvas);
+            foreach (Canvas canvas in spawnedLoadingCanvas.GetComponentsInChildren<Canvas>(true))
+                if (canvas.isRootCanvas) canvas.sortingOrder = 32700;
 
             progressBar = spawnedLoadingCanvas.GetComponentInChildren<Slider>(true);
             progressText = FindDedicatedProgressText(spawnedLoadingCanvas);
@@ -115,6 +117,11 @@ public class SceneLoader : MonoBehaviour
             Debug.LogError("[SceneLoader] LoadScene called with a null or empty scene name.");
             return;
         }
+        if (!Application.CanStreamedLevelBeLoaded(sceneName))
+        {
+            Debug.LogError($"[SceneLoader] Scene '{sceneName}' is not available in the active build profile.");
+            return;
+        }
         RequestLoad(() => SceneManager.LoadSceneAsync(sceneName), sceneName);
     }
 
@@ -148,6 +155,14 @@ public class SceneLoader : MonoBehaviour
     private IEnumerator LoadSceneRoutine(System.Func<AsyncOperation> beginLoad, string label)
     {
         isLoading = true;
+        IrisScaleToggle iris = null;
+        if (IrisScaleToggle.IsMenuScene(SceneManager.GetActiveScene().name))
+        {
+            iris = IrisScaleToggle.Ensure();
+            bool closed = false;
+            iris.PlayCloseThenInvoke(() => closed = true);
+            while (!closed) yield return null;
+        }
 
         // Defensive: if the canvas was ever destroyed unexpectedly, rebuild it before use.
         if (spawnedLoadingCanvas == null)
@@ -161,6 +176,7 @@ public class SceneLoader : MonoBehaviour
         }
 
         UpdateProgress(0f);
+        if (iris != null) iris.SuspendForLoading();
         float elapsedTime = 0f;
 
         AsyncOperation asyncOperation = beginLoad.Invoke();
@@ -172,6 +188,7 @@ public class SceneLoader : MonoBehaviour
                             "Confirm it is added under File > Build Settings > Scenes In Build.");
             if (spawnedLoadingCanvas != null) spawnedLoadingCanvas.SetActive(false);
             isLoading = false;
+            if (iris != null) iris.PlayOpen();
             yield break;
         }
 
@@ -205,12 +222,20 @@ public class SceneLoader : MonoBehaviour
         }
 
         // Guaranteed reset path #3: normal completion.
+        bool revealMenu = IrisScaleToggle.IsMenuScene(SceneManager.GetActiveScene().name);
+        if (revealMenu)
+        {
+            iris = IrisScaleToggle.Ensure();
+            iris.SetCovered();
+        }
         if (spawnedLoadingCanvas != null)
         {
             spawnedLoadingCanvas.SetActive(false);
         }
 
         isLoading = false;
+        if (revealMenu) iris.PlayOpen();
+        else if (iris != null) iris.RevealImmediately();
     }
 
     private void UpdateProgress(float progressValue)

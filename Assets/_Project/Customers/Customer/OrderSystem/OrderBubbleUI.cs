@@ -138,6 +138,7 @@ public class OrderBubbleUI : MonoBehaviour
 
     public void OnClickBubble()
     {
+        if (!TutorialCustomerFlowBridge.AllowsServiceUI("OrderBubble")) return;
         if (group == null)
         {
             Debug.LogWarning("[OrderBubbleUI] Group is null.");

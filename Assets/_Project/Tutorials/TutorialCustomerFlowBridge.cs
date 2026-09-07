@@ -44,17 +44,81 @@ public sealed class TutorialCustomerFlowBridge : MonoBehaviour
     private FoodTrayInteractable cleanupTray;
     private readonly List<AutoInteractRadius> suppressedBillAutoPickup = new();
     private readonly List<(LobbyAutonomousService service, bool enabled)> autonomous = new();
-    private readonly Dictionary<CustomerGroup, bool> practiceGroups = new();
+    private sealed class PracticeVisit
+    {
+        public bool resolved;
+        public bool successful;
+    }
+    private readonly Dictionary<CustomerGroup, PracticeVisit> practiceGroups = new();
+    private int practiceHappy, practiceNeutral, practiceAngry;
+    public int FailedPracticeGroups => practiceNeutral + practiceAngry;
     private readonly List<CustomerGroup> departedPracticeGroups = new();
     private string practiceRound;
     private int practiceCompleted;
-    private int practiceSpawned;
     private int pendingPracticeSpawns;
     private readonly Queue<string> practicePraise = new();
+    private static readonly string[] successLines =
+    {
+        "Nice work. That table was handled well.",
+        "Good job. Keep the lobby moving like that.",
+        "Great work. That's another satisfied group.",
+        "You're getting the hang of this. Keep it up.",
+        "Well done. Keep an eye on the next table.",
+        "Good service. Stay ahead of the next group.",
+        "Nice. That's how we keep customers moving.",
+        "Great job. Keep checking where you're needed."
+    };
+    private int nextSuccessLine;
     private float nextStaffChatter;
     private readonly HashSet<CustomerGroup> eatingPermits = new();
     private bool staffDemonstration;
     public CustomerGroup ActiveGroup => group;
+
+    private static TutorialCustomerFlowBridge GuidedOwner
+    {
+        get
+        {
+            TutorialSystem owner = TutorialSystem.Instance;
+            return TutorialSystem.IsTutorialMode && owner.CurrentPhase == TutorialSystem.TutorialPhase.StaffRoles && !owner.IsComplete
+                ? owner.GetComponent<TutorialCustomerFlowBridge>() : null;
+        }
+    }
+
+    private bool ReadyAtFront(CustomerGroup customer)
+    {
+        LobbyLineManager line = FindFirstObjectByType<LobbyLineManager>(FindObjectsInactive.Exclude);
+        return customer != null && customer == group && customer.state == CustomerGroup.GroupState.Waiting &&
+            customer.HasReachedLineTarget && line != null && line.IsFrontOfLine(customer);
+    }
+
+    public static bool AllowsCustomerAction(CustomerGroup customer, string action)
+    {
+        TutorialCustomerFlowBridge owner = GuidedOwner;
+        return owner == null || (owner.tutorial.IsWaitingForGameplayAction &&
+            owner.tutorial.CurrentStep?.ActionKey == action && owner.ReadyAtFront(customer));
+    }
+
+    public static bool AllowsBoothAssignment(CustomerGroup customer, Booth booth)
+    {
+        TutorialCustomerFlowBridge owner = GuidedOwner;
+        return owner == null || (owner.tutorial.IsWaitingForGameplayAction &&
+            owner.tutorial.CurrentStep?.ActionKey == "Customer.Seated" && owner.ReadyAtFront(customer) &&
+            customer.hasBeenGreeted && booth != null && BoothAssignArrowManager.Instance != null &&
+            BoothAssignArrowManager.Instance.ActiveSuggestedBooth == booth);
+    }
+
+    public static bool AllowsWorldInteraction(Transform candidate)
+    {
+        TutorialCustomerFlowBridge owner = GuidedOwner;
+        return owner == null || owner.tutorial.AllowsGuidedWorldTarget(candidate);
+    }
+
+    public static bool AllowsServiceUI(string targetKey)
+    {
+        TutorialCustomerFlowBridge owner = GuidedOwner;
+        return owner == null || (owner.tutorial.IsWaitingForGameplayAction &&
+            owner.tutorial.CurrentStep?.UITargetKey == targetKey);
+    }
 
     private void Awake() { tutorial = GetComponent<TutorialSystem>(); day = GetComponent<TutorialDayContext>(); }
     private void OnEnable()
@@ -65,6 +129,8 @@ public sealed class TutorialCustomerFlowBridge : MonoBehaviour
     }
     private void OnDisable()
     {
+        foreach (var visit in practiceGroups)
+            if (visit.Key != null) visit.Key.ServiceOutcomeReported -= OnPracticeOutcome;
         if (tutorial != null) tutorial.SpawnPermissionsChanged -= OnSpawnPermissionsChanged;
         foreach (var state in autonomous) if (state.service != null) state.service.enabled = state.enabled;
         autonomous.Clear();
@@ -179,7 +245,6 @@ public sealed class TutorialCustomerFlowBridge : MonoBehaviour
                 if (radius != null) radius.enabled = true;
             suppressedBillAutoPickup.Clear();
             ClearReleaseGuard();
-            practiceSpawned = 0;
             pendingPracticeSpawns = staffDemonstration ? 2 : 1;
             eatingPermits.Clear();
             practicePraise.Clear();
@@ -194,30 +259,31 @@ public sealed class TutorialCustomerFlowBridge : MonoBehaviour
                 pendingPracticeSpawns++;
             if (customer == null)
             {
-                if (entry.Value)
-                {
-                    practiceCompleted++;
-                    if (!staffDemonstration)
-                        practicePraise.Enqueue(practiceCompleted == 1
-                            ? "Good job! Keep it going — you've got another group to take care of."
-                            : practiceCompleted == 2 ? "Nice work! You're getting the hang of this."
-                            : "Great job. Now let's see how things feel with your staff working alongside you.");
-                }
+                if (!entry.Value.resolved) RecordPracticeOutcome(customer, entry.Value, CustomerGroup.FinalResult.Angry);
+                if (entry.Value.successful) practiceCompleted++;
                 pendingPracticeSpawns++;
                 departedPracticeGroups.Add(customer);
             }
-            else if (customer.state == CustomerGroup.GroupState.Leaving &&
-                     typeof(CustomerGroup).GetField("finalResult", PrivateInstance)?.GetValue(customer) is CustomerGroup.FinalResult result &&
-                     result == CustomerGroup.FinalResult.Happy)
-                departedPracticeGroups.Add(customer);
+            else if (!entry.Value.resolved && (customer.state == CustomerGroup.GroupState.AngryLeft ||
+                     customer.state == CustomerGroup.GroupState.UnhappyLeft || customer.state == CustomerGroup.GroupState.Leaving))
+                RecordPracticeOutcome(customer, entry.Value,
+                    typeof(CustomerGroup).GetField("finalResult", PrivateInstance)?.GetValue(customer) is CustomerGroup.FinalResult result &&
+                    result != CustomerGroup.FinalResult.None ? result : CustomerGroup.FinalResult.Angry);
         }
         foreach (CustomerGroup customer in departedPracticeGroups)
-            if (customer == null) practiceGroups.Remove(customer);
-            else practiceGroups[customer] = true;
+            practiceGroups.Remove(customer);
         int required = staffDemonstration ? 5 : 3;
         var boss = FindFirstObjectByType<TutorialDialogueUI>(FindObjectsInactive.Include);
-        if (practicePraise.Count > 0 && boss != null && boss.ShowNonBlockingChatter(practicePraise.Peek()))
-            practicePraise.Dequeue();
+        if (practicePraise.Count > 0 && boss != null)
+        {
+            // Choose only when displayed, so dropped/queued praise cannot cause repeats.
+            string queued = practicePraise.Peek();
+            if (boss.ShowNonBlockingChatter(queued ?? successLines[nextSuccessLine]))
+            {
+                if (queued == null) nextSuccessLine = (nextSuccessLine + 1) % successLines.Length;
+                practicePraise.Dequeue();
+            }
+        }
         bool downtime = practiceGroups.Count > 0;
         foreach (var entry in practiceGroups)
             downtime &= entry.Key != null && entry.Key.state == CustomerGroup.GroupState.Eating;
@@ -231,7 +297,7 @@ public sealed class TutorialCustomerFlowBridge : MonoBehaviour
             return;
         }
         // Admit after seating, then refill promptly on departure. Never exceed two live groups.
-        while (practiceGroups.Count < 2 && practiceSpawned < required && pendingPracticeSpawns > 0)
+        while (practiceGroups.Count < 2 && practiceCompleted + practiceGroups.Count < required && pendingPracticeSpawns > 0)
         {
             if (GroupSpawner.Instance == null) return;
             if (day == null) day = GetComponent<TutorialDayContext>();
@@ -240,10 +306,77 @@ public sealed class TutorialCustomerFlowBridge : MonoBehaviour
             CustomerGroup spawned = GroupSpawner.Instance.SpawnGroup();
             if (spawned == null) return;
             LogCustomerNavigation(spawned);
-            practiceGroups.Add(spawned, false);
-            practiceSpawned++;
+            practiceGroups.Add(spawned, new PracticeVisit());
+            spawned.ServiceOutcomeReported += OnPracticeOutcome;
             pendingPracticeSpawns--;
         }
+    }
+
+    private void OnPracticeOutcome(CustomerGroup customer, CustomerGroup.FinalResult result)
+    {
+        if (practiceGroups.TryGetValue(customer, out PracticeVisit visit))
+            RecordPracticeOutcome(customer, visit, result);
+    }
+
+    private void RecordPracticeOutcome(CustomerGroup customer, PracticeVisit visit, CustomerGroup.FinalResult result)
+    {
+        if (visit.resolved) return;
+        visit.resolved = true;
+        visit.successful = result == CustomerGroup.FinalResult.Happy;
+        if (customer != null) customer.ServiceOutcomeReported -= OnPracticeOutcome;
+        string line;
+        if (visit.successful)
+        {
+            practiceHappy++;
+            line = null; // Success pool is selected when chatter is actually shown.
+        }
+        else
+        {
+            if (result == CustomerGroup.FinalResult.Neutral) practiceNeutral++; else practiceAngry++;
+            line = customer != null && customer.assignedBooth == null
+                ? "That group left before we could seat them. Respond before their patience runs out."
+                : customer != null && customer.state == CustomerGroup.GroupState.ReadyToOrder
+                    ? "That table waited too long to order. Watch for customers who are ready for you."
+                    : "We lost a good result at that table. Respond earlier, finish each job, and check what they ordered.";
+            // A meaningful failure takes priority over queued congratulations.
+            if (FailedPracticeGroups >= 3 && FailedPracticeGroups % 3 == 0)
+                line = "Several groups have had a poor visit. Watch the waiting customers, finish each table's jobs, and check their orders carefully.";
+            practicePraise.Clear();
+            TutorialDialogueUI boss = FindFirstObjectByType<TutorialDialogueUI>(FindObjectsInactive.Include);
+            if (boss != null && boss.ShowNonBlockingChatter(line, true)) return;
+        }
+        if (practicePraise.Count < 3) practicePraise.Enqueue(line);
+    }
+
+    public static int CapTutorialStars(int stars)
+    {
+        if (!TutorialSystem.IsTutorialMode) return stars;
+        var bridge = TutorialSystem.Instance.GetComponent<TutorialCustomerFlowBridge>();
+        if (bridge == null) return stars;
+        // Keep the normal rating, but reserve excellence for all eight clean visits.
+        if (bridge.FailedPracticeGroups >= 4) return Mathf.Min(stars, 1);
+        if (bridge.FailedPracticeGroups > 0 || bridge.practiceAngry > 0 || bridge.practiceHappy < 8)
+            return Mathf.Min(stars, 2);
+        return stars;
+    }
+
+    public string ApplyPracticeResultCounters()
+    {
+        GameDayManager manager = GameDayManager.Instance;
+        if (manager == null || practiceHappy + FailedPracticeGroups == 0) return null;
+        // These are the same isolated shift counters used by the existing star
+        // calculation; omit the patience-protected guided example from scoring.
+        WriteInt(manager, "happyCustomers", practiceHappy);
+        WriteInt(manager, "neutralCustomers", practiceNeutral);
+        WriteInt(manager, "angryCustomers", practiceAngry);
+        int stars = typeof(GameDayManager).GetMethod("CalculateEarnedStars", PrivateInstance)?.Invoke(manager, null) is int value ? value : 0;
+        string reason = stars >= 3
+            ? "Strong service overall. You kept customers moving and completed their visits."
+            : stars == 2 ? FailedPracticeGroups > 0
+                ? "Good work overall, but some groups had unsuccessful visits. Keep a closer eye on waiting customers and finish their service."
+                : "A good start, with room to improve. Check payments carefully."
+                : "This shift needs more attention. Respond sooner, finish the service jobs, and check payments carefully.";
+        return $"{reason}\nSuccessful groups: {practiceHappy}. Failed service groups: {FailedPracticeGroups}. Cash errors: {manager.CashErrors}.";
     }
 
     private bool IsComplete(string key)
@@ -253,9 +386,7 @@ public sealed class TutorialCustomerFlowBridge : MonoBehaviour
         {
             case "Customer.FrontOfLine":
             {
-                LobbyLineManager line = FindFirstObjectByType<LobbyLineManager>(FindObjectsInactive.Exclude);
-                return group != null && line != null && line.IsFrontOfLine(group) &&
-                       group.state == CustomerGroup.GroupState.Waiting;
+                return ReadyAtFront(group);
             }
             case "Customer.Selected": return group != null && FindGreetButton() != null;
             // MarkGreeted happens before the world-space action bubble is rebuilt.
@@ -444,6 +575,7 @@ public sealed class TutorialCustomerFlowBridge : MonoBehaviour
     {
         if (key == "TutorialCustomer")
         {
+            if (!ReadyAtFront(group)) return null;
             if (group == null || group.members == null) return null;
             foreach (CustomerAgent member in group.members)
                 if (member != null && member.gameObject.activeInHierarchy) return member.transform;

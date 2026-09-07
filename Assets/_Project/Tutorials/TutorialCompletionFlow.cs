@@ -13,6 +13,7 @@ public sealed class TutorialCompletionFlow : MonoBehaviour
     private TutorialSystem tutorial;
     private TutorialDayContext day;
     private bool ending, rebound;
+    private string performanceFeedback;
 
     private void Awake() { tutorial = GetComponent<TutorialSystem>(); day = GetComponent<TutorialDayContext>(); }
     private void OnEnable() { if (tutorial != null) tutorial.TutorialCompletedChanged += OnCompleted; }
@@ -23,6 +24,7 @@ public sealed class TutorialCompletionFlow : MonoBehaviour
         if (ending) return;
         if (day == null) day = GetComponent<TutorialDayContext>();
         ending = true;
+        performanceFeedback = GetComponent<TutorialCustomerFlowBridge>()?.ApplyPracticeResultCounters();
         GameDayManager.Instance?.EndShift();
         StartCoroutine(BindResultAction());
     }
@@ -36,6 +38,8 @@ public sealed class TutorialCompletionFlow : MonoBehaviour
             Button action = Read<Button>(manager, "resultsActionButton");
             if (panel != null && panel.activeInHierarchy && action != null)
             {
+                TMP_Text summary = Read<TMP_Text>(manager, "resultsSummaryText");
+                if (summary != null && !string.IsNullOrEmpty(performanceFeedback)) summary.text = performanceFeedback;
                 action.onClick = new Button.ButtonClickedEvent();
                 action.onClick.AddListener(Finish);
                 TMP_Text label = Read<TMP_Text>(manager, "resultsActionButtonText");

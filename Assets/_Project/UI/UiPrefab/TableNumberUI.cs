@@ -34,6 +34,7 @@ public class TableNumberUI : MonoBehaviour
 
     public void OnClickMoveToTable()
     {
+        if (!TutorialCustomerFlowBridge.AllowsServiceUI("DeliveryPopup")) return;
         if (booth == null) return;
 
         if (RoleManager.Instance == null) return;

@@ -12,6 +12,7 @@ public class CustomerGroupClickable : MonoBehaviour
 
     private void OnMouseDown()
     {
+        if (!TutorialCustomerFlowBridge.AllowsWorldInteraction(transform)) return;
         WaiterHands hands = WaiterHands.ActivePlayerHands;
         if (group == null || hands == null) return;
 

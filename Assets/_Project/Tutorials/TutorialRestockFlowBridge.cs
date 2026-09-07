@@ -32,7 +32,6 @@ public sealed class TutorialRestockFlowBridge : MonoBehaviour
     private ManagerPlayer guardedManager;
     private RestockStorageContainer placedLessonContainer;
     private RestockStorageType? lessonStorage;
-    private bool placedBoxDragObserved;
     private readonly Dictionary<PlayerMovement, bool> suppressedStaffInputs = new();
     private bool loggedStaffInputSuppression;
     private RestockStorageType? firstRoom;
@@ -47,6 +46,7 @@ public sealed class TutorialRestockFlowBridge : MonoBehaviour
     private RectTransform boxFocus;
     private bool boxActionsWereHidden;
     private RectTransform truckFocus;
+    private Transform truckTarget;
     private RectTransform shelfFocus;
     private RectTransform slotFocus;
     private ShelfGrid lessonGrid;
@@ -55,6 +55,59 @@ public sealed class TutorialRestockFlowBridge : MonoBehaviour
     private PlayerMovement roomMovement;
     private bool roomMovementControlled;
     private int roomClosedFrame;
+    private DraggableStorageBox normalChoiceBox, spoiledBox;
+    private string spoiledBatch;
+    private ShelfGrid spoiledGrid;
+    private int spoiledColumn, spoiledRow;
+    private bool normalChoiceAccepted, spoiledDiscardAccepted;
+
+    private void ObserveInspectionChoice(DraggableStorageBox box, bool discarded)
+    {
+        if (tutorial == null || !tutorial.IsWaitingForGameplayAction) return;
+        string key = tutorial.CurrentStep?.ActionKey;
+        if (box == normalChoiceBox && key == "Restock.BoxActionsHidden" && !discarded && !normalChoiceAccepted)
+        {
+            normalChoiceAccepted = true;
+            box.InspectionChoiceMade -= ObserveInspectionChoice;
+            if (discarded) placedLessonContainer = null;
+        }
+        else if (box == spoiledBox && key == "Restock.SpoiledDiscard" && discarded)
+        {
+            spoiledDiscardAccepted = true;
+            box.InspectionChoiceMade -= ObserveInspectionChoice;
+        }
+    }
+
+    private void EnsureSpoiledExample()
+    {
+        if (spoiledBox != null || spoiledBatch != null || firstPlaced || lessonGrid == null ||
+            InventoryManager.Instance == null || gameObject.scene.name != "Lobby1Tutorial") return;
+        ItemData item = ResolveUI("RestockActiveSlot")?.GetComponent<RestockHotbarSlotUI>()?.Item;
+        if (item == null || item.worldContainerPrefab == null) return;
+        foreach (ShelfGrid grid in FindObjectsByType<ShelfGrid>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+        {
+            if (grid.gameObject.scene.name != "RestockScene" || grid.StorageType != CurrentRoom ||
+                !TryChooseVisibleCell(grid, out int column, out int row, true)) continue;
+            GameObject example = Instantiate(item.worldContainerPrefab);
+            SceneManager.MoveGameObjectToScene(example, grid.gameObject.scene);
+            DraggableStorageBox box = example.GetComponent<DraggableStorageBox>();
+            RestockStorageContainer identity = example.GetComponent<RestockStorageContainer>();
+            if (identity == null) identity = example.AddComponent<RestockStorageContainer>();
+            if (box == null) box = example.AddComponent<DraggableStorageBox>();
+            if (!box.TryPlaceInitially(grid, column, row))
+            { Destroy(example); continue; }
+            int day = GameFlowManager.Instance != null ? Mathf.Max(1, GameFlowManager.Instance.CurrentDay) : 1;
+            InventoryManager.Instance.AddStockBatch(item, 1, day, out spoiledBatch, out _);
+            if (InventoryManager.Instance.TryGetBatch(spoiledBatch, out var batch)) batch.expiresDay = day;
+            identity.Bind(item, spoiledBatch, day, null, CurrentRoom, false);
+            spoiledBox = box;
+            spoiledGrid = grid;
+            spoiledColumn = column;
+            spoiledRow = row;
+            spoiledBox.InspectionChoiceMade += ObserveInspectionChoice;
+            return;
+        }
+    }
 
     private RestockRoomController LiveRoom => coordinator == null ? null :
         typeof(RestockFlowCoordinator).GetField("roomController", PrivateInstance)?.GetValue(coordinator) as RestockRoomController;
@@ -154,9 +207,11 @@ public sealed class TutorialRestockFlowBridge : MonoBehaviour
             shelf.transform.SetParent(root.transform, false);
             shelfFocus = (RectTransform)shelf.transform;
         }
+        // Prepare the first room before its entry step can complete or render a lesson.
+        if (!firstRoom.HasValue) EnsureSpoiledExample();
     }
 
-    private bool TryChooseVisibleCell(ShelfGrid grid, out int column, out int row)
+    private bool TryChooseVisibleCell(ShelfGrid grid, out int column, out int row, bool forSpoiled = false)
     {
         column = row = 0;
         Camera camera = LiveRoom == null ? null :
@@ -165,6 +220,8 @@ public sealed class TutorialRestockFlowBridge : MonoBehaviour
         for (int c = 0; c < grid.columns; c++)
             for (int r = 0; r < grid.rows; r++)
             {
+                if (grid == spoiledGrid && c == spoiledColumn && r == spoiledRow) continue;
+                if (forSpoiled && grid == lessonGrid && c == lessonColumn && r == lessonRow) continue;
                 Vector3 point = camera.WorldToViewportPoint(grid.GetCellWorldPosition(c, r));
                 if (!grid.IsCellFree(c, r) || point.z <= 0 || point.x <= 0 || point.x >= 1 || point.y <= 0 || point.y >= 1) continue;
                 column = c;
@@ -266,6 +323,27 @@ public sealed class TutorialRestockFlowBridge : MonoBehaviour
 
     private void Update()
     {
+        DraggableStorageBox normal = ResolvePlacedLessonBox();
+        if (normal != null)
+        {
+            bool choosing = normalChoiceAccepted || tutorial != null && tutorial.CurrentPhase != TutorialSystem.TutorialPhase.PhysicalRestocking ||
+                tutorial != null && tutorial.IsWaitingForGameplayAction && tutorial.CurrentStep?.ActionKey == "Restock.BoxActionsHidden";
+            SetRoomButton(FindBoxButton(normal, "KeepButton"), choosing);
+            SetRoomButton(FindBoxButton(normal, "ThrowAwayButton"), normalChoiceAccepted ||
+                tutorial != null && tutorial.CurrentPhase != TutorialSystem.TutorialPhase.PhysicalRestocking);
+        }
+        if (spoiledBox != null)
+        {
+            SetRoomButton(FindBoxButton(spoiledBox, "KeepButton"), false);
+            SetRoomButton(FindBoxButton(spoiledBox, "ThrowAwayButton"),
+                tutorial != null && tutorial.IsWaitingForGameplayAction && tutorial.CurrentStep?.ActionKey == "Restock.SpoiledDiscard");
+        }
+        if (normal != null && normalChoiceBox != normal)
+        {
+            if (normalChoiceBox != null) normalChoiceBox.InspectionChoiceMade -= ObserveInspectionChoice;
+            normalChoiceBox = normal;
+            normalChoiceBox.InspectionChoiceMade += ObserveInspectionChoice;
+        }
         UpdatePhysicalRestockInputGate();
         RefreshRoomTargets();
         if (!bootstrapped && tutorial != null &&
@@ -288,7 +366,6 @@ public sealed class TutorialRestockFlowBridge : MonoBehaviour
             startingDry = manager != null ? manager.GetHotbarContainerCount(RestockStorageType.Dry) : 0;
             startingFrozen = manager != null ? manager.GetHotbarContainerCount(RestockStorageType.Frozen) : 0;
             roomWasOpen = coordinator != null && coordinator.IsRestockRoomOpen;
-            placedBoxDragObserved = false;
             boxActionsWereHidden = !IsBoxActionPanelVisible(ResolvePlacedLessonBox());
             placementItem = ResolveUI("RestockActiveSlot")?.GetComponent<RestockHotbarSlotUI>()?.Item;
             placementHotbar = manager != null && placementItem != null ? manager.GetHotbarContainers(placementItem) : 0;
@@ -395,7 +472,7 @@ public sealed class TutorialRestockFlowBridge : MonoBehaviour
             case "Restock.EnterAny":
                 if (coordinator == null || !coordinator.IsRestockRoomOpen) return false;
                 lessonStorage = CurrentRoom;
-                if (!deliveryCollected || ResolveUI("RestockActiveSlot") == null || lessonGrid == null) return false;
+                if (!deliveryCollected || ResolveUI("RestockActiveSlot") == null || lessonGrid == null || spoiledBox == null) return false;
                 if (!firstRoom.HasValue) firstRoom = CurrentRoom;
                 return true;
             case "Restock.StoreDry":
@@ -433,12 +510,14 @@ public sealed class TutorialRestockFlowBridge : MonoBehaviour
                 return firstPlaced && boxActionsWereHidden && IsBoxActionPanelVisible(ResolvePlacedLessonBox());
             case "Restock.BoxActionsHidden":
             {
-                DraggableStorageBox box = ResolvePlacedLessonBox();
-                if (box == null) return false;
-                if (IsBoxBeingDragged(box)) placedBoxDragObserved = true;
-                return placedBoxDragObserved && !IsBoxBeingDragged(box) &&
-                       !Input.GetMouseButton(0) && Input.touchCount == 0 && !IsBoxActionPanelVisible(box);
+                return normalChoiceAccepted && !IsBoxActionPanelVisible(normalChoiceBox);
             }
+            case "Restock.SpoiledSelected": return spoiledBox != null && IsBoxActionPanelVisible(spoiledBox);
+            case "Restock.SpoiledDiscard":
+                return spoiledDiscardAccepted && spoiledBox == null &&
+                    spoiledGrid != null && spoiledGrid.IsCellFree(spoiledColumn, spoiledRow) &&
+                    InventoryManager.Instance != null &&
+                    (!InventoryManager.Instance.TryGetBatch(spoiledBatch, out var spoiled) || spoiled.unitsRemaining <= 0);
             case "Restock.SwitchFreezer":
                 return coordinator != null && coordinator.IsRestockRoomOpen &&
                        CurrentRoom == RestockStorageType.Frozen;
@@ -469,11 +548,16 @@ public sealed class TutorialRestockFlowBridge : MonoBehaviour
 
     public Transform ResolveWorld(string key)
     {
+        if (key == "RestockSpoiledBox") { EnsureSpoiledExample(); return spoiledBox != null ? spoiledBox.transform : null; }
         if (!bootstrapped) Bootstrap();
         if (key == "RestockEntrance")
             return ResolveWorld("RestockDryEntrance"); // Suggested entrance; both remain usable.
         if (key == "RestockTruck")
-            return FindFirstObjectByType<RestockTruckInteractable>(FindObjectsInactive.Include)?.transform;
+        {
+            if (truckTarget == null)
+                truckTarget = FindFirstObjectByType<RestockTruckInteractable>(FindObjectsInactive.Include)?.transform;
+            return truckTarget;
+        }
         if (key == "RestockDryEntrance" || key == "RestockFrozenEntrance")
         {
             RestockStorageType wanted = key == "RestockFrozenEntrance"
@@ -500,14 +584,17 @@ public sealed class TutorialRestockFlowBridge : MonoBehaviour
 
     public RectTransform ResolveUI(string key)
     {
+        if (key == "RestockSpoiledThrowAway")
+            return FindBoxButton(spoiledBox, "ThrowAwayButton")?.transform as RectTransform;
         if (key == "RestockBoxKeep" || key == "RestockBoxThrowAway")
         {
             Button button = FindBoxButton(ResolvePlacedLessonBox(), key == "RestockBoxKeep" ? "KeepButton" : "ThrowAwayButton");
             return button != null && button.gameObject.activeInHierarchy ? button.transform as RectTransform : null;
         }
-        if (key == "RestockPlacedBoxFocus")
+        if (key == "RestockPlacedBoxFocus" || key == "RestockSpoiledBoxFocus")
         {
-            DraggableStorageBox box = ResolvePlacedLessonBox();
+            if (key == "RestockSpoiledBoxFocus") EnsureSpoiledExample();
+            DraggableStorageBox box = key == "RestockSpoiledBoxFocus" ? spoiledBox : ResolvePlacedLessonBox();
             Camera camera = LiveRoom == null ? null :
                 typeof(RestockRoomController).GetField("roomCamera", PrivateInstance)?.GetValue(LiveRoom) as Camera;
             if (box == null || camera == null ||
@@ -636,9 +723,7 @@ public sealed class TutorialRestockFlowBridge : MonoBehaviour
     {
         if (placedLessonContainer != null && placedLessonContainer.gameObject.activeInHierarchy)
             return placedLessonContainer.GetComponent<DraggableStorageBox>();
-        if (firstPlaced) return null; // Never substitute another crate for the verified placement.
-        placedLessonContainer = FindPlacedLessonContainer();
-        return placedLessonContainer != null ? placedLessonContainer.GetComponent<DraggableStorageBox>() : null;
+        return null; // Only the observed fresh placement may become the inspection target.
     }
 
     private RestockStorageContainer FindPlacedLessonContainer()
@@ -671,12 +756,6 @@ public sealed class TutorialRestockFlowBridge : MonoBehaviour
         return null;
     }
 
-    private static bool IsBoxBeingDragged(DraggableStorageBox box)
-    {
-        FieldInfo field = typeof(DraggableStorageBox).GetField("isDragging", PrivateInstance);
-        return field != null && box != null && field.GetValue(box) is bool value && value;
-    }
-
     private static RectTransform FindActiveButton(string objectName)
     {
         foreach (Button button in FindObjectsByType<Button>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
@@ -686,6 +765,13 @@ public sealed class TutorialRestockFlowBridge : MonoBehaviour
 
     private void OnDisable()
     {
+        if (normalChoiceBox != null) normalChoiceBox.InspectionChoiceMade -= ObserveInspectionChoice;
+        if (spoiledBox != null)
+        {
+            spoiledBox.InspectionChoiceMade -= ObserveInspectionChoice;
+            spoiledBox.GetComponent<RestockStorageContainer>()?.DiscardTrackedStock();
+            spoiledBox.RemoveEmptyContainer();
+        }
         if (liveSwitch != null) liveSwitch.onClick.RemoveListener(OnRoomSwitchClicked);
         foreach (var entry in roomButtonStates) if (entry.Key != null) entry.Key.interactable = entry.Value;
         roomButtonStates.Clear();

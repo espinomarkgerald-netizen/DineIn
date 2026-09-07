@@ -22,6 +22,7 @@ public class PerformanceMonitor : MonoBehaviour
         timeLeft = updateInterval;
         // Ensure it starts hidden
         if (fpsDisplay != null) fpsDisplay.text = "";
+        isVisible = PlayerPrefs.GetInt(DineIn.NewMenu.SettingsManager.PrefShowFps, 0) == 1;
     }
 
     void Update()
@@ -48,6 +49,13 @@ public class PerformanceMonitor : MonoBehaviour
     public void ToggleVisibility(bool isOn)
     {
         isVisible = isOn;
+        if (DineIn.NewMenu.SettingsManager.Instance != null)
+            DineIn.NewMenu.SettingsManager.Instance.SetShowFps(isOn);
+        else
+        {
+            PlayerPrefs.SetInt(DineIn.NewMenu.SettingsManager.PrefShowFps, isOn ? 1 : 0);
+            PlayerPrefs.Save();
+        }
         if (!isVisible && fpsDisplay != null) fpsDisplay.text = "";
     }
 

@@ -177,6 +177,7 @@ public class RoleBasedAssignController : MonoBehaviour
 
     private bool CanHostSelectGroup(CustomerGroup group)
     {
+        if (!TutorialCustomerFlowBridge.AllowsCustomerAction(group, "Customer.Selected")) return false;
         if (group == null) return false;
 
         if (group.HasBeenAssigned)
@@ -329,6 +330,7 @@ public class RoleBasedAssignController : MonoBehaviour
 
     private void AssignGroupToBooth(CustomerGroup group, Booth booth)
     {
+        if (!TutorialCustomerFlowBridge.AllowsBoothAssignment(group, booth)) return;
         if (group == null || booth == null) return;
 
         if (!group.CanBeSeated)
