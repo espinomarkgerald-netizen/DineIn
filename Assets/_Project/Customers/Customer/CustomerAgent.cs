@@ -27,6 +27,7 @@ public class CustomerAgent : MonoBehaviour
     public NavMeshAgent Agent { get; private set; }
     public bool IsSeated { get; private set; }
     public bool IsEating { get; private set; }
+    public Animator MovementAnimator => animator;
     public Transform HeadAnchor => ResolveHeadAnchor();
 
     [Header("Arrival Tuning")]

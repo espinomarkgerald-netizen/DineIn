@@ -42,7 +42,14 @@ public sealed class ManagementComputerStation : MonoBehaviour, IInteractable
         if (controller == null)
             return;
 
-        ManagerPlayer manager = mover != null ? mover.GetComponent<ManagerPlayer>() : ManagerPlayer.Active;
+        ManagerPlayer manager;
+        if (MultiplayerDayBridge.IsActive)
+        {
+            var local = MultiplayerSessionManager.Instance.LocalManager;
+            if (local == null || (mover != null && mover.gameObject != local)) return;
+            manager = local.GetComponent<ManagerPlayer>();
+        }
+        else manager = mover != null ? mover.GetComponent<ManagerPlayer>() : ManagerPlayer.Active;
         if (manager != null)
             controller.OpenComputer(manager, this);
     }

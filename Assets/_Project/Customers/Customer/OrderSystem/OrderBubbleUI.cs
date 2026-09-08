@@ -138,6 +138,7 @@ public class OrderBubbleUI : MonoBehaviour
 
     public void OnClickBubble()
     {
+        if (MultiplayerCustomerInteractionBridge.TryHandleOrder(group)) return;
         if (!TutorialCustomerFlowBridge.AllowsServiceUI("OrderBubble")) return;
         if (group == null)
         {

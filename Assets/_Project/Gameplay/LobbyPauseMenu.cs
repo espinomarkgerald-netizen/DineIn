@@ -38,6 +38,8 @@ public sealed class LobbyPauseMenu : MonoBehaviour
     private Color buttonHighlightTint = Color.white;
     private Color buttonPressedTint = new Color(0.72f, 0.88f, 0.95f, 1f);
     private bool paused;
+    private bool multiplayerPause;
+    private ManagerPlayer pausedLocalPlayer;
     private bool usingCombinedHudView;
     private LobbyPauseMenuView combinedHudView;
     private float previousTimeScale = 1f;
@@ -56,7 +58,12 @@ public sealed class LobbyPauseMenu : MonoBehaviour
         LevelOneUIAccessibility.SettingsChanged -= RefreshAccessibilityLabels;
         if (musicSlider != null) musicSlider.onValueChanged.RemoveListener(SetMusicVolume);
         if (sfxSlider != null) sfxSlider.onValueChanged.RemoveListener(SetSfxVolume);
-        if (paused) Time.timeScale = 1f;
+        if (multiplayerPause)
+        {
+            pausedLocalPlayer?.SetExternalInputSuppressed(false);
+            GameplayUIBlocker.Instance?.SetPanelBlocksGameplay(overlay, false);
+        }
+        else if (paused) Time.timeScale = 1f;
         if (usingCombinedHudView && combinedHudView != null)
         {
             Transform generatedSettings = pauseWindow != null
@@ -354,7 +361,14 @@ public sealed class LobbyPauseMenu : MonoBehaviour
         if (paused || Time.timeScale <= 0f) return;
         paused = true;
         previousTimeScale = Time.timeScale > 0f ? Time.timeScale : 1f;
-        Time.timeScale = 0f;
+        multiplayerPause = MultiplayerHUDBridge.IsActive;
+        if (multiplayerPause)
+        {
+            pausedLocalPlayer = MultiplayerHUDBridge.LocalPlayer;
+            pausedLocalPlayer?.SetExternalInputSuppressed(true);
+            GameplayUIBlocker.Instance?.SetPanelBlocksGameplay(overlay, true);
+        }
+        else Time.timeScale = 0f;
         overlay.SetActive(true);
         pauseButton.gameObject.SetActive(false);
         if (openRoutine != null) StopCoroutine(openRoutine);
@@ -390,7 +404,14 @@ public sealed class LobbyPauseMenu : MonoBehaviour
     {
         if (!paused) return;
         paused = false;
-        Time.timeScale = previousTimeScale > 0f ? previousTimeScale : 1f;
+        if (multiplayerPause)
+        {
+            pausedLocalPlayer?.SetExternalInputSuppressed(false);
+            GameplayUIBlocker.Instance?.SetPanelBlocksGameplay(overlay, false);
+            pausedLocalPlayer = null;
+            multiplayerPause = false;
+        }
+        else Time.timeScale = previousTimeScale > 0f ? previousTimeScale : 1f;
         overlay.SetActive(false);
         pauseButton.gameObject.SetActive(true);
     }

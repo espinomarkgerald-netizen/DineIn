@@ -23,9 +23,12 @@ public class KitchenManager : MonoBehaviour
         public float CookDurationSeconds { get; }
         public float PredictedReadyAt { get; }
         public ForecastState State { get; }
+        public bool IsPaused { get; }
+        public bool AwaitingSpawn { get; }
 
-        public float RemainingSeconds => Mathf.Max(0f, PredictedReadyAt - Time.time);
-        public bool HasReliableReadyTime => State == ForecastState.Cooking;
+        public float RemainingSeconds => AwaitingSpawn ? 0f : IsPaused ? PreparationDelaySeconds + CookDurationSeconds
+            : Mathf.Max(0f, PredictedReadyAt - Time.time);
+        public bool HasReliableReadyTime => !IsPaused && State == ForecastState.Cooking;
 
         internal OrderForecast(
             CustomerGroup group,
@@ -35,7 +38,7 @@ public class KitchenManager : MonoBehaviour
             float preparationDelaySeconds,
             float cookDurationSeconds,
             float predictedReadyAt,
-            ForecastState state)
+            ForecastState state, bool isPaused = false, bool awaitingSpawn = false)
         {
             Group = group;
             OrderNumber = orderNumber;
@@ -45,6 +48,8 @@ public class KitchenManager : MonoBehaviour
             CookDurationSeconds = cookDurationSeconds;
             PredictedReadyAt = predictedReadyAt;
             State = state;
+            IsPaused = isPaused;
+            AwaitingSpawn = awaitingSpawn;
         }
     }
 
@@ -58,6 +63,8 @@ public class KitchenManager : MonoBehaviour
         public float cookDurationSeconds;
         public float predictedReadyAt;
         public ForecastState state;
+        public bool isPaused;
+        public bool awaitingSpawn;
 
         public OrderForecast Snapshot => new OrderForecast(
             group,
@@ -67,7 +74,7 @@ public class KitchenManager : MonoBehaviour
             preparationDelaySeconds,
             cookDurationSeconds,
             predictedReadyAt,
-            state);
+            state, isPaused, awaitingSpawn);
     }
 
     [Header("Dine-In Spawn Points")]
@@ -92,6 +99,105 @@ public class KitchenManager : MonoBehaviour
         new Dictionary<int, ActiveOrderForecast>();
 
     private TrayPickupQueue pickupQueue;
+    private readonly Dictionary<int, FoodTray> preparedResults = new();
+    private readonly Dictionary<int, int> preparedSlots = new();
+    private readonly HashSet<int> spawningResults = new();
+
+    public bool TryGetPreparedSlot(int orderNumber, out int slot) => preparedSlots.TryGetValue(orderNumber, out slot);
+    public FoodTray GetPreparedResult(int orderNumber) => preparedResults.TryGetValue(orderNumber, out var tray) ? tray : null;
+
+    public bool TryGetPreparedTray(int orderNumber, out FoodTray tray)
+    {
+        tray = null;
+        if (!preparedResults.TryGetValue(orderNumber, out var result) || result == null
+            || !preparedSlots.TryGetValue(orderNumber, out int slot) || traySpawnPoints == null
+            || slot < 0 || slot >= traySpawnPoints.Length || traySpawnPoints[slot] == null
+            || result.transform.parent != traySpawnPoints[slot] || result.orderNumber != orderNumber
+            || result.TargetGroup == null || !result.TargetGroup.HasConfirmedOrder
+            || result.TargetGroup.currentOrderNumber != orderNumber
+            || result.TargetGroup.state != CustomerGroup.GroupState.OrderTaken) return false;
+        tray = result;
+        return true;
+    }
+
+    public bool CarryPreparedTray(CustomerGroup group, WaiterHands hands)
+    {
+        if (group == null || group.IsNetworkObserver || hands == null || hands.HasTray || hands.HasBill
+            || (hands.GetComponent<BusserHands>() != null && hands.GetComponent<BusserHands>().HasTray)
+            || hands.HasTicket || hands.HasMoney || !TryGetPreparedTray(group.currentOrderNumber, out var tray)
+            || tray.TargetGroup != group || !completedOrders.Contains(group.currentOrderNumber)) return false;
+        tray.NetworkCarryLocked = true;
+        if (!hands.PickupTray(tray)) { tray.NetworkCarryLocked = false; return false; }
+        preparedSlots.Remove(group.currentOrderNumber);
+        return true;
+    }
+
+    public void PresentCarriedTray(CustomerGroup group, WaiterHands hands)
+    {
+        if (group == null || (!group.IsNetworkObserver && !group.PauseAfterSeating)
+            || !group.HasConfirmedOrder || foodTrayPrefab == null || MenuCatalog.Default == null) return;
+        int order = group.currentOrderNumber;
+        if (!preparedResults.TryGetValue(order, out var tray) || tray == null)
+        {
+            // Recovery uses the preserved order, never another kitchen job or output slot.
+            tray = Instantiate(foodTrayPrefab, transform);
+            tray.Init(group, preserveOrderSnapshot: true);
+            preparedResults[order] = tray;
+        }
+        preparedSlots.Remove(order);
+        tray.NetworkCarryLocked = true;
+        foreach (var body in tray.GetComponentsInChildren<Rigidbody>(true)) body.isKinematic = true;
+        WaiterHands.SetAllColliders(tray.gameObject, false);
+        if (hands == null)
+        {
+            tray.transform.SetParent(transform, true);
+            tray.gameObject.SetActive(false); // Preserved, awaiting carrier recovery; not a free-slot result.
+            return;
+        }
+        if (hands.holdingTray == tray) { tray.gameObject.SetActive(true); return; }
+        if (hands.HasTray || hands.HasBill || hands.HasTicket || hands.HasMoney) return;
+        tray.gameObject.SetActive(true);
+        hands.PickupTray(tray);
+    }
+
+    public bool ResumePreparedSpawn(CustomerGroup group)
+    {
+        if (group == null || group.IsNetworkObserver || group.IsTakeout || !group.PauseAfterSeating
+            || !activeOrderForecasts.TryGetValue(group.currentOrderNumber, out var active)
+            || active.group != group || !active.awaitingSpawn || !active.isPaused
+            || completedOrders.Contains(active.orderNumber) || !spawningResults.Add(active.orderNumber)) return false;
+        active.awaitingSpawn = false;
+        StartCoroutine(CookAndSpawn(group, active.orderNumber, false, 0f, 0f, resumeAtSpawn: true));
+        return true;
+    }
+
+    public void PresentPreparedResult(CustomerGroup group, int slotIndex)
+    {
+        if (group == null || !group.IsNetworkObserver || !group.HasConfirmedOrder || group.IsTakeout
+            || traySpawnPoints == null || slotIndex < 0 || slotIndex >= traySpawnPoints.Length
+            || traySpawnPoints[slotIndex] == null || foodTrayPrefab == null || MenuCatalog.Default == null) return;
+        int order = group.currentOrderNumber;
+        if (preparedResults.TryGetValue(order, out var existing) && existing != null) return;
+        var slot = traySpawnPoints[slotIndex];
+        // Never choose an alternative slot on observers.
+        if (slot.GetComponentInChildren<FoodTray>() != null) return;
+        var tray = Instantiate(foodTrayPrefab, slot.position, slot.rotation, slot);
+        tray.Init(group, preserveOrderSnapshot: true);
+        BlockPreparedPickup(tray);
+        preparedResults[order] = tray;
+        preparedSlots[order] = slotIndex;
+    }
+
+    private static void BlockPreparedPickup(FoodTray tray)
+    {
+        var interaction = tray.GetComponent<FoodTrayInteractable>();
+        if (interaction != null) { interaction.SetCleanupPickable(false); interaction.enabled = true; }
+        foreach (var collider in tray.GetComponentsInChildren<Collider>(true)) collider.enabled = false;
+        var selectionCollider = tray.GetComponent<Collider>();
+        if (selectionCollider == null) selectionCollider = tray.GetComponentInChildren<Collider>(true);
+        if (selectionCollider != null) selectionCollider.enabled = true;
+        foreach (var body in tray.GetComponentsInChildren<Rigidbody>(true)) body.isKinematic = true;
+    }
 
     public event Action<CustomerGroup, int> OrderStarted;
     public event Action<CustomerGroup, int, bool> OrderFinished;
@@ -189,7 +295,52 @@ public class KitchenManager : MonoBehaviour
         );
     }
 
-    public bool ProcessOrder(CustomerGroup group)
+    public bool CanAcceptOrderNumber(int orderNumber) => orderNumber >= 0
+        && !completedOrders.Contains(orderNumber) && !cookingOrders.Contains(orderNumber);
+
+    public void PresentObservedAcceptedOrder(CustomerGroup group, int orderNumber,
+        float startedAt, float preparationDelay, float cookDuration, float predictedReadyAt,
+        bool isPaused, bool awaitingSpawn, ForecastState state)
+    {
+        if (group == null || !group.IsNetworkObserver || !group.HasConfirmedOrder
+            || group.currentOrderNumber != orderNumber || orderNumber < 0) return;
+        if (activeOrderForecasts.TryGetValue(orderNumber, out var existing))
+        {
+            // Order numbers are unique in the real collection; never replace another group.
+            if (existing.group != group) return;
+            if (existing.startedAt == startedAt && existing.preparationDelaySeconds == preparationDelay
+                && existing.cookDurationSeconds == cookDuration && existing.predictedReadyAt == predictedReadyAt
+                && existing.isPaused == isPaused && existing.awaitingSpawn == awaitingSpawn && existing.state == state) return;
+        }
+        var entry = new ActiveOrderForecast
+        {
+            group = group, orderNumber = orderNumber, isTakeout = group.IsTakeout,
+            startedAt = startedAt, preparationDelaySeconds = preparationDelay,
+            cookDurationSeconds = cookDuration, predictedReadyAt = predictedReadyAt,
+            state = state, isPaused = isPaused, awaitingSpawn = awaitingSpawn
+        };
+        activeOrderForecasts[orderNumber] = entry;
+        NotifyForecastChanged(entry);
+        // Presentation only: no cookingOrders registration, OrderStarted, or coroutine.
+    }
+
+    public bool ResumeAcceptedOrder(CustomerGroup group)
+    {
+        if (group == null || group.IsNetworkObserver || !group.PauseAfterSeating
+            || !activeOrderForecasts.TryGetValue(group.currentOrderNumber, out var active)
+            || active.group != group || !active.isPaused || active.awaitingSpawn
+            || spawningResults.Contains(active.orderNumber)
+            || !IsOrderStillValid(group, active.orderNumber)) return false;
+        active.isPaused = false;
+        active.startedAt = Time.time;
+        active.predictedReadyAt = active.startedAt + active.preparationDelaySeconds + active.cookDurationSeconds;
+        NotifyForecastChanged(active);
+        StartCoroutine(CookAndSpawn(group, active.orderNumber, active.isTakeout,
+            active.preparationDelaySeconds, active.cookDurationSeconds, pauseBeforeSpawn: true));
+        return true;
+    }
+
+    public bool ProcessOrder(CustomerGroup group, bool pauseAfterAcceptance = false)
     {
         if (group == null)
         {
@@ -243,19 +394,20 @@ public class KitchenManager : MonoBehaviour
             preparationDelaySeconds = preparationSnapshot,
             cookDurationSeconds = cookSnapshot,
             predictedReadyAt = startedAt + preparationSnapshot + cookSnapshot,
-            state = ForecastState.Cooking
+            state = ForecastState.Cooking,
+            isPaused = pauseAfterAcceptance
         };
         activeOrderForecasts[orderNo] = activeForecast;
 
         Debug.Log($"[KitchenManager] Starting cook for order #{orderNo} — group={group.name} isTakeout={isTakeout}.");
         NotifyForecastChanged(activeForecast);
-        StartCoroutine(CookAndSpawn(
+        if (!pauseAfterAcceptance) StartCoroutine(CookAndSpawn(
             group,
             orderNo,
             isTakeout,
             preparationSnapshot,
             cookSnapshot));
-        OrderStarted?.Invoke(group, orderNo);
+        if (!pauseAfterAcceptance) OrderStarted?.Invoke(group, orderNo);
         return true;
     }
 
@@ -264,25 +416,37 @@ public class KitchenManager : MonoBehaviour
         int orderNo,
         bool isTakeout,
         float preparationSnapshot,
-        float cookSnapshot)
+        float cookSnapshot, bool pauseBeforeSpawn = false, bool resumeAtSpawn = false)
     {
         bool spawnedSuccessfully = false;
+        bool heldBeforeSpawn = false;
 
         try
         {
-            if (preparationSnapshot > 0f)
+            if (!resumeAtSpawn && preparationSnapshot > 0f)
                 yield return new WaitForSeconds(preparationSnapshot);
 
-            if (ProcessingBillIndicatorUI.Instance != null)
+            if (!resumeAtSpawn && ProcessingBillIndicatorUI.Instance != null)
                 ProcessingBillIndicatorUI.Instance.Show("Order #" + orderNo + " is being prepared");
 
-            if (cookSnapshot > 0f)
+            if (!resumeAtSpawn && cookSnapshot > 0f)
                 yield return new WaitForSeconds(cookSnapshot);
 
             if (!IsOrderStillValid(group, orderNo))
             {
                 if (ProcessingBillIndicatorUI.Instance != null)
                     ProcessingBillIndicatorUI.Instance.Hide();
+                yield break;
+            }
+
+            if (pauseBeforeSpawn)
+            {
+                if (!activeOrderForecasts.TryGetValue(orderNo, out var held)) yield break;
+                heldBeforeSpawn = true;
+                held.isPaused = true;
+                held.awaitingSpawn = true;
+                NotifyForecastChanged(held);
+                ProcessingBillIndicatorUI.Instance?.Hide();
                 yield break;
             }
 
@@ -374,10 +538,16 @@ public class KitchenManager : MonoBehaviour
             else
             {
                 FoodTray tray = Instantiate(foodTrayPrefab, freeSlot.position, freeSlot.rotation, freeSlot);
-                tray.Init(group);
+                tray.Init(group, preserveOrderSnapshot: resumeAtSpawn);
 
                 FoodTrayInteractable it = tray.GetComponent<FoodTrayInteractable>();
-                if (it != null)
+                if (resumeAtSpawn)
+                {
+                    BlockPreparedPickup(tray);
+                    preparedResults[orderNo] = tray;
+                    preparedSlots[orderNo] = Array.IndexOf(traySpawnPoints, freeSlot);
+                }
+                else if (it != null)
                     it.SetDeliveryPickable(pickupQueue);
                 else
                     Debug.LogWarning("[KitchenManager] FoodTrayInteractable missing on FoodTray prefab.");
@@ -393,14 +563,22 @@ public class KitchenManager : MonoBehaviour
         }
         finally
         {
-            cookingOrders.Remove(orderNo);
-            CompleteForecast(
-                orderNo,
-                spawnedSuccessfully ? ForecastState.Completed : ForecastState.Canceled);
-            OrderFinished?.Invoke(group, orderNo, spawnedSuccessfully);
+            if (!heldBeforeSpawn)
+            {
+                cookingOrders.Remove(orderNo);
+                if (resumeAtSpawn && activeOrderForecasts.TryGetValue(orderNo, out var finished))
+                {
+                    finished.isPaused = true;
+                    finished.awaitingSpawn = false;
+                    finished.state = spawnedSuccessfully ? ForecastState.Completed : ForecastState.Canceled;
+                    NotifyForecastChanged(finished);
+                }
+                else CompleteForecast(orderNo, spawnedSuccessfully ? ForecastState.Completed : ForecastState.Canceled);
+                OrderFinished?.Invoke(group, orderNo, spawnedSuccessfully);
 
-            if (!spawnedSuccessfully && ProcessingBillIndicatorUI.Instance != null && cookingOrders.Count == 0)
-                ProcessingBillIndicatorUI.Instance.Hide();
+                if (!spawnedSuccessfully && ProcessingBillIndicatorUI.Instance != null && cookingOrders.Count == 0)
+                    ProcessingBillIndicatorUI.Instance.Hide();
+            }
         }
     }
 

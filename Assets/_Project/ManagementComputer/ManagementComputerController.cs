@@ -1220,6 +1220,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
 
     public void TryStartShift()
     {
+        if (MultiplayerDayBridge.TryRequestStart()) return;
         if (GameDayManager.Instance == null)
         {
             ShowDesktopHint("Shift controller not found.", true);
@@ -1237,11 +1238,24 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
 
     private void StartShiftConfirmed()
     {
+        if (MultiplayerDayBridge.TryRequestStart()) return;
+        CompleteStartShift(false);
+    }
+
+    // Called only by the optional authority bridge after validating the requesting player.
+    public bool StartShiftOnAuthority()
+    {
+        if (!MultiplayerDayBridge.CanCommit) return false;
+        return CompleteStartShift(true);
+    }
+
+    private bool CompleteStartShift(bool startImmediately)
+    {
         StartChecklistSnapshot readiness = BuildStartChecklist();
         if (readiness.blockers > 0)
         {
             OpenStartChecklist();
-            return;
+            return false;
         }
 
         // Race-safe final newspaper gate. In normal use this is already green
@@ -1250,7 +1264,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         if (!CasualDiningPolishManager.EnsureInstance().TryAllowStartShift())
         {
             OpenStartChecklist();
-            return;
+            return false;
         }
 
         RestockFlowCoordinator.Instance?.AcknowledgeStartReadinessWarnings();
@@ -1274,7 +1288,9 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
 
         GameSaveManager.Instance?.RequestSave();
         CloseComputer();
-        GameDayManager.Instance.ShowShiftIntro();
+        if (startImmediately) GameDayManager.Instance.StartShift();
+        else GameDayManager.Instance.ShowShiftIntro();
+        return !startImmediately || GameDayManager.Instance.ShiftRunning;
     }
 
     private void OpenStartChecklist()
@@ -1671,8 +1687,9 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         }
 
         bool active = IsShiftActive;
-        if (startShiftLabel != null) startShiftLabel.text = active ? "SHIFT RUNNING" : "START SHIFT";
-        if (startShiftButton != null) startShiftButton.interactable = !active;
+        bool ended = MultiplayerDayBridge.IsActive && GameDayManager.Instance != null && GameDayManager.Instance.HasDayResults;
+        if (startShiftLabel != null) startShiftLabel.text = ended ? "SHIFT ENDED" : active ? "SHIFT RUNNING" : "START SHIFT";
+        if (startShiftButton != null) startShiftButton.interactable = !active && !ended;
 
         ResolveStaffNotificationBadge();
         bool newApplicants = EmployeeManager.Instance != null &&

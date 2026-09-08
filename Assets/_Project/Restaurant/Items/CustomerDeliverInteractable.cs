@@ -12,6 +12,7 @@ public class CustomerDeliverInteractable : MonoBehaviour, IInteractable
 
     public Transform StandPoint => ResolveStandPoint();
     public bool AutoReturnHome => false;
+    public Transform DeliveryPoint => ResolveDropPoint();
 
     private void Awake()
     {
@@ -21,8 +22,11 @@ public class CustomerDeliverInteractable : MonoBehaviour, IInteractable
 
     public bool CanInteract()
     {
+        if (MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer)
+            return MultiplayerCustomerInteractionBridge.CanAttemptServe(booth != null ? booth.CurrentGroup : null);
         var hands = WaiterHands.ActivePlayerHands;
         if (hands == null || !hands.HasTray) return false;
+        if (hands.holdingTray.NetworkCarryLocked) return false;
 
         if (booth == null || booth.CurrentGroup == null) return false;
 
@@ -36,6 +40,7 @@ public class CustomerDeliverInteractable : MonoBehaviour, IInteractable
 
     public void Interact(PlayerMovement mover)
     {
+        if (MultiplayerCustomerInteractionBridge.TryServe(booth != null ? booth.CurrentGroup : null, mover)) return;
         if (!CanInteract()) return;
 
         var hands = WaiterHands.For(mover);

@@ -440,6 +440,53 @@ public class CustomerGroup : MonoBehaviour
     private Vector3 currentLineSlotTarget;
     // Optional presentation bridge; normal groups never opt into observer mode.
     public bool IsNetworkObserver { get; set; }
+    public bool PauseAfterSeating { get; set; }
+    public bool PauseBeforeEating { get; set; }
+
+    public void PresentObservedServed(FoodTray tray)
+    {
+        if (!IsNetworkObserver) return;
+        firstDeliveryCompleted = true;
+        activeFoodTray = tray;
+        state = GroupState.Eating;
+        assignedBooth?.ClearMenuBook();
+        ClearTableNumber();
+        ClearEatingBubble();
+    }
+    private bool readinessOnly;
+
+    public bool GeneratePausedOrderOnce()
+    {
+        if (IsNetworkObserver || !readinessOnly || !PauseAfterSeating || state != GroupState.ReadyToOrder)
+            return false;
+        // Generation also names empty/stock-unavailable outcomes, so they never reroll.
+        if (currentOrder == null || string.IsNullOrEmpty(currentOrder.name))
+            GenerateRandomOrder();
+        if (currentOrderNumber < 0 && currentOrder != null && currentOrder.lines.Count > 0)
+            currentOrderNumber = OrderNumberManager.Instance != null
+                ? OrderNumberManager.Instance.GetNextOrderNumber()
+                : UnityEngine.Random.Range(100, 999);
+        return currentOrder != null;
+    }
+
+    public void ResumePausedOrderReadiness()
+    {
+        if (IsNetworkObserver || !PauseAfterSeating || state != GroupState.Seated) return;
+        readinessOnly = true;
+        StartReadyToOrderFlow();
+    }
+
+    public void PresentObservedAssignment(Booth booth, GroupState phase)
+    {
+        if (!IsNetworkObserver || booth == null) return;
+        hasBeenAssigned = true;
+        assignedBooth = booth;
+        state = phase;
+        if (booth.CurrentGroup != this) booth.SetCurrentGroup(this);
+        if (phase == GroupState.Seated || phase == GroupState.WaitingToOrder || phase == GroupState.ReadyToOrder)
+            booth.SpawnMenuBook();
+        if (phase == GroupState.ReadyToOrder) RestoreOrderBubbleIfWaiting();
+    }
     public Vector3 QueueDestination => currentLineSlotTarget;
     public float QueuePatience01 => Mathf.Clamp01(linePatienceRemaining / Mathf.Max(1f, linePatienceSeconds));
     public bool QueuePatienceVisible => CanUseLinePatience();
@@ -749,7 +796,7 @@ public class CustomerGroup : MonoBehaviour
             (state == GroupState.Eating) != (newState == GroupState.Eating);
         state = newState;
 
-        if (eatingVisualChanged)
+        if (eatingVisualChanged && !(state == GroupState.Eating && PauseBeforeEating))
             SetMembersEating(state == GroupState.Eating);
 
         RefreshMemberProceduralState();
@@ -776,7 +823,7 @@ public class CustomerGroup : MonoBehaviour
             GroupState.WaitingToOrder => CustomerProceduralState.BrowseMenu,
             GroupState.ReadyToOrder => CustomerProceduralState.RequestOrder,
             GroupState.OrderTaken => CustomerProceduralState.WaitingForFood,
-            GroupState.Eating => CustomerProceduralState.Eating,
+            GroupState.Eating => PauseBeforeEating ? CustomerProceduralState.WaitingForFood : CustomerProceduralState.Eating,
             GroupState.NeedsBill => CustomerProceduralState.RequestBill,
             GroupState.Leaving or GroupState.AngryLeft or GroupState.UnhappyLeft =>
                 CustomerProceduralState.Leaving,
@@ -1053,7 +1100,7 @@ public class CustomerGroup : MonoBehaviour
         if (assignedBooth != null)
             assignedBooth.SpawnMenuBook();
 
-        if (!tutorialDisableAutoOrderFlow)
+        if (!tutorialDisableAutoOrderFlow && !PauseAfterSeating)
             StartReadyToOrderFlow();
     }
 
@@ -1063,6 +1110,13 @@ public class CustomerGroup : MonoBehaviour
 
         float delay = UnityEngine.Random.Range(minOrderDelay, maxOrderDelay);
         yield return new WaitForSeconds(delay);
+
+        if (readinessOnly)
+        {
+            SetState(GroupState.ReadyToOrder);
+            SpawnOrderBubble();
+            yield break;
+        }
 
         GenerateRandomOrder();
 
@@ -1794,7 +1848,7 @@ public class CustomerGroup : MonoBehaviour
         GameDayManager.Instance?.RegisterFoodDelivered();
         if (eatingRoutine != null)
             StopCoroutine(eatingRoutine);
-        eatingRoutine = StartCoroutine(EatThenNeedBill());
+        if (!PauseBeforeEating) eatingRoutine = StartCoroutine(EatThenNeedBill());
     }
 
     public void ReceiveWrongFoodFromWaiter()

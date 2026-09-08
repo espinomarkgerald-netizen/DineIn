@@ -195,6 +195,24 @@ public class GameDayManager : MonoBehaviour
     private float continuePurchaseConfirmUntil;
     private PlayFabWalletManager resultsWallet;
 
+    // Optional day authority hooks; unset in the original single-player scenes.
+    public System.Func<bool> StartShiftInterception { get; set; }
+    public bool ObserveDayOnly { get; set; }
+    public bool ClosingOut => closingOut;
+    public bool HasDayResults => resultsHaveOutcome;
+
+    public void ApplyObservedDay(int day, bool running, bool closing, bool ended, float remaining)
+    {
+        if (!ObserveDayOnly) return;
+        shiftRunning = running;
+        closingOut = closing;
+        resultsHaveOutcome = ended;
+        timeRemaining = Mathf.Clamp(remaining, 0f, ShiftLengthSeconds);
+        GameFlowManager.Instance?.ApplyObservedRestaurantDay(day, running || closing, ended);
+        SetPanelVisible(dayIntroPanel, false);
+        RefreshUI();
+    }
+
     public bool ShiftRunning => shiftRunning;
     public bool ServiceActive => shiftRunning || closingOut;
     public float TimeRemaining => timeRemaining;
@@ -293,6 +311,7 @@ public class GameDayManager : MonoBehaviour
 
     private void Update()
     {
+        if (ObserveDayOnly) return;
         UpdateMoodBarsSmooth();
         UpdateContinuePurchaseConfirmation();
         RefreshResultsResponsiveLayout();
@@ -527,6 +546,7 @@ public class GameDayManager : MonoBehaviour
 
     public void ConfirmStartShift()
     {
+        if (StartShiftInterception?.Invoke() == true) return;
         if (!CasualDiningPolishManager.EnsureInstance().TryAllowStartShift())
             return;
 
@@ -551,6 +571,7 @@ public class GameDayManager : MonoBehaviour
 
     public void StartShift()
     {
+        if (StartShiftInterception?.Invoke() == true || ObserveDayOnly) return;
         if (shiftRunning || closingOut)
             return;
 
@@ -620,6 +641,7 @@ public class GameDayManager : MonoBehaviour
 
     public void EndShift()
     {
+        if (ObserveDayOnly) return;
         if (!shiftRunning)
             return;
 

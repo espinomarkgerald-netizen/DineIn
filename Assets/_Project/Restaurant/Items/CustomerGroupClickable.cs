@@ -12,6 +12,7 @@ public class CustomerGroupClickable : MonoBehaviour
 
     private void OnMouseDown()
     {
+        if (MultiplayerCustomerInteractionBridge.TryServe(group)) return;
         if (!TutorialCustomerFlowBridge.AllowsWorldInteraction(transform)) return;
         WaiterHands hands = WaiterHands.ActivePlayerHands;
         if (group == null || hands == null) return;
@@ -28,6 +29,7 @@ public class CustomerGroupClickable : MonoBehaviour
 
             var tray = hands.holdingTray;
             if (tray == null) return;
+            if (tray.NetworkCarryLocked) return;
 
             List<string> deliveredContents = new List<string>();
 

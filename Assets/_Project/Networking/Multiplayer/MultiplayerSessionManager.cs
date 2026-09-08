@@ -33,6 +33,8 @@ public class MultiplayerSessionManager : MonoBehaviourPunCallbacks
             return;
         }
         Instance = this;
+        if (GetComponent<MultiplayerHUDBridge>() == null) gameObject.AddComponent<MultiplayerHUDBridge>();
+        if (GetComponent<MultiplayerDayBridge>() == null) gameObject.AddComponent<MultiplayerDayBridge>();
     }
 
     public bool TryGetManager(int actorNumber, out GameObject manager)

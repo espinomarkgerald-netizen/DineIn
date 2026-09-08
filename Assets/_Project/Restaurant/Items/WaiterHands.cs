@@ -196,6 +196,7 @@ public class WaiterHands : MonoBehaviour
 
     public void ClearTray()
     {
+        if (holdingTray != null && holdingTray.NetworkCarryLocked) return;
         FoodTray completedTray = holdingTray;
         holdingTray = null;
         RestaurantTaskClaim.Complete(completedTray);
@@ -229,6 +230,7 @@ public class WaiterHands : MonoBehaviour
 
     public void DisposeTray(bool destroyObject = true)
     {
+        if (holdingTray != null && holdingTray.NetworkCarryLocked) return;
         var tray = holdingTray;
         holdingTray = null;
 
@@ -327,6 +329,7 @@ public class WaiterHands : MonoBehaviour
 
     public bool TryDeliverTrayTo(CustomerGroup group, bool destroyTrayObject = true)
     {
+        if (holdingTray != null && holdingTray.NetworkCarryLocked) return false;
         if (group == null || holdingTray == null)
             return false;
 

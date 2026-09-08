@@ -52,6 +52,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
 
     private void Update()
     {
+        if (MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer) return;
         CheckCleanupState();
         RefreshUI();
     }
@@ -241,6 +242,8 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
 
     public bool CanInteract()
     {
+        if (MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer)
+            return MultiplayerCustomerInteractionBridge.CanClaimPreparedTray(tray);
         if (mode == TrayMode.None) return false;
         if (tray == null) return false;
         if (RestaurantTaskClaim.IsClaimedByBot(tray)) return false;
@@ -271,6 +274,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
 
     public void Interact(PlayerMovement mover)
     {
+        if (MultiplayerCustomerInteractionBridge.TryClaimPreparedTray(tray, mover)) return;
         if (!CanInteractWithWarning())
         {
             RestaurantTaskClaim.ReleasePlayer(tray);
@@ -360,6 +364,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
 
     public void UI_RequestPickup()
     {
+        if (MultiplayerCustomerInteractionBridge.TryClaimPreparedTray(tray)) return;
         if (!TutorialCustomerFlowBridge.AllowsServiceUI(
             CurrentMode == TrayMode.Cleanup ? "CleanupPickupButton" : "TrayPickupButton")) return;
         if (!CanInteractWithWarning()) return;

@@ -5,6 +5,7 @@ public class FoodTray : MonoBehaviour
 {
     [Header("Runtime")]
     public int orderNumber;
+    public bool NetworkCarryLocked { get; set; }
     private CustomerGroup targetGroup;
 
     [Header("Order Data")]
@@ -45,6 +46,7 @@ public class FoodTray : MonoBehaviour
 
     public CustomerGroup TargetGroup => targetGroup;
     public bool ContainsBurntFood => containsBurntFood;
+    public IReadOnlyList<string> DeliveredProductIds => deliveredProductIds;
 
     public void SetContainsBurntFood(bool burnt)
     {
@@ -214,7 +216,7 @@ public class FoodTray : MonoBehaviour
         }
     }
 
-    public void Init(CustomerGroup group)
+    public void Init(CustomerGroup group, bool preserveOrderSnapshot = false)
     {
         targetGroup = group;
         orderNumber = group != null ? group.currentOrderNumber : -1;
@@ -232,12 +234,14 @@ public class FoodTray : MonoBehaviour
             if (group.submittedOrder != null && group.submittedOrder.contents != null && group.submittedOrder.contents.Count > 0)
             {
                 orderName = group.submittedOrder.name;
-                SetDeliveredProducts(group.submittedOrder.ResolveProducts());
+                SetDeliveredProducts(preserveOrderSnapshot ? MenuCatalog.Default.ResolveProducts(group.submittedOrder.productIds)
+                    : group.submittedOrder.ResolveProducts());
             }
             else if (group.currentOrder != null)
             {
                 orderName = group.currentOrder.name;
-                SetDeliveredProducts(group.currentOrder.ResolveProducts());
+                SetDeliveredProducts(preserveOrderSnapshot ? MenuCatalog.Default.ResolveProducts(group.currentOrder.productIds)
+                    : group.currentOrder.ResolveProducts());
             }
             else
             {

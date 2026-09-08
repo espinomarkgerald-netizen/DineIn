@@ -196,7 +196,7 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
     public void RefreshVisibility()
     {
         string activeScene = SceneManager.GetActiveScene().name;
-        bool inLobby = activeScene == LobbySceneName;
+        bool inLobby = activeScene == LobbySceneName || MultiplayerHUDBridge.IsActive;
         bool inRestock = activeScene == "RestockScene";
         bool taskHudScene = inLobby || inRestock;
         bool visible = taskHudScene && !GameplayUIBlocker.IsBlocked();
@@ -378,9 +378,12 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
         liveCountsText.text = value;
     }
 
+    private static ManagerPlayer LocalHudPlayer => MultiplayerHUDBridge.IsActive
+        ? MultiplayerHUDBridge.LocalPlayer : ManagerPlayer.Active;
+
     private void RefreshInteractionLabel()
     {
-        PlayerMovement movement = ManagerPlayer.Active != null ? ManagerPlayer.Active.Movement : null;
+        PlayerMovement movement = LocalHudPlayer != null ? LocalHudPlayer.Movement : null;
         IInteractable target = movement != null
             ? movement.LockedTarget ?? movement.CurrentTarget
             : null;
@@ -492,6 +495,13 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
 
     private void FocusCameraOnManager()
     {
+        if (MultiplayerHUDBridge.IsActive)
+        {
+            var player = MultiplayerHUDBridge.LocalPlayer;
+            if (player != null)
+                FindFirstObjectByType<MainCameraController>()?.SetRigTargetPosition(player.transform.position, false);
+            return;
+        }
         CameraController cameraController = FindFirstObjectByType<CameraController>();
         if (cameraController != null)
         {
@@ -500,13 +510,13 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
         }
 
         MainCameraController mainCamera = FindFirstObjectByType<MainCameraController>();
-        if (mainCamera != null && ManagerPlayer.Active != null)
-            mainCamera.SetRigTargetPosition(ManagerPlayer.Active.transform.position, false);
+        if (mainCamera != null && LocalHudPlayer != null)
+            mainCamera.SetRigTargetPosition(LocalHudPlayer.transform.position, false);
     }
 
     private void OpenComputerThroughManager()
     {
-        ManagerPlayer manager = ManagerPlayer.Active;
+        ManagerPlayer manager = LocalHudPlayer;
         if (manager == null || manager.Movement == null)
             return;
 

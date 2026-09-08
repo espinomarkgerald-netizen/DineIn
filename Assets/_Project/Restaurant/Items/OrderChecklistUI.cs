@@ -192,6 +192,7 @@ public class OrderChecklistUI : MonoBehaviour
 
     private void OnDisable()
     {
+        if (group != null) MultiplayerCustomerInteractionBridge.CloseReview(group);
         UnsubscribeFromUnlocks();
         UnsubscribeFromStock();
     }
@@ -675,8 +676,9 @@ public class OrderChecklistUI : MonoBehaviour
     {
         if (customerGroup == null)
             return;
+        if (!MultiplayerCustomerInteractionBridge.CanOpenReview(customerGroup)) return;
 
-        if (!customerGroup.BeginPlayerOrderReview())
+        if (!MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer && !customerGroup.BeginPlayerOrderReview())
         {
             customerGroup.SetOrderTaskClaimedByStaff(false);
             RestaurantTaskClaim.ReleasePlayer(customerGroup);
@@ -715,7 +717,7 @@ public class OrderChecklistUI : MonoBehaviour
             typingRoutine = null;
         }
 
-        if (group != null)
+        if (group != null && !MultiplayerCustomerInteractionBridge.CloseReview(group))
         {
             group.EndPlayerOrderReview();
             if (group.state == CustomerGroup.GroupState.ReadyToOrder)
@@ -1119,6 +1121,16 @@ public class OrderChecklistUI : MonoBehaviour
         if (group == null || catalog == null)
             return;
 
+        if (MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer)
+        {
+            var snapshot = group.currentOrder;
+            if (snapshot == null) return;
+            requestedProducts.AddRange(catalog.ResolveProducts(snapshot.productIds));
+            requestedContents.AddRange(snapshot.contents);
+            foreach (var line in snapshot.lines)
+                if (line != null) requestedOrderLines.Add(line.Clone());
+            return;
+        }
         requestedProducts.AddRange(catalog.ResolveProducts(group.GetCurrentOrderProductIds()));
         if (requestedProducts.Count == 0)
             requestedProducts.AddRange(catalog.ResolveProducts(group.GetCurrentOrderContents()));
@@ -1639,6 +1651,8 @@ public class OrderChecklistUI : MonoBehaviour
             ShowReviewPanel(review);
             return;
         }
+
+        if (MultiplayerCustomerInteractionBridge.TryConfirmOrder(group)) return;
 
         if (!TryBuildSelection(
             out List<CustomerGroup.OrderLine> selectedLines,

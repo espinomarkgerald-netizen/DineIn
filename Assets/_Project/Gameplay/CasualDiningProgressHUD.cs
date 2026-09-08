@@ -309,7 +309,7 @@ public sealed class CasualDiningProgressHUD : MonoBehaviour
         // RestockScene is loaded additively while Lobby1 remains loaded. Checking
         // all loaded scenes therefore leaks this gameplay HUD into both restock rooms.
         // The active scene is authoritative: only normal Lobby gameplay may show it.
-        supportedSceneVisible = SceneManager.GetActiveScene().name == supportedScene;
+        supportedSceneVisible = SceneManager.GetActiveScene().name == supportedScene || MultiplayerHUDBridge.IsActive;
         if (hudCanvas != null) hudCanvas.enabled = supportedSceneVisible;
         if (supportedSceneVisible) HideLegacyProgressBars();
     }
@@ -421,6 +421,8 @@ public sealed class CasualDiningProgressHUD : MonoBehaviour
         }
 
         string timeLabel = dayManager != null ? dayManager.FormattedGameTime : previewTimeText;
+        if (MultiplayerHUDBridge.IsActive && dayManager != null && !dayManager.ShiftRunning)
+            timeLabel = dayManager.ClosingOut ? "CLOSING" : dayManager.HasDayResults ? "CLOSED" : "PRE-OPEN";
         SetClockText(sideBySideDayText, dayLabel);
         SetClockText(stackedDayText, dayLabel);
         SetClockText(sideBySideTimeText, timeLabel);

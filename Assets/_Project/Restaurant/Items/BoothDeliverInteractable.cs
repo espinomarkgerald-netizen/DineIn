@@ -13,6 +13,7 @@ public class BoothDeliverInteractable : MonoBehaviour, IInteractable
 
     public Transform StandPoint => booth != null && booth.approachPoint != null ? booth.approachPoint : transform;
     public bool AutoReturnHome => false;
+    public Transform DeliveryPoint => tableFoodSpawn;
 
     private void Awake()
     {
@@ -34,6 +35,7 @@ public class BoothDeliverInteractable : MonoBehaviour, IInteractable
 
     private void Update()
     {
+        if (MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer) return;
         if (autoRadius == null) return;
         if (!autoRadius.IsActiveRoleInRange(StaffRole.Role.Waiter)) return;
 
@@ -46,6 +48,8 @@ public class BoothDeliverInteractable : MonoBehaviour, IInteractable
 
     public bool CanInteract()
     {
+        if (MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer)
+            return MultiplayerCustomerInteractionBridge.CanAttemptServe(booth != null ? booth.CurrentGroup : null);
         if (RoleManager.Instance == null) return false;
         if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Waiter)) return false;
 
@@ -81,6 +85,7 @@ public class BoothDeliverInteractable : MonoBehaviour, IInteractable
 
     public void Interact(PlayerMovement mover)
     {
+        if (MultiplayerCustomerInteractionBridge.TryServe(booth != null ? booth.CurrentGroup : null, mover)) return;
         if (!CanAttemptInteract()) return;
 
         var hands = WaiterHands.For(mover);

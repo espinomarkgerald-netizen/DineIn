@@ -375,6 +375,15 @@ public class GameFlowManager : MonoBehaviour
         StartLobbyShift();
     }
 
+    // Presentation-only day state; does not fire campaign resets, saves, or finance events.
+    public void ApplyObservedRestaurantDay(int day, bool active, bool ended)
+    {
+        if (GameDayManager.Instance == null || !GameDayManager.Instance.ObserveDayOnly) return;
+        currentDay = Mathf.Max(1, day);
+        restaurantSessionState = ended ? RestaurantSessionState.DayComplete
+            : active ? RestaurantSessionState.Running : RestaurantSessionState.PreOpen;
+    }
+
     /// <summary>Called by GameDayManager after the player confirms the day-start panel.</summary>
     public void MarkRestaurantServiceStarted()
     {

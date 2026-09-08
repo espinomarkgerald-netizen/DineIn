@@ -43,6 +43,12 @@ MonoBehaviour:
   - RPC_SetColor
   - RPC_SetHat
   - ReceiveQueue
+  - ReceiveAssignment
+  - ReceiveCarrier
+  - ReceiveGeneratedOrder
+  - ReceiveKitchenEntry
+  - ReceivePreparedResult
+  - ReceiveServed
   DisableAutoOpenWizard: 1
   ShowSettings: 0
   DevRegionSetOnce: 1

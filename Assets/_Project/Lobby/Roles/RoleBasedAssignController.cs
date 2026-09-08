@@ -304,6 +304,7 @@ public class RoleBasedAssignController : MonoBehaviour
     public void BeginAssignFromBubble(CustomerGroup group)
     {
         if (group == null) return;
+        if (!MultiplayerCustomerInteractionBridge.CanSelectBooth(this, group)) return;
         bool managerCanHost = managerPlayer != null &&
                               managerPlayer.Can(ManagerPlayer.Capability.Host);
         bool legacyHost = RoleManager.Instance != null &&
@@ -332,6 +333,7 @@ public class RoleBasedAssignController : MonoBehaviour
 
     private void AssignGroupToBooth(CustomerGroup group, Booth booth)
     {
+        if (MultiplayerCustomerInteractionBridge.TryHandleSeat(this, group, booth)) return;
         if (!TutorialCustomerFlowBridge.AllowsBoothAssignment(group, booth)) return;
         if (group == null || booth == null) return;
 
@@ -435,6 +437,12 @@ public class RoleBasedAssignController : MonoBehaviour
             agent.SetDestination(booth.approachPoint.position);
 
         CompleteAssignment();
+    }
+
+    public void ClearBoothSelection(CustomerGroup group)
+    {
+        ClearSelectedGroup(group);
+        BoothAssignArrowManager.Instance?.HideAll();
     }
 
     private void ShowWarning(string message)
