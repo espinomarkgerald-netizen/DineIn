@@ -575,10 +575,14 @@ public class GameDayManager : MonoBehaviour
         if (shiftRunning || closingOut)
             return;
 
-        if (useManagementComputerForDayStart &&
-            (EmployeeManager.Instance == null || !EmployeeManager.Instance.HasAllRequiredRolesAssigned))
+        var multiplayerMissing = MultiplayerDayBridge.IsActive
+            ? ManagementComputerController.GetMissingMultiplayerStaffRoles() : null;
+        if (useManagementComputerForDayStart && (multiplayerMissing != null
+            ? multiplayerMissing.Count > 0
+            : EmployeeManager.Instance == null || !EmployeeManager.Instance.HasAllRequiredRolesAssigned))
         {
-            string missing = EmployeeManager.Instance == null
+            string missing = multiplayerMissing != null ? string.Join(", ", multiplayerMissing)
+                : EmployeeManager.Instance == null
                 ? "STAFF SYSTEM UNAVAILABLE"
                 : string.Join(", ", EmployeeManager.Instance.GetMissingRequiredRoles());
             ShowWarning("COVER EVERY ROLE BEFORE STARTING: " + missing.ToUpperInvariant());

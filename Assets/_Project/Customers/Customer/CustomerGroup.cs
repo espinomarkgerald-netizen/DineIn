@@ -442,6 +442,39 @@ public class CustomerGroup : MonoBehaviour
     public bool IsNetworkObserver { get; set; }
     public bool PauseAfterSeating { get; set; }
     public bool PauseBeforeEating { get; set; }
+    public double MultiplayerEatingStartedAt { get; private set; }
+    public float MultiplayerEatingDuration { get; private set; }
+    public bool MultiplayerEatingStarted { get; private set; }
+    public bool MultiplayerEatingComplete { get; private set; }
+
+    public void ResumePausedEating()
+    {
+        var session = MultiplayerSessionManager.Instance;
+        if (session == null || !session.IsAuthority || IsNetworkObserver || !PauseBeforeEating
+            || state != GroupState.Eating || MultiplayerEatingStarted) return;
+        MultiplayerEatingStarted = true;
+        SetMembersEating(true);
+        RefreshMemberProceduralState();
+        eatingRoutine = StartCoroutine(EatThenNeedBill(true));
+    }
+
+    public void ResumePausedNeedsBill()
+    {
+        var session = MultiplayerSessionManager.Instance;
+        if (session == null || !session.IsAuthority || IsNetworkObserver || !PauseBeforeEating
+            || !MultiplayerEatingComplete || state != GroupState.Eating) return;
+        hasReceivedBill = false;
+        SetState(GroupState.NeedsBill);
+        SpawnBillBubble();
+    }
+
+    public void PresentObservedEating(bool active)
+    {
+        var session = MultiplayerSessionManager.Instance;
+        if (session == null || !session.IsMultiplayerSession || !IsNetworkObserver) return;
+        for (int i = 0; i < members.Count; i++)
+            members[i]?.PresentObservedEating(active, activeFoodTray, i);
+    }
 
     public void PresentObservedServed(FoodTray tray)
     {
@@ -486,6 +519,8 @@ public class CustomerGroup : MonoBehaviour
         if (phase == GroupState.Seated || phase == GroupState.WaitingToOrder || phase == GroupState.ReadyToOrder)
             booth.SpawnMenuBook();
         if (phase == GroupState.ReadyToOrder) RestoreOrderBubbleIfWaiting();
+        if (phase == GroupState.NeedsBill && MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer
+            && billBubbleInstance == null) SpawnBillBubble();
     }
     public Vector3 QueueDestination => currentLineSlotTarget;
     public float QueuePatience01 => Mathf.Clamp01(linePatienceRemaining / Mathf.Max(1f, linePatienceSeconds));
@@ -823,7 +858,7 @@ public class CustomerGroup : MonoBehaviour
             GroupState.WaitingToOrder => CustomerProceduralState.BrowseMenu,
             GroupState.ReadyToOrder => CustomerProceduralState.RequestOrder,
             GroupState.OrderTaken => CustomerProceduralState.WaitingForFood,
-            GroupState.Eating => PauseBeforeEating ? CustomerProceduralState.WaitingForFood : CustomerProceduralState.Eating,
+            GroupState.Eating => PauseBeforeEating && (!MultiplayerEatingStarted || MultiplayerEatingComplete) ? CustomerProceduralState.WaitingForFood : CustomerProceduralState.Eating,
             GroupState.NeedsBill => CustomerProceduralState.RequestBill,
             GroupState.Leaving or GroupState.AngryLeft or GroupState.UnhappyLeft =>
                 CustomerProceduralState.Leaving,
@@ -2181,6 +2216,7 @@ public class CustomerGroup : MonoBehaviour
 
     public void ReceiveBillFromWaiter()
     {
+        if (PauseBeforeEating && MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer) return;
         if (state != GroupState.NeedsBill) return;
 
         hasReceivedBill = true;
@@ -2192,16 +2228,37 @@ public class CustomerGroup : MonoBehaviour
 
     public void RequestBillFromCashier()
     {
+        if (PauseBeforeEating && MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer) return;
         if (state != GroupState.NeedsBill) return;
         if (BillManager.Instance == null) return;
 
         BillManager.Instance.RequestBill(this);
     }
 
-    private IEnumerator EatThenNeedBill()
+    private IEnumerator EatThenNeedBill(bool multiplayerOnly = false)
     {
         float mult = Profile != null ? Mathf.Max(0.1f, Profile.eatDurationMultiplier) : 1f;
         float eat = UnityEngine.Random.Range(minEatSeconds, maxEatSeconds) * mult;
+        if (multiplayerOnly)
+        {
+            MultiplayerEatingStartedAt = Photon.Pun.PhotonNetwork.Time;
+            MultiplayerEatingDuration = eat;
+            while (Photon.Pun.PhotonNetwork.Time < MultiplayerEatingStartedAt + eat)
+            {
+                var session = MultiplayerSessionManager.Instance;
+                if (session == null || !session.IsAuthority) yield break;
+                yield return null;
+            }
+            var authority = MultiplayerSessionManager.Instance;
+            if (authority == null || !authority.IsAuthority) yield break;
+            MultiplayerEatingComplete = true;
+            eatingRoutine = null;
+            SetMembersEating(false);
+            RefreshMemberProceduralState();
+            ClearEatingBubble();
+            // Keep Eating paused: NeedsBill also exposes bill gameplay to other systems.
+            yield break;
+        }
         yield return new WaitForSeconds(eat);
 
         eatingRoutine = null;

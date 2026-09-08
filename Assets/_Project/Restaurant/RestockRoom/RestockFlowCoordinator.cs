@@ -73,6 +73,7 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
     private RestockStockRoomEntrance freezerEntrance;
     private Scene lobbyScene;
     private Scene restockScene;
+    private AsyncOperation multiplayerRestockUnload;
     private readonly List<BehaviourState> lobbyBehaviourStates = new List<BehaviourState>();
     private readonly List<BehaviourState> lobbyInputModuleStates = new List<BehaviourState>();
     private readonly List<BehaviourState> lobbyEventSystemStates = new List<BehaviourState>();
@@ -246,7 +247,8 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
 
     public void EnterRestockRoom(RestockStorageType room)
     {
-        if (loading || roomOpen)
+        if (loading || roomOpen ||
+            (multiplayerRestockUnload != null && !multiplayerRestockUnload.isDone))
             return;
 
         if (MultiplayerRestockBridge.IsActive)
@@ -462,6 +464,14 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
         if (!multiplayerView) Time.timeScale = previousTimeScale;
         roomOpen = false;
         loading = false;
+        if (multiplayerView && restockScene.IsValid() && restockScene.isLoaded)
+        {
+            multiplayerRestockUnload = SceneManager.UnloadSceneAsync(restockScene);
+            restockScene = default;
+            restockRoots.Clear();
+            restockRootAuthoredStates.Clear();
+            cachedRestockMultiplayer = false;
+        }
         multiplayerView = false;
         RunExitStep(() => hud?.SetLobbyContext(), "restore the lobby HUD");
         RevealCurrentScene();
@@ -1039,7 +1049,14 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
 
         if (multiplayerView)
         {
-            // Hide presentation only. Keep gameplay roots, renderers, agents and timers running.
+            // Only this client's local Manager presentation is hidden; its network object stays alive.
+            if (restockingManager != null)
+                foreach (var renderer in restockingManager.GetComponentsInChildren<Renderer>(true))
+                {
+                    lobbyRendererStates.Add(new RendererState { renderer = renderer, enabled = renderer.enabled });
+                    renderer.enabled = false;
+                }
+            // Keep gameplay roots, agents and timers running.
             CaptureAndDisableLobbyBehaviours<Camera>();
             CaptureAndDisableLobbyBehaviours<AudioListener>();
             foreach (var canvas in FindObjectsByType<Canvas>(FindObjectsInactive.Include, FindObjectsSortMode.None))

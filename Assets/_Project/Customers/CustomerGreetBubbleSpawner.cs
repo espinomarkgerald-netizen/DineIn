@@ -15,6 +15,34 @@ public class CustomerGreetBubbleSpawner : MonoBehaviour
         Instance = this;
     }
 
+    private void LateUpdate()
+    {
+        var session = MultiplayerSessionManager.Instance;
+        if (session == null || !session.IsMultiplayerSession) return;
+
+        CustomerGroup visibleGroup = null;
+        foreach (var customer in FindObjectsByType<MultiplayerCustomerSpawn>(FindObjectsSortMode.None))
+        {
+            if (customer.ReadyForInteraction && customer.Group != null && !customer.Group.HasBeenAssigned)
+            {
+                visibleGroup = customer.Group;
+                break;
+            }
+        }
+        if (visibleGroup == null)
+        {
+            if (currentGroup != null) Hide();
+            return;
+        }
+        if (currentGroup != visibleGroup || currentBubble == null)
+            Show(visibleGroup, Camera.main);
+        else
+        {
+            currentBubble.SetActive(true);
+            currentBubble.GetComponentInChildren<CustomerGreetBubbleUI>(true)?.Refresh();
+        }
+    }
+
     public void Show(CustomerGroup group, Camera cam)
     {
         Debug.Log("[CustomerGreetBubbleSpawner] Show called");

@@ -25,6 +25,28 @@ public class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiateMagicCa
     private static readonly int SpeedParameter = Animator.StringToHash("Speed");
     private float nextSnapshot;
     private bool serviceStarted;
+    private bool eatingStarted, eatingComplete;
+    public double EatingStartedAt { get; private set; }
+    public float EatingDuration { get; private set; }
+
+    private void LateUpdate()
+    {
+        if (!simulating && session != null && session.IsMultiplayerSession && Group != null
+            && (Group.state == CustomerGroup.GroupState.Eating || Group.state == CustomerGroup.GroupState.NeedsBill) && eatingStarted)
+            Group.PresentObservedEating(!eatingComplete && Group.state == CustomerGroup.GroupState.Eating);
+    }
+
+    [PunRPC]
+    private void ReceiveEating(double startedAt, float duration, bool complete, PhotonMessageInfo info)
+    {
+        if (simulating || session == null || !session.IsMultiplayerSession || Group == null
+            || info.Sender != PhotonNetwork.MasterClient
+            || (phase != CustomerGroup.GroupState.Eating && phase != CustomerGroup.GroupState.NeedsBill)) return;
+        eatingStarted = true;
+        EatingStartedAt = startedAt;
+        EatingDuration = duration;
+        eatingComplete |= complete;
+    }
     private CustomerGroup.GroupState phase;
     private Vector3 queueDestination;
     private float patience;
@@ -217,6 +239,9 @@ public class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiateMagicCa
                 return;
             }
             if (!IsPreService(Group.state)) serviceStarted = true;
+            if (Group.state == CustomerGroup.GroupState.Eating && Group.PauseBeforeEating)
+                Group.ResumePausedEating();
+            if (Group.MultiplayerEatingComplete) Group.ResumePausedNeedsBill();
             if (Group.HasConfirmedOrder && Group.state == CustomerGroup.GroupState.OrderTaken)
             {
                 var kitchen = FindFirstObjectByType<KitchenManager>();
@@ -310,6 +335,9 @@ public class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiateMagicCa
             photonView.RPC(nameof(ReceiveServed), RpcTarget.Others, Group.currentOrderNumber);
         else if (CarrierActorNumber != 0)
             photonView.RPC(nameof(ReceiveCarrier), RpcTarget.Others, Group.currentOrderNumber, CarrierActorNumber, CarrierNeedsRecovery);
+        if (Group.MultiplayerEatingStarted)
+            photonView.RPC(nameof(ReceiveEating), RpcTarget.Others, Group.MultiplayerEatingStartedAt,
+                Group.MultiplayerEatingDuration, Group.MultiplayerEatingComplete);
     }
 
     [PunRPC]
@@ -383,7 +411,8 @@ public class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiateMagicCa
         var assignedPhase = (CustomerGroup.GroupState)value;
         if (assignedPhase != CustomerGroup.GroupState.WalkingToBooth && assignedPhase != CustomerGroup.GroupState.Seated
             && assignedPhase != CustomerGroup.GroupState.WaitingToOrder && assignedPhase != CustomerGroup.GroupState.ReadyToOrder
-            && assignedPhase != CustomerGroup.GroupState.OrderTaken && assignedPhase != CustomerGroup.GroupState.Eating) return;
+            && assignedPhase != CustomerGroup.GroupState.OrderTaken && assignedPhase != CustomerGroup.GroupState.Eating
+            && assignedPhase != CustomerGroup.GroupState.NeedsBill) return;
         var booth = MultiplayerCustomerInteractionBridge.ResolveBooth(boothId);
         if (booth == null) return;
         phase = assignedPhase;

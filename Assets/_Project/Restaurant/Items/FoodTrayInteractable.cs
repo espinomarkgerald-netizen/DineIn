@@ -52,7 +52,17 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
 
     private void Update()
     {
-        if (MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer) return;
+        if (MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer)
+        {
+            var manager = MultiplayerSessionManager.Instance.LocalManager;
+            var hands = manager != null ? manager.GetComponent<WaiterHands>() : null;
+            if (hands != null && !hands.HasTray && !hands.HasBill && !hands.HasTicket && !hands.HasMoney
+                && MultiplayerCustomerInteractionBridge.CanClaimPreparedTray(tray))
+                ShowUI();
+            else
+                HideUI();
+            return;
+        }
         CheckCleanupState();
         RefreshUI();
     }

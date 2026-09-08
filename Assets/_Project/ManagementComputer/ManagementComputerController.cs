@@ -856,6 +856,35 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         appWindow.SetMessage($"Day {day} setup. Changes lock when the shift starts.");
     }
 
+    public static List<EmployeeRole> GetMissingMultiplayerStaffRoles()
+    {
+        var multiplayerSession = MultiplayerSessionManager.Instance;
+        var missingRoles = new List<EmployeeRole>();
+        var roster = multiplayerSession.GetComponent<MultiplayerStaffRosterController>();
+        foreach (var role in EmployeeRoleCatalog.LobbyRoles)
+        {
+            var serviceRole = role == EmployeeRole.Host
+                ? MultiplayerStaffRosterController.ServiceRole.Receptionist
+                : role == EmployeeRole.Waiter ? MultiplayerStaffRosterController.ServiceRole.Waiter
+                : role == EmployeeRole.Cashier ? MultiplayerStaffRosterController.ServiceRole.Cashier
+                : MultiplayerStaffRosterController.ServiceRole.Busser;
+            if (roster == null || !roster.IsInitialized ||
+                (!roster.IsRoleReplacedByHuman(serviceRole) &&
+                 (!roster.IsRoleAvailableForAI(serviceRole) || roster.GetStaffRoot(serviceRole) == null)))
+                missingRoles.Add(role);
+        }
+        var kitchenBots = FindObjectsByType<KitchenWorkerBot>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        foreach (var role in EmployeeRoleCatalog.KitchenRoles)
+        {
+            bool available = false;
+            foreach (var bot in kitchenBots)
+                if (bot.gameObject.scene == multiplayerSession.gameObject.scene && bot.EmployeeRole == role)
+                    available = true;
+            if (!available) missingRoles.Add(role);
+        }
+        return missingRoles;
+    }
+
     private void PopulateStaff()
     {
         EmployeeManager manager = EmployeeManager.Instance;
@@ -866,7 +895,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         }
 
         manager.EnsureEmployeesGenerated();
-        bool editable = !IsShiftActive && !manager.SlotsLocked;
+        bool editable = !MultiplayerDayBridge.IsActive && !IsShiftActive && !manager.SlotsLocked;
 
         if (hrPanelPrefab == null)
         {
@@ -879,7 +908,9 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         panel.Bind(manager, editable);
         panel.GetComponent<UIRevealAnimation>()?.Play();
 
-        appWindow.SetMessage(editable
+        appWindow.SetMessage(MultiplayerDayBridge.IsActive
+            ? "HR is read-only in multiplayer; hiring and assignments are not synchronized."
+            : editable
             ? "Hire applicants, keep up to three workers per role, and choose one active worker for the shift."
             : "HR decisions are locked while the shift is running.");
     }
@@ -958,7 +989,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
             return;
         }
 
-        bool editable = !IsShiftActive;
+        bool editable = !MultiplayerDayBridge.IsActive && !IsShiftActive;
         ManagementEquipmentSectionUI sectionPrefab = Resources.Load<ManagementEquipmentSectionUI>(
             "ManagementComputer/ManagementEquipmentSection");
         if (sectionPrefab == null)
@@ -984,7 +1015,9 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
             "Permanent tools that improve staff and payment flow.",
             editable);
 
-        appWindow.SetMessage(editable
+        appWindow.SetMessage(MultiplayerDayBridge.IsActive
+            ? "Equipment is read-only in multiplayer; purchases are not synchronized."
+            : editable
             ? "Choose an available item. Purchases are saved automatically."
             : "Equipment purchases are locked while service is active.");
     }
@@ -1031,6 +1064,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
                 editable && unlocked && !purchased && canAfford,
                 () =>
                 {
+                    if (MultiplayerDayBridge.IsActive) return;
                     manager.Purchase(captured.itemID);
                     PopulateAgain(ManagementComputerApp.Equipment);
                 });
@@ -1228,7 +1262,6 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
 
     public void TryStartShift()
     {
-        if (MultiplayerDayBridge.TryRequestStart()) return;
         if (GameDayManager.Instance == null)
         {
             ShowDesktopHint("Shift controller not found.", true);
@@ -1269,7 +1302,8 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         // Race-safe final newspaper gate. In normal use this is already green
         // in the checklist; if the day changed underneath the UI it opens the
         // new issue instead of starting with stale readiness.
-        if (!CasualDiningPolishManager.EnsureInstance().TryAllowStartShift())
+        if (!MultiplayerDayBridge.IsActive &&
+            !CasualDiningPolishManager.EnsureInstance().TryAllowStartShift())
         {
             OpenStartChecklist();
             return false;
@@ -1405,6 +1439,13 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
             : new List<EmployeeRole>();
         bool everyRoleCovered = employeeManager != null &&
             employeeManager.HasAllRequiredRolesAssigned;
+        var multiplayerSession = MultiplayerSessionManager.Instance;
+        bool multiplayerReadiness = multiplayerSession != null && multiplayerSession.IsMultiplayerSession;
+        if (multiplayerReadiness)
+        {
+            missingRoles = GetMissingMultiplayerStaffRoles();
+            everyRoleCovered = missingRoles.Count == 0;
+        }
         string staffDetails = everyRoleCovered
             ? "HOST  ✓   WAITER  ✓   CASHIER  ✓   BUSSER  ✓   CHEF  ✓   BARISTA  ✓"
             : missingRoles.Count > 0
@@ -1429,12 +1470,14 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
             Booth booth = booths[boothIndex];
             if (booth == null || booth.seats == null)
                 continue;
+            if (multiplayerReadiness && (booth.gameObject.scene != multiplayerSession.gameObject.scene
+                || !booth.IsAvailableFor(1))) continue;
 
             int usableSeats = 0;
             for (int seatIndex = 0; seatIndex < booth.seats.Count; seatIndex++)
             {
                 Transform seat = booth.seats[seatIndex];
-                if (seat != null && seat.gameObject.activeInHierarchy)
+                if (seat != null && (multiplayerReadiness || seat.gameObject.activeInHierarchy))
                     usableSeats++;
             }
 

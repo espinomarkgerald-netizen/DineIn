@@ -49,6 +49,20 @@ public class CustomerGreetBubbleUI : MonoBehaviour
     private void OnClick()
     {
         if (group == null) return;
+        var session = MultiplayerSessionManager.Instance;
+        if (session != null && session.IsMultiplayerSession)
+        {
+            var customer = group.GetComponentInParent<MultiplayerCustomerSpawn>();
+            var claims = session.GetComponent<MultiplayerTaskClaims>();
+            var controller = session.LocalManager != null
+                ? session.LocalManager.GetComponent<RoleBasedAssignController>() : null;
+            if (customer == null || claims == null || controller == null) return;
+            if (!claims.IsClaimedBy($"Customer:{customer.photonView.ViewID}:GreetSeat", session.LocalActorNumber))
+            {
+                MultiplayerCustomerInteractionBridge.TryHandle(controller, group, Camera.main);
+                return;
+            }
+        }
         if (MultiplayerCustomerInteractionBridge.TryHandleGreetAction(group)) return;
         if (!TutorialCustomerFlowBridge.AllowsCustomerAction(group,
                 group.hasBeenGreeted ? "Customer.SeatModeStarted" : "Customer.Greeted")) return;

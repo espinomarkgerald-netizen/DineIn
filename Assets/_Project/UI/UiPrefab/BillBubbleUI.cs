@@ -27,6 +27,7 @@ public class BillBubbleUI : MonoBehaviour
 
     public void OnClickBillBubble()
     {
+        if (MultiplayerCustomerInteractionBridge.TryHandleBill(group)) return;
         if (!TutorialCustomerFlowBridge.AllowsServiceUI("BillRequestPopup")) return;
         if (group == null) return;
         if (RoleManager.Instance == null) return;

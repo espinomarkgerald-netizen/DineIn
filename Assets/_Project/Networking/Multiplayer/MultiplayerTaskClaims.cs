@@ -83,6 +83,16 @@ public class MultiplayerTaskClaims : MonoBehaviourPunCallbacks, IOnEventCallback
                 && !customer.Group.IsNetworkObserver && customer.Group.HasBeenAssigned
                 && customer.Group.state == CustomerGroup.GroupState.ReadyToOrder && !customer.Group.HasConfirmedOrder;
         }
+        if (acquire && taskId.StartsWith("Customer:", StringComparison.Ordinal)
+            && taskId.EndsWith(":Bill", StringComparison.Ordinal))
+        {
+            string[] parts = taskId.Split(':');
+            var view = parts.Length == 3 && int.TryParse(parts[1], out int viewId) ? PhotonView.Find(viewId) : null;
+            var customer = view != null ? view.GetComponent<MultiplayerCustomerSpawn>() : null;
+            accepted &= session.TryGetManager(actor, out _) && customer != null && customer.Group != null
+                && !customer.Group.IsNetworkObserver && customer.Group.HasBeenAssigned
+                && customer.Group.state == CustomerGroup.GroupState.NeedsBill && !customer.Group.HasReceivedBill;
+        }
         if (accepted) owner = acquire ? actor : 0;
         Publish(taskId, owner, acquire ? actor : 0, accepted);
     }

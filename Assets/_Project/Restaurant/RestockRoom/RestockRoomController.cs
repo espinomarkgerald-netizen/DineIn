@@ -159,6 +159,9 @@ public sealed class RestockRoomController
         for (int i = 0; i < hits.Length; i++)
         {
             ShelfGrid grid = hits[i].collider.GetComponentInParent<ShelfGrid>();
+            if (MultiplayerRestockBridge.IsActive &&
+                (grid == null || grid.gameObject.scene != scene || !grids.Contains(grid)))
+                continue;
             if (grid == null || !grid.TryGetClosestCell(hits[i].point, out int column, out int row))
                 continue;
 

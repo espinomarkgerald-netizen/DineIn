@@ -58,7 +58,8 @@ public sealed class PlayerTaskBubbleFocus : MonoBehaviour
         if (focusGroup == null)
             return;
 
-        bool competingTask = target != null &&
+        bool competingTask = !MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer &&
+                             target != null &&
                              RestaurantTaskClaim.PlayerHasActiveTask &&
                              !RestaurantTaskClaim.IsClaimedByPlayer(target);
 

@@ -328,6 +328,40 @@ public class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEventCallb
             new RaiseEventOptions { TargetActors = new[] { sender } }, SendOptions.SendReliable);
     }
 
+    private CustomerGroup billTarget;
+    private string billTaskId;
+    private bool billPending, billCancelled;
+
+    public static bool TryHandleBill(CustomerGroup group)
+    {
+        if (!ReviewIsMultiplayer) return false;
+        var session = MultiplayerSessionManager.Instance;
+        var bridge = session.GetComponent<MultiplayerCustomerInteractionBridge>();
+        var customer = group != null ? group.GetComponentInParent<MultiplayerCustomerSpawn>() : null;
+        if (bridge == null || customer == null || session.LocalManager == null
+            || group.state != CustomerGroup.GroupState.NeedsBill || group.HasReceivedBill) return true;
+        if (bridge.billPending) return true;
+        if (bridge.billTarget == group && bridge.claims.IsClaimedBy(bridge.billTaskId, session.LocalActorNumber))
+            return true; // Keep ownership; cashier/payment is deliberately not started.
+        bridge.CancelBill();
+        bridge.billTarget = group;
+        bridge.billTaskId = $"Customer:{customer.photonView.ViewID}:Bill";
+        bridge.billCancelled = false;
+        bridge.billPending = true;
+        if (!bridge.claims.RequestClaim(bridge.billTaskId))
+        { bridge.billPending = false; bridge.CancelBill(); }
+        return true;
+    }
+
+    private void CancelBill()
+    {
+        billCancelled = true;
+        if (billTaskId != null && claims != null && claims.IsClaimedBy(billTaskId, session.LocalActorNumber))
+            claims.Release(billTaskId);
+        // Keep cancelled in-flight requests so a late grant is released.
+        if (!billPending) { billTaskId = null; billTarget = null; }
+    }
+
     public static bool TryHandleOrder(CustomerGroup group)
     {
         var session = MultiplayerSessionManager.Instance;
@@ -604,6 +638,20 @@ public class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEventCallb
 
     private void OnResult(string id, bool accepted)
     {
+        if (billPending && id == billTaskId)
+        {
+            billPending = false;
+            if (!accepted)
+            {
+                billTaskId = null;
+                billTarget = null;
+                WarningSlideUI.Instance?.Show("That bill task is unavailable or already claimed.");
+            }
+            else if (billCancelled || session.LocalManager == null || billTarget == null
+                || billTarget.state != CustomerGroup.GroupState.NeedsBill || billTarget.HasReceivedBill) CancelBill();
+            else WarningSlideUI.Instance?.Show("Bill task claimed. Payment is not available yet. Escape or right-click cancels.");
+            return;
+        }
         if (pickupPending && id == pickupTaskId)
         {
             pickupPending = false;
@@ -643,6 +691,10 @@ public class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEventCallb
 
     private void Update()
     {
+        if (billTaskId != null && (!session.IsMultiplayerSession || session.LocalManager == null
+            || billTarget == null || billTarget.state != CustomerGroup.GroupState.NeedsBill || billTarget.HasReceivedBill
+            || Input.GetKeyDown(KeyCode.Escape) || Input.GetMouseButtonDown(1)
+            || (!billPending && !claims.IsClaimedBy(billTaskId, session.LocalActorNumber)))) CancelBill();
         if (pickupTaskId != null && (!CanClaimPreparedTray(pickupTarget)
             || Input.GetKeyDown(KeyCode.Escape) || Input.GetMouseButtonDown(1)
             || (!pickupPending && !claims.IsClaimedBy(pickupTaskId, session.LocalActorNumber)))) CancelPickup();
@@ -672,6 +724,7 @@ public class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEventCallb
 
     private void OnDestroy()
     {
+        CancelBill();
         CancelPickup();
         CancelOrder();
         Cancel();

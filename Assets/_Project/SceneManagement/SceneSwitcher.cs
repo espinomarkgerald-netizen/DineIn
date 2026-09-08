@@ -307,8 +307,11 @@ public class SceneManagerUI : MonoBehaviourPunCallbacks
             _pendingOverlay = null;
         }
 
-        // Make the newly loaded scene the active scene.
-        SceneManager.SetActiveScene(scene);
+        // PUN publishes the active scene after sceneLoaded. A local stock-room view
+        // must not replace the restaurant as the room's synchronized scene.
+        bool localMultiplayerRestock = mode == LoadSceneMode.Additive &&
+            scene.name == "RestockScene" && MultiplayerRestockBridge.IsActive;
+        if (!localMultiplayerRestock) SceneManager.SetActiveScene(scene);
 
         // When loading additively, hide roots in every other scene so only the
         // new scene is visible.

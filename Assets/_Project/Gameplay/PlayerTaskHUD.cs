@@ -373,8 +373,13 @@ public sealed class PlayerTaskHUD : MonoBehaviour
         completionVisibleSeconds = Mathf.Max(0.1f, completionVisibleSeconds);
     }
 
+    private bool MultiplayerLobbyVisible => MultiplayerHUDBridge.IsActive
+        && !(RestockFlowCoordinator.Instance != null && RestockFlowCoordinator.Instance.IsRestockRoomOpen);
+
     private void Update()
     {
+        if (MultiplayerDayBridge.IsActive && supportedSceneVisible != MultiplayerLobbyVisible)
+            RefreshSceneVisibility();
         RefreshLobbyLayout(false);
         PlayerTaskBubbleFocus.BackgroundAlpha = backgroundTaskBubbleAlpha;
 
@@ -418,7 +423,12 @@ public sealed class PlayerTaskHUD : MonoBehaviour
     {
         supportedSceneVisible = false;
         objectivesSceneVisible = false;
-        if (useLobbyHudRedesignLayout)
+        if (MultiplayerDayBridge.IsActive)
+        {
+            supportedSceneVisible = MultiplayerLobbyVisible;
+            objectivesSceneVisible = supportedSceneVisible;
+        }
+        else if (useLobbyHudRedesignLayout)
         {
             // RestockScene is additive, so a loaded Lobby1 scene is not enough.
             // The redesigned HUD belongs only to the active normal Lobby view.

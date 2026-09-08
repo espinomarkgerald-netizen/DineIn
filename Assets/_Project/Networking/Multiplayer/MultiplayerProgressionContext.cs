@@ -31,6 +31,9 @@ public sealed class MultiplayerProgressionContext : MonoBehaviour
         isolated = true;
         GameSaveManager.PersistenceSuspended = SuspendPersistence;
         saves = GameSaveManager.Instance;
+        // This context runs before the authored save manager's Awake (-500).
+        // Reuse it: a new singleton would make it destroy the shared ManagementSystems root.
+        if (saves == null) saves = FindFirstObjectByType<GameSaveManager>();
         if (saves == null) saves = new GameObject("GameSaveManager").AddComponent<GameSaveManager>();
         if (!Enum.TryParse(MultiplayerSessionManager.Instance.RestaurantType, out RestaurantType type))
         {
@@ -60,6 +63,10 @@ public sealed class MultiplayerProgressionContext : MonoBehaviour
         if (!IsActive || saves == null || Catalog == null) return;
         // GameSaveData carries the same new-restaurant defaults: Day 1, money and approval.
         saves.ApplyTemporaryRuntimeState(new GameSaveData());
+        // Fresh temporary HR needs applicants; persisted empty Campaign pools remain valid.
+        var employees = EmployeeManager.Instance;
+        if (employees != null && employees.allEmployees.Count == 0)
+            employees.GenerateEmployees();
         // Reuse the normal one-box-per-ingredient initialization and exact authored ItemData assets.
         InventoryManager.Instance?.ConfigureItems(new List<ItemData>(Catalog.Ingredients));
         RecipeManager.Instance?.UnlockByDay(CurrentDay);

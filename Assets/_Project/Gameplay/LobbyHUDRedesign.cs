@@ -198,7 +198,12 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
         string activeScene = SceneManager.GetActiveScene().name;
         bool inLobby = activeScene == LobbySceneName || MultiplayerHUDBridge.IsActive;
         bool inRestock = activeScene == "RestockScene";
-        bool taskHudScene = inLobby || inRestock;
+        bool localMultiplayerRestock = MultiplayerSessionManager.Instance != null
+            && MultiplayerSessionManager.Instance.IsMultiplayerSession
+            && RestockFlowCoordinator.Instance != null
+            && RestockFlowCoordinator.Instance.IsRestockRoomOpen;
+        inLobby &= !localMultiplayerRestock;
+        bool taskHudScene = (inLobby || inRestock) && !localMultiplayerRestock;
         bool visible = taskHudScene && !GameplayUIBlocker.IsBlocked();
         if (!inLobby)
         {
