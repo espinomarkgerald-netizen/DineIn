@@ -217,6 +217,8 @@ public class LobbyAutonomousService : MonoBehaviour
         BindEmployeeAssignments();
         BindEquipmentPurchases();
 
+        if (MultiplayerServiceStaffBridge.CanSimulate)
+        {
         // Disabling a role stops its coroutine immediately. Release every
         // trolley claim first so no tray or pickup bubble remains locked.
         if (waiter != null && !IsAssigned(EmployeeRole.Waiter))
@@ -262,6 +264,8 @@ public class LobbyAutonomousService : MonoBehaviour
         if (cashierObject != null && cashierObject.activeSelf)
             KeepCharacterStationary(cashierObject);
 
+        }
+
         for (int i = 0; i < kitchenWorkers.Length; i++)
         {
             KitchenWorkerBot worker = kitchenWorkers[i];
@@ -269,8 +273,11 @@ public class LobbyAutonomousService : MonoBehaviour
                 SetRoleObjectActive(worker.gameObject, IsAssigned(worker.EmployeeRole));
         }
 
-        takeoutFlow?.SetAutomatedService(waiter != null);
-        ConfigureIdlePresentation();
+        if (MultiplayerServiceStaffBridge.CanSimulate)
+        {
+            takeoutFlow?.SetAutomatedService(waiter != null);
+            ConfigureIdlePresentation();
+        }
     }
 
     private BotTrolleyCarrier ConfigureTrolley(
@@ -424,7 +431,7 @@ public class LobbyAutonomousService : MonoBehaviour
         Transform homePoint,
         int avoidancePriority)
     {
-        bool assigned = IsAssigned(role);
+        bool assigned = MultiplayerServiceStaffBridge.AllowRole(roleObject, IsAssigned(role));
         SetRoleObjectActive(roleObject, assigned);
         if (!assigned || roleObject == null)
             return null;
@@ -439,6 +446,7 @@ public class LobbyAutonomousService : MonoBehaviour
 
     private static void SetRoleObjectActive(GameObject roleObject, bool active)
     {
+        active = MultiplayerServiceStaffBridge.AllowRole(roleObject, active);
         if (roleObject != null && roleObject.activeSelf != active)
             roleObject.SetActive(active);
     }
@@ -520,7 +528,7 @@ public class LobbyAutonomousService : MonoBehaviour
                 equipmentManager != EquipmentManager.Instance)
                 RefreshStaffAssignments();
 
-            if (GameDayManager.Instance != null && GameDayManager.Instance.ServiceActive)
+            if (MultiplayerServiceStaffBridge.CanSimulate && GameDayManager.Instance != null && GameDayManager.Instance.ServiceActive)
             {
                 RefreshSceneQueryCache(false);
                 TryStartHostTask();

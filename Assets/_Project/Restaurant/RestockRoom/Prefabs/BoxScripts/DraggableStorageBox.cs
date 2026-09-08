@@ -123,6 +123,7 @@ public class DraggableStorageBox : MonoBehaviour
 
     private void Update()
     {
+        if (MultiplayerRestockBridge.IsActive) return;
 #if (UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR
         HandleTouchInput();
 #endif
@@ -136,6 +137,7 @@ public class DraggableStorageBox : MonoBehaviour
 
     private void OnMouseDown()
     {
+        if (MultiplayerRestockBridge.IsActive) return;
         FindCamera();
 
         if (playerCamera == null)
@@ -801,6 +803,7 @@ public class DraggableStorageBox : MonoBehaviour
 
     public void ShowInteractionUI()
     {
+        if (MultiplayerRestockBridge.IsActive) return;
         ResolveInteractionControls();
         RestockStorageContainer identity = GetComponent<RestockStorageContainer>();
         identity?.TryResolveLegacyItem();
@@ -819,6 +822,7 @@ public class DraggableStorageBox : MonoBehaviour
 
     public void ThrowAway()
     {
+        if (MultiplayerRestockBridge.IsActive) return;
         ResetPointerState();
         RestockStorageContainer identity = GetComponent<RestockStorageContainer>();
         if (identity == null || (!identity.TryResolveLegacyItem() && identity.Item == null))

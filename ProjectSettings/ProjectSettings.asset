@@ -8,7 +8,7 @@ PlayerSettings:
   AndroidProfiler: 0
   AndroidFilterTouchesWhenObscured: 0
   AndroidEnableSustainedPerformanceMode: 0
-  defaultScreenOrientation: 3
+  defaultScreenOrientation: 2
   targetDevice: 2
   useOnDemandResources: 0
   accelerometerFrequency: 60
@@ -336,6 +336,13 @@ PlayerSettings:
       m_Width: 16
       m_Height: 16
       m_Kind: 0
+  - m_BuildTarget: 
+    m_Icons:
+    - serializedVersion: 2
+      m_Icon: {fileID: 2800000, guid: 47de1f5a57b288f4b86247c3204479a2, type: 3}
+      m_Width: 128
+      m_Height: 128
+      m_Kind: 0
   m_BuildTargetPlatformIcons:
   - m_BuildTarget: iPhone
     m_Icons:
@@ -498,7 +505,7 @@ PlayerSettings:
       m_SubKind: 
     - m_Textures:
       - {fileID: 2800000, guid: 47de1f5a57b288f4b86247c3204479a2, type: 3}
-      - {fileID: 2800000, guid: c63c29f7cc02b0b4590894ee34419ab6, type: 3}
+      - {fileID: 2800000, guid: 47de1f5a57b288f4b86247c3204479a2, type: 3}
       m_Width: 432
       m_Height: 432
       m_Kind: 2

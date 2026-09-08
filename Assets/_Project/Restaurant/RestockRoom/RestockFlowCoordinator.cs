@@ -85,6 +85,9 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
     private RestockStorageType requestedRoom;
     private bool loading;
     private bool roomOpen;
+    private bool multiplayerView;
+    private bool cachedRestockMultiplayer;
+    private ManagerPlayer restockingManager;
     private bool startReadinessWarningsAcknowledged;
     private float previousTimeScale = 1f;
     private Coroutine transitionReleaseRoutine;
@@ -164,7 +167,7 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
         {
             RestoreLobby();
             RestoreLobbyInputOwnership();
-            Time.timeScale = previousTimeScale;
+            if (!multiplayerView) Time.timeScale = previousTimeScale;
         }
         if (Instance == this)
             Instance = null;
@@ -172,7 +175,8 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
 
     private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        if (scene.name == LobbySceneName)
+        if (scene.name == LobbySceneName || (MultiplayerRestockBridge.IsActive
+            && scene == MultiplayerSessionManager.Instance.gameObject.scene))
         {
             lobbyScene = scene;
             StartCoroutine(SetupLobbyAfterOneFrame());
@@ -212,6 +216,16 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
         hud?.ShowHold(() =>
         {
             hud?.RequestPickupAnimation();
+            if (MultiplayerRestockBridge.IsActive)
+            {
+                if (MultiplayerRestockBridge.Active == null) { hud?.CancelPickupAnimation(); return; }
+                MultiplayerRestockBridge.Active.RequestCollect((accepted, message) =>
+                {
+                    if (!accepted) hud?.CancelPickupAnimation();
+                    ShowMessage(message);
+                });
+                return;
+            }
             if (!manager.CollectDeliveredOrders())
             {
                 hud?.CancelPickupAnimation();
@@ -235,6 +249,24 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
         if (loading || roomOpen)
             return;
 
+        if (MultiplayerRestockBridge.IsActive)
+        {
+            if (MultiplayerRestockBridge.Active == null) return;
+            loading = true;
+            MultiplayerRestockBridge.Active.RequestEntry((accepted, message) =>
+            {
+                loading = false;
+                if (accepted && MultiplayerRestockBridge.IsActive) BeginRestockRoom(room);
+                else ShowMessage(message);
+            });
+            return;
+        }
+        BeginRestockRoom(room);
+    }
+
+    private void BeginRestockRoom(RestockStorageType room)
+    {
+        multiplayerView = MultiplayerRestockBridge.IsActive;
         // Acquire the transition lock before the iris begins. A second mobile tap
         // must not cancel the first close callback and leave the screen covered.
         loading = true;
@@ -247,6 +279,11 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
     {
         if (!roomOpen || loading)
             return;
+        if (MultiplayerRestockBridge.RequestPending)
+        {
+            ShowMessage("Waiting for the shelf placement result before leaving.");
+            return;
+        }
 
         loading = true;
         EnsureHud();
@@ -335,9 +372,24 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
 
     private IEnumerator OpenRestockRoomRoutine()
     {
+        multiplayerView = MultiplayerRestockBridge.IsActive;
         previousTimeScale = Time.timeScale;
+        restockingManager = multiplayerView
+            ? MultiplayerSessionManager.Instance.LocalManager?.GetComponent<ManagerPlayer>() : null;
+        restockingManager?.SetExternalInputSuppressed(true);
         CaptureAndPauseLobby();
-        Time.timeScale = 0f;
+        if (!multiplayerView) Time.timeScale = 0f;
+
+        // A cached view must never carry physical campaign boxes into a fresh room (or back).
+        if (restockScene.IsValid() && restockScene.isLoaded && cachedRestockMultiplayer != multiplayerView)
+        {
+            var unload = SceneManager.UnloadSceneAsync(restockScene);
+            if (unload != null) while (!unload.isDone) yield return null;
+            restockScene = default;
+            restockRoots.Clear();
+            restockRootAuthoredStates.Clear();
+        }
+        cachedRestockMultiplayer = multiplayerView;
 
         if (!restockScene.IsValid() || !restockScene.isLoaded)
         {
@@ -345,13 +397,24 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
             if (load == null)
             {
                 RestoreLobby();
-                Time.timeScale = previousTimeScale;
+                if (!multiplayerView) Time.timeScale = previousTimeScale;
                 loading = false;
                 RevealCurrentScene();
                 ShowMessage("RestockScene could not be loaded.");
                 yield break;
             }
 
+            if (multiplayerView)
+            {
+                var owner = MultiplayerRestockBridge.Active;
+                // Stopping the transition coroutine cannot cancel Unity's asynchronous load.
+                load.completed += _ =>
+                {
+                    if (owner != null && MultiplayerRestockBridge.Active == owner) return;
+                    Scene abandoned = SceneManager.GetSceneByName(RestockSceneName);
+                    if (abandoned.IsValid() && abandoned.isLoaded) SceneManager.UnloadSceneAsync(abandoned);
+                };
+            }
             while (!load.isDone)
                 yield return null;
 
@@ -368,13 +431,14 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
         if (!restockScene.IsValid() || !restockScene.isLoaded)
         {
             RestoreLobby();
-            Time.timeScale = previousTimeScale;
+            if (!multiplayerView) Time.timeScale = previousTimeScale;
             loading = false;
             RevealCurrentScene();
             yield break;
         }
 
-        SceneManager.SetActiveScene(restockScene);
+        // Keep new PUN/customer objects in the restaurant while the stock-room camera is local.
+        if (!multiplayerView) SceneManager.SetActiveScene(restockScene);
         TakeRestockInputOwnership();
         roomController = new RestockRoomController(restockScene, hud, this);
         roomController.Activate(requestedRoom);
@@ -395,9 +459,10 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
         RunExitStep(RestoreLobby, "restore the lobby presentation");
         RunExitStep(RestoreLobbyInputOwnership, "restore lobby input ownership");
         RunExitStep(ReactivateLobbyInputModules, "reactivate lobby UI input");
-        Time.timeScale = previousTimeScale;
+        if (!multiplayerView) Time.timeScale = previousTimeScale;
         roomOpen = false;
         loading = false;
+        multiplayerView = false;
         RunExitStep(() => hud?.SetLobbyContext(), "restore the lobby HUD");
         RevealCurrentScene();
 
@@ -407,6 +472,28 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
         if (remaining > 0)
             ShowMessage(remaining + " delivered box" + (remaining == 1 ? string.Empty : "es") +
                         " still need shelf space.");
+    }
+
+    public void RefreshMultiplayerRestockView()
+    {
+        if (!MultiplayerRestockBridge.IsActive) return;
+        if (roomOpen) roomController?.RefreshMultiplayerStorage();
+        hud?.RebuildHotbar();
+    }
+
+    public void CloseMultiplayerRestockView()
+    {
+        if (!multiplayerView && !cachedRestockMultiplayer) return;
+        if (loading) StopAllCoroutines();
+        if (roomOpen || multiplayerView) CloseRestockRoomNow();
+        if (restockScene.IsValid() && restockScene.isLoaded)
+            SceneManager.UnloadSceneAsync(restockScene);
+        restockScene = default;
+        restockRoots.Clear();
+        restockRootAuthoredStates.Clear();
+        cachedRestockMultiplayer = false;
+        multiplayerView = false;
+        loading = false;
     }
 
     private void PlayCloseThen(Action completed)
@@ -535,9 +622,10 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
         if (!lobbyScene.IsValid() || !lobbyScene.isLoaded)
             return;
 
-        Vector3 origin = ManagerPlayer.Active != null
-            ? ManagerPlayer.Active.transform.position
-            : Vector3.zero;
+        GameObject localManager = MultiplayerRestockBridge.IsActive
+            ? MultiplayerSessionManager.Instance.LocalManager
+            : ManagerPlayer.Active != null ? ManagerPlayer.Active.gameObject : null;
+        Vector3 origin = localManager != null ? localManager.transform.position : Vector3.zero;
 
         if (truck == null)
         {
@@ -949,6 +1037,20 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
         if (!lobbyScene.IsValid())
             return;
 
+        if (multiplayerView)
+        {
+            // Hide presentation only. Keep gameplay roots, renderers, agents and timers running.
+            CaptureAndDisableLobbyBehaviours<Camera>();
+            CaptureAndDisableLobbyBehaviours<AudioListener>();
+            foreach (var canvas in FindObjectsByType<Canvas>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
+                if (canvas.gameObject.scene == restockScene || (hud != null && canvas.transform.IsChildOf(hud.transform))) continue;
+                lobbyBehaviourStates.Add(new BehaviourState { behaviour = canvas, enabled = canvas.enabled });
+                canvas.enabled = false;
+            }
+            return;
+        }
+
         AudioSource[] allSources = FindObjectsByType<AudioSource>(
             FindObjectsInactive.Include,
             FindObjectsSortMode.None);
@@ -1006,6 +1108,9 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
 
     private void RestoreLobby()
     {
+        restockingManager?.SetExternalInputSuppressed(false);
+        restockingManager = null;
+        if (multiplayerView && MultiplayerRestockBridge.IsActive) MultiplayerRestockBridge.Active?.Release();
         // Normally no Lobby root is disabled: the restock flow pauses individual
         // presentation components so gameplay state remains alive. Restoring the
         // captured root flags is a final recovery layer against another global

@@ -34,11 +34,22 @@ public class MultiplayerStaffRosterController : MonoBehaviour
         // Freeze the initial run selection: departures/reconnects do not rebalance staff.
         InitialPartySize = session.PartySize;
         IsInitialized = true;
+        if (GetComponent<MultiplayerServiceStaffBridge>() == null)
+            gameObject.AddComponent<MultiplayerServiceStaffBridge>();
         receptionist.SetActive(IsRoleAvailableForAI(ServiceRole.Receptionist));
         waiter.SetActive(IsRoleAvailableForAI(ServiceRole.Waiter));
         cashier.SetActive(IsRoleAvailableForAI(ServiceRole.Cashier));
         busser.SetActive(IsRoleAvailableForAI(ServiceRole.Busser));
     }
+
+    public GameObject GetStaffRoot(ServiceRole role) => role switch
+    {
+        ServiceRole.Receptionist => receptionist,
+        ServiceRole.Waiter => waiter,
+        ServiceRole.Cashier => cashier,
+        ServiceRole.Busser => busser,
+        _ => null
+    };
 
     public bool IsRoleReplacedByHuman(ServiceRole role)
     {

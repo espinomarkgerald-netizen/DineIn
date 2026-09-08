@@ -85,6 +85,7 @@ public class InventoryManager : MonoBehaviour
 
     public void AddStock(ItemType type, int amount)
     {
+        if (MultiplayerRestockBridge.ObserveOnly) return;
         if (amount <= 0)
             return;
 
@@ -112,6 +113,7 @@ public class InventoryManager : MonoBehaviour
     {
         batchID = string.Empty;
         expiresDay = 0;
+        if (MultiplayerRestockBridge.ObserveOnly) return;
         if (item == null || amount <= 0)
             return;
 
@@ -126,6 +128,7 @@ public class InventoryManager : MonoBehaviour
 
     public bool UseStock(ItemType type, int amount)
     {
+        if (MultiplayerRestockBridge.ObserveOnly) return false;
         if (amount <= 0)
             return false;
 
@@ -240,6 +243,7 @@ public class InventoryManager : MonoBehaviour
         int maximumUnits,
         string batchID = null)
     {
+        if (MultiplayerRestockBridge.ObserveOnly) return 0;
         if (maximumUnits <= 0 || GetStock(type) <= 0)
             return 0;
 
@@ -275,6 +279,7 @@ public class InventoryManager : MonoBehaviour
 
     public void ResetDiscardedUnitsForNewDay()
     {
+        if (MultiplayerRestockBridge.ObserveOnly) return;
         DiscardedUnitsToday = 0;
     }
 
@@ -284,6 +289,7 @@ public class InventoryManager : MonoBehaviour
         bool wrongStorage,
         float wrongStorageMultiplier)
     {
+        if (MultiplayerRestockBridge.ObserveOnly) return false;
         if (!TryGetBatch(batchID, out InventoryStockBatchSaveEntry batch))
             return false;
 
@@ -320,6 +326,7 @@ public class InventoryManager : MonoBehaviour
 
     public void SetAllStock(int amount)
     {
+        if (MultiplayerRestockBridge.ObserveOnly) return;
         amount = Mathf.Max(0, amount);
         stockBatches.Clear();
         foreach (var key in inventory.Keys.ToArray())
@@ -342,6 +349,7 @@ public class InventoryManager : MonoBehaviour
     /// </summary>
     public void EnsureStarterStockForFiniteInventory()
     {
+        if (MultiplayerRestockBridge.ObserveOnly) return;
         if (items == null)
             return;
 

@@ -60,7 +60,8 @@ public class GameFlowManager : MonoBehaviour
     [Header("Game Over")]
     [SerializeField] private GameOverScreen gameOverScreen;
 
-    public int CurrentDay => currentDay;
+    public int CurrentDay => MultiplayerProgressionContext.IsActive
+        ? MultiplayerProgressionContext.CurrentDay : currentDay;
     public GamePhase CurrentPhase => currentPhase;
     public DayHalf CurrentDayHalf => currentDayHalf;
     public bool LobbyCompleted => lobbyCompleted;
@@ -382,6 +383,11 @@ public class GameFlowManager : MonoBehaviour
         currentDay = Mathf.Max(1, day);
         restaurantSessionState = ended ? RestaurantSessionState.DayComplete
             : active ? RestaurantSessionState.Running : RestaurantSessionState.PreOpen;
+    }
+
+    public void RestoreTemporaryRestaurantPhase(RestaurantSessionState phase)
+    {
+        if (GameSaveManager.IsPersistenceSuspended) restaurantSessionState = phase;
     }
 
     /// <summary>Called by GameDayManager after the player confirms the day-start panel.</summary>

@@ -5,7 +5,7 @@ using Photon.Realtime;
 using UnityEngine;
 
 // Present only in the multiplayer gameplay scene; no persistent session state.
-[DefaultExecutionOrder(-200)]
+[DefaultExecutionOrder(-11000)]
 public class MultiplayerSessionManager : MonoBehaviourPunCallbacks
 {
     public static MultiplayerSessionManager Instance { get; private set; }
@@ -33,8 +33,12 @@ public class MultiplayerSessionManager : MonoBehaviourPunCallbacks
             return;
         }
         Instance = this;
+        if (IsMultiplayerSession && GetComponent<MultiplayerProgressionContext>() == null)
+            gameObject.AddComponent<MultiplayerProgressionContext>();
         if (GetComponent<MultiplayerHUDBridge>() == null) gameObject.AddComponent<MultiplayerHUDBridge>();
         if (GetComponent<MultiplayerDayBridge>() == null) gameObject.AddComponent<MultiplayerDayBridge>();
+        if (IsMultiplayerSession && GetComponent<MultiplayerRestockBridge>() == null)
+            gameObject.AddComponent<MultiplayerRestockBridge>();
     }
 
     public bool TryGetManager(int actorNumber, out GameObject manager)

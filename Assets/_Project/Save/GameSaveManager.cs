@@ -17,6 +17,20 @@ public class GameSaveManager : MonoBehaviour
     [SerializeField] private bool autoSaveOnQuit = true;
 
     public bool IsApplyingSave { get; private set; }
+    // Optional disposable-session boundary. Unset for campaign and tutorial flows.
+    public static System.Func<bool> PersistenceSuspended { get; set; }
+    public static bool IsPersistenceSuspended => PersistenceSuspended?.Invoke() == true;
+    public GameSaveData CaptureRuntimeState() => CaptureCurrentData();
+    public void CompleteDeferredInitialLoad()
+    {
+        if (IsPersistenceSuspended || !autoLoadOnStart || hasAutoLoaded) return;
+        hasAutoLoaded = true;
+        LoadGame();
+    }
+    public void ApplyTemporaryRuntimeState(GameSaveData data)
+    {
+        if (IsPersistenceSuspended) ApplySaveData(data, false, false);
+    }
 
 #if UNITY_EDITOR
     public bool SuppressWritesForTests { get; set; }
@@ -29,7 +43,8 @@ public class GameSaveManager : MonoBehaviour
 
     private bool hasAutoLoaded;
 
-    public bool HasCompletedInitialLoad => !autoLoadOnStart || hasAutoLoaded;
+    public bool InitialLoadCompletedWithoutOverride => !autoLoadOnStart || hasAutoLoaded;
+    public bool HasCompletedInitialLoad => IsPersistenceSuspended || !autoLoadOnStart || hasAutoLoaded;
 
     private void Awake()
     {
@@ -67,6 +82,7 @@ public class GameSaveManager : MonoBehaviour
 
     private void Start()
     {
+        if (IsPersistenceSuspended) return;
         if (autoLoadOnStart && !hasAutoLoaded)
         {
             hasAutoLoaded = true;
@@ -95,6 +111,7 @@ public class GameSaveManager : MonoBehaviour
 
     public void RequestSave()
     {
+        if (IsPersistenceSuspended) return;
 #if UNITY_EDITOR
         if (SuppressWritesForTests)
             return;
@@ -113,6 +130,7 @@ public class GameSaveManager : MonoBehaviour
 
     public void SaveGame()
     {
+        if (IsPersistenceSuspended) return;
 #if UNITY_EDITOR
         if (SuppressWritesForTests)
             return;
@@ -135,6 +153,7 @@ public class GameSaveManager : MonoBehaviour
 
     public void CaptureDayStartCheckpoint()
     {
+        if (IsPersistenceSuspended) return;
 #if UNITY_EDITOR
         if (SuppressWritesForTests)
             return;
@@ -151,6 +170,7 @@ public class GameSaveManager : MonoBehaviour
 
     public bool RestoreDayStartCheckpoint()
     {
+        if (IsPersistenceSuspended) return false;
         if (!File.Exists(DayCheckpointPath))
             return false;
 
@@ -166,6 +186,7 @@ public class GameSaveManager : MonoBehaviour
 
     public void CommitDayCheckpoint()
     {
+        if (IsPersistenceSuspended) return;
         if (File.Exists(DayCheckpointPath))
             File.Delete(DayCheckpointPath);
     }
@@ -238,6 +259,7 @@ public class GameSaveManager : MonoBehaviour
 
     public void LoadGame()
     {
+        if (IsPersistenceSuspended) return;
         if (!HasSave())
         {
             Debug.Log("[GameSaveManager] No save file found — using defaults.");
@@ -343,6 +365,7 @@ public class GameSaveManager : MonoBehaviour
 
     public void DeleteSave()
     {
+        if (IsPersistenceSuspended) return;
         if (!HasSave() && !File.Exists(DayCheckpointPath))
             return;
 

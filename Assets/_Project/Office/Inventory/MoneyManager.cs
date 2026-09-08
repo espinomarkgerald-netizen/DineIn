@@ -212,6 +212,7 @@ public class MoneyManager : MonoBehaviour
 
     private void TryBindWallet()
     {
+        if (GameSaveManager.IsPersistenceSuspended) return;
         PlayFabWalletManager wallet = PlayFabWalletManager.Instance;
         if (wallet == null || wallet == boundWallet)
             return;
@@ -237,6 +238,7 @@ public class MoneyManager : MonoBehaviour
 
     private void SyncWalletDelta(int delta)
     {
+        if (GameSaveManager.IsPersistenceSuspended) return;
         if (delta == 0)
             return;
 
@@ -249,6 +251,7 @@ public class MoneyManager : MonoBehaviour
 
     private void ApplyWalletBalance(int _, int normalMoney)
     {
+        if (GameSaveManager.IsPersistenceSuspended) return;
         Money = Mathf.Max(0, normalMoney);
         NotifyMoneyChanged();
         GameSaveManager.Instance?.RequestSave();
@@ -305,6 +308,13 @@ public class MoneyManager : MonoBehaviour
             }
         }
         Debug.Log("[MoneyManager] FillSaveData saved money = " + Money);
+    }
+
+    public void ApplyMultiplayerRestockBalance(int balance)
+    {
+        if (!MultiplayerRestockBridge.ObserveOnly || Money == Mathf.Max(0, balance)) return;
+        Money = Mathf.Max(0, balance);
+        NotifyMoneyChanged();
     }
 
     public void ApplySaveData(GameSaveData data)

@@ -16,6 +16,7 @@ public sealed class MultiplayerDayBridge : MonoBehaviourPunCallbacks, IOnEventCa
     private double startedAt = -1d;
     private float nextPublish;
     private int snapshotDay;
+    public int CurrentDay => snapshotDay > 0 ? snapshotDay : 1;
     private int observedStartDay;
     private object[] snapshot;
 
@@ -84,7 +85,8 @@ public sealed class MultiplayerDayBridge : MonoBehaviourPunCallbacks, IOnEventCa
 
     private void HandleStart(int sender)
     {
-        if (session == null || !session.IsAuthority || !initialized || day == null || committing || migrationPaused) return;
+        if (session == null || !session.IsAuthority || !MultiplayerProgressionContext.Ready
+            || !initialized || day == null || committing || migrationPaused) return;
         if (!PhotonNetwork.CurrentRoom.Players.TryGetValue(sender, out var player) || player.IsInactive
             || !session.TryGetManager(sender, out var manager) || manager == null || !manager.activeInHierarchy) return;
         if (day.ServiceActive || day.HasDayResults || startedAt >= 0d) { Publish(); return; }

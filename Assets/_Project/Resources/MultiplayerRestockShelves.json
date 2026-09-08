@@ -1,0 +1,76 @@
+{
+  "shelves": [
+    {
+      "id": "RestockScene:DryStorageRoom[10]/DryRoomShelf (1)[1]/shelfLevelTop[0]/shelfGrid[0]",
+      "storage": 0,
+      "columns": 4,
+      "rows": 1
+    },
+    {
+      "id": "RestockScene:DryStorageRoom[10]/DryRoomShelf (1)[1]/shelfLevelMid[1]/shelfGrid[0]",
+      "storage": 0,
+      "columns": 4,
+      "rows": 1
+    },
+    {
+      "id": "RestockScene:DryStorageRoom[10]/DryRoomShelf (1)[1]/shelfLevelBot[2]/shelfGrid[0]",
+      "storage": 0,
+      "columns": 4,
+      "rows": 1
+    },
+    {
+      "id": "RestockScene:Walk-inFreezer[11]/Walk-inFrezzerShelve[1]/shelfLevelTop[0]/shelfGrid[0]",
+      "storage": 1,
+      "columns": 4,
+      "rows": 1
+    },
+    {
+      "id": "RestockScene:Walk-inFreezer[11]/Walk-inFrezzerShelve[1]/shelfLevelMid[1]/shelfGrid[0]",
+      "storage": 1,
+      "columns": 4,
+      "rows": 1
+    },
+    {
+      "id": "RestockScene:Walk-inFreezer[11]/Walk-inFrezzerShelve[1]/shelfLevelBot[2]/shelfGrid[0]",
+      "storage": 1,
+      "columns": 4,
+      "rows": 1
+    },
+    {
+      "id": "RestockScene:Walk-inFreezer[11]/Walk-inFrezzerShelve[0]/shelfLevelTop[0]/shelfGrid[0]",
+      "storage": 1,
+      "columns": 4,
+      "rows": 1
+    },
+    {
+      "id": "RestockScene:Walk-inFreezer[11]/Walk-inFrezzerShelve[0]/shelfLevelMid[1]/shelfGrid[0]",
+      "storage": 1,
+      "columns": 4,
+      "rows": 1
+    },
+    {
+      "id": "RestockScene:Walk-inFreezer[11]/Walk-inFrezzerShelve[0]/shelfLevelBot[2]/shelfGrid[0]",
+      "storage": 1,
+      "columns": 4,
+      "rows": 1
+    },
+    {
+      "id": "RestockScene:DryStorageRoom[10]/DryRoomShelf[0]/shelfLevelTop[0]/shelfGrid[0]",
+      "storage": 0,
+      "columns": 4,
+      "rows": 1
+    },
+    {
+      "id": "RestockScene:DryStorageRoom[10]/DryRoomShelf[0]/shelfLevelMid[1]/shelfGrid[0]",
+      "storage": 0,
+      "columns": 4,
+      "rows": 1
+    },
+    {
+      "id": "RestockScene:DryStorageRoom[10]/DryRoomShelf[0]/shelfLevelBot[2]/shelfGrid[0]",
+      "storage": 0,
+      "columns": 4,
+      "rows": 1
+    }
+  ]
+}

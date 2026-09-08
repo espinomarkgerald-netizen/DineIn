@@ -922,6 +922,14 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
         List<RestockCartLine> lines = BuildCartLines();
         committingOrder = true;
         ConfigureCartButtons();
+        if (MultiplayerRestockBridge.IsActive)
+        {
+            if (MultiplayerRestockBridge.Active == null)
+                CompleteMultiplayerOrder(false, "Restock authority is not ready.");
+            else
+                MultiplayerRestockBridge.Active.RequestOrder(lines, CompleteMultiplayerOrder);
+            return;
+        }
         bool success = confirmOrder != null && confirmOrder(lines);
         committingOrder = false;
 
@@ -935,6 +943,19 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
         cart.Clear();
         reviewMode = false;
         SetMessage("Order placed. The containers are reserved for delivery.");
+        RefreshRestockView();
+    }
+
+    private void CompleteMultiplayerOrder(bool success, string message)
+    {
+        if (this == null) return;
+        committingOrder = false;
+        if (success)
+        {
+            cart.Clear();
+            reviewMode = false;
+        }
+        SetMessage(message, !success);
         RefreshRestockView();
     }
 

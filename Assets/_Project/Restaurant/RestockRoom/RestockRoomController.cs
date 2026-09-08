@@ -53,6 +53,16 @@ public sealed class RestockRoomController
         if (authoredEmptyHotbar != null)
             authoredEmptyHotbar.SetActive(false);
         WireButtons();
+        if (MultiplayerRestockBridge.IsActive)
+        {
+            // Authored prototype boxes have no session batch and must not obstruct session shelves.
+            foreach (var root in scene.GetRootGameObjects())
+                foreach (var box in root.GetComponentsInChildren<DraggableStorageBox>(true))
+                {
+                    var identity = box.GetComponent<RestockStorageContainer>();
+                    if (identity == null || string.IsNullOrEmpty(identity.StockBatchID)) box.gameObject.SetActive(false);
+                }
+        }
         RestoreSavedContainers();
         RefreshStorageContainers();
         SwitchToRoom(requestedRoom);
@@ -82,6 +92,8 @@ public sealed class RestockRoomController
 
     public bool BeginHotbarWorldDrag(ItemData item, Vector2 screenPosition)
     {
+        if (MultiplayerRestockBridge.IsActive &&
+            (!MultiplayerRestockBridge.CanUsePayload || MultiplayerRestockBridge.RequestPending)) return false;
         CancelHotbarWorldDrag();
         dragItem = item;
         if (dragItem == null || dragItem.worldContainerPrefab == null || roomCamera == null)
@@ -212,6 +224,13 @@ public sealed class RestockRoomController
             return false;
         }
 
+        if (MultiplayerRestockBridge.IsActive)
+        {
+            MultiplayerRestockBridge.Active?.RequestPlace(item, grid, column, row,
+                (accepted, message) => hud?.SetRoomMessage(message, !accepted));
+            return MultiplayerRestockBridge.Active != null;
+        }
+
         GameObject box = Object.Instantiate(
             item.worldContainerPrefab,
             grid.GetCellWorldPosition(column, row),
@@ -329,6 +348,13 @@ public sealed class RestockRoomController
                 container.RefreshExpiryState();
             }
         }
+    }
+
+    public void RefreshMultiplayerStorage()
+    {
+        if (!MultiplayerRestockBridge.IsActive) return;
+        RestoreSavedContainers();
+        RefreshStorageContainers();
     }
 
     private void RestoreSavedContainers()

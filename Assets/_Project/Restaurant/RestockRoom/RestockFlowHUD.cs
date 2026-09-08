@@ -307,7 +307,8 @@ public sealed class RestockFlowHUD : MonoBehaviour
         draggedSlot = null;
 
         RestockOrderManager manager = RestockOrderManager.Instance;
-        bool hasBoxes = manager != null && manager.HotbarContainerCount > 0;
+        bool hasBoxes = manager != null && manager.HotbarContainerCount > 0
+            && MultiplayerRestockBridge.CanUsePayload;
         RectTransform hotbarRect = HotbarRect;
         float previousWidth = hotbarRect != null ? hotbarRect.rect.width : 0f;
         if (hotbarRoot != null)

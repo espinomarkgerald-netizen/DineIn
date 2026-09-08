@@ -1142,8 +1142,16 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
             Mathf.Min(0.12f, Mathf.Max(0, appWindow.Content.childCount - 1) * 0.025f));
     }
 
+    public RestaurantStorageConfig RestockStorage => GetCatalogUIConfig()?.StorageConfig;
+
+    public bool ConfirmRestockOrderOnAuthority(IReadOnlyList<RestockCartLine> cart)
+    {
+        return MultiplayerRestockBridge.CanCommit && ConfirmRestockOrder(cart);
+    }
+
     private bool ConfirmRestockOrder(IReadOnlyList<RestockCartLine> cart)
     {
+        if (MultiplayerRestockBridge.IsActive && !MultiplayerRestockBridge.CanCommit) return false;
         if (restockOrderCommitInProgress || cart == null || cart.Count == 0 ||
             MoneyManager.Instance == null)
             return false;

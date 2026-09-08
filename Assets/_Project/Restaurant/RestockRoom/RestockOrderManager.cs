@@ -116,7 +116,7 @@ public sealed class RestockOrderManager : MonoBehaviour
 
     private void Update()
     {
-        TickDeliveries();
+        if (!MultiplayerRestockBridge.ObserveOnly) TickDeliveries();
     }
 
     public string CreateOrder(
@@ -124,6 +124,7 @@ public sealed class RestockOrderManager : MonoBehaviour
         IReadOnlyList<RestockCartLine> cart,
         int totalCost)
     {
+        if (MultiplayerRestockBridge.IsActive && !MultiplayerRestockBridge.CanCommit) return string.Empty;
         if (cart == null || cart.Count == 0 || totalCost <= 0)
             return string.Empty;
 
@@ -233,6 +234,7 @@ public sealed class RestockOrderManager : MonoBehaviour
     /// </summary>
     public bool CollectDeliveredOrders()
     {
+        if (MultiplayerRestockBridge.IsActive && !MultiplayerRestockBridge.CanCommit) return false;
         bool changed = false;
         for (int i = 0; i < orders.Count; i++)
         {
@@ -280,6 +282,11 @@ public sealed class RestockOrderManager : MonoBehaviour
         message = string.Empty;
         stockBatchID = string.Empty;
         expiresDay = 0;
+        if (MultiplayerRestockBridge.IsActive && !MultiplayerRestockBridge.CanCommit)
+        {
+            message = "Shelf placement requires restaurant authority.";
+            return false;
+        }
         if (item == null)
         {
             message = "That delivery item is missing.";
@@ -426,6 +433,27 @@ public sealed class RestockOrderManager : MonoBehaviour
         }
     }
 
+    // Observer delivery transitions must also drive the existing truck-arrival event.
+    public void ApplyMultiplayerSnapshot(GameSaveData data)
+    {
+        if (!MultiplayerRestockBridge.IsActive) return;
+        HashSet<string> alreadyArrived = new HashSet<string>();
+        foreach (var order in orders)
+            if (order.state >= RestockOrderState.Delivered) alreadyArrived.Add(order.orderID);
+        ApplySaveData(data);
+        foreach (var order in orders)
+            if (order.state == RestockOrderState.Delivered && !alreadyArrived.Contains(order.orderID))
+                OrderDelivered?.Invoke(order);
+    }
+
+    // The authority may have no local RestockScene; register the same ledger identity without a GameObject.
+    public void RegisterAuthoritativeContainer(RestockStoredContainerSaveData entry)
+    {
+        if (!MultiplayerRestockBridge.CanCommit || entry == null || FindStoredContainer(entry.containerID) != null) return;
+        storedContainers.Add(CloneStoredContainer(entry));
+        OrdersChanged?.Invoke();
+    }
+
     public void ApplySaveData(GameSaveData data)
     {
         orders.Clear();
@@ -475,6 +503,7 @@ public sealed class RestockOrderManager : MonoBehaviour
         int row,
         float rotationY)
     {
+        if (MultiplayerRestockBridge.IsActive) return;
         if (identity == null || identity.Item == null || grid == null ||
             string.IsNullOrWhiteSpace(identity.StockBatchID))
             return;
@@ -503,6 +532,7 @@ public sealed class RestockOrderManager : MonoBehaviour
 
     public void RemovePhysicalContainer(string containerID)
     {
+        if (MultiplayerRestockBridge.ObserveOnly) return;
         if (string.IsNullOrWhiteSpace(containerID))
             return;
         int removed = storedContainers.RemoveAll(entry =>
@@ -556,7 +586,7 @@ public sealed class RestockOrderManager : MonoBehaviour
             {
                 // The exact batch was consumed or discarded; its physical box
                 // must not be recreated on a later room visit.
-                storedContainers.RemoveAt(i);
+                if (!MultiplayerRestockBridge.ObserveOnly) storedContainers.RemoveAt(i);
                 continue;
             }
 
@@ -575,6 +605,12 @@ public sealed class RestockOrderManager : MonoBehaviour
             int row = entry.row;
             if (grid == null || !grid.IsCellFree(column, row))
             {
+                // A snapshot has an exact authoritative cell. Never relocate it locally.
+                if (MultiplayerRestockBridge.IsActive)
+                {
+                    recoveryCount++;
+                    continue;
+                }
                 grid = FindRecoveryGrid(grids, entry.storageType, out column, out row);
                 if (grid == null)
                 {

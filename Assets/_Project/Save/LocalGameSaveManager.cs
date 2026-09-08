@@ -29,6 +29,7 @@ public class LocalGameSaveManager : MonoBehaviour
 
     public void LoadInventoryOnce()
     {
+        if (GameSaveManager.IsPersistenceSuspended) return;
         if (hasLoaded)
             return;
 
@@ -43,6 +44,7 @@ public class LocalGameSaveManager : MonoBehaviour
 
     public void LoadInventory()
     {
+        if (GameSaveManager.IsPersistenceSuspended) return;
         if (InventoryManager.Instance == null)
             return;
 

@@ -32,6 +32,8 @@ MonoBehaviour:
     m_path: Assets/_Project/Scenes/TutorialScenes/Lobby1Tutorial.unity
   - m_enabled: 1
     m_path: Assets/_Project/Scenes/RoleBased/RestockScene.unity
+  - m_enabled: 1
+    m_path: Assets/_Project/Scenes/RoleBased/Lobby1 Multiplayer.unity
   m_ScriptingDefines: []
   m_PlayerSettingsYaml:
     m_Settings: []
@@ -57,7 +59,7 @@ MonoBehaviour:
         m_ExportAsGoogleAndroidProject: 0
         m_DebugSymbolLevel: 1
         m_DebugSymbolFormat: 5
-        m_CurrentDeploymentTargetId: __builtin__target_default
+        m_CurrentDeploymentTargetId: __builtin__target_all
         m_BuildType: 2
         m_BuildAppBundle: 0
         m_IPAddressToConnect: 

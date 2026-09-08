@@ -47,6 +47,7 @@ public sealed class RestockTruckInteractable : MonoBehaviour, IInteractable
     private Coroutine departureRoutine;
     private bool parkingConfigured;
     private bool isParked;
+    private int observedReadyContainers;
 
     public void Configure(Transform configuredStandPoint, TMP_Text configuredStatus)
     {
@@ -145,6 +146,9 @@ public sealed class RestockTruckInteractable : MonoBehaviour, IInteractable
     {
         RestockOrderManager manager = RestockOrderManager.Instance;
         int ready = manager != null ? manager.DeliveredContainerCount : 0;
+        if (MultiplayerRestockBridge.IsActive && observedReadyContainers > 0 && ready == 0)
+            BeginDepartureAfterCollection();
+        observedReadyContainers = ready;
         SetInteractionReady(isParked && ready > 0);
 
         if (statusText != null)
