@@ -82,6 +82,7 @@ public sealed class MobileUIAccessibility : MonoBehaviour
             // visible size; modal/workspace controls receive an invisible hit area
             // below without changing their RectTransforms or layout elements.
             EnsurePersistentHudVisualSize(buttons[i]);
+            ApplyStorageButtonScale(buttons[i]);
             EnsureTouchArea(buttons[i]);
         }
 
@@ -141,6 +142,20 @@ public sealed class MobileUIAccessibility : MonoBehaviour
         // authored reference rectangle therefore remains visible on extra-wide phones
         // such as 20:9 devices instead of losing its top or bottom edges.
         scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.Expand;
+    }
+
+    private void ApplyStorageButtonScale(Button button)
+    {
+        if (button == null || button.gameObject.scene.name != "RestockScene" ||
+            button.name != "SwitchRoomToFreezer" ||
+            button.transform is not RectTransform rect || LobbyHUDRoot.Instance == null)
+            return;
+
+        // This same button shows FREEZER or DRY ROOM. Scale its actual hit rect,
+        // retaining its authored anchor, pivot and position. The cached baseline
+        // prevents the periodic mobile pass from compounding the multiplier.
+        float scale = Mathf.Max(0.1f, LobbyHUDRoot.Instance.MobileStorageButtonScale);
+        SetAuthoredScaleMultiplier(rect, new Vector3(scale, scale, 1f));
     }
 
     private static void EnsureTouchArea(Button button)

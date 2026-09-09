@@ -16,7 +16,8 @@ public class MultiplayerCustomerSpawnBridge : MonoBehaviour
         spawner.GroupCreated += PublishGroup;
     }
 
-    private bool CanSpawn() => session != null && session.IsAuthority;
+    private bool CanSpawn() => session != null && session.IsAuthority
+        && GameDayManager.Instance != null && GameDayManager.Instance.ShiftRunning;
 
     private void PublishGroup(CustomerGroup group, bool takeout)
     {

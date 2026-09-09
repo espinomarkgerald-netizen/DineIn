@@ -119,18 +119,24 @@ public sealed class MultiplayerDayBridge : MonoBehaviourPunCallbacks, IOnEventCa
     private void Publish()
     {
         if (!session.IsAuthority || day == null || migrationPaused) return;
+        if (!MultiplayerProgressionContext.Ready || AlienApprovalManager.Instance == null) return;
         snapshotDay = GameFlowManager.Instance != null ? GameFlowManager.Instance.CurrentDay : 1;
         snapshot = new object[] { snapshotDay, day.ShiftRunning, day.ClosingOut, day.HasDayResults,
-            day.TimeRemaining, startedAt, PhotonNetwork.Time, Time.timeScale };
+            day.TimeRemaining, startedAt, PhotonNetwork.Time, Time.timeScale,
+            AlienApprovalManager.Instance.Approval, DailyFinanceBridge.Instance != null ? DailyFinanceBridge.Instance.EarnedToday : 0,
+            day.HasDayResults ? day.CaptureMultiplayerReport() : new int[0] };
         PhotonNetwork.CurrentRoom.SetCustomProperties(new Hashtable { { DaySnapshotKey, snapshot } });
         nextPublish = Time.unscaledTime + 0.5f;
     }
 
     private void ReadSnapshot()
     {
-        if (PhotonNetwork.CurrentRoom.CustomProperties[DaySnapshotKey] is not object[] value || value.Length != 8
+        if (PhotonNetwork.CurrentRoom.CustomProperties[DaySnapshotKey] is not object[] value || (value.Length < 8 || value.Length > 11)
             || value[0] is not int number || value[1] is not bool || value[2] is not bool || value[3] is not bool
             || value[4] is not float || value[5] is not double start || value[6] is not double || value[7] is not float) return;
+        if (value.Length >= 9 && (value[8] is not int approval || approval < 0 || approval > 100)) return;
+        if (value.Length >= 10 && (value[9] is not int sales || sales < 0)) return;
+        if (value.Length == 11 && (value[10] is not int[] report || report.Length != ((bool)value[3] ? 7 : 0))) return;
         snapshot = value;
         snapshotDay = number;
         startedAt = start;
@@ -138,7 +144,12 @@ public sealed class MultiplayerDayBridge : MonoBehaviourPunCallbacks, IOnEventCa
 
     private void ApplySnapshot()
     {
+        if (snapshot != null && snapshot.Length >= 9)
+            AlienApprovalManager.Instance?.ApplyMultiplayerApproval((int)snapshot[8]);
+        if (snapshot != null && snapshot.Length >= 10)
+            DailyFinanceBridge.Instance?.ApplyMultiplayerSales((int)snapshot[9]);
         if (snapshot == null || day == null || !day.ObserveDayOnly) return;
+        if (snapshot.Length == 11 && (bool)snapshot[3]) day.ApplyMultiplayerReport((int[])snapshot[10]);
         bool running = (bool)snapshot[1];
         // Time is presentation only. Only the authority may expire the day.
         float remaining = (float)snapshot[4];

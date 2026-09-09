@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.UI;
 
 /// <summary>
 /// Single persistent owner for every editable Lobby HUD branch.  The combined
@@ -15,6 +16,14 @@ public sealed class LobbyHUDRoot : MonoBehaviour
 
     [Header("Combined Editable HUD")]
     [SerializeField] private LobbyPauseMenuView pauseMenuView;
+
+    [Header("Mobile Presentation")]
+    [Tooltip("Size multiplier for the existing gameplay HUD canvases on mobile.")]
+    [SerializeField, Min(0.1f)] private float mobileHudScale = 1.10f;
+    [Tooltip("Visual and clickable size of the RestockScene Dry Room / Freezer button.")]
+    [SerializeField, Min(0.1f)] private float mobileStorageButtonScale = 1.10f;
+
+    public float MobileStorageButtonScale => mobileStorageButtonScale;
 
     public LobbyPauseMenuView PauseMenuView => pauseMenuView;
 
@@ -72,6 +81,19 @@ public sealed class LobbyHUDRoot : MonoBehaviour
         // the pause button leaking into loading/menu scenes.
         if (pauseMenuView != null)
             pauseMenuView.gameObject.SetActive(false);
+    }
+
+    private void Start()
+    {
+        if (!Application.isMobilePlatform) return;
+
+        // Let each presenter finish binding in Awake, then enlarge through its
+        // existing canvas coordinate system. Edge anchors and safe areas survive.
+        foreach (CanvasScaler scaler in GetComponentsInChildren<CanvasScaler>(true))
+        {
+            if (scaler.uiScaleMode == CanvasScaler.ScaleMode.ScaleWithScreenSize)
+                scaler.referenceResolution /= Mathf.Max(0.1f, mobileHudScale);
+        }
     }
 
     private void OnDestroy()

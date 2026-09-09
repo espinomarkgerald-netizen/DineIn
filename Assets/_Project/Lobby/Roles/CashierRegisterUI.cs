@@ -402,6 +402,7 @@ public class CashierRegisterUI : MonoBehaviour
 
     private void Confirm()
     {
+        if (MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer) return;
         if (!IsOpen)
             return;
 
@@ -456,6 +457,9 @@ public class CashierRegisterUI : MonoBehaviour
     /// </summary>
     public bool CompleteAutomatedPayment(CustomerGroup group)
     {
+        bool multiplayer = MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer;
+        if (multiplayer && (!MultiplayerCustomerInteractionBridge.CanSettleBill(group)
+            || DailyFinanceBridge.Instance == null || MoneyManager.Instance == null)) return false;
         if (group == null)
             return false;
 
@@ -476,9 +480,16 @@ public class CashierRegisterUI : MonoBehaviour
             return false;
         }
 
+        if (multiplayer && !group.BeginMultiplayerSettlement()) return false;
         DailyFinanceBridge.Instance?.AddEarnings(amountEarned, "Autonomous cashier payment");
         GameDayManager.Instance?.RefreshRevenueUI();
         GameDayManager.Instance?.RegisterPaymentCompleted();
+
+        if (multiplayer)
+        {
+            group.FinishMultiplayerSettlement();
+            return true;
+        }
 
         if (activeGroup == group)
         {

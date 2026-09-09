@@ -66,6 +66,7 @@ public class LobbyAutonomousService : MonoBehaviour
     private AutonomousStaffBot busser;
     private WaiterHands waiterHands;
     private BusserHands busserHands;
+    private Booth multiplayerCleanupBooth;
     private BotTrolleyCarrier waiterTrolley;
     private BotTrolleyCarrier busserTrolley;
     private GameObject hostObject;
@@ -127,6 +128,7 @@ public class LobbyAutonomousService : MonoBehaviour
 
     private void OnDisable()
     {
+        ReleaseMultiplayerCleanupClaim();
         if (!Application.isPlaying)
             return;
 
@@ -524,6 +526,8 @@ public class LobbyAutonomousService : MonoBehaviour
 
         while (true)
         {
+            if (multiplayerCleanupBooth != null && (busser == null || !busser.isActiveAndEnabled || !busser.IsBusy))
+                ReleaseMultiplayerCleanupClaim();
             if (employeeManager != EmployeeManager.Instance ||
                 equipmentManager != EquipmentManager.Instance)
                 RefreshStaffAssignments();
@@ -708,6 +712,16 @@ public class LobbyAutonomousService : MonoBehaviour
     {
         if (busser == null || busser.IsBusy || busserHands == null)
             return;
+
+        if (MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer)
+        {
+            if (!MultiplayerServiceStaffBridge.CanSimulate || !busser.isActiveAndEnabled
+                || !MultiplayerServiceStaffBridge.AllowRole(busser.gameObject, true)) return;
+            Booth booth = FindDirtyBooth();
+            if (booth != null && TryStartClaimedTask(busser, booth, CleanBooth(booth)))
+                multiplayerCleanupBooth = booth;
+            return;
+        }
 
         if (TryStartBusserTrolleyBatch())
             return;
@@ -2327,19 +2341,45 @@ public class LobbyAutonomousService : MonoBehaviour
         busser.SetCarrying(false);
     }
 
+    private void ReleaseMultiplayerCleanupClaim()
+    {
+        RestaurantTaskClaim.ReleaseBot(multiplayerCleanupBooth, busser);
+        multiplayerCleanupBooth = null;
+    }
+
+    private bool CanBusserClean(Booth booth) => booth != null &&
+        (MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer
+            ? booth.CanBusserCleanMultiplayer && isActiveAndEnabled && busser != null && busser.isActiveAndEnabled
+                && MultiplayerServiceStaffBridge.AllowRole(busser.gameObject, true)
+            : booth.CanCleanMessNow);
+
     private IEnumerator CleanBooth(Booth booth)
     {
-        if (booth == null || !booth.CanCleanMessNow)
+        if (!CanBusserClean(booth))
             yield break;
 
         yield return busser.MoveTo(booth.GetNavigableApproachPosition());
-        if (!busser.LastMoveSucceeded || booth == null || !booth.CanCleanMessNow)
+        if (!busser.LastMoveSucceeded || !CanBusserClean(booth))
             yield break;
 
         Vector3 lookTarget = booth.tableLookTarget != null
             ? booth.tableLookTarget.position
             : booth.transform.position;
         yield return busser.FaceTowards(lookTarget);
+
+        if (MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer)
+        {
+            // Reuse the table-clean duration without entering tray/sink transport.
+            float elapsed = 0f;
+            while (CanBusserClean(booth) && RestaurantTaskClaim.IsClaimedByBot(booth, busser)
+                && elapsed < Mathf.Max(0.05f, booth.MessHoldSeconds))
+            { elapsed += Time.deltaTime; yield return null; }
+            if (CanBusserClean(booth) && RestaurantTaskClaim.IsClaimedByBot(booth, busser)
+                && elapsed >= Mathf.Max(0.05f, booth.MessHoldSeconds) && booth.TryCommitMultiplayerCleanup())
+                while (booth != null && booth.MultiplayerCleanupCommitPending && MultiplayerProgressionContext.Ready)
+                    yield return null;
+            yield break;
+        }
 
         if (!booth.BeginAutomatedMessCleaning())
         {
@@ -2487,7 +2527,7 @@ public class LobbyAutonomousService : MonoBehaviour
         Booth[] booths = cachedBooths;
         for (int i = 0; i < booths.Length; i++)
         {
-            if (booths[i] != null && booths[i].CanCleanMessNow &&
+            if (CanBusserClean(booths[i]) &&
                 RestaurantTaskClaim.CanBotStart(booths[i], managerReactionSeconds))
                 return booths[i];
         }

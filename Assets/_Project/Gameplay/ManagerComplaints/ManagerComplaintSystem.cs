@@ -491,7 +491,7 @@ public sealed class ManagerComplaintSystem : MonoBehaviour
         ManagerComplaintResponseDefinition response,
         bool unanswered)
     {
-        if (activeGroup == null || resolving)
+        if (activeGroup == null || !activeGroup.CanDecideCustomerOutcome || resolving)
             return;
 
         resolving = true;

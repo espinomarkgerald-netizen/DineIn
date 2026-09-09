@@ -25,6 +25,14 @@ public class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiateMagicCa
     private static readonly int SpeedParameter = Animator.StringToHash("Speed");
     private float nextSnapshot;
     private bool serviceStarted;
+    private bool paidDepartureStarted, paidDepartureFinished, despawnRequested;
+
+    internal void NotifyPaidDepartureFinished(CustomerGroup group)
+    {
+        if (simulating && session != null && session.IsAuthority && paidDepartureStarted
+            && group == Group && group.MultiplayerPaymentComplete && group.state == CustomerGroup.GroupState.Leaving)
+            paidDepartureFinished = true;
+    }
     private bool eatingStarted, eatingComplete;
     public double EatingStartedAt { get; private set; }
     public float EatingDuration { get; private set; }
@@ -235,8 +243,17 @@ public class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiateMagicCa
             if (Group == null)
             {
                 ReadyForInteraction = false;
-                if (!serviceStarted) PhotonNetwork.Destroy(gameObject);
+                if ((!serviceStarted || paidDepartureFinished) && !despawnRequested)
+                {
+                    despawnRequested = true;
+                    PhotonNetwork.Destroy(gameObject);
+                }
                 return;
+            }
+            if (!paidDepartureStarted && Group.TryStartMultiplayerDeparture())
+            {
+                paidDepartureStarted = true;
+                PublishAssignment();
             }
             if (!IsPreService(Group.state)) serviceStarted = true;
             if (Group.state == CustomerGroup.GroupState.Eating && Group.PauseBeforeEating)
@@ -278,7 +295,8 @@ public class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiateMagicCa
                 nextSnapshot = Time.unscaledTime + 0.5f;
                 photonView.RPC(nameof(ReceiveQueue), RpcTarget.Others, (int)phase,
                     Group.QueueDestination, Group.QueuePatience01, Group.QueuePatienceVisible, ReadyForInteraction,
-                    Group.hasBeenGreeted);
+                    Group.hasBeenGreeted, Group.OutcomeThought, Group.OutcomeThoughtMood,
+                    Group.ObservedFinalResult, Group.ComplaintPending);
             }
         }
         if (simulating || !receivedPose || Group == null) return;
@@ -308,7 +326,8 @@ public class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiateMagicCa
         if (!simulating || session == null || !session.IsAuthority || Group == null) return;
         photonView.RPC(nameof(ReceiveQueue), RpcTarget.Others, (int)Group.state,
             Group.QueueDestination, Group.QueuePatience01, Group.QueuePatienceVisible, ReadyForInteraction,
-            Group.hasBeenGreeted);
+            Group.hasBeenGreeted, Group.OutcomeThought, Group.OutcomeThoughtMood,
+            Group.ObservedFinalResult, Group.ComplaintPending);
     }
 
     public void PublishAssignment()
@@ -317,7 +336,8 @@ public class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiateMagicCa
         ReadyForInteraction = false;
         photonView.RPC(nameof(ReceiveAssignment), RpcTarget.Others,
             MultiplayerCustomerInteractionBridge.BoothIdentity(Group.assignedBooth), (int)Group.state,
-            Group.IsPlayerReviewingOrder, ReviewActor);
+            Group.IsPlayerReviewingOrder, ReviewActor, Group.OutcomeThought, Group.OutcomeThoughtMood,
+            Group.ObservedFinalResult, Group.ComplaintPending, Group.MultiplayerPaymentComplete);
         if (generatedOrderJson != null)
             photonView.RPC(nameof(ReceiveGeneratedOrder), RpcTarget.Others,
                 generatedOrderJson, generatedOrderNumber, generatedLegacyChoices);
@@ -404,7 +424,8 @@ public class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiateMagicCa
     }
 
     [PunRPC]
-    private void ReceiveAssignment(string boothId, int value, bool reviewing, int reviewActor, PhotonMessageInfo info)
+    private void ReceiveAssignment(string boothId, int value, bool reviewing, int reviewActor,
+        string thought, int mood, int result, bool complaintPending, bool paid, PhotonMessageInfo info)
     {
         if (session == null || !session.IsMultiplayerSession || simulating
             || info.Sender != PhotonNetwork.MasterClient || Group == null) return;
@@ -412,14 +433,18 @@ public class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiateMagicCa
         if (assignedPhase != CustomerGroup.GroupState.WalkingToBooth && assignedPhase != CustomerGroup.GroupState.Seated
             && assignedPhase != CustomerGroup.GroupState.WaitingToOrder && assignedPhase != CustomerGroup.GroupState.ReadyToOrder
             && assignedPhase != CustomerGroup.GroupState.OrderTaken && assignedPhase != CustomerGroup.GroupState.Eating
-            && assignedPhase != CustomerGroup.GroupState.NeedsBill) return;
+            && assignedPhase != CustomerGroup.GroupState.NeedsBill
+            && assignedPhase != CustomerGroup.GroupState.AngryLeft && assignedPhase != CustomerGroup.GroupState.UnhappyLeft
+            && assignedPhase != CustomerGroup.GroupState.Leaving) return;
         var booth = MultiplayerCustomerInteractionBridge.ResolveBooth(boothId);
         if (booth == null) return;
+        Group.PresentObservedOutcome(thought, mood, result, complaintPending);
         phase = assignedPhase;
         ReadyForInteraction = false;
         showPatience = false;
         if (!Group.hasBeenGreeted) Group.MarkGreeted();
         Group.PresentObservedAssignment(booth, phase);
+        Group.PresentObservedPayment(paid);
         ReviewActor = reviewing ? reviewActor : 0;
         if (reviewing) Group.BeginPlayerOrderReview();
         else Group.EndPlayerOrderReview();
@@ -439,12 +464,14 @@ public class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiateMagicCa
     }
 
     [PunRPC]
-    private void ReceiveQueue(int value, Vector3 destination, float progress, bool visible, bool ready, bool greeted, PhotonMessageInfo info)
+    private void ReceiveQueue(int value, Vector3 destination, float progress, bool visible, bool ready, bool greeted,
+        string thought, int mood, int result, bool complaintPending, PhotonMessageInfo info)
     {
         if (session == null || !session.IsMultiplayerSession || info.Sender != PhotonNetwork.MasterClient || simulating) return;
         if (Group != null && Group.HasBeenAssigned) return;
         var receivedPhase = (CustomerGroup.GroupState)value;
         if (!IsPreService(receivedPhase)) return;
+        Group?.PresentObservedOutcome(thought, mood, result, complaintPending);
         phase = receivedPhase;
         queueDestination = destination;
         patience = Mathf.Clamp01(progress);

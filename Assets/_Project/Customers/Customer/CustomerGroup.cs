@@ -440,6 +440,33 @@ public class CustomerGroup : MonoBehaviour
     private Vector3 currentLineSlotTarget;
     // Optional presentation bridge; normal groups never opt into observer mode.
     public bool IsNetworkObserver { get; set; }
+    public bool CanDecideCustomerOutcome => !IsNetworkObserver &&
+        (MultiplayerSessionManager.Instance == null || !MultiplayerSessionManager.Instance.IsMultiplayerSession ||
+         MultiplayerSessionManager.Instance.IsAuthority);
+    public string OutcomeThought { get; private set; } = "";
+    public int OutcomeThoughtMood { get; private set; }
+    public int ObservedFinalResult => finalResultReported ? (int)finalResult : -1;
+    public bool ComplaintPending => managerComplaintPending;
+
+    public void PresentObservedOutcome(string message, int mood, int result, bool complaintPending)
+    {
+        if (!IsNetworkObserver) return;
+        if (result >= 0 && !finalResultReported)
+        {
+            finalResultReported = true;
+            finalResult = (FinalResult)result;
+            angryResultLocked = finalResult == FinalResult.Angry;
+        }
+        if (managerComplaintPending != complaintPending)
+        {
+            managerComplaintPending = complaintPending;
+            SetManagerCallAnimation(complaintPending);
+        }
+        if (string.IsNullOrEmpty(message) || message == OutcomeThought) return;
+        OutcomeThought = message;
+        OutcomeThoughtMood = mood;
+        ShowCustomThought(message, mood == 2 ? angryFaceSprite : mood == 1 ? unhappyFaceSprite : happyFaceSprite, true);
+    }
     public bool PauseAfterSeating { get; set; }
     public bool PauseBeforeEating { get; set; }
     public double MultiplayerEatingStartedAt { get; private set; }
@@ -514,12 +541,15 @@ public class CustomerGroup : MonoBehaviour
         if (!IsNetworkObserver || booth == null) return;
         hasBeenAssigned = true;
         assignedBooth = booth;
+        PresentObservedDeparture(phase);
         state = phase;
+        if (phase == GroupState.AngryLeft || phase == GroupState.UnhappyLeft || phase == GroupState.Leaving)
+            return;
         if (booth.CurrentGroup != this) booth.SetCurrentGroup(this);
         if (phase == GroupState.Seated || phase == GroupState.WaitingToOrder || phase == GroupState.ReadyToOrder)
             booth.SpawnMenuBook();
         if (phase == GroupState.ReadyToOrder) RestoreOrderBubbleIfWaiting();
-        if (phase == GroupState.NeedsBill && MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer
+        if (phase == GroupState.NeedsBill && !MultiplayerPaymentComplete && MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer
             && billBubbleInstance == null) SpawnBillBubble();
     }
     public Vector3 QueueDestination => currentLineSlotTarget;
@@ -529,6 +559,7 @@ public class CustomerGroup : MonoBehaviour
     public void PresentObservedQueue(GroupState phase, Vector3 destination, float patience, bool showPatience)
     {
         if (!IsNetworkObserver) return;
+        PresentObservedDeparture(phase);
         state = phase;
         currentLineSlotTarget = destination;
         if (groupUiAnchor != null) groupUiAnchor.position = GetMembersHeadAnchorWorld();
@@ -536,6 +567,21 @@ public class CustomerGroup : MonoBehaviour
         if (showPatience) EnsureLinePatienceUI();
         if (linePatienceInstance != null) linePatienceInstance.SetActive(showPatience);
         if (linePatienceUI != null && showPatience) linePatienceUI.SetProgress(patience);
+    }
+
+    private void PresentObservedDeparture(GroupState phase)
+    {
+        if (leavingRoutineStarted || (phase != GroupState.AngryLeft &&
+            phase != GroupState.UnhappyLeft && phase != GroupState.Leaving)) return;
+        leavingRoutineStarted = true;
+        PlayStateReaction(phase);
+        ClearLinePatienceUI();
+        ClearOrderBubble();
+        ClearBillBubble();
+        ClearTableNumber();
+        ClearMoneyBubble();
+        ClearEatingBubble();
+        // Poses come from Photon; never run leave callbacks or record a result here.
     }
 
     [Header("Happy Comments")]
@@ -730,6 +776,7 @@ public class CustomerGroup : MonoBehaviour
         }
     }
     public bool CanReceiveManagerComplaint =>
+        CanDecideCustomerOutcome &&
         gameObject.activeInHierarchy &&
         !IsTakeout &&
         !managerComplaintPending &&
@@ -825,6 +872,8 @@ public class CustomerGroup : MonoBehaviour
 
     private void SetState(GroupState newState)
     {
+        if (!CanDecideCustomerOutcome && (newState == GroupState.AngryLeft ||
+            newState == GroupState.UnhappyLeft || newState == GroupState.Leaving)) return;
         if (state == newState) return;
 
         bool eatingVisualChanged =
@@ -1212,6 +1261,7 @@ public class CustomerGroup : MonoBehaviour
 
             if (timeLeft <= 0f)
             {
+                if (!CanDecideCustomerOutcome || state != GroupState.ReadyToOrder) yield break;
                 if (shaker != null) shaker.StopShake(true);
                 CasualDiningPolishManager.EnsureInstance().RegisterIncident(
                     DailyIncidentType.WaitedTooLong);
@@ -1960,6 +2010,7 @@ public class CustomerGroup : MonoBehaviour
 
     private void HandleWrongDelivery()
     {
+        if (!CanDecideCustomerOutcome || leavingRoutineStarted) return;
         StopEatingRoutineForServiceFailure();
         CasualDiningPolishManager.EnsureInstance().RegisterIncident(
             DailyIncidentType.WrongOrder);
@@ -1985,6 +2036,7 @@ public class CustomerGroup : MonoBehaviour
 
     private void HandleBurntDelivery()
     {
+        if (!CanDecideCustomerOutcome || leavingRoutineStarted) return;
         StopEatingRoutineForServiceFailure();
         CasualDiningPolishManager.EnsureInstance().RegisterIncident(
             DailyIncidentType.OrderFailed);
@@ -2054,6 +2106,7 @@ public class CustomerGroup : MonoBehaviour
 
     public void BeginManagerComplaint(ManagerComplaintType _)
     {
+        if (!CanDecideCustomerOutcome) return;
         managerComplaintPending = true;
         isOrderPaused = true;
         SetMembersEating(false);
@@ -2085,7 +2138,7 @@ public class CustomerGroup : MonoBehaviour
         ManagerComplaintResponseQuality quality,
         ManagerComplaintType type)
     {
-        if (!managerComplaintPending)
+        if (!CanDecideCustomerOutcome || !managerComplaintPending)
             return;
 
         managerComplaintPending = false;
@@ -2226,6 +2279,42 @@ public class CustomerGroup : MonoBehaviour
         StartCoroutine(SpawnMoneyBubbleAfterDelay());
     }
 
+    public bool MultiplayerPaymentComplete { get; private set; }
+
+    internal bool BeginMultiplayerSettlement()
+    {
+        if (!MultiplayerCustomerInteractionBridge.CanSettleBill(this) || MultiplayerPaymentComplete
+            || state != GroupState.NeedsBill || hasReceivedBill) return false;
+        // Close the transaction before wallet/display callbacks can re-enter it.
+        MultiplayerPaymentComplete = true;
+        hasReceivedBill = true;
+        ClearBillBubble();
+        return true;
+    }
+
+    internal void FinishMultiplayerSettlement()
+    {
+        if (!MultiplayerCustomerInteractionBridge.CanSettleBill(this) || !MultiplayerPaymentComplete) return;
+        if (!angryResultLocked && !receivedWrongOrder && ShouldShowVipTip())
+            GameDayManager.Instance?.RegisterTip(Profile.tipAmount);
+        // Remain seated in NeedsBill with payment complete. No result/approval,
+        // dirty dishes, booth cleanup, or departure in this pass.
+    }
+
+    public void PresentObservedPayment(bool paid)
+    {
+        if (!IsNetworkObserver || !paid || MultiplayerPaymentComplete) return;
+        MultiplayerPaymentComplete = true;
+        hasReceivedBill = true;
+        ClearBillBubble();
+        var session = MultiplayerSessionManager.Instance;
+        if (session == null) return;
+        foreach (var player in session.ConnectedPlayers)
+            if (session.TryGetManager(player.ActorNumber, out var manager) && manager != null
+                && manager.GetComponent<WaiterHands>() is WaiterHands hands && hands.holdingBillFor == this)
+                hands.ClearBill();
+    }
+
     public void RequestBillFromCashier()
     {
         if (PauseBeforeEating && MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer) return;
@@ -2325,6 +2414,7 @@ public class CustomerGroup : MonoBehaviour
 
     public void PayAndLeave()
     {
+        if (MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer) return;
         if (state != GroupState.NeedsBill) return;
 
         if (angryResultLocked || receivedWrongOrder)
@@ -2356,6 +2446,7 @@ public class CustomerGroup : MonoBehaviour
 
     private void BecomeUnhappyAndLeave()
     {
+        if (!CanDecideCustomerOutcome || leavingRoutineStarted) return;
         ReportFinalResult(FinalResult.Neutral);
         ShowThought(unhappyComments, unhappyFaceSprite);
 
@@ -2372,6 +2463,7 @@ public class CustomerGroup : MonoBehaviour
 
     private void WarnAndLeaveForMissingStock()
     {
+        if (!CanDecideCustomerOutcome || leavingRoutineStarted) return;
         CasualDiningPolishManager.EnsureInstance().RegisterIncident(
             DailyIncidentType.StockoutRefusal);
         WarningSlideUI.Instance?.Show(
@@ -2386,8 +2478,25 @@ public class CustomerGroup : MonoBehaviour
         StartLeaving(false);
     }
 
+    internal bool TryStartMultiplayerDeparture()
+    {
+        var session = MultiplayerSessionManager.Instance;
+        if (session == null || !session.IsMultiplayerSession || !session.IsAuthority || IsNetworkObserver
+            || !MultiplayerPaymentComplete || !hasReceivedBill || leavingRoutineStarted
+            || state != GroupState.NeedsBill || assignedBooth == null || !assignedBooth.IsDirty) return false;
+        string key = "restaurant.booth.dirty:" + MultiplayerCustomerInteractionBridge.BoothIdentity(assignedBooth);
+        if (Photon.Pun.PhotonNetwork.CurrentRoom?.CustomProperties[key] is not int flags || (flags & 3) != 3)
+            return false;
+        ResolveExitPoint();
+        if (exitPoint == null) return false;
+        SetState(GroupState.Leaving);
+        StartLeaving(false);
+        return leavingRoutineStarted;
+    }
+
     private void StartLeaving(bool unused)
     {
+        if (!CanDecideCustomerOutcome) return;
         if (leavingRoutineStarted) return;
         leavingRoutineStarted = true;
 
@@ -2568,6 +2677,8 @@ public class CustomerGroup : MonoBehaviour
         }
 
         CleanupOnLeave();
+        if (MultiplayerPaymentComplete && MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer)
+            GetComponentInParent<MultiplayerCustomerSpawn>()?.NotifyPaidDepartureFinished(this);
         Destroy(gameObject);
     }
 
@@ -2590,11 +2701,14 @@ public class CustomerGroup : MonoBehaviour
 
     private void ShowThought(string[] comments, Sprite faceSprite)
     {
+        if (!CanDecideCustomerOutcome) return;
         if (TutorialSystem.IsTutorialMode) return;
         if (thoughtBubblePrefab == null) return;
 
         string message = GetRandomComment(comments);
         if (string.IsNullOrWhiteSpace(message)) return;
+        OutcomeThought = message;
+        OutcomeThoughtMood = faceSprite == angryFaceSprite ? 2 : faceSprite == unhappyFaceSprite ? 1 : 0;
 
         if (thoughtRoutine != null)
             StopCoroutine(thoughtRoutine);
@@ -2637,8 +2751,14 @@ public class CustomerGroup : MonoBehaviour
         thoughtRoutine = StartCoroutine(HideThoughtBubbleAfterDelay());
     }
 
-    private void ShowCustomThought(string message, Sprite faceSprite)
+    private void ShowCustomThought(string message, Sprite faceSprite, bool observed = false)
     {
+        if (!CanDecideCustomerOutcome && !observed) return;
+        if (CanDecideCustomerOutcome)
+        {
+            OutcomeThought = message;
+            OutcomeThoughtMood = faceSprite == angryFaceSprite ? 2 : faceSprite == unhappyFaceSprite ? 1 : 0;
+        }
         if (thoughtBubblePrefab == null) return;
         if (string.IsNullOrWhiteSpace(message)) return;
 
@@ -2748,6 +2868,7 @@ public class CustomerGroup : MonoBehaviour
 
     private void ReportFinalResult(FinalResult result)
     {
+        if (!CanDecideCustomerOutcome) return;
         if (finalResultReported) return;
 
         finalResultReported = true;
@@ -3131,6 +3252,7 @@ public class CustomerGroup : MonoBehaviour
 
     private void UpdateLinePatience()
     {
+        if (!CanDecideCustomerOutcome) return;
         if (debugForceShowLinePatience)
         {
             EnsureLinePatienceUI();
@@ -3281,6 +3403,7 @@ public class CustomerGroup : MonoBehaviour
 
     private void HandleLinePatienceExpired()
     {
+        if (!CanDecideCustomerOutcome || leavingRoutineStarted || hasBeenAssigned || state != GroupState.Waiting) return;
         StopLinePatience();
 
         CasualDiningPolishManager.EnsureInstance().RegisterIncident(
@@ -3329,6 +3452,7 @@ public class CustomerGroup : MonoBehaviour
 
     private void NotifyLeftLineIfNeeded()
     {
+        if (!CanDecideCustomerOutcome) return;
         if (hasNotifiedLeftLine)
             return;
 

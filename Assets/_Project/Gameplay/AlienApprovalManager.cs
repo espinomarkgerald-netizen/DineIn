@@ -30,6 +30,20 @@ public class AlienApprovalManager : MonoBehaviour
 
     public event Action<int> OnApprovalChanged;
 
+    private static bool CanMutateApproval => MultiplayerSessionManager.Instance == null ||
+        !MultiplayerSessionManager.Instance.IsMultiplayerSession || MultiplayerSessionManager.Instance.IsAuthority;
+
+    // Used only by the existing room snapshot, including authority recovery.
+    // Do not run deltas, objectives, result callbacks, game-over checks or saves.
+    internal void ApplyMultiplayerApproval(int approval)
+    {
+        if (!MultiplayerProgressionContext.Ready) return;
+        int value = Mathf.Clamp(approval, 0, 100);
+        if (Approval == value) return;
+        Approval = value;
+        OnApprovalChanged?.Invoke(Approval);
+    }
+
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -45,6 +59,7 @@ public class AlienApprovalManager : MonoBehaviour
 
     public void RegisterGroupResult(CustomerGroup.FinalResult result)
     {
+        if (!CanMutateApproval) return;
         int delta = result switch
         {
             CustomerGroup.FinalResult.Happy => Mathf.Max(0, happyDelta),
@@ -72,6 +87,7 @@ public class AlienApprovalManager : MonoBehaviour
     /// </summary>
     public void RegisterDailyStarRating(int earnedStars, int day)
     {
+        if (!CanMutateApproval) return;
         if (earnedStars != 1)
             return;
 
@@ -101,6 +117,7 @@ public class AlienApprovalManager : MonoBehaviour
 
     public void ResetApproval()
     {
+        if (!CanMutateApproval) return;
         Approval = Mathf.Clamp(startingApproval, 0, 100);
         positiveGroupApprovalEarnedToday = 0;
         approvalLostToday = 0;
@@ -111,6 +128,7 @@ public class AlienApprovalManager : MonoBehaviour
 
     public void BeginNewDay()
     {
+        if (!CanMutateApproval) return;
         positiveGroupApprovalEarnedToday = 0;
         approvalLostToday = 0;
         oneStarPenaltyAppliedDay = -1;
@@ -118,6 +136,7 @@ public class AlienApprovalManager : MonoBehaviour
 
     public void RestoreApprovalForContinue(int approval)
     {
+        if (MultiplayerProgressionContext.IsActive || !CanMutateApproval) return;
         Approval = Mathf.Clamp(approval, 1, 100);
         positiveGroupApprovalEarnedToday = 0;
         approvalLostToday = 0;
@@ -128,6 +147,7 @@ public class AlienApprovalManager : MonoBehaviour
 
     public bool TrySetApprovalDebug(int value)
     {
+        if (!CanMutateApproval) return false;
         if (value < 0 || value > 100)
             return false;
 
@@ -150,6 +170,9 @@ public class AlienApprovalManager : MonoBehaviour
 
     public void ApplySaveData(GameSaveData data)
     {
+        // Keep the context's fresh 50% initialization and Campaign restoration,
+        // but never overwrite a running multiplayer total from a save.
+        if (MultiplayerProgressionContext.Ready) return;
         if (data == null)
             return;
 
@@ -177,6 +200,7 @@ public class AlienApprovalManager : MonoBehaviour
 
     private void ApplyApprovalDelta(int delta)
     {
+        if (!CanMutateApproval) return;
         if (delta == 0)
             return;
 

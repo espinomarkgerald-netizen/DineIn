@@ -199,18 +199,29 @@ public class GameDayManager : MonoBehaviour
     public System.Func<bool> StartShiftInterception { get; set; }
     public bool ObserveDayOnly { get; set; }
     public bool ClosingOut => closingOut;
-    public bool HasDayResults => resultsHaveOutcome;
+    private bool multiplayerDayEnded;
+    public bool HasDayResults => MultiplayerDayBridge.IsActive ? multiplayerDayEnded : resultsHaveOutcome;
+    public int[] CaptureMultiplayerReport() => new[] { ordersProcessed, foodDelivered,
+        happyCustomers, neutralCustomers, angryCustomers, cashErrors, tipsEarned };
+    public void ApplyMultiplayerReport(int[] values)
+    {
+        if (!ObserveDayOnly || multiplayerDayEnded || values == null || values.Length != 7) return;
+        ordersProcessed = values[0]; foodDelivered = values[1];
+        happyCustomers = values[2]; neutralCustomers = values[3]; angryCustomers = values[4];
+        cashErrors = values[5]; tipsEarned = values[6];
+    }
 
     public void ApplyObservedDay(int day, bool running, bool closing, bool ended, float remaining)
     {
         if (!ObserveDayOnly) return;
         shiftRunning = running;
         closingOut = closing;
-        resultsHaveOutcome = ended;
+        if (!MultiplayerDayBridge.IsActive) resultsHaveOutcome = ended;
         timeRemaining = Mathf.Clamp(remaining, 0f, ShiftLengthSeconds);
         GameFlowManager.Instance?.ApplyObservedRestaurantDay(day, running || closing, ended);
         SetPanelVisible(dayIntroPanel, false);
         RefreshUI();
+        if (ended && MultiplayerDayBridge.IsActive && !multiplayerDayEnded) ShowResults();
     }
 
     public bool ShiftRunning => shiftRunning;
@@ -311,7 +322,7 @@ public class GameDayManager : MonoBehaviour
 
     private void Update()
     {
-        if (ObserveDayOnly) return;
+        if (ObserveDayOnly || (MultiplayerDayBridge.IsActive && !MultiplayerSessionManager.Instance.IsAuthority)) return;
         UpdateMoodBarsSmooth();
         UpdateContinuePurchaseConfirmation();
         RefreshResultsResponsiveLayout();
@@ -571,6 +582,7 @@ public class GameDayManager : MonoBehaviour
 
     public void StartShift()
     {
+        if (MultiplayerDayBridge.IsActive && multiplayerDayEnded) return;
         if (StartShiftInterception?.Invoke() == true || ObserveDayOnly) return;
         if (shiftRunning || closingOut)
             return;
@@ -645,7 +657,7 @@ public class GameDayManager : MonoBehaviour
 
     public void EndShift()
     {
-        if (ObserveDayOnly) return;
+        if (ObserveDayOnly || (MultiplayerDayBridge.IsActive && !MultiplayerSessionManager.Instance.IsAuthority)) return;
         if (!shiftRunning)
             return;
 
@@ -668,12 +680,14 @@ public class GameDayManager : MonoBehaviour
     {
         float waited = 0f;
         while (FindObjectsByType<CustomerGroup>(FindObjectsSortMode.None).Length > 0 &&
-               waited < maxClosingGraceSeconds)
+               (MultiplayerDayBridge.IsActive || waited < maxClosingGraceSeconds))
         {
+            if (ObserveDayOnly || (MultiplayerDayBridge.IsActive && !MultiplayerSessionManager.Instance.IsAuthority)) yield break;
             yield return new WaitForSeconds(1f);
             waited += 1f;
         }
 
+        if (ObserveDayOnly || (MultiplayerDayBridge.IsActive && !MultiplayerSessionManager.Instance.IsAuthority)) yield break;
         closingOut = false;
         closingResultsRoutine = null;
         ShowResults();
@@ -681,6 +695,7 @@ public class GameDayManager : MonoBehaviour
 
     public bool EndDayNowDebug()
     {
+        if (MultiplayerDayBridge.IsActive) return false;
         if (!Application.isEditor && !Debug.isDebugBuild)
             return false;
 
@@ -705,11 +720,13 @@ public class GameDayManager : MonoBehaviour
 
     public void RestartShift()
     {
+        if (MultiplayerDayBridge.IsActive) return;
         ShowShiftIntro();
     }
 
     public void OnResultsActionPressed()
     {
+        if (MultiplayerDayBridge.IsActive) return;
         if (GameFlowManager.Instance != null && GameFlowManager.Instance.UsesSingleRestaurantFlow)
         {
             if (resultsHaveOutcome && currentResultsOutcome != GameOverReason.EarthSaved)
@@ -948,17 +965,20 @@ public class GameDayManager : MonoBehaviour
 
     private void ShowResults()
     {
+        bool multiplayer = MultiplayerDayBridge.IsActive;
+        if (multiplayer && multiplayerDayEnded) return;
+        if (multiplayer) multiplayerDayEnded = true;
         GameFlowManager flow = GameFlowManager.Instance;
         bool singleRestaurantFlow = flow != null && flow.UsesSingleRestaurantFlow;
         int earnedStars = CalculateEarnedStars();
-        if (singleRestaurantFlow)
+        if (!multiplayer && singleRestaurantFlow)
             flow.FinalizeRestaurantDayForResults(earnedStars);
-        else
+        else if (!multiplayer)
             AlienApprovalManager.Instance?.RegisterDailyStarRating(
                 earnedStars,
                 flow != null ? flow.CurrentDay : 1);
 
-        resultsHaveOutcome = singleRestaurantFlow &&
+        resultsHaveOutcome = !multiplayer && singleRestaurantFlow &&
                              flow.TryGetRestaurantDayOutcome(out currentResultsOutcome);
         continuePurchaseArmed = false;
 
@@ -977,6 +997,12 @@ public class GameDayManager : MonoBehaviour
             PopulateStandardResults(singleRestaurantFlow, dayRevenue, targetRevenue);
 
         ConfigureResultsActions(singleRestaurantFlow);
+        if (multiplayer)
+        {
+            flow?.RestoreTemporaryRestaurantPhase(GameFlowManager.RestaurantSessionState.DayComplete);
+            if (resultsActionButton != null) resultsActionButton.gameObject.SetActive(false);
+            if (resultsContinueButton != null) resultsContinueButton.gameObject.SetActive(false);
+        }
         RefreshResultsResponsiveLayout(true);
         PrepareResultStars(earnedStars);
 

@@ -26,6 +26,8 @@ public class BillManager : MonoBehaviour
 
     public void RequestBill(CustomerGroup group)
     {
+        if (MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer &&
+            !MultiplayerSessionManager.Instance.IsAuthority) return;
         if (group == null) return;
         if (billPaperPrefab == null) return;
         if (billSpawnPoints == null || billSpawnPoints.Count == 0) return;
@@ -47,17 +49,31 @@ public class BillManager : MonoBehaviour
         while (queue.Count > 0)
         {
             var group = queue.Dequeue();
-            queued.Remove(group);
+            if (!MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer) queued.Remove(group);
 
             if (group == null)
                 continue;
 
             if (HasExistingBillForGroup(group))
+            {
+                queued.Remove(group);
                 continue;
+            }
 
             ProcessingBillIndicatorUI.Instance?.Show();
 
             yield return new WaitForSeconds(printSeconds);
+            queued.Remove(group);
+            if (group == null) continue;
+            if (MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer)
+            {
+                var session = MultiplayerSessionManager.Instance;
+                var customer = group.GetComponentInParent<MultiplayerCustomerSpawn>();
+                if (!session.IsAuthority || customer == null || group.HasReceivedBill
+                    || group.state != CustomerGroup.GroupState.NeedsBill
+                    || session.GetComponent<MultiplayerTaskClaims>().GetOwner($"Customer:{customer.photonView.ViewID}:Bill") == 0)
+                    continue;
+            }
 
             Transform spawn = GetFreeSpawnPoint();
             if (spawn == null) spawn = billSpawnPoints[0];
@@ -169,5 +185,19 @@ public class BillManager : MonoBehaviour
         }
 
         return null;
+    }
+
+    // A claimant's local copy of the already-printed authority bill, not a print request.
+    public BillPaper PresentMultiplayerBill(CustomerGroup group, Vector3 position, Quaternion rotation)
+    {
+        if (!MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer ||
+            MultiplayerSessionManager.Instance.IsAuthority || billPaperPrefab == null) return null;
+        var existing = FindBillForGroup(group);
+        if (existing != null) return existing;
+        var root = Instantiate(billPaperPrefab, position, rotation, billsRoot);
+        var bill = root.GetComponentInChildren<BillPaper>(true);
+        if (bill != null) bill.Init(group);
+        else Destroy(root);
+        return bill;
     }
 }

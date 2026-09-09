@@ -69,6 +69,7 @@ public class DailyFinanceBridge : MonoBehaviour
 
     public void AddEarnings(int amount, string description = "Daily Earnings")
     {
+        if (MultiplayerRestockBridge.ObserveOnly) return;
         if (amount <= 0)
             return;
 
@@ -76,6 +77,12 @@ public class DailyFinanceBridge : MonoBehaviour
 
         if (MoneyManager.Instance != null)
             MoneyManager.Instance.Earn(amount, description);
+    }
+
+    internal void ApplyMultiplayerSales(int sales)
+    {
+        if (MultiplayerProgressionContext.Ready)
+            earnedToday = Mathf.Max(0, sales);
     }
 
     /// <summary>

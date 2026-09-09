@@ -193,6 +193,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
     /// </summary>
     public bool TryBeginStaffPickup(AutonomousStaffBot owner, TrayMode expectedMode)
     {
+        if (mode == TrayMode.Cleanup && MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer) return false;
         if (owner == null || tray == null || staffCarried || mode != expectedMode ||
             !RestaurantTaskClaim.IsClaimedByBot(tray, owner))
         {
@@ -252,6 +253,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
 
     public bool CanInteract()
     {
+        if (mode == TrayMode.Cleanup && MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer) return false;
         if (MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer)
             return MultiplayerCustomerInteractionBridge.CanClaimPreparedTray(tray);
         if (mode == TrayMode.None) return false;
@@ -284,6 +286,12 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
 
     public void Interact(PlayerMovement mover)
     {
+        if (mode == TrayMode.Cleanup && MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer)
+        {
+            if (mover != null && mover.gameObject == MultiplayerSessionManager.Instance.LocalManager)
+                GetComponentInParent<Booth>()?.RequestHumanCleanup();
+            return;
+        }
         if (MultiplayerCustomerInteractionBridge.TryClaimPreparedTray(tray, mover)) return;
         if (!CanInteractWithWarning())
         {
@@ -374,6 +382,8 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
 
     public void UI_RequestPickup()
     {
+        if (mode == TrayMode.Cleanup && MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer)
+        { GetComponentInParent<Booth>()?.RequestHumanCleanup(); return; }
         if (MultiplayerCustomerInteractionBridge.TryClaimPreparedTray(tray)) return;
         if (!TutorialCustomerFlowBridge.AllowsServiceUI(
             CurrentMode == TrayMode.Cleanup ? "CleanupPickupButton" : "TrayPickupButton")) return;

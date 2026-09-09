@@ -16,6 +16,9 @@ public class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEventCallb
     private Camera cameraForPopup;
     private string taskId;
     private bool pending, cancelled;
+    private PlayerMovement greetMover;
+    private IInteractable greetApproach;
+    private bool greetApproached;
     private FoodTray pickupTarget;
     private string pickupTaskId;
     private bool pickupPending, pickupCancelled;
@@ -331,6 +334,185 @@ public class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEventCallb
     private CustomerGroup billTarget;
     private string billTaskId;
     private bool billPending, billCancelled;
+    private const byte BillFlowEvent = 199;
+    private PlayerMovement billMover;
+    private IInteractable billApproach;
+    private BillPaper localBill;
+    private bool billTransitionPending;
+    private CustomerGroup settlingBill;
+    public static bool CanSettleBill(CustomerGroup group)
+    {
+        var s = MultiplayerSessionManager.Instance;
+        return group != null && s != null && s.IsMultiplayerSession && s.IsAuthority
+            && s.GetComponent<MultiplayerCustomerInteractionBridge>()?.settlingBill == group;
+    }
+    private readonly System.Collections.Generic.HashSet<int> printingBills = new System.Collections.Generic.HashSet<int>();
+
+    public static bool CanRetrieveBill(BillPaper paper)
+    {
+        var s = MultiplayerSessionManager.Instance;
+        var bridge = s != null ? s.GetComponent<MultiplayerCustomerInteractionBridge>() : null;
+        return bridge != null && paper != null && bridge.localBill == paper && !bridge.billCancelled
+            && !bridge.billTransitionPending && bridge.billMover == null && s.LocalManager != null
+            && s.LocalManager.GetComponent<WaiterHands>() is WaiterHands hands && !hands.HasBill
+            && bridge.claims.IsClaimedBy(bridge.billTaskId, s.LocalActorNumber);
+    }
+
+    public static bool TryRetrieveBill(BillPaper paper)
+    {
+        if (!ReviewIsMultiplayer) return false;
+        if (CanRetrieveBill(paper))
+            MultiplayerSessionManager.Instance.GetComponent<MultiplayerCustomerInteractionBridge>()
+                .MoveForBill(paper.StandPoint, paper.GetInteractRadius(), 2);
+        return true;
+    }
+
+    private void BeginBillApproach()
+    {
+        var booth = billTarget != null ? billTarget.assignedBooth : null;
+        MoveForBill(booth != null ? booth.approachPoint != null ? booth.approachPoint : booth.transform : null, 2.75f, 0);
+    }
+
+    private void MoveForBill(Transform stand, float radius, int stage)
+    {
+        var mover = session.LocalManager != null ? session.LocalManager.GetComponent<PlayerMovement>() : null;
+        if (mover == null || !mover.isActiveAndEnabled || stand == null || billTarget == null) { CancelBill(); return; }
+        billMover = mover;
+        bool started = mover.UI_MoveToAction(stand, radius, () =>
+        {
+            billMover = null;
+            billApproach = null;
+            if (billCancelled || billTarget == null || session.LocalManager != mover.gameObject
+                || !claims.IsClaimedBy(billTaskId, session.LocalActorNumber)) { CancelBill(); return; }
+            billTransitionPending = true;
+            int view = billTarget.GetComponentInParent<MultiplayerCustomerSpawn>().photonView.ViewID;
+            if (session.IsAuthority) HandleBillFlow(view, stage, session.LocalActorNumber);
+            else if (!PhotonNetwork.RaiseEvent(BillFlowEvent, new object[] { view, stage },
+                new RaiseEventOptions { Receivers = ReceiverGroup.MasterClient }, SendOptions.SendReliable)) CancelBill();
+        }, () => { billMover = null; billApproach = null; CancelBill(); });
+        if (started) billApproach = mover.CurrentTarget;
+        else CancelBill();
+    }
+
+    private void HandleBillFlow(int viewId, int stage, int actor)
+    {
+        var view = PhotonView.Find(viewId);
+        var group = view != null ? view.GetComponent<MultiplayerCustomerSpawn>()?.Group : null;
+        var manager = BillManager.Instance;
+        if (!session.IsAuthority || group == null || group.IsNetworkObserver || manager == null
+            || group.state != CustomerGroup.GroupState.NeedsBill || group.HasReceivedBill
+            || !PhotonNetwork.CurrentRoom.Players.TryGetValue(actor, out var player) || player.IsInactive
+            || !claims.IsClaimedBy($"Customer:{viewId}:Bill", actor)
+            || !session.TryGetManager(actor, out var owner) || owner == null)
+        { ReplyBill(viewId, 4, actor, null); return; }
+        var hands = owner.GetComponent<WaiterHands>();
+        var booth = group.assignedBooth;
+        if (stage == 6)
+        {
+            var held = hands != null ? hands.GetComponentInChildren<BillPaper>(true) : null;
+            var delivery = booth != null ? booth.approachPoint != null ? booth.approachPoint : booth.transform : null;
+            var register = CashierRegisterUI.Instance;
+            if (held == null || !held.Matches(group) || hands.holdingBillFor != group
+                || hands.BillHoldPoint == null || !held.transform.IsChildOf(hands.BillHoldPoint)
+                || delivery == null || register == null || group.MultiplayerPaymentComplete
+                || Vector2.Distance(new Vector2(owner.transform.position.x, owner.transform.position.z),
+                    new Vector2(delivery.position.x, delivery.position.z)) > 2.75f)
+            { ReplyBill(viewId, 4, actor, null); return; }
+            bool paid;
+            settlingBill = group;
+            try { paid = register.CompleteAutomatedPayment(group); }
+            finally { settlingBill = null; }
+            if (!paid) { ReplyBill(viewId, 4, actor, null); return; }
+            hands.ClearBill();
+            view.GetComponent<MultiplayerCustomerSpawn>().PublishAssignment();
+            ReplyBill(viewId, 5, actor, null);
+            claims.CompleteOnAuthority($"Customer:{viewId}:Bill", actor);
+            return;
+        }
+        var paper = manager.FindBillForGroup(group);
+        Transform stand = stage == 0 ? (booth != null ? booth.approachPoint != null ? booth.approachPoint : booth.transform : null)
+            : paper != null ? paper.StandPoint : null;
+        float radius = stage == 0 ? 2.75f : paper != null ? paper.GetInteractRadius() : 0f;
+        if (hands == null || hands.HasBill || stand == null ||
+            Vector2.Distance(new Vector2(owner.transform.position.x, owner.transform.position.z),
+                new Vector2(stand.position.x, stand.position.z)) > radius)
+        { ReplyBill(viewId, 4, actor, null); return; }
+        if (stage == 0)
+        {
+            if (printingBills.Add(viewId)) StartCoroutine(PrintClaimedBill(group, viewId, actor));
+        }
+        else if (stage == 2 && paper != null)
+        {
+            hands.PickupBillPaper(paper);
+            ReplyBill(viewId, hands.holdingBillFor == group ? 3 : 4, actor, paper);
+        }
+    }
+
+    private System.Collections.IEnumerator PrintClaimedBill(CustomerGroup group, int viewId, int actor)
+    {
+        BillPaper paper = null;
+        var manager = BillManager.Instance;
+        // Exact printing entry called by RequestBillFromCashier; leave its
+        // multiplayer payment barrier untouched.
+        manager.RequestBill(group);
+        float deadline = Time.unscaledTime + 30f;
+        while (group != null && claims.IsClaimedBy($"Customer:{viewId}:Bill", actor)
+            && group.state == CustomerGroup.GroupState.NeedsBill && session.IsAuthority)
+        {
+            if (paper == null && manager != null) paper = manager.FindBillForGroup(group);
+            if (paper != null) break;
+            if (Time.unscaledTime >= deadline) break;
+            yield return null;
+        }
+        if (paper != null && group != null && session.IsAuthority
+            && claims.IsClaimedBy($"Customer:{viewId}:Bill", actor))
+        {
+            ReplyBill(viewId, 1, actor, paper);
+            while (group != null && session.IsAuthority && group.state == CustomerGroup.GroupState.NeedsBill
+                && claims.IsClaimedBy($"Customer:{viewId}:Bill", actor)) yield return null;
+        }
+        else ReplyBill(viewId, 4, actor, null);
+        if (session.TryGetManager(actor, out var owner) && owner != null
+            && owner.GetComponent<WaiterHands>() is WaiterHands hands && hands.holdingBillFor == group)
+            hands.ClearBill();
+        if (paper != null && (group == null || !group.MultiplayerPaymentComplete)) Destroy(paper.gameObject);
+        printingBills.Remove(viewId);
+    }
+
+    private void ReplyBill(int view, int stage, int actor, BillPaper paper)
+    {
+        Vector3 position = paper != null ? paper.transform.position : Vector3.zero;
+        Quaternion rotation = paper != null ? paper.transform.rotation : Quaternion.identity;
+        if (actor == session.LocalActorNumber) ObserveBill(view, stage, position, rotation, paper);
+        else PhotonNetwork.RaiseEvent(BillFlowEvent, new object[] { view, stage, position, rotation },
+            new RaiseEventOptions { TargetActors = new[] { actor } }, SendOptions.SendReliable);
+    }
+
+    private void ObserveBill(int view, int stage, Vector3 position, Quaternion rotation, BillPaper paper = null)
+    {
+        if (stage == 5 && billTaskId == $"Customer:{view}:Bill")
+        {
+            billTarget?.PresentObservedPayment(true);
+            billTaskId = null; // Authority completed the claim; never send another release.
+            CancelBill();
+            return;
+        }
+        if (billCancelled || billTarget == null || billTaskId != $"Customer:{view}:Bill"
+            || !claims.IsClaimedBy(billTaskId, session.LocalActorNumber)) return;
+        billTransitionPending = false;
+        if (stage == 4) { WarningSlideUI.Instance?.Show("Bill request failed. Please try again."); CancelBill(); return; }
+        if (stage == 1)
+        {
+            localBill = paper != null ? paper : BillManager.Instance?.PresentMultiplayerBill(billTarget, position, rotation);
+            if (localBill == null) CancelBill();
+        }
+        else if (stage == 3 && session.LocalManager != null)
+        {
+            var hands = session.LocalManager.GetComponent<WaiterHands>();
+            if (hands != null && !hands.HasBill && localBill != null) hands.PickupBillPaper(localBill);
+            WarningSlideUI.Instance?.Show("Bill retrieved. Select its customer's bill bubble to deliver and settle payment.");
+        }
+    }
 
     public static bool TryHandleBill(CustomerGroup group)
     {
@@ -341,8 +523,18 @@ public class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEventCallb
         if (bridge == null || customer == null || session.LocalManager == null
             || group.state != CustomerGroup.GroupState.NeedsBill || group.HasReceivedBill) return true;
         if (bridge.billPending) return true;
+        var hands = session.LocalManager.GetComponent<WaiterHands>();
+        if (hands != null && hands.HasBill && hands.holdingBillFor != group)
+        { WarningSlideUI.Instance?.Show("This bill belongs to another customer."); return true; }
         if (bridge.billTarget == group && bridge.claims.IsClaimedBy(bridge.billTaskId, session.LocalActorNumber))
-            return true; // Keep ownership; cashier/payment is deliberately not started.
+        {
+            if (hands != null && hands.HasBill && !bridge.billTransitionPending && bridge.billMover == null)
+            {
+                var booth = group.assignedBooth;
+                bridge.MoveForBill(booth != null ? booth.approachPoint != null ? booth.approachPoint : booth.transform : null, 2.75f, 6);
+            }
+            return true;
+        }
         bridge.CancelBill();
         bridge.billTarget = group;
         bridge.billTaskId = $"Customer:{customer.photonView.ViewID}:Bill";
@@ -356,6 +548,18 @@ public class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEventCallb
     private void CancelBill()
     {
         billCancelled = true;
+        billTransitionPending = false;
+        var mover = billMover;
+        var approach = billApproach;
+        billMover = null;
+        billApproach = null;
+        if (mover != null && approach != null && session.LocalManager == mover.gameObject
+            && ReferenceEquals(mover.CurrentTarget, approach)) mover.CancelLockedTask();
+        if (session.LocalManager != null && session.LocalManager.GetComponent<WaiterHands>() is WaiterHands hands
+            && billTarget != null && hands.holdingBillFor == billTarget) hands.ClearBill();
+        if (!session.IsAuthority && localBill != null && (billTarget == null || !billTarget.MultiplayerPaymentComplete))
+            Destroy(localBill.gameObject);
+        localBill = null;
         if (billTaskId != null && claims != null && claims.IsClaimedBy(billTaskId, session.LocalActorNumber))
             claims.Release(billTaskId);
         // Keep cancelled in-flight requests so a late grant is released.
@@ -421,7 +625,7 @@ public class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEventCallb
         var bridge = session.GetComponent<MultiplayerCustomerInteractionBridge>();
         var customer = group.GetComponentInParent<MultiplayerCustomerSpawn>();
         if (bridge == null || customer == null || bridge.target != customer || bridge.pending
-            || bridge.cancelled || session.LocalManager == null
+            || bridge.cancelled || !bridge.greetApproached || session.LocalManager == null
             || !bridge.claims.IsClaimedBy(bridge.taskId, session.LocalActorNumber)) return true;
         if (group.hasBeenGreeted)
         {
@@ -443,6 +647,17 @@ public class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEventCallb
 
     public void OnEvent(EventData photonEvent)
     {
+        if (photonEvent.Code == BillFlowEvent && session != null && session.IsMultiplayerSession
+            && photonEvent.CustomData is object[] bill && bill.Length >= 2
+            && bill[0] is int billView && bill[1] is int billStage)
+        {
+            if (session.IsAuthority && bill.Length == 2 && (billStage == 0 || billStage == 2 || billStage == 6))
+                HandleBillFlow(billView, billStage, photonEvent.Sender);
+            else if (bill.Length == 4 && photonEvent.Sender == PhotonNetwork.MasterClient.ActorNumber
+                && bill[2] is Vector3 billPosition && bill[3] is Quaternion billRotation)
+                ObserveBill(billView, billStage, billPosition, billRotation);
+            return;
+        }
         if (session == null || !session.IsMultiplayerSession) return;
         if (photonEvent.Code == ServeRequestEvent && session.IsAuthority
             && photonEvent.CustomData is object[] serve && serve.Length == 3
@@ -517,6 +732,7 @@ public class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEventCallb
         if (session == null || !session.IsMultiplayerSession) return;
         var bridge = session.GetComponent<MultiplayerCustomerInteractionBridge>();
         if (bridge == null || bridge.cancelled || bridge.pending || bridge.target == null
+            || !bridge.greetApproached
             || bridge.target.Group != group || session.LocalManager == null
             || !bridge.claims.IsClaimedBy(bridge.taskId, session.LocalActorNumber)) return;
         HostSpeechBubbleSpawner.Instance?.HideImmediate();
@@ -530,6 +746,7 @@ public class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEventCallb
         var bridge = session.GetComponent<MultiplayerCustomerInteractionBridge>();
         return bridge != null && session.LocalManager == controller.gameObject
             && !bridge.cancelled && !bridge.pending && !bridge.seatPending
+            && bridge.greetApproached
             && bridge.target != null && bridge.target.Group == group && group.hasBeenGreeted
             && !group.HasBeenAssigned && bridge.target.ReadyForInteraction
             && bridge.claims.IsClaimedBy(bridge.taskId, session.LocalActorNumber);
@@ -649,7 +866,7 @@ public class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEventCallb
             }
             else if (billCancelled || session.LocalManager == null || billTarget == null
                 || billTarget.state != CustomerGroup.GroupState.NeedsBill || billTarget.HasReceivedBill) CancelBill();
-            else WarningSlideUI.Instance?.Show("Bill task claimed. Payment is not available yet. Escape or right-click cancels.");
+            else if (claims.IsClaimedBy(id, session.LocalActorNumber)) BeginBillApproach();
             return;
         }
         if (pickupPending && id == pickupTaskId)
@@ -686,11 +903,54 @@ public class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEventCallb
         if (cancelled || target == null || !target.ReadyForInteraction || session.LocalManager == null)
         { Cancel(); return; }
         if (claims.IsClaimedBy(id, session.LocalActorNumber))
-            CustomerGreetBubbleSpawner.Instance?.Show(target.Group, cameraForPopup);
+            BeginGreetApproach();
+    }
+
+    private void BeginGreetApproach()
+    {
+        var mover = session.LocalManager.GetComponent<PlayerMovement>();
+        var stand = CustomerGreetBubbleUI.FindClosestCustomer(target.Group, session.LocalManager.transform.position);
+        if (mover == null || !mover.isActiveAndEnabled || stand == null) { Cancel(); return; }
+
+        var customer = target;
+        string claimedTask = taskId;
+        greetMover = mover;
+        CustomerGreetBubbleSpawner.Instance?.Hide();
+        bool started = mover.UI_MoveToAction(stand, CustomerGreetBubbleUI.GreetingInteractRadius,
+            () =>
+            {
+                greetMover = null;
+                greetApproach = null;
+                if (cancelled || target != customer || taskId != claimedTask || customer == null
+                    || !customer.ReadyForInteraction || !session.IsMultiplayerSession
+                    || session.LocalManager != mover.gameObject
+                    || !claims.IsClaimedBy(claimedTask, session.LocalActorNumber))
+                { Cancel(); return; }
+                greetApproached = true;
+                CustomerGreetBubbleSpawner.Instance?.Show(customer.Group, cameraForPopup);
+            },
+            () =>
+            {
+                // Movement already handles stopping/replacement; do not cancel
+                // whatever interaction may replace this deferred action.
+                greetMover = null;
+                greetApproach = null;
+                Cancel();
+            });
+        if (started) greetApproach = mover.CurrentTarget;
+        else Cancel();
     }
 
     private void Update()
     {
+        if (billTarget != null && billTarget.MultiplayerPaymentComplete)
+        {
+            billTaskId = null;
+            CancelBill();
+        }
+        if (billApproach != null && (billMover == null || !billMover.isActiveAndEnabled
+            || session.LocalManager != billMover.gameObject || !billApproach.CanInteract()
+            || !ReferenceEquals(billMover.CurrentTarget, billApproach))) CancelBill();
         if (billTaskId != null && (!session.IsMultiplayerSession || session.LocalManager == null
             || billTarget == null || billTarget.state != CustomerGroup.GroupState.NeedsBill || billTarget.HasReceivedBill
             || Input.GetKeyDown(KeyCode.Escape) || Input.GetMouseButtonDown(1)
@@ -704,6 +964,10 @@ public class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEventCallb
             || Input.GetKeyDown(KeyCode.Escape) || Input.GetMouseButtonDown(1)
             || (!orderPending && !claims.IsClaimedBy(orderTaskId, session.LocalActorNumber)))) CancelOrder();
         if (taskId == null) return;
+        if (greetApproach != null && (greetMover == null || !greetMover.isActiveAndEnabled
+            || session.LocalManager != greetMover.gameObject || !greetApproach.CanInteract()
+            || !ReferenceEquals(greetMover.CurrentTarget, greetApproach)))
+        { Cancel(); return; }
         if (!session.IsMultiplayerSession || session.LocalManager == null || target == null
             || !target.ReadyForInteraction || Input.GetKeyDown(KeyCode.Escape) || Input.GetMouseButtonDown(1)
             || (!pending && !claims.IsClaimedBy(taskId, session.LocalActorNumber))) Cancel();
@@ -712,6 +976,14 @@ public class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEventCallb
     public void Cancel()
     {
         cancelled = true;
+        greetApproached = false;
+        var mover = greetMover;
+        var approach = greetApproach;
+        greetMover = null;
+        greetApproach = null;
+        if (mover != null && approach != null && session.LocalManager == mover.gameObject
+            && ReferenceEquals(mover.CurrentTarget, approach))
+            mover.CancelLockedTask();
         seatPending = false;
         if (seatController != null) seatController.ClearBoothSelection(target != null ? target.Group : null);
         seatController = null;

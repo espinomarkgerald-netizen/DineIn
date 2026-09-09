@@ -48,6 +48,7 @@ public class BoothMessCleanUI : MonoBehaviour, IPointerDownHandler, IPointerUpHa
 
     private void OnDisable()
     {
+        if (MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer) return;
         if (!automatedCleaning)
             RestaurantTaskClaim.ReleasePlayer(booth);
     }
@@ -56,6 +57,12 @@ public class BoothMessCleanUI : MonoBehaviour, IPointerDownHandler, IPointerUpHa
     {
         if (booth == null)
             return;
+        if (MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer)
+        {
+            if (radialFill != null) radialFill.value = booth.HumanCleanupProgress;
+            if (label != null) label.text = booth.HumanCleanupActive ? "Cleaning..." : "Clean";
+            return;
+        }
 
         if (!booth.IsDirty)
         {
@@ -120,6 +127,8 @@ public class BoothMessCleanUI : MonoBehaviour, IPointerDownHandler, IPointerUpHa
 
     public void OnPointerDown(PointerEventData eventData)
     {
+        if (MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer)
+        { booth?.RequestHumanCleanup(); return; }
         if (automatedCleaning || booth == null || !booth.IsDirty)
             return;
 
@@ -151,6 +160,7 @@ public class BoothMessCleanUI : MonoBehaviour, IPointerDownHandler, IPointerUpHa
 
     public void OnPointerUp(PointerEventData eventData)
     {
+        if (MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer) return;
         if (automatedCleaning)
             return;
 
@@ -159,6 +169,7 @@ public class BoothMessCleanUI : MonoBehaviour, IPointerDownHandler, IPointerUpHa
 
     public void OnPointerExit(PointerEventData eventData)
     {
+        if (MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer) return;
         if (automatedCleaning)
             return;
 

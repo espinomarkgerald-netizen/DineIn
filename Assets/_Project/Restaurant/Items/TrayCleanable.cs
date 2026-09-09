@@ -11,6 +11,7 @@ public class TrayCleanable : MonoBehaviour
 
     public void ArmForCleaning(Booth b)
     {
+        if (MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer) return;
         if (IsArmed) return;
 
         booth = b;
@@ -26,6 +27,7 @@ public class TrayCleanable : MonoBehaviour
 
     private void HandleCleaned(CleanableEvent e)
     {
+        if (MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer) return;
         if (booth != null)
             booth.OnTableCleaned();
 

@@ -4,6 +4,7 @@ using TMPro;
 
 public class CustomerGreetBubbleUI : MonoBehaviour
 {
+    internal const float GreetingInteractRadius = 3.4f;
     [Header("UI")]
     [SerializeField] private Button button;
     [SerializeField] private TMP_Text label;
@@ -102,7 +103,7 @@ public class CustomerGreetBubbleUI : MonoBehaviour
 
                 movementManager.Movement.UI_MoveToAction(
                     greetingStandPoint,
-                    3.4f,
+                    GreetingInteractRadius,
                     () =>
                     {
                         if (targetGroup == null) return;
@@ -191,7 +192,7 @@ public class CustomerGreetBubbleUI : MonoBehaviour
             : "The receptionist is already helping this group.");
     }
 
-    private static Transform FindClosestCustomer(CustomerGroup targetGroup, Vector3 from)
+    internal static Transform FindClosestCustomer(CustomerGroup targetGroup, Vector3 from)
     {
         if (targetGroup == null || targetGroup.members == null)
             return null;

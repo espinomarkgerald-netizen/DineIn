@@ -510,6 +510,11 @@ public sealed class CasualDiningProgressHUD : MonoBehaviour
         panelRect.anchoredPosition = new Vector2(0f, redesignedPanelPosition.y);
 
         const float gap = 18f;
+        // Authored mood tracks/icons did not match their container widths.
+        // Share the sales span, with each track filling its own half of the row.
+        float moodWidth = Mathf.Max(1f, (moneyRow.rect.width - gap) * 0.5f);
+        AlignMoodRow(neutralRow, moodWidth);
+        AlignMoodRow(angryRow, moodWidth);
         float rightWidth = Mathf.Max(moneyRow.rect.width,
             neutralRow.rect.width + angryRow.rect.width + gap);
         PlaceRow(moneyRow, Vector2.one, new Vector2(-gap, 0f));
@@ -536,6 +541,27 @@ public sealed class CasualDiningProgressHUD : MonoBehaviour
         row.anchorMin = row.anchorMax = anchor;
         row.pivot = anchor;
         row.anchoredPosition = position;
+    }
+
+    private static void AlignMoodRow(RectTransform row, float width)
+    {
+        row.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, width);
+        foreach (string name in new[] { "Track", "ProgressShadow", "Label", "Value" })
+        {
+            if (row.Find(name) is not RectTransform child) continue;
+            child.anchorMin = new Vector2(0f, child.anchorMin.y);
+            child.anchorMax = new Vector2(1f, child.anchorMax.y);
+            child.offsetMin = new Vector2(0f, child.offsetMin.y);
+            child.offsetMax = new Vector2(0f, child.offsetMax.y);
+        }
+
+        // Match the sales icon's right-edge anchor without moving its vertical axis.
+        if (row.Find("Icon") is RectTransform icon)
+        {
+            icon.anchorMin = new Vector2(1f, icon.anchorMin.y);
+            icon.anchorMax = new Vector2(1f, icon.anchorMax.y);
+            icon.anchoredPosition = new Vector2(0f, icon.anchoredPosition.y);
+        }
     }
 
     private void ApplyDayTimeVariant(bool useStacked)

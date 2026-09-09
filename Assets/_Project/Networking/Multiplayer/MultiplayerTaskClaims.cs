@@ -62,6 +62,14 @@ public class MultiplayerTaskClaims : MonoBehaviourPunCallbacks, IOnEventCallback
             foreach (string previous in previousPickups) Publish(previous, 0, 0, true);
         }
         bool accepted = acquire ? owner == 0 || owner == actor : owner == actor;
+        if (acquire && taskId.StartsWith("Booth:", StringComparison.Ordinal) && taskId.EndsWith(":Cleanup", StringComparison.Ordinal))
+        {
+            string boothId = taskId.Substring(6, taskId.Length - 6 - ":Cleanup".Length);
+            var booth = MultiplayerCustomerInteractionBridge.ResolveBooth(boothId);
+            accepted &= booth != null && booth.CanRequestHumanCleanup
+                && session.TryGetManager(actor, out var manager) && manager != null && manager.activeInHierarchy
+                && PhotonNetwork.CurrentRoom.CustomProperties["restaurant.booth.dirty:" + boothId] is int flags && (flags & 1) != 0;
+        }
         if (acquire && taskId.StartsWith("Order:", StringComparison.Ordinal)
             && taskId.EndsWith(":Pickup", StringComparison.Ordinal))
         {

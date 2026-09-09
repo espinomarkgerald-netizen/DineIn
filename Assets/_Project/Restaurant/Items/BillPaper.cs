@@ -84,6 +84,8 @@ public class BillPaper : MonoBehaviour, IInteractable, ICancelableTaskTarget
 
     public bool CanInteract()
     {
+        if (MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer)
+            return !isPickedUp && MultiplayerCustomerInteractionBridge.CanRetrieveBill(this);
         if (isPickedUp) return false;
         if (IsHeldByAnyWaiter()) return false;
         if (targetGroup == null) return false;
@@ -97,12 +99,19 @@ public class BillPaper : MonoBehaviour, IInteractable, ICancelableTaskTarget
 
     public void Interact(PlayerMovement mover)
     {
+        if (MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer)
+        {
+            if (mover != null && mover.gameObject == MultiplayerSessionManager.Instance.LocalManager)
+                MultiplayerCustomerInteractionBridge.TryRetrieveBill(this);
+            return;
+        }
         if (!TryPickup(mover))
             RecoverFailedPickup();
     }
 
     public void UI_Pickup()
     {
+        if (MultiplayerCustomerInteractionBridge.TryRetrieveBill(this)) return;
         if (!TutorialCustomerFlowBridge.AllowsServiceUI("BillPickupButton")) return;
         if (!CanPickupWithWarning()) return;
         if (RoleManager.Instance == null) return;
@@ -130,6 +139,12 @@ public class BillPaper : MonoBehaviour, IInteractable, ICancelableTaskTarget
 
     public bool TryPickup(PlayerMovement mover = null)
     {
+        if (MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer)
+        {
+            if (mover == null || mover.gameObject == MultiplayerSessionManager.Instance.LocalManager)
+                MultiplayerCustomerInteractionBridge.TryRetrieveBill(this);
+            return false;
+        }
         if (isPickedUp) return false;
         if (IsHeldByAnyWaiter()) return false;
         if (!CanPickupWithWarning()) return false;
