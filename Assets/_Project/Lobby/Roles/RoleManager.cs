@@ -220,6 +220,10 @@ public class RoleManager : MonoBehaviour
 
     public bool IsActiveRole(GameObject obj)
     {
+        var session = MultiplayerSessionManager.Instance;
+        if (session != null && session.IsMultiplayerSession)
+            return obj != null && obj == session.LocalManager;
+
         if (ManagerPlayer.Active != null && obj == ManagerPlayer.Active.gameObject)
             return true;
 
@@ -244,6 +248,13 @@ public class RoleManager : MonoBehaviour
 
     public bool IsActiveRoleType(StaffRole.Role role)
     {
+        var session = MultiplayerSessionManager.Instance;
+        if (session != null && session.IsMultiplayerSession)
+        {
+            var manager = session.LocalManager?.GetComponent<ManagerPlayer>();
+            return manager != null && manager.CanPerform(role);
+        }
+
         if (ManagerPlayer.Active != null && ManagerPlayer.Active.CanPerform(role))
             return true;
 
@@ -255,6 +266,10 @@ public class RoleManager : MonoBehaviour
 
     public PlayerMovement GetActivePlayerMovement()
     {
+        var session = MultiplayerSessionManager.Instance;
+        if (session != null && session.IsMultiplayerSession)
+            return session.LocalManager?.GetComponent<PlayerMovement>();
+
         if (ManagerPlayer.Active != null)
             return ManagerPlayer.Active.Movement;
 

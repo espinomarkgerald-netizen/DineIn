@@ -6,10 +6,15 @@ public class TableNumberUI : MonoBehaviour
     [SerializeField] private TMP_Text numberText;
     [SerializeField] private Booth booth;
     private CustomerGroup group;
+    private MultiplayerCustomerSpawn networkCustomer;
+    private bool multiplayerGuidance;
 
     public void SetGroup(CustomerGroup value)
     {
         group = value;
+        networkCustomer = value != null ? value.GetComponentInParent<MultiplayerCustomerSpawn>() : null;
+        var session = MultiplayerSessionManager.Instance;
+        multiplayerGuidance = networkCustomer != null || (session != null && session.IsMultiplayerSession);
     }
 
     private void LateUpdate()
@@ -17,7 +22,8 @@ public class TableNumberUI : MonoBehaviour
         // A table number only represents food that is still pending. This
         // self-check also removes an orphaned UI instance if a delivery event
         // changed the group state but missed the normal visual cleanup call.
-        if (group == null || group.state != CustomerGroup.GroupState.OrderTaken)
+        if (group == null || group.state != CustomerGroup.GroupState.OrderTaken
+            || (multiplayerGuidance && (networkCustomer == null || !networkCustomer.HasLocalDeliveryGuidance)))
             Destroy(gameObject);
     }
 
@@ -37,10 +43,20 @@ public class TableNumberUI : MonoBehaviour
         if (!TutorialCustomerFlowBridge.AllowsServiceUI("DeliveryPopup")) return;
         if (booth == null) return;
 
-        if (RoleManager.Instance == null) return;
-        if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Waiter)) return;
-
-        var player = RoleManager.Instance.GetActivePlayerMovement();
+        PlayerMovement player;
+        var session = MultiplayerSessionManager.Instance;
+        if (multiplayerGuidance || (session != null && session.IsMultiplayerSession))
+        {
+            if (networkCustomer == null || !networkCustomer.HasLocalDeliveryGuidance) return;
+            var manager = session != null ? session.LocalManager : null;
+            player = manager != null ? manager.GetComponent<PlayerMovement>() : null;
+        }
+        else
+        {
+            if (RoleManager.Instance == null) return;
+            if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Waiter)) return;
+            player = RoleManager.Instance.GetActivePlayerMovement();
+        }
         if (player == null) return;
 
         BoothDeliverInteractable boothDeliver = booth.GetComponent<BoothDeliverInteractable>();

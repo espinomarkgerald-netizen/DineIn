@@ -37,6 +37,10 @@ public class RoleBasedAssignController : MonoBehaviour
 
     private void Update()
     {
+        var session = MultiplayerSessionManager.Instance;
+        bool multiplayer = session != null && session.IsMultiplayerSession;
+        if (multiplayer && session.LocalManager != gameObject) return;
+
         bool isManager = managerPlayer != null && managerPlayer.isActiveAndEnabled;
         bool isLegacyActiveRole = RoleManager.Instance != null &&
                                   RoleManager.Instance.IsActiveRole(gameObject);
@@ -48,7 +52,8 @@ public class RoleBasedAssignController : MonoBehaviour
 
         if (staffRole != null && staffRole.role == StaffRole.Role.Waiter)
         {
-            if (WaiterHands.ActivePlayerHands != null && WaiterHands.ActivePlayerHands.HasTray)
+            var hands = multiplayer ? session.LocalManager.GetComponent<WaiterHands>() : WaiterHands.ActivePlayerHands;
+            if (hands != null && hands.HasTray)
                 return;
         }
 

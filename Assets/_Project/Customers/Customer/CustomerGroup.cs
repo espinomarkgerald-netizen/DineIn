@@ -1851,6 +1851,12 @@ public class CustomerGroup : MonoBehaviour
 
     private void SpawnTableNumber()
     {
+        var session = MultiplayerSessionManager.Instance;
+        if (session != null && session.IsMultiplayerSession)
+        {
+            var customer = GetComponentInParent<MultiplayerCustomerSpawn>();
+            if (customer == null || !customer.HasLocalDeliveryGuidance) return;
+        }
         if (tableNumberPrefab == null) return;
 
         ClearTableNumber();
@@ -1868,6 +1874,14 @@ public class CustomerGroup : MonoBehaviour
             num.SetNumber(currentOrderNumber);
             num.SetBooth(assignedBooth);
         }
+    }
+
+    internal void ProjectLocalDeliveryGuidance(bool visible)
+    {
+        if (!visible)
+            ClearTableNumber();
+        else if (tableNumberInstance == null)
+            SpawnTableNumber();
     }
 
     private IEnumerator ShowRemakeOrderAfterDelay()

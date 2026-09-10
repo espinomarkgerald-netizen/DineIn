@@ -23,6 +23,8 @@ public class MultiplayerSessionManager : MonoBehaviourPunCallbacks
         : string.Empty;
 
     public GameObject LocalManager => TryGetManager(LocalActorNumber, out var manager)
+        && manager.activeInHierarchy
+        && manager.GetComponent<PhotonView>().OwnerActorNr == LocalActorNumber
         && manager.GetComponent<PhotonView>().IsMine ? manager : null;
 
     private void Awake()

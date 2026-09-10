@@ -25,6 +25,7 @@ public class ProcessingBillIndicatorUI : MonoBehaviour
     private bool isShowing;
     private bool initialized;
     private string currentText;
+    private bool projectedMultiplayer;
 
     private void Awake()
     {
@@ -45,6 +46,18 @@ public class ProcessingBillIndicatorUI : MonoBehaviour
 
     private void Update()
     {
+        if (MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer)
+        {
+            projectedMultiplayer = true;
+            bool visible = MultiplayerCustomerInteractionBridge.LocalBillIsPrinting;
+            if (visible && !isShowing) Show();
+            else if (!visible && isShowing) Hide();
+        }
+        else if (projectedMultiplayer)
+        {
+            projectedMultiplayer = false;
+            Hide();
+        }
         if (panelRect == null) return;
 
         float targetX = isShowing ? shownX : hiddenX;

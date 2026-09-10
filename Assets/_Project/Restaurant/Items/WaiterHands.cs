@@ -9,6 +9,10 @@ public class WaiterHands : MonoBehaviour
     {
         get
         {
+            var session = MultiplayerSessionManager.Instance;
+            if (session != null && session.IsMultiplayerSession)
+                return session.LocalManager?.GetComponent<WaiterHands>();
+
             if (ManagerPlayer.Active != null)
             {
                 WaiterHands managerHands = ManagerPlayer.Active.GetComponent<WaiterHands>();
@@ -20,7 +24,7 @@ public class WaiterHands : MonoBehaviour
         }
     }
 
-    public static event Action OnHandsStateChanged;
+    public static event Action<WaiterHands> OnHandsStateChanged;
 
     [Header("Holding")]
     public CustomerGroup holdingTicketFor;
@@ -116,6 +120,9 @@ public class WaiterHands : MonoBehaviour
         if (mover != null)
         {
             WaiterHands ownedHands = mover.GetComponent<WaiterHands>();
+            var session = MultiplayerSessionManager.Instance;
+            if (session != null && session.IsMultiplayerSession)
+                return ownedHands; // Never substitute another actor's hands.
             if (ownedHands != null)
                 return ownedHands;
         }
@@ -163,7 +170,7 @@ public class WaiterHands : MonoBehaviour
 
     private void NotifyHandsChanged()
     {
-        OnHandsStateChanged?.Invoke();
+        OnHandsStateChanged?.Invoke(this);
     }
 
     public void ClearTicket()

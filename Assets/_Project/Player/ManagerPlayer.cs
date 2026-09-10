@@ -18,7 +18,17 @@ public sealed class ManagerPlayer : MonoBehaviour
         Barista
     }
 
-    public static ManagerPlayer Active { get; private set; }
+    private static ManagerPlayer singlePlayerActive;
+    public static ManagerPlayer Active
+    {
+        get
+        {
+            var session = MultiplayerSessionManager.Instance;
+            return session != null && session.IsMultiplayerSession
+                ? session.LocalManager?.GetComponent<ManagerPlayer>()
+                : singlePlayerActive;
+        }
+    }
 
     [Header("Restaurant Capabilities")]
     [SerializeField] private bool canHost = true;
@@ -36,6 +46,11 @@ public sealed class ManagerPlayer : MonoBehaviour
     {
         Movement = GetComponent<PlayerMovement>();
 
+        // Network ownership is established by registration before Start, not Awake.
+        // Network avatars never participate in the single-player singleton.
+        if (GetComponent<MultiplayerManagerRegistration>() != null)
+            return;
+
         if (Active != null && Active != this)
         {
             Debug.LogError("[ManagerPlayer] More than one active Manager exists.", this);
@@ -43,25 +58,33 @@ public sealed class ManagerPlayer : MonoBehaviour
             return;
         }
 
-        Active = this;
+        singlePlayerActive = this;
         Movement.SetPlayerControlled(true);
         Movement.CancelAutoFinish();
     }
 
     private void Start()
     {
+        if (GetComponent<MultiplayerManagerRegistration>() != null)
+        {
+            if (Active != this) return;
+            Movement.SetPlayerControlled(!externalInputSuppressed);
+            Movement.CancelAutoFinish();
+        }
         Movement.RefreshSceneCamera();
         ConfigureLobbyInputFromHost();
     }
 
     private void OnEnable()
     {
+        if (GetComponent<MultiplayerManagerRegistration>() != null && Active != this) return;
         if (Movement != null)
             Movement.SetPlayerControlled(!externalInputSuppressed);
     }
 
     private void LateUpdate()
     {
+        if (GetComponent<MultiplayerManagerRegistration>() != null && Active != this) return;
         // Autonomous service disables the legacy role players at runtime. Keep
         // the independent Manager input path alive regardless of script order.
         if (Movement != null)
@@ -77,8 +100,8 @@ public sealed class ManagerPlayer : MonoBehaviour
 
     private void OnDestroy()
     {
-        if (Active == this)
-            Active = null;
+        if (singlePlayerActive == this)
+            singlePlayerActive = null;
     }
 
     public bool Can(Capability capability)
@@ -112,6 +135,7 @@ public sealed class ManagerPlayer : MonoBehaviour
     /// </summary>
     public void SetExternalInputSuppressed(bool suppressed)
     {
+        if (GetComponent<MultiplayerManagerRegistration>() != null && Active != this) return;
         externalInputSuppressed = suppressed;
 
         if (Movement != null)

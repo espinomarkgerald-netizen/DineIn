@@ -863,8 +863,13 @@ public class PlayerMovement : MonoBehaviour
         WaiterHands.OnHandsStateChanged -= HandleHandsStateChanged;
     }
 
-    private void HandleHandsStateChanged()
+    private void HandleHandsStateChanged(WaiterHands changedHands)
     {
+        var session = MultiplayerSessionManager.Instance;
+        if (session != null && session.IsMultiplayerSession &&
+            (session.LocalManager != gameObject || changedHands == null || changedHands.gameObject != gameObject))
+            return;
+
         if (!isPlayerControlled) return;
         if (taskLocked) return;
         TryRefreshInteractableNow();

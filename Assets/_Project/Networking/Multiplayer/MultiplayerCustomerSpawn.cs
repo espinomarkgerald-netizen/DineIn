@@ -24,6 +24,50 @@ public class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiateMagicCa
     private static readonly int SittingParameter = Animator.StringToHash("IsSitting");
     private static readonly int SpeedParameter = Animator.StringToHash("Speed");
     private float nextSnapshot;
+    public enum BillStage { None, Printing, Printed, Carried, Complete }
+    public BillStage CurrentBillStage { get; private set; }
+    public int BillOwnerActor { get; private set; }
+    private int billSnapshotOrder;
+    private Vector3 billPosition;
+    private Quaternion billRotation;
+
+    private void PublishBillState()
+    {
+        var claims = session.GetComponent<MultiplayerTaskClaims>();
+        BillOwnerActor = claims != null ? claims.GetOwner($"Customer:{photonView.ViewID}:Bill") : 0;
+        var manager = BillManager.Instance;
+        var paper = manager != null ? manager.FindBillForGroup(Group) : null;
+        BillPaper held = null;
+        if (BillOwnerActor > 0 && session.TryGetManager(BillOwnerActor, out var owner) && owner != null)
+        {
+            var hands = owner.GetComponent<WaiterHands>();
+            if (hands != null && hands.holdingBillFor == Group)
+                held = hands.GetComponentInChildren<BillPaper>(true);
+            if (held != null && !held.Matches(Group)) held = null;
+        }
+        CurrentBillStage = Group.MultiplayerPaymentComplete || Group.HasReceivedBill ? BillStage.Complete
+            : held != null ? BillStage.Carried : paper != null ? BillStage.Printed
+            : manager != null && manager.IsPrintingFor(Group) ? BillStage.Printing : BillStage.None;
+        billSnapshotOrder = Group.currentOrderNumber;
+        var visiblePaper = held != null ? held : paper;
+        billPosition = visiblePaper != null ? visiblePaper.transform.position : Vector3.zero;
+        billRotation = visiblePaper != null ? visiblePaper.transform.rotation : Quaternion.identity;
+        photonView.RPC(nameof(ReceiveBillState), RpcTarget.Others, billSnapshotOrder,
+            BillOwnerActor, (int)CurrentBillStage, billPosition, billRotation);
+    }
+
+    [PunRPC]
+    private void ReceiveBillState(int order, int owner, int stage, Vector3 position, Quaternion rotation, PhotonMessageInfo info)
+    {
+        if (simulating || session == null || !session.IsMultiplayerSession || Group == null
+            || info.Sender != PhotonNetwork.MasterClient || order != Group.currentOrderNumber
+            || owner < 0 || stage < 0 || stage > (int)BillStage.Complete) return;
+        billSnapshotOrder = order;
+        BillOwnerActor = owner;
+        CurrentBillStage = (BillStage)stage;
+        billPosition = position;
+        billRotation = rotation;
+    }
     private bool serviceStarted;
     private bool paidDepartureStarted, paidDepartureFinished, despawnRequested;
 
@@ -63,6 +107,28 @@ public class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiateMagicCa
     public bool HasGeneratedOrder => generatedOrderJson != null;
     public int CarrierActorNumber { get; private set; }
     public bool CarrierNeedsRecovery { get; private set; }
+
+    public bool HasLocalDeliveryGuidance
+    {
+        get
+        {
+            if (!isActiveAndEnabled || session == null || !session.IsMultiplayerSession
+                || CarrierActorNumber <= 0 || CarrierActorNumber != session.LocalActorNumber
+                || CarrierNeedsRecovery || Group == null || !Group.gameObject.activeInHierarchy || Group.IsTakeout
+                || Group.state != CustomerGroup.GroupState.OrderTaken || Group.assignedBooth == null)
+                return false;
+            var manager = session.LocalManager;
+            var hands = manager != null ? manager.GetComponent<WaiterHands>() : null;
+            var tray = hands != null ? hands.holdingTray : null;
+            return tray != null && tray.gameObject.activeInHierarchy && tray.TargetGroup == Group
+                && tray.orderNumber == Group.currentOrderNumber;
+        }
+    }
+
+    private void OnDisable()
+    {
+        if (Group != null) Group.ProjectLocalDeliveryGuidance(false);
+    }
 
     public bool CommitTrayPickup(int actor, WaiterHands hands)
     {
@@ -237,6 +303,10 @@ public class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiateMagicCa
     private void Update()
     {
         PresentCarrier();
+        if (Group != null && billSnapshotOrder == Group.currentOrderNumber && session != null && session.IsMultiplayerSession)
+            session.GetComponent<MultiplayerCustomerInteractionBridge>()?.ProjectBillState(
+                this, CurrentBillStage, BillOwnerActor, billPosition, billRotation);
+        if (Group != null) Group.ProjectLocalDeliveryGuidance(HasLocalDeliveryGuidance);
         if (simulating)
         {
             if (session == null || !session.IsAuthority) return;
@@ -333,6 +403,7 @@ public class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiateMagicCa
     public void PublishAssignment()
     {
         if (!simulating || session == null || !session.IsAuthority || Group == null || Group.assignedBooth == null) return;
+        PublishBillState();
         ReadyForInteraction = false;
         photonView.RPC(nameof(ReceiveAssignment), RpcTarget.Others,
             MultiplayerCustomerInteractionBridge.BoothIdentity(Group.assignedBooth), (int)Group.state,

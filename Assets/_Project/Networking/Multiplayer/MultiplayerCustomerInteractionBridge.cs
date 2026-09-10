@@ -10,6 +10,7 @@ public class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEventCallb
     private const byte SeatRequestEvent = 186, SeatResultEvent = 187;
     private RoleBasedAssignController seatController;
     private bool seatPending;
+    private int seatApproachVersion;
     private MultiplayerSessionManager session;
     private MultiplayerTaskClaims claims;
     private MultiplayerCustomerSpawn target;
@@ -22,6 +23,12 @@ public class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEventCallb
     private FoodTray pickupTarget;
     private string pickupTaskId;
     private bool pickupPending, pickupCancelled;
+    private PlayerMovement pickupMover;
+    private IInteractable pickupApproach;
+    private int pickupApproachVersion, pickupSlot;
+    private bool carryPending;
+    private string requestedTaskId;
+    private System.Action beginGrantedTask;
     private const byte CarryRequestEvent = 192, CarryRejectedEvent = 193;
 
     private const byte ServeRequestEvent = 194, ServeRejectedEvent = 195;
@@ -126,30 +133,92 @@ public class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEventCallb
             new RaiseEventOptions { TargetActors = new[] { sender } }, SendOptions.SendReliable);
     }
 
+    private void BeginPickupApproach()
+    {
+        if (pickupMover != null || carryPending) return;
+        var tray = pickupTarget;
+        var interaction = tray != null ? tray.GetComponent<FoodTrayInteractable>() : null;
+        var customer = tray != null && tray.TargetGroup != null
+            ? tray.TargetGroup.GetComponentInParent<MultiplayerCustomerSpawn>() : null;
+        var kitchen = FindFirstObjectByType<KitchenManager>();
+        var manager = session.LocalManager;
+        var mover = manager != null ? manager.GetComponent<PlayerMovement>() : null;
+        if (!claims.IsClaimedBy(pickupTaskId, session.LocalActorNumber)
+            || !CanClaimPreparedTray(tray) || interaction == null || interaction.StandPoint == null
+            || customer == null || mover == null || !mover.isActiveAndEnabled || kitchen == null
+            || !kitchen.TryGetPreparedSlot(tray.orderNumber, out pickupSlot))
+        { CancelPickup(); return; }
+        int slot = pickupSlot;
+        int order = tray.orderNumber;
+        string claimedTask = pickupTaskId;
+        int version = ++pickupApproachVersion;
+        pickupMover = mover;
+        bool started = mover.UI_MoveToAction(interaction.StandPoint, interaction.GetInteractRadius(),
+            () =>
+            {
+                if (version != pickupApproachVersion) return;
+                pickupMover = null;
+                pickupApproach = null;
+                if (pickupCancelled || pickupTarget != tray || pickupTaskId != claimedTask
+                    || !session.IsMultiplayerSession || session.LocalManager != mover.gameObject
+                    || !mover.isActiveAndEnabled || !CanClaimPreparedTray(tray) || customer == null
+                    || tray.TargetGroup != customer.Group || tray.orderNumber != order
+                    || kitchen == null || !kitchen.TryGetPreparedSlot(order, out int currentSlot) || currentSlot != slot
+                    || !claims.IsClaimedBy(claimedTask, session.LocalActorNumber))
+                { CancelPickup(); return; }
+                carryPending = true;
+                RequestCarry();
+            },
+            () =>
+            {
+                if (version != pickupApproachVersion) return;
+                pickupMover = null;
+                pickupApproach = null;
+                CancelPickup();
+            });
+        if (started) pickupApproach = mover.CurrentTarget;
+        else if (version == pickupApproachVersion) CancelPickup();
+    }
+
     private void RequestCarry()
     {
         var customer = pickupTarget != null && pickupTarget.TargetGroup != null
             ? pickupTarget.TargetGroup.GetComponentInParent<MultiplayerCustomerSpawn>() : null;
         if (customer == null) return;
         int viewId = customer.photonView.ViewID;
-        if (session.IsAuthority) HandleCarry(viewId, pickupTarget.orderNumber, session.LocalActorNumber, session.LocalActorNumber);
-        else PhotonNetwork.RaiseEvent(CarryRequestEvent,
-            new object[] { viewId, pickupTarget.orderNumber, session.LocalActorNumber },
-            new RaiseEventOptions { Receivers = ReceiverGroup.MasterClient }, SendOptions.SendReliable);
+        if (session.IsAuthority) HandleCarry(viewId, pickupTarget.orderNumber, session.LocalActorNumber, session.LocalActorNumber, pickupSlot);
+        else if (!PhotonNetwork.RaiseEvent(CarryRequestEvent,
+            new object[] { viewId, pickupTarget.orderNumber, session.LocalActorNumber, pickupSlot },
+            new RaiseEventOptions { Receivers = ReceiverGroup.MasterClient }, SendOptions.SendReliable)) CancelPickup();
     }
 
-    private void HandleCarry(int viewId, int order, int actor, int sender)
+    private void HandleCarry(int viewId, int order, int actor, int sender, int expectedSlot)
     {
         if (!session.IsAuthority || actor != sender) return;
         var view = PhotonView.Find(viewId);
         var customer = view != null ? view.GetComponent<MultiplayerCustomerSpawn>() : null;
         string id = $"Order:{order}:Pickup";
+        var kitchen = FindFirstObjectByType<KitchenManager>();
+        var tray = kitchen != null ? kitchen.GetPreparedResult(order) : null;
+        var interaction = tray != null ? tray.GetComponent<FoodTrayInteractable>() : null;
+        var stand = interaction != null ? interaction.StandPoint : null;
         bool accepted = PhotonNetwork.CurrentRoom.Players.TryGetValue(sender, out var player) && !player.IsInactive
             && session.TryGetManager(sender, out var manager) && claims.IsClaimedBy(id, sender)
+            && manager != null && manager.activeInHierarchy
             && customer != null && customer.Group != null && customer.Group.currentOrderNumber == order
+            && kitchen != null && kitchen.TryGetPreparedTray(order, out var prepared) && prepared == tray
+            && kitchen.TryGetPreparedSlot(order, out int slot) && slot == expectedSlot
+            && tray != null && tray.gameObject.activeInHierarchy && !tray.NetworkCarryLocked
+            && tray.TargetGroup == customer.Group && stand != null && interaction.isActiveAndEnabled
+            && Vector2.Distance(new Vector2(manager.transform.position.x, manager.transform.position.z),
+                new Vector2(stand.position.x, stand.position.z)) <= interaction.GetInteractRadius()
             && customer.CarrierActorNumber == 0 && customer.CommitTrayPickup(sender, manager.GetComponent<WaiterHands>());
         if (accepted) claims.CompleteOnAuthority(id, sender);
-        else if (sender == session.LocalActorNumber) WarningSlideUI.Instance?.Show("This tray or your hands are no longer available for pickup.");
+        else if (sender == session.LocalActorNumber)
+        {
+            CancelPickup();
+            WarningSlideUI.Instance?.Show("This tray or your hands are no longer available for pickup.");
+        }
         else PhotonNetwork.RaiseEvent(CarryRejectedEvent, order,
             new RaiseEventOptions { TargetActors = new[] { sender } }, SendOptions.SendReliable);
     }
@@ -171,24 +240,33 @@ public class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEventCallb
         if (bridge == null || bridge.pickupPending) return true;
         if (bridge.pickupTarget == tray && bridge.claims.IsClaimedBy(bridge.pickupTaskId, session.LocalActorNumber))
         {
-            bridge.RequestCarry();
+            bridge.RetainOwnedTask(bridge.pickupTaskId);
+            bridge.BeginPickupApproach();
             return true;
         }
-        bridge.CancelPickup();
-        bridge.Cancel();
-        bridge.CancelOrder();
-        bridge.pickupTarget = tray;
-        bridge.pickupTaskId = $"Order:{tray.orderNumber}:Pickup";
-        bridge.pickupCancelled = false;
-        bridge.pickupPending = true;
-        if (!bridge.claims.RequestClaim(bridge.pickupTaskId))
-        { bridge.pickupPending = false; bridge.CancelPickup(); }
+        string requested = $"Order:{tray.orderNumber}:Pickup";
+        bridge.RequestTask(requested, () =>
+        {
+            bridge.pickupTarget = tray;
+            bridge.pickupTaskId = requested;
+            bridge.pickupCancelled = false;
+            bridge.pickupPending = true;
+            bridge.OnResult(requested, true);
+        });
         return true;
     }
 
     private void CancelPickup()
     {
+        pickupApproachVersion++;
+        carryPending = false;
         pickupCancelled = true;
+        var mover = pickupMover;
+        var approach = pickupApproach;
+        pickupMover = null;
+        pickupApproach = null;
+        if (mover != null && approach != null && session.LocalManager == mover.gameObject
+            && ReferenceEquals(mover.CurrentTarget, approach)) mover.CancelLockedTask();
         if (pickupTaskId != null && claims != null && claims.IsClaimedBy(pickupTaskId, session.LocalActorNumber))
             claims.Release(pickupTaskId);
         if (!pickupPending) { pickupTaskId = null; pickupTarget = null; }
@@ -196,6 +274,11 @@ public class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEventCallb
     private MultiplayerCustomerSpawn orderTarget;
     private string orderTaskId;
     private bool orderPending, orderCancelled;
+    private PlayerMovement orderMover;
+    private IInteractable orderApproach;
+    private Booth orderBooth;
+    private int orderApproachVersion;
+    private bool orderApproached;
     private const byte ReviewRequestEvent = 188, ReviewRejectedEvent = 189;
     private const byte ConfirmRequestEvent = 190, ConfirmRejectedEvent = 191;
 
@@ -271,8 +354,11 @@ public class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEventCallb
     {
         if (!ReviewIsMultiplayer) return true;
         var bridge = MultiplayerSessionManager.Instance.GetComponent<MultiplayerCustomerInteractionBridge>();
-        return bridge != null && !bridge.orderCancelled && !bridge.orderPending
+        return bridge != null && !bridge.orderCancelled && !bridge.orderPending && bridge.orderApproached
             && bridge.orderTarget != null && bridge.orderTarget.Group == group && group.IsPlayerReviewingOrder
+            && group.state == CustomerGroup.GroupState.ReadyToOrder && !group.HasConfirmedOrder
+            && bridge.orderBooth != null && group.assignedBooth == bridge.orderBooth
+            && bridge.orderBooth.CurrentGroup == group
             && bridge.orderTarget.HasGeneratedOrder && bridge.session.LocalManager != null
             && bridge.orderTarget.ReviewActor == bridge.session.LocalActorNumber
             && bridge.claims.IsClaimedBy(bridge.orderTaskId, bridge.session.LocalActorNumber);
@@ -299,6 +385,52 @@ public class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEventCallb
             : FindFirstObjectByType<OrderChecklistUI>(FindObjectsInactive.Include);
         if (bridge.reviewUI == null) { bridge.CancelOrder(); return; }
         bridge.reviewUI.Open(group);
+    }
+
+    private void BeginOrderApproach()
+    {
+        var customer = orderTarget;
+        var group = customer != null ? customer.Group : null;
+        var manager = session.LocalManager;
+        var mover = manager != null ? manager.GetComponent<PlayerMovement>() : null;
+        var booth = group != null ? group.assignedBooth : null;
+        Transform stand = booth != null ? booth.approachPoint != null ? booth.approachPoint : booth.transform : null;
+        if (group == null || group.HasConfirmedOrder || !group.HasBeenAssigned || booth == null
+            || booth.CurrentGroup != group || mover == null || !mover.isActiveAndEnabled || stand == null
+            || !claims.IsClaimedBy(orderTaskId, session.LocalActorNumber))
+        { CancelOrder(); return; }
+        string claimedTask = orderTaskId;
+        int version = ++orderApproachVersion;
+        orderApproached = false;
+        orderBooth = booth;
+        orderMover = mover;
+        bool started = mover.UI_MoveToAction(stand, 2.75f,
+            () =>
+            {
+                if (version != orderApproachVersion) return;
+                orderMover = null;
+                orderApproach = null;
+                if (orderCancelled || orderTarget != customer || orderTaskId != claimedTask
+                    || customer == null || group == null || customer.Group != group
+                    || !session.IsMultiplayerSession || session.LocalManager != mover.gameObject
+                    || !mover.isActiveAndEnabled || !group.gameObject.activeInHierarchy
+                    || group.state != CustomerGroup.GroupState.ReadyToOrder || group.HasConfirmedOrder
+                    || !group.HasBeenAssigned || booth == null || !booth.gameObject.activeInHierarchy
+                    || group.assignedBooth != booth || booth.CurrentGroup != group
+                    || !claims.IsClaimedBy(claimedTask, session.LocalActorNumber))
+                { CancelOrder(); return; }
+                orderApproached = true;
+                RequestReview();
+            },
+            () =>
+            {
+                if (version != orderApproachVersion) return;
+                orderMover = null;
+                orderApproach = null;
+                CancelOrder();
+            });
+        if (started) orderApproach = mover.CurrentTarget;
+        else if (version == orderApproachVersion) CancelOrder();
     }
 
     private void RequestReview()
@@ -347,6 +479,54 @@ public class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEventCallb
             && s.GetComponent<MultiplayerCustomerInteractionBridge>()?.settlingBill == group;
     }
     private readonly System.Collections.Generic.HashSet<int> printingBills = new System.Collections.Generic.HashSet<int>();
+    private MultiplayerCustomerSpawn.BillStage projectedBillStage;
+
+    public static bool LocalBillIsPrinting
+    {
+        get
+        {
+            var s = MultiplayerSessionManager.Instance;
+            var bridge = s != null ? s.GetComponent<MultiplayerCustomerInteractionBridge>() : null;
+            var customer = bridge != null && bridge.billTarget != null
+                ? bridge.billTarget.GetComponentInParent<MultiplayerCustomerSpawn>() : null;
+            return s != null && s.IsMultiplayerSession && s.LocalManager != null && customer != null
+                && customer.Group != null && !customer.Group.MultiplayerPaymentComplete
+                && customer.Group.state == CustomerGroup.GroupState.NeedsBill
+                && !bridge.billCancelled && customer.CurrentBillStage == MultiplayerCustomerSpawn.BillStage.Printing
+                && customer.BillOwnerActor == s.LocalActorNumber
+                && bridge.claims.IsClaimedBy(bridge.billTaskId, s.LocalActorNumber);
+        }
+    }
+
+    public void ProjectBillState(MultiplayerCustomerSpawn customer, MultiplayerCustomerSpawn.BillStage stage,
+        int owner, Vector3 position, Quaternion rotation)
+    {
+        if (customer == null || billCancelled || billTarget != customer.Group || session.LocalManager == null
+            || owner != session.LocalActorNumber || !claims.IsClaimedBy(billTaskId, owner)) return;
+        if (stage == MultiplayerCustomerSpawn.BillStage.Complete)
+        { CancelBill(); return; }
+        if (stage != MultiplayerCustomerSpawn.BillStage.Printed && stage != MultiplayerCustomerSpawn.BillStage.Carried) return;
+        if (localBill == null && stage == MultiplayerCustomerSpawn.BillStage.Carried)
+        {
+            var held = session.LocalManager.GetComponentInChildren<BillPaper>(true);
+            if (held != null && held.Matches(billTarget)) localBill = held;
+        }
+        if (localBill == null)
+            localBill = session.IsAuthority ? BillManager.Instance?.FindBillForGroup(billTarget)
+                : BillManager.Instance?.PresentMultiplayerBill(billTarget, position, rotation);
+        if (localBill == null && session.IsAuthority)
+            localBill = session.LocalManager.GetComponentInChildren<BillPaper>(true);
+        if (localBill == null || !localBill.Matches(billTarget)) return;
+        if (stage == MultiplayerCustomerSpawn.BillStage.Carried)
+        {
+            var hands = session.LocalManager.GetComponent<WaiterHands>();
+            if (!session.IsAuthority && hands != null && !hands.HasBill) hands.PickupBillPaper(localBill);
+        }
+        // Recover a missed print/pickup reply without restarting movement or
+        // invoking a gameplay request from snapshot presentation.
+        if (billMover == null && projectedBillStage != stage) billTransitionPending = false;
+        projectedBillStage = stage;
+    }
 
     public static bool CanRetrieveBill(BillPaper paper)
     {
@@ -528,6 +708,7 @@ public class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEventCallb
         { WarningSlideUI.Instance?.Show("This bill belongs to another customer."); return true; }
         if (bridge.billTarget == group && bridge.claims.IsClaimedBy(bridge.billTaskId, session.LocalActorNumber))
         {
+            bridge.RetainOwnedTask(bridge.billTaskId);
             if (hands != null && hands.HasBill && !bridge.billTransitionPending && bridge.billMover == null)
             {
                 var booth = group.assignedBooth;
@@ -535,18 +716,21 @@ public class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEventCallb
             }
             return true;
         }
-        bridge.CancelBill();
-        bridge.billTarget = group;
-        bridge.billTaskId = $"Customer:{customer.photonView.ViewID}:Bill";
-        bridge.billCancelled = false;
-        bridge.billPending = true;
-        if (!bridge.claims.RequestClaim(bridge.billTaskId))
-        { bridge.billPending = false; bridge.CancelBill(); }
+        string requested = $"Customer:{customer.photonView.ViewID}:Bill";
+        bridge.RequestTask(requested, () =>
+        {
+            bridge.billTarget = group;
+            bridge.billTaskId = requested;
+            bridge.billCancelled = false;
+            bridge.billPending = true;
+            bridge.OnResult(requested, true);
+        });
         return true;
     }
 
     private void CancelBill()
     {
+        projectedBillStage = MultiplayerCustomerSpawn.BillStage.None;
         billCancelled = true;
         billTransitionPending = false;
         var mover = billMover;
@@ -571,32 +755,39 @@ public class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEventCallb
         var session = MultiplayerSessionManager.Instance;
         if (session == null || !session.IsMultiplayerSession) return false;
         var bridge = session.GetComponent<MultiplayerCustomerInteractionBridge>();
-        bridge?.CancelPickup();
         var customer = group != null ? group.GetComponentInParent<MultiplayerCustomerSpawn>() : null;
         if (bridge == null || customer == null || session.LocalManager == null
             || group.state != CustomerGroup.GroupState.ReadyToOrder || group.HasConfirmedOrder) return true;
         if (bridge.orderPending) return true;
         if (bridge.orderTarget == customer && bridge.claims.IsClaimedBy(bridge.orderTaskId, session.LocalActorNumber))
         {
-            bridge.RequestReview();
+            bridge.RetainOwnedTask(bridge.orderTaskId);
             return true;
         }
-        bridge.CancelOrder();
-        bridge.orderTarget = customer;
-        bridge.orderTaskId = $"Customer:{customer.photonView.ViewID}:Order";
-        bridge.orderCancelled = false;
-        bridge.orderPending = true;
-        if (!bridge.claims.RequestClaim(bridge.orderTaskId))
+        string requested = $"Customer:{customer.photonView.ViewID}:Order";
+        bridge.RequestTask(requested, () =>
         {
-            bridge.orderPending = false;
-            bridge.CancelOrder();
-        }
+            bridge.orderTarget = customer;
+            bridge.orderTaskId = requested;
+            bridge.orderCancelled = false;
+            bridge.orderPending = true;
+            bridge.OnResult(requested, true);
+        });
         return true;
     }
 
     private void CancelOrder()
     {
+        orderApproachVersion++;
+        orderApproached = false;
+        orderBooth = null;
         orderCancelled = true;
+        var mover = orderMover;
+        var approach = orderApproach;
+        orderMover = null;
+        orderApproach = null;
+        if (mover != null && approach != null && session.LocalManager == mover.gameObject
+            && ReferenceEquals(mover.CurrentTarget, approach)) mover.CancelLockedTask();
         var closingUI = reviewUI;
         reviewUI = null;
         if (closingUI != null) closingUI.Close();
@@ -666,12 +857,13 @@ public class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEventCallb
         if (photonEvent.Code == ServeRejectedEvent && photonEvent.Sender == PhotonNetwork.MasterClient.ActorNumber)
         { WarningSlideUI.Instance?.Show("Cannot serve here. Carry the matching order to its table."); return; }
         if (photonEvent.Code == CarryRequestEvent && session.IsAuthority
-            && photonEvent.CustomData is object[] carry && carry.Length == 3
-            && carry[0] is int carryView && carry[1] is int carryOrder && carry[2] is int carryActor)
-        { HandleCarry(carryView, carryOrder, carryActor, photonEvent.Sender); return; }
+            && photonEvent.CustomData is object[] carry && carry.Length == 4
+            && carry[0] is int carryView && carry[1] is int carryOrder && carry[2] is int carryActor
+            && carry[3] is int carrySlot)
+        { HandleCarry(carryView, carryOrder, carryActor, photonEvent.Sender, carrySlot); return; }
         if (photonEvent.Code == CarryRejectedEvent && photonEvent.Sender == PhotonNetwork.MasterClient.ActorNumber
             && photonEvent.CustomData is int rejectedCarry && pickupTarget != null && pickupTarget.orderNumber == rejectedCarry)
-        { WarningSlideUI.Instance?.Show("This tray or your hands are no longer available for pickup."); return; }
+        { CancelPickup(); WarningSlideUI.Instance?.Show("This tray or your hands are no longer available for pickup."); return; }
         if (photonEvent.Code == ConfirmRequestEvent && session.IsAuthority
             && photonEvent.CustomData is object[] confirm && confirm.Length == 3
             && confirm[0] is int confirmView && confirm[1] is int confirmActor && confirm[2] is int orderNumber)
@@ -756,17 +948,73 @@ public class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEventCallb
     {
         var session = MultiplayerSessionManager.Instance;
         if (session == null || !session.IsMultiplayerSession) return false;
-        if (!CanSelectBooth(controller, group) || booth == null) return true;
+        if (!CanSelectBooth(controller, group)) return true;
         var bridge = session.GetComponent<MultiplayerCustomerInteractionBridge>();
+        if (!IsValidSeatBooth(group, booth))
+        {
+            WarningSlideUI.Instance?.Show("That table is not available for this group.");
+            return true;
+        }
+        var mover = session.LocalManager.GetComponent<PlayerMovement>();
+        if (mover == null || !mover.isActiveAndEnabled) return true;
         bridge.seatController = controller;
         bridge.seatPending = true;
-        int viewId = bridge.target.photonView.ViewID;
-        string boothId = BoothIdentity(booth);
-        if (session.IsAuthority) bridge.HandleSeat(viewId, session.LocalActorNumber, session.LocalActorNumber, boothId);
-        else if (!PhotonNetwork.RaiseEvent(SeatRequestEvent,
-            new object[] { viewId, session.LocalActorNumber, boothId },
-            new RaiseEventOptions { Receivers = ReceiverGroup.MasterClient }, SendOptions.SendReliable))
-            bridge.FinishSeat(viewId, false);
+        var customer = bridge.target;
+        string claimedTask = bridge.taskId;
+        int version = ++bridge.seatApproachVersion;
+        Transform approach = booth.approachPoint != null ? booth.approachPoint : booth.transform;
+        BoothAssignArrowManager.Instance?.HideAll();
+        CustomerGreetBubbleSpawner.Instance?.Hide();
+        bridge.greetMover = mover;
+        bool started = mover.UI_MoveToAction(approach, 2.75f,
+            () =>
+            {
+                if (version != bridge.seatApproachVersion) return;
+                bridge.greetMover = null;
+                bridge.greetApproach = null;
+                if (bridge.cancelled || !bridge.seatPending || bridge.target != customer
+                    || customer == null || group == null || customer.Group != group || bridge.taskId != claimedTask
+                    || !session.IsMultiplayerSession || session.LocalManager != mover.gameObject
+                    || !customer.ReadyForInteraction || !group.hasBeenGreeted || group.HasBeenAssigned
+                    || !bridge.claims.IsClaimedBy(claimedTask, session.LocalActorNumber))
+                { bridge.Cancel(); return; }
+                if (!IsValidSeatBooth(group, booth))
+                {
+                    WarningSlideUI.Instance?.Show("That table is no longer available. Select the customer to try again.");
+                    bridge.Cancel();
+                    return;
+                }
+                int viewId = customer.photonView.ViewID;
+                string boothId = BoothIdentity(booth);
+                if (session.IsAuthority) bridge.HandleSeat(viewId, session.LocalActorNumber, session.LocalActorNumber, boothId);
+                else if (!PhotonNetwork.RaiseEvent(SeatRequestEvent,
+                    new object[] { viewId, session.LocalActorNumber, boothId },
+                    new RaiseEventOptions { Receivers = ReceiverGroup.MasterClient }, SendOptions.SendReliable))
+                    bridge.FinishSeat(viewId, false);
+            },
+            () =>
+            {
+                if (version != bridge.seatApproachVersion) return;
+                bridge.greetMover = null;
+                bridge.greetApproach = null;
+                bridge.Cancel();
+            });
+        if (started) bridge.greetApproach = mover.CurrentTarget;
+        else if (version == bridge.seatApproachVersion) bridge.Cancel();
+        return true;
+    }
+
+    private static bool IsValidSeatBooth(CustomerGroup group, Booth booth)
+    {
+        if (group == null || !group.CanBeSeated || booth == null || !booth.gameObject.activeInHierarchy
+            || booth.CurrentGroup != null || booth.seats == null || booth.seats.Count < group.Size
+            || !booth.IsAvailableFor(group.Size)
+            || (booth.approachPoint != null && !booth.approachPoint.gameObject.activeInHierarchy)) return false;
+        for (int i = 0; i < group.Size; i++)
+        {
+            var seat = booth.GetSeat(i);
+            if (seat == null || !seat.gameObject.activeInHierarchy || SeatAnchor.IsSeatOccupied(seat)) return false;
+        }
         return true;
     }
 
@@ -837,24 +1085,75 @@ public class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEventCallb
         session = GetComponent<MultiplayerSessionManager>();
         claims = GetComponent<MultiplayerTaskClaims>();
         claims.ClaimResult += OnResult;
+        claims.OwnerChanged += OnOwnerChanged;
+    }
+
+    private void RetainOwnedTask(string id)
+    {
+        CancelRequestedTask();
+        claims.RequestClaim(id); // Fence older intents without restarting the owned task.
+    }
+
+    private void RequestTask(string id, System.Action onGranted)
+    {
+        if (requestedTaskId == id) return;
+        requestedTaskId = id;
+        beginGrantedTask = onGranted;
+        if (!claims.RequestClaim(id))
+        {
+            requestedTaskId = null;
+            beginGrantedTask = null;
+        }
+    }
+
+    private void CancelRequestedTask()
+    {
+        string id = requestedTaskId;
+        requestedTaskId = null;
+        beginGrantedTask = null;
+        if (id != null) claims.Release(id);
+    }
+
+    private void OnOwnerChanged(string id, int owner)
+    {
+        if (owner == session.LocalActorNumber) return;
+        if (id == taskId) Cancel();
+        if (id == orderTaskId) CancelOrder();
+        if (id == pickupTaskId) CancelPickup();
+        if (id == billTaskId) CancelBill();
     }
 
     private void Begin(MultiplayerCustomerSpawn customer, Camera camera)
     {
-        CancelPickup();
-        if (pending) return;
-        Cancel();
         if (customer == null || !customer.ReadyForInteraction) return;
-        target = customer;
-        taskId = $"Customer:{customer.photonView.ViewID}:GreetSeat";
-        cameraForPopup = camera;
-        cancelled = false;
-        pending = true;
-        if (!claims.RequestClaim(taskId)) { pending = false; Cancel(); }
+        if (target == customer && claims.IsClaimedBy(taskId, session.LocalActorNumber))
+        {
+            RetainOwnedTask(taskId);
+            return;
+        }
+        string requested = $"Customer:{customer.photonView.ViewID}:GreetSeat";
+        RequestTask(requested, () =>
+        {
+            target = customer;
+            taskId = requested;
+            cameraForPopup = camera;
+            cancelled = false;
+            pending = true;
+            OnResult(requested, true);
+        });
     }
 
     private void OnResult(string id, bool accepted)
     {
+        if (id == requestedTaskId)
+        {
+            var start = beginGrantedTask;
+            requestedTaskId = null;
+            beginGrantedTask = null;
+            if (accepted && claims.IsClaimedBy(id, session.LocalActorNumber)) start?.Invoke();
+            else WarningSlideUI.Instance?.Show("That task is unavailable or already claimed.");
+            return;
+        }
         if (billPending && id == billTaskId)
         {
             billPending = false;
@@ -879,7 +1178,7 @@ public class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEventCallb
                 WarningSlideUI.Instance?.Show("That pickup task is unavailable or already claimed.");
             }
             else if (pickupCancelled || !CanClaimPreparedTray(pickupTarget)) CancelPickup();
-            else WarningSlideUI.Instance?.Show("Pickup task claimed. Interact with the tray again to pick it up. Escape or right-click cancels.");
+            else BeginPickupApproach();
             return;
         }
         if (orderPending && id == orderTaskId)
@@ -894,7 +1193,7 @@ public class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEventCallb
             else if (orderCancelled || orderTarget == null || session.LocalManager == null
                 || orderTarget.Group == null || orderTarget.Group.state != CustomerGroup.GroupState.ReadyToOrder)
                 CancelOrder();
-            else RequestReview();
+            else BeginOrderApproach();
             return;
         }
         if (!pending || id != taskId) return;
@@ -943,6 +1242,14 @@ public class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEventCallb
 
     private void Update()
     {
+        if (pickupApproach != null && (pickupMover == null || !pickupMover.isActiveAndEnabled
+            || session.LocalManager != pickupMover.gameObject || !pickupApproach.CanInteract()
+            || !ReferenceEquals(pickupMover.CurrentTarget, pickupApproach))) CancelPickup();
+        if (orderApproach != null && (orderMover == null || !orderMover.isActiveAndEnabled
+            || session.LocalManager != orderMover.gameObject || !orderApproach.CanInteract()
+            || !ReferenceEquals(orderMover.CurrentTarget, orderApproach))) CancelOrder();
+        if (requestedTaskId != null && (!session.IsMultiplayerSession || session.LocalManager == null
+            || Input.GetKeyDown(KeyCode.Escape) || Input.GetMouseButtonDown(1))) CancelRequestedTask();
         if (billTarget != null && billTarget.MultiplayerPaymentComplete)
         {
             billTaskId = null;
@@ -975,6 +1282,7 @@ public class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEventCallb
 
     public void Cancel()
     {
+        seatApproachVersion++;
         cancelled = true;
         greetApproached = false;
         var mover = greetMover;
@@ -996,10 +1304,12 @@ public class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEventCallb
 
     private void OnDestroy()
     {
+        CancelRequestedTask();
         CancelBill();
         CancelPickup();
         CancelOrder();
         Cancel();
         if (claims != null) claims.ClaimResult -= OnResult;
+        if (claims != null) claims.OwnerChanged -= OnOwnerChanged;
     }
 }

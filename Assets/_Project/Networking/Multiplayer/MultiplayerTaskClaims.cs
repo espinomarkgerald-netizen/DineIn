@@ -5,13 +5,26 @@ using Photon.Pun;
 using Photon.Realtime;
 using UnityEngine;
 
-// Scene-owned infrastructure only. No restaurant gameplay calls this yet.
+// Scene-owned authoritative human claims; consumers receive only matching results.
 [RequireComponent(typeof(MultiplayerSessionManager))]
 public class MultiplayerTaskClaims : MonoBehaviourPunCallbacks, IOnEventCallback
 {
     // Reserved for task claims within the multiplayer networking layer.
     private const byte RequestEvent = 181, ResultEvent = 182, SnapshotRequestEvent = 183, SnapshotEvent = 184;
     private readonly Dictionary<string, int> claims = new(StringComparer.Ordinal);
+    private sealed class PendingRequest
+    {
+        public long generation;
+        public bool acquire;
+        public float sentAt;
+    }
+    private readonly Dictionary<string, PendingRequest> pendingRequests = new(StringComparer.Ordinal);
+    private readonly Dictionary<(int actor, string task), (long generation, bool accepted)> answeredRequests = new();
+    private readonly Dictionary<int, long> latestHumanIntent = new();
+    private long nextGeneration, revision;
+    private long appliedRevision = -1;
+    private float nextSnapshot;
+    private const float SnapshotSeconds = 0.75f, RequestTimeoutSeconds = 4f;
     private MultiplayerSessionManager session;
     public event Action<string, bool> ClaimResult;
     public event Action<string, int> OwnerChanged;
@@ -28,8 +41,40 @@ public class MultiplayerTaskClaims : MonoBehaviourPunCallbacks, IOnEventCallback
 
     // Return value means request submitted, NOT ownership granted. Await ClaimResult.
     // Only the local actor can request; the authority uses the Photon event sender.
-    public bool RequestClaim(string taskId) => SendRequest(taskId, true);
-    public bool Release(string taskId) => SendRequest(taskId, false);
+    public bool RequestClaim(string taskId)
+    {
+        if (!Active || string.IsNullOrWhiteSpace(taskId)) return false;
+        if (IsHumanTask(taskId))
+        {
+            foreach (var entry in new List<KeyValuePair<string, PendingRequest>>(pendingRequests))
+                if (entry.Key != taskId && entry.Value.acquire && IsHumanTask(entry.Key))
+                {
+                    if (IsClaimedBy(entry.Key, session.LocalActorNumber))
+                    {
+                        // Supersede an acknowledgment without surrendering a valid task.
+                        pendingRequests.Remove(entry.Key);
+                        ClaimResult?.Invoke(entry.Key, false);
+                    }
+                    else Release(entry.Key);
+                }
+        }
+        if (pendingRequests.TryGetValue(taskId, out var request) && request.acquire) return true;
+        return SendRequest(taskId, true);
+    }
+
+    private static bool IsHumanTask(string id) => id != null &&
+        ((id.StartsWith("Customer:", StringComparison.Ordinal) &&
+            (id.EndsWith(":GreetSeat", StringComparison.Ordinal) || id.EndsWith(":Order", StringComparison.Ordinal)
+                || id.EndsWith(":Bill", StringComparison.Ordinal)))
+        || (id.StartsWith("Order:", StringComparison.Ordinal) && id.EndsWith(":Pickup", StringComparison.Ordinal))
+        || (id.StartsWith("Booth:", StringComparison.Ordinal) && id.EndsWith(":Cleanup", StringComparison.Ordinal)));
+    public bool Release(string taskId)
+    {
+        bool cancellingPending = taskId != null && pendingRequests.TryGetValue(taskId, out var request) && request.acquire;
+        bool sent = SendRequest(taskId, false);
+        if (cancellingPending) ClaimResult?.Invoke(taskId, false);
+        return sent;
+    }
 
     public void CompleteOnAuthority(string taskId, int actor)
     {
@@ -39,29 +84,65 @@ public class MultiplayerTaskClaims : MonoBehaviourPunCallbacks, IOnEventCallback
     private bool SendRequest(string taskId, bool acquire)
     {
         if (!Active || string.IsNullOrWhiteSpace(taskId)) return false;
+        var request = new PendingRequest { generation = ++nextGeneration, acquire = acquire, sentAt = Time.unscaledTime };
+        pendingRequests[taskId] = request;
+        bool sent = Send(taskId, request);
+        if (!sent && pendingRequests.TryGetValue(taskId, out var current) && current == request)
+        {
+            if (acquire) pendingRequests.Remove(taskId);
+            // Releases remain queued for retry, without changing the local cache.
+        }
+        return sent;
+    }
+
+    private bool Send(string taskId, PendingRequest request)
+    {
         if (session.IsAuthority)
         {
-            HandleRequest(taskId, session.LocalActorNumber, acquire);
+            HandleRequest(taskId, session.LocalActorNumber, request.acquire, request.generation);
             return true;
         }
-        return PhotonNetwork.RaiseEvent(RequestEvent, new object[] { taskId, acquire },
+        return PhotonNetwork.RaiseEvent(RequestEvent, new object[] { taskId, request.acquire, request.generation },
             new RaiseEventOptions { Receivers = ReceiverGroup.MasterClient }, SendOptions.SendReliable);
     }
 
-    private void HandleRequest(string taskId, int actor, bool acquire)
+    private void HandleRequest(string taskId, int actor, bool acquire, long generation)
     {
         if (!session.IsAuthority || !PhotonNetwork.CurrentRoom.Players.TryGetValue(actor, out var player)
-            || player.IsInactive || string.IsNullOrWhiteSpace(taskId)) return;
-        int owner = GetOwner(taskId);
-        if (acquire)
+            || player.IsInactive || string.IsNullOrWhiteSpace(taskId) || generation <= 0) return;
+        var key = (actor, taskId);
+        if (answeredRequests.TryGetValue(key, out var previousAnswer) && generation <= previousAnswer.generation)
         {
-            var previousPickups = new List<string>();
-            foreach (var claim in claims)
-                if (claim.Value == actor && claim.Key != taskId && claim.Key.StartsWith("Order:", StringComparison.Ordinal)
-                    && claim.Key.EndsWith(":Pickup", StringComparison.Ordinal)) previousPickups.Add(claim.Key);
-            foreach (string previous in previousPickups) Publish(previous, 0, 0, true);
+            if (generation == previousAnswer.generation)
+                SendResult(taskId, actor, previousAnswer.accepted, generation);
+            return;
+        }
+        int owner = GetOwner(taskId);
+        if (acquire && IsHumanTask(taskId))
+        {
+            if (latestHumanIntent.TryGetValue(actor, out long latest) && generation < latest)
+            {
+                answeredRequests[key] = (generation, false);
+                SendResult(taskId, actor, false, generation);
+                return;
+            }
+            latestHumanIntent[actor] = generation;
+            if (owner == actor)
+            {
+                answeredRequests[key] = (generation, true);
+                SendResult(taskId, actor, true, generation);
+                return;
+            }
         }
         bool accepted = acquire ? owner == 0 || owner == actor : owner == actor;
+        if (acquire && taskId.StartsWith("Customer:", StringComparison.Ordinal)
+            && taskId.EndsWith(":GreetSeat", StringComparison.Ordinal))
+        {
+            string[] parts = taskId.Split(':');
+            var view = parts.Length == 3 && int.TryParse(parts[1], out int viewId) ? PhotonView.Find(viewId) : null;
+            var customer = view != null ? view.GetComponent<MultiplayerCustomerSpawn>() : null;
+            accepted &= session.TryGetManager(actor, out _) && customer != null && customer.ReadyForInteraction;
+        }
         if (acquire && taskId.StartsWith("Booth:", StringComparison.Ordinal) && taskId.EndsWith(":Cleanup", StringComparison.Ordinal))
         {
             string boothId = taskId.Substring(6, taskId.Length - 6 - ":Cleanup".Length);
@@ -101,13 +182,47 @@ public class MultiplayerTaskClaims : MonoBehaviourPunCallbacks, IOnEventCallback
                 && !customer.Group.IsNetworkObserver && customer.Group.HasBeenAssigned
                 && customer.Group.state == CustomerGroup.GroupState.NeedsBill && !customer.Group.HasReceivedBill;
         }
+        if (accepted && acquire && RestaurantTaskClaim.IsMultiplayerTaskOwnedByBot(taskId))
+            accepted = false;
+        if (!accepted && acquire)
+        {
+            // Rejection must not run release hooks on an AI-owned task or the
+            // actor's previous task (the atomic switch below remains untouched).
+            answeredRequests[key] = (generation, false);
+            SendResult(taskId, actor, false, generation);
+            return;
+        }
         if (accepted) owner = acquire ? actor : 0;
-        Publish(taskId, owner, acquire ? actor : 0, accepted);
+        answeredRequests[key] = (generation, accepted);
+        if (accepted && acquire && IsHumanTask(taskId))
+        {
+            var released = new List<string>();
+            foreach (var claim in claims)
+                if (claim.Value == actor && claim.Key != taskId && IsHumanTask(claim.Key)) released.Add(claim.Key);
+            // Install the entire switch before gameplay hooks, callbacks or snapshots observe it.
+            foreach (string previous in released) claims.Remove(previous);
+            claims[taskId] = actor;
+            revision++;
+            foreach (string previous in released) ResetReleasedOrder(previous);
+            foreach (string previous in released) OwnerChanged?.Invoke(previous, 0);
+            OwnerChanged?.Invoke(taskId, actor);
+            SendResult(taskId, actor, true, generation);
+            return;
+        }
+        Publish(taskId, owner, actor, accepted, generation);
     }
 
-    private void Publish(string taskId, int owner, int requester, bool accepted)
+    private void Publish(string taskId, int owner, int requester, bool accepted, long generation = 0)
     {
-        if (owner == 0 && taskId.StartsWith("Customer:", StringComparison.Ordinal)
+        if (owner == 0) ResetReleasedOrder(taskId);
+        if (GetOwner(taskId) != owner) revision++;
+        Apply(taskId, owner);
+        SendResult(taskId, requester, accepted, generation);
+    }
+
+    private void ResetReleasedOrder(string taskId)
+    {
+        if (taskId.StartsWith("Customer:", StringComparison.Ordinal)
             && taskId.EndsWith(":Order", StringComparison.Ordinal))
         {
             var parts = taskId.Split(':');
@@ -120,10 +235,84 @@ public class MultiplayerTaskClaims : MonoBehaviourPunCallbacks, IOnEventCallback
                 customer.PublishAssignment();
             }
         }
-        Apply(taskId, owner);
-        PhotonNetwork.RaiseEvent(ResultEvent, new object[] { taskId, owner, requester, accepted },
+    }
+
+    private void SendResult(string taskId, int requester, bool accepted, long generation)
+    {
+        Capture(out var keys, out var owners);
+        PhotonNetwork.RaiseEvent(ResultEvent, new object[] { taskId, requester, accepted, generation, revision, keys, owners },
             new RaiseEventOptions { Receivers = ReceiverGroup.Others }, SendOptions.SendReliable);
-        if (requester == session.LocalActorNumber) ClaimResult?.Invoke(taskId, accepted);
+        if (requester == session.LocalActorNumber) FinishRequest(taskId, generation, accepted);
+    }
+
+    private void FinishRequest(string taskId, long generation, bool accepted)
+    {
+        if (!pendingRequests.TryGetValue(taskId, out var request) || request.generation != generation) return;
+        pendingRequests.Remove(taskId);
+        if (request.acquire) ClaimResult?.Invoke(taskId, accepted && IsClaimedBy(taskId, session.LocalActorNumber));
+    }
+
+    private void Capture(out string[] keys, out int[] owners)
+    {
+        keys = new string[claims.Count];
+        owners = new int[claims.Count];
+        claims.Keys.CopyTo(keys, 0);
+        for (int i = 0; i < keys.Length; i++) owners[i] = claims[keys[i]];
+    }
+
+    private void SendSnapshot(int actor = 0)
+    {
+        Capture(out var keys, out var owners);
+        var options = actor > 0 ? new RaiseEventOptions { TargetActors = new[] { actor } }
+            : new RaiseEventOptions { Receivers = ReceiverGroup.Others };
+        PhotonNetwork.RaiseEvent(SnapshotEvent, new object[] { revision, keys, owners }, options, SendOptions.SendReliable);
+    }
+
+    private void Reconcile(long incomingRevision, string[] keys, int[] owners)
+    {
+        if (incomingRevision <= appliedRevision || keys.Length != owners.Length) return;
+        var incoming = new Dictionary<string, int>(StringComparer.Ordinal);
+        for (int i = 0; i < keys.Length; i++)
+        {
+            if (string.IsNullOrWhiteSpace(keys[i]) || owners[i] <= 0 || incoming.ContainsKey(keys[i])) return;
+            incoming.Add(keys[i], owners[i]);
+        }
+        var changes = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var claim in claims)
+            if (!incoming.ContainsKey(claim.Key)) changes[claim.Key] = 0;
+        foreach (var claim in incoming)
+            if (GetOwner(claim.Key) != claim.Value) changes[claim.Key] = claim.Value;
+        // Install the complete map before callbacks; unchanged claims never lose ownership.
+        claims.Clear();
+        foreach (var claim in incoming) claims.Add(claim.Key, claim.Value);
+        appliedRevision = incomingRevision;
+        foreach (var change in changes) OwnerChanged?.Invoke(change.Key, change.Value);
+    }
+
+    private void Update()
+    {
+        if (!Active) return;
+        if (session.IsAuthority && Time.unscaledTime >= nextSnapshot)
+        {
+            nextSnapshot = Time.unscaledTime + SnapshotSeconds;
+            SendSnapshot();
+        }
+        foreach (var entry in new List<KeyValuePair<string, PendingRequest>>(pendingRequests))
+        {
+            if (!pendingRequests.TryGetValue(entry.Key, out var request) || request != entry.Value
+                || Time.unscaledTime - request.sentAt < RequestTimeoutSeconds) continue;
+            RequestSnapshot();
+            if (request.acquire)
+            {
+                // A newer release fences off a delayed grant/request at the authority.
+                Release(entry.Key);
+            }
+            else
+            {
+                request.sentAt = Time.unscaledTime;
+                Send(entry.Key, request); // Same generation: retry cannot release a newer attempt.
+            }
+        }
     }
 
     private void Apply(string taskId, int owner)
@@ -147,34 +336,31 @@ public class MultiplayerTaskClaims : MonoBehaviourPunCallbacks, IOnEventCallback
         if (photonEvent.Code == SnapshotRequestEvent && session.IsAuthority)
         {
             if (!PhotonNetwork.CurrentRoom.Players.ContainsKey(photonEvent.Sender)) return;
-            var keys = new string[claims.Count];
-            var owners = new int[claims.Count];
-            claims.Keys.CopyTo(keys, 0);
-            for (int i = 0; i < keys.Length; i++) owners[i] = claims[keys[i]];
-            PhotonNetwork.RaiseEvent(SnapshotEvent, new object[] { keys, owners },
-                new RaiseEventOptions { TargetActors = new[] { photonEvent.Sender } }, SendOptions.SendReliable);
+            SendSnapshot(photonEvent.Sender);
             return;
         }
         if (!(photonEvent.CustomData is object[] data)) return;
-        if (photonEvent.Code == RequestEvent && session.IsAuthority && data.Length == 2
-            && data[0] is string task && data[1] is bool acquire)
+        if (photonEvent.Code == RequestEvent && session.IsAuthority && data.Length == 3
+            && data[0] is string task && data[1] is bool acquire && data[2] is long requestGeneration)
         {
-            HandleRequest(task, photonEvent.Sender, acquire);
+            HandleRequest(task, photonEvent.Sender, acquire, requestGeneration);
             return;
         }
         // Clients never accept ownership updates from another non-authority client.
         if (photonEvent.Sender != PhotonNetwork.MasterClient.ActorNumber) return;
-        if (photonEvent.Code == ResultEvent && data.Length == 4 && data[0] is string id
-            && data[1] is int owner && data[2] is int requester && data[3] is bool accepted)
+        if (photonEvent.Code == ResultEvent && data.Length == 7 && data[0] is string id
+            && data[1] is int requester && data[2] is bool accepted && data[3] is long generation
+            && data[4] is long resultRevision && data[5] is string[] resultKeys && data[6] is int[] resultOwners)
         {
-            Apply(id, owner);
-            if (requester == session.LocalActorNumber) ClaimResult?.Invoke(id, accepted);
+            if (requester == session.LocalActorNumber &&
+                (!pendingRequests.TryGetValue(id, out var request) || request.generation != generation)) return;
+            Reconcile(resultRevision, resultKeys, resultOwners);
+            if (requester == session.LocalActorNumber) FinishRequest(id, generation, accepted);
         }
-        else if (photonEvent.Code == SnapshotEvent && data.Length == 2
-            && data[0] is string[] keys && data[1] is int[] owners && keys.Length == owners.Length)
+        else if (photonEvent.Code == SnapshotEvent && data.Length == 3 && data[0] is long snapshotRevision
+            && data[1] is string[] keys && data[2] is int[] owners)
         {
-            ClearClaims();
-            for (int i = 0; i < keys.Length; i++) Apply(keys[i], owners[i]);
+            Reconcile(snapshotRevision, keys, owners);
         }
     }
 
@@ -197,6 +383,12 @@ public class MultiplayerTaskClaims : MonoBehaviourPunCallbacks, IOnEventCallback
     private void ClearClaims()
     {
         claims.Clear();
+        pendingRequests.Clear();
+        answeredRequests.Clear();
+        latestHumanIntent.Clear();
+        revision = 0;
+        appliedRevision = -1;
+        nextSnapshot = 0f;
         ClaimsReset?.Invoke();
     }
 }

@@ -9,6 +9,10 @@ public class BusserHands : MonoBehaviour
     {
         get
         {
+            var session = MultiplayerSessionManager.Instance;
+            if (session != null && session.IsMultiplayerSession)
+                return session.LocalManager?.GetComponent<BusserHands>();
+
             if (ManagerPlayer.Active != null)
             {
                 BusserHands managerHands = ManagerPlayer.Active.GetComponent<BusserHands>();
@@ -73,6 +77,9 @@ public class BusserHands : MonoBehaviour
         if (mover != null)
         {
             BusserHands ownedHands = mover.GetComponent<BusserHands>();
+            var session = MultiplayerSessionManager.Instance;
+            if (session != null && session.IsMultiplayerSession)
+                return ownedHands; // Never substitute another actor's hands.
             if (ownedHands != null)
                 return ownedHands;
         }

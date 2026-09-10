@@ -44,16 +44,30 @@ public class Booth : MonoBehaviour, Photon.Realtime.IOnEventCallback
 
     public void RequestHumanCleanup()
     {
-        if (!MultiplayerProgressionContext.Ready || !CanRequestHumanCleanup || HumanCleanupActive) return;
+        if (!MultiplayerProgressionContext.Ready || !CanRequestHumanCleanup) return;
         var session = MultiplayerSessionManager.Instance;
         if (session.LocalManager == null) return;
+        if (HumanCleanupActive)
+        {
+            if (!cleanupRequested && cleanupClaims != null && cleanupClaims.IsClaimedBy(CleanupTaskId, session.LocalActorNumber))
+                cleanupClaims.RequestClaim(CleanupTaskId);
+            return;
+        }
         cleanupClaims = session.GetComponent<MultiplayerTaskClaims>();
         if (cleanupClaims == null) return;
         cleanupClaims.ClaimResult -= OnCleanupClaim;
         cleanupClaims.ClaimResult += OnCleanupClaim;
+        cleanupClaims.OwnerChanged -= OnCleanupOwnerChanged;
+        cleanupClaims.OwnerChanged += OnCleanupOwnerChanged;
         cleanupCancelled = false;
         cleanupRequested = true;
         if (!cleanupClaims.RequestClaim(CleanupTaskId)) { cleanupRequested = false; CancelHumanCleanup(); }
+    }
+
+    private void OnCleanupOwnerChanged(string id, int owner)
+    {
+        if (id == CleanupTaskId && owner != MultiplayerSessionManager.Instance.LocalActorNumber && HumanCleanupActive)
+            CancelHumanCleanup();
     }
 
     private void OnCleanupClaim(string id, bool accepted)
@@ -149,6 +163,7 @@ public class Booth : MonoBehaviour, Photon.Realtime.IOnEventCallback
         CancelHumanCleanup();
         // A pending claim callback stays subscribed to release a late grant.
         if (!cleanupRequested && cleanupClaims != null) cleanupClaims.ClaimResult -= OnCleanupClaim;
+        if (cleanupClaims != null) cleanupClaims.OwnerChanged -= OnCleanupOwnerChanged;
     }
     [Header("Approach / Seating")]
     public Transform approachPoint;

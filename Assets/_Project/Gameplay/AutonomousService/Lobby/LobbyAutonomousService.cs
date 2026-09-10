@@ -624,7 +624,10 @@ public class LobbyAutonomousService : MonoBehaviour
 
         if (hands.HasTray)
         {
-            waiter.StartTask(DeliverFood(hands.holdingTray));
+            if (MultiplayerDayBridge.IsActive)
+                TryStartClaimedTask(waiter, hands.holdingTray, DeliverFood(hands.holdingTray));
+            else
+                waiter.StartTask(DeliverFood(hands.holdingTray));
             return;
         }
 
@@ -632,7 +635,12 @@ public class LobbyAutonomousService : MonoBehaviour
         {
             CustomerGroup heldBillGroup = hands.holdingBillFor;
             if (heldBillGroup != null && heldBillGroup.state == CustomerGroup.GroupState.NeedsBill)
-                waiter.StartTask(DeliverBill(heldBillGroup));
+            {
+                if (MultiplayerDayBridge.IsActive)
+                    TryStartClaimedTask(waiter, heldBillGroup, DeliverBill(heldBillGroup));
+                else
+                    waiter.StartTask(DeliverBill(heldBillGroup));
+            }
             else
             {
                 hands.ClearBill();
@@ -995,7 +1003,15 @@ public class LobbyAutonomousService : MonoBehaviour
         AutonomousStaffBot owner,
         IEnumerator task)
     {
-        yield return task;
+        try
+        {
+            yield return task;
+        }
+        finally
+        {
+            if (MultiplayerDayBridge.IsActive)
+                RestaurantTaskClaim.ReleaseBot(target, owner);
+        }
 
         // A player can begin reviewing an order while a waiter coroutine that
         // was already moving toward the table is winding down. Preserve the
@@ -1016,7 +1032,15 @@ public class LobbyAutonomousService : MonoBehaviour
         AutonomousStaffBot owner,
         IEnumerator task)
     {
-        yield return task;
+        try
+        {
+            yield return task;
+        }
+        finally
+        {
+            if (MultiplayerDayBridge.IsActive)
+                RestaurantTaskClaim.ReleaseBot(group, owner);
+        }
 
         if (group != null)
             group.CompleteReceptionTask();

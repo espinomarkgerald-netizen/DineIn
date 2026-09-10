@@ -17,6 +17,7 @@ public class BillManager : MonoBehaviour
     private readonly Queue<CustomerGroup> queue = new Queue<CustomerGroup>();
     private readonly HashSet<CustomerGroup> queued = new HashSet<CustomerGroup>();
     private bool printing;
+    public bool IsPrintingFor(CustomerGroup group) => group != null && queued.Contains(group);
 
     private void Awake()
     {
@@ -60,7 +61,8 @@ public class BillManager : MonoBehaviour
                 continue;
             }
 
-            ProcessingBillIndicatorUI.Instance?.Show();
+            if (!MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer)
+                ProcessingBillIndicatorUI.Instance?.Show();
 
             yield return new WaitForSeconds(printSeconds);
             queued.Remove(group);
@@ -94,12 +96,13 @@ public class BillManager : MonoBehaviour
                 }
             }
 
-            if (queue.Count <= 0)
+            if (queue.Count <= 0 && !MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer)
                 ProcessingBillIndicatorUI.Instance?.Hide();
         }
 
         printing = false;
-        ProcessingBillIndicatorUI.Instance?.Hide();
+        if (!MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer)
+            ProcessingBillIndicatorUI.Instance?.Hide();
     }
 
     private Transform GetFreeSpawnPoint()
