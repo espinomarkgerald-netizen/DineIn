@@ -214,14 +214,9 @@ public static class MobileUILayoutRegressionTest
             Assert(draggable != null && prefab.GetComponentInChildren<Collider>(true) != null,
                 "Restock container lost its drag script or click collider: " + path);
 
-            SerializedObject serialized = new SerializedObject(draggable);
-            GameObject interactionRoot = serialized.FindProperty("interactionUIRoot")
-                ?.objectReferenceValue as GameObject;
-            Button keep = serialized.FindProperty("keepButton")?.objectReferenceValue as Button;
-            Button throwAway = serialized.FindProperty("throwAwayButton")
-                ?.objectReferenceValue as Button;
-            Assert(interactionRoot != null && keep != null && throwAway != null,
-                "Restock container lost its editable Keep/Throw interaction references: " + path);
+            Assert(prefab.transform.Find("UI/Canvas3") == null &&
+                   prefab.GetComponentInChildren<Button>(true) == null,
+                "Restock container still has world-space Keep/Throw controls: " + path);
 
             RestockStorageContainer container = prefab.GetComponent<RestockStorageContainer>();
             Assert(container != null,

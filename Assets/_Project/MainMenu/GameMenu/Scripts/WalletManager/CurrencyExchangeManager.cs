@@ -34,14 +34,10 @@ public class CurrencyExchangePackage
 /// script has zero knowledge of how the popup animates; it just calls
 /// Show() the same way any other script would.
 ///
-/// TESTING-ONLY IMPLEMENTATION: the actual currency movement below
-/// (SubtractUserVirtualCurrency then AddUserVirtualCurrency) is two
-/// separate client calls, which means a dropped connection between them
-/// could leave a player's GC spent with no NM granted. It is isolated in
-/// ExecuteExchange_ClientSide_TEMP() specifically so it can be deleted and
-/// replaced with a single call to a CloudScript function (e.g.
-/// "ExchangeGoldCoinsForMoney") without touching anything else in this
-/// class - see the boundary comment on that method.
+/// Uses the existing PlayFab Gold Coin debit, then records the confirmed
+/// Campaign credit locally with a receipt to prevent duplicate application.
+/// An uncertain debit response is not automatically retried; an atomic
+/// server-side purchase would require existing backend support.
 /// </summary>
 public class CurrencyExchangeManager : MonoBehaviour
 {
@@ -125,6 +121,11 @@ public class CurrencyExchangeManager : MonoBehaviour
     // ================= PURCHASE FLOW =================
     private void TryBuyPackage(CurrencyExchangePackage package)
     {
+        if (!CampaignSaveStore.AtMenu)
+        {
+            Fail("Campaign currency purchases are available in the Main Menu.", NotificationPopupController.PopupType.Info);
+            return;
+        }
         if (IsPurchaseInProgress)
             return; // silently ignore double-clicks rather than stacking status messages
 
@@ -167,34 +168,25 @@ public class CurrencyExchangeManager : MonoBehaviour
                 SetButtonsInteractable(true);
                 Fail("Purchase failed: " + message, NotificationPopupController.PopupType.Error);
 
-                // Re-sync in case GC was subtracted but NM failed to add -
-                // see the warning on ExecuteExchange_ClientSide_TEMP.
                 wallet.RefreshWallet();
             });
     }
 
-    // ============================================================
-    // TEMPORARY / TESTING-ONLY EXCHANGE IMPLEMENTATION
-    //
-    // >>> REPLACE THIS METHOD BODY when a CloudScript function exists. <<<
-    //
-    // Everything above this point (TryBuyPackage and its callers) should
-    // stay exactly the same. Swap this method for a single call like:
-    //
-    //   PlayFabClientAPI.ExecuteCloudScript(
-    //       new ExecuteCloudScriptRequest {
-    //           FunctionName = "ExchangeGoldCoinsForMoney",
-    //           FunctionParameter = new { packageName = package.packageName },
-    //       },
-    //       result => onSuccess(),
-    //       error => onFailure(error.ErrorMessage));
-    //
-    // The server-side function would check the GC balance, subtract GC,
-    // add NM, and return updated balances atomically - removing the
-    // partial-transaction risk described below.
-    // ============================================================
+    // The existing premium spend stays online; confirmed rewards go to the Campaign wallet.
     private void ExecuteExchange_ClientSide_TEMP(CurrencyExchangePackage package, Action onSuccess, Action<string> onFailure)
     {
+        string account = PlayFabAuthManager.Instance.PlayFabId;
+        try
+        {
+            if (!CampaignSaveStore.AccountMatches(account))
+            {
+                onFailure("This Campaign belongs to another account.");
+                return;
+            }
+        }
+        catch (Exception e) { onFailure(e.Message); return; }
+        string receipt = Guid.NewGuid().ToString("N");
+        CampaignSaveStore.IsCreditPending = true;
         PlayFabClientAPI.SubtractUserVirtualCurrency(
             new SubtractUserVirtualCurrencyRequest
             {
@@ -203,26 +195,22 @@ public class CurrencyExchangeManager : MonoBehaviour
             },
             _ =>
             {
-                // GC has now been spent. If the AddUserVirtualCurrency call
-                // below fails (e.g. connection drop), the player is left
-                // with GC gone and no NM granted. This is exactly the
-                // partial-transaction risk a CloudScript function avoids -
-                // acceptable for testing only.
-                PlayFabClientAPI.AddUserVirtualCurrency(
-                    new AddUserVirtualCurrencyRequest
-                    {
-                        VirtualCurrency = "NM",
-                        Amount = package.normalMoneyReward
-                    },
-                    _2 => onSuccess(),
-                    addError =>
-                    {
-                        Debug.LogError("CurrencyExchangeManager: GC was subtracted but NM add failed: " + addError.ErrorMessage);
-                        onFailure(addError.ErrorMessage);
-                    }
-                );
+                try
+                {
+                    CampaignSaveStore.QueueConfirmedCredit(account, package.normalMoneyReward, receipt);
+                    onSuccess();
+                }
+                catch (Exception e)
+                {
+                    CampaignSaveStore.IsCreditPending = false;
+                    onFailure("Gold Coins charged; Campaign credit needs recovery: " + e.Message);
+                }
             },
-            subtractError => onFailure(subtractError.ErrorMessage)
+            subtractError =>
+            {
+                CampaignSaveStore.IsCreditPending = false;
+                onFailure(subtractError.ErrorMessage);
+            }
         );
     }
 

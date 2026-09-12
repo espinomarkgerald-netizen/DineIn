@@ -94,6 +94,13 @@ public class WalletUIController : MonoBehaviour
         RefreshAndPollIfReady();
     }
 
+    private void LateUpdate()
+    {
+        // The Campaign balance remains visible offline and after account changes.
+        if (normalMoneyText != null) normalMoneyText.text = moneyPrefix + CampaignSaveStore.Money;
+        if (CampaignCloudSync.HasConflict) SetStatus(CampaignCloudSync.Status);
+    }
+
     private void OnDisable()
     {
         UnsubscribeFromWallet();
@@ -245,7 +252,7 @@ public class WalletUIController : MonoBehaviour
     private void ShowEmptyValues()
     {
         if (goldCoinsText != null) goldCoinsText.text = goldPrefix + emptyValueText;
-        if (normalMoneyText != null) normalMoneyText.text = moneyPrefix + emptyValueText;
+        if (normalMoneyText != null) normalMoneyText.text = moneyPrefix + CampaignSaveStore.Money;
     }
 
     private void SetStatus(string message)

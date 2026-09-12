@@ -23,7 +23,7 @@ public class GameSaveManager : MonoBehaviour
     public GameSaveData CaptureRuntimeState() => CaptureCurrentData();
     public void CompleteDeferredInitialLoad()
     {
-        if (IsPersistenceSuspended || !autoLoadOnStart || hasAutoLoaded) return;
+        if (IsPersistenceSuspended || !CampaignSaveStore.RuntimeCampaign || !autoLoadOnStart || hasAutoLoaded) return;
         hasAutoLoaded = true;
         LoadGame();
     }
@@ -37,6 +37,23 @@ public class GameSaveManager : MonoBehaviour
 #endif
 
     private string SavePath => Path.Combine(Application.persistentDataPath, saveFileName);
+    public string CampaignSavePath => SavePath;
+    // Preserve the existing clean post-tutorial start; never overwrite an existing career.
+    public void CreateInitialCampaign(GameSaveData cleanStart)
+    {
+        if (IsPersistenceSuspended || MultiplayerRestockBridge.IsActive || HasSave() ||
+            File.Exists(DayCheckpointPath) || cleanStart == null) return;
+#if UNITY_EDITOR
+        if (SuppressWritesForTests) return;
+#endif
+        CampaignSaveStore.AtomicWrite(SavePath, JsonUtility.ToJson(cleanStart, true));
+    }
+    public void ReloadCampaignFromDisk()
+    {
+        if (!CampaignSaveStore.RuntimeCampaign) return;
+        hasAutoLoaded = true;
+        LoadGame();
+    }
     private string DayCheckpointPath => Path.Combine(
         Application.persistentDataPath,
         Path.GetFileNameWithoutExtension(saveFileName) + "_day_start.json");
@@ -82,7 +99,7 @@ public class GameSaveManager : MonoBehaviour
 
     private void Start()
     {
-        if (IsPersistenceSuspended) return;
+        if (IsPersistenceSuspended || !CampaignSaveStore.RuntimeCampaign) return;
         if (autoLoadOnStart && !hasAutoLoaded)
         {
             hasAutoLoaded = true;
@@ -111,7 +128,7 @@ public class GameSaveManager : MonoBehaviour
 
     public void RequestSave()
     {
-        if (IsPersistenceSuspended) return;
+        if (IsPersistenceSuspended || !CampaignSaveStore.RuntimeCampaign || CampaignSaveStore.NeedsReload) return;
 #if UNITY_EDITOR
         if (SuppressWritesForTests)
             return;
@@ -130,7 +147,8 @@ public class GameSaveManager : MonoBehaviour
 
     public void SaveGame()
     {
-        if (IsPersistenceSuspended) return;
+        if (IsPersistenceSuspended || !CampaignSaveStore.RuntimeCampaign || CampaignSaveStore.NeedsReload) return;
+        if (IsApplyingSave) return;
 #if UNITY_EDITOR
         if (SuppressWritesForTests)
             return;
@@ -153,7 +171,7 @@ public class GameSaveManager : MonoBehaviour
 
     public void CaptureDayStartCheckpoint()
     {
-        if (IsPersistenceSuspended) return;
+        if (IsPersistenceSuspended || !CampaignSaveStore.RuntimeCampaign || CampaignSaveStore.NeedsReload) return;
 #if UNITY_EDITOR
         if (SuppressWritesForTests)
             return;
@@ -170,7 +188,7 @@ public class GameSaveManager : MonoBehaviour
 
     public bool RestoreDayStartCheckpoint()
     {
-        if (IsPersistenceSuspended) return false;
+        if (IsPersistenceSuspended || CampaignSaveStore.ProtectedSession) return false;
         if (!File.Exists(DayCheckpointPath))
             return false;
 
@@ -186,7 +204,7 @@ public class GameSaveManager : MonoBehaviour
 
     public void CommitDayCheckpoint()
     {
-        if (IsPersistenceSuspended) return;
+        if (IsPersistenceSuspended || CampaignSaveStore.ProtectedSession) return;
         if (File.Exists(DayCheckpointPath))
             File.Delete(DayCheckpointPath);
     }
@@ -194,6 +212,9 @@ public class GameSaveManager : MonoBehaviour
     private GameSaveData CaptureCurrentData()
     {
         GameSaveData data = new GameSaveData();
+        GameSaveData previous = ReadSaveData(SavePath);
+        if (previous?.campaignCreditReceipts != null)
+            data.campaignCreditReceipts = previous.campaignCreditReceipts;
 
         if (GameFlowManager.Instance != null)
             GameFlowManager.Instance.FillSaveData(data);
@@ -232,6 +253,7 @@ public class GameSaveManager : MonoBehaviour
 
     private void WriteSaveData(string path, GameSaveData data)
     {
+        if (CampaignSaveStore.ProtectedSession) return;
         string json = JsonUtility.ToJson(data, true);
         File.WriteAllText(path, json);
 
@@ -260,6 +282,8 @@ public class GameSaveManager : MonoBehaviour
     public void LoadGame()
     {
         if (IsPersistenceSuspended) return;
+        CampaignSaveStore.RecoverPendingWrite();
+        if (!CampaignSaveStore.ProtectedSession) CampaignSaveStore.NeedsReload = false;
         if (!HasSave())
         {
             Debug.Log("[GameSaveManager] No save file found — using defaults.");
@@ -365,7 +389,7 @@ public class GameSaveManager : MonoBehaviour
 
     public void DeleteSave()
     {
-        if (IsPersistenceSuspended) return;
+        if (IsPersistenceSuspended || CampaignSaveStore.ProtectedSession) return;
         if (!HasSave() && !File.Exists(DayCheckpointPath))
             return;
 

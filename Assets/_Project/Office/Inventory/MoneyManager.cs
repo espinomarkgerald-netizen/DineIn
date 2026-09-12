@@ -20,9 +20,6 @@ public class MoneyManager : MonoBehaviour
     public event Action<int> OnMoneyChanged;
 
     private bool initialized;
-    private PlayFabWalletManager boundWallet;
-    private int pendingWalletDelta;
-    private float nextWalletBindAttempt;
 
     private void Awake()
     {
@@ -45,25 +42,12 @@ public class MoneyManager : MonoBehaviour
 
     private void Start()
     {
-        TryBindWallet();
         NotifyMoneyChanged();
         Debug.Log("[MoneyManager] Start current money = " + Money);
     }
 
-    private void Update()
-    {
-        if (boundWallet == null && Time.unscaledTime >= nextWalletBindAttempt)
-        {
-            nextWalletBindAttempt = Time.unscaledTime + 1f;
-            TryBindWallet();
-        }
-    }
-
     private void OnDestroy()
     {
-        if (boundWallet != null)
-            boundWallet.OnWalletUpdated -= ApplyWalletBalance;
-
         if (Instance == this)
             Instance = null;
     }
@@ -74,7 +58,6 @@ public class MoneyManager : MonoBehaviour
             return;
 
         Money += amount;
-        SyncWalletDelta(amount);
         LogTransaction($"+{amount}: {description}", amount, description, false);
         Debug.Log("[MoneyManager] Earn -> " + Money);
         NotifyMoneyChanged();
@@ -90,7 +73,6 @@ public class MoneyManager : MonoBehaviour
             return false;
 
         Money -= amount;
-        SyncWalletDelta(-amount);
         LogTransaction($"-{amount}: {description}", -amount, description, false);
         Debug.Log("[MoneyManager] Spend -> " + Money);
         NotifyMoneyChanged();
@@ -102,7 +84,6 @@ public class MoneyManager : MonoBehaviour
     {
         int previousMoney = Money;
         Money = Mathf.Max(0, amount);
-        SyncWalletDelta(Money - previousMoney);
         LogTransaction($"={Money}: {description}", Money - previousMoney, description, true);
         Debug.Log("[MoneyManager] SetMoney -> " + Money);
         NotifyMoneyChanged();
@@ -121,7 +102,6 @@ public class MoneyManager : MonoBehaviour
 
         int previousMoney = Money;
         Money = Mathf.Max(0, Money - amount);
-        SyncWalletDelta(Money - previousMoney);
         LogTransaction(
             $"-{amount} (forced): {description}",
             Money - previousMoney,
@@ -208,53 +188,6 @@ public class MoneyManager : MonoBehaviour
         const int retainedEntries = 160;
         if (dailyTransactions.Count > retainedEntries)
             dailyTransactions.RemoveRange(0, dailyTransactions.Count - retainedEntries);
-    }
-
-    private void TryBindWallet()
-    {
-        if (GameSaveManager.IsPersistenceSuspended) return;
-        PlayFabWalletManager wallet = PlayFabWalletManager.Instance;
-        if (wallet == null || wallet == boundWallet)
-            return;
-
-        if (boundWallet != null)
-            boundWallet.OnWalletUpdated -= ApplyWalletBalance;
-
-        boundWallet = wallet;
-        boundWallet.OnWalletUpdated += ApplyWalletBalance;
-
-        int queuedDelta = pendingWalletDelta;
-        pendingWalletDelta = 0;
-
-        if (boundWallet.HasLoadedWallet)
-        {
-            Money = Mathf.Max(0, boundWallet.NormalMoney + queuedDelta);
-            NotifyMoneyChanged();
-        }
-
-        if (queuedDelta != 0)
-            boundWallet.ChangeNormalMoney(queuedDelta);
-    }
-
-    private void SyncWalletDelta(int delta)
-    {
-        if (GameSaveManager.IsPersistenceSuspended) return;
-        if (delta == 0)
-            return;
-
-        TryBindWallet();
-        if (boundWallet != null)
-            boundWallet.ChangeNormalMoney(delta);
-        else
-            pendingWalletDelta += delta;
-    }
-
-    private void ApplyWalletBalance(int _, int normalMoney)
-    {
-        if (GameSaveManager.IsPersistenceSuspended) return;
-        Money = Mathf.Max(0, normalMoney);
-        NotifyMoneyChanged();
-        GameSaveManager.Instance?.RequestSave();
     }
 
     public void ResetToStartingMoney()

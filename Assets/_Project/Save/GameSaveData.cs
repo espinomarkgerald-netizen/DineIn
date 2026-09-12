@@ -182,6 +182,7 @@ public class RestockStoredContainerSaveData
 public class GameSaveData
 {
     public int saveSchemaVersion = 3;
+    public List<string> campaignCreditReceipts = new List<string>();
     // Version 1 introduced finite restaurant ingredient stock. The save manager
     // uses the serialized presence of this field to migrate older saves once.
     public int inventorySystemVersion = 2;

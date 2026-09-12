@@ -749,11 +749,10 @@ public sealed class TutorialRestockFlowBridge : MonoBehaviour
 
     private static Button FindBoxButton(DraggableStorageBox box, string buttonName)
     {
-        if (box == null) return null;
-        foreach (Button button in box.GetComponentsInChildren<Button>(true))
-            if (button != null && button.name == buttonName)
-                return button;
-        return null;
+        ThrowKeepPanel panel = ThrowKeepPanel.Instance;
+        if (box == null || panel == null || panel.SelectedBox != box) return null;
+        return buttonName == "KeepButton" ? panel.KeepButton :
+            buttonName == "ThrowAwayButton" ? panel.ThrowButton : null;
     }
 
     private static RectTransform FindActiveButton(string objectName)

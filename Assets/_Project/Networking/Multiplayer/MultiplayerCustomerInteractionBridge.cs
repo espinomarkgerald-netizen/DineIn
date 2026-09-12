@@ -210,8 +210,6 @@ public class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEventCallb
             && kitchen.TryGetPreparedSlot(order, out int slot) && slot == expectedSlot
             && tray != null && tray.gameObject.activeInHierarchy && !tray.NetworkCarryLocked
             && tray.TargetGroup == customer.Group && stand != null && interaction.isActiveAndEnabled
-            && Vector2.Distance(new Vector2(manager.transform.position.x, manager.transform.position.z),
-                new Vector2(stand.position.x, stand.position.z)) <= interaction.GetInteractRadius()
             && customer.CarrierActorNumber == 0 && customer.CommitTrayPickup(sender, manager.GetComponent<WaiterHands>());
         if (accepted) claims.CompleteOnAuthority(id, sender);
         else if (sender == session.LocalActorNumber)

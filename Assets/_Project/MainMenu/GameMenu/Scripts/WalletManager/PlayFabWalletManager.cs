@@ -5,8 +5,7 @@ using PlayFab.ClientModels;
 using UnityEngine;
 
 /// <summary>
-/// Owns the player's PlayFab virtual currency balances (Gold Coins / Normal
-/// Money): reading them from PlayFab and caching the latest known values.
+/// Owns PlayFab Gold Coins and exposes the locally saved Campaign money balance.
 ///
 /// Single Responsibility: this class knows nothing about how to log in or
 /// out - it only reads PlayFabAuthManager.Instance.IsLoggedIn and listens
@@ -29,8 +28,6 @@ public class PlayFabWalletManager : MonoBehaviour
     [Header("Currency Codes")]
     [Tooltip("PlayFab virtual currency code for the premium currency.")]
     [SerializeField] private string goldCurrencyCode = "GC";
-    [Tooltip("PlayFab virtual currency code for the temporary in-game money.")]
-    [SerializeField] private string moneyCurrencyCode = "NM";
 
     [Header("Behaviour")]
     [Tooltip("Automatically call RefreshWallet() when PlayFabAuthManager.OnLoginSuccess fires.")]
@@ -49,7 +46,7 @@ public class PlayFabWalletManager : MonoBehaviour
     [SerializeField] private bool verboseLogging = true;
 
     public int GoldCoins { get; private set; }
-    public int NormalMoney { get; private set; }
+    public int NormalMoney => CampaignSaveStore.Money;
 
     /// <summary>True once a successful GetUserInventory response has been applied at least once since the last login/clear.</summary>
     public bool HasLoadedWallet { get; private set; }
@@ -66,8 +63,6 @@ public class PlayFabWalletManager : MonoBehaviour
     // ========================================================
 
     private Coroutine pollCoroutine;
-    private int pendingNormalMoneyDelta;
-    private bool normalMoneyChangeInFlight;
     private bool goldCoinSpendInFlight;
 
     public bool IsGoldCoinSpendInFlight => goldCoinSpendInFlight;
@@ -136,7 +131,6 @@ public class PlayFabWalletManager : MonoBehaviour
         if (!clearOnLogout) return;
 
         GoldCoins = 0;
-        NormalMoney = 0;
         HasLoadedWallet = false;
 
         OnWalletCleared?.Invoke();
@@ -174,8 +168,6 @@ public class PlayFabWalletManager : MonoBehaviour
             return;
         }
 
-        if (normalMoneyChangeInFlight)
-            return;
 
         IsRefreshing = true;
 
@@ -189,23 +181,19 @@ public class PlayFabWalletManager : MonoBehaviour
                 IsRefreshing = false;
 
                 int gc = 0;
-                int nm = 0;
 
                 if (result.VirtualCurrency != null)
                 {
                     result.VirtualCurrency.TryGetValue(goldCurrencyCode, out gc);
-                    result.VirtualCurrency.TryGetValue(moneyCurrencyCode, out nm);
                 }
 
                 GoldCoins = gc;
-                NormalMoney = nm;
                 HasLoadedWallet = true;
 
                 if (verboseLogging)
-                    Debug.Log("PlayFabWalletManager: GetUserInventory succeeded. GC=" + gc + ", NM=" + nm);
+                    Debug.Log("PlayFabWalletManager: GetUserInventory succeeded. GC=" + gc);
 
                 OnWalletUpdated?.Invoke(GoldCoins, NormalMoney);
-                ProcessPendingNormalMoneyChange();
             },
             error =>
             {
@@ -406,69 +394,13 @@ public class PlayFabWalletManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Queues restaurant income or spending against the same PlayFab Normal
-    /// Money balance used by GameMenu. Deltas are serialized through one
-    /// request at a time so rapid customer payments cannot overwrite each
-    /// other's returned balance.
+    /// Applies menu income/spending to the same local Campaign balance used by Lobby1.
     /// </summary>
     public void ChangeNormalMoney(int delta)
     {
-        if (delta == 0)
-            return;
-
-        pendingNormalMoneyDelta += delta;
-        ProcessPendingNormalMoneyChange();
-    }
-
-    private void ProcessPendingNormalMoneyChange()
-    {
-        if (normalMoneyChangeInFlight || pendingNormalMoneyDelta == 0 ||
-            !HasLoadedWallet || PlayFabAuthManager.Instance == null ||
-            !PlayFabAuthManager.Instance.IsLoggedIn)
-            return;
-
-        int delta = pendingNormalMoneyDelta;
-        pendingNormalMoneyDelta = 0;
-        normalMoneyChangeInFlight = true;
-
-        Action<ModifyUserVirtualCurrencyResult> onSuccess = result =>
-        {
-            normalMoneyChangeInFlight = false;
-            NormalMoney = Mathf.Max(0, result.Balance);
-            OnWalletUpdated?.Invoke(GoldCoins, NormalMoney);
-            ProcessPendingNormalMoneyChange();
-        };
-
-        Action<PlayFabError> onFailure = error =>
-        {
-            normalMoneyChangeInFlight = false;
-            pendingNormalMoneyDelta += delta;
-            Debug.LogWarning("PlayFabWalletManager: Normal Money sync failed: " +
-                             error.GenerateErrorReport());
-        };
-
-        if (delta > 0)
-        {
-            PlayFabClientAPI.AddUserVirtualCurrency(
-                new AddUserVirtualCurrencyRequest
-                {
-                    VirtualCurrency = moneyCurrencyCode,
-                    Amount = delta
-                },
-                onSuccess,
-                onFailure);
-        }
-        else
-        {
-            PlayFabClientAPI.SubtractUserVirtualCurrency(
-                new SubtractUserVirtualCurrencyRequest
-                {
-                    VirtualCurrency = moneyCurrencyCode,
-                    Amount = -delta
-                },
-                onSuccess,
-                onFailure);
-        }
+        if (delta == 0) return;
+        if (CampaignSaveStore.ChangeMoney(delta)) OnWalletUpdated?.Invoke(GoldCoins, NormalMoney);
+        else OnWalletRefreshFailed?.Invoke("Campaign money change could not be saved locally.");
     }
 
     // ================= POLLING =================

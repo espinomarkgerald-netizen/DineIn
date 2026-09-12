@@ -240,7 +240,7 @@ public sealed class TutorialDayContext : MonoBehaviour
         SetInstanceField(saveManager, "<IsApplyingSave>k__BackingField", false);
         SetInstanceField(saveManager, "hasAutoLoaded", true);
         ApplyRuntimeState(dayTwo);
-        saveManager.SaveGame();
+        saveManager.CreateInitialCampaign(dayTwo);
         runtimeIsolated = false;
         DestroyRuntimeClones();
         restored = true;

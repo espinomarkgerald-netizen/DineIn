@@ -30,9 +30,6 @@ public class DraggableStorageBox : MonoBehaviour
         new Color(1f, 0.15f, 0.15f, 0.35f);
 
     [Header("Box Interaction UI")]
-    [SerializeField] private GameObject interactionUIRoot;
-    [SerializeField] private Button keepButton;
-    [SerializeField] private Button throwAwayButton;
     [SerializeField] private Outline selectionOutline;
     [SerializeField] private Color selectionColor = new Color(0.18f, 0.82f, 1f, 1f);
     [SerializeField, Range(0f, 10f)] private float selectionWidth = 4f;
@@ -70,6 +67,20 @@ public class DraggableStorageBox : MonoBehaviour
     // Mobile
     private int activeFingerId = -1;
 
+    public bool CanInteractInRestock => isActiveAndEnabled && gameObject.scene.name == "RestockScene" &&
+        ((RestockFlowCoordinator.Instance != null && RestockFlowCoordinator.Instance.IsRestockRoomOpen) ||
+         UnityEngine.SceneManagement.SceneManager.GetActiveScene() == gameObject.scene);
+
+    private bool CheckInteractionContext()
+    {
+        if (CanInteractInRestock) return true;
+        // Cancel an interrupted drag through the existing rollback, without committing a move.
+        if (isDragging) ReturnToPreviousPosition();
+        ResetPointerState();
+        HideInteractionUI();
+        return false;
+    }
+
     private void Awake()
     {
         FindCamera();
@@ -78,9 +89,6 @@ public class DraggableStorageBox : MonoBehaviour
         // mask. Treat zero as "all shelves" so placed deliveries stay movable.
         if (shelfGridLayer.value == 0)
             shelfGridLayer = ~0;
-
-        if (interactionUIRoot != null)
-            interactionUIRoot.SetActive(false);
 
         ResolveInteractionControls();
         SetSelectionVisible(false);
@@ -123,7 +131,7 @@ public class DraggableStorageBox : MonoBehaviour
 
     private void Update()
     {
-        if (MultiplayerRestockBridge.IsActive) return;
+        if (!CheckInteractionContext()) return;
 #if (UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR
         HandleTouchInput();
 #endif
@@ -137,7 +145,7 @@ public class DraggableStorageBox : MonoBehaviour
 
     private void OnMouseDown()
     {
-        if (MultiplayerRestockBridge.IsActive) return;
+        if (!CheckInteractionContext()) return;
         FindCamera();
 
         if (playerCamera == null)
@@ -256,6 +264,8 @@ public class DraggableStorageBox : MonoBehaviour
         Vector2 screenPosition,
         int pointerId = -1)
     {
+        if (ThrowKeepPanel.Instance != null && ThrowKeepPanel.Instance.BlocksPointer(screenPosition))
+            return true;
         if (EventSystem.current == null)
             return false;
 
@@ -301,6 +311,7 @@ public class DraggableStorageBox : MonoBehaviour
     private void BeginPointer(
         Vector2 screenPosition)
     {
+        if (!CheckInteractionContext()) return;
         pointerHeld = true;
         isDragging = false;
 
@@ -317,6 +328,9 @@ public class DraggableStorageBox : MonoBehaviour
     private void ContinuePointer(
         Vector2 screenPosition)
     {
+        if (!CheckInteractionContext()) return;
+        // Multiplayer permits inspection only; retain its existing drag restriction.
+        if (MultiplayerRestockBridge.IsActive) return;
         if (!pointerHeld)
             return;
 
@@ -340,6 +354,7 @@ public class DraggableStorageBox : MonoBehaviour
     private void EndPointer(
         Vector2 screenPosition)
     {
+        if (!CheckInteractionContext()) return;
         if (!pointerHeld)
             return;
 
@@ -803,25 +818,24 @@ public class DraggableStorageBox : MonoBehaviour
 
     public void ShowInteractionUI()
     {
-        if (MultiplayerRestockBridge.IsActive) return;
+        if (!CheckInteractionContext() || ThrowKeepPanel.Instance == null) return;
         ResolveInteractionControls();
         RestockStorageContainer identity = GetComponent<RestockStorageContainer>();
         identity?.TryResolveLegacyItem();
         identity?.RefreshExpiryState();
-        if (interactionUIRoot != null)
-            interactionUIRoot.SetActive(true);
+        ThrowKeepPanel.Instance.Select(this);
         SetSelectionVisible(true);
     }
 
     public void HideInteractionUI()
     {
-        if (interactionUIRoot != null)
-            interactionUIRoot.SetActive(false);
+        ThrowKeepPanel.Instance?.Deselect(this);
         SetSelectionVisible(false);
     }
 
     public void ThrowAway()
     {
+        if (!CheckInteractionContext()) return;
         if (MultiplayerRestockBridge.IsActive) return;
         ResetPointerState();
         RestockStorageContainer identity = GetComponent<RestockStorageContainer>();
@@ -846,8 +860,9 @@ public class DraggableStorageBox : MonoBehaviour
 
     public event System.Action<DraggableStorageBox, bool> InspectionChoiceMade;
 
-    private void KeepStock()
+    public void KeepStock()
     {
+        if (!CheckInteractionContext()) return;
         HideInteractionUI();
         InspectionChoiceMade?.Invoke(this, false);
     }
@@ -880,34 +895,6 @@ public class DraggableStorageBox : MonoBehaviour
 
     private void ResolveInteractionControls()
     {
-        if (interactionUIRoot != null)
-        {
-            Button[] buttons = interactionUIRoot.GetComponentsInChildren<Button>(true);
-            for (int i = 0; i < buttons.Length; i++)
-            {
-                Button button = buttons[i];
-                if (button == null)
-                    continue;
-                if (keepButton == null && button.name == "KeepButton")
-                    keepButton = button;
-                else if (throwAwayButton == null && button.name == "ThrowAwayButton")
-                    throwAwayButton = button;
-            }
-        }
-
-        if (keepButton != null)
-        {
-            keepButton.onClick.RemoveListener(HideInteractionUI);
-            keepButton.onClick.RemoveListener(KeepStock);
-            keepButton.onClick.AddListener(KeepStock);
-        }
-
-        if (throwAwayButton != null)
-        {
-            throwAwayButton.onClick.RemoveListener(ThrowAway);
-            throwAwayButton.onClick.AddListener(ThrowAway);
-        }
-
         if (selectionOutline == null)
             selectionOutline = GetComponent<Outline>();
         if (selectionOutline == null)

@@ -20,8 +20,10 @@ public sealed class LobbyHUDRoot : MonoBehaviour
     [Header("Mobile Presentation")]
     [Tooltip("Size multiplier for the existing gameplay HUD canvases on mobile.")]
     [SerializeField, Min(0.1f)] private float mobileHudScale = 1.10f;
+    [Tooltip("Additional mobile size multiplier for the CURRENT TASK panel and its text.")]
+    [SerializeField, Min(0.1f)] private float mobileTaskPanelScale = 1.50f;
     [Tooltip("Visual and clickable size of the RestockScene Dry Room / Freezer button.")]
-    [SerializeField, Min(0.1f)] private float mobileStorageButtonScale = 1.10f;
+    [SerializeField, Min(0.1f)] private float mobileStorageButtonScale = 1.50f;
 
     public float MobileStorageButtonScale => mobileStorageButtonScale;
 
@@ -73,6 +75,11 @@ public sealed class LobbyHUDRoot : MonoBehaviour
         if (controls != null)
         {
             controls.UseCombinedAuthoredLayout();
+            // Scale before binding so panel animations retain the mobile size.
+            // Keep the actual tutorial target and all child text in the same rect.
+            if (Application.isMobilePlatform &&
+                controls.transform.Find("SafeArea/TaskMessage") is RectTransform taskPanel)
+                taskPanel.localScale *= Mathf.Max(0.1f, mobileTaskPanelScale);
             PlayerTaskHUD.EnsureCombinedBinding(controls);
         }
 

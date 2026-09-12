@@ -74,6 +74,7 @@ public sealed class RestockRoomController
 
     public void Deactivate()
     {
+        ThrowKeepPanel.Instance?.SelectedBox?.HideInteractionUI();
         CancelHotbarWorldDrag();
         hud?.SetLobbyContext();
     }
@@ -444,6 +445,7 @@ public sealed class RestockRoomController
 
     private void SwitchToRoom(RestockStorageType room)
     {
+        ThrowKeepPanel.Instance?.SelectedBox?.HideInteractionUI();
         CancelHotbarWorldDrag();
         activeRoom = room;
         Transform target = room == RestockStorageType.Frozen ? freezerRig : dryRig;
