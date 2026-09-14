@@ -2750,10 +2750,10 @@ MonoBehaviour:
   menuMaximumColumns: 4
   menuRightRailProportion: 0.3
   menuRightRailWidthRange: {x: 360, y: 480}
-  restockCardSize: {x: 248, y: 316}
+  restockCardSize: {x: 296, y: 377}
   restockMaximumColumns: 3
   restockRightRailProportion: 0.39
-  restockRightRailWidthRange: {x: 440, y: 580}
+  restockRightRailWidthRange: {x: 440, y: 520}
   mobileRightRailProportion: 0.42
   mobileRightRailWidthRange: {x: 440, y: 560}
   mobileControlHeight: 68

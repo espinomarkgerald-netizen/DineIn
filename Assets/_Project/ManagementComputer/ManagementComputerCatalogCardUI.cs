@@ -25,6 +25,10 @@ public sealed class ManagementComputerCatalogCardUI : MonoBehaviour
     [SerializeField] private Button plusButton;
     [SerializeField] private TMP_Text quantityText;
     [SerializeField] private ManagementItemCardFeedback feedback;
+    [UnityEngine.Serialization.FormerlySerializedAs("mobileTextScale")]
+    [SerializeField, Range(1f, 1.2f)] private float restockTextScale = 1.13f;
+    [UnityEngine.Serialization.FormerlySerializedAs("mobileQuantityButtonSize")]
+    [SerializeField, Min(48f)] private float quantityButtonSize = 54f;
 
     [Header("Colors")]
     [SerializeField] private Color normalColor = new Color(0.89f, 0.95f, 0.99f, 1f);
@@ -566,6 +570,23 @@ public sealed class ManagementComputerCatalogCardUI : MonoBehaviour
             new Vector2(0.075f, 0.135f), new Vector2(0.925f, 0.195f));
         SetAnchors(quantityRoot != null ? quantityRoot.transform as RectTransform : null,
             new Vector2(0.055f, 0.015f), new Vector2(0.945f, 0.13f));
+        {
+            SetAnchors(metaText != null ? metaText.rectTransform : null,
+                new Vector2(0.07f, 0.46f), new Vector2(0.93f, 0.50f));
+            SetAnchors(statusBackground != null ? statusBackground.rectTransform : null,
+                new Vector2(0.055f, 0.37f), new Vector2(0.945f, 0.46f));
+            SetAnchors(statusText != null ? statusText.rectTransform : null,
+                new Vector2(0.075f, 0.38f), new Vector2(0.925f, 0.45f));
+            SetAnchors(restockStatsRoot.transform as RectTransform,
+                new Vector2(0.055f, 0.25f), new Vector2(0.945f, 0.37f));
+            SetAnchors(priceText != null ? priceText.rectTransform : null,
+                new Vector2(0.075f, 0.20f), new Vector2(0.925f, 0.245f));
+            SetAnchors(quantityRoot != null ? quantityRoot.transform as RectTransform : null,
+                new Vector2(0.055f, 0.04f), new Vector2(0.945f, 0.16f));
+            if (minusButton != null) ((RectTransform)minusButton.transform).sizeDelta = Vector2.one * quantityButtonSize;
+            if (plusButton != null) ((RectTransform)plusButton.transform).sizeDelta = Vector2.one * quantityButtonSize;
+            if (quantityText != null) quantityText.rectTransform.sizeDelta = new Vector2(-2f * (quantityButtonSize + 4f), -2f);
+        }
         if (statusText != null)
         {
             statusText.alignment = TextAlignmentOptions.Center;
@@ -630,7 +651,7 @@ public sealed class ManagementComputerCatalogCardUI : MonoBehaviour
         statsRoutine = StartCoroutine(AnimateStatsChange());
     }
 
-    private static void StyleText(
+    private void StyleText(
         TMP_Text text,
         Color color,
         float minimumSize,
@@ -643,7 +664,8 @@ public sealed class ManagementComputerCatalogCardUI : MonoBehaviour
         text.color = color;
         text.enableAutoSizing = true;
         text.fontSizeMin = minimumSize;
-        text.fontSizeMax = maximumSize;
+        bool restock = restockStatsRoot != null && restockStatsRoot.activeSelf;
+        text.fontSizeMax = maximumSize * (restock ? restockTextScale : 1f);
         text.fontStyle = style;
         RestoreTextVisual(text);
     }

@@ -74,6 +74,9 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
     private bool cameraAuthoredActive;
     private bool computerAuthoredActive;
     private bool newspaperAuthoredActive;
+    [SerializeField, Range(0f, 0.1f)] private float newspaperPulseStrength = 0.055f;
+    [SerializeField, Min(0.2f)] private float newspaperPulseSeconds = 1.4f;
+    private Vector3 newspaperOriginalScale = Vector3.one;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetStatics()
@@ -178,6 +181,7 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
         ApplySafeArea(false);
         RefreshVisibility();
         AnimateLivePanel();
+        UpdateNewspaperReminder();
 
         float now = Time.unscaledTime;
         if (now >= nextCountRefresh)
@@ -191,6 +195,24 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
             nextInteractionRefresh = now + 0.15f;
             RefreshInteractionLabel();
         }
+    }
+
+    private void UpdateNewspaperReminder()
+    {
+        if (newspaperButton == null) return;
+        var flow = GameFlowManager.Instance;
+        var issue = flow != null && CasualDiningPolishManager.Instance != null
+            ? CasualDiningPolishManager.Instance.GetIssueForDay(flow.CurrentDay) : null;
+        bool unread = issue != null && !issue.viewed && newspaperButton.gameObject.activeInHierarchy;
+        float pulse = unread && !LevelOneUIAccessibility.ReducedMotion
+            ? (1f - Mathf.Cos(Time.unscaledTime * Mathf.PI * 2f / newspaperPulseSeconds)) * 0.5f
+            : 0f;
+        newspaperButton.transform.localScale = newspaperOriginalScale * (1f + pulse * newspaperPulseStrength);
+    }
+
+    private void OnDisable()
+    {
+        if (newspaperButton != null) newspaperButton.transform.localScale = newspaperOriginalScale;
     }
 
     public void RefreshVisibility()
@@ -230,6 +252,7 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
         cameraAuthoredActive = cameraButton != null && cameraButton.gameObject.activeSelf;
         computerAuthoredActive = computerButton != null && computerButton.gameObject.activeSelf;
         newspaperAuthoredActive = newspaperButton != null && newspaperButton.gameObject.activeSelf;
+        if (newspaperButton != null) newspaperOriginalScale = newspaperButton.transform.localScale;
         authoredVisibilityCaptured = true;
     }
 

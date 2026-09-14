@@ -19,13 +19,14 @@ public sealed class ManagementEquipmentSectionUI : MonoBehaviour
 
     [Header("Responsive Grid")]
     [SerializeField, Min(220f)] private float minimumCardWidth = 238f;
-    [SerializeField, Min(220f)] private float maximumCardWidth = 258f;
-    [SerializeField, Min(240f)] private float cardHeight = 280f;
+    [SerializeField, Min(220f)] private float maximumCardWidth = 310f;
+    [SerializeField, Min(240f)] private float cardHeight = 374f;
     [SerializeField, Min(0f)] private float horizontalSpacing = 14f;
     [SerializeField, Min(0f)] private float verticalSpacing = 14f;
     [SerializeField, Min(0f)] private float sidePadding = 12f;
     [SerializeField, Min(0f)] private float headerHeight = 80f;
     [SerializeField, Range(1, 4)] private int maximumColumns = 4;
+    [SerializeField, Range(1f, 1.2f)] private float cardTextScale = 1.18f;
 
     private int itemCount;
     private float lastWidth = -1f;
@@ -111,15 +112,18 @@ public sealed class ManagementEquipmentSectionUI : MonoBehaviour
         float cardWidth = Mathf.Min(
             Mathf.Max(minimumCardWidth, maximumCardWidth),
             availablePerCard);
+        float activeCardHeight = cardHeight;
+        foreach (ManagementEquipmentCardUI card in cardsContainer.GetComponentsInChildren<ManagementEquipmentCardUI>(true))
+            card.SetTextScale(cardTextScale);
         int count = Application.isPlaying
             ? itemCount
             : cardsContainer.childCount;
         int rows = Mathf.Max(1, Mathf.CeilToInt(count / (float)columns));
-        float cardsHeight = rows * cardHeight + Mathf.Max(0, rows - 1) * verticalSpacing;
+        float cardsHeight = rows * activeCardHeight + Mathf.Max(0, rows - 1) * verticalSpacing;
 
         grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
         grid.constraintCount = columns;
-        grid.cellSize = new Vector2(cardWidth, cardHeight);
+        grid.cellSize = new Vector2(cardWidth, activeCardHeight);
         grid.spacing = new Vector2(horizontalSpacing, verticalSpacing);
         grid.childAlignment = TextAnchor.UpperLeft;
         grid.padding = new RectOffset(

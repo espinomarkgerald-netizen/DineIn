@@ -63,10 +63,10 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
     [SerializeField] private Vector2 menuRightRailWidthRange = new Vector2(360f, 480f);
 
     [Header("Restock Layout (Editable)")]
-    [SerializeField] private Vector2 restockCardSize = new Vector2(248f, 316f);
+    [SerializeField] private Vector2 restockCardSize = new Vector2(296f, 377f);
     [SerializeField, Range(1, 4)] private int restockMaximumColumns = 3;
     [SerializeField, Range(0.28f, 0.55f)] private float restockRightRailProportion = 0.39f;
-    [SerializeField] private Vector2 restockRightRailWidthRange = new Vector2(440f, 580f);
+    [SerializeField] private Vector2 restockRightRailWidthRange = new Vector2(440f, 520f);
 
     [Header("Mobile Catalog Layout (Editable)")]
     [SerializeField, Range(0.3f, 0.6f)] private float mobileRightRailProportion = 0.42f;
@@ -101,6 +101,7 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
     private bool showingMenu = true;
     private ItemData extraOrderArmedItem;
     private Vector2 lastPanelSize;
+    private float lastCatalogViewportWidth;
     private InventoryManager subscribedInventory;
     private MenuProductCategory activeCategory = MenuProductCategory.Food;
     private RectTransform categoryTabsRoot;
@@ -176,7 +177,9 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
     {
         RectTransform root = transform as RectTransform;
         Vector2 size = root != null ? root.rect.size : Vector2.zero;
-        if ((size - lastPanelSize).sqrMagnitude > 1f)
+        if ((size - lastPanelSize).sqrMagnitude > 1f ||
+            (catalogScroll != null && catalogScroll.viewport != null &&
+             Mathf.Abs(catalogScroll.viewport.rect.width - lastCatalogViewportWidth) > 0.5f))
             ApplyResponsiveLayout();
     }
 
@@ -1142,7 +1145,7 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
         Vector2 authoredRailRange = showingMenu
             ? menuRightRailWidthRange
             : restockRightRailWidthRange;
-        Vector2 activeRailRange = mobile
+        Vector2 activeRailRange = mobile && showingMenu
             ? new Vector2(
                 Mathf.Max(authoredRailRange.x, mobileRightRailWidthRange.x),
                 Mathf.Max(authoredRailRange.y, mobileRightRailWidthRange.y))
@@ -1156,7 +1159,7 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
         float railProportion = showingMenu
             ? menuRightRailProportion
             : restockRightRailProportion;
-        if (mobile)
+        if (mobile && showingMenu)
             railProportion = Mathf.Max(railProportion, mobileRightRailProportion);
         float railWidth = Mathf.Clamp(
             width * railProportion,
@@ -1179,6 +1182,10 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
             authoredCardSize = preferredCardSize;
         Vector2 targetCardSize = authoredCardSize;
         float estimatedLeftWidth = Mathf.Max(220f, width - railWidth - 52f);
+        lastCatalogViewportWidth = catalogScroll != null && catalogScroll.viewport != null
+            ? catalogScroll.viewport.rect.width : 0f;
+        if (!showingMenu && lastCatalogViewportWidth > 1f)
+            estimatedLeftWidth = lastCatalogViewportWidth;
         int configuredMaximum = showingMenu ? menuMaximumColumns : restockMaximumColumns;
         int maximumColumns = Mathf.Max(
             1,
@@ -1186,7 +1193,7 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
         int columnsThatFit = Mathf.Max(
             1,
             Mathf.FloorToInt((estimatedLeftWidth + cardSpacing) /
-                             (Mathf.Max(160f, targetCardSize.x) + cardSpacing)));
+                             ((showingMenu ? Mathf.Max(160f, targetCardSize.x) : 220f) + cardSpacing)));
         int columns = Mathf.Min(maximumColumns, columnsThatFit);
         float usableWidth = estimatedLeftWidth - cardGrid.padding.left - cardGrid.padding.right -
                             Mathf.Max(0, columns - 1) * cardSpacing;

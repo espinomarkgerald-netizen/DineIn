@@ -566,8 +566,8 @@ MonoBehaviour:
   sectionLayout: {fileID: 2005762972542204455}
   cardPrefab: {fileID: 5153207960164219229, guid: 791d729492da0884cb557b1192598a03, type: 3}
   minimumCardWidth: 238
-  maximumCardWidth: 262
-  cardHeight: 316
+  maximumCardWidth: 310
+  cardHeight: 374
   horizontalSpacing: 16
   verticalSpacing: 16
   sidePadding: 12

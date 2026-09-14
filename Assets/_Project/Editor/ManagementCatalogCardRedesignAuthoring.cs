@@ -223,7 +223,7 @@ public static class ManagementCatalogCardRedesignAuthoring
             SetVector2(serialized, "preferredCardSize", new Vector2(248f, 316f));
             SetFloat(serialized, "cardSpacing", 16f);
             SetVector2(serialized, "menuCardSize", new Vector2(248f, 228f));
-            SetVector2(serialized, "restockCardSize", new Vector2(248f, 316f));
+            SetVector2(serialized, "restockCardSize", new Vector2(296f, 377f));
             serialized.ApplyModifiedPropertiesWithoutUndo();
         });
     }

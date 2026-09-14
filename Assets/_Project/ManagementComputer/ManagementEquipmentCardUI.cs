@@ -21,6 +21,19 @@ public sealed class ManagementEquipmentCardUI : MonoBehaviour
     [SerializeField] private Color lockedColor = new Color(0.46f, 0.52f, 0.60f, 1f);
     [SerializeField] private Color ownedColor = new Color(0.08f, 0.56f, 0.31f, 1f);
 
+    private float textScale = 1f;
+
+    public void SetTextScale(float scale)
+    {
+        if (Mathf.Approximately(scale, textScale)) return;
+        foreach (TMP_Text text in GetComponentsInChildren<TMP_Text>(true))
+        {
+            text.fontSize *= scale / textScale;
+            text.fontSizeMax *= scale / textScale;
+        }
+        textScale = scale;
+    }
+
     public void ConfigureReferences(
         Image configuredIcon,
         TMP_Text configuredTitle,

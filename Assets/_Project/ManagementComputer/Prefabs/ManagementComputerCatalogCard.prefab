@@ -1243,6 +1243,8 @@ MonoBehaviour:
   plusButton: {fileID: 6534437316361564599}
   quantityText: {fileID: 970025400814082512}
   feedback: {fileID: 0}
+  restockTextScale: 1.13
+  quantityButtonSize: 54
   normalColor: {r: 0.89, g: 0.95, b: 0.99, a: 1}
   selectedColor: {r: 0.76, g: 0.9, b: 0.98, a: 1}
   lockedColor: {r: 0.84, g: 0.88, b: 0.91, a: 1}
