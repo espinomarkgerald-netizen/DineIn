@@ -9,7 +9,7 @@ using UnityEngine.UI;
 /// allowance shared by real incidents and paced automatic encounters, while
 /// safe timing, coached answers and the debug path remain authoritative.
 /// </summary>
-public sealed class ManagerComplaintSystem : MonoBehaviour
+public sealed partial class ManagerComplaintSystem : MonoBehaviour
 {
     public const string SystemResourcePath = "ManagerComplaints/ManagerComplaintSystem";
     public const string MarkerResourcePath = "ManagerComplaints/CustomerComplaintMarker";
@@ -131,6 +131,14 @@ public sealed class ManagerComplaintSystem : MonoBehaviour
 
     private void Update()
     {
+        if (MultiplayerRestaurantBridge.IsObserver) return;
+        if (MultiplayerServiceActions.IsActive && networkOwner > 0 && !MultiplayerSessionManager.Instance.ValidActor(networkOwner) && !resolving)
+        {
+            networkOwner = 0; dialogueOpen = false;
+            unansweredDeadline = Time.unscaledTime + (settings != null ? settings.unansweredTimeoutSeconds : 15f);
+            HidePresentationImmediate(); RestoreCamera();
+            worldMarker?.SetWorldMarkerVisible(true);
+        }
         if (activeGroup == null)
         {
             if (worldMarker != null)
@@ -394,6 +402,8 @@ public sealed class ManagerComplaintSystem : MonoBehaviour
 
     public void OpenActiveComplaint()
     {
+        if (MultiplayerServiceActions.IsActive && !networkCommit)
+        { MultiplayerServiceActions.Send("complaint_open", activeGroup); return; }
         if (activeGroup == null || activeDefinition == null || resolving)
             return;
 
@@ -491,6 +501,12 @@ public sealed class ManagerComplaintSystem : MonoBehaviour
         ManagerComplaintResponseDefinition response,
         bool unanswered)
     {
+        if (MultiplayerServiceActions.IsActive && !networkCommit && !unanswered)
+        {
+            int choice = response == activeDefinition?.professional ? 0 : response == activeDefinition?.acceptable ? 1 : 2;
+            MultiplayerServiceActions.Send("complaint_choice", activeGroup, choice);
+            return;
+        }
         if (activeGroup == null || !activeGroup.CanDecideCustomerOutcome || resolving)
             return;
 
@@ -688,6 +704,7 @@ public sealed class ManagerComplaintSystem : MonoBehaviour
             Destroy(worldMarker.gameObject);
         worldMarker = null;
         activeGroup = null;
+        networkOwner = 0;
         activeDefinition = null;
         dialogueOpen = false;
         resolving = false;

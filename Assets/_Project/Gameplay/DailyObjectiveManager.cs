@@ -108,6 +108,29 @@ public class DailyObjectiveManager : MonoBehaviour
     private int angryDeparturesToday;
     private int currentDay;
 
+    [Serializable]
+    public sealed class NetworkState
+    {
+        public ObjectiveDefinition mandatory, secondary, bonus;
+        public ObjectiveGrade grade;
+        public bool mandatoryPassed, secondaryPassed, bonusPassed, hasResult;
+        public int day, resultDay, passedDays, angry;
+    }
+    public NetworkState CaptureNetworkState() => new NetworkState {
+        mandatory = ActiveMandatory, secondary = ActiveSecondary, bonus = ActiveBonus, grade = LastGrade,
+        mandatoryPassed = LastMandatoryPassed, secondaryPassed = LastSecondaryPassed, bonusPassed = LastBonusPassed,
+        hasResult = HasPreviousDayResult, day = currentDay, resultDay = LastResultDay,
+        passedDays = TotalDaysPassed, angry = angryDeparturesToday };
+    public void ApplyNetworkState(NetworkState state)
+    {
+        if (!GameSaveManager.IsPersistenceSuspended || state == null) return;
+        ActiveMandatory = state.mandatory; ActiveSecondary = state.secondary; ActiveBonus = state.bonus;
+        LastGrade = state.grade; LastMandatoryPassed = state.mandatoryPassed;
+        LastSecondaryPassed = state.secondaryPassed; LastBonusPassed = state.bonusPassed;
+        HasPreviousDayResult = state.hasResult; LastResultDay = state.resultDay;
+        TotalDaysPassed = state.passedDays; currentDay = state.day; angryDeparturesToday = state.angry;
+    }
+
     public void EnsureDefaultObjectives()
     {
         if (mandatoryPool.Count == 0)
@@ -162,6 +185,7 @@ public class DailyObjectiveManager : MonoBehaviour
     /// </summary>
     public void RollObjectivesForDay(int day, int maxGroupsThisShift)
     {
+        if (MultiplayerRestaurantBridge.IsObserver) return;
         currentDay = day;
         angryDeparturesToday = 0;
 
@@ -211,6 +235,7 @@ public class DailyObjectiveManager : MonoBehaviour
     /// <returns>The ObjectiveGrade awarded for this day.</returns>
     public ObjectiveGrade EvaluateAndApply()
     {
+        if (MultiplayerRestaurantBridge.IsObserver) return LastGrade;
         bool mandatoryPassed = Evaluate(ActiveMandatory);
         bool secondaryPassed = Evaluate(ActiveSecondary);
         bool bonusPassed     = Evaluate(ActiveBonus);

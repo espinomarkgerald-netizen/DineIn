@@ -83,6 +83,8 @@ public sealed class ManagementComputerHRPanel : MonoBehaviour
 
     public void Bind(EmployeeManager configuredManager, bool canEdit)
     {
+        MultiplayerRestaurantBridge.StateChanged -= RefreshMultiplayerView;
+        MultiplayerRestaurantBridge.StateChanged += RefreshMultiplayerView;
         BeforeBind?.Invoke(this);
         if (manager != null)
             manager.ApplicantsRefreshed -= RefreshApplicantBadge;
@@ -111,8 +113,16 @@ public sealed class ManagementComputerHRPanel : MonoBehaviour
 
     private void OnDestroy()
     {
+        MultiplayerRestaurantBridge.StateChanged -= RefreshMultiplayerView;
         if (manager != null)
             manager.ApplicantsRefreshed -= RefreshApplicantBadge;
+    }
+
+    private void RefreshMultiplayerView()
+    {
+        if (!MultiplayerRestaurantBridge.IsActive || manager == null || !isActiveAndEnabled) return;
+        editable = MultiplayerRestaurantBridge.CanEdit && !manager.SlotsLocked;
+        RefreshCurrentView();
     }
 
     public void ShowDepartment(EmployeeDepartment department)

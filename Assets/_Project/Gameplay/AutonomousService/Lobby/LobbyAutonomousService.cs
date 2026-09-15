@@ -721,16 +721,6 @@ public class LobbyAutonomousService : MonoBehaviour
         if (busser == null || busser.IsBusy || busserHands == null)
             return;
 
-        if (MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer)
-        {
-            if (!MultiplayerServiceStaffBridge.CanSimulate || !busser.isActiveAndEnabled
-                || !MultiplayerServiceStaffBridge.AllowRole(busser.gameObject, true)) return;
-            Booth booth = FindDirtyBooth();
-            if (booth != null && TryStartClaimedTask(busser, booth, CleanBooth(booth)))
-                multiplayerCleanupBooth = booth;
-            return;
-        }
-
         if (TryStartBusserTrolleyBatch())
             return;
 
@@ -1003,6 +993,7 @@ public class LobbyAutonomousService : MonoBehaviour
         AutonomousStaffBot owner,
         IEnumerator task)
     {
+        long generation = owner.JobGeneration;
         try
         {
             yield return task;
@@ -1010,21 +1001,22 @@ public class LobbyAutonomousService : MonoBehaviour
         finally
         {
             if (MultiplayerDayBridge.IsActive)
-                RestaurantTaskClaim.ReleaseBot(target, owner);
+                RestaurantTaskClaim.ReleaseBot(target, owner, generation);
         }
 
+        if (MultiplayerDayBridge.IsActive && owner.JobGeneration != generation) yield break;
         // A player can begin reviewing an order while a waiter coroutine that
         // was already moving toward the table is winding down. Preserve the
         // player's lock instead of letting bot cleanup re-open the bubble and
         // remove the active player claim.
         if (target is CustomerGroup reviewingGroup && reviewingGroup.IsPlayerReviewingOrder)
         {
-            RestaurantTaskClaim.ReleaseBot(target, owner);
+            RestaurantTaskClaim.ReleaseBot(target, owner, generation);
             yield break;
         }
 
         SetTaskUiClaimed(target, false);
-        RestaurantTaskClaim.Complete(target);
+        if (!MultiplayerDayBridge.IsActive || owner.JobGeneration == generation) RestaurantTaskClaim.Complete(target);
     }
 
     private IEnumerator RunReceptionTask(
@@ -1032,6 +1024,7 @@ public class LobbyAutonomousService : MonoBehaviour
         AutonomousStaffBot owner,
         IEnumerator task)
     {
+        long generation = owner.JobGeneration;
         try
         {
             yield return task;
@@ -1039,12 +1032,13 @@ public class LobbyAutonomousService : MonoBehaviour
         finally
         {
             if (MultiplayerDayBridge.IsActive)
-                RestaurantTaskClaim.ReleaseBot(group, owner);
+                RestaurantTaskClaim.ReleaseBot(group, owner, generation);
         }
 
+        if (MultiplayerDayBridge.IsActive && owner.JobGeneration != generation) yield break;
         if (group != null)
             group.CompleteReceptionTask();
-        RestaurantTaskClaim.Complete(group);
+        if (!MultiplayerDayBridge.IsActive || owner.JobGeneration == generation) RestaurantTaskClaim.Complete(group);
     }
 
     private bool TryStartClaimedTask(
@@ -1458,17 +1452,18 @@ public class LobbyAutonomousService : MonoBehaviour
         for (int i = 0; i < batch.Count; i++)
         {
             FoodTray tray = batch[i];
-            if (!IsDeliveryTrayReady(tray))
+            if (!IsDeliveryTrayReady(tray) || (MultiplayerDayBridge.IsActive && !RestaurantTaskClaim.IsClaimedByBot(tray, waiter)))
             {
                 ReleaseBatchClaim(tray, waiter);
                 continue;
             }
 
+            waiter.SetApproachingTarget(tray);
             yield return waiter.MoveWithin(tray.transform.position, pickupServiceDistance, 2f);
             FoodTrayInteractable interactable = tray != null
                 ? tray.GetComponent<FoodTrayInteractable>()
                 : null;
-            if (!waiter.LastMoveSucceeded || !IsDeliveryTrayReady(tray) || interactable == null ||
+            if (!waiter.LastMoveSucceeded || !IsDeliveryTrayReady(tray) || (MultiplayerDayBridge.IsActive && !RestaurantTaskClaim.IsClaimedByBot(tray, waiter)) || interactable == null ||
                 !interactable.TryBeginStaffPickup(waiter, FoodTrayInteractable.TrayMode.Delivery))
             {
                 ReleaseBatchClaim(tray, waiter);
@@ -1582,6 +1577,7 @@ public class LobbyAutonomousService : MonoBehaviour
                 continue;
             }
 
+            busser.SetApproachingTarget(tray);
             yield return busser.MoveTo(sourceBooth.GetNavigableApproachPosition());
             FoodTrayInteractable interactable = tray != null
                 ? tray.GetComponent<FoodTrayInteractable>()
@@ -2371,11 +2367,7 @@ public class LobbyAutonomousService : MonoBehaviour
         multiplayerCleanupBooth = null;
     }
 
-    private bool CanBusserClean(Booth booth) => booth != null &&
-        (MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer
-            ? booth.CanBusserCleanMultiplayer && isActiveAndEnabled && busser != null && busser.isActiveAndEnabled
-                && MultiplayerServiceStaffBridge.AllowRole(busser.gameObject, true)
-            : booth.CanCleanMessNow);
+    private bool CanBusserClean(Booth booth) => booth != null && booth.CanCleanMessNow && MultiplayerServiceStaffBridge.CanSimulate;
 
     private IEnumerator CleanBooth(Booth booth)
     {
@@ -2390,20 +2382,6 @@ public class LobbyAutonomousService : MonoBehaviour
             ? booth.tableLookTarget.position
             : booth.transform.position;
         yield return busser.FaceTowards(lookTarget);
-
-        if (MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer)
-        {
-            // Reuse the table-clean duration without entering tray/sink transport.
-            float elapsed = 0f;
-            while (CanBusserClean(booth) && RestaurantTaskClaim.IsClaimedByBot(booth, busser)
-                && elapsed < Mathf.Max(0.05f, booth.MessHoldSeconds))
-            { elapsed += Time.deltaTime; yield return null; }
-            if (CanBusserClean(booth) && RestaurantTaskClaim.IsClaimedByBot(booth, busser)
-                && elapsed >= Mathf.Max(0.05f, booth.MessHoldSeconds) && booth.TryCommitMultiplayerCleanup())
-                while (booth != null && booth.MultiplayerCleanupCommitPending && MultiplayerProgressionContext.Ready)
-                    yield return null;
-            yield break;
-        }
 
         if (!booth.BeginAutomatedMessCleaning())
         {

@@ -11,12 +11,14 @@ public class SinkInteractable : MonoBehaviour, IInteractable
     {
         bool waiterHasTray = WaiterHands.ActivePlayerHands != null && WaiterHands.ActivePlayerHands.HasTray;
         bool busserHasTray = BusserHands.ActivePlayerHands != null && BusserHands.ActivePlayerHands.HasTray;
+        if (MultiplayerServiceActions.IsActive) return MultiplayerSessionManager.Instance.CanAct && busserHasTray;
 
         return waiterHasTray || busserHasTray;
     }
 
     public void Interact(PlayerMovement player)
     {
+        if (MultiplayerServiceActions.IsActive) { MultiplayerServiceActions.WashDirtyTray(); return; }
         WaiterHands waiterHands = WaiterHands.For(player);
         if (waiterHands != null && waiterHands.HasTray)
         {

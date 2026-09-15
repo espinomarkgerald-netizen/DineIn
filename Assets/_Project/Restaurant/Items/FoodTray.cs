@@ -261,6 +261,18 @@ public class FoodTray : MonoBehaviour
         SpawnVisuals();
     }
 
+    public void PresentNetworkData(CustomerGroup group, int order, string[] products, bool burnt)
+    {
+        if (!MultiplayerRestaurantBridge.IsObserver) return;
+        targetGroup = group; orderNumber = order;
+        deliveredProductIds.Clear(); hasFood2 = false; hasDrink = false;
+        SetDeliveredProducts(MenuCatalog.Default.ResolveProducts(products));
+        containsBurntFood = burnt;
+        if (numberUi == null) numberUi = GetComponentInChildren<TableNumberUI>(true);
+        numberUi?.SetNumber(order);
+        SpawnVisuals();
+    }
+
     private void SetDeliveredProducts(IReadOnlyList<Recipe> products)
     {
         if (products == null || products.Count == 0)
@@ -458,4 +470,5 @@ public class FoodTray : MonoBehaviour
     {
         return group != null && group.currentOrderNumber == orderNumber;
     }
+    private void Awake() => MultiplayerWorldRegistry.Track(this);
 }

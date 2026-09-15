@@ -57,9 +57,9 @@ public class MultiplayerStaffRosterController : MonoBehaviour
         switch (role)
         {
             case ServiceRole.Receptionist:
-            case ServiceRole.Waiter: return true;
-            case ServiceRole.Cashier: return InitialPartySize >= 3;
-            case ServiceRole.Busser: return InitialPartySize >= 4;
+            case ServiceRole.Waiter:
+            case ServiceRole.Cashier:
+            case ServiceRole.Busser: return false; // Single-player hiring/assignment remains authoritative.
             default: return false;
         }
     }

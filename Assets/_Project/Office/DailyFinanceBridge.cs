@@ -34,6 +34,20 @@ public class DailyFinanceBridge : MonoBehaviour
     public int TotalRequiredEarningsToday => totalRequiredEarningsToday;
     public int EarnedToday => earnedToday;
 
+    public int[] CaptureNetworkState() => new[] { employeeCostToday, marketingCostToday, billsCostToday,
+        ingredientCostToday, totalRequiredEarningsToday, earnedToday };
+    public void ApplyNetworkState(int[] state)
+    {
+        if (!MultiplayerRestaurantBridge.IsObserver) return;
+        RestoreTemporaryState(state);
+    }
+    public void RestoreTemporaryState(int[] state)
+    {
+        if (!GameSaveManager.IsPersistenceSuspended || state == null || state.Length != 6) return;
+        employeeCostToday = state[0]; marketingCostToday = state[1]; billsCostToday = state[2];
+        ingredientCostToday = state[3]; totalRequiredEarningsToday = state[4]; earnedToday = state[5];
+    }
+
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -136,7 +150,7 @@ public class DailyFinanceBridge : MonoBehaviour
     private int CalculateSalesQuota()
     {
         int day = GameFlowManager.Instance != null
-            ? Mathf.Max(1, GameFlowManager.Instance.CurrentDay)
+            ? Mathf.Max(1, GameFlowManager.Instance.ProgressionDay)
             : 1;
 
         if (day == 1)

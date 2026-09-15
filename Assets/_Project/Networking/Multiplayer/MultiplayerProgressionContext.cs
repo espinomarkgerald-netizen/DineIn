@@ -13,14 +13,18 @@ public sealed class MultiplayerProgressionContext : MonoBehaviour
     private Func<bool> previousPersistenceGuard;
     private bool isolated;
     private bool restoring;
+    public static bool RestorationInProgress => instance != null && instance.restoring;
+    private DailyObjectiveManager.NetworkState careerObjectives;
+    private int[] careerFinance;
     private bool initialLoadWasComplete;
     private GameFlowManager.RestaurantSessionState careerPhase;
-    public static bool Ready => IsActive && instance.prepared;
+    public static bool LocallyPrepared => IsActive && instance.prepared;
+    public static bool Ready => LocallyPrepared && (MultiplayerSessionManager.Instance.IsHostConnection
+        || MultiplayerRestaurantBridge.Active != null && MultiplayerRestaurantBridge.Active.HasState);
     private bool prepared;
     public static bool IsActive => instance != null && !instance.restoring
         && MultiplayerSessionManager.Instance != null && MultiplayerSessionManager.Instance.IsMultiplayerSession;
-    public static int CurrentDay => IsActive
-        ? MultiplayerSessionManager.Instance.GetComponent<MultiplayerDayBridge>()?.CurrentDay ?? 1 : 1;
+    public static int CurrentDay => IsActive && GameFlowManager.Instance != null ? GameFlowManager.Instance.CurrentDay : 1;
     public static MenuCatalog Catalog => IsActive ? MenuCatalog.Default : null;
 
     private void Awake()
@@ -47,6 +51,8 @@ public sealed class MultiplayerProgressionContext : MonoBehaviour
         careerPhase = GameFlowManager.Instance != null ? GameFlowManager.Instance.CurrentRestaurantSessionState
             : GameFlowManager.RestaurantSessionState.PreOpen;
         careerRuntime = saves.CaptureRuntimeState();
+        careerObjectives = DailyObjectiveManager.Instance?.CaptureNetworkState();
+        careerFinance = DailyFinanceBridge.Instance?.CaptureNetworkState();
         if (InventoryManager.Instance != null && InventoryManager.Instance.Items != null)
             careerItems = new List<ItemData>(InventoryManager.Instance.Items);
         if (MenuCatalog.Default == null || MenuCatalog.Default.RestaurantType != type)
@@ -65,12 +71,14 @@ public sealed class MultiplayerProgressionContext : MonoBehaviour
         saves.ApplyTemporaryRuntimeState(new GameSaveData());
         // Fresh temporary HR needs applicants; persisted empty Campaign pools remain valid.
         var employees = EmployeeManager.Instance;
-        if (employees != null && employees.allEmployees.Count == 0)
+        if (MultiplayerSessionManager.Instance.IsAuthority && employees != null && employees.allEmployees.Count == 0)
             employees.GenerateEmployees();
         // Reuse the normal one-box-per-ingredient initialization and exact authored ItemData assets.
         InventoryManager.Instance?.ConfigureItems(new List<ItemData>(Catalog.Ingredients));
         RecipeManager.Instance?.UnlockByDay(CurrentDay);
         prepared = true;
+        if (MultiplayerSessionManager.Instance.IsAuthority)
+            GameFlowManager.Instance?.PrepareFreshMultiplayerRun();
     }
 
     private void OnDestroy()
@@ -80,6 +88,8 @@ public sealed class MultiplayerProgressionContext : MonoBehaviour
         // Keep all writes and wallet callbacks suspended throughout restoration.
         if (careerItems != null) InventoryManager.Instance?.ConfigureItems(careerItems);
         if (saves != null && careerRuntime != null) saves.ApplyTemporaryRuntimeState(careerRuntime);
+        DailyObjectiveManager.Instance?.ApplyNetworkState(careerObjectives);
+        DailyFinanceBridge.Instance?.RestoreTemporaryState(careerFinance);
         GameFlowManager.Instance?.RestoreTemporaryRestaurantPhase(careerPhase);
         MenuCatalog.ClearActiveRestaurantOverride();
         isolated = false;

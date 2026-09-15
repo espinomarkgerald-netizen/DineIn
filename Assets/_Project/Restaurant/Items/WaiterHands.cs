@@ -73,6 +73,7 @@ public class WaiterHands : MonoBehaviour
 
     private void Awake()
     {
+        MultiplayerWorldRegistry.Track(this);
         Debug.Log($"[WaiterHands] Awake on {name} id={GetInstanceID()}");
 
         bool belongsToManager = GetComponent<ManagerPlayer>() != null;
@@ -196,8 +197,32 @@ public class WaiterHands : MonoBehaviour
             billHeldVisualInstance = null;
         }
 
-        RestaurantTaskClaim.Complete(completedGroup);
+        if (!MultiplayerDayBridge.IsActive) RestaurantTaskClaim.Complete(completedGroup);
 
+        NotifyHandsChanged();
+    }
+
+    // Presentation/recovery must not destroy the paper or complete a gameplay claim.
+    public void DetachBillPaper(BillPaper paper)
+    {
+        if (paper == null || (heldBillPaper != paper && holdingBillFor != paper.TargetGroup)) return;
+        heldBillPaper = null;
+        holdingBillFor = null;
+        if (billHeldVisualInstance != null) Destroy(billHeldVisualInstance);
+        billHeldVisualInstance = null;
+        NotifyHandsChanged();
+    }
+
+    public void PresentBillPaper(BillPaper paper)
+    {
+        if (paper == null || (heldBillPaper == paper && paper.transform.IsChildOf(BillHoldPoint))) return;
+        if (heldBillPaper != null && heldBillPaper != paper) DetachBillPaper(heldBillPaper);
+        paper.GetComponentInParent<WaiterHands>(true)?.DetachBillPaper(paper);
+        holdingBillFor = paper.TargetGroup;
+        heldBillPaper = paper;
+        AttachKeepingWorldScale(paper.transform, BillHoldPoint, Vector3.zero, Quaternion.identity);
+        SetAllColliders(paper.gameObject, false);
+        RefreshBillHeldVisual();
         NotifyHandsChanged();
     }
 
@@ -346,7 +371,8 @@ public class WaiterHands : MonoBehaviour
 
         if (!holdingTray.Matches(group))
         {
-            WarningSlideUI.Instance?.Show($"This order is for table {holdingTray.orderNumber}.");
+            if (!MultiplayerServiceActions.IsActive || MultiplayerSessionManager.Instance.LocalManager == gameObject)
+                WarningSlideUI.Instance?.Show($"This order is for table {holdingTray.orderNumber}.");
             return false;
         }
 
@@ -367,25 +393,29 @@ public class WaiterHands : MonoBehaviour
 
     public void PickupMoney(MoneyPickup money)
     {
-        if (money == null) return;
-        if (HasMoney) return;
-        if (!money.IsAvailableForCollection) return;
+        if (money == null || HasMoney || !money.IsAvailableForCollection) return;
+        PresentMoneyPickup(money);
+    }
 
-        var tg = money.TargetGroup;
-        var amt = money.Amount;
-
-        if (tg == null) return;
-        if (amt <= 0) return;
-
+    // Replication only attaches the existing payment. It cannot claim, collect,
+    // settle, or dispatch an interaction for either the local or a remote actor.
+    public void PresentMoneyPickup(MoneyPickup money)
+    {
+        if (money == null || money.TargetGroup == null || money.Amount <= 0) return;
         Transform parent = MoneyHoldPoint;
-        if (parent == null)
+        if (parent == null) return;
+        if (heldMoney == money && money.transform.IsChildOf(parent)) return;
+        var previousHolder = money.GetComponentInParent<WaiterHands>(true);
+        if (previousHolder != null && previousHolder != this) previousHolder.DetachMoneyPickup(money);
+        if (heldMoney != null && heldMoney != money)
         {
-            Debug.LogError("[WaiterHands] MoneyHoldPoint is NULL.");
-            return;
+            var previous = heldMoney;
+            DetachMoneyPickup(previous);
+            previous.PresentAtPickup();
         }
 
-        holdingMoneyFor = tg;
-        holdingMoneyAmount = amt;
+        holdingMoneyFor = money.TargetGroup;
+        holdingMoneyAmount = money.Amount;
         heldMoney = money;
 
         AttachKeepingWorldScale(
@@ -412,11 +442,23 @@ public class WaiterHands : MonoBehaviour
             SetAllColliders(moneyHeldVisualInstance, false);
         }
 
-        // Both manager-controlled and autonomous waiters use this method. The
-        // pickup owns the one-time transition that disables its collider and
-        // removes the world-space bubble.
-        money.NotifyPickedUp();
+        money.PresentPickedUp(true);
 
+        NotifyHandsChanged();
+    }
+
+    public void DetachMoneyPickup(MoneyPickup money, bool reparent = true)
+    {
+        if (money == null || heldMoney != money) return;
+        heldMoney = null;
+        holdingMoneyFor = null;
+        holdingMoneyAmount = 0;
+        if (reparent && money.transform.IsChildOf(transform)) money.transform.SetParent(null, true);
+        if (moneyHeldVisualInstance != null)
+        {
+            Destroy(moneyHeldVisualInstance);
+            moneyHeldVisualInstance = null;
+        }
         NotifyHandsChanged();
     }
 
@@ -438,23 +480,25 @@ public class WaiterHands : MonoBehaviour
     public void ClearMoney()
     {
         MoneyPickup completedMoney = heldMoney;
+        bool hadObject = completedMoney != null;
+        if (completedMoney != null)
+        {
+            DetachMoneyPickup(completedMoney);
+            completedMoney.gameObject.SetActive(false);
+            Destroy(completedMoney.gameObject);
+        }
+        // Legacy payments can set only the group and amount, and an external
+        // despawn can invalidate heldMoney before settlement reaches this actor.
+        heldMoney = null;
         holdingMoneyFor = null;
         holdingMoneyAmount = 0;
-
-        if (heldMoney != null)
-        {
-            Destroy(heldMoney.gameObject);
-            heldMoney = null;
-        }
-
         if (moneyHeldVisualInstance != null)
         {
             Destroy(moneyHeldVisualInstance);
             moneyHeldVisualInstance = null;
         }
-
-        RestaurantTaskClaim.Complete(completedMoney);
-
-        NotifyHandsChanged();
+        if (!MultiplayerServiceActions.IsActive || MultiplayerSessionManager.Instance.IsAuthority)
+            RestaurantTaskClaim.Complete(completedMoney);
+        if (!hadObject) NotifyHandsChanged();
     }
 }

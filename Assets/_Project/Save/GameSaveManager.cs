@@ -212,7 +212,7 @@ public class GameSaveManager : MonoBehaviour
     private GameSaveData CaptureCurrentData()
     {
         GameSaveData data = new GameSaveData();
-        GameSaveData previous = ReadSaveData(SavePath);
+        GameSaveData previous = IsPersistenceSuspended ? null : ReadSaveData(SavePath);
         if (previous?.campaignCreditReceipts != null)
             data.campaignCreditReceipts = previous.campaignCreditReceipts;
 

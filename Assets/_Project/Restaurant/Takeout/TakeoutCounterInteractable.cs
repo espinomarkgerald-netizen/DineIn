@@ -29,6 +29,8 @@ public class TakeoutCounterInteractable : MonoBehaviour
 
     public bool CanServeCurrentFront()
     {
+        if (MultiplayerServiceActions.IsActive)
+            return MultiplayerServiceActions.CanUseTakeout(TakeoutFlowManager.Instance?.ActiveGroup);
         if (queueManager == null)
             return false;
 
@@ -48,6 +50,7 @@ public class TakeoutCounterInteractable : MonoBehaviour
 
     public void Interact()
     {
+        if (MultiplayerServiceActions.IsActive) { BeginServingCurrentFront(); return; }
         if (!CanServeCurrentFront())
         {
             onServiceRejected?.Invoke();
@@ -67,6 +70,13 @@ public class TakeoutCounterInteractable : MonoBehaviour
 
     public void BeginServingCurrentFront()
     {
+        if (MultiplayerServiceActions.IsActive)
+        {
+            var group = TakeoutFlowManager.Instance?.ActiveGroup;
+            if (MultiplayerServiceActions.CanUseTakeout(group))
+                MultiplayerServiceActions.ApproachTakeout(group);
+            return;
+        }
         if (!CanServeCurrentFront())
         {
             onServiceRejected?.Invoke();
@@ -79,6 +89,7 @@ public class TakeoutCounterInteractable : MonoBehaviour
 
     public void CompleteServingCurrentFront()
     {
+        if (MultiplayerServiceActions.IsActive) return;
         if (queueManager == null)
             return;
 

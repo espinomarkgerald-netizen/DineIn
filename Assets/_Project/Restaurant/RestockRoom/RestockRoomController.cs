@@ -63,6 +63,7 @@ public sealed class RestockRoomController
                     if (identity == null || string.IsNullOrEmpty(identity.StockBatchID)) box.gameObject.SetActive(false);
                 }
         }
+        if (!MultiplayerRestockView.Active) MultiplayerRestockView.Begin(scene, requestedRoom);
         RestoreSavedContainers();
         RefreshStorageContainers();
         SwitchToRoom(requestedRoom);
@@ -109,6 +110,7 @@ public sealed class RestockRoomController
         dragPreview = Object.Instantiate(dragItem.worldContainerPrefab);
         dragPreview.name = dragItem.displayName + " Drag Preview";
         SceneManager.MoveGameObjectToScene(dragPreview, scene);
+        MultiplayerRestockView.Prepare(dragPreview);
         previewScale = dragPreview.transform.localScale;
 
         RestockStorageContainer identity = dragPreview.GetComponent<RestockStorageContainer>();
@@ -154,7 +156,16 @@ public sealed class RestockRoomController
         previewValid = false;
 
         Ray ray = roomCamera.ScreenPointToRay(screenPosition);
-        RaycastHit[] hits = Physics.RaycastAll(ray, 500f, ~0, QueryTriggerInteraction.Collide);
+        if (MultiplayerRestockView.Active)
+        {
+            if (MultiplayerRestockView.TryShelf(ray, out previewGrid, out previewColumn, out previewRow))
+            {
+                previewValid = dragItem != null && previewGrid.IsCellFree(previewColumn, previewRow);
+                dragPreview.transform.position = previewGrid.GetCellWorldPosition(previewColumn, previewRow);
+            }
+            else dragPreview.transform.position = ray.GetPoint(3.2f);
+        }
+        RaycastHit[] hits = MultiplayerRestockView.Active ? System.Array.Empty<RaycastHit>() : Physics.RaycastAll(ray, 500f, ~0, QueryTriggerInteraction.Collide);
         System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
 
         for (int i = 0; i < hits.Length; i++)
@@ -240,6 +251,7 @@ public sealed class RestockRoomController
             grid.GetCellWorldPosition(column, row),
             item.worldContainerPrefab.transform.rotation);
         SceneManager.MoveGameObjectToScene(box, scene);
+        MultiplayerRestockView.Prepare(box);
 
         RestockStorageContainer identity = box.GetComponent<RestockStorageContainer>();
         if (identity == null)
@@ -448,6 +460,7 @@ public sealed class RestockRoomController
         ThrowKeepPanel.Instance?.SelectedBox?.HideInteractionUI();
         CancelHotbarWorldDrag();
         activeRoom = room;
+        MultiplayerRestockView.SelectRoom(room);
         Transform target = room == RestockStorageType.Frozen ? freezerRig : dryRig;
         if (roomCamera != null && target != null)
             roomCamera.transform.SetPositionAndRotation(target.position, target.rotation);

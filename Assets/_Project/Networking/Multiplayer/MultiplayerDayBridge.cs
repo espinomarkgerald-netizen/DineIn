@@ -1,190 +1,174 @@
+using System;
 using ExitGames.Client.Photon;
 using Photon.Pun;
 using Photon.Realtime;
 using UnityEngine;
 
-// Scene-owned start requests and recoverable day presentation, not another day simulation.
+// Coordinates the existing GameFlowManager/GameDayManager; does not implement a second day loop.
 public sealed class MultiplayerDayBridge : MonoBehaviourPunCallbacks, IOnEventCallback
 {
-    private const byte StartRequest = 196, StartRejected = 197;
-    private const string DaySnapshotKey = "restaurant.day";
+    private const byte RequestEvent = 196, RejectedEvent = 197;
+    private const string SnapshotKey = "restaurant.day.v2";
+    [Serializable] private sealed class Request { public string run, action; public int day; }
+    [Serializable] private sealed class Snapshot
+    {
+        public string run;
+        public int revision, day;
+        public bool running, closing, results;
+        public float remaining, scale;
+        public double sentAt, startedAt;
+        public int[] report;
+    }
     private MultiplayerSessionManager session;
     private GameDayManager day;
+    private Snapshot snapshot;
     private bool committing;
-    private bool initialized;
-    private bool migrationPaused;
-    private double startedAt = -1d;
+    private int revision, appliedRevision, observedStartDay;
+    private double startedAt = -1;
     private float nextPublish;
-    private int snapshotDay;
-    public int CurrentDay => snapshotDay > 0 ? snapshotDay : 1;
-    private int observedStartDay;
-    private object[] snapshot;
-
-    public static bool IsActive => MultiplayerSessionManager.Instance != null
-        && MultiplayerSessionManager.Instance.IsMultiplayerSession;
+    private string readPayload;
+    public int CurrentDay => GameFlowManager.Instance != null ? GameFlowManager.Instance.CurrentDay : 1;
+    public static bool IsActive => MultiplayerRestaurantBridge.IsActive;
     public static bool CanCommit => IsActive && MultiplayerSessionManager.Instance.IsAuthority
-        && MultiplayerSessionManager.Instance.GetComponent<MultiplayerDayBridge>() is MultiplayerDayBridge bridge
-        && bridge.committing;
-
-    public static bool TryRequestStart()
+        && MultiplayerSessionManager.Instance.GetComponent<MultiplayerDayBridge>().committing;
+    private void Awake() => session = GetComponent<MultiplayerSessionManager>();
+    private bool InterceptStart() => !CanCommit && TryRequestStart();
+    public static bool TryRequestStart() => RequestAction("start");
+    public static bool TryRequestNextDay() => RequestAction("next");
+    private static bool RequestAction(string action)
     {
         if (!IsActive) return false;
         var session = MultiplayerSessionManager.Instance;
+        if (!session.CanAct || session.LocalManager == null) return true;
         var bridge = session.GetComponent<MultiplayerDayBridge>();
-        if (bridge == null || !bridge.isActiveAndEnabled || session.LocalManager == null) return true;
-        if (session.IsAuthority) bridge.HandleStart(session.LocalActorNumber);
-        else PhotonNetwork.RaiseEvent(StartRequest, null,
+        var request = new Request { run = session.RunId, day = bridge.CurrentDay, action = action };
+        if (session.IsAuthority) bridge.Handle(session.LocalActorNumber, request);
+        else PhotonNetwork.RaiseEvent(RequestEvent, JsonUtility.ToJson(request),
             new RaiseEventOptions { Receivers = ReceiverGroup.MasterClient }, SendOptions.SendReliable);
         return true;
     }
-
-    private bool InterceptStart()
-    {
-        if (!IsActive) return false;
-        if (committing && session.IsAuthority) return false;
-        return TryRequestStart();
-    }
-
-    private void Awake() => session = GetComponent<MultiplayerSessionManager>();
-
     private void Update()
     {
-        if (session == null || !session.IsMultiplayerSession) return;
         if (day == null)
         {
             day = GameDayManager.Instance;
             if (day == null) return;
             day.StartShiftInterception = InterceptStart;
-            day.ObserveDayOnly = !session.IsAuthority;
         }
-        if (!initialized)
+        day.ObserveDayOnly = !session.IsAuthority;
+        if (!session.IsConnected || !MultiplayerProgressionContext.LocallyPrepared) return;
+        if (session.IsHostConnection)
         {
-            initialized = true;
-            ReadSnapshot();
-            if (session.IsAuthority && snapshot != null)
+            if (Time.unscaledTime >= nextPublish) PublishNow();
+        }
+        else { if (snapshot == null) ReadSnapshot(); ApplySnapshot(); }
+    }
+    public bool EveryoneReady(int readyDay)
+    {
+        if (!session.AllPlayersLoaded()) return false;
+        foreach (var p in session.Run.participants)
+        {
+            if (p.departed || p.disconnectDeadline > 0) continue;
+            if (!PhotonNetwork.CurrentRoom.Players.TryGetValue(p.actor, out var player)
+                || !Equals(player.CustomProperties[MultiplayerSessionManager.ReadyKey], readyDay)) return false;
+        }
+        return true;
+    }
+    private void Handle(int actor, Request request)
+    {
+        if (!session.IsAuthority || !MultiplayerProgressionContext.Ready || day == null || committing
+            || request == null || request.run != session.RunId || request.day != CurrentDay || !session.ValidActor(actor)) return;
+        bool accepted = false;
+        committing = true;
+        try
+        {
+            if (request.action == "start" && !day.ServiceActive && !day.HasDayResults && EveryoneReady(CurrentDay))
             {
-                // Recovered sessions must never rerun StartShift and its side effects.
-                migrationPaused = startedAt >= 0d;
-                day.ObserveDayOnly = true;
-                ApplySnapshot();
-                day.ObserveDayOnly = migrationPaused;
+                var computer = FindFirstObjectByType<ManagementComputerController>();
+                accepted = computer != null && computer.StartShiftOnAuthority();
+                if (accepted) startedAt = PhotonNetwork.Time;
+            }
+            else if (request.action == "next" && day.HasDayResults && EveryoneReady(CurrentDay + 1))
+            {
+                int before = CurrentDay;
+                MultiplayerRestaurantBridge.Active.RunSystemAction(() => GameFlowManager.Instance.CompleteRestaurantDay());
+                accepted = CurrentDay > before;
+                if (accepted) startedAt = -1;
             }
         }
-        if (!session.IsAuthority || migrationPaused)
-        {
-            ApplySnapshot();
-            return;
-        }
-        int currentDay = GameFlowManager.Instance != null ? GameFlowManager.Instance.CurrentDay : 1;
-        if (snapshotDay != 0 && snapshotDay != currentDay) startedAt = -1d;
-        if (Time.unscaledTime >= nextPublish || snapshot == null
-            || (bool)snapshot[1] != day.ShiftRunning || (bool)snapshot[2] != day.ClosingOut
-            || (bool)snapshot[3] != day.HasDayResults || snapshotDay != currentDay)
-            Publish();
-    }
-
-    private void HandleStart(int sender)
-    {
-        if (session == null || !session.IsAuthority || !MultiplayerProgressionContext.Ready
-            || !initialized || day == null || committing || migrationPaused) return;
-        if (!PhotonNetwork.CurrentRoom.Players.TryGetValue(sender, out var player) || player.IsInactive
-            || !session.TryGetManager(sender, out var manager) || manager == null || !manager.activeInHierarchy) return;
-        if (day.ServiceActive || day.HasDayResults || startedAt >= 0d) { Publish(); return; }
-        var computer = FindFirstObjectByType<ManagementComputerController>();
-        if (computer == null) return;
-        committing = true;
-        bool accepted;
-        try { accepted = computer.StartShiftOnAuthority(); }
         finally { committing = false; }
-        if (accepted)
+        PublishNow();
+        if (!accepted)
         {
-            startedAt = PhotonNetwork.Time;
-            Publish();
-            computer.CloseComputer();
+            if (actor == session.LocalActorNumber) ShowRejected();
+            else PhotonNetwork.RaiseEvent(RejectedEvent, null,
+                new RaiseEventOptions { TargetActors = new[] { actor } }, SendOptions.SendReliable);
         }
-        else if (sender == session.LocalActorNumber)
-            WarningSlideUI.Instance?.Show("Complete the restaurant's pre-open requirements before starting the shift.");
-        else PhotonNetwork.RaiseEvent(StartRejected, null,
-            new RaiseEventOptions { TargetActors = new[] { sender } }, SendOptions.SendReliable);
     }
-
-    public void OnEvent(EventData photonEvent)
+    private static void ShowRejected() => WarningSlideUI.Instance?.Show(
+        "Everyone must be loaded and ready. Complete the restaurant checklist before opening.");
+    public void PublishNow()
     {
-        if (session == null || !session.IsMultiplayerSession) return;
-        if (photonEvent.Code == StartRequest && session.IsAuthority) HandleStart(photonEvent.Sender);
-        else if (photonEvent.Code == StartRejected && photonEvent.Sender == PhotonNetwork.MasterClient.ActorNumber)
-            WarningSlideUI.Instance?.Show("Complete the restaurant's pre-open requirements before starting the shift.");
-    }
-
-    private void Publish()
-    {
-        if (!session.IsAuthority || day == null || migrationPaused) return;
-        if (!MultiplayerProgressionContext.Ready || AlienApprovalManager.Instance == null) return;
-        snapshotDay = GameFlowManager.Instance != null ? GameFlowManager.Instance.CurrentDay : 1;
-        snapshot = new object[] { snapshotDay, day.ShiftRunning, day.ClosingOut, day.HasDayResults,
-            day.TimeRemaining, startedAt, PhotonNetwork.Time, Time.timeScale,
-            AlienApprovalManager.Instance.Approval, DailyFinanceBridge.Instance != null ? DailyFinanceBridge.Instance.EarnedToday : 0,
-            day.HasDayResults ? day.CaptureMultiplayerReport() : new int[0] };
-        PhotonNetwork.CurrentRoom.SetCustomProperties(new Hashtable { { DaySnapshotKey, snapshot } });
+        if (!session.IsHostConnection || !MultiplayerProgressionContext.LocallyPrepared) return;
+        day ??= GameDayManager.Instance;
+        if (day == null || GameFlowManager.Instance == null) return;
+        if (snapshot == null || snapshot.day != CurrentDay || snapshot.running != day.ShiftRunning
+            || snapshot.closing != day.ClosingOut || snapshot.results != day.HasDayResults)
+            MultiplayerRestaurantBridge.Active.Publish(true);
+        snapshot = new Snapshot { run = session.RunId, revision = ++revision, day = CurrentDay,
+            running = day.ShiftRunning, closing = day.ClosingOut, results = day.HasDayResults,
+            remaining = day.TimeRemaining, scale = Time.timeScale, sentAt = PhotonNetwork.Time, startedAt = startedAt,
+            report = day.CaptureMultiplayerReport() };
+        PhotonNetwork.CurrentRoom.SetCustomProperties(new Hashtable { [SnapshotKey] = JsonUtility.ToJson(snapshot) });
         nextPublish = Time.unscaledTime + 0.5f;
     }
-
     private void ReadSnapshot()
     {
-        if (PhotonNetwork.CurrentRoom.CustomProperties[DaySnapshotKey] is not object[] value || (value.Length < 8 || value.Length > 11)
-            || value[0] is not int number || value[1] is not bool || value[2] is not bool || value[3] is not bool
-            || value[4] is not float || value[5] is not double start || value[6] is not double || value[7] is not float) return;
-        if (value.Length >= 9 && (value[8] is not int approval || approval < 0 || approval > 100)) return;
-        if (value.Length >= 10 && (value[9] is not int sales || sales < 0)) return;
-        if (value.Length == 11 && (value[10] is not int[] report || report.Length != ((bool)value[3] ? 7 : 0))) return;
-        snapshot = value;
-        snapshotDay = number;
-        startedAt = start;
+        if (PhotonNetwork.CurrentRoom?.CustomProperties[SnapshotKey] is not string json || json.Length > 1048576) return;
+        if (json == readPayload) return;
+        try
+        {
+            var incoming = JsonUtility.FromJson<Snapshot>(json);
+            if (incoming == null || incoming.run != session.RunId || incoming.day < 1
+                || incoming.revision <= appliedRevision || incoming.report?.Length != 7) return;
+            snapshot = incoming;
+            readPayload = json;
+        }
+        catch (ArgumentException) { Debug.LogWarning("[Multiplayer] Invalid day snapshot."); }
     }
-
     private void ApplySnapshot()
     {
-        if (snapshot != null && snapshot.Length >= 9)
-            AlienApprovalManager.Instance?.ApplyMultiplayerApproval((int)snapshot[8]);
-        if (snapshot != null && snapshot.Length >= 10)
-            DailyFinanceBridge.Instance?.ApplyMultiplayerSales((int)snapshot[9]);
-        if (snapshot == null || day == null || !day.ObserveDayOnly) return;
-        if (snapshot.Length == 11 && (bool)snapshot[3]) day.ApplyMultiplayerReport((int[])snapshot[10]);
-        bool running = (bool)snapshot[1];
-        // Time is presentation only. Only the authority may expire the day.
-        float remaining = (float)snapshot[4];
-        if (running && !migrationPaused)
-            remaining -= (float)System.Math.Max(0d, PhotonNetwork.Time - (double)snapshot[6]) * (float)snapshot[7];
-        day.ApplyObservedDay(snapshotDay, running, (bool)snapshot[2], (bool)snapshot[3], remaining);
-        if (startedAt >= 0d && observedStartDay != snapshotDay)
+        if (snapshot == null || day == null || session.IsHostConnection || !MultiplayerProgressionContext.LocallyPrepared
+            || snapshot.day != GameFlowManager.Instance.CurrentDay || !MultiplayerRestaurantBridge.Active.HasState) return;
+        if (snapshot.revision > appliedRevision)
         {
-            observedStartDay = snapshotDay;
+            day.ApplyMultiplayerReport(snapshot.report);
+            appliedRevision = snapshot.revision;
+        }
+        float remaining = snapshot.remaining;
+        if (snapshot.running && !session.Ended)
+            remaining -= (float)Math.Max(0d, PhotonNetwork.Time - snapshot.sentAt) * snapshot.scale;
+        day.ApplyObservedDay(snapshot.day, snapshot.running && !session.Ended, snapshot.closing && !session.Ended,
+            snapshot.results, remaining);
+        if (snapshot.startedAt >= 0 && observedStartDay != snapshot.day)
+        {
+            observedStartDay = snapshot.day;
             FindFirstObjectByType<ManagementComputerController>()?.CloseComputer();
         }
     }
-
+    public void RefreshAfterRejoin() { appliedRevision = 0; readPayload = null; ReadSnapshot(); ApplySnapshot(); }
     public override void OnRoomPropertiesUpdate(Hashtable changed)
+    { if (!session.IsHostConnection && changed.ContainsKey(SnapshotKey)) { ReadSnapshot(); ApplySnapshot(); } }
+    public void OnEvent(EventData ev)
     {
-        if (session == null || !session.IsMultiplayerSession || !changed.ContainsKey(DaySnapshotKey)) return;
-        if (!session.IsAuthority || migrationPaused) { ReadSnapshot(); ApplySnapshot(); }
+        if (!session.IsConnected) return;
+        if (ev.Code == RequestEvent && session.IsAuthority && ev.CustomData is string json && json.Length <= 1024)
+        { try { Handle(ev.Sender, JsonUtility.FromJson<Request>(json)); } catch (ArgumentException) { } }
+        else if (ev.Code == RejectedEvent && ev.Sender == session.Run?.hostActor) ShowRejected();
     }
-
-    public override void OnMasterClientSwitched(Player newMasterClient)
-    {
-        ReadSnapshot();
-        if (day == null) return;
-        day.ObserveDayOnly = true;
-        ApplySnapshot();
-        migrationPaused = session.IsAuthority && startedAt >= 0d;
-        day.ObserveDayOnly = !session.IsAuthority || migrationPaused;
-    }
-
     private void OnDestroy()
     {
-        if (day != null && day.StartShiftInterception == (System.Func<bool>)InterceptStart)
-        {
-            day.StartShiftInterception = null;
-            day.ObserveDayOnly = false;
-        }
+        if (day != null && day.StartShiftInterception == (Func<bool>)InterceptStart)
+        { day.StartShiftInterception = null; day.ObserveDayOnly = false; }
     }
 }

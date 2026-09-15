@@ -12,7 +12,17 @@ public class CustomerGroupClickable : MonoBehaviour
 
     private void OnMouseDown()
     {
-        if (MultiplayerCustomerInteractionBridge.TryServe(group)) return;
+        if (MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer)
+        {
+            var events = UnityEngine.EventSystems.EventSystem.current;
+            if (events != null && (events.IsPointerOverGameObject()
+                || (Input.touchCount > 0 && events.IsPointerOverGameObject(Input.GetTouch(0).fingerId)))) return;
+            var localHands = WaiterHands.ActivePlayerHands;
+            if (localHands != null && localHands.HasBill)
+                MultiplayerCustomerInteractionBridge.TryHandleBill(group);
+            else MultiplayerCustomerInteractionBridge.TryServe(group);
+            return;
+        }
         if (!TutorialCustomerFlowBridge.AllowsWorldInteraction(transform)) return;
         WaiterHands hands = WaiterHands.ActivePlayerHands;
         if (group == null || hands == null) return;

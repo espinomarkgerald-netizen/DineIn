@@ -214,28 +214,16 @@ public class LobbyStockBridge : MonoBehaviour
     }
 
     public bool TryUseOrderStock(IReadOnlyList<Recipe> products, int quantity = 1)
+        => TryUseOrderStock(products, null, quantity);
+
+    public bool TryUseOrderStock(IReadOnlyList<Recipe> products, System.Func<bool> commit, int quantity = 1)
     {
         var inv = InventoryManager.Instance;
         if (inv == null || products == null || products.Count == 0)
             return false;
 
         Dictionary<ItemType, int> requirements = BuildOrderRequirements(products, quantity);
-        if (requirements.Count == 0)
-            return false;
-        foreach (KeyValuePair<ItemType, int> requirement in requirements)
-        {
-            if (inv.GetStock(requirement.Key) < requirement.Value)
-                return false;
-        }
-
-        foreach (KeyValuePair<ItemType, int> requirement in requirements)
-        {
-            if (!inv.UseStock(requirement.Key, requirement.Value))
-            {
-                Debug.LogError($"[LobbyStockBridge] Stock changed while consuming order ingredient {requirement.Key}.");
-                return false;
-            }
-        }
+        if (!inv.TryUseStockBatch(requirements, commit)) return false;
 
         GameSaveManager.Instance?.RequestSave();
         return true;

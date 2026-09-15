@@ -62,7 +62,8 @@ public class BillPaper : MonoBehaviour, IInteractable, ICancelableTaskTarget
 
         RefreshPickupUI();
 
-        if (autoRadius != null && autoRadius.IsActiveRoleInRange(StaffRole.Role.Waiter))
+        if (!MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer
+            && autoRadius != null && autoRadius.IsActiveRoleInRange(StaffRole.Role.Waiter))
         {
             var mover = RoleManager.Instance != null ? RoleManager.Instance.GetActivePlayerMovement() : null;
             if (mover != null && CanInteract())
@@ -74,6 +75,7 @@ public class BillPaper : MonoBehaviour, IInteractable, ICancelableTaskTarget
     {
         targetGroup = group;
         orderNumber = group != null ? group.currentOrderNumber : -1;
+        BillManager.Instance?.Register(this);
 
         var num = GetComponentInChildren<TableNumberUI>(true);
         if (num != null)
@@ -234,6 +236,8 @@ public class BillPaper : MonoBehaviour, IInteractable, ICancelableTaskTarget
             !isPickedUp &&
             !IsHeldByAnyWaiter() &&
             !RestaurantTaskClaim.IsClaimedByBot(targetGroup);
+        if (MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer)
+            shouldShow = spawnPickupUiOnInit && !isPickedUp && !IsHeldByAnyWaiter() && targetGroup != null && !targetGroup.HasReceivedBill;
 
         if (shouldShow)
         {
@@ -249,6 +253,8 @@ public class BillPaper : MonoBehaviour, IInteractable, ICancelableTaskTarget
 
     private bool IsHeldByAnyWaiter()
     {
+        if (MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer)
+            return IsHeldBy(GetComponentInParent<WaiterHands>(true));
         return IsHeldBy(WaiterHands.ActivePlayerHands) ||
                IsHeldBy(WaiterHands.Instance);
     }
@@ -268,7 +274,9 @@ public class BillPaper : MonoBehaviour, IInteractable, ICancelableTaskTarget
         if (pickupUiPrefab == null || uiAnchor == null) return;
         if (pickupUiInstance != null) return;
 
-        pickupUiInstance = Instantiate(pickupUiPrefab);
+        var target = targetGroup != null ? targetGroup.GetComponentInParent<MultiplayerCustomerSpawn>() : null;
+        pickupUiInstance = MultiplayerTaskPresentation.Acquire(pickupUiPrefab,
+            target != null ? $"Customer:{target.photonView.ViewID}:Bill" : null, "BillPickup");
         pickupUiInstance.SetActive(true);
 
         var follow = pickupUiInstance.GetComponentInChildren<UIFollowWorldPoint>(true);
@@ -278,12 +286,17 @@ public class BillPaper : MonoBehaviour, IInteractable, ICancelableTaskTarget
         var pickBtn = pickupUiInstance.GetComponentInChildren<BillPaperPickupButton>(true);
         if (pickBtn != null)
             pickBtn.SetBill(this);
+        if (MultiplayerDayBridge.IsActive && targetGroup != null)
+        {
+            var customer = targetGroup.GetComponentInParent<MultiplayerCustomerSpawn>();
+            if (customer != null) MultiplayerTaskPresentation.Bind(pickupUiInstance, $"Customer:{customer.photonView.ViewID}:Bill");
+        }
     }
 
     private void ClearPickupUI()
     {
         if (pickupUiInstance != null)
-            Destroy(pickupUiInstance);
+            MultiplayerTaskPresentation.DestroyBubble(pickupUiInstance);
 
         pickupUiInstance = null;
     }
@@ -303,6 +316,16 @@ public class BillPaper : MonoBehaviour, IInteractable, ICancelableTaskTarget
         RecoverFailedPickup();
     }
 
+    public void PresentHolder(WaiterHands hands)
+    {
+        if (hands != null) hands.PresentBillPaper(this);
+        else GetComponentInParent<WaiterHands>(true)?.DetachBillPaper(this);
+        isPickedUp = hands != null;
+        pickupRequested = false;
+        if (cachedCol != null) cachedCol.enabled = hands == null;
+        RefreshPickupUI();
+    }
+
     private void RecoverFailedPickup()
     {
         if (isPickedUp || IsHeldByAnyWaiter())
@@ -316,7 +339,8 @@ public class BillPaper : MonoBehaviour, IInteractable, ICancelableTaskTarget
     private void OnDisable() => ClearPickupUI();
     private void OnDestroy()
     {
-        RestaurantTaskClaim.ReleasePlayer(targetGroup);
+        BillManager.Instance?.Unregister(this);
+        if (!MultiplayerDayBridge.IsActive) RestaurantTaskClaim.ReleasePlayer(targetGroup);
         ClearPickupUI();
     }
 }

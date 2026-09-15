@@ -11,6 +11,7 @@ public sealed class PlayerTaskBubbleFocus : MonoBehaviour
     public static float BackgroundAlpha { get; set; } = 0.28f;
 
     private CanvasGroup focusGroup;
+    private UIFollowWorldPoint follow;
     private UnityEngine.Object target;
 
     public static PlayerTaskBubbleFocus Bind(
@@ -32,9 +33,12 @@ public sealed class PlayerTaskBubbleFocus : MonoBehaviour
 
     private void Awake()
     {
-        // Always use a dedicated group. Other systems may already own a
-        // CanvasGroup for world-space visibility or animation.
-        focusGroup = gameObject.AddComponent<CanvasGroup>();
+        follow = GetComponent<UIFollowWorldPoint>();
+        if (follow == null)
+        {
+            focusGroup = GetComponent<CanvasGroup>();
+            if (focusGroup == null) focusGroup = gameObject.AddComponent<CanvasGroup>();
+        }
     }
 
     private void OnEnable()
@@ -55,7 +59,7 @@ public sealed class PlayerTaskBubbleFocus : MonoBehaviour
 
     public void Refresh()
     {
-        if (focusGroup == null)
+        if (focusGroup == null && follow == null)
             return;
 
         bool competingTask = !MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer &&
@@ -63,9 +67,9 @@ public sealed class PlayerTaskBubbleFocus : MonoBehaviour
                              RestaurantTaskClaim.PlayerHasActiveTask &&
                              !RestaurantTaskClaim.IsClaimedByPlayer(target);
 
-        focusGroup.alpha = competingTask
-            ? Mathf.Clamp(BackgroundAlpha, 0.08f, 0.75f)
-            : 1f;
+        float alpha = competingTask ? Mathf.Clamp(BackgroundAlpha, 0.08f, 0.75f) : 1f;
+        if (follow != null) { follow.SetTaskFocus(alpha, !competingTask); return; }
+        focusGroup.alpha = alpha;
         focusGroup.interactable = !competingTask;
         focusGroup.blocksRaycasts = !competingTask;
     }

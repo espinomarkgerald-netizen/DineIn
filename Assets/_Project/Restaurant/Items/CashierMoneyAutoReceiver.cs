@@ -17,6 +17,7 @@ public class CashierMoneyAutoReceiver : MonoBehaviour
 
     private void Update()
     {
+        if (MultiplayerServiceActions.IsActive) return;
         if (Time.time < nextAllowedTime) return;
         if (cashier == null) return;
 

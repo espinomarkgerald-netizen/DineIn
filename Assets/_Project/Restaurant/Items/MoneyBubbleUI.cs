@@ -117,6 +117,12 @@ public class MoneyBubbleUI : MonoBehaviour
 
     public void SetClaimedByStaff(bool claimed)
     {
+        if (MultiplayerDayBridge.IsActive)
+        {
+            claimedByStaff = false;
+            MultiplayerTaskPresentation.Bind(gameObject, RestaurantTaskClaim.GetMultiplayerTaskId(money));
+            return;
+        }
         claimedByStaff = claimed;
 
         // Ownership is a hard visible/hidden state. Do not use the Button's
@@ -143,11 +149,16 @@ public class MoneyBubbleUI : MonoBehaviour
     {
         if (isRemoving) return;
         isRemoving = true;
-        Destroy(gameObject);
+        MultiplayerTaskPresentation.DestroyBubble(gameObject);
     }
 
     private void OnClickCollect()
     {
+        if (MultiplayerDayBridge.IsActive && money != null)
+        {
+            if (money.IsCardPayment) money.UI_RequestCardPayment(); else money.UI_RequestPickup();
+            return;
+        }
         if (claimedByStaff) return;
         if (money == null) return;
         if (money.IsCardPayment)

@@ -15,8 +15,7 @@ public class Booth : MonoBehaviour, Photon.Realtime.IOnEventCallback
     public float HumanCleanupProgress => cleanupStartedAt < 0f ? 0f :
         Mathf.Clamp01((Time.time - cleanupStartedAt) / Mathf.Max(0.05f, MessHoldSeconds));
     public bool HumanCleanupActive => cleanupRequested || cleanupMover != null || cleanupStartedAt >= 0f;
-    public bool CanRequestHumanCleanup => isDirty && currentGroup == null && gameObject.activeInHierarchy
-        && (!MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer || !RestaurantTaskClaim.IsClaimedByBot(this));
+    public bool CanRequestHumanCleanup => isDirty && currentGroup == null && !HasTrayOnTable() && gameObject.activeInHierarchy;
     internal bool CanBusserCleanMultiplayer
     {
         get
@@ -32,6 +31,7 @@ public class Booth : MonoBehaviour, Photon.Realtime.IOnEventCallback
     }
     internal bool MultiplayerCleanupCommitPending => cleanupCommitPending;
     private Transform CleanupStand => approachPoint != null ? approachPoint : transform;
+    public Transform NetworkTrayPoint => FindTableFoodSpawn();
     private float CleanupRadius
     {
         get
@@ -88,7 +88,7 @@ public class Booth : MonoBehaviour, Photon.Realtime.IOnEventCallback
             { CancelHumanCleanup(); return; }
             cleanupStartedAt = Time.time;
             if (session.IsAuthority) BeginAuthorityCleanup(session.LocalActorNumber);
-            else if (!Photon.Pun.PhotonNetwork.RaiseEvent(CleanupRequestEvent,
+            else if (!MultiplayerWire.Raise(CleanupRequestEvent,
                 MultiplayerCustomerInteractionBridge.BoothIdentity(this),
                 new Photon.Realtime.RaiseEventOptions { Receivers = Photon.Realtime.ReceiverGroup.MasterClient },
                 ExitGames.Client.Photon.SendOptions.SendReliable)) CancelHumanCleanup();
@@ -113,7 +113,7 @@ public class Booth : MonoBehaviour, Photon.Realtime.IOnEventCallback
 
     public void OnEvent(ExitGames.Client.Photon.EventData data)
     {
-        if (data.Code == CleanupRequestEvent && data.CustomData is string id
+        if (data.Code == CleanupRequestEvent && MultiplayerWire.TryRead(data, out var payload) && payload is string id
             && id == MultiplayerCustomerInteractionBridge.BoothIdentity(this)) BeginAuthorityCleanup(data.Sender);
     }
 
@@ -241,7 +241,23 @@ public class Booth : MonoBehaviour, Photon.Realtime.IOnEventCallback
         RefreshCleanUIVisibility();
     }
 
-    public bool MultiplayerCleaningBlocked => MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer && isDirty;
+    public void ResetForMultiplayerDay()
+    {
+        if (!MultiplayerDayBridge.IsActive) return;
+        CancelHumanCleanup();
+        currentGroup = null;
+        messSpawnedForCurrentGroup = false;
+        eatingTimer = -1f;
+        ClearBoothProps();
+        ApplyCompletedMultiplayerCleanup();
+        if (MultiplayerSessionManager.Instance.IsAuthority && Photon.Pun.PhotonNetwork.CurrentRoom != null)
+        {
+            dirtySnapshotKey ??= "restaurant.booth.dirty:" + MultiplayerCustomerInteractionBridge.BoothIdentity(this);
+            Photon.Pun.PhotonNetwork.CurrentRoom.SetCustomProperties(new ExitGames.Client.Photon.Hashtable { [dirtySnapshotKey] = 0 });
+        }
+    }
+
+    public bool MultiplayerCleaningBlocked => MultiplayerRestaurantBridge.IsObserver && isDirty;
 
     public CustomerGroup CurrentGroup => currentGroup;
     public bool IsDirty => isDirty;
@@ -250,6 +266,7 @@ public class Booth : MonoBehaviour, Photon.Realtime.IOnEventCallback
 
     private void Awake()
     {
+        MultiplayerWorldRegistry.Track(this);
         EnsureNavigationObstacle();
 
         if (cleanUI == null && cleanUIRoot != null)
@@ -388,7 +405,12 @@ public class Booth : MonoBehaviour, Photon.Realtime.IOnEventCallback
     public void SetDirty(bool value)
     {
         if (MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer &&
-            (!MultiplayerSessionManager.Instance.IsAuthority || !value)) return;
+            !MultiplayerSessionManager.Instance.IsAuthority) return;
+        if (MultiplayerRestaurantBridge.IsActive && !value)
+        {
+            dirtySnapshotKey ??= "restaurant.booth.dirty:" + MultiplayerCustomerInteractionBridge.BoothIdentity(this);
+            Photon.Pun.PhotonNetwork.CurrentRoom.SetCustomProperties(new ExitGames.Client.Photon.Hashtable { [dirtySnapshotKey] = 0 });
+        }
         if (isDirty == value)
             return;
 
@@ -493,6 +515,8 @@ public class Booth : MonoBehaviour, Photon.Realtime.IOnEventCallback
             return;
 
         bool show = ShouldShowCleanUI();
+        if (show && MultiplayerDayBridge.IsActive) MultiplayerTaskPresentation.Bind(cleanUIRoot, CleanupTaskId);
+        show &= !MultiplayerRestockView.Active;
         cleanUIRoot.SetActive(show);
 
         if (cleanUI != null && cleanUI.gameObject.activeSelf != show)

@@ -68,6 +68,7 @@ public class DraggableStorageBox : MonoBehaviour
     private int activeFingerId = -1;
 
     public bool CanInteractInRestock => isActiveAndEnabled && gameObject.scene.name == "RestockScene" &&
+        (!MultiplayerRestockView.Active || MultiplayerRestockView.Accepts(gameObject, currentGrid)) &&
         ((RestockFlowCoordinator.Instance != null && RestockFlowCoordinator.Instance.IsRestockRoomOpen) ||
          UnityEngine.SceneManagement.SceneManager.GetActiveScene() == gameObject.scene);
 
@@ -506,26 +507,21 @@ public class DraggableStorageBox : MonoBehaviour
             playerCamera.ScreenPointToRay(
                 screenPosition);
 
-        if (!Physics.Raycast(
-            ray,
-            out RaycastHit hit,
-            Mathf.Infinity,
-            shelfGridLayer))
+        ShelfGrid grid;
+        RaycastHit hit = default;
+        if (MultiplayerRestockView.Active)
         {
-            ghostObject.SetActive(false);
-            return;
+            if (!MultiplayerRestockView.TryShelf(ray, out grid, out int selectedColumn, out int selectedRow))
+            { ghostObject.SetActive(false); return; }
+            hit.point = grid.GetCellWorldPosition(selectedColumn, selectedRow);
         }
-
-        ShelfGrid grid =
-            hit.collider.GetComponentInParent<
-                ShelfGrid>();
-
-        if (grid == null)
+        else
         {
-            ghostObject.SetActive(false);
-            return;
+            if (!Physics.Raycast(ray, out hit, Mathf.Infinity, shelfGridLayer))
+            { ghostObject.SetActive(false); return; }
+            grid = hit.collider.GetComponentInParent<ShelfGrid>();
+            if (grid == null) { ghostObject.SetActive(false); return; }
         }
-
         if (!grid.TryGetClosestCell(
             hit.point,
             out int column,
@@ -586,6 +582,11 @@ public class DraggableStorageBox : MonoBehaviour
             gameObject,
             transform.position,
             transform.rotation);
+        if (MultiplayerRestockView.Active)
+        {
+            UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(ghostObject, gameObject.scene);
+            MultiplayerRestockView.Prepare(ghostObject);
+        }
 
         ghostObject.name =
             gameObject.name +
@@ -765,7 +766,7 @@ public class DraggableStorageBox : MonoBehaviour
         RaycastHit[] hits = Physics.RaycastAll(
             ray,
             500f,
-            ~0,
+            MultiplayerRestockView.Active ? MultiplayerRestockView.RaycastMask : ~0,
             QueryTriggerInteraction.Collide);
         System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
 
@@ -773,7 +774,8 @@ public class DraggableStorageBox : MonoBehaviour
         {
             DraggableStorageBox candidate =
                 hits[i].collider.GetComponentInParent<DraggableStorageBox>();
-            if (candidate == null || !candidate.isActiveAndEnabled)
+            if (candidate == null || !candidate.isActiveAndEnabled || (MultiplayerRestockView.Active
+                && !MultiplayerRestockView.Accepts(candidate.gameObject, candidate.currentGrid)))
                 continue;
 
             touchedBox = candidate;

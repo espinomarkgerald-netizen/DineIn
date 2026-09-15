@@ -97,14 +97,61 @@ public class KitchenManager : MonoBehaviour
     private readonly HashSet<int> completedOrders = new HashSet<int>();
     private readonly Dictionary<int, ActiveOrderForecast> activeOrderForecasts =
         new Dictionary<int, ActiveOrderForecast>();
+    private readonly Dictionary<int, OrderForecast> completedOrderForecasts = new();
 
     private TrayPickupQueue pickupQueue;
     private readonly Dictionary<int, FoodTray> preparedResults = new();
     private readonly Dictionary<int, int> preparedSlots = new();
     private readonly HashSet<int> spawningResults = new();
 
+    public void ResetMultiplayerDay()
+    {
+        if (!MultiplayerDayBridge.IsActive) return;
+        StopAllCoroutines();
+        cookingOrders.Clear(); completedOrders.Clear(); activeOrderForecasts.Clear(); completedOrderForecasts.Clear();
+        preparedResults.Clear(); preparedSlots.Clear(); spawningResults.Clear();
+    }
+
     public bool TryGetPreparedSlot(int orderNumber, out int slot) => preparedSlots.TryGetValue(orderNumber, out slot);
+
+    public TakeoutBagInteractable PresentTakeoutBag(CustomerGroup group, Vector3 position, Quaternion rotation)
+    {
+        if (!MultiplayerRestaurantBridge.IsObserver || group == null || takeoutBagPrefab == null) return null;
+        var bag = Instantiate(takeoutBagPrefab, position, rotation).GetComponent<TakeoutBagInteractable>();
+        bag?.Init(group);
+        return bag;
+    }
     public FoodTray GetPreparedResult(int orderNumber) => preparedResults.TryGetValue(orderNumber, out var tray) ? tray : null;
+
+    public void RegisterObservedTray(FoodTray tray, int slot = -1)
+    {
+        if (!MultiplayerRestaurantBridge.IsObserver || tray == null) return;
+        preparedResults[tray.orderNumber] = tray;
+        if (slot >= 0) preparedSlots[tray.orderNumber] = slot;
+        else preparedSlots.Remove(tray.orderNumber);
+    }
+
+    public bool ReturnDisconnectedTray(CustomerGroup group)
+    {
+        if (MultiplayerRestaurantBridge.IsObserver || group == null || traySpawnPoints == null
+            || group.state != CustomerGroup.GroupState.OrderTaken) return false;
+        int slot = -1;
+        for (int i = 0; i < traySpawnPoints.Length; i++)
+            if (traySpawnPoints[i] != null && traySpawnPoints[i].GetComponentInChildren<FoodTray>(true) == null) { slot = i; break; }
+        if (slot < 0) return false;
+        PresentCarriedTray(group, null); // Recover the exact preserved output, without consuming stock again.
+        var tray = GetPreparedResult(group.currentOrderNumber);
+        if (tray == null) return false;
+        foreach (var hands in FindObjectsByType<WaiterHands>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            if (hands.holdingTray == tray) hands.holdingTray = null;
+        tray.NetworkCarryLocked = false;
+        tray.gameObject.SetActive(true);
+        WaiterHands.AttachKeepingWorldScale(tray.transform, traySpawnPoints[slot], Vector3.zero, Quaternion.identity);
+        WaiterHands.SetAllColliders(tray.gameObject, true);
+        preparedSlots[group.currentOrderNumber] = slot;
+        tray.GetComponent<FoodTrayInteractable>()?.RestoreAfterStaffPickup();
+        return true;
+    }
 
     public bool TryGetPreparedTray(int orderNumber, out FoodTray tray)
     {
@@ -134,7 +181,7 @@ public class KitchenManager : MonoBehaviour
 
     public void PresentCarriedTray(CustomerGroup group, WaiterHands hands)
     {
-        if (group == null || (!group.IsNetworkObserver && !group.PauseAfterSeating)
+        if (group == null
             || !group.HasConfirmedOrder || foodTrayPrefab == null || MenuCatalog.Default == null) return;
         int order = group.currentOrderNumber;
         if (!preparedResults.TryGetValue(order, out var tray) || tray == null)
@@ -220,6 +267,7 @@ public class KitchenManager : MonoBehaviour
     private void OnDestroy()
     {
         activeOrderForecasts.Clear();
+        completedOrderForecasts.Clear();
     }
 
     public bool TryGetForecast(int orderNumber, out OrderForecast forecast)
@@ -227,6 +275,17 @@ public class KitchenManager : MonoBehaviour
         if (activeOrderForecasts.TryGetValue(orderNumber, out ActiveOrderForecast active))
         {
             forecast = active.Snapshot;
+            return true;
+        }
+
+        // Pickup claims need the completed kitchen identity after cooking has
+        // left the active work queue. Keep it attached to the canonical output.
+        if (completedOrderForecasts.TryGetValue(orderNumber, out var completed)
+            && preparedResults.TryGetValue(orderNumber, out var tray) && tray != null
+            && tray.TargetGroup == completed.Group && tray.orderNumber == orderNumber
+            && completed.Group != null && completed.Group.currentOrderNumber == orderNumber)
+        {
+            forecast = completed;
             return true;
         }
 
@@ -298,6 +357,15 @@ public class KitchenManager : MonoBehaviour
     public bool CanAcceptOrderNumber(int orderNumber) => orderNumber >= 0
         && !completedOrders.Contains(orderNumber) && !cookingOrders.Contains(orderNumber);
 
+    public bool CanStartReviewedOrder(CustomerGroup group)
+    {
+        if (!isActiveAndEnabled || MultiplayerRestaurantBridge.IsObserver || group == null
+            || group.IsNetworkObserver || foodTrayPrefab == null || traySpawnPoints == null) return false;
+        bool hasSlot = false;
+        foreach (var slot in traySpawnPoints) if (slot != null) { hasSlot = true; break; }
+        return hasSlot && (group.IsWaitingForRemake() || CanAcceptOrderNumber(group.currentOrderNumber));
+    }
+
     public void PresentObservedAcceptedOrder(CustomerGroup group, int orderNumber,
         float startedAt, float preparationDelay, float cookDuration, float predictedReadyAt,
         bool isPaused, bool awaitingSpawn, ForecastState state)
@@ -342,6 +410,8 @@ public class KitchenManager : MonoBehaviour
 
     public bool ProcessOrder(CustomerGroup group, bool pauseAfterAcceptance = false)
     {
+        if (MultiplayerRestaurantBridge.IsObserver) return false;
+        if (!isActiveAndEnabled) return false;
         if (group == null)
         {
             Debug.LogError("[KitchenManager] ProcessOrder called with null group.");
@@ -426,7 +496,7 @@ public class KitchenManager : MonoBehaviour
             if (!resumeAtSpawn && preparationSnapshot > 0f)
                 yield return new WaitForSeconds(preparationSnapshot);
 
-            if (!resumeAtSpawn && ProcessingBillIndicatorUI.Instance != null)
+            if (!resumeAtSpawn && !MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer && ProcessingBillIndicatorUI.Instance != null)
                 ProcessingBillIndicatorUI.Instance.Show("Order #" + orderNo + " is being prepared");
 
             if (!resumeAtSpawn && cookSnapshot > 0f)
@@ -434,7 +504,7 @@ public class KitchenManager : MonoBehaviour
 
             if (!IsOrderStillValid(group, orderNo))
             {
-                if (ProcessingBillIndicatorUI.Instance != null)
+                if (!MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer && ProcessingBillIndicatorUI.Instance != null)
                     ProcessingBillIndicatorUI.Instance.Hide();
                 yield break;
             }
@@ -446,7 +516,7 @@ public class KitchenManager : MonoBehaviour
                 held.isPaused = true;
                 held.awaitingSpawn = true;
                 NotifyForecastChanged(held);
-                ProcessingBillIndicatorUI.Instance?.Hide();
+                if (!MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer) ProcessingBillIndicatorUI.Instance?.Hide();
                 yield break;
             }
 
@@ -455,7 +525,7 @@ public class KitchenManager : MonoBehaviour
             if (targetSlots == null || targetSlots.Length == 0)
             {
                 Debug.LogError($"[KitchenManager] No spawn points assigned for {(isTakeout ? "takeout" : "dine-in")} — assign them in the Inspector on KitchenManager.");
-                if (ProcessingBillIndicatorUI.Instance != null)
+                if (!MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer && ProcessingBillIndicatorUI.Instance != null)
                     ProcessingBillIndicatorUI.Instance.Hide();
                 yield break;
             }
@@ -463,7 +533,7 @@ public class KitchenManager : MonoBehaviour
             if (!isTakeout && foodTrayPrefab == null)
             {
                 Debug.LogError("[KitchenManager] FoodTray prefab not assigned in Inspector.");
-                if (ProcessingBillIndicatorUI.Instance != null)
+                if (!MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer && ProcessingBillIndicatorUI.Instance != null)
                     ProcessingBillIndicatorUI.Instance.Hide();
                 yield break;
             }
@@ -471,7 +541,7 @@ public class KitchenManager : MonoBehaviour
             if (isTakeout && takeoutBagPrefab == null)
             {
                 Debug.LogError("[KitchenManager] Takeout bag prefab not assigned in Inspector — assign PaperBag prefab to KitchenManager.takeoutBagPrefab.");
-                if (ProcessingBillIndicatorUI.Instance != null)
+                if (!MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer && ProcessingBillIndicatorUI.Instance != null)
                     ProcessingBillIndicatorUI.Instance.Hide();
                 yield break;
             }
@@ -486,7 +556,7 @@ public class KitchenManager : MonoBehaviour
             {
                 if (!IsOrderStillValid(group, orderNo))
                 {
-                    if (ProcessingBillIndicatorUI.Instance != null)
+                    if (!MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer && ProcessingBillIndicatorUI.Instance != null)
                         ProcessingBillIndicatorUI.Instance.Hide();
                     yield break;
                 }
@@ -530,7 +600,7 @@ public class KitchenManager : MonoBehaviour
                     yield break;
                 }
 
-                if (ProcessingBillIndicatorUI.Instance != null)
+                if (!MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer && ProcessingBillIndicatorUI.Instance != null)
                     ProcessingBillIndicatorUI.Instance.ShowForSeconds("Takeout order #" + orderNo + " is ready for pickup!", 3f);
 
                 Debug.Log($"[KitchenManager] Takeout bag spawned at '{freeSlot.name}' for order #{orderNo}.");
@@ -539,20 +609,23 @@ public class KitchenManager : MonoBehaviour
             {
                 FoodTray tray = Instantiate(foodTrayPrefab, freeSlot.position, freeSlot.rotation, freeSlot);
                 tray.Init(group, preserveOrderSnapshot: resumeAtSpawn);
+                // The normal kitchen path is also the multiplayer source of truth.
+                // Every completed output must be discoverable by pickup validation
+                // and replication, including human orders for bot-seated customers.
+                preparedResults[orderNo] = tray;
+                preparedSlots[orderNo] = Array.IndexOf(traySpawnPoints, freeSlot);
 
                 FoodTrayInteractable it = tray.GetComponent<FoodTrayInteractable>();
                 if (resumeAtSpawn)
                 {
                     BlockPreparedPickup(tray);
-                    preparedResults[orderNo] = tray;
-                    preparedSlots[orderNo] = Array.IndexOf(traySpawnPoints, freeSlot);
                 }
                 else if (it != null)
                     it.SetDeliveryPickable(pickupQueue);
                 else
                     Debug.LogWarning("[KitchenManager] FoodTrayInteractable missing on FoodTray prefab.");
 
-                if (ProcessingBillIndicatorUI.Instance != null)
+                if (!MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer && ProcessingBillIndicatorUI.Instance != null)
                     ProcessingBillIndicatorUI.Instance.Hide();
 
                 Debug.Log($"[KitchenManager] Dine-in tray spawned at '{freeSlot.name}' for order #{orderNo}.");
@@ -576,7 +649,7 @@ public class KitchenManager : MonoBehaviour
                 else CompleteForecast(orderNo, spawnedSuccessfully ? ForecastState.Completed : ForecastState.Canceled);
                 OrderFinished?.Invoke(group, orderNo, spawnedSuccessfully);
 
-                if (!spawnedSuccessfully && ProcessingBillIndicatorUI.Instance != null && cookingOrders.Count == 0)
+                if (!spawnedSuccessfully && !MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer && ProcessingBillIndicatorUI.Instance != null && cookingOrders.Count == 0)
                     ProcessingBillIndicatorUI.Instance.Hide();
             }
         }
@@ -607,6 +680,8 @@ public class KitchenManager : MonoBehaviour
             return;
 
         active.state = finalState;
+        if (finalState == ForecastState.Completed && preparedResults.TryGetValue(orderNumber, out var tray) && tray != null)
+            completedOrderForecasts[orderNumber] = active.Snapshot;
         NotifyForecastChanged(active);
         activeOrderForecasts.Remove(orderNumber);
     }

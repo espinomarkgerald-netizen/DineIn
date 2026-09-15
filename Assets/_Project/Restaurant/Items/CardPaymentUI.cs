@@ -167,6 +167,15 @@ public sealed class CardPaymentUI : MonoBehaviour
         HideImmediate();
     }
 
+    // Session teardown or an expired host reservation must close without issuing another payment.
+    public void CloseNetworkPayment(CustomerGroup group = null)
+    {
+        if (!MultiplayerServiceActions.IsActive || group != null && activePayment?.TargetGroup != group) return;
+        StopAllCoroutines();
+        feedbackRoutine = null; activePayment = null; completing = false; dragging = false;
+        HideImmediate();
+    }
+
     public void BeginCardDrag(PointerEventData eventData)
     {
         if (!IsOpen || completing || cardRect == null || interactionPanel == null)
@@ -227,13 +236,30 @@ public sealed class CardPaymentUI : MonoBehaviour
             handheldPosImage.sprite = cardInsertedSprite;
         if (cardRect != null)
             cardRect.gameObject.SetActive(false);
-        SetScreen("PAYMENT\nCOMPLETE!", successTextColor);
-
-        yield return new WaitForSecondsRealtime(EquipmentUpgradeService.CardPaymentCloseDelay);
-
         MoneyPickup payment = activePayment;
-        activePayment = null;
-        bool completed = payment != null && payment.CompleteCardPayment();
+        bool multiplayer = MultiplayerServiceActions.IsActive;
+        bool completed;
+        if (multiplayer)
+        {
+            SetScreen("PROCESSING…", idleTextColor);
+            completed = payment != null && payment.CompleteCardPayment();
+            float until = Time.unscaledTime + 9f;
+            while (completed && MultiplayerServiceActions.Active.CardPaymentResult == null
+                && MultiplayerSessionManager.Instance.CanAct && Time.unscaledTime < until) yield return null;
+            completed &= MultiplayerServiceActions.Active.CardPaymentResult == true;
+        }
+        else
+        {
+            SetScreen("PAYMENT\nCOMPLETE!", successTextColor);
+            yield return new WaitForSecondsRealtime(EquipmentUpgradeService.CardPaymentCloseDelay);
+            completed = payment != null && payment.CompleteCardPayment();
+        }
+        if (completed)
+        {
+            activePayment = null;
+            SetScreen("PAYMENT\nCOMPLETE!", successTextColor);
+            if (multiplayer) yield return new WaitForSecondsRealtime(EquipmentUpgradeService.CardPaymentCloseDelay);
+        }
         completing = false;
 
         if (completed)

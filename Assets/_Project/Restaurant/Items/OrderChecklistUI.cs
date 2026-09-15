@@ -1652,48 +1652,22 @@ public class OrderChecklistUI : MonoBehaviour
             return;
         }
 
-        if (MultiplayerCustomerInteractionBridge.TryConfirmOrder(group)) return;
-
         if (!TryBuildSelection(
             out List<CustomerGroup.OrderLine> selectedLines,
-            out List<Recipe> selectedProducts,
-            out string orderName,
-            out int unitPrice,
-            out CustomerGroup.FoodType mainFood,
-            out CustomerGroup.DrinkType selectedDrink))
+            out _, out _, out _, out _, out _))
             return;
 
-        if (LobbyStockBridge.Instance != null)
+        var selection = ReviewedOrderSelection.FromLines(selectedLines);
+        if (MultiplayerCustomerInteractionBridge.TryConfirmOrder(group, selection)) return;
+        var kitchen = group.IsTakeout ? null : FindFirstObjectByType<KitchenManager>();
+        if (!ReviewedOrderSubmission.TrySubmit(group, group.currentOrderNumber, selection,
+            catalog, kitchen, out var failure))
         {
-            if (!LobbyStockBridge.Instance.HasOrderStock(selectedProducts))
-            {
-                ShowWarning("One or more products in this order are no longer available.");
-                RebuildMenu();
-                return;
-            }
-
-            if (!LobbyStockBridge.Instance.TryUseOrderStock(selectedProducts))
-            {
-                ShowWarning("Stock changed before the order could be submitted. Please try again.");
-                RebuildMenu();
-                return;
-            }
-        }
-
-        if (group.submittedOrder == null)
-            group.submittedOrder = new CustomerGroup.SimpleOrder();
-
-        group.submittedOrder.SetLines(selectedLines, catalog);
-        group.submittedOrder.name = orderName;
-        group.submittedOrder.unitPrice = unitPrice;
-
-        if (!group.ConfirmPlayerReviewedOrder(mainFood, selectedDrink))
-        {
-            ShowWarning("The customer order changed before it could be confirmed.");
-            Close();
+            ShowWarning(ReviewedOrderSubmission.Message(failure));
+            // Rejection retains the review and selection for a corrected retry.
+            RefreshMenuAvailability();
             return;
         }
-        RestaurantTaskClaim.Complete(group);
 
         if (group.IsTakeout)
         {
@@ -1702,17 +1676,6 @@ public class OrderChecklistUI : MonoBehaviour
         }
         else
         {
-            // The player-review lock has been released only by the successful
-            // confirmation above, so this is the first valid point at which a
-            // manager-assisted order may enter the kitchen.
-            KitchenManager kitchen = FindFirstObjectByType<KitchenManager>();
-            if (kitchen == null || !kitchen.ProcessOrder(group))
-            {
-                ShowWarning("The kitchen could not start this order.");
-                Close();
-                return;
-            }
-
             ProcessingBillIndicatorUI.Instance?.ShowForSeconds(
                 "Order Sent to Kitchen", 2f);
         }

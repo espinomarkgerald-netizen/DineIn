@@ -53,6 +53,11 @@ public class UIFollowWorldPoint : MonoBehaviour
     private readonly Vector3[] graphicWorldCorners = new Vector3[4];
 
     public bool IsWorldSpace => worldSpaceInitialized;
+    private float taskAlpha = 1f;
+    private bool taskInteractable = true;
+    public void SetTaskFocus(float alpha, bool interactable)
+    { taskAlpha = Mathf.Clamp01(alpha); taskInteractable = interactable; }
+    public void RefreshVisualBounds() => visualGraphics = GetComponentsInChildren<Graphic>(true);
 
     private void Awake()
     {
@@ -127,6 +132,7 @@ public class UIFollowWorldPoint : MonoBehaviour
 
     private void LateUpdate()
     {
+        if (MultiplayerRestockView.Active) { SetVisible(false); return; }
         if (target == null)
         {
             SetVisible(false);
@@ -415,9 +421,9 @@ public class UIFollowWorldPoint : MonoBehaviour
         if (canvasGroup == null)
             return;
 
-        canvasGroup.alpha = value ? 1f : 0f;
-        canvasGroup.blocksRaycasts = value && (!worldSpaceInitialized || receivesPointerInput);
-        canvasGroup.interactable = value && (!worldSpaceInitialized || receivesPointerInput);
+        canvasGroup.alpha = value ? taskAlpha : 0f;
+        canvasGroup.blocksRaycasts = value && taskInteractable && (!worldSpaceInitialized || receivesPointerInput);
+        canvasGroup.interactable = value && taskInteractable && (!worldSpaceInitialized || receivesPointerInput);
     }
 }
 

@@ -28,9 +28,11 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
     [SerializeField] private bool debugAutoPay = true;
 
     private bool isOpeningRegister;
+    private MoneyPickup autoOpenPayment;
+    private bool autoOpenAttempted;
 
     public Transform StandPoint => standPoint != null ? standPoint : transform;
-    public bool AutoReturnHome => true;
+    public bool AutoReturnHome => !MultiplayerServiceActions.IsActive;
 
     private void Awake()
     {
@@ -63,6 +65,11 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
 
     public bool CanInteract()
     {
+        if (MultiplayerServiceActions.IsActive)
+        {
+            if (MultiplayerServiceActions.CanUseCashier) return true;
+            return CanUseMultiplayerBillPickup();
+        }
         var hands = WaiterHands.ActivePlayerHands;
         if (hands == null) return false;
 
@@ -75,6 +82,18 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
 
     public void Interact(PlayerMovement player)
     {
+        if (MultiplayerServiceActions.IsActive)
+        {
+            var session = MultiplayerSessionManager.Instance;
+            if (player == null || session == null || player.gameObject != session.LocalManager) return;
+            if (MultiplayerServiceActions.CanUseCashier)
+            {
+                if (MultiplayerServiceActions.RequestCashierOpen(player))
+                { autoOpenPayment = player.GetComponent<WaiterHands>()?.HeldMoney; autoOpenAttempted = true; }
+            }
+            else if (CanUseMultiplayerBillPickup()) TryPickupClosestBillPaper();
+            return;
+        }
         if (RoleManager.Instance == null) return;
 
         if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Waiter))
@@ -156,6 +175,7 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
 
     private void TryAutoOpenRegister()
     {
+        if (MultiplayerServiceActions.IsActive) { TryOpenMultiplayerCashOnArrival(); return; }
         if (RoleManager.Instance == null) return;
         if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Waiter)) return;
 
@@ -202,6 +222,36 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
             return;
 
         OpenRegisterForHeldMoney(hands);
+    }
+
+    private bool CanUseMultiplayerBillPickup()
+    {
+        var session = MultiplayerSessionManager.Instance;
+        var hands = session != null ? session.LocalManager?.GetComponent<WaiterHands>() : null;
+        return session != null && session.CanAct && hands != null && !hands.HasMoney && !hands.HasBill
+            && !hands.HasTray && !hands.HasTicket && session.LocalManager.GetComponent<BusserHands>()?.HasTray != true
+            && MultiplayerServiceActions.Active?.LocalBag == null;
+    }
+
+    private void TryOpenMultiplayerCashOnArrival()
+    {
+        var session = MultiplayerSessionManager.Instance;
+        var manager = session != null ? session.LocalManager : null;
+        var hands = manager != null ? manager.GetComponent<WaiterHands>() : null;
+        var money = hands != null ? hands.HeldMoney : null;
+        if (money == null || money.IsCardPayment || money.TargetGroup == null || money.TargetGroup.MultiplayerPaymentComplete)
+        { autoOpenPayment = null; autoOpenAttempted = false; return; }
+        Vector3 delta = manager.transform.position - StandPoint.position;
+        if (usePlanarDistance) delta.y = 0f;
+        if (delta.sqrMagnitude > autoPayRadius * autoPayRadius)
+        { autoOpenAttempted = false; return; }
+        if (autoOpenPayment != money) { autoOpenPayment = money; autoOpenAttempted = false; }
+        if (autoOpenAttempted || !MultiplayerServiceActions.CanStartCashierOpen) return;
+        var ui = GetRegisterUI();
+        if (ui == null || ui.IsOpen) return;
+        // Once per visit/payment. A cancellation or rejected request cannot
+        // reopen the register every frame; an explicit station click can retry.
+        if (MultiplayerServiceActions.RequestCashierOpen(manager.GetComponent<PlayerMovement>())) autoOpenAttempted = true;
     }
 
     private void OpenRegisterForHeldMoney(WaiterHands hands)
@@ -319,6 +369,9 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
             Debug.Log($"[Cashier] No bill within radius {billPickupRadius} of pickup center.");
             return false;
         }
+
+        if (MultiplayerServiceActions.IsActive)
+            return MultiplayerCustomerInteractionBridge.TryRetrieveBill(best);
 
         bool ok = best.TryPickup();
 

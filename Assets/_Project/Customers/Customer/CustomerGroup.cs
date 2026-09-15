@@ -6,7 +6,7 @@ using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.UI;
 
-public class CustomerGroup : MonoBehaviour
+public partial class CustomerGroup : MonoBehaviour
 {
     public enum ReceptionTaskOwner
     {
@@ -548,9 +548,7 @@ public class CustomerGroup : MonoBehaviour
         if (booth.CurrentGroup != this) booth.SetCurrentGroup(this);
         if (phase == GroupState.Seated || phase == GroupState.WaitingToOrder || phase == GroupState.ReadyToOrder)
             booth.SpawnMenuBook();
-        if (phase == GroupState.ReadyToOrder) RestoreOrderBubbleIfWaiting();
-        if (phase == GroupState.NeedsBill && !MultiplayerPaymentComplete && MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer
-            && billBubbleInstance == null) SpawnBillBubble();
+        // The multiplayer presenter reconciles action bubbles after the entire snapshot.
     }
     public Vector3 QueueDestination => currentLineSlotTarget;
     public float QueuePatience01 => Mathf.Clamp01(linePatienceRemaining / Mathf.Max(1f, linePatienceSeconds));
@@ -1697,6 +1695,7 @@ public class CustomerGroup : MonoBehaviour
 
     private void SpawnOrderBubble()
     {
+        if (MultiplayerDayBridge.IsActive && orderBubbleInstance != null) return;
         if (orderBubblePrefab == null)
         {
             Debug.LogWarning($"[CustomerGroup] orderBubblePrefab missing on {name}");
@@ -1705,7 +1704,7 @@ public class CustomerGroup : MonoBehaviour
 
         ClearOrderBubble();
 
-        orderBubbleInstance = Instantiate(orderBubblePrefab);
+        orderBubbleInstance = MultiplayerTaskPresentation.Acquire(orderBubblePrefab, MultiplayerBubbleTaskId("Order"));
         orderBubbleInstance.name = $"{name}_OrderBubble";
         orderBubbleInstance.SetActive(true);
         orderBubbleInstance.transform.SetAsLastSibling();
@@ -1790,15 +1789,45 @@ public class CustomerGroup : MonoBehaviour
     }
 
     public bool ConfirmPlayerReviewedOrder(FoodType food, DrinkType drink)
+        => ConfirmPlayerReviewedOrder(food, drink, null);
+
+    public bool ConfirmPlayerReviewedOrder(FoodType food, DrinkType drink, Func<CustomerGroup, bool> acceptOrder)
     {
-        if (!isPlayerReviewingOrder || state != GroupState.ReadyToOrder)
+        if (IsNetworkObserver || !isPlayerReviewingOrder || state != GroupState.ReadyToOrder || hasConfirmedOrder)
             return false;
 
-        isPlayerReviewingOrder = false;
-        isOrderPaused = false;
-        // Manager-assisted notepad orders go straight to the kitchen after
-        // confirmation. They do not create a cashier ticket for the player.
-        return CompleteOrderTaking(food, drink, spawnTicket: false);
+        int previousOrder = currentOrderNumber;
+        FoodType previousFood = confirmedFood;
+        DrinkType previousDrink = confirmedDrink;
+        bool previousPause = isOrderPaused;
+        bool accepted = false;
+        try
+        {
+            if (waitingForRemake) AssignFreshOrderNumberForRemake();
+            ConfirmOrder(food, drink);
+            isPlayerReviewingOrder = false;
+            isOrderPaused = false;
+            // Provisional state lets the normal kitchen validate the order.
+            // UI, queue and day-stat effects happen only after it accepts.
+            state = GroupState.OrderTaken;
+            accepted = acceptOrder == null || acceptOrder(this);
+        }
+        finally
+        {
+            state = GroupState.ReadyToOrder;
+            if (!accepted)
+            {
+                currentOrderNumber = previousOrder;
+                confirmedFood = previousFood;
+                confirmedDrink = previousDrink;
+                hasConfirmedOrder = false;
+                isPlayerReviewingOrder = true;
+                isOrderPaused = previousPause;
+            }
+        }
+        if (!accepted) return false;
+        FinishOrderTaking(spawnTicket: false);
+        return true;
     }
 
     private bool CompleteOrderTaking(FoodType food, DrinkType drink, bool spawnTicket)
@@ -1813,6 +1842,13 @@ public class CustomerGroup : MonoBehaviour
             AssignFreshOrderNumberForRemake();
 
         ConfirmOrder(food, drink);
+
+        FinishOrderTaking(spawnTicket);
+        return true;
+    }
+
+    private void FinishOrderTaking(bool spawnTicket)
+    {
 
         if (orderBubbleInstance != null)
         {
@@ -1831,15 +1867,13 @@ public class CustomerGroup : MonoBehaviour
         if (IsTakeout)
         {
             TakeoutFlowManager.Instance?.NotifyOrderTaken(this);
-            return true;
+            return;
         }
 
         SpawnTableNumber();
 
         if (spawnTicket && OrderFlowManager.Instance != null)
             OrderFlowManager.Instance.SpawnTicket(this);
-
-        return true;
     }
 
     public void ConfirmOrder(FoodType food, DrinkType drink)
@@ -1898,6 +1932,9 @@ public class CustomerGroup : MonoBehaviour
         List<string> deliveredContents,
         FoodTray sourceTray = null)
     {
+        if (!CanDecideCustomerOutcome) return;
+        if (MultiplayerRestaurantBridge.IsActive)
+        { PauseBeforeEating = true; MultiplayerEatingStarted = false; MultiplayerEatingComplete = false; }
         if (state != GroupState.OrderTaken || !hasConfirmedOrder || isPlayerReviewingOrder)
             return;
 
@@ -2283,7 +2320,7 @@ public class CustomerGroup : MonoBehaviour
 
     public void ReceiveBillFromWaiter()
     {
-        if (PauseBeforeEating && MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer) return;
+        if (!CanDecideCustomerOutcome || hasReceivedBill) return;
         if (state != GroupState.NeedsBill) return;
 
         hasReceivedBill = true;
@@ -2297,8 +2334,8 @@ public class CustomerGroup : MonoBehaviour
 
     internal bool BeginMultiplayerSettlement()
     {
-        if (!MultiplayerCustomerInteractionBridge.CanSettleBill(this) || MultiplayerPaymentComplete
-            || state != GroupState.NeedsBill || hasReceivedBill) return false;
+        if (!CanDecideCustomerOutcome || MultiplayerPaymentComplete) return false;
+        if (!IsTakeout && state != GroupState.NeedsBill) return false;
         // Close the transaction before wallet/display callbacks can re-enter it.
         MultiplayerPaymentComplete = true;
         hasReceivedBill = true;
@@ -2308,11 +2345,9 @@ public class CustomerGroup : MonoBehaviour
 
     internal void FinishMultiplayerSettlement()
     {
-        if (!MultiplayerCustomerInteractionBridge.CanSettleBill(this) || !MultiplayerPaymentComplete) return;
-        if (!angryResultLocked && !receivedWrongOrder && ShouldShowVipTip())
-            GameDayManager.Instance?.RegisterTip(Profile.tipAmount);
-        // Remain seated in NeedsBill with payment complete. No result/approval,
-        // dirty dishes, booth cleanup, or departure in this pass.
+        if (!CanDecideCustomerOutcome || !MultiplayerPaymentComplete) return;
+        if (IsTakeout) TakeoutFlowManager.Instance?.NotifyPaymentCompleted(this);
+        else PayAndLeave();
     }
 
     public void PresentObservedPayment(bool paid)
@@ -2321,17 +2356,12 @@ public class CustomerGroup : MonoBehaviour
         MultiplayerPaymentComplete = true;
         hasReceivedBill = true;
         ClearBillBubble();
-        var session = MultiplayerSessionManager.Instance;
-        if (session == null) return;
-        foreach (var player in session.ConnectedPlayers)
-            if (session.TryGetManager(player.ActorNumber, out var manager) && manager != null
-                && manager.GetComponent<WaiterHands>() is WaiterHands hands && hands.holdingBillFor == this)
-                hands.ClearBill();
+        BillManager.Instance?.RemoveObservedBill(this);
     }
 
     public void RequestBillFromCashier()
     {
-        if (PauseBeforeEating && MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer) return;
+        if (!CanDecideCustomerOutcome) return;
         if (state != GroupState.NeedsBill) return;
         if (BillManager.Instance == null) return;
 
@@ -2393,6 +2423,7 @@ public class CustomerGroup : MonoBehaviour
             : assignedBooth.transform;
         var money = spawner.SpawnMoney(this, amount, paymentApproach, useCardPayment);
         if (money == null) yield break;
+        if (MultiplayerDayBridge.IsActive) { PresentPaymentBubble(money); yield break; }
 
         ClearMoneyBubble();
 
@@ -2428,7 +2459,7 @@ public class CustomerGroup : MonoBehaviour
 
     public void PayAndLeave()
     {
-        if (MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer) return;
+        if (!CanDecideCustomerOutcome) return;
         if (state != GroupState.NeedsBill) return;
 
         if (angryResultLocked || receivedWrongOrder)
@@ -2475,13 +2506,24 @@ public class CustomerGroup : MonoBehaviour
         StartLeaving(false);
     }
 
+    internal void FinishMultiplayerClosing()
+    {
+        if (!CanDecideCustomerOutcome || !MultiplayerDayBridge.IsActive) return;
+        CancelManagerComplaint();
+        if (!MultiplayerPaymentComplete) ReportFinalResult(FinalResult.Neutral);
+        CancelOutstandingGroupTask();
+        if (IsTakeout) { TakeoutQueueManager.Instance?.ReleaseGroup(this); TakeoutFlowManager.Instance?.ForceRelease(this); }
+        CleanupOnLeave();
+    }
+
     private void WarnAndLeaveForMissingStock()
     {
         if (!CanDecideCustomerOutcome || leavingRoutineStarted) return;
         CasualDiningPolishManager.EnsureInstance().RegisterIncident(
             DailyIncidentType.StockoutRefusal);
-        WarningSlideUI.Instance?.Show(
-            "No stocked food and drinks are available. This group is leaving.");
+        if (!MultiplayerDayBridge.IsActive)
+            WarningSlideUI.Instance?.Show(
+                "No stocked food and drinks are available. This group is leaving.");
         ShowThought(unhappyComments, unhappyFaceSprite);
         SetState(GroupState.UnhappyLeft);
         ClearOrderBubble();
@@ -2567,6 +2609,7 @@ public class CustomerGroup : MonoBehaviour
 
             if (foodTray.TargetGroup == this)
             {
+                if (MultiplayerRestaurantBridge.IsActive) foodTray.NetworkCarryLocked = false;
                 trays[i].NotifyGroupLeaving();
 
                 if (TutorialManager.Instance != null)
@@ -2698,11 +2741,12 @@ public class CustomerGroup : MonoBehaviour
 
     private void SpawnBillBubble()
     {
+        if (MultiplayerDayBridge.IsActive && billBubbleInstance != null) return;
         if (billBubblePrefab == null) return;
 
         ClearBillBubble();
 
-        billBubbleInstance = Instantiate(billBubblePrefab);
+        billBubbleInstance = MultiplayerTaskPresentation.Acquire(billBubblePrefab, MultiplayerBubbleTaskId("Bill"));
 
         var follow = billBubbleInstance.GetComponentInChildren<UIFollowWorldPoint>(true);
         if (follow != null)
@@ -2956,14 +3000,14 @@ public class CustomerGroup : MonoBehaviour
     public void ClearOrderBubble()
     {
         if (orderBubbleInstance == null) return;
-        Destroy(orderBubbleInstance);
+        MultiplayerTaskPresentation.DestroyBubble(orderBubbleInstance);
         orderBubbleInstance = null;
     }
 
     public void ClearBillBubble()
     {
         if (billBubbleInstance == null) return;
-        Destroy(billBubbleInstance);
+        MultiplayerTaskPresentation.DestroyBubble(billBubbleInstance);
         billBubbleInstance = null;
     }
 
@@ -2977,7 +3021,7 @@ public class CustomerGroup : MonoBehaviour
     private void ClearMoneyBubble()
     {
         if (moneyBubbleInstance == null) return;
-        Destroy(moneyBubbleInstance);
+        MultiplayerTaskPresentation.DestroyBubble(moneyBubbleInstance);
         moneyBubbleInstance = null;
     }
 
@@ -3015,6 +3059,7 @@ public class CustomerGroup : MonoBehaviour
 
     public void SetOrderTaskClaimedByStaff(bool claimed)
     {
+        if (MultiplayerDayBridge.IsActive) return;
         if (orderBubbleInstance != null)
             orderBubbleInstance.SetActive(!claimed);
         else if (!claimed)
@@ -3023,6 +3068,7 @@ public class CustomerGroup : MonoBehaviour
 
     public void SetBillTaskClaimedByStaff(bool claimed)
     {
+        if (MultiplayerDayBridge.IsActive) return;
         if (billBubbleInstance != null)
             billBubbleInstance.SetActive(!claimed);
     }

@@ -240,7 +240,7 @@ public class MoneyManager : MonoBehaviour
                 });
             }
         }
-        Debug.Log("[MoneyManager] FillSaveData saved money = " + Money);
+        if (!MultiplayerDayBridge.IsActive) Debug.Log("[MoneyManager] FillSaveData saved money = " + Money);
     }
 
     public void ApplyMultiplayerRestockBalance(int balance)
@@ -312,7 +312,7 @@ public class MoneyManager : MonoBehaviour
                 netProfit = snapshot.profit
             });
         }
-        Debug.Log("[MoneyManager] ApplySaveData loaded money = " + Money);
+        if (!MultiplayerDayBridge.IsActive) Debug.Log("[MoneyManager] ApplySaveData loaded money = " + Money);
         NotifyMoneyChanged();
     }
 

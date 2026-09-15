@@ -70,6 +70,8 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
     private bool fallbackConsumedRelease;
     private int lastFallbackButtonFrame = -1;
     private bool currentAppUsesCards;
+    private int selectedApp = -1;
+    private bool sharedAppRefreshPending;
     private bool restockOrderCommitInProgress;
     private Coroutine canvasRefreshRoutine;
 
@@ -135,6 +137,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
 
     private void Awake()
     {
+        MultiplayerRestaurantBridge.StateChanged += RefreshSharedApp;
         ResolveResponsiveLayout();
         ResolveStaffNotificationBadge();
         WireButtons();
@@ -150,6 +153,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
 
     private void OnDestroy()
     {
+        MultiplayerRestaurantBridge.StateChanged -= RefreshSharedApp;
         if (MoneyManager.Instance != null)
             MoneyManager.Instance.OnMoneyChanged -= OnMoneyChanged;
     }
@@ -158,6 +162,10 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
     {
         if (!IsOpen)
             return;
+        if (sharedAppRefreshPending && selectedApp >= 0 && appWindow != null && appWindow.gameObject.activeSelf
+            && (EventSystem.current == null || EventSystem.current.currentSelectedGameObject == null
+                || EventSystem.current.currentSelectedGameObject.GetComponent<TMP_InputField>() == null))
+        { sharedAppRefreshPending = false; OpenApp(selectedApp); }
 
         if (Input.GetKeyDown(KeyCode.Escape))
         {
@@ -730,6 +738,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         if (!Enum.IsDefined(typeof(ManagementComputerApp), appIndex) || appWindow == null)
             return;
 
+        selectedApp = appIndex;
         appWindow.ClearRows();
 
         ManagementComputerApp app = (ManagementComputerApp)appIndex;
@@ -786,11 +795,18 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
 
     public void CloseApp()
     {
+        selectedApp = -1;
         if (appWindow != null)
         {
             appWindow.ClearRows();
             appWindow.Close();
         }
+    }
+
+    private void RefreshSharedApp()
+    {
+        if (selectedApp == (int)ManagementComputerApp.Staff || selectedApp == (int)ManagementComputerApp.Restock) return;
+        sharedAppRefreshPending = true;
     }
 
     private void WireButtons()
@@ -858,31 +874,8 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
 
     public static List<EmployeeRole> GetMissingMultiplayerStaffRoles()
     {
-        var multiplayerSession = MultiplayerSessionManager.Instance;
-        var missingRoles = new List<EmployeeRole>();
-        var roster = multiplayerSession.GetComponent<MultiplayerStaffRosterController>();
-        foreach (var role in EmployeeRoleCatalog.LobbyRoles)
-        {
-            var serviceRole = role == EmployeeRole.Host
-                ? MultiplayerStaffRosterController.ServiceRole.Receptionist
-                : role == EmployeeRole.Waiter ? MultiplayerStaffRosterController.ServiceRole.Waiter
-                : role == EmployeeRole.Cashier ? MultiplayerStaffRosterController.ServiceRole.Cashier
-                : MultiplayerStaffRosterController.ServiceRole.Busser;
-            if (roster == null || !roster.IsInitialized ||
-                (!roster.IsRoleReplacedByHuman(serviceRole) &&
-                 (!roster.IsRoleAvailableForAI(serviceRole) || roster.GetStaffRoot(serviceRole) == null)))
-                missingRoles.Add(role);
-        }
-        var kitchenBots = FindObjectsByType<KitchenWorkerBot>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-        foreach (var role in EmployeeRoleCatalog.KitchenRoles)
-        {
-            bool available = false;
-            foreach (var bot in kitchenBots)
-                if (bot.gameObject.scene == multiplayerSession.gameObject.scene && bot.EmployeeRole == role)
-                    available = true;
-            if (!available) missingRoles.Add(role);
-        }
-        return missingRoles;
+        return EmployeeManager.Instance != null ? EmployeeManager.Instance.GetMissingRequiredRoles()
+            : new List<EmployeeRole>(EmployeeRoleCatalog.LobbyRoles);
     }
 
     private void PopulateStaff()
@@ -895,7 +888,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         }
 
         manager.EnsureEmployeesGenerated();
-        bool editable = !MultiplayerDayBridge.IsActive && !IsShiftActive && !manager.SlotsLocked;
+        bool editable = MultiplayerRestaurantBridge.CanEdit && !IsShiftActive && !manager.SlotsLocked;
 
         if (hrPanelPrefab == null)
         {
@@ -908,9 +901,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         panel.Bind(manager, editable);
         panel.GetComponent<UIRevealAnimation>()?.Play();
 
-        appWindow.SetMessage(MultiplayerDayBridge.IsActive
-            ? "HR is read-only in multiplayer; hiring and assignments are not synchronized."
-            : editable
+        appWindow.SetMessage(editable
             ? "Hire applicants, keep up to three workers per role, and choose one active worker for the shift."
             : "HR decisions are locked while the shift is running.");
     }
@@ -939,7 +930,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         panel.gameObject.SetActive(true);
         panel.BindMenu(
             catalog.Products,
-            !IsShiftActive && MenuAvailabilityManager.Instance != null,
+            MultiplayerRestaurantBridge.CanEdit && !IsShiftActive && MenuAvailabilityManager.Instance != null,
             SetMenuAvailability,
             SetMenuPrice);
         panel.GetComponent<UIRevealAnimation>()?.Play();
@@ -989,7 +980,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
             return;
         }
 
-        bool editable = !MultiplayerDayBridge.IsActive && !IsShiftActive;
+        bool editable = MultiplayerRestaurantBridge.CanEdit && !IsShiftActive;
         ManagementEquipmentSectionUI sectionPrefab = Resources.Load<ManagementEquipmentSectionUI>(
             "ManagementComputer/ManagementEquipmentSection");
         if (sectionPrefab == null)
@@ -1015,10 +1006,9 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
             "Permanent tools that improve staff and payment flow.",
             editable);
 
-        appWindow.SetMessage(MultiplayerDayBridge.IsActive
-            ? "Equipment is read-only in multiplayer; purchases are not synchronized."
-            : editable
-            ? "Choose an available item. Purchases are saved automatically."
+        appWindow.SetMessage(editable
+            ? MultiplayerRestaurantBridge.IsActive ? "Choose an available item. Equipment lasts for this run."
+                : "Choose an available item. Purchases are saved automatically."
             : "Equipment purchases are locked while service is active.");
     }
 
@@ -1064,7 +1054,6 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
                 editable && unlocked && !purchased && canAfford,
                 () =>
                 {
-                    if (MultiplayerDayBridge.IsActive) return;
                     manager.Purchase(captured.itemID);
                     PopulateAgain(ManagementComputerApp.Equipment);
                 });
@@ -1302,8 +1291,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         // Race-safe final newspaper gate. In normal use this is already green
         // in the checklist; if the day changed underneath the UI it opens the
         // new issue instead of starting with stale readiness.
-        if (!MultiplayerDayBridge.IsActive &&
-            !CasualDiningPolishManager.EnsureInstance().TryAllowStartShift())
+        if (!CasualDiningPolishManager.EnsureInstance().TryAllowStartShift())
         {
             OpenStartChecklist();
             return false;

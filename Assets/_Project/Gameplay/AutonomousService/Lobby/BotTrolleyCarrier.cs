@@ -270,6 +270,13 @@ public sealed class BotTrolleyCarrier : MonoBehaviour
 
     public bool Contains(FoodTray tray) => tray != null && trays.Contains(tray);
 
+    public void ResetMultiplayerDay()
+    {
+        if (!MultiplayerDayBridge.IsActive) return;
+        foreach (var tray in new List<FoodTray>(trays)) Dispose(tray);
+        EndUse(true);
+    }
+
     public bool TryDetach(FoodTray tray, Transform destination)
     {
         if (tray == null || destination == null || !trays.Remove(tray))
@@ -454,6 +461,7 @@ public sealed class BotTrolleyCarrier : MonoBehaviour
 
     private void LateUpdate()
     {
+        if (MultiplayerRestaurantBridge.IsObserver) return;
         if (operatorBot == null)
             return;
 
@@ -697,4 +705,5 @@ public sealed class BotTrolleyCarrier : MonoBehaviour
         }
         Gizmos.matrix = Matrix4x4.identity;
     }
+    private void Awake() => MultiplayerWorldRegistry.Track(this);
 }

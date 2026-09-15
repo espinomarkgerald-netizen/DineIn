@@ -1125,6 +1125,7 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
 
     private void RestoreLobby()
     {
+        MultiplayerRestockView.End();
         restockingManager?.SetExternalInputSuppressed(false);
         restockingManager = null;
         if (multiplayerView && MultiplayerRestockBridge.IsActive) MultiplayerRestockBridge.Active?.Release();

@@ -44,6 +44,8 @@ public class EquipmentManager : MonoBehaviour
     /// </summary>
     public bool Purchase(string itemID)
     {
+        if (MultiplayerRestaurantBridge.IsActive && !MultiplayerRestaurantBridge.Committing)
+            return MultiplayerRestaurantBridge.Request("equipment", itemID);
         if (purchased.Contains(itemID)) return false;
 
         Equipment e = allEquipment.Find(eq => eq.itemID == itemID);
@@ -70,6 +72,7 @@ public class EquipmentManager : MonoBehaviour
 
     public bool DebugUnlockAndPurchase(string itemID)
     {
+        if (MultiplayerRestaurantBridge.IsActive) return false;
         Equipment equipment = allEquipment != null
             ? allEquipment.Find(candidate => candidate != null && candidate.itemID == itemID)
             : null;

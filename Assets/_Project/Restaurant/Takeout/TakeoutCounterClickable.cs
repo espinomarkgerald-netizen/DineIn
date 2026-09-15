@@ -6,6 +6,11 @@ public class TakeoutCounterClickable : MonoBehaviour
 
     private void OnMouseDown()
     {
+        if (MultiplayerServiceActions.IsActive)
+        {
+            MultiplayerServiceActions.ApproachTakeout(TakeoutFlowManager.Instance?.ActiveGroup);
+            return;
+        }
         if (queueManager == null)
             return;
 

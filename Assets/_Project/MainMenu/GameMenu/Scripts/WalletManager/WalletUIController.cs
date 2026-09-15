@@ -114,7 +114,9 @@ public class WalletUIController : MonoBehaviour
         if (openButton != null)
             openButton.onClick.RemoveListener(OpenWalletOrShopPanel);
 
-        PlayFabWalletManager.Instance?.StopPolling();
+        var wallet = PlayFabWalletManager.Instance;
+        if (wallet != null)
+            wallet.StopPolling();
     }
 
     private void CachePanelReference()
@@ -153,13 +155,14 @@ public class WalletUIController : MonoBehaviour
 
     private void UnsubscribeFromWallet()
     {
-        if (subscribedWalletManager == null)
+        var wallet = subscribedWalletManager;
+        subscribedWalletManager = null;
+        if (wallet == null)
             return;
 
-        subscribedWalletManager.OnWalletUpdated -= HandleWalletUpdated;
-        subscribedWalletManager.OnWalletRefreshFailed -= HandleWalletRefreshFailed;
-        subscribedWalletManager.OnWalletCleared -= HandleWalletCleared;
-        subscribedWalletManager = null;
+        wallet.OnWalletUpdated -= HandleWalletUpdated;
+        wallet.OnWalletRefreshFailed -= HandleWalletRefreshFailed;
+        wallet.OnWalletCleared -= HandleWalletCleared;
     }
 
     private void RefreshFromCachedWallet()
@@ -350,6 +353,8 @@ public class WalletUIController : MonoBehaviour
     public void CloseWalletOrShopPanel()
     {
         HidePanel();
-        PlayFabWalletManager.Instance?.StopPolling();
+        var wallet = PlayFabWalletManager.Instance;
+        if (wallet != null)
+            wallet.StopPolling();
     }
 }

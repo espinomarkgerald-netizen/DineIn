@@ -60,8 +60,8 @@ public class GameFlowManager : MonoBehaviour
     [Header("Game Over")]
     [SerializeField] private GameOverScreen gameOverScreen;
 
-    public int CurrentDay => MultiplayerProgressionContext.IsActive
-        ? MultiplayerProgressionContext.CurrentDay : currentDay;
+    public int CurrentDay => currentDay;
+    public int ProgressionDay => MultiplayerRestaurantBridge.IsActive ? Mathf.Min(currentDay, campaignDayLimit) : currentDay;
     public GamePhase CurrentPhase => currentPhase;
     public DayHalf CurrentDayHalf => currentDayHalf;
     public bool LobbyCompleted => lobbyCompleted;
@@ -171,6 +171,7 @@ public class GameFlowManager : MonoBehaviour
 
     public void StartNewDay()
     {
+        if (MultiplayerRestaurantBridge.IsObserver) return;
         financeSettledDay = -1;
         if (useSingleRestaurantFlow)
         {
@@ -180,7 +181,7 @@ public class GameFlowManager : MonoBehaviour
                 return;
             }
 
-            currentDay = Mathf.Min(currentDay + 1, campaignDayLimit);
+            currentDay = MultiplayerRestaurantBridge.IsActive ? currentDay + 1 : Mathf.Min(currentDay + 1, campaignDayLimit);
             PrepareRestaurantDay();
             LoadRestaurantScene();
             return;
@@ -204,11 +205,11 @@ public class GameFlowManager : MonoBehaviour
 
         DailyObjectiveManager.Instance?.RollObjectivesForDay(currentDay, maxGroupsThisShift);
 
-        EquipmentManager.Instance?.UnlockByDay(currentDay);
+        EquipmentManager.Instance?.UnlockByDay(ProgressionDay);
         EquipmentShopManager shop = FindFirstObjectByType<EquipmentShopManager>();
         shop?.InitializeShop();
 
-        RecipeManager.Instance?.UnlockByDay(currentDay);
+        RecipeManager.Instance?.UnlockByDay(ProgressionDay);
 
         NotifyDayChanged();
         GameSaveManager.Instance?.RequestSave();
@@ -322,6 +323,7 @@ public class GameFlowManager : MonoBehaviour
 
     public void ResetRun()
     {
+        if (MultiplayerRestaurantBridge.IsActive) return;
         GameSaveManager.Instance?.CommitDayCheckpoint();
         currentDay = 1;
         currentPhase = GamePhase.Management;
@@ -349,7 +351,7 @@ public class GameFlowManager : MonoBehaviour
         EquipmentManager.Instance?.ResetPurchases();
         UnlockManager.Instance?.ResetAll();
 
-        EquipmentManager.Instance?.UnlockByDay(currentDay);
+        EquipmentManager.Instance?.UnlockByDay(ProgressionDay);
 
         NotifyDayChanged();
         GameSaveManager.Instance?.RequestSave();
@@ -382,7 +384,7 @@ public class GameFlowManager : MonoBehaviour
         if (GameDayManager.Instance == null || !GameDayManager.Instance.ObserveDayOnly) return;
         currentDay = Mathf.Max(1, day);
         restaurantSessionState = ended ? RestaurantSessionState.DayComplete
-            : active ? RestaurantSessionState.Running : RestaurantSessionState.PreOpen;
+            : campaignCompleted ? RestaurantSessionState.Endless : active ? RestaurantSessionState.Running : RestaurantSessionState.PreOpen;
     }
 
     public void RestoreTemporaryRestaurantPhase(RestaurantSessionState phase)
@@ -406,6 +408,7 @@ public class GameFlowManager : MonoBehaviour
 
     public void EndOfDayFinance()
     {
+        if (MultiplayerRestaurantBridge.IsObserver) return;
         // The legacy kitchen flow reaches this once when the timer ends and once
         // again when the report is confirmed. Settle expenses only once, while
         // still refreshing the saved summary with any orders completed meanwhile.
@@ -469,6 +472,7 @@ public class GameFlowManager : MonoBehaviour
 
     public void TriggerGameOver(GameOverReason reason)
     {
+        if (MultiplayerRestaurantBridge.IsActive) return;
         int money = MoneyManager.Instance != null ? MoneyManager.Instance.Money : 0;
         int approval = AlienApprovalManager.Instance != null ? AlienApprovalManager.Instance.Approval : 0;
 
@@ -488,13 +492,14 @@ public class GameFlowManager : MonoBehaviour
 
     public bool TrySetCurrentDayDebug(int day)
     {
+        if (MultiplayerRestaurantBridge.IsActive) return false;
         if (day < 1 || day > 30)
             return false;
 
         currentDay = day;
 
-        EquipmentManager.Instance?.UnlockByDay(currentDay);
-        RecipeManager.Instance?.UnlockByDay(currentDay);
+        EquipmentManager.Instance?.UnlockByDay(ProgressionDay);
+        RecipeManager.Instance?.UnlockByDay(ProgressionDay);
 
         EquipmentShopManager shop = FindFirstObjectByType<EquipmentShopManager>();
         shop?.InitializeShop();
@@ -526,7 +531,7 @@ public class GameFlowManager : MonoBehaviour
         if (data == null)
             return;
 
-        currentDay = Mathf.Clamp(data.currentDay, 1, 30);
+        currentDay = MultiplayerRestaurantBridge.IsActive ? Mathf.Max(1, data.currentDay) : Mathf.Clamp(data.currentDay, 1, 30);
         currentPhase = (GamePhase)Mathf.Clamp(data.currentPhase, 0, Enum.GetValues(typeof(GamePhase)).Length - 1);
         currentDayHalf = (DayHalf)Mathf.Clamp(data.currentDayHalf, 0, Enum.GetValues(typeof(DayHalf)).Length - 1);
         lobbyCompleted = data.lobbyCompleted;
@@ -566,6 +571,7 @@ public class GameFlowManager : MonoBehaviour
     /// </summary>
     public void BeginRestaurantDay()
     {
+        if (MultiplayerRestaurantBridge.IsActive) return;
         if (!useSingleRestaurantFlow)
         {
             StartLobbyShift();
@@ -584,6 +590,7 @@ public class GameFlowManager : MonoBehaviour
     /// </summary>
     public void CompleteRestaurantDay()
     {
+        if (MultiplayerRestaurantBridge.IsActive && !MultiplayerDayBridge.CanCommit) return;
         if (!useSingleRestaurantFlow)
             return;
 
@@ -602,6 +609,7 @@ public class GameFlowManager : MonoBehaviour
     /// </summary>
     public void FinalizeRestaurantDayForResults(int earnedStars = -1)
     {
+        if (MultiplayerRestaurantBridge.IsObserver) return;
         if (!useSingleRestaurantFlow || restaurantSessionState == RestaurantSessionState.DayComplete)
             return;
 
@@ -623,7 +631,7 @@ public class GameFlowManager : MonoBehaviour
     public bool TryGetRestaurantDayOutcome(out GameOverReason reason)
     {
         reason = default;
-        if (!useSingleRestaurantFlow || campaignCompleted)
+        if (!useSingleRestaurantFlow || (campaignCompleted && !MultiplayerRestaurantBridge.IsActive))
             return false;
 
         int money = MoneyManager.Instance != null ? MoneyManager.Instance.Money : 0;
@@ -634,6 +642,7 @@ public class GameFlowManager : MonoBehaviour
         }
 
         int approval = AlienApprovalManager.Instance != null ? AlienApprovalManager.Instance.Approval : 0;
+        if (campaignCompleted) return false;
         if (approval <= 0)
         {
             reason = GameOverReason.ApprovalCollapsed;
@@ -656,6 +665,7 @@ public class GameFlowManager : MonoBehaviour
     /// </summary>
     public bool ContinueRestaurantCampaignAfterRecovery()
     {
+        if (MultiplayerRestaurantBridge.IsActive) return false;
         if (!TryGetRestaurantDayOutcome(out GameOverReason reason) ||
             reason == GameOverReason.EarthSaved)
             return false;
@@ -728,6 +738,7 @@ public class GameFlowManager : MonoBehaviour
 
     private void StartEndlessRestaurantDay()
     {
+        if (MultiplayerRestaurantBridge.IsActive) currentDay++;
         Time.timeScale = 1f;
         PrepareRestaurantDay();
         restaurantSessionState = RestaurantSessionState.Endless;
@@ -744,8 +755,9 @@ public class GameFlowManager : MonoBehaviour
 
     private void PrepareRestaurantDay()
     {
+        if (MultiplayerRestaurantBridge.IsObserver) return;
         financeSettledDay = -1;
-        currentDay = Mathf.Clamp(currentDay, 1, campaignDayLimit);
+        currentDay = MultiplayerRestaurantBridge.IsActive ? Mathf.Max(1, currentDay) : Mathf.Clamp(currentDay, 1, campaignDayLimit);
         currentPhase = GamePhase.Restaurant;
         currentDayHalf = DayHalf.None;
         lobbyCompleted = false;
@@ -759,7 +771,7 @@ public class GameFlowManager : MonoBehaviour
         AlienApprovalManager.Instance?.BeginNewDay();
         FinanceManager.Instance?.ResetDailyExpenses();
         EmployeeManager.Instance?.ResetDailyAssignments();
-        ShiftScaler.Instance?.ApplyScaling(currentDay);
+        ShiftScaler.Instance?.ApplyScaling(ProgressionDay);
 
         int maxGroupsThisDay = ShiftScaler.Instance != null
             ? ShiftScaler.Instance.CurrentGroupCount
@@ -770,10 +782,10 @@ public class GameFlowManager : MonoBehaviour
         else
             DailyObjectiveManager.Instance?.ResetForNewDay();
 
-        EquipmentManager.Instance?.UnlockByDay(currentDay);
+        EquipmentManager.Instance?.UnlockByDay(ProgressionDay);
         EquipmentShopManager shop = FindFirstObjectByType<EquipmentShopManager>();
         shop?.InitializeShop();
-        RecipeManager.Instance?.UnlockByDay(currentDay);
+        RecipeManager.Instance?.UnlockByDay(ProgressionDay);
 
         CasualDiningPolishManager.EnsureInstance()?.PrepareDay(currentDay, campaignCompleted);
 
@@ -782,6 +794,13 @@ public class GameFlowManager : MonoBehaviour
 
     private void LoadRestaurantScene()
     {
+        if (MultiplayerRestaurantBridge.IsActive)
+        {
+            GameDayManager.Instance?.PrepareNextMultiplayerDay();
+            MultiplayerRestaurantBridge.Active?.ResetDay();
+            MultiplayerSessionManager.Instance?.ReachDay(currentDay);
+            return;
+        }
         if (string.IsNullOrWhiteSpace(restaurantSceneName))
         {
             Debug.LogError("[GameFlowManager] Single Restaurant Flow has no restaurant scene assigned.");
@@ -804,5 +823,26 @@ public class GameFlowManager : MonoBehaviour
         ConfigureSingleRestaurantFlow(source.restaurantSceneName);
         campaignDayLimit = source.campaignDayLimit;
         campaignApprovalTarget = source.campaignApprovalTarget;
+    }
+
+    public void PrepareFreshMultiplayerRun()
+    {
+        if (!MultiplayerSessionManager.Instance.IsAuthority) return;
+        currentDay = 1;
+        campaignCompleted = false;
+        DailyObjectiveManager.Instance?.ResetForNewRun();
+        MultiplayerRestaurantBridge.Active.RunSystemAction(PrepareRestaurantDay);
+    }
+
+    public void ApplyMultiplayerState(int day, bool endless, RestaurantSessionState phase)
+    {
+        if (!MultiplayerRestaurantBridge.IsObserver) return;
+        bool changed = currentDay != day;
+        currentDay = Mathf.Max(1, day);
+        campaignCompleted = endless;
+        currentPhase = GamePhase.Restaurant;
+        currentDayHalf = DayHalf.None;
+        restaurantSessionState = phase;
+        if (changed) NotifyDayChanged();
     }
 }

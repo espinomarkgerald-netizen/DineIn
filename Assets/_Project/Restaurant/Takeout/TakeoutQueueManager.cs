@@ -47,6 +47,7 @@ public class TakeoutQueueManager : MonoBehaviour
 
     private void Update()
     {
+        if (MultiplayerRestaurantBridge.IsObserver) return;
         CleanupInvalidReferences();
         UpdateFrontArrival();
         UpdateQueuedArrival();

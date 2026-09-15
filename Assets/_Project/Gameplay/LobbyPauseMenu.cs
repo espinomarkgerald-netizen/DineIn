@@ -418,6 +418,8 @@ public sealed class LobbyPauseMenu : MonoBehaviour
 
     private void ReturnToGameMenu()
     {
+        if (MultiplayerSessionManager.Instance != null)
+        { MultiplayerSessionManager.Instance.LeaveToMenu(); return; }
         paused = false;
         Time.timeScale = 1f;
         GameSaveManager.Instance?.RestoreDayStartCheckpoint();

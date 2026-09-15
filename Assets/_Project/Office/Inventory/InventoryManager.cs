@@ -142,6 +142,48 @@ public class InventoryManager : MonoBehaviour
         return true;
     }
 
+    // Reviewed orders commit all their ingredients together. A rejected kitchen
+    // acceptance restores the original batches, including age and storage state.
+    public bool TryUseStockBatch(IReadOnlyDictionary<ItemType, int> requirements, Func<bool> commit)
+    {
+        if (MultiplayerRestockBridge.ObserveOnly || requirements == null || requirements.Count == 0)
+            return false;
+        foreach (var requirement in requirements)
+            if (requirement.Value <= 0 || GetStock(requirement.Key) < requirement.Value) return false;
+
+        var originalStocks = new Dictionary<ItemType, int>();
+        var originalBatches = new List<InventoryStockBatchSaveEntry>();
+        foreach (var requirement in requirements) originalStocks.Add(requirement.Key, GetStock(requirement.Key));
+        foreach (var batch in stockBatches)
+            if (batch != null && requirements.ContainsKey(batch.itemType)) originalBatches.Add(CloneBatch(batch));
+
+        bool accepted = false;
+        try
+        {
+            // No stock callback is raised during the provisional changes.
+            foreach (var requirement in requirements)
+            {
+                inventory[requirement.Key] -= requirement.Value;
+                ConsumeBatches(requirement.Key, requirement.Value);
+            }
+            accepted = commit == null || commit();
+        }
+        finally
+        {
+            if (!accepted)
+            {
+                foreach (var original in originalStocks) inventory[original.Key] = original.Value;
+                stockBatches.RemoveAll(batch => batch != null && requirements.ContainsKey(batch.itemType));
+                stockBatches.AddRange(originalBatches);
+            }
+            UpdateInspectorInventory();
+        }
+        if (!accepted) return false;
+        foreach (var requirement in requirements)
+            OnStockChanged?.Invoke(requirement.Key, inventory[requirement.Key]);
+        return true;
+    }
+
     public int GetStock(ItemType type)
     {
         return inventory.TryGetValue(type, out int stock) ? stock : 0;

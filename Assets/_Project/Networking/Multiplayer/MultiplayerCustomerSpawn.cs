@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.AI;
 
 // Network wrapper around the real group/members, not a second customer state machine.
-public class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiateMagicCallback, IPunObservable
+public partial class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiateMagicCallback, IPunObservable
 {
     [SerializeField] private CustomerGroup groupPrefab;
     [SerializeField] private CustomerAgent greenPrefab;
@@ -13,6 +13,7 @@ public class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiateMagicCa
     public bool ReadyForInteraction { get; private set; }
     private Vector3[] positions;
     private Quaternion[] rotations;
+    private MultiplayerPoseBuffer[] poseHistory;
     private bool receivedPose;
     private bool simulating;
     private LobbyLineManager interactionLine;
@@ -24,50 +25,13 @@ public class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiateMagicCa
     private static readonly int SittingParameter = Animator.StringToHash("IsSitting");
     private static readonly int SpeedParameter = Animator.StringToHash("Speed");
     private float nextSnapshot;
-    public enum BillStage { None, Printing, Printed, Carried, Complete }
+    public enum BillStage { None, Printing, Printed, Carried, Complete, PaymentAvailable, Paid }
     public BillStage CurrentBillStage { get; private set; }
     public int BillOwnerActor { get; private set; }
     private int billSnapshotOrder;
     private Vector3 billPosition;
     private Quaternion billRotation;
 
-    private void PublishBillState()
-    {
-        var claims = session.GetComponent<MultiplayerTaskClaims>();
-        BillOwnerActor = claims != null ? claims.GetOwner($"Customer:{photonView.ViewID}:Bill") : 0;
-        var manager = BillManager.Instance;
-        var paper = manager != null ? manager.FindBillForGroup(Group) : null;
-        BillPaper held = null;
-        if (BillOwnerActor > 0 && session.TryGetManager(BillOwnerActor, out var owner) && owner != null)
-        {
-            var hands = owner.GetComponent<WaiterHands>();
-            if (hands != null && hands.holdingBillFor == Group)
-                held = hands.GetComponentInChildren<BillPaper>(true);
-            if (held != null && !held.Matches(Group)) held = null;
-        }
-        CurrentBillStage = Group.MultiplayerPaymentComplete || Group.HasReceivedBill ? BillStage.Complete
-            : held != null ? BillStage.Carried : paper != null ? BillStage.Printed
-            : manager != null && manager.IsPrintingFor(Group) ? BillStage.Printing : BillStage.None;
-        billSnapshotOrder = Group.currentOrderNumber;
-        var visiblePaper = held != null ? held : paper;
-        billPosition = visiblePaper != null ? visiblePaper.transform.position : Vector3.zero;
-        billRotation = visiblePaper != null ? visiblePaper.transform.rotation : Quaternion.identity;
-        photonView.RPC(nameof(ReceiveBillState), RpcTarget.Others, billSnapshotOrder,
-            BillOwnerActor, (int)CurrentBillStage, billPosition, billRotation);
-    }
-
-    [PunRPC]
-    private void ReceiveBillState(int order, int owner, int stage, Vector3 position, Quaternion rotation, PhotonMessageInfo info)
-    {
-        if (simulating || session == null || !session.IsMultiplayerSession || Group == null
-            || info.Sender != PhotonNetwork.MasterClient || order != Group.currentOrderNumber
-            || owner < 0 || stage < 0 || stage > (int)BillStage.Complete) return;
-        billSnapshotOrder = order;
-        BillOwnerActor = owner;
-        CurrentBillStage = (BillStage)stage;
-        billPosition = position;
-        billRotation = rotation;
-    }
     private bool serviceStarted;
     private bool paidDepartureStarted, paidDepartureFinished, despawnRequested;
 
@@ -88,7 +52,6 @@ public class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiateMagicCa
             Group.PresentObservedEating(!eatingComplete && Group.state == CustomerGroup.GroupState.Eating);
     }
 
-    [PunRPC]
     private void ReceiveEating(double startedAt, float duration, bool complete, PhotonMessageInfo info)
     {
         if (simulating || session == null || !session.IsMultiplayerSession || Group == null
@@ -100,6 +63,8 @@ public class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiateMagicCa
         eatingComplete |= complete;
     }
     private CustomerGroup.GroupState phase;
+    public void PresentTakeoutPhase(int value)
+    { if (!simulating && Group != null && Group.IsTakeout) phase = (CustomerGroup.GroupState)value; }
     private Vector3 queueDestination;
     private float patience;
     private bool showPatience;
@@ -133,7 +98,7 @@ public class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiateMagicCa
     public bool CommitTrayPickup(int actor, WaiterHands hands)
     {
         if (!simulating || session == null || !session.IsAuthority || CarrierActorNumber != 0 || Group == null) return false;
-        var kitchen = FindFirstObjectByType<KitchenManager>();
+        var kitchen = MultiplayerWorldRegistry.Kitchen;
         if (kitchen == null || !kitchen.CarryPreparedTray(Group, hands)) return false;
         CarrierActorNumber = actor;
         PublishAssignment();
@@ -168,49 +133,19 @@ public class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiateMagicCa
         WaiterHands.SetAllColliders(tray.gameObject, true);
     }
 
-    [PunRPC]
-    private void ReceiveServed(int order, PhotonMessageInfo info)
-    {
-        if (session == null || !session.IsMultiplayerSession || simulating || Group == null
-            || !Group.IsNetworkObserver || info.Sender != PhotonNetwork.MasterClient
-            || phase != CustomerGroup.GroupState.Eating || !Group.HasConfirmedOrder
-            || Group.currentOrderNumber != order) return;
-        CarrierActorNumber = 0;
-        CarrierNeedsRecovery = false;
-        var kitchen = FindFirstObjectByType<KitchenManager>();
-        var drop = MultiplayerCustomerInteractionBridge.ServePoint(Group, out _, out _);
-        if (kitchen == null || drop == null) return;
-        var tray = kitchen.GetPreparedResult(order);
-        if (tray == null)
-        {
-            kitchen.PresentCarriedTray(Group, null);
-            tray = kitchen.GetPreparedResult(order);
-        }
-        if (tray == null) return;
-        // Presentation only: never invoke TryDeliverTrayTo or ReceiveFoodFromWaiter on observers.
-        foreach (var player in session.ConnectedPlayers)
-        {
-            if (!session.TryGetManager(player.ActorNumber, out var manager)) continue;
-            var hands = manager.GetComponent<WaiterHands>();
-            if (hands == null || hands.holdingTray != tray) continue;
-            tray.NetworkCarryLocked = false;
-            hands.ClearTray();
-            tray.NetworkCarryLocked = true;
-        }
-        tray.NetworkCarryLocked = true;
-        if (tray.transform.parent != drop) PlaceServedTray(tray, drop);
-        Group.PauseBeforeEating = true;
-        Group.PresentObservedServed(tray);
-    }
+
 
     private void PresentCarrier()
     {
-        if (CarrierActorNumber == 0 || Group == null || session == null || !session.IsMultiplayerSession) return;
+        if (CarrierActorNumber == 0 || Group == null || session == null || !session.IsConnected || session.Ended) return;
         bool found = session.TryGetManager(CarrierActorNumber, out var manager);
-        if (simulating && (!PhotonNetwork.CurrentRoom.Players.TryGetValue(CarrierActorNumber, out var player)
-            || player.IsInactive)) CarrierNeedsRecovery = true;
+        if (simulating && !session.ValidActor(CarrierActorNumber)) CarrierNeedsRecovery = true;
+        if (simulating && CarrierNeedsRecovery && MultiplayerWorldRegistry.Kitchen?.ReturnDisconnectedTray(Group) == true)
+        { CarrierActorNumber = 0; CarrierNeedsRecovery = false; PublishAssignment(); return; }
         var hands = found && !CarrierNeedsRecovery ? manager.GetComponent<WaiterHands>() : null;
-        FindFirstObjectByType<KitchenManager>()?.PresentCarriedTray(Group, hands);
+        if (hands != null && hands.holdingTray != null && hands.holdingTray.TargetGroup == Group
+            && hands.holdingTray.orderNumber == Group.currentOrderNumber) return;
+        MultiplayerWorldRegistry.Kitchen?.PresentCarriedTray(Group, hands);
     }
     public int ReviewActor { get; set; }
     private int generatedOrderNumber;
@@ -218,6 +153,7 @@ public class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiateMagicCa
 
     public void OnPhotonInstantiate(PhotonMessageInfo info)
     {
+        MultiplayerWorldRegistry.Track(this);
         session = MultiplayerSessionManager.Instance;
         // Authority must receive greet requests even before it interacts locally.
         if (session != null && session.GetComponent<MultiplayerCustomerInteractionBridge>() == null)
@@ -260,8 +196,10 @@ public class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiateMagicCa
         speeds = new float[size];
         playbackSpeeds = new float[size];
         sitting = new bool[size];
+        poseHistory = new MultiplayerPoseBuffer[size];
         for (int i = 0; i < size; i++)
         {
+            poseHistory[i] = new MultiplayerPoseBuffer();
             // Use the same Animator that CustomerAgent actually drives.
             animators[i] = Group.members[i].MovementAnimator;
             if (!simulating && animators[i] != null) animators[i].enabled = true;
@@ -295,6 +233,7 @@ public class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiateMagicCa
                 speeds[i] = (float)stream.ReceiveNext();
                 playbackSpeeds[i] = (float)stream.ReceiveNext();
                 sitting[i] = (bool)stream.ReceiveNext();
+                poseHistory[i].Add(info.SentServerTime, positions[i], rotations[i]);
             }
             receivedPose = true;
         }
@@ -302,7 +241,9 @@ public class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiateMagicCa
 
     private void Update()
     {
-        PresentCarrier();
+        if (simulating) PresentCarrier();
+        ApplyPendingServiceState();
+        Group?.ReconcileMultiplayerBubbles(this);
         if (Group != null && billSnapshotOrder == Group.currentOrderNumber && session != null && session.IsMultiplayerSession)
             session.GetComponent<MultiplayerCustomerInteractionBridge>()?.ProjectBillState(
                 this, CurrentBillStage, BillOwnerActor, billPosition, billRotation);
@@ -313,7 +254,7 @@ public class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiateMagicCa
             if (Group == null)
             {
                 ReadyForInteraction = false;
-                if ((!serviceStarted || paidDepartureFinished) && !despawnRequested)
+                if (!despawnRequested)
                 {
                     despawnRequested = true;
                     PhotonNetwork.Destroy(gameObject);
@@ -329,11 +270,6 @@ public class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiateMagicCa
             if (Group.state == CustomerGroup.GroupState.Eating && Group.PauseBeforeEating)
                 Group.ResumePausedEating();
             if (Group.MultiplayerEatingComplete) Group.ResumePausedNeedsBill();
-            if (Group.HasConfirmedOrder && Group.state == CustomerGroup.GroupState.OrderTaken)
-            {
-                var kitchen = FindFirstObjectByType<KitchenManager>();
-                if (kitchen != null && (kitchen.ResumePreparedSpawn(Group) || kitchen.ResumeAcceptedOrder(Group))) PublishAssignment();
-            }
             if (Group.IsPlayerReviewingOrder && session.GetComponent<MultiplayerTaskClaims>()
                 .GetOwner($"Customer:{photonView.ViewID}:Order") != ReviewActor)
             {
@@ -343,8 +279,9 @@ public class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiateMagicCa
             }
             if (Group.PauseAfterSeating && Group.state == CustomerGroup.GroupState.Seated)
                 Group.ResumePausedOrderReadiness();
-            if (generatedOrderJson == null && Group.state == CustomerGroup.GroupState.ReadyToOrder
-                && Group.GeneratePausedOrderOnce())
+            if (Group.state == CustomerGroup.GroupState.ReadyToOrder && Group.PauseAfterSeating) Group.GeneratePausedOrderOnce();
+            if (Group.currentOrderNumber >= 0 && Group.currentOrder != null && Group.currentOrder.lines.Count > 0
+                && (generatedOrderJson == null || generatedOrderNumber != Group.currentOrderNumber))
             {
                 generatedOrderJson = JsonUtility.ToJson(Group.currentOrder);
                 generatedOrderNumber = Group.currentOrderNumber;
@@ -356,26 +293,22 @@ public class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiateMagicCa
             if (Group.HasBeenAssigned && (Time.unscaledTime >= nextSnapshot || phase != Group.state))
             {
                 phase = Group.state;
-                nextSnapshot = Time.unscaledTime + 0.5f;
+                nextSnapshot = Time.unscaledTime + 0.1f;
                 PublishAssignment();
             }
             if (!serviceStarted && (Time.unscaledTime >= nextSnapshot || phase != Group.state))
             {
                 phase = Group.state;
-                nextSnapshot = Time.unscaledTime + 0.5f;
-                photonView.RPC(nameof(ReceiveQueue), RpcTarget.Others, (int)phase,
-                    Group.QueueDestination, Group.QueuePatience01, Group.QueuePatienceVisible, ReadyForInteraction,
-                    Group.hasBeenGreeted, Group.OutcomeThought, Group.OutcomeThoughtMood,
-                    Group.ObservedFinalResult, Group.ComplaintPending);
+                nextSnapshot = Time.unscaledTime + 0.1f;
+                PublishServiceState();
             }
         }
         if (simulating || !receivedPose || Group == null) return;
-        float blend = 1f - Mathf.Exp(-15f * Time.deltaTime);
         for (int i = 0; i < positions.Length; i++)
         {
             var member = Group.members[i].transform;
-            member.position = Vector3.Lerp(member.position, positions[i], blend);
-            member.rotation = Quaternion.Slerp(member.rotation, rotations[i], blend);
+            if (poseHistory[i].Read(PhotonNetwork.Time - 0.1d, out var position, out var rotation))
+                member.SetPositionAndRotation(position, rotation);
             if (animators[i] != null)
             {
                 animators[i].SetFloat(SpeedParameter, speeds[i]);
@@ -386,73 +319,25 @@ public class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiateMagicCa
         Group.PresentObservedQueue(phase, queueDestination, patience, showPatience);
     }
 
+    public void FinishClosing()
+    {
+        if (session == null || !session.IsAuthority) return;
+        Group?.FinishMultiplayerClosing();
+        PhotonNetwork.Destroy(gameObject);
+    }
+
     private static bool IsPreService(CustomerGroup.GroupState value) =>
         value == CustomerGroup.GroupState.Spawning || value == CustomerGroup.GroupState.WalkingToLobby
         || value == CustomerGroup.GroupState.Waiting || value == CustomerGroup.GroupState.AngryLeft
         || value == CustomerGroup.GroupState.UnhappyLeft || value == CustomerGroup.GroupState.Leaving;
 
-    public void PublishGreeted()
-    {
-        if (!simulating || session == null || !session.IsAuthority || Group == null) return;
-        photonView.RPC(nameof(ReceiveQueue), RpcTarget.Others, (int)Group.state,
-            Group.QueueDestination, Group.QueuePatience01, Group.QueuePatienceVisible, ReadyForInteraction,
-            Group.hasBeenGreeted, Group.OutcomeThought, Group.OutcomeThoughtMood,
-            Group.ObservedFinalResult, Group.ComplaintPending);
-    }
+    public void PublishGreeted() => PublishServiceState();
+    public void PublishAssignment() => PublishServiceState();
 
-    public void PublishAssignment()
-    {
-        if (!simulating || session == null || !session.IsAuthority || Group == null || Group.assignedBooth == null) return;
-        PublishBillState();
-        ReadyForInteraction = false;
-        photonView.RPC(nameof(ReceiveAssignment), RpcTarget.Others,
-            MultiplayerCustomerInteractionBridge.BoothIdentity(Group.assignedBooth), (int)Group.state,
-            Group.IsPlayerReviewingOrder, ReviewActor, Group.OutcomeThought, Group.OutcomeThoughtMood,
-            Group.ObservedFinalResult, Group.ComplaintPending, Group.MultiplayerPaymentComplete);
-        if (generatedOrderJson != null)
-            photonView.RPC(nameof(ReceiveGeneratedOrder), RpcTarget.Others,
-                generatedOrderJson, generatedOrderNumber, generatedLegacyChoices);
-        var kitchen = FindFirstObjectByType<KitchenManager>();
-        if (Group.HasConfirmedOrder && kitchen != null
-            && kitchen.TryGetForecast(Group.currentOrderNumber, out var forecast)
-            && forecast.Group == Group)
-            photonView.RPC(nameof(ReceiveKitchenEntry), RpcTarget.Others, forecast.OrderNumber,
-                forecast.StartedAt, forecast.PreparationDelaySeconds, forecast.CookDurationSeconds,
-                forecast.PredictedReadyAt, forecast.IsPaused, forecast.AwaitingSpawn, (int)forecast.State,
-                Time.time, PhotonNetwork.Time);
-        if (Group.HasConfirmedOrder && kitchen != null && kitchen.TryGetPreparedSlot(Group.currentOrderNumber, out int slot))
-            photonView.RPC(nameof(ReceivePreparedResult), RpcTarget.Others, Group.currentOrderNumber, slot);
-        if (Group.state == CustomerGroup.GroupState.Eating && Group.PauseBeforeEating)
-            photonView.RPC(nameof(ReceiveServed), RpcTarget.Others, Group.currentOrderNumber);
-        else if (CarrierActorNumber != 0)
-            photonView.RPC(nameof(ReceiveCarrier), RpcTarget.Others, Group.currentOrderNumber, CarrierActorNumber, CarrierNeedsRecovery);
-        if (Group.MultiplayerEatingStarted)
-            photonView.RPC(nameof(ReceiveEating), RpcTarget.Others, Group.MultiplayerEatingStartedAt,
-                Group.MultiplayerEatingDuration, Group.MultiplayerEatingComplete);
-    }
 
-    [PunRPC]
-    private void ReceiveCarrier(int order, int actor, bool needsRecovery, PhotonMessageInfo info)
-    {
-        if (session == null || !session.IsMultiplayerSession || simulating || Group == null
-            || info.Sender != PhotonNetwork.MasterClient || !HasGeneratedOrder || !Group.HasConfirmedOrder
-            || Group.currentOrderNumber != order || actor <= 0 || phase == CustomerGroup.GroupState.Eating) return;
-        CarrierActorNumber = actor;
-        CarrierNeedsRecovery = needsRecovery;
-        PresentCarrier();
-    }
 
-    [PunRPC]
-    private void ReceivePreparedResult(int orderNumber, int slot, PhotonMessageInfo info)
-    {
-        if (session == null || !session.IsMultiplayerSession || simulating || Group == null
-            || !Group.IsNetworkObserver || info.Sender != PhotonNetwork.MasterClient || !HasGeneratedOrder
-            || !Group.HasConfirmedOrder || Group.currentOrderNumber != orderNumber || CarrierActorNumber != 0
-            || phase == CustomerGroup.GroupState.Eating) return;
-        FindFirstObjectByType<KitchenManager>()?.PresentPreparedResult(Group, slot);
-    }
 
-    [PunRPC]
+
     private void ReceiveKitchenEntry(int orderNumber, float startedAt, float preparationDelay,
         float cookDuration, float predictedReadyAt, bool isPaused, bool awaitingSpawn, int state,
         float authorityNow, double sentAt, PhotonMessageInfo info)
@@ -461,7 +346,7 @@ public class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiateMagicCa
             || info.Sender != PhotonNetwork.MasterClient || Group == null || !Group.IsNetworkObserver
             || !HasGeneratedOrder || Group.state != CustomerGroup.GroupState.OrderTaken
             || !Group.HasConfirmedOrder || Group.currentOrderNumber != orderNumber) return;
-        var kitchen = FindFirstObjectByType<KitchenManager>();
+        var kitchen = MultiplayerWorldRegistry.Kitchen;
         // Translate the authority's Unity clock into this client's clock, including transit time.
         float clockOffset = Time.time - authorityNow
             - (float)System.Math.Max(0d, PhotonNetwork.Time - sentAt) * Time.timeScale;
@@ -470,18 +355,19 @@ public class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiateMagicCa
             isPaused, awaitingSpawn, (KitchenManager.ForecastState)state);
     }
 
-    [PunRPC]
     private void ReceiveGeneratedOrder(string json, int orderNumber, int[] legacyChoices, PhotonMessageInfo info)
     {
         if (session == null || !session.IsMultiplayerSession || simulating || Group == null
             || !Group.IsNetworkObserver || info.Sender != PhotonNetwork.MasterClient
-            || generatedOrderJson != null || string.IsNullOrEmpty(json)
+            || (generatedOrderJson != null && generatedOrderNumber == orderNumber) || string.IsNullOrEmpty(json)
             || legacyChoices == null || legacyChoices.Length != 4) return;
         var order = JsonUtility.FromJson<CustomerGroup.SimpleOrder>(json);
         if (order == null || order.lines == null || order.productIds == null || order.contents == null) return;
         // Preserve the authority's exact snapshot. Existing MenuCatalog ID lookups resolve assets
         // when needed; resolving here would replace authoritative prices with local prices.
         Group.currentOrder = order;
+        Group.ResetObservedOrder(orderNumber);
+        eatingStarted = false; eatingComplete = false;
         Group.currentOrderNumber = orderNumber;
         Group.chosenFood = (CustomerGroup.FoodType)legacyChoices[0];
         Group.chosenDrink = (CustomerGroup.DrinkType)legacyChoices[1];
@@ -494,7 +380,6 @@ public class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiateMagicCa
         MultiplayerCustomerInteractionBridge.ObserveReview(Group);
     }
 
-    [PunRPC]
     private void ReceiveAssignment(string boothId, int value, bool reviewing, int reviewActor,
         string thought, int mood, int result, bool complaintPending, bool paid, PhotonMessageInfo info)
     {
@@ -525,7 +410,8 @@ public class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiateMagicCa
 
     private void ApplyObservedConfirmation()
     {
-        if (simulating || Group == null || !Group.IsNetworkObserver || (phase != CustomerGroup.GroupState.OrderTaken && phase != CustomerGroup.GroupState.Eating)) return;
+        if (simulating || Group == null || !Group.IsNetworkObserver || (phase != CustomerGroup.GroupState.OrderTaken
+            && phase != CustomerGroup.GroupState.Eating && phase != CustomerGroup.GroupState.NeedsBill)) return;
         Group.ClearOrderBubble();
         Group.EndPlayerOrderReview();
         ReviewActor = 0;
@@ -534,7 +420,6 @@ public class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiateMagicCa
         Group.ConfirmOrder(Group.chosenFood, Group.chosenDrink);
     }
 
-    [PunRPC]
     private void ReceiveQueue(int value, Vector3 destination, float progress, bool visible, bool ready, bool greeted,
         string thought, int mood, int result, bool complaintPending, PhotonMessageInfo info)
     {

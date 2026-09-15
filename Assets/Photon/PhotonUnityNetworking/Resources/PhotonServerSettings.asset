@@ -51,6 +51,7 @@ MonoBehaviour:
   - ReceiveServed
   - ReceiveEating
   - ReceiveBillState
+  - ReceiveServiceState
   DisableAutoOpenWizard: 1
   ShowSettings: 0
   DevRegionSetOnce: 1

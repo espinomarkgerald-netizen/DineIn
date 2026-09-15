@@ -12,9 +12,8 @@ public sealed class MultiplayerServiceStaffBridge : MonoBehaviour, IOnEventCallb
     private MultiplayerSessionManager session;
     private MultiplayerStaffRosterController roster;
     private readonly GameObject[] roots = new GameObject[4];
-    private readonly Animator[] animators = new Animator[4];
-    private readonly Vector3[] positions = new Vector3[4];
-    private readonly Quaternion[] rotations = new Quaternion[4];
+    private readonly MultiplayerAnimatorState[] animators = new MultiplayerAnimatorState[4];
+    private readonly MultiplayerPoseBuffer[] poses = new MultiplayerPoseBuffer[4];
     private readonly bool[] received = new bool[4];
     private readonly bool[] visible = new bool[4];
     private float nextSend, nextReliable;
@@ -45,7 +44,8 @@ public sealed class MultiplayerServiceStaffBridge : MonoBehaviour, IOnEventCallb
         {
             var root = roots[i] = roster.GetStaffRoot((MultiplayerStaffRosterController.ServiceRole)i);
             if (root == null) continue;
-            animators[i] = root.GetComponentInChildren<Animator>(true);
+            animators[i] = new MultiplayerAnimatorState(root);
+            poses[i] = new MultiplayerPoseBuffer();
             // These scene prefabs also carry legacy human/PUN components.
             foreach (var setter in root.GetComponentsInChildren<PlayerNameTagSetter>(true)) setter.enabled = false;
             foreach (var customization in root.GetComponentsInChildren<ApplyCustomizationOnSpawn>(true)) customization.enabled = false;
@@ -95,7 +95,6 @@ public sealed class MultiplayerServiceStaffBridge : MonoBehaviour, IOnEventCallb
         {
             var root = roots[i];
             if (root == null) continue;
-            GuardControls(root);
             bool available = roster.IsRoleAvailableForAI((MultiplayerStaffRosterController.ServiceRole)i);
             if (!available) root.SetActive(false);
             else if (!session.IsAuthority)
@@ -103,12 +102,10 @@ public sealed class MultiplayerServiceStaffBridge : MonoBehaviour, IOnEventCallb
                 root.SetActive(received[i] && visible[i]);
                 if (received[i])
                 {
-                    float blend = 1f - Mathf.Exp(-20f * Time.unscaledDeltaTime);
-                    root.transform.position = Vector3.Lerp(root.transform.position, positions[i], blend);
-                    root.transform.rotation = Quaternion.Slerp(root.transform.rotation, rotations[i], blend);
+                    if (poses[i].Read(PhotonNetwork.Time - 0.1d, out var position, out var rotation))
+                        root.transform.SetPositionAndRotation(position, rotation);
                 }
             }
-            SetRoleName(i);
         }
         if (!session.IsAuthority || Time.unscaledTime < nextSend) return;
         nextSend = Time.unscaledTime + 0.1f;
@@ -121,26 +118,19 @@ public sealed class MultiplayerServiceStaffBridge : MonoBehaviour, IOnEventCallb
             if (root == null) continue;
             var animator = animators[i];
             states[i] = new object[] { i, root.activeInHierarchy, root.transform.position, root.transform.rotation,
-                Has(animator, Speed) ? animator.GetFloat(Speed) : 0f,
-                Has(animator, Moving) && animator.GetBool(Moving), Has(animator, Carrying) && animator.GetBool(Carrying) };
+                animator.Float(Speed), animator.Bool(Moving), animator.Bool(Carrying) };
         }
-        PhotonNetwork.RaiseEvent(StaffSnapshot, new object[] { ++sequence, states },
+        MultiplayerWire.Raise(StaffSnapshot, new object[] { ++sequence, states, PhotonNetwork.Time },
             new Photon.Realtime.RaiseEventOptions { Receivers = Photon.Realtime.ReceiverGroup.Others },
             reliable ? SendOptions.SendReliable : SendOptions.SendUnreliable);
     }
 
-    private static bool Has(Animator animator, int hash)
-    {
-        if (animator == null || animator.runtimeAnimatorController == null) return false;
-        foreach (var parameter in animator.parameters) if (parameter.nameHash == hash) return true;
-        return false;
-    }
-
     public void OnEvent(EventData data)
     {
+        if (!MultiplayerWire.TryRead(data, out var payload)) return;
         if (session == null || !session.IsMultiplayerSession || session.IsAuthority || data.Code != StaffSnapshot
-            || data.Sender != PhotonNetwork.MasterClient.ActorNumber || data.CustomData is not object[] packet
-            || packet.Length != 2 || packet[0] is not int tick || packet[1] is not object[] states) return;
+            || data.Sender != PhotonNetwork.MasterClient.ActorNumber || payload is not object[] packet
+            || packet.Length != 3 || packet[0] is not int tick || packet[1] is not object[] states || packet[2] is not double at) return;
         if (lastSender != data.Sender) { lastSender = data.Sender; lastSequence = -1; }
         if (tick <= lastSequence) return;
         lastSequence = tick;
@@ -151,14 +141,11 @@ public sealed class MultiplayerServiceStaffBridge : MonoBehaviour, IOnEventCallb
                 || state[4] is not float speed || state[5] is not bool moving || state[6] is not bool carrying
                 || roots[role] == null) continue;
             visible[role] = active && roster.IsRoleAvailableForAI((MultiplayerStaffRosterController.ServiceRole)role);
-            positions[role] = position;
-            rotations[role] = rotation;
+            poses[role].Add(at, position, rotation);
             if (!received[role]) roots[role].transform.SetPositionAndRotation(position, rotation);
             received[role] = true;
             var animator = animators[role];
-            if (Has(animator, Speed)) animator.SetFloat(Speed, speed);
-            if (Has(animator, Moving)) animator.SetBool(Moving, moving);
-            if (Has(animator, Carrying)) animator.SetBool(Carrying, carrying);
+            animator.Set(Speed, speed); animator.Set(Moving, moving); animator.Set(Carrying, carrying);
         }
     }
 }

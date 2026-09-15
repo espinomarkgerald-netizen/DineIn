@@ -638,6 +638,7 @@ public sealed class RestockOrderManager : MonoBehaviour
                 repairedLegacyRotations = true;
             }
             SceneManager.MoveGameObjectToScene(box, scene);
+            MultiplayerRestockView.Prepare(box);
             RestockStorageContainer identity = box.GetComponent<RestockStorageContainer>();
             if (identity == null)
                 identity = box.AddComponent<RestockStorageContainer>();

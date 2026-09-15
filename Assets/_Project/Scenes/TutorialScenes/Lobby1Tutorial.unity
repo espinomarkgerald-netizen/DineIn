@@ -6048,7 +6048,7 @@ MonoBehaviour:
     worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 227552211}
-    uiTargetKey:
+    uiTargetKey: 
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
@@ -7212,7 +7212,7 @@ MonoBehaviour:
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   debugStartEnabled: 1
-  debugStartPhase: 6
+  debugStartPhase: 0
   debugStepOffsetInPhase: 0
   debugStartGlobalStepIndex: -1
   debugResolvedGlobalStepIndex: -1

@@ -21,7 +21,7 @@ public class CustomerGreetBubbleSpawner : MonoBehaviour
         if (session == null || !session.IsMultiplayerSession) return;
 
         CustomerGroup visibleGroup = null;
-        foreach (var customer in FindObjectsByType<MultiplayerCustomerSpawn>(FindObjectsSortMode.None))
+        foreach (var customer in MultiplayerWorldRegistry.All<MultiplayerCustomerSpawn>())
         {
             if (customer.ReadyForInteraction && customer.Group != null && !customer.Group.HasBeenAssigned)
             {
@@ -45,7 +45,12 @@ public class CustomerGreetBubbleSpawner : MonoBehaviour
 
     public void Show(CustomerGroup group, Camera cam)
     {
-        Debug.Log("[CustomerGreetBubbleSpawner] Show called");
+        if (MultiplayerDayBridge.IsActive)
+        {
+            if (group == currentGroup && currentBubble != null)
+            { currentBubble.GetComponentInChildren<CustomerGreetBubbleUI>(true)?.Refresh(); return; }
+            if (group == null || group.GetComponentInParent<MultiplayerCustomerSpawn>()?.ReadyForInteraction != true) return;
+        }
 
         if (group == null)
         {
@@ -59,17 +64,18 @@ public class CustomerGreetBubbleSpawner : MonoBehaviour
             return;
         }
 
-        Hide();
+        Clear();
 
         currentGroup = group;
         currentCamera = cam;
         currentGroup.OnGroupLeftLine -= HandleCurrentGroupLeftLine;
         currentGroup.OnGroupLeftLine += HandleCurrentGroupLeftLine;
 
-        currentBubble = Instantiate(greetBubblePrefab);
+        var networkGroup = group.GetComponentInParent<MultiplayerCustomerSpawn>();
+        currentBubble = MultiplayerTaskPresentation.Acquire(greetBubblePrefab,
+            networkGroup != null ? $"Customer:{networkGroup.photonView.ViewID}:GreetSeat" : null);
         currentBubble.name = $"{group.name}_GreetBubble";
 
-        Debug.Log("[CustomerGreetBubbleSpawner] Bubble instantiated: " + currentBubble.name);
 
         RectTransform rect = currentBubble.GetComponent<RectTransform>();
         if (rect != null)
@@ -93,7 +99,6 @@ public class CustomerGreetBubbleSpawner : MonoBehaviour
                 10f,
                 -10,
                 10f);
-            Debug.Log("[CustomerGreetBubbleSpawner] UIFollowWorldPoint initialized");
         }
         else
         {
@@ -104,7 +109,8 @@ public class CustomerGreetBubbleSpawner : MonoBehaviour
         if (ui != null)
         {
             ui.Init(group);
-            Debug.Log("[CustomerGreetBubbleSpawner] CustomerGreetBubbleUI initialized");
+            var customer = group.GetComponentInParent<MultiplayerCustomerSpawn>();
+            if (customer != null) MultiplayerTaskPresentation.Bind(currentBubble, $"Customer:{customer.photonView.ViewID}:GreetSeat");
         }
         else
         {
@@ -121,6 +127,7 @@ public class CustomerGreetBubbleSpawner : MonoBehaviour
     public void SetVisibleAndRefresh(CustomerGroup group, bool visible)
     {
         if (group == null) return;
+        if (MultiplayerDayBridge.IsActive) { if (visible) Show(group, currentCamera); return; }
 
         if (currentBubble == null || currentGroup != group)
         {
@@ -142,12 +149,19 @@ public class CustomerGreetBubbleSpawner : MonoBehaviour
 
     public void Hide()
     {
+        if (MultiplayerDayBridge.IsActive && currentGroup != null && !currentGroup.HasBeenAssigned
+            && currentGroup.GetComponentInParent<MultiplayerCustomerSpawn>()?.ReadyForInteraction == true) return;
+        Clear();
+    }
+
+    private void Clear()
+    {
         if (currentGroup != null)
             currentGroup.OnGroupLeftLine -= HandleCurrentGroupLeftLine;
 
         if (currentBubble != null)
         {
-            Destroy(currentBubble);
+            MultiplayerTaskPresentation.DestroyBubble(currentBubble);
             currentBubble = null;
         }
 

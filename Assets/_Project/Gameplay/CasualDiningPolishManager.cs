@@ -181,6 +181,7 @@ public sealed class CasualDiningPolishManager : MonoBehaviour
 
     public void PrepareDay(int day, bool endless)
     {
+        if (MultiplayerRestaurantBridge.IsObserver) return;
         ResolveSettings();
         day = Mathf.Max(1, day);
         bool changed = false;
@@ -217,6 +218,7 @@ public sealed class CasualDiningPolishManager : MonoBehaviour
 
     public void FinalizeDay(int day)
     {
+        if (MultiplayerRestaurantBridge.IsObserver) return;
         if (day <= 0 || lastFinalizedDay == day)
             return;
 
@@ -336,6 +338,8 @@ public sealed class CasualDiningPolishManager : MonoBehaviour
 
     public void MarkCurrentIssueViewed()
     {
+        if (MultiplayerRestaurantBridge.IsActive && !MultiplayerRestaurantBridge.Committing)
+        { MultiplayerRestaurantBridge.Request("newspaper"); return; }
         int day = GameFlowManager.Instance != null
             ? GameFlowManager.Instance.CurrentDay
             : preparedDay;

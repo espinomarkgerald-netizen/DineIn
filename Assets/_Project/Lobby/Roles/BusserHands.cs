@@ -103,7 +103,7 @@ public class BusserHands : MonoBehaviour
 
     public bool PickupTray(FoodTray tray)
     {
-        if (MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer) return false;
+        if (MultiplayerRestaurantBridge.IsObserver) return false;
         if (tray == null)
         {
             Debug.LogWarning("[BusserHands] PickupTray failed: tray is null");

@@ -49,6 +49,18 @@ public class TakeoutFlowManager : MonoBehaviour
     public CustomerGroup ActiveGroup => activeGroup;
     public TakeoutPhase CurrentPhase => currentPhase;
 
+    public void PresentNetworkState(CustomerGroup group, int phase)
+    {
+        if (!MultiplayerRestaurantBridge.IsObserver) return;
+        activeGroup = group;
+        currentPhase = (TakeoutPhase)phase;
+    }
+
+    public void ResetMultiplayerDay()
+    {
+        if (MultiplayerDayBridge.IsActive) ClearRuntime();
+    }
+
     public void SetAutomatedService(bool enabled)
     {
         automatedService = enabled;
@@ -82,6 +94,7 @@ public class TakeoutFlowManager : MonoBehaviour
 
     private void Update()
     {
+        if (MultiplayerRestaurantBridge.IsObserver) return;
         SyncFrontCustomer();
         UpdatePhaseTimeout();
     }
@@ -116,6 +129,7 @@ public class TakeoutFlowManager : MonoBehaviour
 
     public void StartFrontOrderFlow()
     {
+        if (MultiplayerRestaurantBridge.IsObserver) return;
         if (activeGroup == null)
             return;
 
@@ -149,7 +163,7 @@ public class TakeoutFlowManager : MonoBehaviour
         SetPhase(TakeoutPhase.WaitingForPayment);
         onPaymentRequested?.Invoke();
 
-        if (!automatedService)
+        if (!automatedService && !MultiplayerServiceActions.IsActive)
             OpenCashierForTakeout(group);
 
         Debug.Log(automatedService
@@ -173,7 +187,7 @@ public class TakeoutFlowManager : MonoBehaviour
         ui.OpenForPayment(group, received, total);
     }
 
-    private static int GetPaymentDenomination(int total)
+    public static int GetPaymentDenomination(int total)
     {
         int[] denominations = { 1, 5, 10, 20, 50, 100, 200, 500, 1000 };
 
@@ -188,6 +202,7 @@ public class TakeoutFlowManager : MonoBehaviour
 
     public void NotifyPaymentCompleted(CustomerGroup group)
     {
+        if (MultiplayerRestaurantBridge.IsObserver) return;
         if (!IsActiveFront(group))
             return;
 

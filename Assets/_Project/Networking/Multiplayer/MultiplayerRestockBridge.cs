@@ -12,6 +12,8 @@ public sealed class MultiplayerRestockBridge : MonoBehaviourPunCallbacks, IOnEve
     private const string SnapshotKey = "Restaurant:Restock";
     [Serializable] private sealed class Request
     {
+        public string run;
+        public int day;
         public int sequence;
         public string operation, restaurant, shelf;
         public string[] items;
@@ -27,6 +29,8 @@ public sealed class MultiplayerRestockBridge : MonoBehaviourPunCallbacks, IOnEve
     }
     [Serializable] private sealed class Snapshot
     {
+        public string run;
+        public int economyRevision;
         public int revision, owner;
         public GameSaveData data = new GameSaveData();
         public List<Receipt> receipts = new List<Receipt>();
@@ -53,7 +57,7 @@ public sealed class MultiplayerRestockBridge : MonoBehaviourPunCallbacks, IOnEve
     private int sequence;
     private Request pending;
     private Action<bool, string> completion;
-    private float nextPublish, nextRetry;
+    private float nextPublish, nextRetry, requestUntil;
     private readonly HashSet<string> seenNotices = new HashSet<string>();
 
     public static bool IsActive => MultiplayerSessionManager.Instance != null
@@ -89,7 +93,12 @@ public sealed class MultiplayerRestockBridge : MonoBehaviourPunCallbacks, IOnEve
 
     private void Update()
     {
-        if (!IsActive || !MultiplayerProgressionContext.Ready) return;
+        if (pending != null && (!session.CanAct || pending.day != GameFlowManager.Instance.CurrentDay || Time.unscaledTime > requestUntil))
+        {
+            pending = null; var callback = completion; completion = null;
+            callback?.Invoke(false, "Restock request ended. Check the shared stock before retrying.");
+        }
+        if (!IsActive || !session.IsConnected || session.Ended || !MultiplayerProgressionContext.Ready) return;
         if (!initialized)
         {
             initialized = true;
@@ -128,8 +137,11 @@ public sealed class MultiplayerRestockBridge : MonoBehaviourPunCallbacks, IOnEve
             return;
         }
         request.sequence = ++sequence;
+        request.run = session.RunId;
+        request.day = GameFlowManager.Instance.CurrentDay;
         request.restaurant = Storage?.RestaurantID;
         pending = request;
+        requestUntil = Time.unscaledTime + 10f;
         completion = done;
         SendPending();
     }
@@ -144,7 +156,7 @@ public sealed class MultiplayerRestockBridge : MonoBehaviourPunCallbacks, IOnEve
 
     public void OnEvent(EventData ev)
     {
-        if (!IsActive || !initialized || !(ev.CustomData is string json) || json.Length > 131072) return;
+        if (!IsActive || !session.IsConnected || session.Ended || !initialized || !(ev.CustomData is string json) || json.Length > 131072) return;
         if (ev.Code == RequestEvent && session.IsAuthority)
         {
             if (json.Length > 16384) return;
@@ -157,7 +169,8 @@ public sealed class MultiplayerRestockBridge : MonoBehaviourPunCallbacks, IOnEve
 
     private void HandleRequest(int actor, Request request)
     {
-        if (request == null || request.sequence <= 0 || !session.IsAuthority || !MultiplayerProgressionContext.Ready) return;
+        if (request == null || request.sequence <= 0 || !session.IsAuthority || !MultiplayerProgressionContext.Ready
+            || request.run != session.RunId || request.day != GameFlowManager.Instance.CurrentDay || !session.ValidActor(actor)) return;
         if (!PhotonNetwork.CurrentRoom.Players.TryGetValue(actor, out var player) || player.IsInactive
             || !session.TryGetManager(actor, out var manager) || !manager.activeInHierarchy) return;
         Receipt previous = state.receipts.Find(r => r.actor == actor);
@@ -294,7 +307,7 @@ public sealed class MultiplayerRestockBridge : MonoBehaviourPunCallbacks, IOnEve
                 if (ingredient?.item == item) day = Math.Min(day, Math.Max(1, product.dayToUnlock));
         }
         if (day == int.MaxValue) day = Math.Max(1, item.dayToUnlock);
-        return day <= MultiplayerProgressionContext.CurrentDay
+        return day <= GameFlowManager.Instance.ProgressionDay
             || (UnlockManager.Instance != null && UnlockManager.Instance.IsIngredientUnlocked(item));
     }
 
@@ -310,15 +323,17 @@ public sealed class MultiplayerRestockBridge : MonoBehaviourPunCallbacks, IOnEve
     {
         nextPublish = Time.unscaledTime + 0.5f;
         var data = new GameSaveData { currentDay = MultiplayerProgressionContext.CurrentDay };
-        InventoryManager.Instance?.FillSaveData(data);
+
         RestockOrderManager.Instance?.FillSaveData(data);
-        data.money = MoneyManager.Instance != null ? MoneyManager.Instance.Money : 0;
+        MultiplayerRestaurantBridge.Active?.Publish();
         // Notice acknowledgement is local UI state, never another player's acknowledgement.
         foreach (var order in data.restockOrders) order.deliveryNoticeShown = false;
         state.data = data;
+        state.run = session.RunId;
         string json = JsonUtility.ToJson(state);
         if (json == published) return;
         state.revision++;
+        state.economyRevision = MultiplayerRestaurantBridge.Active.NextRevision();
         published = JsonUtility.ToJson(state);
         PhotonNetwork.CurrentRoom.SetCustomProperties(new Hashtable { [SnapshotKey] = published });
         RefreshViewIfChanged();
@@ -355,7 +370,7 @@ public sealed class MultiplayerRestockBridge : MonoBehaviourPunCallbacks, IOnEve
     {
         if (string.IsNullOrEmpty(json)) return;
         Snapshot incoming = JsonUtility.FromJson<Snapshot>(json);
-        if (incoming?.data == null || incoming.revision <= state.revision) return;
+        if (incoming?.data == null || incoming.run != session.RunId || incoming.revision <= state.revision) return;
         foreach (var order in RestockOrderManager.Instance.Orders)
             if (order.deliveryNoticeShown) seenNotices.Add(order.orderID);
         foreach (var order in incoming.data.restockOrders)
@@ -363,8 +378,7 @@ public sealed class MultiplayerRestockBridge : MonoBehaviourPunCallbacks, IOnEve
         state = incoming;
         var ownReceipt = state.receipts.Find(r => r.actor == session.LocalActorNumber);
         if (ownReceipt != null) sequence = Math.Max(sequence, ownReceipt.sequence);
-        InventoryManager.Instance.ApplySaveData(state.data);
-        MoneyManager.Instance?.ApplyMultiplayerRestockBalance(state.data.money);
+
         string ledger = LedgerSignature();
         if (ledger != displayedLedger)
             RestockOrderManager.Instance.ApplyMultiplayerSnapshot(state.data);

@@ -71,6 +71,46 @@ public class AutonomousStaffBot : MonoBehaviour
     private static readonly int HappyIdleStateHash = Animator.StringToHash("Base Layer.Happy Idle");
 
     public bool IsBusy => activeTask != null;
+    public long JobGeneration { get; private set; }
+    public bool JobCommitted { get; private set; }
+    public bool HasCommittedItem
+    {
+        get
+        {
+            var hands = GetComponent<WaiterHands>();
+            var busser = GetComponent<BusserHands>();
+            return carrying || (hands != null && (hands.HasTray || hands.HasBill || hands.HasMoney || hands.HasTicket))
+                || (busser != null && busser.holdingTray != null);
+        }
+    }
+    public UnityEngine.Object ApproachingTarget { get; private set; }
+    private int approachGeneration;
+    public void SetApproachingTarget(UnityEngine.Object target) => ApproachingTarget = target;
+    public void CancelApproachReservation(UnityEngine.Object target)
+    {
+        if (ApproachingTarget != target) return;
+        approachGeneration++;
+        LastMoveSucceeded = false;
+        StopAgent();
+        ApproachingTarget = null;
+    }
+
+    public bool TryYieldJob(long generation)
+    {
+        if (!MultiplayerDayBridge.IsActive || generation != JobGeneration || !IsBusy || JobCommitted) return false;
+        if (HasCommittedItem || usingTrolley) return false;
+        // Explicit cleanup is required: stopping a Unity coroutine is not a promise
+        // that all nested iterator finally blocks will execute.
+        StopCoroutine(activeTask);
+        approachGeneration++;
+        activeTask = null;
+        StopAgent();
+        RestaurantTaskClaim.ReleaseJob(this, generation);
+        JobGeneration++;
+        ApproachingTarget = null;
+        CurrentState = StaffState.IdleAtHome;
+        return true;
+    }
     public bool LastMoveSucceeded { get; private set; }
     public StaffState CurrentState { get; private set; } = StaffState.IdleAtHome;
     public float BaseMovementSpeed => baseAgentSpeed;
@@ -80,6 +120,7 @@ public class AutonomousStaffBot : MonoBehaviour
 
     private void Awake()
     {
+        MultiplayerWorldRegistry.Track(this);
         fallbackHomePosition = transform.position;
         fallbackHomeRotation = transform.rotation;
         agent = GetComponent<NavMeshAgent>();
@@ -148,6 +189,9 @@ public class AutonomousStaffBot : MonoBehaviour
 
     private void OnDisable()
     {
+        approachGeneration++;
+        RestaurantTaskClaim.ReleaseJob(this, JobGeneration);
+        ApproachingTarget = null;
         if (activeTask != null)
         {
             StopCoroutine(activeTask);
@@ -186,6 +230,14 @@ public class AutonomousStaffBot : MonoBehaviour
         }
     }
 
+    public void ResetMultiplayerDay()
+    {
+        if (!MultiplayerDayBridge.IsActive) return;
+        OnDisable();
+        if (agent != null && agent.enabled && agent.isOnNavMesh) agent.Warp(fallbackHomePosition);
+        transform.rotation = fallbackHomeRotation;
+    }
+
     public void ConfigurePerformance(EmployeeData employee)
     {
         if (employee == null)
@@ -216,6 +268,8 @@ public class AutonomousStaffBot : MonoBehaviour
             return;
 
         StopHappyIdle();
+        JobGeneration++;
+        JobCommitted = false;
         activeTask = StartCoroutine(RunTask(task));
     }
 
@@ -338,6 +392,7 @@ public class AutonomousStaffBot : MonoBehaviour
 
     public IEnumerator WorkFor(float seconds)
     {
+        JobCommitted = true;
         CurrentState = StaffState.Working;
 
         float variance = Mathf.Max(0f, seconds) * workTimeVariance;
@@ -357,14 +412,16 @@ public class AutonomousStaffBot : MonoBehaviour
         float acceptedDistanceOverride = -1f,
         float maxTravelSecondsOverride = -1f)
     {
+        int movementGeneration = approachGeneration;
         LastMoveSucceeded = false;
 
         if (agent == null)
             yield break;
 
         float navMeshWaitStarted = Time.time;
-        while (!agent.isOnNavMesh && Time.time - navMeshWaitStarted < navMeshReadyTimeout)
+        while (!agent.isOnNavMesh && movementGeneration == approachGeneration && Time.time - navMeshWaitStarted < navMeshReadyTimeout)
             yield return null;
+        if (movementGeneration != approachGeneration) yield break;
 
         if (!agent.isOnNavMesh)
         {
@@ -423,7 +480,7 @@ public class AutonomousStaffBot : MonoBehaviour
         bool sampledPointIsValidInteraction = !isInteractionMove ||
             sampledToRequested.magnitude <= acceptedDistance;
 
-        while (agent.isOnNavMesh)
+        while (agent.isOnNavMesh && movementGeneration == approachGeneration)
         {
             Vector3 resolvedOffset = destination - transform.position;
             resolvedOffset.y = 0f;
@@ -465,7 +522,7 @@ public class AutonomousStaffBot : MonoBehaviour
         }
 
         StopAgent();
-        LastMoveSucceeded = arrived;
+        LastMoveSucceeded = arrived && movementGeneration == approachGeneration;
     }
 
     private IEnumerator FaceRotation(Quaternion targetRotation)
@@ -617,6 +674,8 @@ public class AutonomousStaffBot : MonoBehaviour
             yield return new WaitForSeconds(reactionDelay);
 
         yield return task;
+        RestaurantTaskClaim.ReleaseJob(this, JobGeneration);
+        ApproachingTarget = null;
         yield return ReturnHome();
         activeTask = null;
     }

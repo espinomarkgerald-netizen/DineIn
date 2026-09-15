@@ -77,6 +77,7 @@ public class CashierRegisterUI : MonoBehaviour
     private CustomerGroup activeGroup;
     private bool isOpen;
     private bool buttonsBound;
+    private bool initialized;
 
     private RectTransform compactFoodRoot;
     private RectTransform compactDrinkRoot;
@@ -121,20 +122,31 @@ public class CashierRegisterUI : MonoBehaviour
         }
     }
 
-    private void Awake()
+    public static CashierRegisterUI ResolveInstance()
     {
+        var register = Instance != null ? Instance : FindFirstObjectByType<CashierRegisterUI>(FindObjectsInactive.Include);
+        return register != null && register.Initialize() ? register : null;
+    }
+
+    private void Awake() => Initialize();
+
+    private bool Initialize()
+    {
+        if (initialized) return Instance == this;
         if (Instance != null && Instance != this)
         {
             Destroy(gameObject);
-            return;
+            return false;
         }
 
         Instance = this;
+        initialized = true;
 
         ResolveRoot();
         BindButtons();
         ResetDisplay();
         HideImmediate();
+        return true;
     }
 
     private void LateUpdate()
@@ -234,6 +246,7 @@ public class CashierRegisterUI : MonoBehaviour
 
     public void Show()
     {
+        if (!Initialize()) return;
         ResolveRoot();
 
         if (root != null)
@@ -342,6 +355,7 @@ public class CashierRegisterUI : MonoBehaviour
 
     public void OpenForPayment(CustomerGroup group, int received, int total)
     {
+        if (!Initialize()) return;
         activeGroup = group;
         receivedAmount = Mathf.Max(0, received);
         totalAmount = Mathf.Max(0, total);
@@ -369,7 +383,10 @@ public class CashierRegisterUI : MonoBehaviour
         // If this session was opened (a group was present) but never successfully confirmed,
         // it counts as a cash-handling error — the waiter abandoned the transaction.
         if (activeGroup != null && !sessionConfirmed)
-            GameDayManager.Instance?.RegisterCashError();
+        {
+            if (MultiplayerServiceActions.IsActive) MultiplayerServiceActions.Send("payment_cancel", activeGroup);
+            else GameDayManager.Instance?.RegisterCashError();
+        }
 
         activeGroup = null;
         receivedAmount = 0;
@@ -402,7 +419,11 @@ public class CashierRegisterUI : MonoBehaviour
 
     private void Confirm()
     {
-        if (MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer) return;
+        if (MultiplayerServiceActions.IsActive)
+        {
+            if (IsOpen) MultiplayerServiceActions.Send("cash_confirm", activeGroup, inputChangeAmount);
+            return;
+        }
         if (!IsOpen)
             return;
 
@@ -457,8 +478,9 @@ public class CashierRegisterUI : MonoBehaviour
     /// </summary>
     public bool CompleteAutomatedPayment(CustomerGroup group)
     {
+        if (!Initialize()) return false;
         bool multiplayer = MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer;
-        if (multiplayer && (!MultiplayerCustomerInteractionBridge.CanSettleBill(group)
+        if (multiplayer && (!MultiplayerSessionManager.Instance.IsAuthority
             || DailyFinanceBridge.Instance == null || MoneyManager.Instance == null)) return false;
         if (group == null)
             return false;
@@ -485,19 +507,15 @@ public class CashierRegisterUI : MonoBehaviour
         GameDayManager.Instance?.RefreshRevenueUI();
         GameDayManager.Instance?.RegisterPaymentCompleted();
 
-        if (multiplayer)
-        {
-            group.FinishMultiplayerSettlement();
-            return true;
-        }
-
         if (activeGroup == group)
         {
             sessionConfirmed = true;
             CloseRegister();
         }
 
-        if (group.IsTakeout)
+        if (multiplayer)
+            group.FinishMultiplayerSettlement();
+        else if (group.IsTakeout)
             takeoutFlow.NotifyPaymentCompleted(group);
         else
             group.PayAndLeave();
@@ -511,6 +529,13 @@ public class CashierRegisterUI : MonoBehaviour
             return 0;
 
         return group.GetCurrentOrderTotal();
+    }
+
+    public void CloseNetworkPayment(CustomerGroup group)
+    {
+        if (activeGroup != group) return;
+        sessionConfirmed = true;
+        CloseRegister();
     }
 
     private void RefreshOrderDisplay()

@@ -53,13 +53,14 @@ public class TakeoutCustomerInteractable : MonoBehaviour, IInteractable
     /// </summary>
     public bool CanInteract()
     {
+        if (MultiplayerServiceActions.IsActive) return MultiplayerServiceActions.CanUseTakeout(group);
         if (group == null || !group.IsTakeout)
             return false;
 
         if (!TakeoutBagInteractable.PlayerHasHeldBag)
             return false;
 
-        return TakeoutBagInteractable.HeldBag.TargetGroup == group;
+        return TakeoutBagInteractable.LocalHeldBag.TargetGroup == group;
     }
 
     /// <summary>
@@ -68,10 +69,11 @@ public class TakeoutCustomerInteractable : MonoBehaviour, IInteractable
     /// </summary>
     public void Interact(PlayerMovement mover)
     {
+        if (MultiplayerServiceActions.IsActive) { MultiplayerServiceActions.UseTakeout(group); return; }
         if (!CanInteract())
             return;
 
-        TakeoutBagInteractable.HeldBag.TryDeliverTo(group);
+        TakeoutBagInteractable.LocalHeldBag.TryDeliverTo(group);
     }
 
     public float GetInteractRadius()

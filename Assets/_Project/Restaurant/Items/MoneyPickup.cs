@@ -17,9 +17,11 @@ public class MoneyPickup : MonoBehaviour, IInteractable, ICancelableTaskTarget
     private MoneyBubbleUI bubbleUI;
     private bool isPickedUp;
     private float paymentCreatedAt;
+    private int orderNumber;
 
     public CustomerGroup TargetGroup => targetGroup;
     public int Amount => amount;
+    public int OrderNumber => orderNumber;
     public int OrderTotal => isCardPayment
         ? Mathf.Max(0, amount)
         : targetGroup != null ? targetGroup.GetCurrentOrderTotal() : 0;
@@ -27,6 +29,7 @@ public class MoneyPickup : MonoBehaviour, IInteractable, ICancelableTaskTarget
     public bool IsPickedUp => isPickedUp;
     public bool IsAvailableForCollection =>
         !isPickedUp && targetGroup != null && amount > 0 &&
+        (!MultiplayerServiceActions.IsActive || orderNumber == targetGroup.currentOrderNumber && !targetGroup.MultiplayerPaymentComplete) &&
         targetGroup.state == CustomerGroup.GroupState.NeedsBill;
     public bool IsAvailableForBotCollection => IsAvailableForCollection &&
         (!isCardPayment || Time.time >= paymentCreatedAt + GetCardPlayerPrioritySeconds());
@@ -36,6 +39,7 @@ public class MoneyPickup : MonoBehaviour, IInteractable, ICancelableTaskTarget
 
     private void Awake()
     {
+        MultiplayerWorldRegistry.Track(this);
         cachedCol = GetComponentInChildren<Collider>(true);
     }
 
@@ -47,6 +51,7 @@ public class MoneyPickup : MonoBehaviour, IInteractable, ICancelableTaskTarget
         bool cardPayment = false)
     {
         targetGroup = group;
+        orderNumber = group != null ? group.currentOrderNumber : 0;
         amount = moneyAmount;
         standPoint = useStandPoint;
         bubbleUI = ui;
@@ -71,18 +76,32 @@ public class MoneyPickup : MonoBehaviour, IInteractable, ICancelableTaskTarget
 
     public void NotifyPickedUp()
     {
-        if (isPickedUp)
-            return;
+        PresentPickedUp(true);
+    }
 
-        isPickedUp = true;
+    public void PresentPickedUp(bool pickedUp)
+    {
+        isPickedUp = pickedUp;
+        WaiterHands.SetAllColliders(gameObject, !pickedUp);
+        if (cachedCol != null) cachedCol.enabled = !pickedUp || !disableColliderWhileHeld;
+        if (pickedUp)
+        {
+            bubbleUI?.RemoveBubble();
+            bubbleUI = null;
+        }
+    }
 
-        if (disableColliderWhileHeld && cachedCol != null)
-            cachedCol.enabled = false;
-
-        if (bubbleUI != null)
-            bubbleUI.RemoveBubble();
-
-        bubbleUI = null;
+    // Used by authority recovery and guest projection. Keep the same payment
+    // object, amount and order identity when its holder releases it.
+    public bool PresentAtPickup()
+    {
+        var anchor = targetGroup != null ? targetGroup.assignedBooth?.GetComponent<BoothMoneySpawner>()?.MoneySpawnPoint : null;
+        if (anchor == null) return false;
+        GetComponentInParent<WaiterHands>(true)?.DetachMoneyPickup(this);
+        transform.SetParent(anchor, true);
+        transform.SetPositionAndRotation(anchor.position, anchor.rotation);
+        PresentPickedUp(false);
+        return true;
     }
 
     public float GetInteractRadius()
@@ -92,6 +111,7 @@ public class MoneyPickup : MonoBehaviour, IInteractable, ICancelableTaskTarget
 
     public bool CanInteract()
     {
+        if (MultiplayerServiceActions.IsActive) return MultiplayerServiceActions.CanCollect(this);
         if (RoleManager.Instance == null) return false;
         if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Waiter)) return false;
         if (!IsAvailableForCollection) return false;
@@ -103,6 +123,7 @@ public class MoneyPickup : MonoBehaviour, IInteractable, ICancelableTaskTarget
 
     public void Interact(PlayerMovement mover)
     {
+        if (MultiplayerServiceActions.IsActive) { MultiplayerServiceActions.Approach(isCardPayment ? "card_open" : "money_pickup", targetGroup, StandPoint, interactRadius); return; }
         if (isCardPayment)
         {
             UI_RequestCardPayment();
@@ -115,6 +136,7 @@ public class MoneyPickup : MonoBehaviour, IInteractable, ICancelableTaskTarget
 
     public void UI_RequestPickup()
     {
+        if (MultiplayerServiceActions.IsActive) { MultiplayerServiceActions.Approach("money_pickup", targetGroup, StandPoint, interactRadius); return; }
         if (!TutorialCustomerFlowBridge.AllowsServiceUI("PaymentPickupButton")) return;
         if (RoleManager.Instance == null) return;
 
@@ -151,6 +173,7 @@ public class MoneyPickup : MonoBehaviour, IInteractable, ICancelableTaskTarget
 
     public void UI_RequestCardPayment()
     {
+        if (MultiplayerServiceActions.IsActive) { MultiplayerServiceActions.Approach("card_open", targetGroup, StandPoint, interactRadius); return; }
         if (!TutorialCustomerFlowBridge.AllowsServiceUI("PaymentPickupButton")) return;
         if (!isCardPayment || !IsAvailableForCollection)
             return;
@@ -182,6 +205,7 @@ public class MoneyPickup : MonoBehaviour, IInteractable, ICancelableTaskTarget
 
     public void CancelCardPaymentUI()
     {
+        if (MultiplayerServiceActions.IsActive) { MultiplayerServiceActions.Send("payment_cancel", targetGroup); return; }
         if (!isCardPayment || isPickedUp)
             return;
 
@@ -191,6 +215,7 @@ public class MoneyPickup : MonoBehaviour, IInteractable, ICancelableTaskTarget
 
     public bool CompleteCardPayment()
     {
+        if (MultiplayerServiceActions.IsActive) return MultiplayerServiceActions.Send("card_confirm", targetGroup);
         if (!isCardPayment || isPickedUp || !IsAvailableForCollection)
             return false;
 
@@ -212,6 +237,7 @@ public class MoneyPickup : MonoBehaviour, IInteractable, ICancelableTaskTarget
 
     public bool TryPickup(PlayerMovement mover = null)
     {
+        if (MultiplayerServiceActions.IsActive) return MultiplayerServiceActions.Send("money_pickup", targetGroup);
         if (RestaurantTaskClaim.IsClaimedByBot(this))
         {
             WarningSlideUI.Instance?.Show("The waiter is already collecting this payment.");
@@ -274,7 +300,11 @@ public class MoneyPickup : MonoBehaviour, IInteractable, ICancelableTaskTarget
 
     private void OnDestroy()
     {
-        RestaurantTaskClaim.Complete(this);
+        // Unity is already tearing down this transform. Clear the holder's
+        // reference without trying to move the dying object out of its parent.
+        GetComponentInParent<WaiterHands>(true)?.DetachMoneyPickup(this, reparent: false);
+        if (!MultiplayerServiceActions.IsActive || MultiplayerSessionManager.Instance.IsAuthority)
+            RestaurantTaskClaim.Complete(this);
         if (bubbleUI != null)
             bubbleUI.RemoveBubble();
     }

@@ -70,6 +70,7 @@ public class EmployeeManager : MonoBehaviour
 
     public void GenerateEmployees()
     {
+        if (MultiplayerRestaurantBridge.IsObserver) return;
         if (generator == null)
         {
             Debug.LogError("EmployeeManager: generator not assigned!");
@@ -104,6 +105,7 @@ public class EmployeeManager : MonoBehaviour
 
     public void EnsureEmployeesGenerated()
     {
+        if (MultiplayerRestaurantBridge.IsObserver) return;
         if (allEmployees == null)
             allEmployees = new List<EmployeeData>();
         if (allEmployees.Count == 0 && !applicantPoolsInitialized)
@@ -129,6 +131,8 @@ public class EmployeeManager : MonoBehaviour
     /// <summary>Assigns one employee to their role for the coming shift.</summary>
     public bool AssignEmployeeForDay(EmployeeData employee)
     {
+        if (MultiplayerRestaurantBridge.IsActive && !MultiplayerRestaurantBridge.Committing)
+            return employee != null && MultiplayerRestaurantBridge.Request("assign", employee.EmployeeID);
         if (employee == null || !employee.hired || SlotsLocked || !EmployeeRoleCatalog.IsSupported(employee.role))
             return false;
 
@@ -147,6 +151,8 @@ public class EmployeeManager : MonoBehaviour
 
     public bool HireApplicant(EmployeeData employee)
     {
+        if (MultiplayerRestaurantBridge.IsActive && !MultiplayerRestaurantBridge.Committing)
+            return employee != null && MultiplayerRestaurantBridge.Request("hire", employee.EmployeeID);
         if (employee == null || employee.hired || SlotsLocked ||
             !EmployeeRoleCatalog.IsSupported(employee.role) ||
             GetHiredCount(employee.role) >= maxHiredPerRole)
@@ -163,6 +169,8 @@ public class EmployeeManager : MonoBehaviour
 
     public bool FireEmployee(EmployeeData employee)
     {
+        if (MultiplayerRestaurantBridge.IsActive && !MultiplayerRestaurantBridge.Committing)
+            return employee != null && MultiplayerRestaurantBridge.Request("fire", employee.EmployeeID);
         if (employee == null || !employee.hired || SlotsLocked)
             return false;
 
@@ -185,6 +193,8 @@ public class EmployeeManager : MonoBehaviour
 
     public bool DeclineApplicant(EmployeeData employee)
     {
+        if (MultiplayerRestaurantBridge.IsActive && !MultiplayerRestaurantBridge.Committing)
+            return employee != null && MultiplayerRestaurantBridge.Request("decline", employee.EmployeeID);
         if (employee == null || employee.hired || SlotsLocked)
             return false;
 
@@ -210,6 +220,8 @@ public class EmployeeManager : MonoBehaviour
 
     public bool UnassignEmployeeForDay(EmployeeData employee)
     {
+        if (MultiplayerRestaurantBridge.IsActive && !MultiplayerRestaurantBridge.Committing)
+            return employee != null && MultiplayerRestaurantBridge.Request("unassign", employee.EmployeeID);
         if (employee == null || SlotsLocked)
             return false;
 
@@ -396,6 +408,8 @@ public class EmployeeManager : MonoBehaviour
 
     public void AssignEmployee(EmployeeData employee, RoleSlot slot)
     {
+        if (MultiplayerRestaurantBridge.IsActive && !MultiplayerRestaurantBridge.Committing)
+        { if (employee != null) MultiplayerRestaurantBridge.Request("assign", employee.EmployeeID); return; }
         if (employee.role != slot.roleType)
         {
             Debug.Log("Role mismatch");
@@ -451,12 +465,19 @@ public class EmployeeManager : MonoBehaviour
         AssignmentsChanged?.Invoke();
     }
 
+    public void ApplyMultiplayerSlotLock(bool locked)
+    {
+        if (!MultiplayerRestaurantBridge.IsObserver) return;
+        SlotsLocked = locked;
+    }
+
     /// <summary>
     /// Removes pointless daily setup when a role has only one possible worker.
     /// Roles with multiple hires remain a real management choice.
     /// </summary>
     public void AutoAssignSoleHires()
     {
+        if (MultiplayerRestaurantBridge.IsObserver) return;
         foreach (EmployeeRole role in EmployeeRoleCatalog.LobbyRoles)
             AutoAssignSoleHire(role);
         foreach (EmployeeRole role in EmployeeRoleCatalog.KitchenRoles)
@@ -506,6 +527,7 @@ public class EmployeeManager : MonoBehaviour
 
     public void RefreshApplicantsIfDue(int currentDay, int refreshIntervalDays)
     {
+        if (MultiplayerRestaurantBridge.IsObserver) return;
         currentDay = Mathf.Max(1, currentDay);
         refreshIntervalDays = Mathf.Max(1, refreshIntervalDays);
         if (allEmployees == null || generator == null)
@@ -552,6 +574,7 @@ public class EmployeeManager : MonoBehaviour
         DailyRestaurantSnapshotSaveData snapshot,
         CasualDiningPolishSettings settings)
     {
+        if (MultiplayerRestaurantBridge.IsObserver) return;
         if (snapshot == null || settings == null || allEmployees == null)
             return;
 

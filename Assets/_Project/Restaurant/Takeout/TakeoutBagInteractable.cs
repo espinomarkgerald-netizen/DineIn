@@ -5,6 +5,13 @@ using UnityEngine.UI;
 public class TakeoutBagInteractable : MonoBehaviour
 {
     public static TakeoutBagInteractable HeldBag { get; private set; }
+    public int NetworkOwner { get; private set; }
+    public static TakeoutBagInteractable LocalHeldBag => MultiplayerServiceActions.IsActive
+        ? MultiplayerServiceActions.Active?.LocalBag : HeldBag;
+    private Vector3 pickupPosition;
+    private Quaternion pickupRotation;
+    public Vector3 PickupPosition => pickupPosition;
+    public Quaternion PickupRotation => pickupRotation;
 
     [Header("Interaction")]
     [SerializeField] private Collider clickCollider;
@@ -29,10 +36,11 @@ public class TakeoutBagInteractable : MonoBehaviour
     public int OrderNumber => orderNumber;
     public List<string> DeliveredContents => new(deliveredContents);
     public static bool HasHeldBag => HeldBag != null;
-    public static bool PlayerHasHeldBag => HeldBag != null && HeldBag.heldByPlayer;
+    public static bool PlayerHasHeldBag => LocalHeldBag != null && LocalHeldBag.heldByPlayer;
 
     private void Awake()
     {
+        MultiplayerWorldRegistry.Track(this);
         if (clickCollider == null)
             clickCollider = GetComponent<Collider>();
 
@@ -56,6 +64,8 @@ public class TakeoutBagInteractable : MonoBehaviour
     /// </summary>
     public void Init(CustomerGroup group)
     {
+        pickupPosition = transform.position;
+        pickupRotation = transform.rotation;
         targetGroup = group;
         orderNumber = group != null ? group.currentOrderNumber : -1;
 
@@ -73,6 +83,7 @@ public class TakeoutBagInteractable : MonoBehaviour
     /// <summary>Picks up the bag and attaches it to the waiter's hold point.</summary>
     public void TryPickup()
     {
+        if (MultiplayerServiceActions.IsActive) { MultiplayerServiceActions.Approach("bag_pickup", targetGroup, transform, 1.4f); return; }
         WaiterHands hands = WaiterHands.ActivePlayerHands;
         if (hands == null)
             return;
@@ -132,6 +143,8 @@ public class TakeoutBagInteractable : MonoBehaviour
     /// </summary>
     public bool TryDeliverTo(CustomerGroup group)
     {
+        if (MultiplayerServiceActions.IsActive && NetworkOwner > 0)
+            return MultiplayerServiceActions.Send("bag_deliver", group);
         if (!isHeld || HeldBag != this)
             return false;
 
@@ -224,6 +237,47 @@ public class TakeoutBagInteractable : MonoBehaviour
         }
 
         ShowUI();
+    }
+
+    public bool NetworkPickup(WaiterHands hands, int actor)
+    {
+        if (!MultiplayerSessionManager.Instance.IsAuthority || isHeld || hands == null || actor <= 0
+            || hands.HasBill || hands.HasMoney || hands.HasTray || hands.HasTicket
+            || hands.GetComponent<BusserHands>()?.HasTray == true
+            || RestaurantTaskClaim.IsClaimedByBot(this)) return false;
+        PresentNetworkOwner(hands, actor, pickupPosition, pickupRotation);
+        return true;
+    }
+
+    public void PresentNetworkOwner(WaiterHands hands, int actor, Vector3 position, Quaternion rotation)
+    {
+        pickupPosition = position; pickupRotation = rotation;
+        NetworkOwner = actor;
+        isHeld = hands != null;
+        heldByPlayer = actor > 0;
+        if (isHeld)
+        {
+            WaiterHands.AttachKeepingWorldScale(transform, hands.TrayHoldPoint, holdLocalPosition, Quaternion.Euler(holdLocalEulerAngles));
+            WaiterHands.SetAllColliders(gameObject, false);
+            HideUI();
+        }
+        else
+        {
+            transform.SetParent(null, true);
+            transform.SetPositionAndRotation(position, rotation);
+            WaiterHands.SetAllColliders(gameObject, true);
+        }
+        targetGroup?.SetDeliveryHighlight(actor > 0 && actor == MultiplayerSessionManager.Instance.LocalActorNumber);
+    }
+
+    public bool NetworkDeliver(CustomerGroup group, int actor)
+    {
+        if (!MultiplayerSessionManager.Instance.IsAuthority || NetworkOwner != actor || !isHeld
+            || group != targetGroup || !group.ReceiveTakeoutBagFromWaiter(deliveredContents)) return false;
+        NetworkOwner = 0; isHeld = false; heldByPlayer = false;
+        ClearDeliveryHighlight();
+        Destroy(gameObject);
+        return true;
     }
 
     public void SetClaimedByStaff(bool claimed)

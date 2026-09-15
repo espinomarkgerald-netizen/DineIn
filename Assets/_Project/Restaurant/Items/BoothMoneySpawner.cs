@@ -63,4 +63,9 @@ public class BoothMoneySpawner : MonoBehaviour
             spawned = null;
         }
     }
+
+    public void ForgetObservedMoney(MoneyPickup expected)
+    {
+        if (spawned == expected) spawned = null;
+    }
 }

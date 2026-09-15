@@ -31,6 +31,7 @@ public class KitchenWorkerBot : MonoBehaviour
 
     private void Awake()
     {
+        MultiplayerWorldRegistry.Track(this);
         staffBot = GetComponent<AutonomousStaffBot>();
         if (staffBot == null)
             staffBot = gameObject.AddComponent<AutonomousStaffBot>();
@@ -59,6 +60,7 @@ public class KitchenWorkerBot : MonoBehaviour
 
     private void Update()
     {
+        if (MultiplayerRestaurantBridge.IsObserver) return;
         if (activeOrders.Count == 0 || staffBot == null || staffBot.IsBusy)
             return;
 

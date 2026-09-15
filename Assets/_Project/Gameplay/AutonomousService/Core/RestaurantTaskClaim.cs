@@ -18,9 +18,11 @@ public static class RestaurantTaskClaim
         public Object target;
         public string multiplayerTaskId;
         public int claimedFrame;
+        public long jobGeneration;
     }
 
     private static readonly Dictionary<int, Entry> Entries = new Dictionary<int, Entry>();
+    private static readonly List<int> expiredTargets = new();
     private static int activePlayerTargetId;
     private static UnityEngine.Object activePlayerTarget;
 
@@ -89,6 +91,7 @@ public static class RestaurantTaskClaim
         entry.botOwner = botOwner;
         entry.multiplayerTaskId = MultiplayerActive ? GetMultiplayerTaskId(target) : null;
         entry.claimedFrame = Time.frameCount;
+        entry.jobGeneration = botOwner.JobGeneration + (botOwner.IsBusy ? 0 : 1);
         return true;
     }
 
@@ -151,12 +154,13 @@ public static class RestaurantTaskClaim
         }
     }
 
-    public static void ReleaseBot(Object target, AutonomousStaffBot botOwner)
+    public static void ReleaseBot(Object target, AutonomousStaffBot botOwner, long expectedGeneration = -1)
     {
         if (target == null || botOwner == null)
             return;
 
-        if (Entries.TryGetValue(target.GetInstanceID(), out Entry entry) && entry.botOwner == botOwner)
+        if (Entries.TryGetValue(target.GetInstanceID(), out Entry entry) && entry.botOwner == botOwner
+            && (expectedGeneration < 0 || entry.jobGeneration == expectedGeneration))
         {
             entry.botOwner = null;
             entry.multiplayerTaskId = null;
@@ -193,9 +197,16 @@ public static class RestaurantTaskClaim
     private static bool MultiplayerActive => MultiplayerSessionManager.Instance != null
         && MultiplayerSessionManager.Instance.IsMultiplayerSession;
 
-    private static string GetMultiplayerTaskId(Object target)
+    public static string GetMultiplayerTaskId(Object target)
     {
         if (target is Booth booth) return booth.CleanupTaskId;
+        if (target is MoneyPickup money && money.TargetGroup != null)
+        {
+            var owner = money.TargetGroup.GetComponentInParent<MultiplayerCustomerSpawn>();
+            return owner != null ? $"Customer:{owner.photonView.ViewID}:Payment" : null;
+        }
+        if (target is FoodTray dirty && dirty.GetComponent<FoodTrayInteractable>()?.IsCleanupPickable == true)
+            return $"Order:{dirty.orderNumber}:Cleanup";
         if (target is FoodTray tray && tray.TargetGroup != null && !tray.TargetGroup.IsTakeout
             && tray.TargetGroup.state == CustomerGroup.GroupState.OrderTaken)
             return $"Order:{tray.orderNumber}:Pickup";
@@ -230,6 +241,7 @@ public static class RestaurantTaskClaim
         if (!MultiplayerActive) return true;
         var session = MultiplayerSessionManager.Instance;
         if (!session.IsAuthority) return false;
+        if (MultiplayerServiceActions.IsReserved(target)) return false;
         if (target is FoodTray tray && tray.NetworkCarryLocked) return false;
         string id = GetMultiplayerTaskId(target);
         var claims = session.GetComponent<MultiplayerTaskClaims>();
@@ -239,7 +251,8 @@ public static class RestaurantTaskClaim
     private static void RemoveInactiveMultiplayerOwner(Entry entry)
     {
         if (!MultiplayerActive || (IsEligibleServiceBot(entry.botOwner)
-            && (entry.claimedFrame == Time.frameCount || entry.botOwner.IsBusy))) return;
+            && entry.target != null && (entry.claimedFrame == Time.frameCount ||
+                (entry.botOwner.IsBusy && entry.botOwner.JobGeneration == entry.jobGeneration)))) return;
         entry.botOwner = null;
         entry.multiplayerTaskId = null;
         if (entry.target is CustomerGroup group) group.ReleaseBotReceptionTask();
@@ -257,6 +270,84 @@ public static class RestaurantTaskClaim
                 return true;
         }
         return false;
+    }
+
+    public static void ReleaseJob(AutonomousStaffBot bot, long generation)
+    {
+        if (!MultiplayerActive || bot == null) return;
+        foreach (Entry entry in Entries.Values)
+            if (entry.botOwner == bot && entry.jobGeneration == generation)
+            {
+                entry.botOwner = null;
+                entry.multiplayerTaskId = null;
+                if (entry.target is CustomerGroup group) group.ReleaseBotReceptionTask();
+                if (entry.target is FoodTray tray) tray.GetComponent<FoodTrayInteractable>()?.SetClaimedByStaff(false);
+            }
+    }
+
+    public static bool TryTakeOver(string taskId)
+    {
+        if (string.IsNullOrEmpty(taskId)) return false;
+        if (!MultiplayerActive || !MultiplayerSessionManager.Instance.IsAuthority) return false;
+        foreach (Entry entry in Entries.Values)
+        {
+            RemoveInactiveMultiplayerOwner(entry);
+            if (entry.botOwner == null || entry.multiplayerTaskId != taskId) continue;
+            var bot = entry.botOwner;
+            // An uncollected batch item can be yielded without disturbing the
+            // tray currently being approached or the trolley's loaded contents.
+            if (entry.target is FoodTray tray && !tray.NetworkCarryLocked
+                && tray.GetComponentInParent<BotTrolleyCarrier>() == null
+                && bot.ApproachingTarget != null)
+            {
+                ReleaseBot(tray, bot);
+                bot.CancelApproachReservation(tray);
+                tray.GetComponent<FoodTrayInteractable>()?.SetClaimedByStaff(false);
+                var booth = tray.GetComponentInParent<Booth>();
+                bool anotherTray = false;
+                if (booth != null)
+                {
+                    foreach (var other in Entries.Values)
+                        if (other.botOwner == bot && other.target is FoodTray held && held.GetComponentInParent<Booth>() == booth)
+                            anotherTray = true;
+                    if (!anotherTray) ReleaseBot(booth, bot, entry.jobGeneration);
+                }
+                return true;
+            }
+            return bot.TryYieldJob(entry.jobGeneration);
+        }
+        return true;
+    }
+
+    public static void CaptureBotClaims(List<MultiplayerTaskClaims.BotClaim> result)
+    {
+        result.Clear();
+        expiredTargets.Clear();
+        foreach (var entry in Entries) if (entry.Value.target == null) expiredTargets.Add(entry.Key);
+        foreach (int key in expiredTargets) Entries.Remove(key);
+        foreach (Entry entry in Entries.Values)
+        {
+            RemoveInactiveMultiplayerOwner(entry);
+            if (entry.botOwner == null || string.IsNullOrEmpty(entry.multiplayerTaskId)) continue;
+            var bot = entry.botOwner;
+            bool batchAvailable = entry.target is FoodTray tray && !tray.NetworkCarryLocked
+                && tray.GetComponentInParent<BotTrolleyCarrier>() == null
+                && bot.ApproachingTarget != null;
+            result.Add(new MultiplayerTaskClaims.BotClaim { task = entry.multiplayerTaskId,
+                owner = bot.name, generation = entry.jobGeneration, committed = (bot.JobCommitted || bot.HasCommittedItem) && !batchAvailable });
+        }
+        // A failed path can end a job while a bot still holds its bill for retry.
+        // The item remains committed during the gap before that retry is scheduled.
+        foreach (var bot in MultiplayerWorldRegistry.All<AutonomousStaffBot>())
+        {
+            if (!IsEligibleServiceBot(bot)) continue;
+            var hands = bot.GetComponent<WaiterHands>();
+            if (hands == null || !hands.HasBill || hands.holdingBillFor == null || hands.holdingBillFor.HasReceivedBill) continue;
+            string task = GetMultiplayerTaskId(hands.holdingBillFor);
+            if (!string.IsNullOrEmpty(task) && !result.Exists(c => c.task == task))
+                result.Add(new MultiplayerTaskClaims.BotClaim { task = task, owner = bot.name, generation = bot.JobGeneration, committed = true });
+        }
+        result.Sort((a, b) => string.CompareOrdinal(a.task, b.task));
     }
 
     private static void ValidateActivePlayerTarget()

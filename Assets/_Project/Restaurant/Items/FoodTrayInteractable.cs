@@ -54,13 +54,10 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
     {
         if (MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer)
         {
-            var manager = MultiplayerSessionManager.Instance.LocalManager;
-            var hands = manager != null ? manager.GetComponent<WaiterHands>() : null;
-            if (hands != null && !hands.HasTray && !hands.HasBill && !hands.HasTicket && !hands.HasMoney
-                && MultiplayerCustomerInteractionBridge.CanClaimPreparedTray(tray))
-                ShowUI();
-            else
-                HideUI();
+            if (MultiplayerSessionManager.Instance.IsAuthority) CheckCleanupState();
+            // Shared availability belongs to authoritative item/task state.
+            // Another human's occupied hands must not erase this task bubble.
+            RefreshUI();
             return;
         }
         CheckCleanupState();
@@ -117,6 +114,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
     public void SetClaimedByStaff(bool claimed)
     {
         claimedByStaff = claimed;
+        if (MultiplayerDayBridge.IsActive) { RefreshUI(); return; }
         if (claimed)
             HideUI();
         else if (!staffCarried)
@@ -183,6 +181,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
     public void MarkForComplaintRemoval()
     {
         complaintRemoval = true;
+        if (MultiplayerServiceActions.IsActive && tray != null) tray.NetworkCarryLocked = false;
         SetCleanupPickable(true);
     }
 
@@ -193,7 +192,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
     /// </summary>
     public bool TryBeginStaffPickup(AutonomousStaffBot owner, TrayMode expectedMode)
     {
-        if (mode == TrayMode.Cleanup && MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer) return false;
+        if (MultiplayerRestaurantBridge.IsObserver) return false;
         if (owner == null || tray == null || staffCarried || mode != expectedMode ||
             !RestaurantTaskClaim.IsClaimedByBot(tray, owner))
         {
@@ -253,7 +252,8 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
 
     public bool CanInteract()
     {
-        if (mode == TrayMode.Cleanup && MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer) return false;
+        if (mode == TrayMode.Cleanup && MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer)
+            return MultiplayerServiceActions.CanCollectDirtyTray(tray);
         if (MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer)
             return MultiplayerCustomerInteractionBridge.CanClaimPreparedTray(tray);
         if (mode == TrayMode.None) return false;
@@ -289,7 +289,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
         if (mode == TrayMode.Cleanup && MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer)
         {
             if (mover != null && mover.gameObject == MultiplayerSessionManager.Instance.LocalManager)
-                GetComponentInParent<Booth>()?.RequestHumanCleanup();
+                MultiplayerServiceActions.CollectDirtyTray(tray);
             return;
         }
         if (MultiplayerCustomerInteractionBridge.TryClaimPreparedTray(tray, mover)) return;
@@ -383,7 +383,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
     public void UI_RequestPickup()
     {
         if (mode == TrayMode.Cleanup && MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer)
-        { GetComponentInParent<Booth>()?.RequestHumanCleanup(); return; }
+        { MultiplayerServiceActions.CollectDirtyTray(tray); return; }
         if (MultiplayerCustomerInteractionBridge.TryClaimPreparedTray(tray)) return;
         if (!TutorialCustomerFlowBridge.AllowsServiceUI(
             CurrentMode == TrayMode.Cleanup ? "CleanupPickupButton" : "TrayPickupButton")) return;
@@ -522,6 +522,13 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
 
     private void RefreshUI()
     {
+        if (MultiplayerDayBridge.IsActive)
+        {
+            if (tray == null || tray.NetworkCarryLocked || staffCarried || mode == TrayMode.None) { HideUI(); return; }
+            ShowUI();
+            MultiplayerTaskPresentation.Bind(uiInstance, $"Order:{tray.orderNumber}:" + (mode == TrayMode.Delivery ? "Pickup" : "Cleanup"));
+            return;
+        }
         if (claimedByStaff || (tray != null && RestaurantTaskClaim.IsClaimedByBot(tray)))
         {
             HideUI();
@@ -589,7 +596,8 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
         if (pickupUiPrefab == null || uiAnchor == null) return;
         if (uiInstance != null) return;
 
-        uiInstance = Instantiate(pickupUiPrefab);
+        uiInstance = MultiplayerTaskPresentation.Acquire(pickupUiPrefab,
+            tray != null ? $"Order:{tray.orderNumber}:" + (mode == TrayMode.Delivery ? "Pickup" : "Cleanup") : null);
 
         var follow = uiInstance.GetComponentInChildren<UIFollowWorldPoint>(true);
         if (follow != null)
@@ -621,7 +629,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
     private void HideUI()
     {
         if (uiInstance != null)
-            Destroy(uiInstance);
+            MultiplayerTaskPresentation.DestroyBubble(uiInstance);
 
         uiInstance = null;
     }

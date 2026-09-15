@@ -30,10 +30,37 @@ public sealed class MultiplayerHUDBridge : MonoBehaviour
         var local = MultiplayerSessionManager.Instance.LocalManager;
         var movement = local != null ? local.GetComponent<PlayerMovement>() : null;
         var hands = local != null ? local.GetComponent<WaiterHands>() : null;
+        var busser = local != null ? local.GetComponent<BusserHands>() : null;
+        var bag = MultiplayerServiceActions.Active?.LocalBag;
         var target = movement != null ? movement.LockedTarget ?? movement.CurrentTarget : null;
         string action = "Choose a task";
         string detail = "Interact with a customer or the restaurant computer.";
-        if (hands != null && hands.HasTray)
+        if (!MultiplayerSessionManager.Instance.CanAct)
+        {
+            action = MultiplayerSessionManager.Instance.Ended ? "Run ended" : "Synchronizing restaurant";
+            detail = MultiplayerSessionManager.Instance.Status;
+        }
+        else if (busser != null && busser.HasTray)
+        {
+            action = "Wash the dirty tray";
+            detail = "Take the used tray to the sink.";
+        }
+        else if (bag != null)
+        {
+            action = "Deliver takeout";
+            detail = "Take the bag to its waiting customer.";
+        }
+        else if (hands != null && hands.HasMoney)
+        {
+            action = "Collect payment";
+            detail = "Take the money to the cashier and give the exact change.";
+        }
+        else if (hands != null && hands.HasBill)
+        {
+            action = "Deliver the bill";
+            detail = "Take the printed bill to its customer's table.";
+        }
+        else if (hands != null && hands.HasTray)
         {
             action = "Deliver order #" + hands.holdingTray.orderNumber;
             detail = "Take your tray to its customer's table.";
@@ -51,7 +78,7 @@ public sealed class MultiplayerHUDBridge : MonoBehaviour
         else if (GameDayManager.Instance != null && !GameDayManager.Instance.ServiceActive)
         {
             action = "Prepare the restaurant";
-            detail = "Any Player can request Start Day at the computer.";
+            detail = "Finish the checklist, mark Ready, then request Start Day at the computer.";
         }
         PlayerTaskGuidance.SetTask(TaskSource, action, action, detail, 10000,
             target as UnityEngine.Object, PlayerTaskCategory.Service);

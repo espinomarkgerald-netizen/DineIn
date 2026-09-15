@@ -205,7 +205,7 @@ public class GameDayManager : MonoBehaviour
         happyCustomers, neutralCustomers, angryCustomers, cashErrors, tipsEarned };
     public void ApplyMultiplayerReport(int[] values)
     {
-        if (!ObserveDayOnly || multiplayerDayEnded || values == null || values.Length != 7) return;
+        if (!ObserveDayOnly || values == null || values.Length != 7) return;
         ordersProcessed = values[0]; foodDelivered = values[1];
         happyCustomers = values[2]; neutralCustomers = values[3]; angryCustomers = values[4];
         cashErrors = values[5]; tipsEarned = values[6];
@@ -264,6 +264,7 @@ public class GameDayManager : MonoBehaviour
         }
 
         Instance = this;
+        if (MultiplayerDayBridge.IsActive) ObserveDayOnly = !MultiplayerSessionManager.Instance.IsAuthority;
 
         if (GetComponent<LobbyPauseMenu>() == null)
             gameObject.AddComponent<LobbyPauseMenu>();
@@ -638,7 +639,7 @@ public class GameDayManager : MonoBehaviour
         if (GameFlowManager.Instance == null || maxScalingDay <= 1)
             return;
 
-        int day = GameFlowManager.Instance.CurrentDay;
+        int day = GameFlowManager.Instance.ProgressionDay;
         float t = Mathf.Clamp01((float)(day - 1) / (maxScalingDay - 1));
 
         maxCustomersToSpawn = Mathf.RoundToInt(maxCustomersCurve.Evaluate(t));
@@ -680,7 +681,7 @@ public class GameDayManager : MonoBehaviour
     {
         float waited = 0f;
         while (FindObjectsByType<CustomerGroup>(FindObjectsSortMode.None).Length > 0 &&
-               (MultiplayerDayBridge.IsActive || waited < maxClosingGraceSeconds))
+               waited < maxClosingGraceSeconds)
         {
             if (ObserveDayOnly || (MultiplayerDayBridge.IsActive && !MultiplayerSessionManager.Instance.IsAuthority)) yield break;
             yield return new WaitForSeconds(1f);
@@ -690,6 +691,11 @@ public class GameDayManager : MonoBehaviour
         if (ObserveDayOnly || (MultiplayerDayBridge.IsActive && !MultiplayerSessionManager.Instance.IsAuthority)) yield break;
         closingOut = false;
         closingResultsRoutine = null;
+        if (MultiplayerDayBridge.IsActive)
+        {
+            foreach (var customer in FindObjectsByType<MultiplayerCustomerSpawn>(FindObjectsSortMode.None)) customer.FinishClosing();
+            yield return null;
+        }
         ShowResults();
     }
 
@@ -726,7 +732,13 @@ public class GameDayManager : MonoBehaviour
 
     public void OnResultsActionPressed()
     {
-        if (MultiplayerDayBridge.IsActive) return;
+        if (MultiplayerDayBridge.IsActive)
+        {
+            var session = MultiplayerSessionManager.Instance;
+            if (session.Ended) session.LeaveToMenu();
+            else MultiplayerDayBridge.TryRequestNextDay();
+            return;
+        }
         if (GameFlowManager.Instance != null && GameFlowManager.Instance.UsesSingleRestaurantFlow)
         {
             if (resultsHaveOutcome && currentResultsOutcome != GameOverReason.EarthSaved)
@@ -776,6 +788,38 @@ public class GameDayManager : MonoBehaviour
         rushAnnounced = false;
 
         SetupMoodBars(true);
+    }
+
+    public void PrepareNextMultiplayerDay()
+    {
+        if (!MultiplayerDayBridge.IsActive) return;
+        if (spawnRoutine != null) StopCoroutine(spawnRoutine);
+        if (closingResultsRoutine != null) StopCoroutine(closingResultsRoutine);
+        spawnRoutine = null; closingResultsRoutine = null;
+        shiftRunning = false; multiplayerDayEnded = false; resultsHaveOutcome = false;
+        continuePurchaseArmed = false;
+        SetPanelVisible(resultsPanel, false); SetPanelVisible(dayIntroPanel, false);
+        ResetShiftRuntime();
+        ApplyCurrentDayConfiguration();
+        timeRemaining = ShiftLengthSeconds;
+        MultiplayerSessionManager.Instance.GetComponent<MultiplayerTaskClaims>()?.ResetForNextDay();
+        MultiplayerServiceActions.Active?.ResetDay();
+        MultiplayerSessionManager.Instance.GetComponent<MultiplayerObjectBridge>()?.ResetObservedObjects();
+        TakeoutFlowManager.Instance?.ResetMultiplayerDay();
+        foreach (var bot in FindObjectsByType<AutonomousStaffBot>(FindObjectsInactive.Include, FindObjectsSortMode.None)) bot.ResetMultiplayerDay();
+        foreach (var trolley in FindObjectsByType<BotTrolleyCarrier>(FindObjectsInactive.Include, FindObjectsSortMode.None)) trolley.ResetMultiplayerDay();
+        foreach (var hands in FindObjectsByType<WaiterHands>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+        { hands.ClearTicket(); hands.ClearBill(); hands.ClearMoney(); if (hands.holdingTray != null) hands.holdingTray.NetworkCarryLocked = false; hands.ClearTray(); }
+        foreach (var hands in FindObjectsByType<BusserHands>(FindObjectsInactive.Include, FindObjectsSortMode.None)) hands.ClearTray();
+        foreach (var bag in FindObjectsByType<TakeoutBagInteractable>(FindObjectsInactive.Include, FindObjectsSortMode.None)) Destroy(bag.gameObject);
+        foreach (var money in FindObjectsByType<MoneyPickup>(FindObjectsInactive.Include, FindObjectsSortMode.None)) Destroy(money.gameObject);
+        FindFirstObjectByType<KitchenManager>()?.ResetMultiplayerDay();
+        BillManager.Instance?.ResetMultiplayerDay();
+        foreach (var paper in FindObjectsByType<BillPaper>(FindObjectsInactive.Include, FindObjectsSortMode.None)) Destroy(paper.gameObject);
+        foreach (var tray in FindObjectsByType<FoodTray>(FindObjectsInactive.Include, FindObjectsSortMode.None)) Destroy(tray.gameObject);
+        foreach (var booth in FindObjectsByType<Booth>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            booth.ResetForMultiplayerDay();
+        RefreshUI();
     }
 
     private IEnumerator SpawnCustomersRoutine()
@@ -971,14 +1015,14 @@ public class GameDayManager : MonoBehaviour
         GameFlowManager flow = GameFlowManager.Instance;
         bool singleRestaurantFlow = flow != null && flow.UsesSingleRestaurantFlow;
         int earnedStars = CalculateEarnedStars();
-        if (!multiplayer && singleRestaurantFlow)
+        if (singleRestaurantFlow && (!multiplayer || MultiplayerSessionManager.Instance.IsAuthority))
             flow.FinalizeRestaurantDayForResults(earnedStars);
         else if (!multiplayer)
             AlienApprovalManager.Instance?.RegisterDailyStarRating(
                 earnedStars,
                 flow != null ? flow.CurrentDay : 1);
 
-        resultsHaveOutcome = !multiplayer && singleRestaurantFlow &&
+        resultsHaveOutcome = singleRestaurantFlow &&
                              flow.TryGetRestaurantDayOutcome(out currentResultsOutcome);
         continuePurchaseArmed = false;
 
@@ -999,9 +1043,16 @@ public class GameDayManager : MonoBehaviour
         ConfigureResultsActions(singleRestaurantFlow);
         if (multiplayer)
         {
-            flow?.RestoreTemporaryRestaurantPhase(GameFlowManager.RestaurantSessionState.DayComplete);
-            if (resultsActionButton != null) resultsActionButton.gameObject.SetActive(false);
+            if (MultiplayerSessionManager.Instance.IsAuthority)
+                MultiplayerSessionManager.Instance.CompleteDay(flow.CurrentDay,
+                    resultsHaveOutcome && currentResultsOutcome != GameOverReason.EarthSaved ? currentResultsOutcome.ToString() : null);
+            if (resultsActionButton != null) resultsActionButton.gameObject.SetActive(true);
+            if (resultsActionButtonText != null) resultsActionButtonText.text =
+                MultiplayerSessionManager.Instance.Ended ? "RETURN TO MENU" : "NEXT DAY";
             if (resultsContinueButton != null) resultsContinueButton.gameObject.SetActive(false);
+            if (resultsHaveOutcome && currentResultsOutcome != GameOverReason.EarthSaved && resultsCashText != null)
+                resultsCashText.text = "<b>RUN RECORDED</b>\nThis session has ended. Start a fresh run from the multiplayer menu.";
+            MultiplayerSessionManager.Instance.GetComponent<MultiplayerDayBridge>()?.PublishNow();
         }
         RefreshResultsResponsiveLayout(true);
         PrepareResultStars(earnedStars);
@@ -1172,7 +1223,7 @@ public class GameDayManager : MonoBehaviour
             resultsActionButtonText.text = GetResultsActionLabel(singleRestaurantFlow);
 
         bool showPaidContinue = resultsHaveOutcome &&
-                                currentResultsOutcome != GameOverReason.EarthSaved;
+                                currentResultsOutcome != GameOverReason.EarthSaved && !MultiplayerDayBridge.IsActive;
         if (!showPaidContinue)
         {
             RestoreSingleResultsButtonLayout();
@@ -1673,6 +1724,7 @@ public class GameDayManager : MonoBehaviour
 
     private void OnContinueWithGoldCoinsPressed()
     {
+        if (MultiplayerDayBridge.IsActive) return;
         if (!resultsHaveOutcome || currentResultsOutcome == GameOverReason.EarthSaved)
             return;
 

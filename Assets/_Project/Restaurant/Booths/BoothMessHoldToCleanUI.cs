@@ -57,7 +57,7 @@ public class BoothMessCleanUI : MonoBehaviour, IPointerDownHandler, IPointerUpHa
     {
         if (booth == null)
             return;
-        if (MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer)
+        if (MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer && !automatedCleaning)
         {
             if (radialFill != null) radialFill.value = booth.HumanCleanupProgress;
             if (label != null) label.text = booth.HumanCleanupActive ? "Cleaning..." : "Clean";

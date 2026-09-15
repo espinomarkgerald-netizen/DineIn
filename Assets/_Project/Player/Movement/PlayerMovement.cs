@@ -124,7 +124,6 @@ public class PlayerMovement : MonoBehaviour
 
     private bool isPlayerControlled;
     private bool autoFinishTask;
-    private Vector2 lastPointerScreenPos;
 
     private bool taskLocked;
     private IInteractable lockedTarget;
@@ -235,7 +234,6 @@ public class PlayerMovement : MonoBehaviour
             float dist = Vector2.Distance(pressStartPos, (Vector2)Input.mousePosition);
             if (dist > tapThreshold) return;
 
-            lastPointerScreenPos = Input.mousePosition;
             TryClickInteractable(Input.mousePosition);
         }
     }
@@ -249,7 +247,8 @@ public class PlayerMovement : MonoBehaviour
         if (t.phase == TouchPhase.Began)
             pressStartPos = t.position;
 
-        if (t.phase == TouchPhase.Ended || t.phase == TouchPhase.Canceled)
+        // An OS-cancelled gesture is not a completed player command.
+        if (t.phase == TouchPhase.Ended)
         {
             if (TutorialSystem.IsTutorialMode && tutorialPressStartedOnUI) return;
             if (IsPointerOverUI(t.fingerId)) return;
@@ -257,7 +256,6 @@ public class PlayerMovement : MonoBehaviour
             float dist = Vector2.Distance(pressStartPos, t.position);
             if (dist > tapThreshold) return;
 
-            lastPointerScreenPos = t.position;
             TryClickInteractable(t.position);
         }
     }
@@ -655,8 +653,16 @@ public class PlayerMovement : MonoBehaviour
 
         if (taskLocked)
         {
-            onCancelled?.Invoke();
-            return false;
+            // An arrived interaction may chain to its next station. The previous
+            // target has already fired; cancelling it here would undo that action.
+            if (state != State.DoingJob || !interactFired)
+            {
+                onCancelled?.Invoke();
+                return false;
+            }
+            UnlockTask();
+            currentTarget = null;
+            currentStandPoint = null;
         }
 
         NotifyTaskCancelled();
@@ -822,9 +828,16 @@ public class PlayerMovement : MonoBehaviour
 
         ForceStopAgent();
 
-        if (!string.IsNullOrEmpty(warning) &&
+        if (CanShowMovementFeedback() && !string.IsNullOrEmpty(warning) &&
             !(TutorialSystem.IsTutorialMode && warning == "That task cannot be reached from here."))
             WarningSlideUI.Instance?.Show(warning);
+    }
+
+    private bool CanShowMovementFeedback()
+    {
+        if (!isPlayerControlled) return false;
+        var session = MultiplayerSessionManager.Instance;
+        return session == null || !session.IsMultiplayerSession || session.LocalManager == gameObject;
     }
 
     private float GetPlanarDistanceToCurrentTarget()
@@ -865,19 +878,15 @@ public class PlayerMovement : MonoBehaviour
 
     private void HandleHandsStateChanged(WaiterHands changedHands)
     {
-        var session = MultiplayerSessionManager.Instance;
-        if (session != null && session.IsMultiplayerSession &&
-            (session.LocalManager != gameObject || changedHands == null || changedHands.gameObject != gameObject))
+        // Item attachment and snapshot application are presentation updates.
+        // Replaying the previous pointer here used to start unrelated tasks,
+        // cancel movement, and display warnings with no new player input.
+        if (changedHands == null || changedHands.gameObject != gameObject || !isPlayerControlled)
             return;
-
-        if (!isPlayerControlled) return;
-        if (taskLocked) return;
-        TryRefreshInteractableNow();
-    }
-
-    private void TryRefreshInteractableNow()
-    {
-        TryClickInteractable(lastPointerScreenPos);
+        if (animator == null || string.IsNullOrEmpty(carryingBoolParam)) return;
+        var busserHands = GetComponent<BusserHands>();
+        animator.SetBool(carryingBoolParam,
+            changedHands.HasTray || (busserHands != null && busserHands.HasTray));
     }
 
     public void StopForRoleSwitch()

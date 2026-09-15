@@ -52,6 +52,8 @@ public sealed class MenuAvailabilityManager : MonoBehaviour
 
     public bool SetProductPrice(Recipe product, int price)
     {
+        if (MultiplayerRestaurantBridge.IsActive && !MultiplayerRestaurantBridge.Committing)
+            return product != null && MultiplayerRestaurantBridge.Request("price", product.ProductId, price);
         if (product == null || string.IsNullOrWhiteSpace(product.ProductId))
             return false;
 
@@ -94,6 +96,8 @@ public sealed class MenuAvailabilityManager : MonoBehaviour
 
     public bool SetProductAvailable(Recipe product, bool available)
     {
+        if (MultiplayerRestaurantBridge.IsActive && !MultiplayerRestaurantBridge.Committing)
+            return product != null && MultiplayerRestaurantBridge.Request("menu", product.ProductId, available ? 1 : 0);
         if (product == null || string.IsNullOrWhiteSpace(product.ProductId) || !product.availableOnMenu)
             return false;
 
