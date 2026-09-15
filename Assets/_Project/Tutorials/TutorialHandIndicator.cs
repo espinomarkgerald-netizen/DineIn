@@ -65,7 +65,17 @@ public sealed class TutorialHandIndicator : MonoBehaviour
     private void Awake() => Initialize();
 
     private void OnEnable() => Canvas.willRenderCanvases += LateUpdate;
-    private void OnDisable() => Canvas.willRenderCanvases -= LateUpdate;
+    private void OnDisable()
+    {
+        Canvas.willRenderCanvases -= LateUpdate;
+        HideHint();
+    }
+
+    private TutorialUIFocusMask liveMask;
+    private void OnDestroy()
+    {
+        if (hintRoot != null) Destroy(hintRoot.gameObject);
+    }
 
     private void Initialize()
     {
@@ -202,6 +212,14 @@ public sealed class TutorialHandIndicator : MonoBehaviour
     private void LateUpdate()
     {
         if (mode == HintMode.Hidden || !gameObject.activeSelf) return;
+        bool needsTarget = mode == HintMode.Tap || mode == HintMode.Typing || mode == HintMode.Drag || mode == HintMode.Hold;
+        if (needsTarget && (currentTarget == null || !currentTarget.gameObject.activeInHierarchy ||
+            !TryGetTargetCanvasPosition(currentTarget, out _)))
+        {
+            if (hintRoot != null) hintRoot.GetComponent<CanvasGroup>().alpha = 0f;
+            return;
+        }
+        if (hintRoot != null) hintRoot.GetComponent<CanvasGroup>().alpha = 1f;
         // Restock disables lobby canvases, including this detached overlay.
         // Restore only our own hint canvases while a tutorial hint is active.
         if (hintRoot != null) hintRoot.GetComponent<Canvas>().enabled = true;
@@ -321,6 +339,7 @@ public sealed class TutorialHandIndicator : MonoBehaviour
     private void Begin(HintMode nextMode, Transform target)
     {
         Initialize();
+        if (liveMask == null) liveMask = FindFirstObjectByType<TutorialUIFocusMask>(FindObjectsInactive.Include);
         mode = nextMode;
         currentTarget = target;
         cycleStartedAt = Time.unscaledTime;
@@ -546,10 +565,17 @@ public sealed class TutorialHandIndicator : MonoBehaviour
         canvasPosition = Vector2.zero;
         RectTransform canvasRect = hintRoot != null ? hintRoot :
             targetCanvas != null ? targetCanvas.transform as RectTransform : null;
-        if (target == null || canvasRect == null) return false;
+        if (target == null || !target.gameObject.activeInHierarchy || canvasRect == null) return false;
         Vector3 screen;
         if (target is RectTransform targetRect)
         {
+            if (liveMask != null && liveMask.CurrentTarget == targetRect)
+            {
+                if (!liveMask.TryGetFocusPoint(targetRect, out Vector2 focusPoint)) return false;
+                Canvas hintCanvas = hintRoot.GetComponent<Canvas>();
+                return RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, focusPoint,
+                    hintCanvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : hintCanvas.worldCamera, out canvasPosition);
+            }
             Canvas source = targetRect.GetComponentInParent<Canvas>();
             if (source != null) source = source.rootCanvas;
             Camera eventCamera = source == null || source.renderMode == RenderMode.ScreenSpaceOverlay ? null : source.worldCamera;

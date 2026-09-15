@@ -117,13 +117,18 @@ public sealed class TutorialCustomerFlowBridge : MonoBehaviour
     {
         TutorialCustomerFlowBridge owner = GuidedOwner;
         return owner == null || (owner.tutorial.IsWaitingForGameplayAction &&
-            owner.tutorial.CurrentStep?.UITargetKey == targetKey);
+            (owner.tutorial.CurrentStep?.UITargetKey == targetKey ||
+             targetKey == "OrderBubble" && owner.ResolveReopenTarget() != null));
     }
 
     private void Awake() { tutorial = GetComponent<TutorialSystem>(); day = GetComponent<TutorialDayContext>(); }
     private void OnEnable()
     {
-        if (tutorial != null) tutorial.SpawnPermissionsChanged += OnSpawnPermissionsChanged;
+        if (tutorial != null)
+        {
+            tutorial.SpawnPermissionsChanged += OnSpawnPermissionsChanged;
+            tutorial.StepCompleted += OnStepCompleted;
+        }
         CaptureAndSuppressNormalShiftSpawning();
         SuppressAutonomousService();
     }
@@ -131,7 +136,11 @@ public sealed class TutorialCustomerFlowBridge : MonoBehaviour
     {
         foreach (var visit in practiceGroups)
             if (visit.Key != null) visit.Key.ServiceOutcomeReported -= OnPracticeOutcome;
-        if (tutorial != null) tutorial.SpawnPermissionsChanged -= OnSpawnPermissionsChanged;
+        if (tutorial != null)
+        {
+            tutorial.SpawnPermissionsChanged -= OnSpawnPermissionsChanged;
+            tutorial.StepCompleted -= OnStepCompleted;
+        }
         foreach (var state in autonomous) if (state.service != null) state.service.enabled = state.enabled;
         autonomous.Clear();
         if (gameDay != null && originalMaxCustomers >= 0)
@@ -147,6 +156,8 @@ public sealed class TutorialCustomerFlowBridge : MonoBehaviour
         if (!customers || tutorial == null || tutorial.IsComplete) return;
         GroupSpawner.Instance?.SetAutoSpawn(false); spawnRequested = true;
     }
+
+    private void OnStepCompleted(TutorialSystem.TutorialStep _) => ClearObservedButton();
 
     private static readonly List<RaycastResult> tutorialPressHits = new();
     public static bool IsTutorialUIPress(Vector2 position, int pointerId)
@@ -182,8 +193,11 @@ public sealed class TutorialCustomerFlowBridge : MonoBehaviour
             return;
         }
         if (day == null) day = GetComponent<TutorialDayContext>();
-        if (tutorial.AllowCustomerSpawning && spawnRequested && group == null && GameDayManager.Instance != null &&
-            GameDayManager.Instance.ShiftRunning && GroupSpawner.Instance != null)
+        // Prepare just the guided group during the existing return/checklist
+        // dialogue. It uses the real spawn and line movement, with auto-spawn off.
+        bool preparingFirstCustomer = tutorial.CurrentPhase == TutorialSystem.TutorialPhase.ReturnToComputer;
+        if (group == null && (preparingFirstCustomer || tutorial.AllowCustomerSpawning && spawnRequested) &&
+            GameDayManager.Instance != null && (preparingFirstCustomer || GameDayManager.Instance.ShiftRunning) && GroupSpawner.Instance != null)
         {
             if (day != null && !day.PrepareCustomerMenu()) return;
             GroupSpawner.Instance.SetAutoSpawn(false); group = GroupSpawner.Instance.SpawnGroup();
@@ -209,6 +223,23 @@ public sealed class TutorialCustomerFlowBridge : MonoBehaviour
             if (cleanupTray != null) { cleanupTray.SetCleanupPickable(true); cleanupArmed = true; }
         }
         if (IsComplete(key)) tutorial.NotifyAction(key, group);
+    }
+
+    public bool TryCompleteCurrentAction()
+    {
+        if (tutorial == null || !tutorial.IsWaitingForGameplayAction || tutorial.CurrentStep == null) return false;
+        string key = tutorial.CurrentStep.ActionKey;
+        return !string.IsNullOrEmpty(key) && key.StartsWith("Customer.", StringComparison.Ordinal) &&
+            IsComplete(key) && tutorial.NotifyAction(key, group);
+    }
+
+    public RectTransform ResolveReopenTarget()
+    {
+        string key = tutorial?.CurrentStep?.ActionKey;
+        if (group == null || string.IsNullOrEmpty(key) || group.IsPlayerReviewingOrder) return null;
+        if (key.StartsWith("Customer.Notepad", StringComparison.Ordinal) || key == "Customer.OrderConfirmed")
+            return ResolveUI("OrderBubble");
+        return null;
     }
 
     private IEnumerator StartPracticeStaff()
@@ -274,6 +305,9 @@ public sealed class TutorialCustomerFlowBridge : MonoBehaviour
             practiceGroups.Remove(customer);
         int required = staffDemonstration ? 5 : 3;
         var boss = FindFirstObjectByType<TutorialDialogueUI>(FindObjectsInactive.Include);
+        // Lobby presentation intentionally suppresses nonblocking chatter. Such
+        // messages cannot be delivered, so they must not gate either real round.
+        if (boss == null || !boss.SupportsNonBlockingChatter) practicePraise.Clear();
         if (practicePraise.Count > 0 && boss != null)
         {
             // Choose only when displayed, so dropped/queued praise cannot cause repeats.
@@ -794,7 +828,12 @@ public sealed class TutorialCustomerFlowBridge : MonoBehaviour
         if (observedButton == null) return;
         observedButtonKey = key;
         observedButtonClicked = false;
-        observedButtonListener = () => observedButtonClicked = true;
+        TutorialSystem.TutorialStep expectedStep = tutorial.CurrentStep;
+        observedButtonListener = () =>
+        {
+            if (tutorial.CurrentStep == expectedStep && tutorial.IsWaitingForGameplayAction)
+                observedButtonClicked = true;
+        };
         observedButton.onClick.AddListener(observedButtonListener);
     }
 

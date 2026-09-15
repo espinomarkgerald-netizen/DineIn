@@ -17,6 +17,9 @@ internal static class TutorialPassRuntimeProbe
     private static string lastSnapshot;
     private static Action pendingAction;
     private static double pendingAt;
+    private static double traceUntil;
+    private static float minPortraitScale, maxPortraitScale;
+    private static int traceSamples, promptWhileTyping;
 
     static TutorialPassRuntimeProbe()
     {
@@ -104,6 +107,17 @@ internal static class TutorialPassRuntimeProbe
             string command = File.ReadAllText(CommandPath).Trim().ToUpperInvariant();
             File.Delete(CommandPath);
             if (command == "RESTOCK") PrepareRestockRoute();
+            else if (command == "LOBBY" && !EditorApplication.isPlaying)
+                UnityEditor.SceneManagement.EditorSceneManager.OpenScene("Assets/_Project/Scenes/TutorialScenes/Lobby1Tutorial.unity");
+            else if (command == "HUD") JumpTo("hud_introduction");
+            else if (command == "LIVE") JumpTo("hud_live_customer_panel");
+            else if (command == "SNAPSHOT") DumpPresentation();
+            else if (command == "TRACE")
+            {
+                traceUntil = EditorApplication.timeSinceStartup + 8d;
+                minPortraitScale = float.MaxValue; maxPortraitScale = 0f;
+                traceSamples = promptWhileTyping = 0;
+            }
             else if (command == "MENU") PrepareMenuAvailability();
             else if (command == "SERVICE")
             {
@@ -128,6 +142,26 @@ internal static class TutorialPassRuntimeProbe
             Action action = pendingAction;
             pendingAction = null;
             action();
+        }
+        if (EditorApplication.isPlaying && traceUntil > 0d)
+        {
+            var ui = UnityEngine.Object.FindFirstObjectByType<TutorialDialogueUI>(FindObjectsInactive.Include);
+            var art = ui != null ? typeof(TutorialDialogueUI).GetField("portraitImage", PrivateInstance)?.GetValue(ui) as UnityEngine.UI.Image : null;
+            if (art != null && ui.IsVisible)
+            {
+                float scale = Mathf.Abs(art.rectTransform.localScale.x);
+                minPortraitScale = Mathf.Min(minPortraitScale, scale);
+                maxPortraitScale = Mathf.Max(maxPortraitScale, scale);
+                traceSamples++;
+                bool typing = (bool)typeof(TutorialDialogueUI).GetField("isTyping", PrivateInstance).GetValue(ui);
+                var prompt = typeof(TutorialDialogueUI).GetField("continuePrompt", PrivateInstance)?.GetValue(ui) as TMPro.TMP_Text;
+                if (typing && prompt != null && prompt.gameObject.activeInHierarchy) promptWhileTyping++;
+            }
+            if (EditorApplication.timeSinceStartup >= traceUntil)
+            {
+                Write($"TRACE samples={traceSamples} portraitScale={minPortraitScale:F3}..{maxPortraitScale:F3} promptVisibleWhileTyping={promptWhileTyping}");
+                traceUntil = 0d;
+            }
         }
         if (!EditorApplication.isPlaying || EditorApplication.timeSinceStartup < nextSnapshotAt) return;
         nextSnapshotAt = EditorApplication.timeSinceStartup + 0.5d;
@@ -155,6 +189,37 @@ internal static class TutorialPassRuntimeProbe
                " delivered=" + (orders != null ? orders.DeliveredContainerCount.ToString() : "-") +
                " hotbar=" + (orders != null ? orders.HotbarContainerCount.ToString() : "-") +
                " save=" + SaveHash();
+    }
+
+    private static void DumpPresentation()
+    {
+        Write("PRESENTATION " + Snapshot());
+        var tutorial = TutorialSystem.Instance;
+        var dialogue = UnityEngine.Object.FindFirstObjectByType<TutorialDialogueUI>(FindObjectsInactive.Include);
+        var mask = UnityEngine.Object.FindFirstObjectByType<TutorialUIFocusMask>(FindObjectsInactive.Include);
+        if (tutorial == null || dialogue == null || mask == null) return;
+        Write("GUARDS transition=" + typeof(TutorialSystem).GetField("transitioning", PrivateInstance)?.GetValue(tutorial) +
+            " recovering=" + typeof(TutorialSystem).GetField("recovering", PrivateInstance)?.GetValue(tutorial) +
+            " mask=" + mask.IsVisible + " focus=" + mask.CurrentTarget?.name + " rect=" + mask.FocusRect +
+            " typing=" + typeof(TutorialDialogueUI).GetField("isTyping", PrivateInstance)?.GetValue(dialogue));
+        var promptText = typeof(TutorialDialogueUI).GetField("continuePrompt", PrivateInstance)?.GetValue(dialogue) as TMPro.TMP_Text;
+        var portrait = typeof(TutorialDialogueUI).GetField("portraitImage", PrivateInstance)?.GetValue(dialogue) as UnityEngine.UI.Image;
+        Write("PROMPT visible=" + (promptText != null && promptText.gameObject.activeInHierarchy) +
+            " ART scale=" + portrait?.rectTransform.localScale + " placementScale=" + portrait?.transform.parent.localScale);
+        if (mask.CurrentTarget != null)
+            foreach (var rect in mask.CurrentTarget.GetComponentsInParent<RectTransform>())
+                Write("TARGET ANCESTOR " + rect.name + " rect=" + rect.rect + " scale=" + rect.lossyScale);
+        var events = UnityEngine.EventSystems.EventSystem.current;
+        if (events == null) return;
+        var next = typeof(TutorialDialogueUI).GetField("nextButton", PrivateInstance)?.GetValue(dialogue) as UnityEngine.UI.Button;
+        if (next != null)
+        {
+            var point = RectTransformUtility.WorldToScreenPoint(null, next.transform.position);
+            var hits = new List<UnityEngine.EventSystems.RaycastResult>();
+            events.RaycastAll(new UnityEngine.EventSystems.PointerEventData(events) { position = point }, hits);
+            Write("NEXT active=" + next.gameObject.activeInHierarchy + " interactable=" + next.IsInteractable());
+            foreach (var hit in hits) Write("RAYCAST " + hit.gameObject.name + " order=" + hit.sortingOrder + " depth=" + hit.depth);
+        }
     }
 
     private static void OnPlayModeChanged(PlayModeStateChange state)

@@ -9,7 +9,7 @@ using UnityEngine.UI;
 /// This script never edits shared gameplay code; it only resolves and temporarily presents
 /// the real scene UI while a tutorial step is focused on it.
 /// </summary>
-[DisallowMultipleComponent]
+[DefaultExecutionOrder(9000), DisallowMultipleComponent]
 public sealed class TutorialSceneBindings : MonoBehaviour
 {
     [Serializable]
@@ -31,6 +31,69 @@ public sealed class TutorialSceneBindings : MonoBehaviour
     private readonly List<(GameObject obj, bool active)> objects = new();
     private Button revealedButton;
     private bool previousButtonInteractable;
+    private ManagementComputerController computerCache;
+    private TMP_Text appTitle;
+
+    public ManagementComputerController Computer
+    {
+        get
+        {
+            if (computerCache == null) computerCache = FindManagementComputer();
+            return computerCache;
+        }
+    }
+
+    public static bool IsAppOpenAction(string key) => AppTitle(key) != null;
+
+    public static string AppTitle(string key)
+    {
+        switch (key)
+        {
+            case "Management.Dashboard": return "Manager Dashboard";
+            case "Management.Staff": return "Staff Scheduler";
+            case "Management.Menu": return "Menu Editor";
+            case "Management.Equipment": return "Equipment Store";
+            case "Management.Finance": return "Finance Report";
+            case "Management.Objectives": return "Alien Demands";
+            case "Management.Restock": return "Ingredient Restock";
+            default: return null;
+        }
+    }
+
+    public bool IsAppOpen(string key)
+    {
+        var computer = Computer;
+        if (computer == null || !computer.IsOpen || computer.AppWindow == null ||
+            !computer.AppWindow.gameObject.activeInHierarchy) return false;
+        // The controller exposes no selected-app property. Read the real window's
+        // title, outside its generated content, without accessing private state.
+        if (appTitle == null)
+            foreach (TMP_Text label in computer.AppWindow.GetComponentsInChildren<TMP_Text>(false))
+                if (!label.transform.IsChildOf(computer.AppWindow.Content) &&
+                    label.text == AppTitle(key)) { appTitle = label; break; }
+        return appTitle != null && appTitle.text == AppTitle(key);
+    }
+
+    public void CloseCompletedApp()
+    {
+        if (Computer != null && Computer.IsOpen && Computer.AppWindow != null &&
+            Computer.AppWindow.gameObject.activeInHierarchy) Computer.CloseApp();
+    }
+
+    public RectTransform RecoveryTarget(string appKey, string lessonKey = null)
+    {
+        if (Computer == null || !Computer.IsOpen) return ResolveUI("ComputerButton");
+        if (IsAppOpen(appKey))
+        {
+            if (appKey == "Management.Menu") return ResolveUI("MenuItemSelect");
+            if (appKey == "Management.Staff") return ResolveUI("StaffApplicantsButton");
+            if (appKey == "Management.Restock") return ResolveUI("RestockCheckout");
+            return null;
+        }
+        CloseCompletedApp();
+        string name = appKey?.Substring("Management.".Length);
+        return ResolveUI(name + "Button");
+    }
 
     /// <summary>
     /// Reopens the exact department that owns the employee hired by this tutorial.
@@ -795,6 +858,12 @@ public sealed class TutorialSceneBindings : MonoBehaviour
 
         LateUpdate();
     }
+
+    // The shared progress HUD refreshes its Lobby1-only visibility in Update.
+    // Restore the tutorial presentation after that Update, BEFORE the mask's
+    // coroutine validates its source/destination. LateUpdate alone is too late
+    // and makes otherwise valid HUD transitions intermittently snap or vanish.
+    private void Update() => LateUpdate();
 
     private void LateUpdate()
     {

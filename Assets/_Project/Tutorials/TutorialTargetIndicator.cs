@@ -10,8 +10,8 @@ public sealed class TutorialTargetIndicator : MonoBehaviour
     [SerializeField] private CanvasGroup canvasGroup;
     [SerializeField] private Vector2 uiPadding = new Vector2(20f, 20f);
     [SerializeField] private Vector2 worldTargetSize = new Vector2(110f, 110f);
-    [SerializeField] private float pulseAmount = 0.06f;
-    [SerializeField] private float pulseSpeed = 5f;
+    [SerializeField, Range(0f, .5f)] private float pulseAmount = .22f;
+    [SerializeField, Min(.1f)] private float pulseSpeed = 2.4f;
 
     private Transform currentTarget;
     private bool initialized;
@@ -49,15 +49,20 @@ public sealed class TutorialTargetIndicator : MonoBehaviour
 
     private void LateUpdate()
     {
-        if (indicatorRect == null || !indicatorRect.gameObject.activeSelf || currentTarget == null)
+        if (indicatorRect == null || !indicatorRect.gameObject.activeSelf)
             return;
+        if (currentTarget == null || !currentTarget.gameObject.activeInHierarchy)
+        {
+            if (canvasGroup != null) canvasGroup.alpha = 0f;
+            return;
+        }
 
         UpdatePosition();
 
         // World bounds follow the final camera pose directly; never pulse their size.
-        float pulse = currentTarget is RectTransform
-            ? 1f + Mathf.Sin(Time.unscaledTime * pulseSpeed) * pulseAmount : 1f;
-        indicatorRect.localScale = Vector3.one * pulse;
+        indicatorRect.localScale = Vector3.one;
+        if (canvasGroup != null && canvasGroup.alpha > 0f && !LevelOneUIAccessibility.ReducedMotion)
+            canvasGroup.alpha = 1f - pulseAmount * (.5f + .5f * Mathf.Sin(Time.unscaledTime * pulseSpeed));
     }
 
     public void Show(Transform target)

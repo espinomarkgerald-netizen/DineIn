@@ -351,11 +351,7 @@ public sealed class TutorialRestockFlowBridge : MonoBehaviour
             Bootstrap();
         if (coordinator != null && coordinator.IsRestockRoomOpen)
             KeepTutorialOverlayVisible();
-        if (tutorial == null || !tutorial.IsWaitingForGameplayAction || tutorial.CurrentStep == null)
-        {
-            observedStep = null;
-            return;
-        }
+        if (tutorial == null || tutorial.CurrentStep == null) return;
 
         TutorialSystem.TutorialStep step = tutorial.CurrentStep;
         if (observedStep != step)
@@ -374,6 +370,10 @@ public sealed class TutorialRestockFlowBridge : MonoBehaviour
                 if (!string.IsNullOrEmpty(box.StockBatchID)) existingBatches.Add(box.StockBatchID);
         }
 
+        // Capture once on lesson entry, including its explanation. Closing a
+        // window/recovering must not reset the inventory delta we are observing.
+        if (!tutorial.IsWaitingForGameplayAction) return;
+
         if (step.ActionKey == "Management.CloseAfterRestock")
             EnsureExitInputGuard();
         else
@@ -383,7 +383,6 @@ public sealed class TutorialRestockFlowBridge : MonoBehaviour
         string key = step.ActionKey;
         if (key == "Restock.StoreDry" || key == "Restock.StoreFrozen")
             placedLessonContainer = FindPlacedLessonContainer();
-        observedStep = null;
         tutorial.NotifyAction(key);
     }
 

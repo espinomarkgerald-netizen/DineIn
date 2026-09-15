@@ -63,6 +63,10 @@ public sealed class CasualDiningProgressHUD : MonoBehaviour
     [SerializeField] private Vector2 redesignedMoneyPosition = new Vector2(1395f, 0f);
     [SerializeField] private Vector2 redesignedNeutralPosition = new Vector2(1403f, -124f);
     [SerializeField] private Vector2 redesignedAngryPosition = new Vector2(1595f, -124f);
+    [SerializeField, Min(0f)] private float rightGroupMargin = 28f;
+    [SerializeField, Range(0f, 24f)] private float moodIconOverlap = 12f;
+    [SerializeField, Min(0f)] private float moodRightInset = 40f;
+    [SerializeField, Range(0f, 0.05f)] private float zeroValueVisualFill = 0.04f;
     [SerializeField, HideInInspector] private int authoredLayoutVersion;
 
     [Header("Editable Day & Time")]
@@ -510,23 +514,26 @@ public sealed class CasualDiningProgressHUD : MonoBehaviour
         panelRect.anchoredPosition = new Vector2(0f, redesignedPanelPosition.y);
 
         const float gap = 18f;
-        // Authored mood tracks/icons did not match their container widths.
-        // Share the sales span, with each track filling its own half of the row.
-        float moodWidth = Mathf.Max(1f, (moneyRow.rect.width - gap) * 0.5f);
+        RectTransform salesIcon = moneyRow.Find("Icon") as RectTransform;
+        float salesOverhang = salesIcon != null
+            ? Mathf.Max(0f, moneyRow.InverseTransformPoint(salesIcon.TransformPoint(
+                new Vector3(salesIcon.rect.xMax, salesIcon.rect.center.y))).x - moneyRow.rect.xMax) : 0f;
+        // Fit both complete mood rows (tracks, gaps and faces) inside the sales span.
+        float rightWidth = moneyRow.rect.width + salesOverhang;
+        // Compensate for the money artwork's inset within its RectTransform.
+        float moodWidth = Mathf.Max(1f, (rightWidth - gap - moodRightInset) * 0.5f);
         AlignMoodRow(neutralRow, moodWidth);
         AlignMoodRow(angryRow, moodWidth);
-        float rightWidth = Mathf.Max(moneyRow.rect.width,
-            neutralRow.rect.width + angryRow.rect.width + gap);
-        PlaceRow(moneyRow, Vector2.one, new Vector2(-gap, 0f));
-        PlaceRow(angryRow, Vector2.one, new Vector2(-gap, redesignedAngryPosition.y));
+        PlaceRow(moneyRow, Vector2.one, new Vector2(-rightGroupMargin - salesOverhang, 0f));
+        PlaceRow(angryRow, Vector2.one, new Vector2(-rightGroupMargin - moodRightInset, redesignedAngryPosition.y));
         PlaceRow(neutralRow, Vector2.one,
-            new Vector2(-gap * 2f - angryRow.rect.width, redesignedNeutralPosition.y));
+            new Vector2(-rightGroupMargin - moodRightInset - gap - angryRow.rect.width, redesignedNeutralPosition.y));
 
         float width = safeAreaContent.rect.width;
         float leftWidth = dayTimeRoot != null
             ? Mathf.Max(0f, dayTimeRoot.anchoredPosition.x) + dayTimeRoot.rect.width : 250f;
         float minCenter = leftWidth + gap + approvalRow.rect.width * .5f;
-        float maxCenter = width - rightWidth - gap * 2f - approvalRow.rect.width * .5f;
+        float maxCenter = width - rightWidth - rightGroupMargin - gap - approvalRow.rect.width * .5f;
         // If a landscape viewport cannot fit all three lanes, use another row
         // for approval rather than shrinking text or letting the groups overlap.
         float center = maxCenter >= minCenter
@@ -543,8 +550,10 @@ public sealed class CasualDiningProgressHUD : MonoBehaviour
         row.anchoredPosition = position;
     }
 
-    private static void AlignMoodRow(RectTransform row, float width)
+    private void AlignMoodRow(RectTransform row, float width)
     {
+        RectTransform face = row.Find("Icon") as RectTransform;
+        float iconSpace = face != null ? Mathf.Max(0f, face.rect.width - moodIconOverlap) : 0f;
         row.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, width);
         foreach (string name in new[] { "Track", "ProgressShadow", "Label", "Value" })
         {
@@ -552,7 +561,7 @@ public sealed class CasualDiningProgressHUD : MonoBehaviour
             child.anchorMin = new Vector2(0f, child.anchorMin.y);
             child.anchorMax = new Vector2(1f, child.anchorMax.y);
             child.offsetMin = new Vector2(0f, child.offsetMin.y);
-            child.offsetMax = new Vector2(0f, child.offsetMax.y);
+            child.offsetMax = new Vector2(-iconSpace, child.offsetMax.y);
         }
 
         // Match the sales icon's right-edge anchor without moving its vertical axis.
@@ -560,7 +569,8 @@ public sealed class CasualDiningProgressHUD : MonoBehaviour
         {
             icon.anchorMin = new Vector2(1f, icon.anchorMin.y);
             icon.anchorMax = new Vector2(1f, icon.anchorMax.y);
-            icon.anchoredPosition = new Vector2(0f, icon.anchoredPosition.y);
+            icon.anchoredPosition = new Vector2(-icon.rect.width * (1f - icon.pivot.x), icon.anchoredPosition.y);
+            icon.SetAsLastSibling();
         }
     }
 
@@ -612,10 +622,10 @@ public sealed class CasualDiningProgressHUD : MonoBehaviour
             currentNeutralFill = Mathf.SmoothDamp(currentNeutralFill, targetNeutralFill, ref neutralFillVelocity, fillSmoothTime, Mathf.Infinity, delta);
             currentAngryFill = Mathf.SmoothDamp(currentAngryFill, targetAngryFill, ref angryFillVelocity, fillSmoothTime, Mathf.Infinity, delta);
         }
-        SetFill(moneyFill, currentMoneyFill);
+        SetFill(moneyFill, targetMoneyFill == 0f ? zeroValueVisualFill : currentMoneyFill);
         SetFill(approvalFill, currentApprovalFill);
-        SetFill(neutralFill, currentNeutralFill);
-        SetFill(angryFill, currentAngryFill);
+        SetFill(neutralFill, targetNeutralFill == 0f ? zeroValueVisualFill : currentNeutralFill);
+        SetFill(angryFill, targetAngryFill == 0f ? zeroValueVisualFill : currentAngryFill);
         AnimatePulse(moneyRow, now - moneyPulseStarted, reduced);
         AnimatePulse(approvalRow, now - approvalPulseStarted, reduced);
         AnimatePulse(neutralRow, now - neutralPulseStarted, reduced);

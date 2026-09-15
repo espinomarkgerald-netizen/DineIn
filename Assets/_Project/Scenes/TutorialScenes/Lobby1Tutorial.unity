@@ -3079,6 +3079,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: Learn the restaurant controls
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -3098,6 +3099,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -3117,6 +3119,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -3136,6 +3139,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -3155,6 +3159,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -3174,6 +3179,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -3193,6 +3199,7 @@ MonoBehaviour:
     actionKey: Camera.Zoom
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -3212,6 +3219,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -3231,6 +3239,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -3250,6 +3259,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -3269,6 +3279,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -3288,6 +3299,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -3307,6 +3319,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -3326,6 +3339,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: Learn the sales display
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -3345,6 +3359,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -3364,6 +3379,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -3383,6 +3399,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: Learn the restaurant controls
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -3402,6 +3419,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -3421,6 +3439,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -3440,6 +3459,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -3459,13 +3479,14 @@ MonoBehaviour:
     actionKey: Newspaper.Open
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   - id: hud_newspaper_success
     phase: 1
     speaker: Big Boss
-    message: Good! You opened the newspaper.
+    message: The newspaper helps you plan for the day.
     portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
     stepType: 2
     requiredAction: 0
@@ -3478,13 +3499,14 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   - id: hud_newspaper_read
     phase: 1
     speaker: Big Boss
-    message: Each issue reports your restaurant's recent results.
+    message: Read the daily highlight and your restaurant's recent results.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
@@ -3497,6 +3519,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -3516,13 +3539,14 @@ MonoBehaviour:
     actionKey: Newspaper.Close
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   - id: hud_newspaper_closed
     phase: 1
     speaker: Big Boss
-    message: Great! Let us check your tasks next.
+    message: Next, check Task for your current objective.
     portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
     stepType: 2
     requiredAction: 0
@@ -3535,6 +3559,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -3554,6 +3579,7 @@ MonoBehaviour:
     actionKey: Task.Open
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -3573,6 +3599,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -3592,6 +3619,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -3611,6 +3639,7 @@ MonoBehaviour:
     actionKey: Camera.Focus
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -3630,6 +3659,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -3649,6 +3679,7 @@ MonoBehaviour:
     actionKey: Computer.Open
     requiredContext: {fileID: 0}
     objective: Open the Management Computer
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -3668,6 +3699,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -3687,6 +3719,7 @@ MonoBehaviour:
     actionKey: Management.Dashboard
     requiredContext: {fileID: 0}
     objective: Explore the Management Dashboard
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -3706,13 +3739,14 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   - id: management_dashboard_success
     phase: 2
     speaker: Big Boss
-    message: Good! Next we will prepare your staff.
+    message: Next, use Staff to prepare your team.
     portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
     stepType: 2
     requiredAction: 0
@@ -3725,13 +3759,14 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   - id: management_staff_open
     phase: 2
     speaker: Big Boss
-    message: '{INTERACT} Staff to open staff management.'
+    message: Open Staff. The Staff Scheduler manages hiring and active workers.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
@@ -3744,6 +3779,7 @@ MonoBehaviour:
     actionKey: Management.Staff
     requiredContext: {fileID: 0}
     objective: Learn Staff Management
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -3763,6 +3799,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -3782,6 +3819,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -3801,6 +3839,7 @@ MonoBehaviour:
     actionKey: Management.StaffApplicants
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -3820,6 +3859,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -3839,6 +3879,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -3858,6 +3899,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -3877,6 +3919,7 @@ MonoBehaviour:
     actionKey: Management.StaffHire
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -3896,6 +3939,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -3916,6 +3960,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -3935,13 +3980,14 @@ MonoBehaviour:
     actionKey: Management.StaffSetActive
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   - id: management_staff_fire
     phase: 2
     speaker: Big Boss
-    message: Hired staff cards also provide Fire when you need to free a slot.
+    message: You can also fire employees here if you no longer need them.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
@@ -3950,10 +3996,11 @@ MonoBehaviour:
     worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey: StaffFire
+    uiTargetKey: 
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -3973,6 +4020,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 1
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -3992,6 +4040,7 @@ MonoBehaviour:
     actionKey: Management.Menu
     requiredContext: {fileID: 0}
     objective: Learn Menu Management
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4011,6 +4060,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4030,6 +4080,7 @@ MonoBehaviour:
     actionKey: Management.MenuFood
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4049,6 +4100,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4068,6 +4120,7 @@ MonoBehaviour:
     actionKey: Management.MenuSelect
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4087,6 +4140,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4106,6 +4160,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4125,6 +4180,7 @@ MonoBehaviour:
     actionKey: Management.MenuPriceFocus
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4143,7 +4199,8 @@ MonoBehaviour:
     uiTargetKey: MenuPrice
     actionKey: Management.MenuPriceChanged
     requiredContext: {fileID: 0}
-    objective: 
+    objective: Enter a different whole-number price, then finish editing.
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4163,6 +4220,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4182,6 +4240,7 @@ MonoBehaviour:
     actionKey: Management.MenuSavePrice
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4201,6 +4260,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4220,6 +4280,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4240,6 +4301,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4259,6 +4321,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4278,6 +4341,7 @@ MonoBehaviour:
     actionKey: Management.Equipment
     requiredContext: {fileID: 0}
     objective: Learn Equipment Management
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4297,6 +4361,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4316,6 +4381,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4335,6 +4401,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4354,6 +4421,7 @@ MonoBehaviour:
     actionKey: Management.Finance
     requiredContext: {fileID: 0}
     objective: Learn the Finance Report
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4373,6 +4441,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4392,6 +4461,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4411,6 +4481,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4430,6 +4501,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4449,6 +4521,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4468,6 +4541,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4487,6 +4561,7 @@ MonoBehaviour:
     actionKey: Management.Objectives
     requiredContext: {fileID: 0}
     objective: Learn Objectives
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4506,6 +4581,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4525,6 +4601,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4544,6 +4621,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4564,6 +4642,7 @@ MonoBehaviour:
     actionKey: Management.Restock
     requiredContext: {fileID: 0}
     objective: Learn Restocking
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4583,6 +4662,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4602,6 +4682,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4621,6 +4702,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4640,6 +4722,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4659,6 +4742,7 @@ MonoBehaviour:
     actionKey: Management.RestockAddDry
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4678,6 +4762,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4697,6 +4782,7 @@ MonoBehaviour:
     actionKey: Management.RestockAddCold
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4716,6 +4802,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4735,6 +4822,7 @@ MonoBehaviour:
     actionKey: Management.RestockCheckout
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4754,6 +4842,7 @@ MonoBehaviour:
     actionKey: Management.RestockOrder
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4773,6 +4862,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4792,6 +4882,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: Collect the delivery
+    explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4811,6 +4902,7 @@ MonoBehaviour:
     actionKey: Management.CloseAfterRestock
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4830,6 +4922,7 @@ MonoBehaviour:
     actionKey: Restock.WaitForDelivery
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4849,6 +4942,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4868,6 +4962,7 @@ MonoBehaviour:
     actionKey: Restock.TruckOpened
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4887,6 +4982,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4906,6 +5002,7 @@ MonoBehaviour:
     actionKey: Restock.GetOrders
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4926,6 +5023,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: Put the delivery away
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4946,6 +5044,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4965,6 +5064,7 @@ MonoBehaviour:
     actionKey: Restock.EnterAny
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -4981,9 +5081,10 @@ MonoBehaviour:
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: RestockSpoiledBoxFocus
-    actionKey:
+    actionKey: 
     requiredContext: {fileID: 0}
-    objective:
+    objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -5001,16 +5102,18 @@ MonoBehaviour:
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: RestockSpoiledBoxFocus
-    actionKey:
+    actionKey: 
     requiredContext: {fileID: 0}
-    objective:
+    objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   - id: physical_spoiled_select_explain
     phase: 3
     speaker: Big Boss
-    message: "When stock has spoiled, throw it away and clear the shelf. Select that spoiled box."
+    message: When stock has spoiled, throw it away and clear the shelf. Select that
+      spoiled box.
     portrait: {fileID: 21300000, guid: 83b4dee9e5755eb4493ae09713fea77f, type: 3}
     stepType: 0
     requiredAction: 0
@@ -5020,16 +5123,17 @@ MonoBehaviour:
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: RestockSpoiledBoxFocus
-    actionKey:
+    actionKey: 
     requiredContext: {fileID: 0}
-    objective:
+    objective: 
+    explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   - id: physical_spoiled_select
     phase: 3
     speaker: Big Boss
-    message:
+    message: 
     portrait: {fileID: 21300000, guid: 83b4dee9e5755eb4493ae09713fea77f, type: 3}
     stepType: 1
     requiredAction: 0
@@ -5041,7 +5145,8 @@ MonoBehaviour:
     uiTargetKey: RestockSpoiledBoxFocus
     actionKey: Restock.SpoiledSelected
     requiredContext: {fileID: 0}
-    objective:
+    objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -5054,32 +5159,34 @@ MonoBehaviour:
     requiredAction: 0
     hintMode: 2
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: RestockSpoiledThrowAway
-    actionKey:
+    actionKey: 
     requiredContext: {fileID: 0}
-    objective:
+    objective: 
+    explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   - id: physical_spoiled_throw
     phase: 3
     speaker: Big Boss
-    message:
+    message: 
     portrait: {fileID: 21300000, guid: 83b4dee9e5755eb4493ae09713fea77f, type: 3}
     stepType: 1
     requiredAction: 0
     hintMode: 2
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: RestockSpoiledThrowAway
     actionKey: Restock.SpoiledDiscard
     requiredContext: {fileID: 0}
-    objective:
+    objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -5092,13 +5199,14 @@ MonoBehaviour:
     requiredAction: 0
     hintMode: 2
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: RestockShelfFocus
-    actionKey:
+    actionKey: 
     requiredContext: {fileID: 0}
-    objective:
+    objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -5111,20 +5219,21 @@ MonoBehaviour:
     requiredAction: 0
     hintMode: 6
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: RestockActiveSlot
-    actionKey:
+    actionKey: 
     requiredContext: {fileID: 0}
-    objective:
+    objective: 
+    explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   - id: physical_dry_store
     phase: 3
     speaker: Big Boss
-    message:
+    message: 
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
@@ -5136,7 +5245,8 @@ MonoBehaviour:
     uiTargetKey: RestockActiveSlot
     actionKey: Restock.StoreActive
     requiredContext: {fileID: 0}
-    objective:
+    objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -5149,20 +5259,22 @@ MonoBehaviour:
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey:
-    actionKey:
+    uiTargetKey: 
+    actionKey: 
     requiredContext: {fileID: 0}
-    objective:
+    objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   - id: physical_box_select_explain
     phase: 3
     speaker: Big Boss
-    message: "That's fresh stock, so there's no reason to throw it away. Select the box you just placed."
+    message: That's fresh stock, so there's no reason to throw it away. Select the
+      box you just placed.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
@@ -5172,16 +5284,17 @@ MonoBehaviour:
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: RestockPlacedBoxFocus
-    actionKey:
+    actionKey: 
     requiredContext: {fileID: 0}
-    objective:
+    objective: 
+    explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   - id: physical_box_select_action
     phase: 3
     speaker: Big Boss
-    message:
+    message: 
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
@@ -5193,83 +5306,90 @@ MonoBehaviour:
     uiTargetKey: RestockPlacedBoxFocus
     actionKey: Restock.BoxActionsShown
     requiredContext: {fileID: 0}
-    objective:
+    objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   - id: physical_box_keep_explain
     phase: 3
     speaker: Big Boss
-    message: "If the ingredients are still good, keep them on the shelf until they're needed."
+    message: If the ingredients are still good, keep them on the shelf until they're
+      needed.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 2
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: RestockBoxKeep
-    actionKey:
+    actionKey: 
     requiredContext: {fileID: 0}
-    objective:
+    objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   - id: physical_box_dismiss_explain
     phase: 3
     speaker: Big Boss
-    message: "Choose KEEP to leave these fresh ingredients ready for the kitchen."
+    message: Choose KEEP to leave these fresh ingredients ready for the kitchen.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 2
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: RestockBoxKeep
-    actionKey:
+    actionKey: 
     requiredContext: {fileID: 0}
-    objective:
+    objective: 
+    explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   - id: physical_box_dismiss_action
     phase: 3
     speaker: Big Boss
-    message:
+    message: 
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
     hintMode: 2
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: RestockBoxKeep
     actionKey: Restock.BoxActionsHidden
     requiredContext: {fileID: 0}
-    objective:
+    objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   - id: physical_box_dismiss_success
     phase: 3
     speaker: Big Boss
-    message: "Good. The fresh stock stays on the shelf. Now let's store the other ingredient."
+    message: Good. The fresh stock stays on the shelf. Now let's store the other
+      ingredient.
     portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
     stepType: 2
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey:
-    actionKey:
+    uiTargetKey: 
+    actionKey: 
     requiredContext: {fileID: 0}
-    objective:
+    objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -5290,6 +5410,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -5309,6 +5430,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -5328,6 +5450,7 @@ MonoBehaviour:
     actionKey: Restock.SwitchOther
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -5347,6 +5470,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -5366,6 +5490,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -5385,6 +5510,7 @@ MonoBehaviour:
     actionKey: Restock.StoreSecond
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -5404,6 +5530,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -5423,6 +5550,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -5442,13 +5570,14 @@ MonoBehaviour:
     actionKey: Restock.ExitRoom
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   - id: return_to_computer
     phase: 4
     speaker: Big Boss
-    message: Return to the Management Computer.
+    message: Return to the Computer to prepare for opening.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
@@ -5461,6 +5590,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: Return to the Management Computer
+    explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -5480,6 +5610,7 @@ MonoBehaviour:
     actionKey: Computer.Open
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -5499,6 +5630,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: Start the shift
+    explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -5518,6 +5650,7 @@ MonoBehaviour:
     actionKey: Shift.OpenChecklist
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -5537,6 +5670,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -5556,6 +5690,7 @@ MonoBehaviour:
     actionKey: Shift.OpenDayIntro
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -5575,6 +5710,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -5594,6 +5730,7 @@ MonoBehaviour:
     actionKey: Shift.Start
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 1
     isPlaceholder: 0
@@ -5613,6 +5750,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -5634,6 +5772,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: Learn lobby service
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -5653,14 +5792,14 @@ MonoBehaviour:
     actionKey: Customer.FrontOfLine
     requiredContext: {fileID: 0}
     objective: Seat the first customer
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   - id: staff_customer_arrive
     phase: 5
     speaker: Big Boss
-    message: Wait for the customer to fall in line. Always serve the customer who
-      came first.
+    message: Your first customer is waiting in line. Select the group at the front.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
@@ -5673,6 +5812,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -5692,6 +5832,7 @@ MonoBehaviour:
     actionKey: Customer.Selected
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -5711,6 +5852,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -5730,6 +5872,7 @@ MonoBehaviour:
     actionKey: Customer.Greeted
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -5749,6 +5892,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -5768,6 +5912,7 @@ MonoBehaviour:
     actionKey: Customer.SeatModeStarted
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -5787,6 +5932,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -5806,6 +5952,7 @@ MonoBehaviour:
     actionKey: Customer.Seated
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -5825,6 +5972,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -5844,6 +5992,7 @@ MonoBehaviour:
     actionKey: Customer.ReadyToOrder
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -5863,6 +6012,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: Take the customer order
+    explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -5882,13 +6032,14 @@ MonoBehaviour:
     actionKey: Customer.NotepadOpened
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   - id: staff_waiter_food_tab_explain
     phase: 5
     speaker: Big Boss
-    message: Choose FOOD first.
+    message: The customer's message tells you what they want. Next, choose FOOD.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
@@ -5896,11 +6047,12 @@ MonoBehaviour:
     highlightTarget: {fileID: 0}
     worldTargetKey: 
     restrictUnrelatedInteractions: 1
-    uiFocusTarget: {fileID: 0}
-    uiTargetKey: NotepadFoodTab
+    uiFocusTarget: {fileID: 227552211}
+    uiTargetKey:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -5919,14 +6071,16 @@ MonoBehaviour:
     uiTargetKey: NotepadFoodTab
     actionKey: Customer.NotepadFoodTab
     requiredContext: {fileID: 0}
-    objective: 
+    objective: Choose FOOD.
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   - id: staff_waiter_select_food_explain
     phase: 5
     speaker: Big Boss
-    message: Press + on Tomato Soup once.
+    message: These pictures show the ordered food and drinks. Each number is the
+      quantity needed. Next, press + on Tomato Soup once.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
@@ -5935,10 +6089,11 @@ MonoBehaviour:
     worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey: NotepadFoodAdjust
+    uiTargetKey: NotepadRequested
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -5957,7 +6112,8 @@ MonoBehaviour:
     uiTargetKey: NotepadFoodAdjust
     actionKey: Customer.NotepadFoodQuantity
     requiredContext: {fileID: 0}
-    objective: 
+    objective: Press + on Tomato Soup once.
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -5977,6 +6133,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -5996,6 +6153,7 @@ MonoBehaviour:
     actionKey: Customer.NotepadDrinkTab
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6015,6 +6173,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6034,6 +6193,7 @@ MonoBehaviour:
     actionKey: Customer.NotepadDrinkQuantity
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6053,6 +6213,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6072,6 +6233,7 @@ MonoBehaviour:
     actionKey: Customer.NotepadChecked
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6091,6 +6253,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6110,6 +6273,7 @@ MonoBehaviour:
     actionKey: Customer.OrderConfirmed
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6129,6 +6293,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6149,6 +6314,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: Wait for the order
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6168,6 +6334,7 @@ MonoBehaviour:
     actionKey: Customer.FoodReady
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6187,6 +6354,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: Serve the food
+    explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6206,6 +6374,7 @@ MonoBehaviour:
     actionKey: Customer.TrayPickedUp
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6225,6 +6394,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6244,6 +6414,7 @@ MonoBehaviour:
     actionKey: Customer.FoodDelivered
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6263,6 +6434,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6282,6 +6454,7 @@ MonoBehaviour:
     actionKey: Customer.NeedsBill
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6302,6 +6475,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: Complete payment
+    explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6321,6 +6495,7 @@ MonoBehaviour:
     actionKey: Customer.BillPrinted
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6340,6 +6515,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6359,6 +6535,7 @@ MonoBehaviour:
     actionKey: Customer.BillPickedUp
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6378,6 +6555,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6397,6 +6575,7 @@ MonoBehaviour:
     actionKey: Customer.BillDelivered
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6416,6 +6595,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6435,6 +6615,7 @@ MonoBehaviour:
     actionKey: Customer.PaymentPickedUp
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6454,6 +6635,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6473,6 +6655,7 @@ MonoBehaviour:
     actionKey: Customer.CashierOpened
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6493,6 +6676,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6513,6 +6697,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6532,6 +6717,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6551,6 +6737,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6570,6 +6757,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6589,6 +6777,7 @@ MonoBehaviour:
     actionKey: Customer.ChangeCorrect
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6608,6 +6797,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6627,6 +6817,7 @@ MonoBehaviour:
     actionKey: Customer.PaymentCompleted
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6646,6 +6837,7 @@ MonoBehaviour:
     actionKey: Customer.ReadyForCleanup
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6665,6 +6857,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: Clear the used tray
+    explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6684,6 +6877,7 @@ MonoBehaviour:
     actionKey: Customer.TrayCleaned
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6703,6 +6897,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6723,6 +6918,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6743,6 +6939,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6763,6 +6960,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6783,6 +6981,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6803,6 +7002,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6823,6 +7023,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6843,6 +7044,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6862,6 +7064,7 @@ MonoBehaviour:
     actionKey: Practice.Player
     requiredContext: {fileID: 0}
     objective: Serve three groups on your own
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6882,6 +7085,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6901,6 +7105,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6921,6 +7126,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6941,6 +7147,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6960,6 +7167,7 @@ MonoBehaviour:
     actionKey: Practice.Staff
     requiredContext: {fileID: 0}
     objective: Serve five more groups with your staff
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6979,6 +7187,7 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
@@ -6998,11 +7207,12 @@ MonoBehaviour:
     actionKey: 
     requiredContext: {fileID: 0}
     objective: 
+    explainsAction: 0
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
     isPlaceholder: 0
   debugStartEnabled: 1
-  debugStartPhase: 0
+  debugStartPhase: 6
   debugStepOffsetInPhase: 0
   debugStartGlobalStepIndex: -1
   debugResolvedGlobalStepIndex: -1
@@ -7022,6 +7232,14 @@ MonoBehaviour:
   currentObjective: 
   allowCustomerSpawning: 0
   allowStaffSpawning: 0
+  focusPulseAmount: 0.22
+  focusPulseSpeed: 2.4
+  focusPulseExpansion: 0.03
+  focusTransitionDuration: 0.24
+  travelFollowSharpness: 8
+  boothArrivalRadius: 0.6
+  mobileKeyboardGap: 24
+  mobileKeyboardFallbackHeight: 0.5
 --- !u!4 &208201888
 Transform:
   m_ObjectHideFlags: 0
@@ -13440,10 +13658,23 @@ MonoBehaviour:
   portraitImage: {fileID: 558544116}
   nextButton: {fileID: 831590748}
   typeSpeed: 0.018
+  letterBounceAmount: 1.2
+  letterBounceDuration: 0.075
   portraitBopDuration: 0.22
   portraitBopStartScale: 0.94
   portraitBopPeakScale: 1.06
   portraitBopLift: 5
+  dialogueOffset: {x: 0, y: 0}
+  dialogueMinimumFontSize: 18
+  dialogueMaximumFontSize: 30
+  dialogueTextPadding: {x: 20, y: 20, z: 20, w: 14}
+  portraitLeftOffset: {x: -36, y: 0}
+  portraitRightOffset: {x: 36, y: 0}
+  continuePromptOffset: {x: -10, y: 10}
+  continuePromptSize: {x: 220, y: 32}
+  continuePromptCornerRounding: 0.3
+  continuePromptFontSize: 20
+  portraitSideCheckInterval: 0.35
 --- !u!1 &575297651
 GameObject:
   m_ObjectHideFlags: 0
@@ -26147,8 +26378,8 @@ MonoBehaviour:
   canvasGroup: {fileID: 0}
   uiPadding: {x: 20, y: 20}
   worldTargetSize: {x: 110, y: 110}
-  pulseAmount: 0.06
-  pulseSpeed: 5
+  pulseAmount: 0.22
+  pulseSpeed: 2.4
 --- !u!1 &1226906153
 GameObject:
   m_ObjectHideFlags: 0

@@ -22,24 +22,69 @@ public sealed class TutorialUIActionAdapter : MonoBehaviour
     private EmployeeData employee;
     private Recipe recipe;
     private ItemData item;
-    private bool originalEmployeeHired;
     private bool originalAvailability;
     private int originalPrice;
     private int originalOrderCount;
     private int expectedSavedPrice = -1;
     private int lastLoggedSavedPrice = int.MinValue;
     private bool saveClickLogged;
+    private TutorialSystem.TutorialStep observedStep;
+    private TutorialSceneBindings bindings;
+    private bool capturedTarget;
+    private float nextStateCheck;
+    private bool editCommitted;
+    private int committedPrice = -1;
+
+    public void ObserveStep(TutorialSystem owner, RectTransform target)
+    {
+        if (owner == null) return;
+        if (observedStep != owner.CurrentStep)
+        {
+            observedStep = owner.CurrentStep;
+            employee = null; recipe = null; item = null;
+            expectedSavedPrice = -1;
+            capturedTarget = false;
+            originalOrderCount = RestockOrderManager.Instance != null ? RestockOrderManager.Instance.Orders.Count : 0;
+        }
+        step = observedStep;
+        bindings = owner.GetComponent<TutorialSceneBindings>();
+        if (target != null && !capturedTarget)
+        {
+            CaptureRealState(target);
+            capturedTarget = true;
+        }
+    }
+
+    public bool CanCompleteFromState(TutorialSystem owner)
+    {
+        ObserveStep(owner, null);
+        return step != null && !string.IsNullOrEmpty(step.ActionKey) && IsStateAction(step.ActionKey) && IsRealActionComplete(step.ActionKey);
+    }
 
     /// <returns>True when the required real state was already satisfied.</returns>
     public bool Begin(TutorialSystem owner, RectTransform target)
     {
         StopWaiting();
-        if (owner == null || target == null || string.IsNullOrEmpty(owner.CurrentStep?.ActionKey))
+        if (owner == null || string.IsNullOrEmpty(owner.CurrentStep?.ActionKey))
             return false;
 
+        ObserveStep(owner, target);
         tutorial = owner;
         step = owner.CurrentStep;
-        CaptureRealState(target);
+        // Keep the baseline from explanation entry across UI rebuilds/recovery.
+        input = target != null ? target.GetComponent<TMP_InputField>() ?? target.GetComponentInChildren<TMP_InputField>(false) : null;
+        if (input == null && target != null)
+            input = target.GetComponentInParent<ManagementComputerCatalogPanelUI>()?.GetComponentInChildren<TMP_InputField>(false);
+        if (step.ActionKey == "Management.MenuSavePrice" && input != null && recipe != null &&
+            expectedSavedPrice >= 0 && int.TryParse(input.text, out int rebuiltValue) &&
+            rebuiltValue == recipe.EffectiveSellPrice && expectedSavedPrice != rebuiltValue)
+            input.SetTextWithoutNotify(expectedSavedPrice.ToString());
+        // The last value is the value SAVE will read, even after multiple digits.
+        if (step.ActionKey == "Management.MenuSavePrice" && input != null &&
+            int.TryParse(input.text, out int typed) && typed >= 0)
+            expectedSavedPrice = EditedMenuPrice = typed;
+        if (TryCompleteObservedState()) return true;
+        if (target == null) return false;
         if (string.Equals(step.ActionKey, "Management.MenuSavePrice", StringComparison.Ordinal))
         {
             Debug.Log($"[TutorialMenu] Step {owner.CurrentStepIndex} waiting for: " +
@@ -68,6 +113,7 @@ public sealed class TutorialUIActionAdapter : MonoBehaviour
                 return false;
             }
             input.onSelect.AddListener(OnInputSelected);
+            owner.GetComponent<TutorialUIAutoScroller>()?.TrackKeyboard(input);
             if (IsInputSelected()) MarkObserved();
             return false;
         }
@@ -80,7 +126,12 @@ public sealed class TutorialUIActionAdapter : MonoBehaviour
                 return false;
             }
             input.onValueChanged.AddListener(OnInputValueChanged);
-            if (TryReadChangedPrice(out _)) MarkObserved();
+            input.onEndEdit.AddListener(OnInputEndEdit);
+            input.onSubmit.AddListener(OnInputEndEdit);
+            owner.GetComponent<TutorialUIAutoScroller>()?.TrackKeyboard(input);
+            // A valid edit may have ended between the focus and typing steps.
+            // A still-focused field is never accepted from its partial text.
+            if (!input.isFocused && TryReadChangedPrice(out _)) OnInputEndEdit(input.text);
             return false;
         }
 
@@ -111,7 +162,6 @@ public sealed class TutorialUIActionAdapter : MonoBehaviour
     {
         ManagementEmployeeCardUI employeeCard = target.GetComponentInParent<ManagementEmployeeCardUI>();
         employee = employeeCard != null ? employeeCard.Employee : null;
-        originalEmployeeHired = employee != null && employee.hired;
 
         ManagementComputerCatalogPanelUI catalogPanel =
             target.GetComponentInParent<ManagementComputerCatalogPanelUI>();
@@ -156,16 +206,33 @@ public sealed class TutorialUIActionAdapter : MonoBehaviour
 
     private void OnInputSelected(string _) => MarkObserved();
 
-    private void OnInputValueChanged(string _) => MarkObserved();
+    private void OnInputValueChanged(string _)
+    {
+        editCommitted = false;
+        committedPrice = -1;
+        clicked = false;
+    }
+
+    private void OnInputEndEdit(string value)
+    {
+        if (input == null || input.wasCanceled ||
+            input.touchScreenKeyboard?.status == TouchScreenKeyboard.Status.Canceled) return;
+        editCommitted = int.TryParse(value, out committedPrice) && committedPrice >= 0 && committedPrice != originalPrice;
+        if (editCommitted) MarkObserved();
+        else tutorial?.SetObjective("Enter a different, valid whole-number price, then finish editing.");
+    }
 
     private void MarkObserved()
     {
+        if (tutorial == null || tutorial.CurrentStep != step || !tutorial.IsWaitingForGameplayAction) return;
         clicked = true;
         clickedFrame = Time.frameCount;
     }
 
     private void LateUpdate()
     {
+        if (!clicked && Time.unscaledTime < nextStateCheck) return;
+        nextStateCheck = Time.unscaledTime + .1f;
         bool menuSave = step != null && string.Equals(
             step.ActionKey, "Management.MenuSavePrice", StringComparison.Ordinal);
         if (menuSave && recipe != null && recipe.EffectiveSellPrice != lastLoggedSavedPrice)
@@ -175,9 +242,7 @@ public sealed class TutorialUIActionAdapter : MonoBehaviour
                       $"expected final typed price: {expectedSavedPrice}; " +
                       $"condition {(lastLoggedSavedPrice == expectedSavedPrice && lastLoggedSavedPrice != originalPrice ? "matched" : "did not match")}", this);
         }
-        bool stateDrivenAction = step != null &&
-            (menuSave ||
-             step.ActionKey.StartsWith("Shift.", StringComparison.Ordinal));
+        bool stateDrivenAction = step != null && IsStateAction(step.ActionKey);
         if ((!clicked && !stateDrivenAction) ||
             (clicked && Time.frameCount <= clickedFrame) || tutorial == null ||
             tutorial.CurrentStep != step || !tutorial.IsWaitingForGameplayAction)
@@ -244,13 +309,12 @@ public sealed class TutorialUIActionAdapter : MonoBehaviour
             case "Management.Finance":
             case "Management.Objectives":
             case "Management.Restock":
-                return FindManagementComputer()?.IsOpen == true &&
-                       button != null && button.gameObject.activeInHierarchy;
+                return bindings != null && bindings.IsAppOpen(actionKey);
 
             case "Management.StaffApplicants":
                 return ActiveHRPanel()?.CurrentView == ManagementHRView.Applicants;
             case "Management.StaffHire":
-                return employee != null && !originalEmployeeHired && employee.hired;
+                return employee != null && employee.hired;
             case "Management.StaffLobby":
                 return ActiveHRPanel()?.CurrentView == ManagementHRView.Lobby;
             case "Management.StaffSetActive":
@@ -263,11 +327,10 @@ public sealed class TutorialUIActionAdapter : MonoBehaviour
             case "Management.MenuPriceFocus":
                 return IsInputSelected();
             case "Management.MenuPriceChanged":
-                return TryReadChangedPrice(out _);
+                return editCommitted && !input.isFocused && TryReadChangedPrice(out int finalPrice) && finalPrice == committedPrice;
             case "Management.MenuSavePrice":
                 return recipe != null && recipe == PriceEditedRecipe && expectedSavedPrice >= 0 &&
-                       recipe.EffectiveSellPrice == expectedSavedPrice &&
-                       recipe.EffectiveSellPrice != originalPrice;
+                       recipe.EffectiveSellPrice == expectedSavedPrice;
             case "Management.MenuAvailability":
                 return recipe != null &&
                        MenuAvailabilityManager.IsProductAvailable(recipe) != originalAvailability;
@@ -292,10 +355,7 @@ public sealed class TutorialUIActionAdapter : MonoBehaviour
 
     private static ManagementComputerHRPanel ActiveHRPanel()
     {
-        foreach (ManagementComputerHRPanel panel in
-                 FindObjectsByType<ManagementComputerHRPanel>(FindObjectsInactive.Include, FindObjectsSortMode.None))
-            if (panel.gameObject.activeInHierarchy) return panel;
-        return null;
+        return FindManagementComputer()?.AppWindow?.Content?.GetComponentInChildren<ManagementComputerHRPanel>(false);
     }
 
     private static Recipe GetSelectedRecipe(RectTransform target = null)
@@ -304,14 +364,7 @@ public sealed class TutorialUIActionAdapter : MonoBehaviour
             ? target.GetComponentInParent<ManagementComputerCatalogPanelUI>()
             : null;
         if (panel == null)
-            foreach (ManagementComputerCatalogPanelUI candidate in
-                     FindObjectsByType<ManagementComputerCatalogPanelUI>(
-                         FindObjectsInactive.Include, FindObjectsSortMode.None))
-                if (candidate.gameObject.activeInHierarchy)
-                {
-                    panel = candidate;
-                    break;
-                }
+            panel = FindManagementComputer()?.AppWindow?.Content?.GetComponentInChildren<ManagementComputerCatalogPanelUI>(false);
         if (panel == null || !panel.gameObject.activeInHierarchy) return null;
         TMP_Text[] labels = panel.GetComponentsInChildren<TMP_Text>(false);
         foreach (ManagementComputerCatalogCardUI card in
@@ -330,7 +383,7 @@ public sealed class TutorialUIActionAdapter : MonoBehaviour
     private static bool VisibleCatalogCardsAre(MenuProductCategory category)
     {
         ManagementComputerCatalogPanelUI panel =
-            FindFirstObjectByType<ManagementComputerCatalogPanelUI>(FindObjectsInactive.Include);
+            FindManagementComputer()?.AppWindow?.Content?.GetComponentInChildren<ManagementComputerCatalogPanelUI>(false);
         if (panel == null || !panel.gameObject.activeInHierarchy) return false;
         bool found = false;
         foreach (ManagementComputerCatalogCardUI card in
@@ -346,7 +399,7 @@ public sealed class TutorialUIActionAdapter : MonoBehaviour
     private static bool CartShowsItem(ItemData expected)
     {
         ManagementComputerCatalogPanelUI panel =
-            FindFirstObjectByType<ManagementComputerCatalogPanelUI>(FindObjectsInactive.Include);
+            FindManagementComputer()?.AppWindow?.Content?.GetComponentInChildren<ManagementComputerCatalogPanelUI>(false);
         if (panel == null || !panel.gameObject.activeInHierarchy) return false;
         foreach (TMP_Text text in panel.GetComponentsInChildren<TMP_Text>(false))
             if (text.GetComponentInParent<ManagementComputerCatalogCardUI>() == null &&
@@ -378,8 +431,12 @@ public sealed class TutorialUIActionAdapter : MonoBehaviour
         return null;
     }
 
-    private static ManagementComputerController FindManagementComputer() =>
-        FindFirstObjectByType<ManagementComputerController>(FindObjectsInactive.Include);
+    private static ManagementComputerController cachedComputer;
+    private static ManagementComputerController FindManagementComputer()
+    {
+        if (cachedComputer == null) cachedComputer = FindFirstObjectByType<ManagementComputerController>(FindObjectsInactive.Include);
+        return cachedComputer;
+    }
 
     private bool IsInputSelected()
     {
@@ -412,22 +469,42 @@ public sealed class TutorialUIActionAdapter : MonoBehaviour
         {
             input.onSelect.RemoveListener(OnInputSelected);
             input.onValueChanged.RemoveListener(OnInputValueChanged);
+            input.onEndEdit.RemoveListener(OnInputEndEdit);
+            input.onSubmit.RemoveListener(OnInputEndEdit);
         }
         button = null;
         clickRelay = null;
         input = null;
         clicked = false;
+        editCommitted = false;
+        committedPrice = -1;
         tutorial = null;
         step = null;
-        employee = null;
-        recipe = null;
-        item = null;
-        expectedSavedPrice = -1;
+        // Authoritative objects/baselines belong to the lesson, not a Button
+        // instance. A rebuilt card must not make a hire/order happen twice.
         lastLoggedSavedPrice = int.MinValue;
         saveClickLogged = false;
     }
 
     private void OnDisable() => StopWaiting();
+
+    private static bool IsStateAction(string key) =>
+        TutorialSceneBindings.IsAppOpenAction(key) || key == "Computer.Open" ||
+        key == "Newspaper.Open" || key == "Newspaper.Close" || key == "Management.CloseAfterRestock" ||
+        key == "Management.StaffApplicants" || key == "Management.StaffLobby" ||
+        key == "Management.StaffHire" || key == "Management.StaffSetActive" ||
+        key == "Management.MenuSavePrice" || key == "Management.MenuFood" ||
+        key == "Management.MenuSelect" || key == "Management.RestockAddDry" ||
+        key == "Management.RestockAddCold" || key == "Management.RestockCheckout" ||
+        key == "Management.RestockOrder" || key.StartsWith("Shift.", StringComparison.Ordinal);
+
+    public bool TryCompleteObservedState()
+    {
+        if (tutorial == null || tutorial.CurrentStep != step || !tutorial.IsWaitingForGameplayAction ||
+            !IsStateAction(step.ActionKey) || !IsRealActionComplete(step.ActionKey)) return false;
+        if (step.ActionKey == "Management.StaffHire") LastHiredEmployee = employee;
+        return tutorial.NotifyAction(step.ActionKey);
+    }
 }
 
 /// <summary>

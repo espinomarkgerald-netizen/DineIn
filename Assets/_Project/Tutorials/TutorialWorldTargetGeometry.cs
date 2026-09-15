@@ -23,6 +23,7 @@ public static class TutorialWorldTargetGeometry
     public static bool TryGetScreenRect(Transform target, Camera camera, out Rect rect)
     {
         rect = default;
+        if (target == null || !target.gameObject.activeInHierarchy || camera == null || !camera.isActiveAndEnabled) return false;
         if (!TryGetBounds(target, out Bounds bounds, out Transform space)) return false;
         Vector2 min = new Vector2(float.MaxValue, float.MaxValue);
         Vector2 max = new Vector2(float.MinValue, float.MinValue);
@@ -36,7 +37,7 @@ public static class TutorialWorldTargetGeometry
             max = Vector2.Max(max, screen);
         }
         rect = Rect.MinMaxRect(min.x, min.y, max.x, max.y);
-        return true;
+        return rect.Overlaps(camera.pixelRect);
     }
 
     private static bool TryGetBounds(Transform target, out Bounds bounds, out Transform space)

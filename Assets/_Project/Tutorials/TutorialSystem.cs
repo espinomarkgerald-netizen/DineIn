@@ -71,6 +71,8 @@ public sealed class TutorialSystem : MonoBehaviour
         [SerializeField] private string actionKey;
         [SerializeField] private UnityEngine.Object requiredContext;
         [SerializeField] private string objective;
+        [Tooltip("This dialogue introduces a player action. Reveal its target only after dismissal.")]
+        [SerializeField] private bool explainsAction;
 
         [Header("Completion Effects")]
         [Tooltip("IMPORTANT: use this only on the FINAL Staff lesson step. Staff stay blocked until this step completes.")]
@@ -97,6 +99,7 @@ public sealed class TutorialSystem : MonoBehaviour
         public string ActionKey => actionKey;
         public UnityEngine.Object RequiredContext => requiredContext;
         public string Objective => objective;
+        public bool ExplainsAction => explainsAction || stepType == TutorialStepType.WaitForGameplayAction;
         public bool EnableStaffSpawningOnComplete => enableStaffSpawningOnComplete;
         public bool EnableCustomerSpawningOnComplete => enableCustomerSpawningOnComplete;
         public bool IsPlaceholder => isPlaceholder;
@@ -177,6 +180,29 @@ public sealed class TutorialSystem : MonoBehaviour
     private TutorialUIActionAdapter uiActionAdapter;
     private TutorialUIAutoScroller uiAutoScroller;
     private int presentationRevision;
+    private bool transitioning;
+    private bool recovering;
+    private bool resumeAction;
+    private float nextBindingCheck;
+    private Coroutine handoffRoutine;
+    private Coroutine framingRoutine;
+    private NavMeshAgent travelAgent;
+    private bool travelling, travelYielded;
+    private Vector3 travelOffset;
+    private int completedRevision = -1;
+    [Header("Tutorial Presentation")]
+    [SerializeField, Range(0f, .5f)] private float focusPulseAmount = .22f;
+    [SerializeField, Min(.1f)] private float focusPulseSpeed = 2.4f;
+    [SerializeField, Range(0f, .08f)] private float focusPulseExpansion = .03f;
+    [SerializeField, Min(0f)] private float focusTransitionDuration = .24f;
+    [SerializeField, Min(.1f)] private float travelFollowSharpness = 8f;
+    [SerializeField, Min(.25f)] private float boothArrivalRadius = .6f;
+    [SerializeField, Min(0f)] private float mobileKeyboardGap = 24f;
+    [SerializeField, Range(.25f, .7f)] private float mobileKeyboardFallbackHeight = .5f;
+    private Vector3 travelFollowTarget;
+    private PlayerMovement boothMover;
+    private IInteractable boothTask;
+    private bool boothArrivalAccepted;
     private bool openingComplete;
     private bool rememberedAutoSpawn;
     private bool spawnStateCaptured;
@@ -207,7 +233,7 @@ public sealed class TutorialSystem : MonoBehaviour
     public bool IsWaitingForGameplayAction =>
         waitingForPlayerAction;
     public bool AreUnrelatedInteractionsRestricted =>
-        !skeletonEndpointReached && !tutorialCompleted && isActiveAndEnabled &&
+        !recovering && !skeletonEndpointReached && !tutorialCompleted && isActiveAndEnabled &&
         CurrentStep != null && CurrentStep.RestrictUnrelatedInteractions;
 
     private void Awake()
@@ -257,6 +283,7 @@ public sealed class TutorialSystem : MonoBehaviour
         if (uiActionAdapter == null) uiActionAdapter = gameObject.AddComponent<TutorialUIActionAdapter>();
         uiAutoScroller = GetComponent<TutorialUIAutoScroller>();
         if (uiAutoScroller == null) uiAutoScroller = gameObject.AddComponent<TutorialUIAutoScroller>();
+        uiAutoScroller.ConfigureKeyboard(mobileKeyboardGap, mobileKeyboardFallbackHeight);
         if (GetComponent<TutorialCameraZoomObserver>() == null)
             gameObject.AddComponent<TutorialCameraZoomObserver>();
         if (GetComponent<TutorialBoothAvailability>() == null)
@@ -268,7 +295,13 @@ public sealed class TutorialSystem : MonoBehaviour
         if (GetComponent<TutorialDayContext>() == null)
             gameObject.AddComponent<TutorialDayContext>();
         if (uiFocusMask == null && dialogueUI != null)
+        {
             uiFocusMask = TutorialUIFocusMask.Create(dialogueUI.transform.parent);
+            // These fields configure only the runtime-created mask. An authored
+            // mask keeps its own saved Inspector values.
+            uiFocusMask.ConfigurePulse(focusPulseAmount, focusPulseSpeed, focusPulseExpansion);
+            uiFocusMask.ConfigureTransition(focusTransitionDuration);
+        }
 
         SubscribeToGameplayEvents();
         CaptureAndSuppressAutomaticSpawning();
@@ -380,6 +413,7 @@ public sealed class TutorialSystem : MonoBehaviour
 
     private void OnDisable()
     {
+        UnsubscribeFromGameplayEvents();
         if (debugStartRoutine != null) { StopCoroutine(debugStartRoutine); debugStartRoutine = null; }
         ClearGuidance(false);
         PlayerTaskGuidance.ClearTask("Lobby1Tutorial");
@@ -471,32 +505,64 @@ public sealed class TutorialSystem : MonoBehaviour
     public void AdvanceManualStep()
     {
         TutorialStep step = CurrentStep;
-        if (step == null || !waitingForNext)
+        if (step == null || !waitingForNext || transitioning || recovering || travelling)
             return;
 
-        waitingForNext = false; // Debounce NEXT while the authored panel animates out.
-        Action continuation = step.StepType == TutorialStepType.WaitForGameplayAction
-            ? BeginWaitingForAction
-            : CompleteCurrentStepAndAdvance;
-        if (dialogueUI != null)
-            dialogueUI.HideDialogueAnimated(continuation);
+        waitingForNext = false;
+        transitioning = true;
+        presentationRevision++;
+        if (framingRoutine != null) StopCoroutine(framingRoutine);
+        framingRoutine = null;
+        framingWorld = false;
+        uiAutoScroller?.Cancel();
+        handoffRoutine = StartCoroutine(ConsumeDismissal(step, presentationRevision));
+    }
+
+    private System.Collections.IEnumerator ConsumeDismissal(TutorialStep step, int revision)
+    {
+        dialogueUI?.HideDialogue();
+        uiFocusMask?.BlockGesture();
+        // Keep the UI raycast surface through release AND the following frame.
+        // A held pointer/submit must be released before gameplay is exposed.
+        do { yield return null; }
+        while (Input.GetMouseButton(0) || Input.GetMouseButton(1) || Input.touchCount > 0 ||
+               Input.GetKey(KeyCode.Return) || Input.GetKey(KeyCode.Space));
+        yield return null;
+        if (CurrentStep != step || revision != presentationRevision) yield break;
+        if (step.StepType == TutorialStepType.WaitForGameplayAction && currentUIFocus != null)
+        {
+            bool ready = false;
+            uiAutoScroller.Prepare(currentUIFocus, () => ready = true);
+            while (!ready && CurrentStep == step && revision == presentationRevision) yield return null;
+            if (CurrentStep != step || revision != presentationRevision) yield break;
+        }
+        handoffRoutine = null;
+        transitioning = false;
+        if (step.StepType == TutorialStepType.WaitForGameplayAction)
+        {
+            uiFocusMask?.Hide();
+            BeginWaitingForAction();
+        }
         else
-            continuation();
+        {
+            uiFocusMask?.Hold();
+            CompleteCurrentStepAndAdvance();
+        }
     }
 
     public bool NotifyGameplayAction(TutorialAction action, UnityEngine.Object context = null)
     {
+        TutorialStep step = CurrentStep;
         GameplayActionReported?.Invoke(action, context);
 
-        TutorialStep step = CurrentStep;
-        if (step == null || !waitingForPlayerAction || !string.IsNullOrEmpty(step.ActionKey))
+        if (step == null || CurrentStep != step || transitioning || recovering || !waitingForPlayerAction || !string.IsNullOrEmpty(step.ActionKey))
             return false;
 
         if (action == TutorialAction.None || step.RequiredAction != action || !ContextMatches(step, context))
             return false;
 
         if (action == TutorialAction.TableInteracted &&
-            !TargetsMatch(step.HighlightTarget, context as Transform))
+            (!boothArrivalAccepted || !TargetsMatch(step.HighlightTarget, context as Transform)))
             return false;
 
         CompleteCurrentStepAndAdvance();
@@ -515,7 +581,7 @@ public sealed class TutorialSystem : MonoBehaviour
             Debug.Log($"[TutorialMenu] NotifyAction received at index {currentStepIndex}: sent={actionKey}, " +
                       $"expected={(step != null ? step.ActionKey : "<no step>")}, waiting={waitingForPlayerAction}, " +
                       $"keyMatch={keyMatches}, contextMatch={contextMatches}", this);
-        if (!waitingForPlayerAction || step == null || string.IsNullOrEmpty(actionKey) ||
+        if (transitioning || recovering || !waitingForPlayerAction || step == null || string.IsNullOrEmpty(actionKey) ||
             !keyMatches || !contextMatches)
             return false;
         CompleteCurrentStepAndAdvance();
@@ -579,8 +645,15 @@ public sealed class TutorialSystem : MonoBehaviour
     private void CompleteCurrentStepAndAdvance()
     {
         TutorialStep completed = CurrentStep;
-        if (completed == null)
+        if (completed == null || transitioning || completedRevision == presentationRevision)
             return;
+
+        completedRevision = presentationRevision;
+        transitioning = true;
+        waitingForNext = waitingForPlayerAction = false;
+        uiActionAdapter?.StopWaiting();
+        handIndicator?.HideHint();
+        StopTravel();
 
         bool customers = allowCustomerSpawning || completed.EnableCustomerSpawningOnComplete;
         bool staff = allowStaffSpawning || completed.EnableStaffSpawningOnComplete;
@@ -588,6 +661,10 @@ public sealed class TutorialSystem : MonoBehaviour
             SetSpawnPermissions(customers, staff);
 
         StepCompleted?.Invoke(completed);
+        // Only close at the boundary before the next authored app-opening lesson.
+        if (currentStepIndex + 1 < StepCount &&
+            TutorialSceneBindings.IsAppOpenAction(steps[currentStepIndex + 1].ActionKey))
+            sceneBindings.CloseCompletedApp();
         AdvanceToNextStep();
     }
 
@@ -595,6 +672,8 @@ public sealed class TutorialSystem : MonoBehaviour
     {
         restockTargetPending = false;
         ClearGuidance(true);
+        transitioning = false;
+        recovering = false;
         waitingForNext = waitingForPlayerAction = false;
         currentStepIndex++;
         if (currentStepIndex >= StepCount)
@@ -618,6 +697,8 @@ public sealed class TutorialSystem : MonoBehaviour
 
         restockTargetPending = false;
         ClearGuidance(true);
+        transitioning = false;
+        recovering = false;
         waitingForNext = waitingForPlayerAction = false;
         if (currentPhase != step.Phase)
         {
@@ -645,12 +726,13 @@ public sealed class TutorialSystem : MonoBehaviour
             : sceneBindings.ResolveWorld(step.WorldTargetKey);
         BindWorldMaskProjection();
         sceneBindings.BeginUIFocus(currentUIFocus);
-        if ((!string.IsNullOrEmpty(step.UITargetKey) || step.UIFocusTarget != null) && currentUIFocus == null)
+        uiActionAdapter?.ObserveStep(this, currentUIFocus);
+        if (!step.ExplainsAction && (!string.IsNullOrEmpty(step.UITargetKey) || step.UIFocusTarget != null) && currentUIFocus == null &&
+            !(uiActionAdapter != null && uiActionAdapter.CanCompleteFromState(this)))
         {
             uiFocusMask?.Hide();
-            if (step.Phase == TutorialPhase.PhysicalRestocking) { restockTargetPending = true; return; }
-            Debug.LogError("[TutorialSystem] Missing UI target for step " + step.Id, this);
-            dialogueUI?.ShowWaiting(step.Speaker, "This lesson's target is unavailable.", step.Portrait);
+            restockTargetPending = true;
+            RecoverTarget(false);
             return;
         }
         if (step.Phase == TutorialPhase.Completed)
@@ -665,6 +747,12 @@ public sealed class TutorialSystem : MonoBehaviour
     private void PresentResolvedStep(TutorialStep step)
     {
         if (CurrentStep != step) return;
+        if (step.ExplainsAction && !string.IsNullOrEmpty(step.Message))
+        {
+            uiFocusMask?.Hide();
+            PresentCurrentStep(step, false);
+            return;
+        }
         if (currentUIFocus != null)
         {
             int revision = ++presentationRevision;
@@ -694,14 +782,20 @@ public sealed class TutorialSystem : MonoBehaviour
             BeginWaitingForAction(); // Existing Basic Controls already has separate explanation steps.
         else
         {
-            if (!focusReady) ShowFocus(false);
+            if (step.ExplainsAction) { uiFocusMask?.Hide(); targetIndicator?.Hide(); }
+            else if (!focusReady) ShowFocus(false);
             waitingForNext = true;
+            int revision = presentationRevision;
             dialogueUI?.ShowManual(step.Speaker,
-                TutorialInputTerminology.Resolve(step.Message), step.Portrait, AdvanceManualStep);
+                TutorialInputTerminology.Resolve(step.Message), step.Portrait, () =>
+                { if (CurrentStep == step && revision == presentationRevision) AdvanceManualStep(); });
             dialogueUI?.SetFocusTarget(currentUIFocus);
-            if (step.Phase == TutorialPhase.PhysicalRestocking)
-                ShowRestockHint(step);
+            handIndicator?.HideHint();
+            // The existing mask blocks gameplay; dialogue observes a fresh
+            // pointer gesture independently of which graphic receives the hit.
+            uiFocusMask?.SetDialogueInput(true);
         }
+        if (CurrentStep != step) return;
         InteractionRestrictionChanged?.Invoke(step.RestrictUnrelatedInteractions);
         StepChanged?.Invoke(currentStepIndex, step);
     }
@@ -709,11 +803,13 @@ public sealed class TutorialSystem : MonoBehaviour
     public void BeginWaitingForAction()
     {
         TutorialStep step = CurrentStep;
-        if (step == null || step.IsPlaceholder || step.StepType != TutorialStepType.WaitForGameplayAction ||
+        if (transitioning || recovering || step == null || step.IsPlaceholder || step.StepType != TutorialStepType.WaitForGameplayAction ||
             (!waitingForNext && waitingForPlayerAction)) return;
         waitingForNext = false;
         waitingForPlayerAction = true;
         dialogueUI?.HideDialogue();
+        uiFocusMask?.SetDialogueInput(false);
+        SetObjective(ActionInstruction(step));
         ShowFocus(true);
         if (step.HintMode == TutorialHintMode.Drag)
         {
@@ -725,11 +821,15 @@ public sealed class TutorialSystem : MonoBehaviour
         }
         // UI observers and visual hints run together. The observer verifies the
         // real click/state; it must not suppress the hand/cursor demonstration.
-        uiActionAdapter?.Begin(this, currentUIFocus);
+        if (uiActionAdapter != null && uiActionAdapter.Begin(this, currentUIFocus)) return;
+        if (CurrentStep != step || !waitingForPlayerAction) return;
         if (step.HintMode == TutorialHintMode.Hold) handIndicator?.ShowHoldHint(currentUIFocus != null ? currentUIFocus : currentWorldFocus);
         else if (step.HintMode == TutorialHintMode.Swipe) handIndicator?.ShowSwipeHint();
         else if (step.HintMode == TutorialHintMode.Tap || step.HintMode == TutorialHintMode.None)
-            handIndicator?.ShowTapHint(currentUIFocus != null ? currentUIFocus : currentWorldFocus);
+        {
+            Transform target = currentUIFocus != null ? currentUIFocus : currentWorldFocus;
+            if (target != null) handIndicator?.ShowTapHint(target);
+        }
         else if (step.HintMode == TutorialHintMode.Zoom)
             handIndicator?.ShowZoomHint(TutorialInputTerminology.IsMobile);
         else if (step.HintMode == TutorialHintMode.Typing)
@@ -752,7 +852,7 @@ public sealed class TutorialSystem : MonoBehaviour
         sceneBindings?.BeginUIFocus(currentUIFocus);
         dialogueUI?.SetFocusTarget(currentUIFocus);
         uiFocusMask?.Show(currentUIFocus, true);
-        uiActionAdapter?.Begin(this, currentUIFocus);
+        if (uiActionAdapter != null && uiActionAdapter.Begin(this, currentUIFocus)) return;
 
         if (step.HintMode == TutorialHintMode.Typing) handIndicator?.ShowTypingHint(currentUIFocus);
         else if (step.HintMode == TutorialHintMode.Hold) handIndicator?.ShowHoldHint(currentUIFocus);
@@ -762,6 +862,7 @@ public sealed class TutorialSystem : MonoBehaviour
     private bool restockTargetPending;
     public void RefreshRestockPresentation()
     {
+        if (transitioning || recovering || travelling) return;
         TutorialStep step = CurrentStep;
         if (step == null || step.Phase != TutorialPhase.PhysicalRestocking) return;
         RectTransform live = sceneBindings.ResolveUI(step.UITargetKey);
@@ -800,7 +901,7 @@ public sealed class TutorialSystem : MonoBehaviour
 
     private void ShowRestockHint(TutorialStep step)
     {
-        if (step == null) return;
+        if (step == null || !waitingForPlayerAction || transitioning || recovering || travelling) return;
         Transform target = currentUIFocus != null ? currentUIFocus : currentWorldFocus;
         if (step.HintMode == TutorialHintMode.Drag && step.ActionKey == "Restock.BoxActionsHidden")
             handIndicator?.ShowSmallDragHint(currentWorldFocus);
@@ -809,7 +910,7 @@ public sealed class TutorialSystem : MonoBehaviour
         else if (step.HintMode == TutorialHintMode.Hold)
             handIndicator?.ShowHoldHint(target);
         else if (step.HintMode == TutorialHintMode.Typing) handIndicator?.ShowTypingHint(target);
-        else if (step.HintMode == TutorialHintMode.Tap || step.HintMode == TutorialHintMode.None)
+        else if (target != null && (step.HintMode == TutorialHintMode.Tap || step.HintMode == TutorialHintMode.None))
             handIndicator?.ShowTapHint(target);
     }
 
@@ -855,7 +956,7 @@ public sealed class TutorialSystem : MonoBehaviour
         Transform target = WorldFramingTarget();
         if (framingWorld || target == null || cameraController == null || !cameraController.isActiveAndEnabled ||
             cameraController.Cam == null || !cameraController.Cam.isActiveAndEnabled || TargetVisible(target, .09f)) return false;
-        StartCoroutine(FrameWorldTarget(target, presentationRevision, onSettled));
+        framingRoutine = StartCoroutine(FrameWorldTarget(target, presentationRevision, onSettled));
         return true;
     }
 
@@ -886,6 +987,16 @@ public sealed class TutorialSystem : MonoBehaviour
 
     private void Update()
     {
+        if (gameObject.scene.name == "Lobby1Tutorial" && CurrentStep != null && !transitioning)
+        {
+            UpdateTravel();
+            if (Time.unscaledTime >= nextBindingCheck)
+            {
+                nextBindingCheck = Time.unscaledTime + .25f;
+                CheckLiveTarget();
+            }
+        }
+        if (travelling || recovering || transitioning) return;
         if (framingWorld || Time.unscaledTime < nextFrameAssist || (!waitingForNext && !waitingForPlayerAction)) return;
         Transform target = WorldFramingTarget();
         if (target == null || cameraController == null || cameraController.Cam == null || TargetVisible(target, 0f))
@@ -902,20 +1013,22 @@ public sealed class TutorialSystem : MonoBehaviour
 
     private void ShowFocus(bool allowTargetInput)
     {
+        dialogueUI?.SetWorldFocusTarget(currentWorldFocus);
+        if (!allowTargetInput && CurrentStep?.ExplainsAction == true) return;
         if (CurrentStep != null && CurrentStep.HintMode == TutorialHintMode.Drag)
         {
             var restock = GetComponent<TutorialRestockFlowBridge>();
             RectTransform destination = restock != null ? restock.ResolveUI("RestockSlotFocus") : null;
             if (destination != null && (CurrentStep.ActionKey == "Restock.StoreActive" || CurrentStep.ActionKey == "Restock.StoreSecond"))
             {
-                uiFocusMask?.Show(destination, true);
-                if (uiFocusMask != null) { uiFocusMask.GesturePassThrough = true; uiFocusMask.raycastTarget = false; }
+                uiFocusMask?.Show(destination, allowTargetInput);
+                if (uiFocusMask != null && allowTargetInput) { uiFocusMask.GesturePassThrough = true; uiFocusMask.raycastTarget = false; }
                 return;
             }
             if (CurrentStep.ActionKey == "Restock.BoxActionsHidden" && currentUIFocus != null)
             {
-                uiFocusMask?.Show(currentUIFocus, true);
-                if (uiFocusMask != null) { uiFocusMask.GesturePassThrough = true; uiFocusMask.raycastTarget = false; }
+                uiFocusMask?.Show(currentUIFocus, allowTargetInput);
+                if (uiFocusMask != null && allowTargetInput) { uiFocusMask.GesturePassThrough = true; uiFocusMask.raycastTarget = false; }
                 return;
             }
             // A hotbar-to-world drag must be able to leave the UI target and reach
@@ -929,12 +1042,242 @@ public sealed class TutorialSystem : MonoBehaviour
         else if (currentWorldFocus != null) targetIndicator?.Show(currentWorldFocus);
     }
 
+    private string ActionInstruction(TutorialStep step)
+    {
+        if (!string.IsNullOrEmpty(step.Objective)) return step.Objective;
+        if (TutorialSceneBindings.IsAppOpenAction(step.ActionKey))
+            return "Open " + TutorialSceneBindings.AppTitle(step.ActionKey) + ".";
+        switch (step.ActionKey)
+        {
+            case "Computer.Open": return "Select Computer to walk to the management computer.";
+            case "Restock.WaitForDelivery": return "Waiting for the ingredient delivery…";
+            case "Restock.TruckOpened": return "Select the delivery truck.";
+            case "Restock.GetOrders": return "Collect the delivered boxes.";
+            case "Restock.EnterAny": return "Open Dry Storage or the Freezer.";
+            case "Restock.StoreActive":
+            case "Restock.StoreSecond": return "Drag the highlighted box to its storage slot.";
+            case "Restock.ExitRoom": return "Exit storage and return to the restaurant.";
+        }
+        if (!string.IsNullOrEmpty(step.Message)) return TutorialInputTerminology.Resolve(step.Message);
+        if (currentStepIndex > 0) return TutorialInputTerminology.Resolve(steps[currentStepIndex - 1].Message);
+        return "Follow the highlighted action.";
+    }
+
+    private string RequiredApp()
+    {
+        if (CurrentStep == null || CurrentStep.Phase != TutorialPhase.Management) return null;
+        for (int i = currentStepIndex; i >= 0; i--)
+            if (TutorialSceneBindings.IsAppOpenAction(steps[i].ActionKey)) return steps[i].ActionKey;
+        return null;
+    }
+
+    private void RecoverTarget(bool action)
+    {
+        if (!recovering)
+        {
+            resumeAction = action;
+            recovering = true;
+            presentationRevision++;
+            uiAutoScroller?.Cancel();
+            dialogueUI?.Hide();
+            handIndicator?.HideHint();
+            targetIndicator?.Hide();
+            uiActionAdapter?.StopWaiting();
+            InteractionRestrictionChanged?.Invoke(false);
+        }
+        waitingForNext = waitingForPlayerAction = false;
+        string app = RequiredApp();
+        RectTransform recovery = app != null ? sceneBindings.RecoveryTarget(app, CurrentStep.UITargetKey) : null;
+        if (recovery != null)
+        {
+            bool changed = currentUIFocus != recovery || handIndicator == null || !handIndicator.IsVisible;
+            if (changed) sceneBindings.BeginUIFocus(recovery);
+            currentUIFocus = recovery;
+            if (changed)
+            {
+                uiFocusMask?.Show(recovery, true);
+                handIndicator?.ShowTapHint(recovery);
+            }
+        }
+        else { uiFocusMask?.Hide(); handIndicator?.HideHint(); }
+        SetObjective(app != null
+            ? (sceneBindings.IsAppOpen(app) ? "Select the highlighted section to resume this lesson." :
+                sceneBindings.Computer?.IsOpen == true ? "Open " + TutorialSceneBindings.AppTitle(app) + " to continue." : "Return to the Computer to continue this lesson.")
+            : CurrentStep.Phase == TutorialPhase.PhysicalRestocking ? "Return to the storage room to continue this lesson." :
+                "Reopen the lesson window to continue.");
+    }
+
+    private void CheckLiveTarget()
+    {
+        var step = CurrentStep;
+        if (step == null || step.IsPlaceholder || tutorialCompleted || travelling) return;
+        // Service popups disappear as real tasks start/finish. Their existing
+        // bridge must keep observing the customer, not enter app-window recovery.
+        if (waitingForNext && step.ExplainsAction) return;
+        bool serviceAction = waitingForPlayerAction && !string.IsNullOrEmpty(step.ActionKey) && step.ActionKey.StartsWith("Customer.", StringComparison.Ordinal);
+        bool physicalAction = waitingForPlayerAction && !string.IsNullOrEmpty(step.ActionKey) && step.ActionKey.StartsWith("Restock.", StringComparison.Ordinal);
+        var customerFlow = serviceAction ? GetComponent<TutorialCustomerFlowBridge>() : null;
+        if (customerFlow != null && customerFlow.TryCompleteCurrentAction()) return;
+        string app = RequiredApp();
+        bool openingApp = TutorialSceneBindings.IsAppOpenAction(step.ActionKey);
+        bool appMissing = app != null && !openingApp && !sceneBindings.IsAppOpen(app);
+        if (openingApp && sceneBindings.Computer?.IsOpen != true) appMissing = true;
+        if (appMissing) { RecoverTarget(waitingForPlayerAction || resumeAction); return; }
+        if (openingApp && sceneBindings.Computer?.IsOpen == true &&
+            sceneBindings.Computer.AppWindow != null && sceneBindings.Computer.AppWindow.gameObject.activeInHierarchy &&
+            !sceneBindings.IsAppOpen(step.ActionKey)) sceneBindings.CloseCompletedApp();
+        if (openingApp && waitingForPlayerAction && sceneBindings.IsAppOpen(step.ActionKey))
+        { NotifyAction(step.ActionKey); return; }
+        bool needsUI = !string.IsNullOrEmpty(step.UITargetKey) || step.UIFocusTarget != null;
+        if (!needsUI) return;
+        if (recovering) sceneBindings.PrepareForStep(step.UITargetKey);
+        // Resolve only the active lesson, at a bounded rate, including replaced cards.
+        RectTransform live = step.UIFocusTarget != null ? step.UIFocusTarget : sceneBindings.ResolveUI(step.UITargetKey);
+        if (live == null || !live.gameObject.activeInHierarchy)
+        {
+            if (serviceAction || physicalAction)
+            {
+                currentUIFocus = null;
+                uiFocusMask?.Hide();
+                handIndicator?.HideHint();
+                RectTransform retry = customerFlow != null ? customerFlow.ResolveReopenTarget() : null;
+                if (retry != null) RefreshLiveActionTarget(retry);
+                return;
+            }
+            // State may already be satisfied after the real callback destroyed its card.
+            if (waitingForPlayerAction && uiActionAdapter != null && uiActionAdapter.TryCompleteObservedState()) return;
+            if (uiActionAdapter != null && uiActionAdapter.CanCompleteFromState(this))
+            {
+                if (recovering)
+                {
+                    recovering = false;
+                    currentUIFocus = null;
+                    if (resumeAction) BeginWaitingForAction();
+                    else PresentCurrentStep(step, false);
+                    resumeAction = false;
+                }
+                return;
+            }
+            RecoverTarget(waitingForPlayerAction || resumeAction);
+            return;
+        }
+        if (recovering)
+        {
+            bool action = resumeAction;
+            recovering = resumeAction = restockTargetPending = false;
+            currentUIFocus = live;
+            sceneBindings.BeginUIFocus(live);
+            sceneBindings.PrepareForStep(step.UITargetKey);
+            uiActionAdapter?.ObserveStep(this, live);
+            SetObjective(step.Objective);
+            InteractionRestrictionChanged?.Invoke(step.RestrictUnrelatedInteractions);
+            if (action) BeginWaitingForAction();
+            else PresentResolvedStep(step);
+        }
+        else if (live != currentUIFocus)
+        {
+            if (waitingForPlayerAction) RefreshLiveActionTarget(live);
+            else { currentUIFocus = live; sceneBindings.BeginUIFocus(live); if (!step.ExplainsAction) ShowFocus(false); dialogueUI?.SetFocusTarget(live); }
+        }
+    }
+
+    private void UpdateTravel()
+    {
+        string key = CurrentStep?.ActionKey;
+        bool journey = key == "Computer.Open" || key == "Restock.TruckOpened" ||
+            key == "Restock.EnterAny" || key == "Restock.EnterDry" || key == "Restock.ExitRoom" ||
+            CurrentStep?.RequiredAction == TutorialAction.TableInteracted ||
+            (CurrentPhase == TutorialPhase.StaffRoles && !string.IsNullOrEmpty(key) && key.StartsWith("Customer.", StringComparison.Ordinal));
+        if ((!waitingForPlayerAction && !recovering) || !journey || cameraController == null ||
+            cameraController.Cam == null || !cameraController.enabled)
+        { StopTravel(); return; }
+        if (travelAgent == null && ManagerPlayer.Active != null)
+            travelAgent = ManagerPlayer.Active.GetComponent<NavMeshAgent>();
+        bool moving = travelAgent != null && travelAgent.isActiveAndEnabled && travelAgent.isOnNavMesh &&
+            !travelAgent.isStopped && (travelAgent.pathPending ||
+            (travelAgent.hasPath && travelAgent.remainingDistance > travelAgent.stoppingDistance + .05f));
+        PlayerMovement movement = ManagerPlayer.Active != null ? ManagerPlayer.Active.Movement : null;
+        IInteractable task = movement != null ? movement.CurrentTarget : null;
+        bool intended = boothTask != null && task == boothTask ||
+            CurrentPhase == TutorialPhase.StaffRoles && task != null ||
+            (key == "Computer.Open" ? task is ManagementComputerStation :
+            key == "Restock.TruckOpened" ? task is RestockTruckInteractable :
+            key == "Restock.EnterAny" || key == "Restock.EnterDry" ? task is RestockStockRoomEntrance :
+            task != null && currentWorldFocus != null &&
+                (task is Component component && TargetsMatch(currentWorldFocus, component.transform) ||
+                 task.StandPoint != null && TargetsMatch(currentWorldFocus, task.StandPoint)));
+        moving &= intended;
+        if (!moving)
+        {
+            if (travelling)
+            {
+                StopTravel();
+                SetObjective(ActionInstruction(CurrentStep));
+                ShowFocus(true);
+                ShowRestockHint(CurrentStep);
+            }
+            return;
+        }
+        if (!travelling)
+        {
+            if (framingRoutine != null) StopCoroutine(framingRoutine);
+            framingRoutine = null;
+            framingWorld = false;
+            travelling = true;
+            travelYielded = false;
+            Plane plane = new Plane(Vector3.up, travelAgent.transform.position);
+            Ray ray = cameraController.Cam.ViewportPointToRay(new Vector3(.5f, .5f, 0));
+            travelOffset = plane.Raycast(ray, out float distance)
+                ? cameraController.transform.position - ray.GetPoint(distance) : Vector3.zero;
+            travelFollowTarget = cameraController.transform.position;
+            handIndicator?.HideHint(); targetIndicator?.Hide(); uiFocusMask?.Hide(); dialogueUI?.Hide();
+            SetObjective(key == "Computer.Open" ? "Heading to the management computer…" :
+                key == "Restock.TruckOpened" ? "Heading to the delivery truck…" :
+                CurrentStep.RequiredAction == TutorialAction.TableInteracted ? "Walking to the booth…" :
+                CurrentPhase == TutorialPhase.StaffRoles ? "Heading to the service task…" : "Heading to storage…");
+        }
+        // The shared controller remains the ONLY camera driver. Yield for the
+        // rest of this journey when the player pans/zooms; never fight a gesture.
+        if (Input.GetMouseButton(1) || Input.touchCount >= 2 ||
+            (Input.touchCount == 1 && Input.GetTouch(0).phase == TouchPhase.Moved && Input.GetTouch(0).deltaPosition.sqrMagnitude > 1f) ||
+            Mathf.Abs(Input.mouseScrollDelta.y) > .001f)
+            travelYielded = true;
+        if (!travelYielded)
+        {
+            travelFollowTarget = Vector3.Lerp(travelFollowTarget, travelAgent.transform.position + travelOffset,
+                1f - Mathf.Exp(-travelFollowSharpness * Time.unscaledDeltaTime));
+            cameraController.SetRigTargetPosition(travelFollowTarget);
+        }
+    }
+
+    private void StopTravel()
+    {
+        travelling = false;
+        travelYielded = false;
+        travelAgent = null;
+    }
+
     private void ClearGuidance(bool preserveMask = false)
     {
         presentationRevision++;
+        // Cancel only the task issued by this tutorial lesson, never another job.
+        IInteractable obsoleteTask = boothTask;
+        boothTask = null;
+        if (boothMover != null && obsoleteTask != null && boothMover.CurrentTarget == obsoleteTask)
+            boothMover.CancelLockedTask();
+        boothMover = null;
+        boothArrivalAccepted = false;
+        if (handoffRoutine != null) StopCoroutine(handoffRoutine);
+        if (framingRoutine != null) StopCoroutine(framingRoutine);
+        handoffRoutine = framingRoutine = null;
+        framingWorld = false;
+        StopTravel();
+        currentUIFocus = null;
+        recovering = resumeAction = transitioning = false;
         currentWorldFocus = null;
         uiAutoScroller?.Cancel();
         dialogueUI?.SetFocusTarget(null);
+        dialogueUI?.SetWorldFocusTarget(null);
         uiActionAdapter?.StopWaiting();
         if (sceneBindings != null) sceneBindings.EndUIFocus();
         if (uiFocusMask != null)
@@ -994,13 +1337,39 @@ public sealed class TutorialSystem : MonoBehaviour
 
     private void OnCameraPanned(Vector2 screenMovement)
     {
+        if (travelling) { travelYielded = true; return; }
         if (screenMovement.sqrMagnitude > 0f)
             NotifyGameplayAction(TutorialAction.CameraPanned, cameraController);
     }
 
     private void OnSelectionSucceeded(Transform selectedTransform)
     {
-        NotifyGameplayAction(TutorialAction.TableInteracted, selectedTransform);
+        TutorialStep step = CurrentStep;
+        if (!IsWaitingForGameplayAction || transitioning || recovering || boothTask != null ||
+            step?.RequiredAction != TutorialAction.TableInteracted || !TargetsMatch(step.HighlightTarget, selectedTransform)) return;
+        Booth booth = selectedTransform.GetComponentInParent<Booth>() ?? selectedTransform.GetComponentInChildren<Booth>();
+        PlayerMovement mover = ManagerPlayer.Active != null ? ManagerPlayer.Active.Movement : null;
+        if (booth?.approachPoint == null || mover == null || mover.IsTaskLocked)
+        { SetObjective("Select the booth again when your current task has finished."); return; }
+        int revision = presentationRevision;
+        boothMover = mover;
+        mover.UI_MoveToAction(booth.approachPoint, boothArrivalRadius, () =>
+        {
+            if (CurrentStep != step || revision != presentationRevision) return;
+            boothTask = null;
+            boothArrivalAccepted = true;
+            NotifyGameplayAction(TutorialAction.TableInteracted, selectedTransform);
+        }, () =>
+        {
+            if (CurrentStep != step || revision != presentationRevision) return;
+            boothTask = null;
+            StopTravel();
+            SetObjective("Select the highlighted booth to try again.");
+            ShowFocus(true);
+            ShowRestockHint(step);
+        });
+        if (CurrentStep == step && mover.CurrentState == PlayerMovement.State.MovingToTarget)
+            boothTask = mover.CurrentTarget;
     }
 
     private static bool TargetsMatch(Transform expected, Transform selected)
