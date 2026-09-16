@@ -2,6 +2,19 @@ using UnityEngine;
 
 public sealed partial class MultiplayerRestaurantBridge
 {
+    [System.Serializable] private sealed class InventoryStateSignature
+    {
+        public int saveSchemaVersion, inventorySystemVersion, discardedUnitsToday;
+        public System.Collections.Generic.List<InventorySaveEntry> inventoryStocks;
+        public System.Collections.Generic.List<InventoryStockBatchSaveEntry> inventoryStockBatches;
+    }
+    [System.Serializable] private sealed class MoneyStateSignature
+    {
+        public int currentDay, money;
+        public System.Collections.Generic.List<MoneyTransactionSaveEntry> moneyTransactions;
+        public System.Collections.Generic.List<DailyFinanceSummarySaveEntry> financeHistory;
+        public DailyRestaurantSnapshotSaveData lastDailyRestaurantSnapshot;
+    }
     private const string EconomyKey = "restaurant.economy.v3";
     private bool managementDirty = true, economyDirty = true, subscribed;
     private MoneyManager moneySource;

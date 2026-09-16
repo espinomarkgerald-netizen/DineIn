@@ -31,6 +31,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
     [SerializeField] private Button[] appButtons;
     [SerializeField] private Button startShiftButton;
     [SerializeField] private TMP_Text startShiftLabel;
+    private bool startChecklistOpen, startChecklistCanOpen;
     [SerializeField] private Button exitButton;
     [SerializeField] private TMP_Text dayStatusText;
     [SerializeField] private TMP_Text moneyStatusText;
@@ -162,6 +163,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
     {
         if (!IsOpen)
             return;
+        if (MultiplayerDayBridge.PreparationLocked) return;
         if (sharedAppRefreshPending && selectedApp >= 0 && appWindow != null && appWindow.gameObject.activeSelf
             && (EventSystem.current == null || EventSystem.current.currentSelectedGameObject == null
                 || EventSystem.current.currentSelectedGameObject.GetComponent<TMP_InputField>() == null))
@@ -735,6 +737,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
 
     public void OpenApp(int appIndex)
     {
+        startChecklistOpen = false;
         if (!Enum.IsDefined(typeof(ManagementComputerApp), appIndex) || appWindow == null)
             return;
 
@@ -795,6 +798,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
 
     public void CloseApp()
     {
+        startChecklistOpen = false;
         selectedApp = -1;
         if (appWindow != null)
         {
@@ -1263,6 +1267,14 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
             return;
         }
 
+        if (MultiplayerDayBridge.IsActive)
+        {
+            var session = MultiplayerSessionManager.Instance;
+            var bridge = session.GetComponent<MultiplayerDayBridge>();
+            if (!session.CanAct || bridge == null || GameDayManager.Instance.HasDayResults) return;
+            if (!session.IsHostConnection || MultiplayerDayBridge.PreparationLocked) return;
+        }
+
         OpenStartChecklist();
     }
 
@@ -1273,6 +1285,8 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
     }
 
     // Called only by the optional authority bridge after validating the requesting player.
+    public bool CanRequestMultiplayerStart() => GameDayManager.Instance != null && !IsShiftActive
+        && !GameDayManager.Instance.HasDayResults && BuildStartChecklist().blockers == 0;
     public bool StartShiftOnAuthority()
     {
         if (!MultiplayerDayBridge.CanCommit) return false;
@@ -1330,11 +1344,13 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
 
         appWindow.ClearRows();
         appWindow.Open("PRE-OPEN CHECKLIST");
+        startChecklistOpen = true;
         currentAppUsesCards = false;
         appWindow.SetContentLayout(false);
         appWindow.SetEmbeddedPanelLayout(false);
 
         StartChecklistSnapshot snapshot = BuildStartChecklist();
+        startChecklistCanOpen = snapshot.blockers == 0;
         for (int i = 0; i < snapshot.entries.Count; i++)
         {
             StartChecklistEntry entry = snapshot.entries[i];
@@ -1369,6 +1385,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         appWindow.RefreshContentLayout();
         RebuildComputerLayoutNow();
         QueueComputerCanvasRefresh();
+        if (MultiplayerDayBridge.IsActive) RefreshStatusBar();
     }
 
     private StartChecklistSnapshot BuildStartChecklist()
@@ -1729,6 +1746,20 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         bool ended = MultiplayerDayBridge.IsActive && GameDayManager.Instance != null && GameDayManager.Instance.HasDayResults;
         if (startShiftLabel != null) startShiftLabel.text = ended ? "SHIFT ENDED" : active ? "SHIFT RUNNING" : "START SHIFT";
         if (startShiftButton != null) startShiftButton.interactable = !active && !ended;
+        if (MultiplayerDayBridge.IsActive && !active && !ended)
+        {
+            var session = MultiplayerSessionManager.Instance;
+            var bridge = session.GetComponent<MultiplayerDayBridge>();
+            if (bridge != null)
+            {
+                if (startShiftLabel != null) startShiftLabel.text = session.IsHostConnection ? "START DAY" : "WAITING FOR HOST";
+                if (startShiftButton != null) startShiftButton.interactable = session.CanAct
+                    && session.IsHostConnection && !MultiplayerDayBridge.PreparationLocked;
+                if (startChecklistOpen && startChecklistCanOpen && appWindow != null && appWindow.gameObject.activeSelf)
+                    appWindow.SetFooter("START DAY", StartShiftConfirmed,
+                        session.CanAct && session.IsHostConnection && !MultiplayerDayBridge.PreparationLocked);
+            }
+        }
 
         ResolveStaffNotificationBadge();
         bool newApplicants = EmployeeManager.Instance != null &&

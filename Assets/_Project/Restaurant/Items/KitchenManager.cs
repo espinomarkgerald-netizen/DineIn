@@ -251,6 +251,8 @@ public class KitchenManager : MonoBehaviour
     public event Action<OrderForecast> OrderForecastChanged;
 
     public int ActiveForecastCount => activeOrderForecasts.Count;
+    public bool HasAcceptedOrder(int order) => cookingOrders.Contains(order) || completedOrders.Contains(order)
+        || activeOrderForecasts.ContainsKey(order) || completedOrderForecasts.ContainsKey(order);
 
     private void Awake()
     {

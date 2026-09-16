@@ -44,6 +44,8 @@ public sealed class LobbyPauseMenu : MonoBehaviour
     private LobbyPauseMenuView combinedHudView;
     private float previousTimeScale = 1f;
     private Coroutine openRoutine;
+    public bool IsOpen => paused;
+    public void OpenFromReadyPrompt() { if (!paused) Pause(); }
 
     private void Awake()
     {

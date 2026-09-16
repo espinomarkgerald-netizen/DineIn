@@ -179,7 +179,7 @@ public class CustomerAgent : MonoBehaviour
 
     private FoodTray observedEatingTray;
 
-    public void PresentObservedEating(bool active, FoodTray tray, int dinerIndex)
+    public void PresentObservedAnimation(bool active, FoodTray tray, int dinerIndex)
     {
         var session = MultiplayerSessionManager.Instance;
         if (session == null || !session.IsMultiplayerSession || enabled) return;
@@ -190,9 +190,9 @@ public class CustomerAgent : MonoBehaviour
             observedEatingTray = source;
             proceduralAnimation?.SetFoodSource(source, dinerIndex);
         }
-        proceduralAnimation?.SetState(true, active, false);
-        proceduralAnimation?.SetServiceState(active
-            ? CustomerProceduralState.Eating : CustomerProceduralState.WaitingForFood);
+        bool seated = animator != null && animator.GetBool(sittingParam);
+        bool moving = animator != null && animator.GetFloat(speedParam) > 0.05f;
+        proceduralAnimation?.SetState(seated, active, !seated && moving);
         float playbackRate = animator != null ? animator.speed : 1f;
         proceduralAnimation?.Update(Time.deltaTime);
         if (animator != null) animator.speed = playbackRate;

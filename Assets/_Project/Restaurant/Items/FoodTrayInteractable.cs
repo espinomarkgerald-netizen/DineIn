@@ -43,6 +43,35 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
     public TrayMode CurrentMode => mode;
     public float ReadySince => readySince;
 
+    // Snapshots project one complete interaction mode. A served tray must not
+    // retain its earlier Delivery mode just because cleanup is still false.
+    public void PresentNetworkMode(TrayMode value, bool removeForComplaint)
+    {
+        if (!MultiplayerRestaurantBridge.IsObserver) return;
+        if (tray != null && tray.NetworkCarryLocked) value = TrayMode.None;
+        if (mode == value && complaintRemoval == removeForComplaint) { RefreshUI(); return; }
+        if (queueOwner != null) queueOwner.Unregister(this);
+        if (queueBeforeStaffPickup != null && queueBeforeStaffPickup != queueOwner)
+            queueBeforeStaffPickup.Unregister(this);
+        queueOwner = null;
+        ClearStaffPickupSnapshot();
+        mode = value;
+        complaintRemoval = removeForComplaint;
+        staffCarried = claimedByStaff = pickupRequested = uiHiddenUntilStateChange = pendingCleanup = false;
+        readySince = value == TrayMode.None ? 0f : Time.time;
+        RefreshUI();
+    }
+
+    internal static bool IsNetworkModeAvailable(TrayMode value, CustomerGroup group, bool removeForComplaint)
+    {
+        if (value == TrayMode.None) return false;
+        if (group == null) return value == TrayMode.Cleanup;
+        bool left = group.state == CustomerGroup.GroupState.Leaving
+            || group.state == CustomerGroup.GroupState.AngryLeft || group.state == CustomerGroup.GroupState.UnhappyLeft;
+        return value == TrayMode.Cleanup ? removeForComplaint || left
+            : group.state != CustomerGroup.GroupState.Eating && group.state != CustomerGroup.GroupState.NeedsBill && !left;
+    }
+
     private void Awake()
     {
         if (tray == null) tray = GetComponent<FoodTray>();
@@ -495,6 +524,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
     {
         if (mode != TrayMode.None) return;
         if (tray == null) return;
+        if (tray.NetworkCarryLocked || staffCarried) return;
 
         if (pendingCleanup)
         {
@@ -524,7 +554,8 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
     {
         if (MultiplayerDayBridge.IsActive)
         {
-            if (tray == null || tray.NetworkCarryLocked || staffCarried || mode == TrayMode.None) { HideUI(); return; }
+            if (tray == null || tray.NetworkCarryLocked || staffCarried
+                || !IsNetworkModeAvailable(mode, tray.TargetGroup, complaintRemoval)) { HideUI(); return; }
             ShowUI();
             MultiplayerTaskPresentation.Bind(uiInstance, $"Order:{tray.orderNumber}:" + (mode == TrayMode.Delivery ? "Pickup" : "Cleanup"));
             return;

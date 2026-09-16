@@ -55,10 +55,16 @@ public static class MultiplayerRepairRegressionTest
             RunCase("action replies match only the original actor, order, stage and lease", ActionContexts);
             RunCase("money projection transfers and returns the same object without completing claims", MultiplayerPaymentParityRegressionCases.Run);
             RunCase("an authored inactive cashier initializes and opens once without losing payment input", MultiplayerCashierActivationRegressionCases.Run);
+            RunCase("approval-only snapshots preserve the guest ledger without refreshing money UI", EconomyRefresh);
             RunCase("payment snapshots cannot reopen a delivered or paid bill", PaymentOrdering);
             RunCase("focus reuses CanvasGroup and composes with visibility", BubbleFocus);
             RunCase("movement ignores stale samples, buffers interpolation and bounds memory", Movement);
             RunCase("room protocol changes leave result rules compatible", ResultRules);
+            RunCase("fresh stock and newspaper reads preserve session and issue identity", MultiplayerPreparationRegressionCases.Run);
+            RunCase("readiness votes belong to one request and restart a withdrawn countdown", MultiplayerReadinessRegressionCases.Run);
+            RunCase("served and carried trays suppress pickup while legitimate cleanup stays available", MultiplayerServiceSequenceRegressionCases.Run);
+            RunCase("actor work circles use real timing and keep unknown work indeterminate", MultiplayerWorkIndicatorRegressionCases.Run);
+            RunCase("staff tickets, accepted orders, cleared readiness and fixed-position rings remain consistent", MultiplayerTaskTrackingRegressionCases.Run);
         }
         catch (Exception error) { exitCode = 1; results.Add("FAIL: " + error); Debug.LogException(error); }
         finally
@@ -97,6 +103,39 @@ public static class MultiplayerRepairRegressionTest
         Assert(owners.Count == 1 && owners["Customer:7:Bill"] == 3, "Atomic replacement did not leave one owner.");
         Call(claims, "Reconcile", 7L, Array.Empty<string>(), Array.Empty<int>(), Array.Empty<long>());
         Assert(claims.GetLease("Customer:7:Bill") == 0, "Release left a reusable old claim token.");
+    }
+    private static void EconomyRefresh()
+    {
+        var previousMoney = MoneyManager.Instance;
+        var previousInventory = InventoryManager.Instance;
+        var money = Root("guest ledger").AddComponent<MoneyManager>();
+        var bridge = Root("guest economy").AddComponent<MultiplayerRestaurantBridge>();
+        int refreshes = 0;
+        money.OnMoneyChanged += _ => refreshes++;
+        MoneyManager.Instance = money;
+        InventoryManager.Instance = null;
+        try
+        {
+            var state = new GameSaveData { currentDay = 1, money = 500 };
+            state.moneyTransactions.Add(new MoneyTransactionSaveEntry { day = 1, amountDelta = 500, description = "Sale" });
+            bridge.ApplyEconomy(state, 1);
+            var entry = money.DailyTransactions[0];
+            state.approval++;
+            bridge.ApplyEconomy(state, 2);
+            Assert(refreshes == 1 && ReferenceEquals(entry, money.DailyTransactions[0]),
+                "An unrelated approval change rebuilt the ledger or refreshed money UI.");
+            state.moneyTransactions.Add(new MoneyTransactionSaveEntry { day = 1, amountDelta = 0, description = "Adjustment", adjustment = true });
+            bridge.ApplyEconomy(state, 3);
+            Assert(refreshes == 2 && money.DailyTransactions.Count == 2 && money.Money == 500,
+                "A ledger change with the same balance was lost.");
+            state.money = 600;
+            bridge.ApplyEconomy(state, 4);
+            Assert(refreshes == 3 && money.Money == 600, "A changed balance did not reach the guest.");
+            state.money = 1;
+            bridge.ApplyEconomy(state, 3);
+            Assert(refreshes == 3 && money.Money == 600, "An older snapshot rolled back the guest balance.");
+        }
+        finally { MoneyManager.Instance = previousMoney; InventoryManager.Instance = previousInventory; }
     }
     private static void BotGeneration()
     {
@@ -206,6 +245,41 @@ public static class MultiplayerRepairRegressionTest
         Assert(poses.Count <= 8, "Movement backlog grows without bound.");
         poses.Add(101, Vector3.zero, Quaternion.identity, true);
         Assert(poses.Count == 1, "Explicit recovery retained old movement.");
+
+        var delayed = new MultiplayerPoseBuffer();
+        float previous = 0f;
+        for (int tick = 0; tick <= 12; tick++)
+        {
+            double sent = 100d + tick * 0.1d;
+            double arrival = sent + 0.25d;
+            Assert(delayed.Add(sent, Vector3.right * Mathf.Min(tick, 8), Quaternion.identity, receivedAt: arrival),
+                "Delayed 10 Hz sample rejected.");
+            for (int frame = 0; frame < 5; frame++)
+            {
+                delayed.ReadBuffered(arrival + frame * 0.02d, out var point, out _);
+                Assert(point.x >= previous - 0.001f && point.x <= 8.001f, "Delayed movement reversed or overshot its stop.");
+                if (tick >= 2 && tick <= 7)
+                    Assert(point.x > previous + 0.1f, "Packet travel exhausted interpolation history between 10 Hz arrivals.");
+                previous = point.x;
+            }
+        }
+        delayed.ReadBuffered(110d, out var stopped, out _);
+        Assert(Mathf.Abs(stopped.x - 8f) < 0.001f, "Stopped actor drifted during packet loss.");
+        Assert(!delayed.Add(101d, Vector3.left, Quaternion.identity, receivedAt: 110d), "Late sample changed the render clock.");
+        Assert(!delayed.Add(120d, new Vector3(float.NaN, 0f, 0f), Quaternion.identity), "Malformed pose poisoned interpolation.");
+        delayed.Add(120d, Vector3.right * 9f, Quaternion.identity, receivedAt: 120.25d);
+        delayed.ReadBuffered(120.25d, out var recovered, out _);
+        Assert(delayed.Count == 1 && recovered == Vector3.right * 9f, "Long outage retained an obsolete render timeline.");
+
+        var jitter = new MultiplayerPoseBuffer();
+        jitter.Add(1d, Vector3.zero, Quaternion.identity, receivedAt: 1.25d);
+        jitter.Add(1.1d, Vector3.right, Quaternion.identity, receivedAt: 1.35d);
+        jitter.ReadBuffered(1.4d, out var beforeJitter, out _);
+        jitter.Add(1.2d, Vector3.right * 2f, Quaternion.identity, receivedAt: 1.65d);
+        jitter.ReadBuffered(1.65d, out var afterJitter, out _);
+        Assert(afterJitter.x >= beforeJitter.x && afterJitter.x <= 2f, "Increased transit moved the presentation clock backwards.");
+        jitter.ReadBuffered(1.7d, out var advancing, out _);
+        Assert(advancing.x > afterJitter.x, "Jitter recovery left movement permanently frozen.");
     }
     private static void ResultRules()
     {

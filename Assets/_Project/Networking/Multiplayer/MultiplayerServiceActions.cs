@@ -71,6 +71,8 @@ public sealed partial class MultiplayerServiceActions : MonoBehaviourPunCallback
     private readonly Dictionary<int, TakeoutBagInteractable> observedBags = new();
     public static bool IsActive => MultiplayerRestaurantBridge.IsActive;
     public static MultiplayerServiceActions Active => MultiplayerSessionManager.Instance?.GetComponent<MultiplayerServiceActions>();
+    public bool AwaitingLocalAction => pending != null || deferredPickup != null || deferredCard != null
+        || deferredDirtyPickup != null;
     public int PaymentOwner(int view)
     {
         if (view <= 0) return 0;
@@ -110,13 +112,20 @@ public sealed partial class MultiplayerServiceActions : MonoBehaviourPunCallback
             : target is MoneyPickup money ? money.TargetGroup : target is TakeoutBagInteractable bag ? bag.TargetGroup : null;
         return group != null && (Active.reservations.ContainsKey(ViewId(group)) || Bag(group)?.NetworkOwner > 0);
     }
-    public static bool CanCollect(MoneyPickup money) => Active != null && Active.session.CanAct
+    private static bool RefreshLocalHands()
+    {
+        var active = Active;
+        if (active == null) return false;
+        WaiterHands.ReconcileMultiplayerHands(active.session.LocalManager);
+        return true;
+    }
+    public static bool CanCollect(MoneyPickup money) => RefreshLocalHands() && Active.session.CanAct
         && Active.deferredPickup == null
         && money != null && money.IsAvailableForCollection && WaiterHands.ActivePlayerHands != null
         && !WaiterHands.ActivePlayerHands.HasMoney && !WaiterHands.ActivePlayerHands.HasTray
         && !WaiterHands.ActivePlayerHands.HasBill && !WaiterHands.ActivePlayerHands.HasTicket
         && BusserHands.ActivePlayerHands?.HasTray != true && Active.LocalBag == null;
-    public static bool CanUseCashier => Active != null && Active.session.CanAct
+    public static bool CanUseCashier => RefreshLocalHands() && Active.session.CanAct
         && (WaiterHands.ActivePlayerHands?.HasMoney == true || Active.deferredPickup != null);
     public static bool CanStartCashierOpen => CanUseCashier && Active.pending == null
         && Active.deferredCard == null && Active.cancelAfterPending == null;
@@ -124,6 +133,7 @@ public sealed partial class MultiplayerServiceActions : MonoBehaviourPunCallback
     {
         var active = Active;
         if (active == null || !active.session.CanAct || mover == null || mover.gameObject != active.session.LocalManager) return false;
+        WaiterHands.ReconcileMultiplayerHands(mover.gameObject);
         var hands = mover.GetComponent<WaiterHands>();
         if (hands != null && hands.HasMoney) return Send("cash_open", hands.holdingMoneyFor);
         if (active.deferredPickup == null) return false;
@@ -242,11 +252,14 @@ public sealed partial class MultiplayerServiceActions : MonoBehaviourPunCallback
         }
         TryOpenCard();
         TryFinishPickupPresentation();
+        TickDirtyContinuation();
     }
     public void ResetDay()
     {
         approachVersion++; approachTask = null; approachMover = null; approachTarget = null;
         pending = null; deferredCard = deferredPickup = null; cancelAfterPending = null; cashierAfterPickup = false;
+        deferredDirtyPickup = null; dirtyPickupMover = dirtyDisposalMover = finishedDirtyDisposalMover = null; suppressDirtyContinuation = false;
+        completedDirtyReplicas.Clear();
         CardPaymentResult = null; received = appliedObjects = 0;
         StopAllCoroutines(); executing.Clear();
         receipts.Clear(); reservations.Clear(); dirtyOwners.Clear(); previous = null; observed = null; lastReadPayload = null;
@@ -414,6 +427,7 @@ public sealed partial class MultiplayerServiceActions : MonoBehaviourPunCallback
 
     private bool Execute(Command request, int actor, GameObject player, CustomerGroup group, Reply reply)
     {
+        WaiterHands.ReconcileMultiplayerHands(player);
         var money = Money(group);
         var bag = Bag(group);
         var hands = player.GetComponent<WaiterHands>();
@@ -429,7 +443,7 @@ public sealed partial class MultiplayerServiceActions : MonoBehaviourPunCallback
             case "takeout_order":
                 return group.IsTakeout && flow != null && flow.ActiveGroup == group && flow.CurrentPhase == TakeoutFlowManager.TakeoutPhase.WaitingForOrder
                     && Near(player, group.GetCurrentWorldCenter()) && !RestaurantTaskClaim.IsClaimedByBot(group)
-                    && group.TakeOrderFromWaiter(group.chosenFood, group.chosenDrink);
+                    && group.TakeOrderFromWaiter(group.chosenFood, group.chosenDrink, hands);
             case "bag_pickup":
                 return bag != null && Near(player, bag.transform) && LocalBagFor(actor) == null && bag.NetworkPickup(hands, actor);
             case "bag_deliver":
@@ -526,6 +540,7 @@ public sealed partial class MultiplayerServiceActions : MonoBehaviourPunCallback
             || reply.result.context.run != session.RunId || reply.result.context.day != GameFlowManager.Instance.CurrentDay) return;
         pending = null;
         var group = Resolve(reply.view);
+        ReceiveCleanup(reply);
         if (reply.operation == "card_confirm") CardPaymentResult = reply.accepted;
         if (!reply.accepted)
         {

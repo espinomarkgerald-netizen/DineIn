@@ -92,6 +92,13 @@ public class BusserHands : MonoBehaviour
         OnHandsStateChanged?.Invoke();
     }
 
+    public void ReconcileHeldTrayReference()
+    {
+        if (holdingTray == null || holdingTray.transform.IsChildOf(TrayHoldPoint)) return;
+        holdingTray = null;
+        NotifyHandsChanged();
+    }
+
     public void ClearTray()
     {
         Debug.Log("[BusserHands] ClearTray");

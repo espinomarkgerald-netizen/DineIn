@@ -1046,9 +1046,14 @@ public class GameDayManager : MonoBehaviour
             if (MultiplayerSessionManager.Instance.IsAuthority)
                 MultiplayerSessionManager.Instance.CompleteDay(flow.CurrentDay,
                     resultsHaveOutcome && currentResultsOutcome != GameOverReason.EarthSaved ? currentResultsOutcome.ToString() : null);
-            if (resultsActionButton != null) resultsActionButton.gameObject.SetActive(true);
+            if (resultsActionButton != null)
+            {
+                resultsActionButton.gameObject.SetActive(true);
+                resultsActionButton.interactable = MultiplayerSessionManager.Instance.Ended || MultiplayerSessionManager.Instance.IsHostConnection;
+            }
             if (resultsActionButtonText != null) resultsActionButtonText.text =
-                MultiplayerSessionManager.Instance.Ended ? "RETURN TO MENU" : "NEXT DAY";
+                MultiplayerSessionManager.Instance.Ended ? "RETURN TO MENU"
+                    : MultiplayerSessionManager.Instance.IsHostConnection ? "NEXT DAY" : "WAITING FOR HOST";
             if (resultsContinueButton != null) resultsContinueButton.gameObject.SetActive(false);
             if (resultsHaveOutcome && currentResultsOutcome != GameOverReason.EarthSaved && resultsCashText != null)
                 resultsCashText.text = "<b>RUN RECORDED</b>\nThis session has ended. Start a fresh run from the multiplayer menu.";

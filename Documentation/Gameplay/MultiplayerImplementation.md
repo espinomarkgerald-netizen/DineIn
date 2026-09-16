@@ -1,6 +1,6 @@
 # Casual Dining multiplayer implementation
 
-The latest September 16 human service repair and protocol-4 external regression checklist are documented in [MultiplayerHumanServiceParityRepair.md](MultiplayerHumanServiceParityRepair.md). The preceding repair is documented in [MultiplayerPlayabilityRepair.md](MultiplayerPlayabilityRepair.md). Runtime sign-off remains pending.
+The latest task ownership, guest day-start, stockout feedback and circle repair uses protocol 6 and is documented in [MultiplayerTaskTrackingRepair.md](MultiplayerTaskTrackingRepair.md). The previous preparation repair is documented in [MultiplayerPreparationAndServiceRepair.md](MultiplayerPreparationAndServiceRepair.md). Earlier human service and payment work is documented in [MultiplayerHumanServiceParityRepair.md](MultiplayerHumanServiceParityRepair.md), and the preceding repair in [MultiplayerPlayabilityRepair.md](MultiplayerPlayabilityRepair.md). Runtime sign-off remains pending.
 
 ## Status and scope
 
@@ -15,7 +15,11 @@ The agreed mode starts with 2–4 different signed-in accounts, runs a fresh res
 - Freeze the host and account/actor roster at start; close the room to new entrants. No host migration or new late players.
 - Host departure/disconnection ends the run. A guest has 90 seconds to rejoin the same live run. Remaining players continue, including a single remaining host.
 - While a guest is absent, new day credit is provisional. Rejoin in time restores that credit; permanent departure keeps only the earlier earned completed/highest days.
-- Start/next-day requests require all active participants to be loaded and ready. Disconnected/departed participants do not block the remaining team.
+- Fresh multiplayer runs begin with zero stock and no ingredient batches; campaign starter boxes and legacy refill migration do not seed a session. Stored purchases persist between days and across guest rejoin.
+- The host requests Start Day from the computer's existing pre-open checklist and counts as ready. A centered popup uses the existing Blue/Double button assets and displays the ready/participant fraction. Guests toggle readiness there. All ready starts a synchronized three-second countdown and one authority-validated start. Preparation edits are locked until start or cancellation. Readiness withdrawal stops the countdown; disconnect cancels the request. The host can cancel without losing preparation panels. There is no bottom session bar or duplicate Leave Run control; exit remains in Pause.
+- Only the host advances the day-end report into the next preparation day; guests see `WAITING FOR HOST`. Each day/request has fresh votes. A reduced connected roster may start only after an explicit new host request.
+- Opening the exact current newspaper issue through either entry point satisfies the shared checklist. Reading is acknowledged independently of management edits and opening animation completion; archived issues cannot mark today's issue read.
+- Task ownership labels are replaced by a small noninteractive actor circle: spinning during approach/carry or work without known duration, filling only during actual timed work. Availability/ownership checks remain enforced.
 
 ## Flow
 
@@ -28,7 +32,7 @@ flowchart LR
     E --> F[Closing grace and settlement]
     F --> G[Completed-day receipt and shared report]
     G --> H{Terminal failure?}
-    H -->|No, everyone ready| C
+    H -->|No, host advances report| C
     H -->|Yes| I[Run ended]
     E -->|Host lost| I
 ```

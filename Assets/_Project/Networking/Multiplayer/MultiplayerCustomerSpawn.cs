@@ -47,9 +47,8 @@ public partial class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiat
 
     private void LateUpdate()
     {
-        if (!simulating && session != null && session.IsMultiplayerSession && Group != null
-            && (Group.state == CustomerGroup.GroupState.Eating || Group.state == CustomerGroup.GroupState.NeedsBill) && eatingStarted)
-            Group.PresentObservedEating(!eatingComplete && Group.state == CustomerGroup.GroupState.Eating);
+        if (!simulating && receivedPose && session != null && session.IsMultiplayerSession && Group != null)
+            Group.PresentObservedAnimation(eatingStarted && !eatingComplete && Group.state == CustomerGroup.GroupState.Eating);
     }
 
     private void ReceiveEating(double startedAt, float duration, bool complete, PhotonMessageInfo info)
@@ -228,14 +227,20 @@ public partial class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiat
             if (!(bool)stream.ReceiveNext()) return;
             for (int i = 0; i < positions.Length; i++)
             {
-                positions[i] = (Vector3)stream.ReceiveNext();
-                rotations[i] = (Quaternion)stream.ReceiveNext();
-                speeds[i] = (float)stream.ReceiveNext();
-                playbackSpeeds[i] = (float)stream.ReceiveNext();
-                sitting[i] = (bool)stream.ReceiveNext();
-                poseHistory[i].Add(info.SentServerTime, positions[i], rotations[i]);
+                var position = (Vector3)stream.ReceiveNext();
+                var rotation = (Quaternion)stream.ReceiveNext();
+                float speed = (float)stream.ReceiveNext();
+                float playbackSpeed = (float)stream.ReceiveNext();
+                bool seated = (bool)stream.ReceiveNext();
+                if (info.Sender != PhotonNetwork.MasterClient || !poseHistory[i].Add(
+                    info.SentServerTime, position, rotation, receivedAt: PhotonNetwork.Time)) continue;
+                positions[i] = position;
+                rotations[i] = rotation;
+                speeds[i] = float.IsNaN(speed) || float.IsInfinity(speed) ? 0f : speed;
+                playbackSpeeds[i] = float.IsNaN(playbackSpeed) || float.IsInfinity(playbackSpeed) ? 1f : playbackSpeed;
+                sitting[i] = seated;
+                receivedPose = true;
             }
-            receivedPose = true;
         }
     }
 
@@ -307,7 +312,7 @@ public partial class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiat
         for (int i = 0; i < positions.Length; i++)
         {
             var member = Group.members[i].transform;
-            if (poseHistory[i].Read(PhotonNetwork.Time - 0.1d, out var position, out var rotation))
+            if (poseHistory[i].ReadBuffered(PhotonNetwork.Time, out var position, out var rotation))
                 member.SetPositionAndRotation(position, rotation);
             if (animators[i] != null)
             {

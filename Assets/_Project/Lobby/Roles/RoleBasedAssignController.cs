@@ -20,6 +20,7 @@ public class RoleBasedAssignController : MonoBehaviour
     [SerializeField] private WarningSlideUI warningUI;
 
     private CustomerGroup selectedGroup;
+    public bool IsSelectingBooth(CustomerGroup group) => group != null && selectedGroup == group;
     private StaffRole staffRole;
     private ManagerPlayer managerPlayer;
     private LobbyLineManager lineManager;

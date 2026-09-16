@@ -47,6 +47,7 @@ public sealed class DailyNewspaperPresenter : MonoBehaviour
     private bool open;
     private float nextVisibilityRefresh;
     private int displayedIssueDay;
+    private string displayedIssueId;
 
     public bool IsOpen => open || opening;
 
@@ -163,6 +164,7 @@ public sealed class DailyNewspaperPresenter : MonoBehaviour
         if (animationRoutine != null)
             StopCoroutine(animationRoutine);
         animationRoutine = StartCoroutine(OpenRoutine(animationVersion));
+        AcknowledgeDisplayedIssue();
     }
 
     public void Close()
@@ -266,7 +268,13 @@ public sealed class DailyNewspaperPresenter : MonoBehaviour
         }
         if (closeButton != null)
             closeButton.interactable = true;
-        manager?.MarkCurrentIssueViewed();
+    }
+
+    private void AcknowledgeDisplayedIssue()
+    {
+        if (canvasRoot == null || !canvasRoot.activeInHierarchy || overlayRoot == null || !overlayRoot.activeInHierarchy)
+            return;
+        manager?.MarkIssueViewed(displayedIssueDay, displayedIssueId);
     }
 
     private void Populate(NewspaperIssueSaveEntry issue)
@@ -274,6 +282,7 @@ public sealed class DailyNewspaperPresenter : MonoBehaviour
         if (issue == null)
             return;
         displayedIssueDay = issue.day;
+        displayedIssueId = issue.issueID;
         int largeTextBonus = LevelOneUIAccessibility.LargeText ? 4 : 0;
         bool highContrast = LevelOneUIAccessibility.HighContrast;
         if (paperImage != null)
@@ -641,6 +650,7 @@ public sealed class DailyNewspaperPresenter : MonoBehaviour
         if (next == null)
             return;
         Populate(next);
+        AcknowledgeDisplayedIssue();
         PlayPaperSound(settings != null ? settings.pageTurnSound : null, ref fallbackPageTurn,
             "Newspaper Page Turn", 0.18f, 0.10f, false);
         RefreshArchiveButtons();

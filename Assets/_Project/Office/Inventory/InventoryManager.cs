@@ -43,7 +43,7 @@ public class InventoryManager : MonoBehaviour
             OnStockChanged?.Invoke(kvp.Key, kvp.Value);
     }
 
-    private void InitializeInventory()
+    private void InitializeInventory(bool grantStarterStock = true)
     {
         if (items == null || items.Count == 0)
         {
@@ -58,11 +58,12 @@ public class InventoryManager : MonoBehaviour
 
             if (!inventory.ContainsKey(item.itemType))
             {
-                // A new restaurant starts with one box of every configured
-                // ingredient. Existing save data still replaces these values.
-                int amount = Mathf.Max(1, item.unitsPerBox);
+                // Campaign defaults keep their authored starter boxes. A
+                // disposable multiplayer run purchases its initial stock.
+                int amount = grantStarterStock && !MultiplayerProgressionContext.IsActive
+                    ? Mathf.Max(1, item.unitsPerBox) : 0;
                 inventory[item.itemType] = amount;
-                CreateBatch(item, amount, CurrentDay, out _, out _);
+                if (amount > 0) CreateBatch(item, amount, CurrentDay, out _, out _);
             }
         }
 
@@ -353,12 +354,12 @@ public class InventoryManager : MonoBehaviour
         return true;
     }
 
-    public void ConfigureItems(List<ItemData> configuredItems)
+    public void ConfigureItems(List<ItemData> configuredItems, bool grantStarterStock = true)
     {
         items = configuredItems != null ? new List<ItemData>(configuredItems) : new List<ItemData>();
         inventory.Clear();
         stockBatches.Clear();
-        InitializeInventory();
+        InitializeInventory(grantStarterStock);
     }
 
     public void ResetStock()
@@ -391,7 +392,7 @@ public class InventoryManager : MonoBehaviour
     /// </summary>
     public void EnsureStarterStockForFiniteInventory()
     {
-        if (MultiplayerRestockBridge.ObserveOnly) return;
+        if (MultiplayerRestockBridge.ObserveOnly || MultiplayerProgressionContext.IsActive) return;
         if (items == null)
             return;
 

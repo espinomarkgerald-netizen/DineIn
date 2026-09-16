@@ -30,7 +30,18 @@ public class MultiplayerTaskClaims : MonoBehaviourPunCallbacks, IOnEventCallback
     private MultiplayerSessionManager session;
     [Serializable] public sealed class BotClaim
     { public string task, owner; public long generation; public bool committed; }
+    public enum WorkPhase { Approach, Working, Carrying }
+    [Serializable] public sealed class ActorWork
+    {
+        public string actor;
+        public long generation;
+        public WorkPhase phase;
+        public double startedAt;
+        public float duration;
+    }
     private readonly List<BotClaim> botClaims = new();
+    private readonly List<ActorWork> actorWork = new();
+    public IReadOnlyList<ActorWork> ActorWorkStates => actorWork;
     private string botPayload = "";
     public string LastRejection { get; private set; }
     public long CurrentRevision => session != null && session.IsAuthority ? revision : Math.Max(0, appliedRevision);
@@ -41,7 +52,11 @@ public class MultiplayerTaskClaims : MonoBehaviourPunCallbacks, IOnEventCallback
     public event Action ClaimsReset;
     private bool Active => session != null && session.IsMultiplayerSession;
 
-    private void Awake() => session = GetComponent<MultiplayerSessionManager>();
+    private void Awake()
+    {
+        session = GetComponent<MultiplayerSessionManager>();
+        if (GetComponent<MultiplayerWorkIndicator>() == null) gameObject.AddComponent<MultiplayerWorkIndicator>();
+    }
     private void Start() => RequestSnapshot();
     public override void OnJoinedRoom() => RequestSnapshot();
 
@@ -49,12 +64,17 @@ public class MultiplayerTaskClaims : MonoBehaviourPunCallbacks, IOnEventCallback
     public long GetLease(string taskId) => taskId != null && leases.TryGetValue(taskId, out long lease) ? lease : 0;
     public bool IsClaimed(string taskId) => GetOwner(taskId) != 0;
     public bool IsClaimedBy(string taskId, int actorNumber) => actorNumber > 0 && GetOwner(taskId) == actorNumber;
+    public string GetTaskForActor(int actor)
+    { foreach (var entry in claims) if (entry.Value == actor && IsHumanTask(entry.Key)) return entry.Key; return null; }
+    public bool HasPendingAcquisition
+    { get { foreach (var request in pendingRequests.Values) if (request.acquire) return true; return false; } }
 
     // Return value means request submitted, NOT ownership granted. Await ClaimResult.
     // Only the local actor can request; the authority uses the Photon event sender.
     public bool RequestClaim(string taskId)
     {
         if (!Active || string.IsNullOrWhiteSpace(taskId)) return false;
+        WaiterHands.ReconcileMultiplayerHands(session.LocalManager);
         if (IsHumanTask(taskId))
         {
             foreach (var entry in new List<KeyValuePair<string, PendingRequest>>(pendingRequests))
@@ -212,11 +232,8 @@ public class MultiplayerTaskClaims : MonoBehaviourPunCallbacks, IOnEventCallback
         }
         if (accepted && acquire && IsHumanTask(taskId) && session.TryGetManager(actor, out var requesterRoot))
         {
-            var hands = requesterRoot.GetComponent<WaiterHands>();
-            var busser = requesterRoot.GetComponent<BusserHands>();
-            if ((hands != null && (hands.HasBill || hands.HasMoney || hands.HasTicket || hands.HasTray))
-                || (busser != null && busser.holdingTray != null))
-            { accepted = false; rejection = "Finish or return the item you are carrying first."; }
+            string blocker = MultiplayerActorActivity.Read(requesterRoot).blocker;
+            if (blocker != null) { accepted = false; rejection = blocker; }
         }
         if (accepted && acquire && RestaurantTaskClaim.IsMultiplayerTaskOwnedByBot(taskId))
         {
@@ -341,12 +358,13 @@ public class MultiplayerTaskClaims : MonoBehaviourPunCallbacks, IOnEventCallback
         MultiplayerWire.Raise(SnapshotEvent, new object[] { revision, keys, owners, botPayload, stamps }, options, SendOptions.SendReliable);
     }
 
-    [Serializable] private sealed class BotSnapshot { public List<BotClaim> entries; }
+    [Serializable] private sealed class BotSnapshot { public List<BotClaim> entries; public List<ActorWork> activity; }
     private void RefreshBotClaims()
     {
         if (!session.IsAuthority) return;
         RestaurantTaskClaim.CaptureBotClaims(botClaims);
-        string next = JsonUtility.ToJson(new BotSnapshot { entries = botClaims });
+        CaptureActorWork();
+        string next = JsonUtility.ToJson(new BotSnapshot { entries = botClaims, activity = actorWork });
         if (next != botPayload) { botPayload = next; revision++; }
     }
     private void ReadBotClaims(string json)
@@ -355,6 +373,56 @@ public class MultiplayerTaskClaims : MonoBehaviourPunCallbacks, IOnEventCallback
         var snapshot = JsonUtility.FromJson<BotSnapshot>(json);
         if (snapshot?.entries == null) return;
         botPayload = json; botClaims.Clear(); botClaims.AddRange(snapshot.entries);
+        actorWork.Clear();
+        if (snapshot.activity != null) actorWork.AddRange(snapshot.activity);
+    }
+
+    private void CaptureActorWork()
+    {
+        actorWork.Clear();
+        foreach (var entry in claims)
+        {
+            if (!IsHumanTask(entry.Key) || !session.TryGetManager(entry.Value, out var manager)
+                || manager == null || !manager.gameObject.activeInHierarchy) continue;
+            if (PhotonNetwork.CurrentRoom != null && (!PhotonNetwork.CurrentRoom.Players.TryGetValue(entry.Value, out var player)
+                || player.IsInactive)) continue;
+            string id = "player:" + entry.Value;
+            var work = actorWork.Find(value => value.actor == id);
+            if (work == null)
+            {
+                work = new ActorWork { actor = id, generation = GetLease(entry.Key) };
+                actorWork.Add(work);
+                var activity = MultiplayerActorActivity.Read(manager);
+                work.phase = activity.phase == MultiplayerActorActivity.Phase.Carrying ? WorkPhase.Carrying
+                    : activity.phase == MultiplayerActorActivity.Phase.Working ? WorkPhase.Working : WorkPhase.Approach;
+            }
+            if (!entry.Key.StartsWith("Booth:", StringComparison.Ordinal)) continue;
+            foreach (var booth in MultiplayerWorldRegistry.All<Booth>())
+            {
+                if (booth == null || booth.CleanupWorkActor != entry.Value || booth.CleanupTaskId != entry.Key
+                    || !booth.CleanupWorkTiming.TryRead(out double start, out float duration)) continue;
+                work.generation = GetLease(entry.Key);
+                work.phase = WorkPhase.Working; work.startedAt = start; work.duration = duration;
+                break;
+            }
+        }
+        foreach (var bot in MultiplayerWorldRegistry.All<AutonomousStaffBot>())
+        {
+            if (bot == null || !bot.isActiveAndEnabled) continue;
+            bool carrying = bot.HasCommittedItem;
+            if (!carrying && (!bot.IsBusy || bot.CurrentState == AutonomousStaffBot.StaffState.ReturningHome
+                || bot.CurrentState == AutonomousStaffBot.StaffState.IdleAtHome)) continue;
+            var work = new ActorWork { actor = "staff:" + bot.name, generation = bot.JobGeneration,
+                phase = carrying ? WorkPhase.Carrying : WorkPhase.Approach };
+            if (bot.CurrentState == AutonomousStaffBot.StaffState.Working)
+            {
+                work.phase = WorkPhase.Working;
+                if (bot.WorkTiming.TryRead(out double start, out float duration))
+                { work.startedAt = start; work.duration = duration; }
+            }
+            actorWork.Add(work);
+        }
+        actorWork.Sort((a, b) => string.CompareOrdinal(a.actor, b.actor));
     }
 
     private void Reconcile(long incomingRevision, string[] keys, int[] owners, long[] stamps)
@@ -521,7 +589,7 @@ public class MultiplayerTaskClaims : MonoBehaviourPunCallbacks, IOnEventCallback
         appliedRevision = -1;
         nextSnapshot = 0f;
         lastBroadcastRevision = -1;
-        botClaims.Clear(); botPayload = ""; LastRejection = null;
+        botClaims.Clear(); actorWork.Clear(); botPayload = ""; LastRejection = null;
         ClaimsReset?.Invoke();
     }
 

@@ -141,6 +141,7 @@ public class PlayerMovement : MonoBehaviour
     public IInteractable LockedTarget => lockedTarget;
     public State CurrentState => state;
     public IInteractable CurrentTarget => currentTarget;
+    public uint CommandVersion { get; private set; }
 
     public void SetCamera(Camera cam) => activeCam = cam;
 
@@ -206,7 +207,7 @@ public class PlayerMovement : MonoBehaviour
 
         if (activeCam == null) return;
 
-        if (isPlayerControlled && state != State.DoingJob)
+        if (isPlayerControlled && state != State.DoingJob && !MultiplayerDayBridge.PreparationLocked)
         {
             // Always handle touch input when touches are present (covers mobile + tablet).
             // Fall back to mouse input on desktop / editor when no touches are active.
@@ -562,6 +563,7 @@ public class PlayerMovement : MonoBehaviour
 
     private void TickIdleReturnHome()
     {
+        if (MultiplayerServiceActions.IsAwaitingDirtyDisposal(this)) { idleTimer = 0f; return; }
         if (!returnHomeWhenIdle) return;
         if (homePoint == null) return;
         if (state == State.DoingJob) return;
@@ -609,6 +611,7 @@ public class PlayerMovement : MonoBehaviour
 
     public void GoHomeImmediate()
     {
+        CommandVersion++;
         NotifyTaskCancelled();
         UnlockTask();
 
@@ -714,6 +717,7 @@ public class PlayerMovement : MonoBehaviour
 
     public void CancelLockedTask()
     {
+        CommandVersion++;
         NotifyTaskCancelled();
         UnlockTask();
         currentTarget = null;
@@ -735,6 +739,7 @@ public class PlayerMovement : MonoBehaviour
 
     private void RegisterCommand()
     {
+        CommandVersion++;
         lastCommandTime = Time.time;
         idleTimer = 0f;
 

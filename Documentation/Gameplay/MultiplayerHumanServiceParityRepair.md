@@ -14,6 +14,15 @@ An existing guest log also exposed wallet UI cleanup calling a destroyed wallet 
 
 ## Changes and repaired failure paths
 
+### Guest smoothness and post-cashier consistency follow-up
+
+- Existing guest logs show a completed payment followed by an occupied-hands rejection. The claim guard previously trusted raw held-item fields even when an item had been delivered or reparented. Local interaction checks and the authority now reconcile proven-stale references before checking occupancy, preserving real carried items and current owners. Remaining genuine blockers identify the item and its next destination (cashier, customer, or sink).
+- Guest pose interpolation now accounts for packet transit time while retaining 100 ms of interpolation history. Transit allowance is bounded, render time does not run backwards, and long gaps recover without an accumulating delay. The sender rate and message layout are unchanged; interaction distance still uses the latest authoritative position.
+- Guest customer procedural animation now advances in waiting, ordering, and billing states as well as eating. Old movement packets cannot overwrite newer animation state. Guest customer navigation and service simulation remain disabled.
+- Approval-only economy updates no longer rebuild an unchanged guest transaction ledger or refresh all money UI subscribers. Inventory signatures serialize only inventory fields; ledger changes with an unchanged balance still apply.
+
+Prepared external regressions cover delayed movement, stale versus genuine carried items, and unchanged versus updated ledgers. Repeat **cashier completion → next customer task → dirty-tray pickup/wash → next task** independently on host and guest, including 100–300 ms transit and jitter. Compilation, these fixtures, gameplay, and FPS remain unexecuted locally under the user's restriction.
+
 | Area | Implemented behavior |
 | --- | --- |
 | Human order confirmation | Single-player and multiplayer authority use `ReviewedOrderSubmission`. Requests contain selected menu IDs and quantities; catalog prices, recipes, and stock rules stay authoritative. Normal cooking starts immediately after confirmation, regardless of whether a bot or human seated the customer. |

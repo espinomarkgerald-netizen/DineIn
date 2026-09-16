@@ -47,8 +47,8 @@ public sealed partial class MultiplayerObjectBridge
             poseTargets[key] = track;
             ApplyPose(root, pose, worker);
         }
-        track.poses.Add(at, pose.position, pose.rotation);
-        track.current = pose;
+        if (track.poses.Add(at, pose.position, pose.rotation, receivedAt: PhotonNetwork.Time))
+            track.current = pose;
     }
     private static GameObject ResolvePoseRoot(Pose pose, bool worker)
     {
@@ -62,12 +62,12 @@ public sealed partial class MultiplayerObjectBridge
     private void InterpolatePoses()
     {
         if (session == null || session.IsAuthority || !session.IsConnected || session.Ended) return;
-        double renderAt = PhotonNetwork.Time - 0.1d;
+        double now = PhotonNetwork.Time;
         foreach (var track in poseTargets.Values)
         {
             if (track.root == null || track.current == null) continue;
             var pose = track.current;
-            if (track.poses.Read(renderAt, out var position, out var rotation)) track.root.transform.SetPositionAndRotation(position, rotation);
+            if (track.poses.ReadBuffered(now, out var position, out var rotation)) track.root.transform.SetPositionAndRotation(position, rotation);
             var animator = Animation(track.root);
             animator.Set(Speed, pose.speed); animator.Set(Moving, pose.moving); animator.Set(Carrying, pose.carrying);
         }

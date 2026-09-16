@@ -66,15 +66,16 @@ public sealed class MultiplayerProgressionContext : MonoBehaviour
 
     private void Start()
     {
-        if (!IsActive || saves == null || Catalog == null) return;
+        if (prepared || !IsActive || saves == null || Catalog == null) return;
         // GameSaveData carries the same new-restaurant defaults: Day 1, money and approval.
         saves.ApplyTemporaryRuntimeState(new GameSaveData());
         // Fresh temporary HR needs applicants; persisted empty Campaign pools remain valid.
         var employees = EmployeeManager.Instance;
         if (MultiplayerSessionManager.Instance.IsAuthority && employees != null && employees.allEmployees.Count == 0)
             employees.GenerateEmployees();
-        // Reuse the normal one-box-per-ingredient initialization and exact authored ItemData assets.
-        InventoryManager.Instance?.ConfigureItems(new List<ItemData>(Catalog.Ingredients));
+        // Only fresh context initialization clears inventory. Subsequent days
+        // and a guest's authoritative rejoin snapshot retain their actual stock.
+        InventoryManager.Instance?.ConfigureItems(new List<ItemData>(Catalog.Ingredients), grantStarterStock: false);
         RecipeManager.Instance?.UnlockByDay(CurrentDay);
         prepared = true;
         if (MultiplayerSessionManager.Instance.IsAuthority)

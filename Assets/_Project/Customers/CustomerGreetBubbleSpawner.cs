@@ -23,7 +23,8 @@ public class CustomerGreetBubbleSpawner : MonoBehaviour
         CustomerGroup visibleGroup = null;
         foreach (var customer in MultiplayerWorldRegistry.All<MultiplayerCustomerSpawn>())
         {
-            if (customer.ReadyForInteraction && customer.Group != null && !customer.Group.HasBeenAssigned)
+            if (customer.ReadyForInteraction && customer.Group != null && !customer.Group.HasBeenAssigned
+                && !MultiplayerCustomerInteractionBridge.IsGreetingActionHidden(customer.Group))
             {
                 visibleGroup = customer.Group;
                 break;
@@ -47,6 +48,7 @@ public class CustomerGreetBubbleSpawner : MonoBehaviour
     {
         if (MultiplayerDayBridge.IsActive)
         {
+            if (MultiplayerCustomerInteractionBridge.IsGreetingActionHidden(group)) return;
             if (group == currentGroup && currentBubble != null)
             { currentBubble.GetComponentInChildren<CustomerGreetBubbleUI>(true)?.Refresh(); return; }
             if (group == null || group.GetComponentInParent<MultiplayerCustomerSpawn>()?.ReadyForInteraction != true) return;
@@ -127,7 +129,7 @@ public class CustomerGreetBubbleSpawner : MonoBehaviour
     public void SetVisibleAndRefresh(CustomerGroup group, bool visible)
     {
         if (group == null) return;
-        if (MultiplayerDayBridge.IsActive) { if (visible) Show(group, currentCamera); return; }
+        if (MultiplayerDayBridge.IsActive && visible && MultiplayerCustomerInteractionBridge.IsGreetingActionHidden(group)) return;
 
         if (currentBubble == null || currentGroup != group)
         {
@@ -149,8 +151,6 @@ public class CustomerGreetBubbleSpawner : MonoBehaviour
 
     public void Hide()
     {
-        if (MultiplayerDayBridge.IsActive && currentGroup != null && !currentGroup.HasBeenAssigned
-            && currentGroup.GetComponentInParent<MultiplayerCustomerSpawn>()?.ReadyForInteraction == true) return;
         Clear();
     }
 

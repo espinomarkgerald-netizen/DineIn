@@ -69,6 +69,7 @@ public sealed class MultiplayerRestockBridge : MonoBehaviourPunCallbacks, IOnEve
     public static bool CanUsePayload => !IsActive || (Active != null
         && Active.state.owner == Active.session.LocalActorNumber);
     public static bool RequestPending => IsActive && (Active == null || Active.pending != null);
+    public bool StockRoomInUse => state.owner != 0;
 
     private ManagementComputerController computer;
     private ManagementComputerController Computer
@@ -184,7 +185,9 @@ public sealed class MultiplayerRestockBridge : MonoBehaviourPunCallbacks, IOnEve
         committing = true;
         try
         {
-            if (Storage == null || request.restaurant != Storage.RestaurantID)
+            if (MultiplayerDayBridge.PreparationLocked && request.operation != "release")
+                message = "The day-start request is open. Cancel it before changing restock orders.";
+            else if (Storage == null || request.restaurant != Storage.RestaurantID)
                 message = "The restaurant storage configuration does not match.";
             else if (request.operation == "order") accepted = Order(request, out message);
             else if (request.operation == "release")

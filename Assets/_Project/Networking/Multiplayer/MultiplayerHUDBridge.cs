@@ -27,61 +27,23 @@ public sealed class MultiplayerHUDBridge : MonoBehaviour
             PlayerTaskHUD.Instance?.RefreshSceneVisibility();
             bound = true;
         }
-        var local = MultiplayerSessionManager.Instance.LocalManager;
-        var movement = local != null ? local.GetComponent<PlayerMovement>() : null;
-        var hands = local != null ? local.GetComponent<WaiterHands>() : null;
-        var busser = local != null ? local.GetComponent<BusserHands>() : null;
-        var bag = MultiplayerServiceActions.Active?.LocalBag;
-        var target = movement != null ? movement.LockedTarget ?? movement.CurrentTarget : null;
-        string action = "Choose a task";
-        string detail = "Interact with a customer or the restaurant computer.";
-        if (!MultiplayerSessionManager.Instance.CanAct)
+        var session = MultiplayerSessionManager.Instance;
+        var activity = MultiplayerActorActivity.Read(session.LocalManager);
+        string action = activity.action, detail = activity.detail;
+        if (!session.CanAct)
         {
-            action = MultiplayerSessionManager.Instance.Ended ? "Run ended" : "Synchronizing restaurant";
-            detail = MultiplayerSessionManager.Instance.Status;
+            action = session.Ended ? "Run ended" : "Synchronizing restaurant";
+            detail = session.Status;
         }
-        else if (busser != null && busser.HasTray)
+        else if (activity.phase == MultiplayerActorActivity.Phase.Idle && GameDayManager.Instance != null)
         {
-            action = "Wash the dirty tray";
-            detail = "Take the used tray to the sink.";
-        }
-        else if (bag != null)
-        {
-            action = "Deliver takeout";
-            detail = "Take the bag to its waiting customer.";
-        }
-        else if (hands != null && hands.HasMoney)
-        {
-            action = "Collect payment";
-            detail = "Take the money to the cashier and give the exact change.";
-        }
-        else if (hands != null && hands.HasBill)
-        {
-            action = "Deliver the bill";
-            detail = "Take the printed bill to its customer's table.";
-        }
-        else if (hands != null && hands.HasTray)
-        {
-            action = "Deliver order #" + hands.holdingTray.orderNumber;
-            detail = "Take your tray to its customer's table.";
-        }
-        else if (target is Component component)
-        {
-            action = "Current interaction";
-            detail = component.gameObject.name;
-        }
-        else if (GameDayManager.Instance != null && GameDayManager.Instance.HasDayResults)
-        {
-            action = "Shift ended";
-            detail = "The restaurant is closed.";
-        }
-        else if (GameDayManager.Instance != null && !GameDayManager.Instance.ServiceActive)
-        {
-            action = "Prepare the restaurant";
-            detail = "Finish the checklist, mark Ready, then request Start Day at the computer.";
+            if (GameDayManager.Instance.HasDayResults)
+            { action = "Shift ended"; detail = "The restaurant is closed."; }
+            else if (!GameDayManager.Instance.ServiceActive)
+            { action = "Prepare the restaurant"; detail = "The host requests Start Day at the computer; guests confirm Ready in the popup."; }
         }
         PlayerTaskGuidance.SetTask(TaskSource, action, action, detail, 10000,
-            target as UnityEngine.Object, PlayerTaskCategory.Service);
+            activity.target, PlayerTaskCategory.Service);
     }
 
     private void OnDestroy()

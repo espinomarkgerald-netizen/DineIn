@@ -105,7 +105,7 @@ public class NetworkPlayerMovementSync : MonoBehaviourPun, IPunObservable
     {
         if (sentAt < minimumPoseTime || !Finite(position.x) || !Finite(position.y) || !Finite(position.z)
             || !Finite(rotation.x) || !Finite(rotation.y) || !Finite(rotation.z) || !Finite(rotation.w)
-            || !poses.Add(sentAt, position, rotation)) return false;
+            || !poses.Add(sentAt, position, rotation, receivedAt: PhotonNetwork.Time)) return false;
         receivedPosition = position;
         hasReceivedPosition = true;
         return true;
@@ -118,7 +118,7 @@ public class NetworkPlayerMovementSync : MonoBehaviourPun, IPunObservable
         // Only remote players need to have state pushed to their components from here.
         if (photonView.IsMine) return;
         if (ownsPose) RefreshPoseScope();
-        if (ownsPose && poses.Read(PhotonNetwork.Time - 0.1d, out var position, out var rotation))
+        if (ownsPose && poses.ReadBuffered(PhotonNetwork.Time, out var position, out var rotation))
             transform.SetPositionAndRotation(position, rotation);
 
         // Apply received animator parameters.

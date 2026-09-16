@@ -74,6 +74,71 @@ public static class MultiplayerPaymentParityRegressionCases
             a.ClearMoney();
             Assert(a.holdingMoneyFor == null && a.holdingMoneyAmount == 0 && !a.HasMoney,
                 "Clearing a legacy virtual payment retained group/amount without a MoneyPickup object.");
+
+            var tray = Fixture("retained service tray").AddComponent<FoodTray>();
+            tray.orderNumber = 38;
+            a.holdingTray = tray;
+            a.ReconcileHeldItemReferences();
+            Assert(!a.HasTray && tray.transform.parent == null && tray != null,
+                "A tray already at its destination still blocked the old holder.");
+            tray.transform.SetParent(a.TrayHoldPoint, true);
+            a.holdingTray = tray; b.holdingTray = tray;
+            a.ReconcileHeldItemReferences(); b.ReconcileHeldItemReferences();
+            Assert(a.holdingTray == tray && !b.HasTray && tray.transform.parent == a.TrayHoldPoint,
+                "Reconciling an old holder disturbed the actor actually carrying the food.");
+            Assert(a.MultiplayerHeldItemBlocker()?.Contains("Deliver the food") == true,
+                "A genuinely held food tray lost its next-step guidance.");
+            var busser = Fixture("dirty tray holder").AddComponent<BusserHands>();
+            busser.holdingTray = tray;
+            busser.ReconcileHeldTrayReference();
+            Assert(!busser.HasTray && a.HasTray, "Dirty-tray reconciliation stole another holder's food.");
+            tray.transform.SetParent(busser.TrayHoldPoint, true);
+            busser.holdingTray = tray;
+            busser.ReconcileHeldTrayReference(); a.ReconcileHeldItemReferences();
+            Assert(busser.holdingTray == tray && !a.HasTray, "A genuine carried dirty tray was discarded.");
+
+            var bill = Fixture("retained bill").AddComponent<BillPaper>();
+            bill.Init(group); a.PresentBillPaper(bill);
+            a.ReconcileHeldItemReferences();
+            Assert(a.HasBill && bill.transform.parent == a.BillHoldPoint,
+                "A genuine undelivered held bill was forgotten.");
+            group.IsNetworkObserver = true;
+            group.PresentMultiplayerBillDelivered(true);
+            a.ReconcileHeldItemReferences();
+            Assert(!a.HasBill && bill != null && bill.transform.parent == a.BillHoldPoint,
+                "Delivered-bill reconciliation retained its hand lock or moved the physical bill.");
+
+            group.PresentServiceState(new MultiplayerServiceActions.GroupState { paid = true });
+            a.PresentMoneyPickup(money);
+            var paidMoneyParent = money.transform.parent;
+            a.ReconcileHeldItemReferences();
+            Assert(!a.HasMoney && a.holdingMoneyFor == null && money != null && money.transform.parent == paidMoneyParent
+                && money.Amount == 500 && group.MultiplayerPaymentComplete,
+                "Settled cash kept an invisible hand lock or reconciliation changed the payment.");
+
+            var ticketGroup = Fixture("unsubmitted ticket customer").AddComponent<CustomerGroup>();
+            ticketGroup.state = CustomerGroup.GroupState.OrderTaken;
+            a.holdingTicketFor = ticketGroup;
+            a.ReconcileHeldItemReferences();
+            Assert(a.HasTicket, "An outstanding order ticket was discarded.");
+            ticketGroup.state = CustomerGroup.GroupState.Eating;
+            a.ReconcileHeldItemReferences();
+            Assert(!a.HasTicket && claimChanges == 0, "An already served order retained its ticket lock or completed a claim twice.");
+
+            var orphanMoney = Fixture("orphan payment").AddComponent<MoneyPickup>();
+            orphanMoney.Init(ticketGroup, 200, booth.transform);
+            a.PresentMoneyPickup(orphanMoney); a.ReconcileHeldItemReferences();
+            Assert(a.HeldMoney == orphanMoney, "Unpaid attached cash was cleared before its customer disappeared.");
+            typeof(MoneyPickup).GetField("targetGroup", Fields).SetValue(orphanMoney, null);
+            a.ReconcileHeldItemReferences();
+            Assert(!a.HasMoney && orphanMoney.transform.parent == a.MoneyHoldPoint,
+                "An orphan payment kept an impossible cashier task or was reparented during reference cleanup.");
+            var orphanBill = Fixture("orphan bill").AddComponent<BillPaper>();
+            orphanBill.Init(ticketGroup); a.PresentBillPaper(orphanBill);
+            typeof(BillPaper).GetField("targetGroup", Fields).SetValue(orphanBill, null);
+            a.ReconcileHeldItemReferences();
+            Assert(!a.HasBill && orphanBill.transform.parent == a.BillHoldPoint,
+                "An orphan bill kept an impossible delivery task or was moved during reference cleanup.");
         }
         finally
         {

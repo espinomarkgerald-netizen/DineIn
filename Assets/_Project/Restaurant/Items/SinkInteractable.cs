@@ -5,7 +5,7 @@ public class SinkInteractable : MonoBehaviour, IInteractable
     [SerializeField] private Transform standPoint;
 
     public Transform StandPoint => standPoint != null ? standPoint : transform;
-    public bool AutoReturnHome => true;
+    public bool AutoReturnHome => !MultiplayerServiceActions.IsActive;
 
     public bool CanInteract()
     {
@@ -18,7 +18,12 @@ public class SinkInteractable : MonoBehaviour, IInteractable
 
     public void Interact(PlayerMovement player)
     {
-        if (MultiplayerServiceActions.IsActive) { MultiplayerServiceActions.WashDirtyTray(); return; }
+        if (MultiplayerServiceActions.IsActive)
+        {
+            if (player != null && player.gameObject == MultiplayerSessionManager.Instance.LocalManager)
+                MultiplayerServiceActions.WashDirtyTray();
+            return;
+        }
         WaiterHands waiterHands = WaiterHands.For(player);
         if (waiterHands != null && waiterHands.HasTray)
         {

@@ -18,9 +18,12 @@ public class OrderFlowManager : MonoBehaviour
     }
 
     // Called by CustomerGroup when order is confirmed and number assigned
-    public void SpawnTicket(CustomerGroup group)
+    public void SpawnTicket(CustomerGroup group, WaiterHands owner)
     {
-        if (group == null) return;
+        if (group == null || owner == null) return;
+        owner.holdingTicketFor = group;
+        // Staff owns its ticket; a simulation callback never changes the local human's hands.
+        if (owner != WaiterHands.ActivePlayerHands) return;
         if (ticketUiPrefab == null || gameplayCanvas == null)
         {
             Debug.LogError("[OrderFlowManager] Missing ticketUiPrefab or gameplayCanvas.");
@@ -28,13 +31,9 @@ public class OrderFlowManager : MonoBehaviour
         }
 
         // waiter "holds" the ticket
-        WaiterHands hands = WaiterHands.ActivePlayerHands;
-        if (hands != null)
-            hands.holdingTicketFor = group;
-
         // spawn ticket UI
         var ui = Instantiate(ticketUiPrefab, gameplayCanvas.transform);
-        ui.Init(group);
+        ui.Init(group, owner);
     }
 
 }

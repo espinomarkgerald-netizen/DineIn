@@ -346,7 +346,7 @@ public class GameSaveManager : MonoBehaviour
             if (InventoryManager.Instance != null)
             {
                 InventoryManager.Instance.ApplySaveData(data);
-                if (migrateFiniteInventory)
+                if (migrateFiniteInventory && !MultiplayerProgressionContext.IsActive)
                     InventoryManager.Instance.EnsureStarterStockForFiniteInventory();
             }
 

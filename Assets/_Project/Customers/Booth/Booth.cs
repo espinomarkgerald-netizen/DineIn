@@ -10,6 +10,8 @@ public class Booth : MonoBehaviour, Photon.Realtime.IOnEventCallback
     private PlayerMovement cleanupMover;
     private IInteractable cleanupMove;
     private bool cleanupRequested, cleanupCancelled, authorityCleaning;
+    public int CleanupWorkActor { get; private set; }
+    public readonly MultiplayerWorkTiming CleanupWorkTiming = new();
     private float cleanupStartedAt = -1f;
     public string CleanupTaskId => "Booth:" + MultiplayerCustomerInteractionBridge.BoothIdentity(this) + ":Cleanup";
     public float HumanCleanupProgress => cleanupStartedAt < 0f ? 0f :
@@ -144,12 +146,16 @@ public class Booth : MonoBehaviour, Photon.Realtime.IOnEventCallback
     private System.Collections.IEnumerator CompleteHumanCleanup(int actor)
     {
         authorityCleaning = true;
+        CleanupWorkActor = actor;
+        CleanupWorkTiming.Begin(Mathf.Max(0.05f, MessHoldSeconds));
         float elapsed = 0f;
         while (elapsed < Mathf.Max(0.05f, MessHoldSeconds) && ValidateCleanupActor(actor))
         { elapsed += Time.deltaTime; yield return null; }
         if (elapsed >= Mathf.Max(0.05f, MessHoldSeconds) && ValidateCleanupActor(actor)
             && TryCommitMultiplayerCleanup())
             while (cleanupCommitPending && MultiplayerProgressionContext.Ready) yield return null;
+        CleanupWorkTiming.Clear();
+        CleanupWorkActor = 0;
         var session = MultiplayerSessionManager.Instance;
         if (session != null && session.IsAuthority)
             session.GetComponent<MultiplayerTaskClaims>().CompleteOnAuthority(CleanupTaskId, actor);
@@ -159,6 +165,8 @@ public class Booth : MonoBehaviour, Photon.Realtime.IOnEventCallback
     private void OnEnable() => Photon.Pun.PhotonNetwork.AddCallbackTarget(this);
     private void OnDisable()
     {
+        CleanupWorkTiming.Clear();
+        CleanupWorkActor = 0;
         Photon.Pun.PhotonNetwork.RemoveCallbackTarget(this);
         CancelHumanCleanup();
         // A pending claim callback stays subscribed to release a late grant.

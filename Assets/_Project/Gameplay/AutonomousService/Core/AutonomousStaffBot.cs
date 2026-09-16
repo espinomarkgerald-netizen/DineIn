@@ -73,6 +73,7 @@ public class AutonomousStaffBot : MonoBehaviour
     public bool IsBusy => activeTask != null;
     public long JobGeneration { get; private set; }
     public bool JobCommitted { get; private set; }
+    public readonly MultiplayerWorkTiming WorkTiming = new();
     public bool HasCommittedItem
     {
         get
@@ -104,6 +105,7 @@ public class AutonomousStaffBot : MonoBehaviour
         StopCoroutine(activeTask);
         approachGeneration++;
         activeTask = null;
+        WorkTiming.Clear();
         StopAgent();
         RestaurantTaskClaim.ReleaseJob(this, generation);
         JobGeneration++;
@@ -189,6 +191,7 @@ public class AutonomousStaffBot : MonoBehaviour
 
     private void OnDisable()
     {
+        WorkTiming.Clear();
         approachGeneration++;
         RestaurantTaskClaim.ReleaseJob(this, JobGeneration);
         ApproachingTarget = null;
@@ -270,6 +273,7 @@ public class AutonomousStaffBot : MonoBehaviour
         StopHappyIdle();
         JobGeneration++;
         JobCommitted = false;
+        WorkTiming.Clear();
         activeTask = StartCoroutine(RunTask(task));
     }
 
@@ -401,8 +405,13 @@ public class AutonomousStaffBot : MonoBehaviour
             Mathf.Max(0f, seconds + variance)
         ) / Mathf.Max(0.8f, workSpeedMultiplier);
 
-        if (duration > 0f)
-            yield return new WaitForSeconds(duration);
+        if (MultiplayerDayBridge.IsActive) WorkTiming.Begin(duration);
+        try
+        {
+            if (duration > 0f)
+                yield return new WaitForSeconds(duration);
+        }
+        finally { WorkTiming.Clear(); }
     }
 
     private IEnumerator MoveToInternal(

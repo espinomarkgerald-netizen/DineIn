@@ -338,19 +338,27 @@ public sealed class CasualDiningPolishManager : MonoBehaviour
 
     public void MarkCurrentIssueViewed()
     {
-        if (MultiplayerRestaurantBridge.IsActive && !MultiplayerRestaurantBridge.Committing)
-        { MultiplayerRestaurantBridge.Request("newspaper"); return; }
         int day = GameFlowManager.Instance != null
             ? GameFlowManager.Instance.CurrentDay
             : preparedDay;
+        MarkIssueViewed(day, GetIssueForDay(day)?.issueID);
+    }
+
+    public bool MarkIssueViewed(int day, string issueId)
+    {
+        int currentDay = GameFlowManager.Instance != null ? GameFlowManager.Instance.CurrentDay : preparedDay;
         NewspaperIssueSaveEntry issue = GetIssueForDay(day);
-        if (issue == null || issue.viewed)
-            return;
+        if (day != currentDay || issue == null || string.IsNullOrEmpty(issueId)
+            || !string.Equals(issue.issueID, issueId, StringComparison.Ordinal)) return false;
+        if (issue.viewed) return true;
+        if (MultiplayerRestaurantBridge.IsActive && !MultiplayerRestaurantBridge.Committing)
+            return MultiplayerRestaurantBridge.RequestNewspaperViewed(day, issueId);
 
         issue.viewed = true;
         NewspaperStateChanged?.Invoke();
         presenter?.RefreshVisibility();
         GameSaveManager.Instance?.RequestSave();
+        return true;
     }
 
     public NewspaperIssueSaveEntry GetIssueForDay(int day)

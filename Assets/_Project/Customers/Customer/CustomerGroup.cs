@@ -495,12 +495,22 @@ public partial class CustomerGroup : MonoBehaviour
         SpawnBillBubble();
     }
 
-    public void PresentObservedEating(bool active)
+    private bool hasObservedVisualPhase, observedVisualActive;
+    private GroupState observedVisualPhase;
+    public void PresentObservedAnimation(bool active)
     {
         var session = MultiplayerSessionManager.Instance;
         if (session == null || !session.IsMultiplayerSession || !IsNetworkObserver) return;
+        if (!hasObservedVisualPhase || observedVisualPhase != state || observedVisualActive != active)
+        {
+            hasObservedVisualPhase = true;
+            observedVisualPhase = state;
+            observedVisualActive = active;
+            RefreshMemberProceduralState(state == GroupState.Eating && !active
+                ? CustomerProceduralState.WaitingForFood : (CustomerProceduralState?)null);
+        }
         for (int i = 0; i < members.Count; i++)
-            members[i]?.PresentObservedEating(active, activeFoodTray, i);
+            members[i]?.PresentObservedAnimation(active, activeFoodTray, i);
     }
 
     public void PresentObservedServed(FoodTray tray)
@@ -560,6 +570,7 @@ public partial class CustomerGroup : MonoBehaviour
         PresentObservedDeparture(phase);
         state = phase;
         currentLineSlotTarget = destination;
+        SetMembersProceduralPatience(patience);
         if (groupUiAnchor != null) groupUiAnchor.position = GetMembersHeadAnchorWorld();
         ApplyBubbleHeightSetting();
         if (showPatience) EnsureLinePatienceUI();
@@ -713,6 +724,7 @@ public partial class CustomerGroup : MonoBehaviour
     private bool isPlayerReviewingOrder;
 
     public bool HasConfirmedOrder => hasConfirmedOrder;
+    internal List<Recipe> LastUnavailableOrderProducts { get; private set; }
     public bool IsPlayerReviewingOrder => isPlayerReviewingOrder;
     private bool hasBeenAssigned;
     private bool cleanupDone;
@@ -896,9 +908,9 @@ public partial class CustomerGroup : MonoBehaviour
             activeFoodTray = null;
     }
 
-    private void RefreshMemberProceduralState()
+    private void RefreshMemberProceduralState(CustomerProceduralState? observedState = null)
     {
-        CustomerProceduralState visualState = state switch
+        CustomerProceduralState visualState = observedState ?? (state switch
         {
             GroupState.Waiting => CustomerProceduralState.QueueWaiting,
             GroupState.Seated => CustomerProceduralState.Conversation,
@@ -910,7 +922,7 @@ public partial class CustomerGroup : MonoBehaviour
             GroupState.Leaving or GroupState.AngryLeft or GroupState.UnhappyLeft =>
                 CustomerProceduralState.Leaving,
             _ => CustomerProceduralState.None
-        };
+        });
 
         int memberCount = members != null ? members.Count : 0;
         for (int i = 0; i < memberCount; i++)
@@ -1335,6 +1347,7 @@ public partial class CustomerGroup : MonoBehaviour
 
         currentOrder.Clear();
         MenuCatalog catalog = MenuCatalog.Default;
+        LastUnavailableOrderProducts = null;
         if (catalog == null)
         {
             Debug.LogError("[CustomerGroup] MenuCatalog is missing from a Resources folder.");
@@ -1429,6 +1442,7 @@ public partial class CustomerGroup : MonoBehaviour
             if (LobbyStockBridge.Instance != null &&
                 !LobbyStockBridge.Instance.HasOrderStock(allProducts))
             {
+                LastUnavailableOrderProducts = allProducts;
                 continue;
             }
 
@@ -1446,6 +1460,7 @@ public partial class CustomerGroup : MonoBehaviour
         }
 
         currentOrder.SetLines(generatedLines, catalog);
+        LastUnavailableOrderProducts = null;
     }
 
     public static int GetCasualDiningPitcherQuantity(int groupSize)
@@ -1755,7 +1770,7 @@ public partial class CustomerGroup : MonoBehaviour
         Debug.Log($"[CustomerGroup] Spawned order alert bubble for {name} | order={GetCurrentOrderSummary()}");
     }
 
-    public bool TakeOrderFromWaiter(FoodType food, DrinkType drink)
+    public bool TakeOrderFromWaiter(FoodType food, DrinkType drink, WaiterHands ticketOwner)
     {
         if (state != GroupState.ReadyToOrder || hasConfirmedOrder)
             return false;
@@ -1785,7 +1800,7 @@ public partial class CustomerGroup : MonoBehaviour
             }
         }
 
-        return CompleteOrderTaking(food, drink, spawnTicket: true);
+        return CompleteOrderTaking(food, drink, ticketOwner);
     }
 
     public bool ConfirmPlayerReviewedOrder(FoodType food, DrinkType drink)
@@ -1826,11 +1841,11 @@ public partial class CustomerGroup : MonoBehaviour
             }
         }
         if (!accepted) return false;
-        FinishOrderTaking(spawnTicket: false);
+        FinishOrderTaking(null);
         return true;
     }
 
-    private bool CompleteOrderTaking(FoodType food, DrinkType drink, bool spawnTicket)
+    private bool CompleteOrderTaking(FoodType food, DrinkType drink, WaiterHands ticketOwner)
     {
         if (state != GroupState.ReadyToOrder)
             return false;
@@ -1843,11 +1858,11 @@ public partial class CustomerGroup : MonoBehaviour
 
         ConfirmOrder(food, drink);
 
-        FinishOrderTaking(spawnTicket);
+        FinishOrderTaking(ticketOwner);
         return true;
     }
 
-    private void FinishOrderTaking(bool spawnTicket)
+    private void FinishOrderTaking(WaiterHands ticketOwner)
     {
 
         if (orderBubbleInstance != null)
@@ -1872,8 +1887,8 @@ public partial class CustomerGroup : MonoBehaviour
 
         SpawnTableNumber();
 
-        if (spawnTicket && OrderFlowManager.Instance != null)
-            OrderFlowManager.Instance.SpawnTicket(this);
+        if (ticketOwner != null && OrderFlowManager.Instance != null)
+            OrderFlowManager.Instance.SpawnTicket(this, ticketOwner);
     }
 
     public void ConfirmOrder(FoodType food, DrinkType drink)
@@ -2521,10 +2536,7 @@ public partial class CustomerGroup : MonoBehaviour
         if (!CanDecideCustomerOutcome || leavingRoutineStarted) return;
         CasualDiningPolishManager.EnsureInstance().RegisterIncident(
             DailyIncidentType.StockoutRefusal);
-        if (!MultiplayerDayBridge.IsActive)
-            WarningSlideUI.Instance?.Show(
-                "No stocked food and drinks are available. This group is leaving.");
-        ShowThought(unhappyComments, unhappyFaceSprite);
+        ShowCustomThought(MultiplayerDayBridge.ReportMissingStock(this), unhappyFaceSprite);
         SetState(GroupState.UnhappyLeft);
         ClearOrderBubble();
         ClearBillBubble();

@@ -59,6 +59,73 @@ public class WaiterHands : MonoBehaviour
 
     public MoneyPickup HeldMoney => heldMoney;
 
+    // Multiplayer snapshots and completion callbacks can move an item before
+    // its old hand reference is cleared. Reconcile references only: never move
+    // or destroy the real item, including one now held by a different actor.
+    public static void ReconcileMultiplayerHands(GameObject actor)
+    {
+        if (actor == null) return;
+        actor.GetComponent<WaiterHands>()?.ReconcileHeldItemReferences();
+        actor.GetComponent<BusserHands>()?.ReconcileHeldTrayReference();
+    }
+
+    public void ReconcileHeldItemReferences()
+    {
+        bool changed = false;
+        if (holdingTray != null && !holdingTray.transform.IsChildOf(TrayHoldPoint))
+        { holdingTray = null; changed = true; }
+        if (heldMoney != null)
+        {
+            var group = heldMoney.TargetGroup;
+            if (group == null || !heldMoney.transform.IsChildOf(MoneyHoldPoint) || group.MultiplayerPaymentComplete)
+                DetachMoneyPickup(heldMoney, reparent: false);
+            else if (holdingMoneyFor != group || holdingMoneyAmount != heldMoney.Amount)
+            { holdingMoneyFor = group; holdingMoneyAmount = heldMoney.Amount; changed = true; }
+        }
+        if (heldBillPaper != null)
+        {
+            var group = heldBillPaper.TargetGroup;
+            if (group == null || !heldBillPaper.transform.IsChildOf(BillHoldPoint) || group.HasReceivedBill || group.MultiplayerPaymentComplete)
+                DetachBillPaper(heldBillPaper);
+            else if (holdingBillFor != group) { holdingBillFor = group; changed = true; }
+        }
+        else if (holdingBillFor != null && (holdingBillFor.HasReceivedBill || holdingBillFor.MultiplayerPaymentComplete))
+        {
+            holdingBillFor = null;
+            if (billHeldVisualInstance != null) Destroy(billHeldVisualInstance);
+            billHeldVisualInstance = null;
+            changed = true;
+        }
+        if (holdingTicketFor != null && (MultiplayerWorldRegistry.Kitchen?.HasAcceptedOrder(holdingTicketFor.currentOrderNumber) == true
+            || HasOtherTicketOwner(holdingTicketFor) || holdingTicketFor.MultiplayerPaymentComplete
+            || holdingTicketFor.state == CustomerGroup.GroupState.Eating || holdingTicketFor.state == CustomerGroup.GroupState.NeedsBill
+            || holdingTicketFor.state == CustomerGroup.GroupState.Leaving || holdingTicketFor.state == CustomerGroup.GroupState.AngryLeft
+            || holdingTicketFor.state == CustomerGroup.GroupState.UnhappyLeft))
+        { holdingTicketFor = null; changed = true; }
+        if (changed) NotifyHandsChanged();
+    }
+
+    private bool HasOtherTicketOwner(CustomerGroup group)
+    {
+        if (GetComponent<AutonomousStaffBot>() != null) return false;
+        // Legacy contaminated local references may coexist with the staff's real ticket.
+        foreach (var staff in MultiplayerWorldRegistry.All<AutonomousStaffBot>())
+        {
+            var hands = staff != null ? staff.GetComponent<WaiterHands>() : null;
+            if (hands != null && hands != this && hands.holdingTicketFor == group) return true;
+        }
+        return false;
+    }
+
+    public string MultiplayerHeldItemBlocker()
+    {
+        if (HasMoney) return "Take the cash you are carrying to the cashier and finish the payment first.";
+        if (HasBill) return $"Deliver the bill for customer #{holdingBillFor.currentOrderNumber} first.";
+        if (HasTicket) return $"Submit the order ticket for customer #{holdingTicketFor.currentOrderNumber} first.";
+        if (HasTray) return $"Deliver the food for customer #{holdingTray.orderNumber} first.";
+        return null;
+    }
+
     public Transform MoneyHoldPoint => moneyHoldPoint != null ? moneyHoldPoint : transform;
     public Transform TrayHoldPoint => trayHoldPoint != null ? trayHoldPoint : transform;
     public Transform BillHoldPoint => billHoldPoint != null ? billHoldPoint : transform;

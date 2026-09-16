@@ -20,6 +20,10 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
     private PlayerMovement greetMover;
     private IInteractable greetApproach;
     private bool greetApproached;
+    private bool greetWaiting;
+    private long greetLease;
+    private float greetReplyUntil;
+    private readonly System.Collections.Generic.HashSet<string> greetingRequests = new();
     private FoodTray pickupTarget;
     private string pickupTaskId;
     private bool pickupPending, pickupCancelled;
@@ -27,6 +31,10 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
     private IInteractable pickupApproach;
     private int pickupApproachVersion, pickupSlot;
     private bool carryPending;
+    public bool AwaitingLocalAction => pendingReviewedOrder != null || greetWaiting || seatPending
+        || carryPending || pendingFoodAction != null || billTransitionPending;
+    public bool ReviewingLocalOrder => !orderCancelled && orderTarget != null
+        && orderTarget.Group != null && orderTarget.Group.IsPlayerReviewingOrder;
     private string requestedTaskId;
     private System.Action beginGrantedTask;
     private const byte CarryRequestEvent = 192, CarryRejectedEvent = 193;
@@ -36,6 +44,7 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
     public static bool CanAttemptServe(CustomerGroup group)
     {
         var session = MultiplayerSessionManager.Instance;
+        if (session != null && session.IsMultiplayerSession) WaiterHands.ReconcileMultiplayerHands(session.LocalManager);
         var hands = session != null && session.LocalManager != null
             ? session.LocalManager.GetComponent<WaiterHands>() : null;
         return ReviewIsMultiplayer && group != null && group.state == CustomerGroup.GroupState.OrderTaken
@@ -585,6 +594,7 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
         if (bridge == null || customer == null || session.LocalManager == null
             || group.state != CustomerGroup.GroupState.NeedsBill || group.HasReceivedBill) return true;
         if (bridge.billPending) return true;
+        WaiterHands.ReconcileMultiplayerHands(session.LocalManager);
         var hands = session.LocalManager.GetComponent<WaiterHands>();
         if (hands != null && hands.HasBill && hands.holdingBillFor != group)
         { WarningSlideUI.Instance?.Show("This bill belongs to another customer."); return true; }
@@ -723,15 +733,39 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
         {
             bridge.seatController = session.LocalManager.GetComponent<RoleBasedAssignController>();
             bridge.seatController?.BeginAssignFromBubble(group);
+            if (bridge.seatController != null && !bridge.seatController.IsSelectingBooth(group))
+                bridge.seatController = null;
             return true;
         }
-        if (session.IsAuthority)
-            bridge.HandleGreet(customer.photonView.ViewID, session.LocalActorNumber, session.LocalActorNumber);
-        else
-            MultiplayerWire.Raise(GreetRequestEvent,
-                new object[] { customer.photonView.ViewID, session.LocalActorNumber },
-                new RaiseEventOptions { Receivers = ReceiverGroup.MasterClient }, SendOptions.SendReliable);
+        bridge.RequestGreeting();
         return true;
+    }
+
+    internal static bool IsGreetingActionHidden(CustomerGroup group)
+    {
+        var session = MultiplayerSessionManager.Instance;
+        if (session == null || !session.IsMultiplayerSession || group == null) return false;
+        var customer = group.GetComponentInParent<MultiplayerCustomerSpawn>();
+        var bridge = session.GetComponent<MultiplayerCustomerInteractionBridge>();
+        if (customer == null || bridge == null || bridge.claims == null || !customer.ReadyForInteraction || group.HasBeenAssigned) return true;
+        string id = $"Customer:{customer.photonView.ViewID}:GreetSeat";
+        int owner = bridge.claims.GetOwner(id);
+        if (owner != 0 && owner != session.LocalActorNumber || bridge.claims.GetBotClaim(id)?.committed == true) return true;
+        return bridge.requestedTaskId == id || bridge.target == customer && !bridge.cancelled
+            && (bridge.pending || !bridge.greetApproached || bridge.greetWaiting || bridge.seatPending
+                || bridge.seatController != null && bridge.seatController.IsSelectingBooth(group));
+    }
+
+    private void RequestGreeting()
+    {
+        if (greetWaiting || target == null || !greetApproached || cancelled) return;
+        greetWaiting = true;
+        greetLease = claims.GetLease(taskId);
+        greetReplyUntil = Time.unscaledTime + 8f;
+        CustomerGreetBubbleSpawner.Instance?.Hide();
+        if (session.IsAuthority) HandleGreet(target.photonView.ViewID, session.LocalActorNumber, session.LocalActorNumber, greetLease);
+        else if (!MultiplayerWire.Raise(GreetRequestEvent, new object[] { target.photonView.ViewID, session.LocalActorNumber, greetLease },
+            new RaiseEventOptions { Receivers = ReceiverGroup.MasterClient }, SendOptions.SendReliable)) Cancel();
     }
 
     private void OnEnable() => PhotonNetwork.AddCallbackTarget(this);
@@ -757,6 +791,11 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
             && payload is object[] review && review.Length == 2
             && review[0] is int reviewView && review[1] is int reviewActor)
         { HandleReview(reviewView, reviewActor, photonEvent.Sender); return; }
+        if (photonEvent.Code == GreetRequestEvent && photonEvent.Sender == session.Run?.hostActor
+            && payload is object[] greetingResult && greetingResult.Length == 4
+            && greetingResult[0] is int greetView && greetingResult[1] is int greetActor
+            && greetingResult[2] is long lease && greetingResult[3] is bool greeted)
+        { FinishGreeting(greetView, greetActor, lease, greeted); return; }
         if (photonEvent.Code == SeatResultEvent && photonEvent.Sender == PhotonNetwork.MasterClient.ActorNumber
             && payload is object[] result && result.Length == 2
             && result[0] is int resultView && result[1] is bool accepted)
@@ -772,27 +811,64 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
             return;
         }
         if (photonEvent.Code != GreetRequestEvent) return;
-        if (payload is object[] data && data.Length == 2
-            && data[0] is int viewId && data[1] is int actor)
-            HandleGreet(viewId, actor, photonEvent.Sender);
+        if (payload is object[] data && data.Length == 3
+            && data[0] is int viewId && data[1] is int actor && data[2] is long greetStamp)
+            HandleGreet(viewId, actor, photonEvent.Sender, greetStamp);
     }
 
-    private void HandleGreet(int viewId, int actor, int sender)
+    private void HandleGreet(int viewId, int actor, int sender, long lease)
     {
-        if (!session.IsAuthority || actor != sender
-            || !PhotonNetwork.CurrentRoom.Players.TryGetValue(sender, out var player) || player.IsInactive
-            || !session.TryGetManager(sender, out _)
-            || !claims.IsClaimedBy($"Customer:{viewId}:GreetSeat", sender)) return;
-        var view = PhotonView.Find(viewId);
-        var customer = view != null ? view.GetComponent<MultiplayerCustomerSpawn>() : null;
-        var group = customer != null ? customer.Group : null;
-        var line = FindFirstObjectByType<LobbyLineManager>();
-        if (group == null || group.IsNetworkObserver || group.hasBeenGreeted
-            || group.state != CustomerGroup.GroupState.Waiting || !group.CanBeGreeted()
-            || line == null || line.GetFrontOfLine() != group) return;
-        group.MarkGreeted();
-        customer.PublishGreeted();
-        RefreshOwnedPopup(group);
+        if (!session.IsAuthority || actor != sender || !session.ValidActor(sender)) return;
+        string key = $"{viewId}:{actor}:{lease}";
+        if (!greetingRequests.Add(key)) return;
+        StartCoroutine(GreetWhenArrived(viewId, actor, lease, key));
+    }
+
+    private System.Collections.IEnumerator GreetWhenArrived(int viewId, int actor, long lease, string key)
+    {
+        string run = session.RunId;
+        int day = GameFlowManager.Instance.CurrentDay;
+        float until = Time.unscaledTime + 0.4f;
+        bool accepted = false;
+        string id = $"Customer:{viewId}:GreetSeat";
+        while (session.RunId == run && GameFlowManager.Instance.CurrentDay == day && session.IsAuthority && session.ValidActor(actor))
+        {
+            var customer = PhotonView.Find(viewId)?.GetComponent<MultiplayerCustomerSpawn>();
+            var group = customer != null ? customer.Group : null;
+            var line = FindFirstObjectByType<LobbyLineManager>();
+            if (!claims.IsClaimedBy(id, actor) || claims.GetLease(id) != lease || lease <= 0
+                || !session.TryGetManager(actor, out var manager) || group == null || group.IsNetworkObserver
+                || group.state != CustomerGroup.GroupState.Waiting || !group.CanBeGreeted()
+                || line == null || line.GetFrontOfLine() != group) break;
+            var position = NetworkPlayerMovementSync.AuthorityPosition(manager);
+            var stand = CustomerGreetBubbleUI.FindClosestCustomer(group, position);
+            if (stand == null) break;
+            var delta = position - stand.position; delta.y = 0;
+            float radius = CustomerGreetBubbleUI.GreetingInteractRadius + 0.35f;
+            if (delta.sqrMagnitude <= radius * radius)
+            {
+                accepted = true;
+                if (!group.hasBeenGreeted) { group.MarkGreeted(); customer.PublishGreeted(); }
+                break;
+            }
+            if (Time.unscaledTime >= until) break;
+            yield return null;
+        }
+        greetingRequests.Remove(key);
+        if (session.RunId != run || GameFlowManager.Instance.CurrentDay != day) yield break;
+        if (actor == session.LocalActorNumber) FinishGreeting(viewId, actor, lease, accepted);
+        else MultiplayerWire.Raise(GreetRequestEvent, new object[] { viewId, actor, lease, accepted },
+            new RaiseEventOptions { TargetActors = new[] { actor } }, SendOptions.SendReliable);
+    }
+
+    private void FinishGreeting(int view, int actor, long lease, bool accepted)
+    {
+        if (!greetWaiting || target == null || target.Group == null || target.photonView.ViewID != view || actor != session.LocalActorNumber
+            || greetLease != lease || claims.GetLease(taskId) != lease) return;
+        greetWaiting = false;
+        if (!accepted) { Cancel(); WarningSlideUI.Instance?.Show("This customer cannot be greeted here. Select their current action to try again."); return; }
+        target.Group.MarkGreeted(); // Authoritative acknowledgement; same projection as the customer snapshot.
+        RefreshOwnedPopup(target.Group);
     }
 
     public static void RefreshOwnedPopup(CustomerGroup group)
@@ -1011,12 +1087,14 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
             return;
         }
         string requested = $"Customer:{customer.photonView.ViewID}:GreetSeat";
+        CustomerGreetBubbleSpawner.Instance?.SetVisibleAndRefresh(customer.Group, false);
         RequestTask(requested, () =>
         {
             target = customer;
             taskId = requested;
             cameraForPopup = camera;
             cancelled = false;
+            greetApproached = false;
             pending = true;
             OnResult(requested, true);
         });
@@ -1105,7 +1183,8 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
                     || !claims.IsClaimedBy(claimedTask, session.LocalActorNumber))
                 { Cancel(); return; }
                 greetApproached = true;
-                CustomerGreetBubbleSpawner.Instance?.Show(customer.Group, cameraForPopup);
+                if (customer.Group.hasBeenGreeted) RefreshOwnedPopup(customer.Group);
+                else RequestGreeting();
             },
             () =>
             {
@@ -1121,6 +1200,8 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
 
     private void Update()
     {
+        if (greetWaiting && Time.unscaledTime >= greetReplyUntil)
+        { Cancel(); WarningSlideUI.Instance?.Show("Greeting timed out. Select the customer to try again."); }
         TickBillActions();
         TickReviewedOrderSubmission();
         TickFoodActions();
@@ -1166,6 +1247,7 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
     {
         seatApproachVersion++;
         cancelled = true;
+        greetWaiting = false;
         greetApproached = false;
         var mover = greetMover;
         var approach = greetApproach;

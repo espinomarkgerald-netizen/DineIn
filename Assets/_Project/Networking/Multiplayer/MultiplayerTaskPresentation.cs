@@ -1,4 +1,3 @@
-using TMPro;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -14,8 +13,7 @@ public sealed class MultiplayerTaskPresentation : MonoBehaviour
     private string kind;
     private int boundDay;
     private string boundRun;
-    private int paymentView, shownOwner = int.MinValue;
-    private bool shownBot, shownCommitted;
+    private int paymentView;
     private static string KeyFor(string task, string kind) => MultiplayerSessionManager.Instance.RunId + ":"
         + (GameFlowManager.Instance != null ? GameFlowManager.Instance.CurrentDay : 0) + ":" + task + ":" + kind;
     public static GameObject Acquire(GameObject prefab, string task, string kind = "Action")
@@ -45,8 +43,6 @@ public sealed class MultiplayerTaskPresentation : MonoBehaviour
     private void OnDisable() => LiveCount--;
     private string task;
     private Button[] buttons;
-    private TMP_Text label;
-    private string shown;
     public static void Bind(GameObject root, string id, string kind = null)
     {
         if (root == null || !MultiplayerDayBridge.IsActive) return;
@@ -61,7 +57,6 @@ public sealed class MultiplayerTaskPresentation : MonoBehaviour
         presenter.paymentView = 0;
         if (id != null && id.EndsWith(":Payment", System.StringComparison.Ordinal))
         { var parts = id.Split(':'); if (parts.Length == 3) int.TryParse(parts[1], out presenter.paymentView); }
-        presenter.shownOwner = int.MinValue;
         presenter.kind = kind ?? presenter.kind ?? "Action";
         presenter.boundDay = day; presenter.boundRun = run;
         presenter.Key = KeyFor(id, presenter.kind);
@@ -71,15 +66,6 @@ public sealed class MultiplayerTaskPresentation : MonoBehaviour
     private void Awake()
     {
         buttons = GetComponentsInChildren<Button>(true);
-        var root = new GameObject("Task ownership", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
-        root.transform.SetParent(transform, false);
-        var rect = (RectTransform)root.transform;
-        rect.anchorMin = new Vector2(0.5f, 1f); rect.anchorMax = rect.anchorMin;
-        rect.pivot = new Vector2(0.5f, 0f); rect.sizeDelta = new Vector2(200f, 26f);
-        label = root.GetComponent<TextMeshProUGUI>();
-        label.fontSize = 16; label.alignment = TextAlignmentOptions.Center;
-        label.color = new Color(0.1f, 0.18f, 0.3f); label.raycastTarget = false;
-        foreach (var follow in GetComponentsInChildren<UIFollowWorldPoint>(true)) follow.RefreshVisualBounds();
     }
     private void LateUpdate()
     {
@@ -93,14 +79,8 @@ public sealed class MultiplayerTaskPresentation : MonoBehaviour
         var bot = claims.GetBotClaim(task);
         bool available = owner == 0 && (bot == null || !bot.committed);
         bool own = owner == session.LocalActorNumber;
-        if (shownOwner != owner || shownBot != (bot != null) || shownCommitted != (bot?.committed ?? false))
-        {
-            shownOwner = owner; shownBot = bot != null; shownCommitted = bot?.committed ?? false;
-            string text = own ? "Your task" : owner > 0 ? "Player " + owner
-                : bot != null ? bot.committed ? "Staff working" : "Take over" : "";
-            if (text != shown) { shown = text; label.text = text; label.gameObject.SetActive(text.Length > 0); }
-        }
         foreach (var button in buttons) if (button != null)
-            button.interactable = session.CanAct && !MultiplayerRestockView.Active && (available || own);
+            button.interactable = session.CanAct && !MultiplayerRestockView.Active
+                && !MultiplayerDayBridge.PreparationLocked && (available || own);
     }
 }

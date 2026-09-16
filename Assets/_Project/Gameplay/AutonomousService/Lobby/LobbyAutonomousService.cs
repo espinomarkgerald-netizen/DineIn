@@ -1099,7 +1099,7 @@ public class LobbyAutonomousService : MonoBehaviour
             group.IsPlayerReviewingOrder || waiterHands == null)
             yield break;
 
-        if (!group.TakeOrderFromWaiter(group.chosenFood, group.chosenDrink))
+        if (!group.TakeOrderFromWaiter(group.chosenFood, group.chosenDrink, waiterHands))
             yield break;
         waiterHands.holdingTicketFor = group;
         waiter.SetCarrying(true);
@@ -1163,7 +1163,7 @@ public class LobbyAutonomousService : MonoBehaviour
         if (!IsTakeoutOrderReady(group) || !AreWaiterHandsFree(hands))
             yield break;
 
-        if (!group.TakeOrderFromWaiter(group.chosenFood, group.chosenDrink) ||
+        if (!group.TakeOrderFromWaiter(group.chosenFood, group.chosenDrink, waiterHands) ||
             group == null || group.state != CustomerGroup.GroupState.OrderTaken)
             yield break;
 

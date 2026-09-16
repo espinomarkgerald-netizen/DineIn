@@ -8,10 +8,12 @@ public class OrderTicketUI : MonoBehaviour
     public TMP_Text detailsText;
 
     private CustomerGroup group;
+    private WaiterHands owner;
 
-    public void Init(CustomerGroup g)
+    public void Init(CustomerGroup g, WaiterHands ticketOwner)
     {
         group = g;
+        owner = ticketOwner;
 
         UIFollowWorldPoint follow = GetComponent<UIFollowWorldPoint>();
         if (follow != null)
@@ -31,8 +33,7 @@ public class OrderTicketUI : MonoBehaviour
     private void Update()
     {
         // auto-destroy if ticket no longer held (delivered/cancelled)
-        if (WaiterHands.ActivePlayerHands == null) return;
-        if (WaiterHands.ActivePlayerHands.holdingTicketFor != group)
+        if (owner == null || owner != WaiterHands.ActivePlayerHands || owner.holdingTicketFor != group)
             Destroy(gameObject);
     }
 }

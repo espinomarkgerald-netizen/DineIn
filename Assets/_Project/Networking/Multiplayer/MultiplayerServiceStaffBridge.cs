@@ -102,7 +102,7 @@ public sealed class MultiplayerServiceStaffBridge : MonoBehaviour, IOnEventCallb
                 root.SetActive(received[i] && visible[i]);
                 if (received[i])
                 {
-                    if (poses[i].Read(PhotonNetwork.Time - 0.1d, out var position, out var rotation))
+                    if (poses[i].ReadBuffered(PhotonNetwork.Time, out var position, out var rotation))
                         root.transform.SetPositionAndRotation(position, rotation);
                 }
             }
@@ -140,8 +140,8 @@ public sealed class MultiplayerServiceStaffBridge : MonoBehaviour, IOnEventCallb
                 || state[1] is not bool active || state[2] is not Vector3 position || state[3] is not Quaternion rotation
                 || state[4] is not float speed || state[5] is not bool moving || state[6] is not bool carrying
                 || roots[role] == null) continue;
+            if (!poses[role].Add(at, position, rotation, receivedAt: PhotonNetwork.Time)) continue;
             visible[role] = active && roster.IsRoleAvailableForAI((MultiplayerStaffRosterController.ServiceRole)role);
-            poses[role].Add(at, position, rotation);
             if (!received[role]) roots[role].transform.SetPositionAndRotation(position, rotation);
             received[role] = true;
             var animator = animators[role];

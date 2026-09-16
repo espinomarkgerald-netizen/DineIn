@@ -30,13 +30,14 @@ public sealed partial class MultiplayerRestaurantBridge : MonoBehaviourPunCallba
     private bool committing;
     private Command pending;
     private readonly Dictionary<string, bool> receipts = new();
-    private string previousPayload, staffSignature, equipmentSignature, menuSignature, polishSignature, inventorySignature;
+    private string previousPayload, staffSignature, equipmentSignature, menuSignature, polishSignature, inventorySignature, moneySignature;
     public bool HasState { get; private set; }
     public static event Action StateChanged;
     public static bool IsActive => MultiplayerSessionManager.Instance != null && !MultiplayerProgressionContext.RestorationInProgress;
     public static MultiplayerRestaurantBridge Active => MultiplayerSessionManager.Instance?.GetComponent<MultiplayerRestaurantBridge>();
     public static bool Committing => Active != null && Active.committing;
     public static bool CanEdit => !IsActive || (MultiplayerSessionManager.Instance.CanAct && Active != null && Active.pending == null
+        && !MultiplayerDayBridge.PreparationLocked
         && GameDayManager.Instance != null && !GameDayManager.Instance.ServiceActive && !GameDayManager.Instance.HasDayResults);
     public static bool IsObserver => IsActive && !MultiplayerSessionManager.Instance.IsAuthority;
     private void Awake() => session = GetComponent<MultiplayerSessionManager>();
@@ -54,6 +55,7 @@ public sealed partial class MultiplayerRestaurantBridge : MonoBehaviourPunCallba
         if (!session.IsConnected || !MultiplayerProgressionContext.LocallyPrepared) return;
         if (session.IsAuthority && Time.unscaledTime >= nextPublish) Publish();
         else if (!session.IsHostConnection && !HasState) ReadSnapshot();
+        TickNewspaperAcknowledgement();
         if (pending == null) return;
         if (!session.CanAct || Time.unscaledTime > requestUntil)
         { pending = null; WarningSlideUI.Instance?.Show("Restaurant request timed out. Check the shared state before retrying."); StateChanged?.Invoke(); }
@@ -81,10 +83,14 @@ public sealed partial class MultiplayerRestaurantBridge : MonoBehaviourPunCallba
         if (!session.IsAuthority || command == null || !session.ValidActor(actor) || command.run != session.RunId
             || command.day != GameFlowManager.Instance.CurrentDay || !Guid.TryParseExact(command.id, "N", out _)) return;
         string key = actor + ":" + command.id;
+        bool newspaper = command.operation == "newspaper";
+        // Loading must defer this receipt, not cache a failed reading forever.
+        if (newspaper && !MultiplayerProgressionContext.Ready) return;
         if (!receipts.TryGetValue(key, out bool accepted))
         {
             accepted = false;
-            if (MultiplayerProgressionContext.Ready && !GameDayManager.Instance.ServiceActive && !GameDayManager.Instance.HasDayResults)
+            if (MultiplayerProgressionContext.Ready && (newspaper || (!MultiplayerDayBridge.PreparationLocked
+                && GameDayManager.Instance != null && !GameDayManager.Instance.ServiceActive && !GameDayManager.Instance.HasDayResults)))
             {
                 committing = true;
                 try { accepted = Execute(command); }
@@ -117,12 +123,14 @@ public sealed partial class MultiplayerRestaurantBridge : MonoBehaviourPunCallba
                     && EquipmentManager.Instance.Purchase(equipment.itemID);
             case "menu": return product != null && MenuAvailabilityManager.Instance.SetProductAvailable(product, command.value != 0);
             case "price": return product != null && command.value >= 0 && MenuAvailabilityManager.Instance.SetProductPrice(product, command.value);
-            case "newspaper": CasualDiningPolishManager.Instance?.MarkCurrentIssueViewed(); return true;
+            case "newspaper": return command.value == command.day && CasualDiningPolishManager.Instance != null
+                && CasualDiningPolishManager.Instance.MarkIssueViewed(command.day, command.target);
             default: return false;
         }
     }
     private void Receive(Reply reply)
     {
+        if (ReceiveNewspaperAcknowledgement(reply)) return;
         if (reply == null || pending == null || reply.id != pending.id) return;
         pending = null;
         if (!reply.accepted) WarningSlideUI.Instance?.Show("That restaurant choice is no longer available. The shared state has been refreshed.");
@@ -130,8 +138,9 @@ public sealed partial class MultiplayerRestaurantBridge : MonoBehaviourPunCallba
     }
     public void ResetDay()
     {
+        newspaperPending = null;
         pending = null; receipts.Clear(); previousPayload = null; managementDirty = economyDirty = true;
-        staffSignature = equipmentSignature = menuSignature = polishSignature = inventorySignature = null;
+        staffSignature = equipmentSignature = menuSignature = polishSignature = inventorySignature = moneySignature = null;
     }
     public Snapshot Capture()
     {
@@ -244,7 +253,7 @@ public sealed partial class MultiplayerRestaurantBridge : MonoBehaviourPunCallba
     {
         if (data == null || stamp <= economyRevision) return;
         economyRevision = stamp;
-        string inventory = JsonUtility.ToJson(new GameSaveData
+        string inventory = JsonUtility.ToJson(new InventoryStateSignature
         {
             saveSchemaVersion = data.saveSchemaVersion, inventorySystemVersion = data.inventorySystemVersion,
             discardedUnitsToday = data.discardedUnitsToday, inventoryStocks = data.inventoryStocks,
@@ -252,7 +261,15 @@ public sealed partial class MultiplayerRestaurantBridge : MonoBehaviourPunCallba
         });
         if (inventory != inventorySignature)
         { inventorySignature = inventory; InventoryManager.Instance?.ApplySaveData(data); }
-        MoneyManager.Instance?.ApplySaveData(data);
+        // Approval/stock changes share this snapshot. They must not rebuild an
+        // unchanged transaction ledger or refresh every money subscriber.
+        string money = JsonUtility.ToJson(new MoneyStateSignature
+        {
+            currentDay = data.currentDay, money = data.money, moneyTransactions = data.moneyTransactions,
+            financeHistory = data.financeHistory, lastDailyRestaurantSnapshot = data.lastDailyRestaurantSnapshot
+        });
+        if (money != moneySignature)
+        { moneySignature = money; MoneyManager.Instance?.ApplySaveData(data); }
     }
     public override void OnRoomPropertiesUpdate(Hashtable changed)
     {
