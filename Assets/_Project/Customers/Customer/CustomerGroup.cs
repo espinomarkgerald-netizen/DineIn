@@ -532,6 +532,9 @@ public partial class CustomerGroup : MonoBehaviour
         // Generation also names empty/stock-unavailable outcomes, so they never reroll.
         if (currentOrder == null || string.IsNullOrEmpty(currentOrder.name))
             GenerateRandomOrder();
+        if (currentOrder == null || currentOrder.contents == null || currentOrder.contents.Count == 0
+            || currentOrder.name == "No Food Available")
+        { WarnAndLeaveForMissingStock(); return false; }
         if (currentOrderNumber < 0 && currentOrder != null && currentOrder.lines.Count > 0)
             currentOrderNumber = OrderNumberManager.Instance != null
                 ? OrderNumberManager.Instance.GetNextOrderNumber()
@@ -877,6 +880,8 @@ public partial class CustomerGroup : MonoBehaviour
         ApplyBubbleHeightSetting();
 
         UpdateWaitingStateFromLineTarget();
+        if (state == GroupState.ReadyToOrder && !hasConfirmedOrder) HandleGlobalStockout();
+        TickStockWait();
         UpdateLinePatience();
     }
 
@@ -1200,10 +1205,15 @@ public partial class CustomerGroup : MonoBehaviour
 
     private IEnumerator ReadyToOrderFlow()
     {
+        bool resumed = resumeStockOrder;
+        resumeStockOrder = false;
         SetState(GroupState.WaitingToOrder);
 
-        float delay = UnityEngine.Random.Range(minOrderDelay, maxOrderDelay);
-        yield return new WaitForSeconds(delay);
+        if (!resumed)
+        {
+            float delay = UnityEngine.Random.Range(minOrderDelay, maxOrderDelay);
+            yield return new WaitForSeconds(delay);
+        }
 
         if (readinessOnly)
         {
@@ -1212,7 +1222,7 @@ public partial class CustomerGroup : MonoBehaviour
             yield break;
         }
 
-        GenerateRandomOrder();
+        if (!resumed) GenerateRandomOrder();
 
         if (currentOrder == null || currentOrder.contents == null ||
             currentOrder.contents.Count == 0 || currentOrder.name == "No Food Available")
@@ -1234,8 +1244,11 @@ public partial class CustomerGroup : MonoBehaviour
         SetState(GroupState.ReadyToOrder);
         SpawnOrderBubble();
 
-        float patience = UnityEngine.Random.Range(minOrderPatience, maxOrderPatience);
-        float timeLeft = patience;
+        float patience = resumed && ordinaryOrderPatience > 0f ? ordinaryOrderPatience
+            : UnityEngine.Random.Range(minOrderPatience, maxOrderPatience);
+        float timeLeft = resumed && ordinaryOrderPatience > 0f ? ordinaryOrderRemaining : patience;
+        ordinaryOrderPatience = patience;
+        ordinaryOrderRemaining = timeLeft;
 
         OrderBubbleUI bubbleUI = orderBubbleInstance != null
             ? orderBubbleInstance.GetComponentInChildren<OrderBubbleUI>(true)
@@ -1249,6 +1262,7 @@ public partial class CustomerGroup : MonoBehaviour
 
         while (state == GroupState.ReadyToOrder)
         {
+            if (HandleGlobalStockout()) yield break;
             if (!isOrderPaused)
             {
                 float mult = Profile != null
@@ -1256,6 +1270,7 @@ public partial class CustomerGroup : MonoBehaviour
                     : 1f;
 
                 timeLeft -= Time.deltaTime * mult;
+                ordinaryOrderRemaining = timeLeft;
 
                 float normalizedPatience = Mathf.Clamp01(timeLeft / patience);
                 SetMembersProceduralPatience(normalizedPatience);
@@ -2534,8 +2549,10 @@ public partial class CustomerGroup : MonoBehaviour
     private void WarnAndLeaveForMissingStock()
     {
         if (!CanDecideCustomerOutcome || leavingRoutineStarted) return;
+        if (HandleGlobalStockout()) return;
         CasualDiningPolishManager.EnsureInstance().RegisterIncident(
             DailyIncidentType.StockoutRefusal);
+        ReportFinalResult(FinalResult.Neutral, false);
         ShowCustomThought(MultiplayerDayBridge.ReportMissingStock(this), unhappyFaceSprite);
         SetState(GroupState.UnhappyLeft);
         ClearOrderBubble();
@@ -2566,6 +2583,7 @@ public partial class CustomerGroup : MonoBehaviour
     {
         if (!CanDecideCustomerOutcome) return;
         if (leavingRoutineStarted) return;
+        WaitingForStock = false;
         leavingRoutineStarted = true;
 
         CancelOutstandingGroupTask();
@@ -2936,7 +2954,7 @@ public partial class CustomerGroup : MonoBehaviour
         return null;
     }
 
-    private void ReportFinalResult(FinalResult result)
+    private void ReportFinalResult(FinalResult result, bool orderCompleted = true)
     {
         if (!CanDecideCustomerOutcome) return;
         if (finalResultReported) return;
@@ -2953,7 +2971,8 @@ public partial class CustomerGroup : MonoBehaviour
 
             case FinalResult.Neutral:
                 GameDayManager.Instance?.RegisterNeutralCustomer();
-                DailyRevenueTracker.Instance?.RecordOrderCompleted();
+                if (orderCompleted) DailyRevenueTracker.Instance?.RecordOrderCompleted();
+                else DailyRevenueTracker.Instance?.RecordOrderFailed();
                 break;
 
             case FinalResult.Angry:
@@ -3325,6 +3344,7 @@ public partial class CustomerGroup : MonoBehaviour
     private void UpdateLinePatience()
     {
         if (!CanDecideCustomerOutcome) return;
+        if (WaitingForStock) { ShowStockWaitPatience(); return; }
         if (debugForceShowLinePatience)
         {
             EnsureLinePatienceUI();

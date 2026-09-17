@@ -18,7 +18,7 @@ public sealed partial class MultiplayerDayBridge
         string warning = shortage == 1 ? "RESTOCK NEEDED: No food can be prepared. Restock ingredients or enable stocked meals."
             : shortage == 2 ? "RESTOCK NEEDED: No drinks can be prepared. Restock drink ingredients."
             : "RESTOCK NEEDED: Insufficient ingredients for a customer's order. Check ingredient stocks.";
-        if (!IsActive) { WarningSlideUI.Instance?.Show(warning); return thought; }
+        if (!IsActive) { RestaurantStockout.ShowLocalWarning(warning); return thought; }
         var bridge = MultiplayerSessionManager.Instance.GetComponent<MultiplayerDayBridge>();
         if (bridge == null || !bridge.session.IsAuthority) return thought;
         // Reevaluate before accepting a new incident, including stock recovered
@@ -42,22 +42,7 @@ public sealed partial class MultiplayerDayBridge
 
     // Match normal order generation: enabled/unlocked food or bundles and, if
     // the menu serves drinks, at least one stocked drink. No alternate stock math.
-    internal static int MenuShortage()
-    {
-        var catalog = MenuCatalog.Default;
-        if (catalog == null) return 1;
-        var stock = LobbyStockBridge.Instance;
-        bool food = false;
-        foreach (var meal in catalog.GetProducts(MenuProductCategory.Food))
-            if (stock == null || stock.HasProductStock(meal)) { food = true; break; }
-        if (!food) foreach (var bundle in catalog.GetFoodBundles())
-            if (stock == null || stock.HasOrderStock(bundle.products)) { food = true; break; }
-        if (!food) return 1;
-        if (catalog.GetProducts(MenuProductCategory.Drink, false).Count == 0) return 0;
-        foreach (var drink in catalog.GetProducts(MenuProductCategory.Drink))
-            if (stock == null || stock.HasProductStock(drink)) return 0;
-        return 2;
-    }
+    internal static int MenuShortage() => RestaurantStockout.Shortage;
 
     private void TickStockout(bool force = false)
     {

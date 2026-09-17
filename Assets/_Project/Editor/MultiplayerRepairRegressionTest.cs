@@ -65,6 +65,8 @@ public static class MultiplayerRepairRegressionTest
             RunCase("served and carried trays suppress pickup while legitimate cleanup stays available", MultiplayerServiceSequenceRegressionCases.Run);
             RunCase("actor work circles use real timing and keep unknown work indeterminate", MultiplayerWorkIndicatorRegressionCases.Run);
             RunCase("staff tickets, accepted orders, cleared readiness and fixed-position rings remain consistent", MultiplayerTaskTrackingRegressionCases.Run);
+            RunCase("shelf identity survives root changes and join failures explain recovery", MultiplayerRoomRestockRegressionCases.Run);
+            RunCase("stockout outcomes count once without completed orders or guest-side mutations", StockoutRegressionCases.Run);
         }
         catch (Exception error) { exitCode = 1; results.Add("FAIL: " + error); Debug.LogException(error); }
         finally

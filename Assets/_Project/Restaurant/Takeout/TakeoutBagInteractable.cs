@@ -54,6 +54,8 @@ public class TakeoutBagInteractable : MonoBehaviour
 
     private void OnDestroy()
     {
+        if (heldByPlayer && !MultiplayerServiceActions.IsActive)
+            ClearDeliveryHighlight();
         RestaurantTaskClaim.Complete(this);
         HideUI();
     }
@@ -194,6 +196,8 @@ public class TakeoutBagInteractable : MonoBehaviour
             return;
 
         targetGroup.SetDeliveryHighlight(true);
+        if (heldByPlayer && !MultiplayerServiceActions.IsActive)
+            targetGroup.ProjectLocalDeliveryGuidance(true);
     }
 
     private void ClearDeliveryHighlight()
@@ -202,6 +206,8 @@ public class TakeoutBagInteractable : MonoBehaviour
             return;
 
         targetGroup.SetDeliveryHighlight(false);
+        if (!MultiplayerServiceActions.IsActive)
+            targetGroup.ProjectLocalDeliveryGuidance(false);
     }
 
     // -------------------------------------------------------------------------

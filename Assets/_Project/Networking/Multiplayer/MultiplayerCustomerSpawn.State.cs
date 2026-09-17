@@ -15,6 +15,8 @@ public partial class MultiplayerCustomerSpawn
         public double sentAt;
         public bool reviewing, confirmed, complaint, paid, billDelivered, ready, greeted, patienceVisible;
         public bool eatingStarted, eatingComplete;
+        public bool waitingForStock;
+        public float stockWaitRemaining;
         public double eatingAt;
         public float eatingDuration, patience;
         public Vector3 queuePosition, paperPosition;
@@ -54,7 +56,8 @@ public partial class MultiplayerCustomerSpawn
             queuePosition = Group.QueueDestination, patience = Mathf.Round(Group.QueuePatience01 * 100f) / 100f,
             patienceVisible = Group.QueuePatienceVisible, eatingStarted = Group.MultiplayerEatingStarted,
             eatingAt = Group.MultiplayerEatingStartedAt, eatingDuration = Group.MultiplayerEatingDuration,
-            eatingComplete = Group.MultiplayerEatingComplete };
+            eatingComplete = Group.MultiplayerEatingComplete,
+            waitingForStock = Group.WaitingForStock, stockWaitRemaining = Mathf.Ceil(Group.StockWaitRemaining) };
         state.carrier = CarrierActorNumber; state.carrierRecovery = CarrierNeedsRecovery;
         var kitchen = MultiplayerWorldRegistry.Kitchen;
         if (Group.HasConfirmedOrder && kitchen != null && kitchen.TryGetForecast(Group.currentOrderNumber, out var forecast) && forecast.Group == Group)
@@ -98,6 +101,7 @@ public partial class MultiplayerCustomerSpawn
         var holder = MultiplayerWorldRegistry.ResolveHolder(state.billHolder);
         if (!string.IsNullOrEmpty(state.billHolder) && holder == null) return;
         var info = pendingServiceInfo;
+        Group.PresentStockWait(state.waitingForStock, state.stockWaitRemaining);
         if (!string.IsNullOrEmpty(state.orderJson) && state.choices?.Length == 4)
             ReceiveGeneratedOrder(state.orderJson, state.orderNumber, state.choices, info);
         Group.PresentMultiplayerBillDelivered(state.billDelivered);
@@ -132,5 +136,6 @@ public partial class MultiplayerCustomerSpawn
         if (served != null && Group.state == CustomerGroup.GroupState.Eating) Group.PresentObservedServed(served);
         appliedServiceRevision = state.revision; pendingServiceState = null;
         Group.ReconcileMultiplayerBubbles(this);
+        if (state.waitingForStock) Group.PresentStockWait(true, state.stockWaitRemaining);
     }
 }

@@ -258,21 +258,29 @@ public sealed class MultiplayerRestockBridge : MonoBehaviourPunCallbacks, IOnEve
     {
         message = "The shelf cell or delivered box is no longer available.";
         ItemData item = request.items != null && request.items.Length == 1 ? FindItem(request.items[0]) : null;
-        Shelf shelf = layout?.shelves == null ? null : Array.Find(layout.shelves, s => s.id == request.shelf);
+        Shelf shelf = layout?.shelves == null ? null : Array.Find(layout.shelves, s => SameShelf(s.id, request.shelf));
         var orders = RestockOrderManager.Instance;
         var inventory = InventoryManager.Instance;
-        if (item == null || item.worldContainerPrefab == null || shelf == null || inventory == null
-            || request.column < 0 || request.column >= shelf.columns || request.row < 0 || request.row >= shelf.rows
-            || orders.GetHotbarContainers(item) <= 0
-            || (shelf.storage != item.requiredStorage && !request.wrongStorageConfirmed)) return false;
+        if (item == null || item.worldContainerPrefab == null || inventory == null || orders == null)
+        { message = "The selected ingredient is unavailable. Reopen the stock room to refresh it."; return false; }
+        if (shelf == null)
+        { message = "This shelf does not match the host's layout. All players must use the same updated game version."; return false; }
+        if (request.column < 0 || request.column >= shelf.columns || request.row < 0 || request.row >= shelf.rows)
+        { message = "Drop the box inside an available shelf cell."; return false; }
+        if (orders.GetHotbarContainers(item) <= 0)
+        { message = "That delivered box has already been stored. The shared stock has been refreshed."; return false; }
+        if (shelf.storage != item.requiredStorage && !request.wrongStorageConfirmed)
+        { message = "Wrong storage. Confirm the shelf choice before placing this box."; return false; }
         int occupied = 0;
         foreach (var entry in orders.StoredContainers)
         {
             if (entry == null || !inventory.TryGetBatch(entry.stockBatchID, out var batch) || batch.unitsRemaining <= 0) continue;
-            if (entry.shelfID == request.shelf && entry.column == request.column && entry.row == request.row) return false;
+            if (SameShelf(entry.shelfID, shelf.id) && entry.column == request.column && entry.row == request.row)
+            { message = "That shelf cell is occupied. Choose another cell."; return false; }
             if (entry.storageType == shelf.storage) occupied++;
         }
-        if (occupied >= Storage.GetCapacity(shelf.storage)) return false;
+        if (occupied >= Storage.GetCapacity(shelf.storage))
+        { message = "This storage room is full."; return false; }
         // Include starter stock and partially consumed batches, not just visible delivered boxes.
         var capacityData = new GameSaveData();
         inventory.FillSaveData(capacityData);
@@ -286,7 +294,8 @@ public sealed class MultiplayerRestockBridge : MonoBehaviourPunCallbacks, IOnEve
             if (storedItem != null)
                 used += Mathf.CeilToInt(batch.unitsRemaining / (float)Mathf.Max(1, storedItem.unitsPerBox));
         }
-        if (used >= Storage.GetCapacity(shelf.storage)) return false;
+        if (used >= Storage.GetCapacity(shelf.storage))
+        { message = "This storage room is full, including partially used stock."; return false; }
         if (!orders.TryStoreOneContainer(item, shelf.storage, out message, out string batchID, out _)) return false;
         orders.RegisterAuthoritativeContainer(new RestockStoredContainerSaveData
         {
@@ -298,6 +307,24 @@ public sealed class MultiplayerRestockBridge : MonoBehaviourPunCallbacks, IOnEve
         });
         return true;
     }
+
+    // Only the two uniquely named room roots may vary in sibling index.
+    // Preserve every child index: the two freezer shelves must stay distinct.
+    internal static string ShelfIdentity(string id)
+    {
+        if (string.IsNullOrEmpty(id)) return id;
+        foreach (string root in new[] { "RestockScene:DryStorageRoom[", "RestockScene:Walk-inFreezer[" })
+        {
+            if (!id.StartsWith(root, StringComparison.Ordinal)) continue;
+            int end = id.IndexOf(']', root.Length);
+            if (end <= root.Length || end + 1 >= id.Length || id[end + 1] != '/'
+                || !int.TryParse(id.Substring(root.Length, end - root.Length), out int index) || index < 0) return id;
+            return root.Substring(0, root.Length - 1) + id.Substring(end + 1);
+        }
+        return id;
+    }
+    public static bool SameShelf(string a, string b) => !string.IsNullOrEmpty(a) && !string.IsNullOrEmpty(b)
+        && string.Equals(ShelfIdentity(a), ShelfIdentity(b), StringComparison.Ordinal);
 
     private bool IsUnlocked(ItemData item)
     {

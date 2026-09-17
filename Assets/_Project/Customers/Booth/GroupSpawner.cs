@@ -106,7 +106,7 @@ public class GroupSpawner : MonoBehaviour
         if (groupsForShift > 0 && groupsSpawnedThisShift >= groupsForShift)
             return;
 
-        timer += Time.deltaTime;
+        timer += Time.deltaTime * (RestaurantStockout.Shortage == 0 ? 1f : RestaurantStockout.SpawnRate);
 
         if (timer >= spawnInterval)
         {

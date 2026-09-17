@@ -21,6 +21,10 @@ public class PhotonBootstrap : MonoBehaviourPunCallbacks
     private float connectionDeadline;
     private bool reconnectAfterDisconnect;
     private static string ConnectionVersion => Application.version + "." + MultiplayerSessionManager.Protocol;
+    // A short room code has no region information. Best-region matchmaking can
+    // send friends to different room lists; use the authored region or one shared default.
+    public static string RoomRegion => string.IsNullOrWhiteSpace(PhotonNetwork.PhotonServerSettings?.AppSettings.FixedRegion)
+        ? "asia" : PhotonNetwork.PhotonServerSettings.AppSettings.FixedRegion.Trim().ToLowerInvariant();
     private CustomAuthenticationType ExpectedAuth => usePlayFabCustomAuthentication
         ? CustomAuthenticationType.Custom : CustomAuthenticationType.None;
 
@@ -33,7 +37,8 @@ public class PhotonBootstrap : MonoBehaviourPunCallbacks
             && PhotonNetwork.LocalPlayer?.UserId == accountId
             && PhotonNetwork.AuthValues?.UserId == accountId
             && PhotonNetwork.AuthValues.AuthType == expected
-            && PhotonNetwork.GameVersion == ConnectionVersion;
+            && PhotonNetwork.GameVersion == ConnectionVersion
+            && string.Equals(PhotonNetwork.CloudRegion?.Split('/')[0], RoomRegion, StringComparison.OrdinalIgnoreCase);
     }
 
     private void Awake()
@@ -119,6 +124,7 @@ public class PhotonBootstrap : MonoBehaviourPunCallbacks
         // version on a runtime copy rather than having that call overwrite it.
         var connection = settings.AppSettings.CopyTo(new AppSettings());
         connection.AppVersion = ConnectionVersion;
+        connection.FixedRegion = RoomRegion;
         if (!PhotonNetwork.ConnectUsingSettings(connection))
             FailConnection("Photon could not start connecting. Please retry.");
     }

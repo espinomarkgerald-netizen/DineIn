@@ -22,7 +22,15 @@ public class TableNumberUI : MonoBehaviour
         // A table number only represents food that is still pending. This
         // self-check also removes an orphaned UI instance if a delivery event
         // changed the group state but missed the normal visual cleanup call.
-        if (group == null || group.state != CustomerGroup.GroupState.OrderTaken
+        bool pendingDelivery = group != null && group.state == CustomerGroup.GroupState.OrderTaken;
+        if (group != null && group.IsTakeout && !multiplayerGuidance)
+        {
+            var bag = TakeoutBagInteractable.LocalHeldBag;
+            pendingDelivery = TakeoutBagInteractable.PlayerHasHeldBag && bag != null && bag.TargetGroup == group
+                && (group.state == CustomerGroup.GroupState.OrderTaken || group.state == CustomerGroup.GroupState.Waiting
+                    || group.state == CustomerGroup.GroupState.WaitingToOrder);
+        }
+        if (group == null || !pendingDelivery
             || (multiplayerGuidance && (networkCustomer == null || !networkCustomer.HasLocalDeliveryGuidance)))
             Destroy(gameObject);
     }

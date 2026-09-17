@@ -166,6 +166,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   autoConnectOnStart: 1
   autoJoinLobby: 1
+  usePlayFabCustomAuthentication: 0
 --- !u!114 &413082806
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -289,6 +289,8 @@ public class TakeoutFlowManager : MonoBehaviour
     {
         if (activeGroup == null || phaseStartedAt < 0f)
             return;
+        if (activeGroup.WaitingForStock && currentPhase == TakeoutPhase.WaitingForOrder)
+        { phaseStartedAt += Time.deltaTime; return; }
 
         float timeoutSeconds = currentPhase switch
         {

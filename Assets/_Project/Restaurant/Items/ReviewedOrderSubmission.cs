@@ -48,13 +48,18 @@ public static class ReviewedOrderSubmission
             || group.state != CustomerGroup.GroupState.ReadyToOrder || !group.IsPlayerReviewingOrder
             || group.HasConfirmedOrder) return false;
         if (!TryBuild(group, selection, catalog, out var submitted, out var products,
-            out var food, out var drink, out failure)) return false;
+            out var food, out var drink, out failure))
+        {
+            if (failure == Failure.UnavailableProduct) group.HandleGlobalStockout();
+            return false;
+        }
         failure = Failure.UnavailableKitchen;
         if (!group.IsTakeout && (kitchen == null || !kitchen.CanStartReviewedOrder(group))) return false;
 
         var stock = LobbyStockBridge.Instance;
         failure = Failure.UnavailableStock;
-        if (stock != null && !stock.HasOrderStock(products)) return false;
+        if (stock != null && !stock.HasOrderStock(products))
+        { group.HandleGlobalStockout(); return false; }
         var previousSubmission = group.submittedOrder;
         bool attempted = false;
         bool committed = false;
@@ -76,6 +81,7 @@ public static class ReviewedOrderSubmission
         if (!committed)
         {
             failure = attempted ? Failure.UnavailableKitchen : Failure.UnavailableStock;
+            if (!attempted) group.HandleGlobalStockout();
             return false;
         }
         RestaurantTaskClaim.Complete(group);

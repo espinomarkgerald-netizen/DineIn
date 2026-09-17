@@ -33,7 +33,7 @@ public static class MultiplayerReadinessRegressionCases
         var style = Resources.Load<MultiplayerReadyStyle>("UI/MultiplayerReadyStyle");
         Check(style != null && style.button != null && style.pressed != null && style.font != null,
             "Ready UI lost existing Blue/Double sprites or font.");
-        Check(MultiplayerSessionManager.Protocol == "casual-session-6"
+        Check(MultiplayerSessionManager.Protocol == "casual-session-8"
             && MultiplayerSessionManager.ResultRulesVersion == "casual-session-2", "Protocol/result compatibility changed.");
     }
     private static void Check(bool okay, string message)

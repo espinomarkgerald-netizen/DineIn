@@ -64,6 +64,12 @@ public class MultiplayerMenuController : MonoBehaviourPunCallbacks
     {
         PhotonNetwork.AutomaticallySyncScene = true;
         PhotonBootstrap.ConnectionFailed += OnConnectionFailed;
+        int selectedCapacity = Mathf.Clamp(partySizeDropdown.value, 0, 2);
+        partySizeDropdown.ClearOptions();
+        partySizeDropdown.AddOptions(new System.Collections.Generic.List<string> {
+            "Up to 2 Players", "Up to 3 Players", "Up to 4 Players" });
+        partySizeDropdown.SetValueWithoutNotify(selectedCapacity);
+        partySizeDropdown.RefreshShownValue();
         createTabLabel = createTabButton.GetComponentInChildren<TMP_Text>()?.text;
         createButton.onClick.AddListener(Create);
         joinButton.onClick.AddListener(Join);
@@ -211,11 +217,20 @@ public class MultiplayerMenuController : MonoBehaviourPunCallbacks
     }
     private void OnConnectionFailed(string message) { if (busy) Fail(message); }
     public override void OnCreateRoomFailed(short code, string message) =>
-        Fail(code == ErrorCode.GameIdAlreadyExists ? "Code already used. Press Create again." : "Unable to create room.");
+        Fail(code == ErrorCode.GameIdAlreadyExists ? "Code already used. Press Create again."
+            : "Could not create room (" + code + "). Reconnect and retry.");
     public override void OnJoinRoomFailed(short code, string message) =>
-        Fail(code == ErrorCode.GameDoesNotExist ? "Room not found." :
+        Fail(JoinFailureMessage(code));
+
+    internal static string JoinFailureMessage(short code) =>
+        code == ErrorCode.GameDoesNotExist ? "Room not found. Use the same updated game version and ask the host for a new room code." :
             code == ErrorCode.GameFull ? "Room is full." :
-            code == ErrorCode.GameClosed ? "Room has already started." : "Unable to join room.");
+            code == ErrorCode.GameClosed ? "Room has already started. Ask the host to create a new room." :
+            code == ErrorCode.JoinFailedFoundActiveJoiner || code == ErrorCode.JoinFailedPeerAlreadyJoined
+                ? "This account is already in the room. Each player must sign in with a different account." :
+            code == ErrorCode.JoinFailedFoundInactiveJoiner
+                ? "Your previous connection still reserves a place. Reconnect from that game, or wait 90 seconds and retry." :
+            "Unable to join (" + code + "). Reconnect, then ask the host to create a fresh room.";
 
     private void Fail(string message)
     {
@@ -246,16 +261,16 @@ public class MultiplayerMenuController : MonoBehaviourPunCallbacks
         foreach (var player in players)
             roster.Append('\n').Append(string.IsNullOrWhiteSpace(player.NickName) ? "Player" : player.NickName)
                 .Append(Equals(player.CustomProperties[MultiplayerSessionManager.ReadyKey], true) ? " • Ready" : " • Not ready");
-        for (int i = players.Length; i < room.MaxPlayers; i++) roster.Append("\nWaiting...");
+        for (int i = players.Length; i < room.MaxPlayers; i++) roster.Append("\nOpen slot");
         foreach (var text in rosterTexts) text.text = roster.ToString();
         if (!Equals(room.CustomProperties[RestaurantKey], "CasualDining") ||
             !Equals(room.CustomProperties[MultiplayerSessionManager.ProtocolKey], MultiplayerSessionManager.Protocol))
         {
-            SetStatus("Unsupported restaurant.");
+            SetStatus("Room version or restaurant differs. All players must use the same updated game version.");
             return;
         }
-        bool full = room.MaxPlayers >= 2 && room.MaxPlayers <= 4 && room.PlayerCount == room.MaxPlayers;
-        SetStatus(starting ? "STARTING..." : full ? "Ready up. The host starts when everyone is ready." : "WAITING FOR PLAYERS...");
+        bool enoughPlayers = HasPlayablePartySize(room.PlayerCount, room.MaxPlayers);
+        SetStatus(starting ? "STARTING..." : enoughPlayers ? "Ready up. The host starts when everyone here is ready." : "WAITING FOR AT LEAST 2 PLAYERS...");
     }
 
     private void Update()
@@ -279,9 +294,7 @@ public class MultiplayerMenuController : MonoBehaviourPunCallbacks
         if (!PhotonNetwork.InRoom || starting) return;
         var players = PhotonNetwork.PlayerList;
         var room = PhotonNetwork.CurrentRoom;
-        bool full = room.PlayerCount == room.MaxPlayers && room.MaxPlayers >= 2 && room.MaxPlayers <= 4;
-        bool allReady = full && Array.TrueForAll(players, p => !p.IsInactive && !string.IsNullOrEmpty(p.UserId)
-            && Equals(p.CustomProperties[MultiplayerSessionManager.ReadyKey], true));
+        bool allReady = EveryonePresentReady(players, room.MaxPlayers);
         if (!PhotonNetwork.IsMasterClient || !allReady)
         {
             PhotonNetwork.LocalPlayer.SetCustomProperties(new Hashtable { [MultiplayerSessionManager.ReadyKey] =
@@ -291,7 +304,7 @@ public class MultiplayerMenuController : MonoBehaviourPunCallbacks
         if (!Equals(room.CustomProperties[MultiplayerSessionManager.ProtocolKey], MultiplayerSessionManager.Protocol)) return;
         var record = new MultiplayerRunRecord { runId = Guid.NewGuid().ToString("N"),
             hostActor = PhotonNetwork.LocalPlayer.ActorNumber, hostAccountId = PhotonNetwork.LocalPlayer.UserId,
-            partySize = room.MaxPlayers, gameVersion = Application.version, startedUtc = DateTime.UtcNow.ToString("o") };
+            partySize = players.Length, gameVersion = Application.version, startedUtc = DateTime.UtcNow.ToString("o") };
         foreach (var player in players) record.participants.Add(new MultiplayerRunParticipant {
             accountId = player.UserId, actor = player.ActorNumber, displayName = player.NickName });
         if (!MultiplayerRunRecords.Valid(record)) { SetStatus("Each player must use a different signed-in account."); return; }
@@ -319,8 +332,7 @@ public class MultiplayerMenuController : MonoBehaviourPunCallbacks
         if (PhotonNetwork.InRoom)
         {
             bool ready = Equals(PhotonNetwork.LocalPlayer.CustomProperties[MultiplayerSessionManager.ReadyKey], true);
-            bool all = PhotonNetwork.CurrentRoom.PlayerCount == PhotonNetwork.CurrentRoom.MaxPlayers &&
-                Array.TrueForAll(PhotonNetwork.PlayerList, p => Equals(p.CustomProperties[MultiplayerSessionManager.ReadyKey], true));
+            bool all = EveryonePresentReady(PhotonNetwork.PlayerList, PhotonNetwork.CurrentRoom.MaxPlayers);
             string label = PhotonNetwork.IsMasterClient && all ? "START RUN" : ready ? "NOT READY" : "READY";
             createButton.GetComponentInChildren<TMP_Text>().text = label;
             joinButton.GetComponentInChildren<TMP_Text>().text = label;
@@ -331,6 +343,14 @@ public class MultiplayerMenuController : MonoBehaviourPunCallbacks
             joinButton.GetComponentInChildren<TMP_Text>().text = "JOIN";
         }
     }
+
+    internal static bool HasPlayablePartySize(int count, int capacity) =>
+        capacity >= 2 && capacity <= 4 && count >= 2 && count <= capacity;
+
+    private static bool EveryonePresentReady(Player[] players, int capacity) =>
+        HasPlayablePartySize(players.Length, capacity) && Array.TrueForAll(players,
+            p => !p.IsInactive && !string.IsNullOrEmpty(p.UserId)
+                && Equals(p.CustomProperties[MultiplayerSessionManager.ReadyKey], true));
 
     private void SetStatus(string message)
     {

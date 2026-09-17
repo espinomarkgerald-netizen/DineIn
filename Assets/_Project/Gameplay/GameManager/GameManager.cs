@@ -824,7 +824,7 @@ public class GameDayManager : MonoBehaviour
 
     private IEnumerator SpawnCustomersRoutine()
     {
-        yield return new WaitForSeconds(1f);
+        yield return WaitForCustomerArrival(1f);
         WaitForSeconds blockedSpawnWait = new WaitForSeconds(Mathf.Max(0.25f, blockedSpawnRetrySeconds));
 
         while (shiftRunning)
@@ -839,13 +839,22 @@ public class GameDayManager : MonoBehaviour
                 {
                     float intervalMultiplier = IsRushHour ? rushSpawnIntervalMultiplier : 1f;
                     float delay = Random.Range(spawnIntervalMin, spawnIntervalMax) * intervalMultiplier;
-                    yield return new WaitForSeconds(delay);
+                    yield return WaitForCustomerArrival(delay);
                     continue;
                 }
             }
 
             // Avoid retrying every rendered frame while the lobby or minute is full.
             yield return blockedSpawnWait;
+        }
+    }
+
+    private IEnumerator WaitForCustomerArrival(float remaining)
+    {
+        while (shiftRunning && remaining > 0f)
+        {
+            yield return null;
+            remaining -= Time.deltaTime * (RestaurantStockout.Shortage == 0 ? 1f : RestaurantStockout.SpawnRate);
         }
     }
 

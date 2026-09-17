@@ -709,6 +709,15 @@ public class OrderChecklistUI : MonoBehaviour
             tutorialHint.Show("Read the order above. Match every meal, drink, and quantity below.");
     }
 
+    // Authority has already invalidated the review. Dismiss only this customer's
+    // panel; snapshot application must not send a new gameplay/cancellation command.
+    public void DismissUnavailableOrder(CustomerGroup target)
+    {
+        if (group != target) return;
+        group = null;
+        Close();
+    }
+
     public void Close()
     {
         if (typingRoutine != null)
@@ -1663,7 +1672,10 @@ public class OrderChecklistUI : MonoBehaviour
         if (!ReviewedOrderSubmission.TrySubmit(group, group.currentOrderNumber, selection,
             catalog, kitchen, out var failure))
         {
+            if (group == null) return; // Stockout authority may already have dismissed this review.
             ShowWarning(ReviewedOrderSubmission.Message(failure));
+            if (group.WaitingForStock || group.state != CustomerGroup.GroupState.ReadyToOrder)
+            { Close(); return; }
             // Rejection retains the review and selection for a corrected retry.
             RefreshMenuAvailability();
             return;

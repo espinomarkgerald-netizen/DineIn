@@ -917,10 +917,11 @@ public sealed class RestockOrderManager : MonoBehaviour
         for (int i = 0; i < grids.Count; i++)
         {
             ShelfGrid grid = grids[i];
-            if (grid != null && string.Equals(
+            if (grid != null && (MultiplayerRestockBridge.IsActive
+                ? MultiplayerRestockBridge.SameShelf(grid.StableShelfId, shelfID) : string.Equals(
                     grid.StableShelfId,
                     shelfID,
-                    StringComparison.Ordinal))
+                    StringComparison.Ordinal)))
                 return grid;
         }
         return null;

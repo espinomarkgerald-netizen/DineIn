@@ -2,7 +2,7 @@
 
 ## Implementation and verification status
 
-Source changes only. No Unity launch, compile/build, gameplay tests, GUI automation or test execution on the user's computer. External verification requires Unity 6000.0.40f1. Protocol is now `casual-session-6`; result rules remain `casual-session-2`. Both clients must use the updated version and create a new room.
+Source changes only. No Unity launch, compile/build, gameplay tests, GUI automation or test execution on the user's computer. External verification requires Unity 6000.0.40f1. Following the room/restock repair, protocol is now `casual-session-7`; result rules remain `casual-session-2`. All clients must use the updated version and create a new room.
 
 ## Changes
 
@@ -13,6 +13,14 @@ Source changes only. No Unity launch, compile/build, gameplay tests, GUI automat
 - **Circles:** cache humanoid head or body bounds, center the indicator above it, use a 24-unit diameter and 4-unit thickness at reference scale. Only arc geometry spins; the transform stays stationary. Existing progress timing, mobile scaling, noninteractive behavior and restock hiding remain.
 
 ## Prepared external checks
+
+### Room joining and restock follow-up
+
+Room connection now uses the authored Photon fixed region, or `asia` when unspecified, so short room codes resolve against the same regional room list. Existing connections in a different region reconnect before create/join. Account identity and protocol checks remain mandatory. Join failures explain duplicate accounts, inactive reservations, full/closed rooms, missing or incompatible rooms, and preserve unknown numeric error codes. All participants should restart updated clients and use a newly created room; a previous room in another region cannot move between servers.
+
+Multiplayer shelf lookup ignores only sibling indices of the two uniquely named RestockScene room roots. All child shelf/level indices and scene/room names remain significant, and stored-container reconstruction uses the same comparison. This avoids rejecting a valid shelf after singleton root removal without merging separate shelves or bypassing host occupancy, quantity, capacity or storage-type validation. Rejections now explain the specific failed condition.
+
+Prepared `MultiplayerRoomRestockRegressionCases` covers root-index drift, distinct shelf/level/scene identities, uniqueness of the exported shelf layout and join-error recovery messages. Externally verify four different accounts across separate machines joining a four-player room, all four spawn slots and readiness, each guest's dry/freezer placement while the host has no restock view open, duplicate placement requests, occupied cells, depleted boxes, single stock-room ownership, exit/reentry and disconnect recovery. No runtime verification was performed locally; the screenshots alone do not identify the exact Photon return code or establish four-player performance.
 
 `MultiplayerRepairRegressionTest.RunBatch` includes `MultiplayerTaskTrackingRegressionCases`: explicit staff/human ticket isolation, legitimate unsubmitted tickets, cooking-stage stale ticket cleanup, idle eligibility, JSON readiness round-trips, invalid active readiness, cancelled/running readiness, stationary ring geometry and thickness. These fixtures are opt-in and were not executed.
 
