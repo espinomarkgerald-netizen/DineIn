@@ -441,7 +441,7 @@ public class KitchenManager : MonoBehaviour
             return false;
         }
 
-        if (group.state != CustomerGroup.GroupState.OrderTaken)
+        if (group.state != CustomerGroup.GroupState.OrderTaken && !group.FastFoodAwaitingSeat)
         {
             Debug.LogError($"[KitchenManager] ProcessOrder — {group.name} is in state '{group.state}', expected 'OrderTaken'. Order not started.");
             return false;
@@ -563,6 +563,15 @@ public class KitchenManager : MonoBehaviour
                 NotifyForecastChanged(held);
                 if (!MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer) ProcessingBillIndicatorUI.Instance?.Hide();
                 yield break;
+            }
+
+            // Fast Food prepares paid orders while customers find their own seats.
+            // Keep the output in the kitchen until a table can receive it; this
+            // does not re-submit the order or consume ingredients a second time.
+            while (group != null && group.FastFoodAwaitingSeat)
+            {
+                if (!IsOrderStillValid(group, orderNo)) yield break;
+                yield return null;
             }
 
             Transform[] targetSlots = isTakeout ? takeoutSpawnPoints : traySpawnPoints;
@@ -774,7 +783,7 @@ public class KitchenManager : MonoBehaviour
         if (group.currentOrderNumber != orderNo)
             return false;
 
-        if (group.state != CustomerGroup.GroupState.OrderTaken ||
+        if ((group.state != CustomerGroup.GroupState.OrderTaken && !group.FastFoodAwaitingSeat) ||
             !group.HasConfirmedOrder || group.IsPlayerReviewingOrder)
             return false;
 

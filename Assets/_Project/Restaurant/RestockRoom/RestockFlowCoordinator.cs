@@ -176,7 +176,7 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
 
     private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        if (scene.name == LobbySceneName || (MultiplayerRestockBridge.IsActive
+        if (scene.name == LobbySceneName || scene.name == "Lobby2" || (MultiplayerRestockBridge.IsActive
             && scene == MultiplayerSessionManager.Instance.gameObject.scene))
         {
             lobbyScene = scene;

@@ -764,6 +764,7 @@ public partial class CustomerGroup : MonoBehaviour
 
     public bool HasBeenAssigned => hasBeenAssigned;
     public bool CanBeSeated =>
+        (FastFood == null || choosingFastFoodSeat) &&
         !IsTakeout &&
         !linePatienceExpired &&
         !hasBeenAssigned &&
@@ -1197,6 +1198,12 @@ public partial class CustomerGroup : MonoBehaviour
 
         OnGroupSeated?.Invoke(this);
         GameDayManager.Instance?.RegisterGroupSeated();
+
+        if (FastFood != null && FastFoodPaid)
+        {
+            FinishFastFoodSeating();
+            yield break;
+        }
 
         if (assignedBooth != null)
             assignedBooth.SpawnMenuBook();
@@ -2429,6 +2436,14 @@ public partial class CustomerGroup : MonoBehaviour
 
         eatingRoutine = null;
         ClearEatingBubble();
+        if (FastFood != null && FastFoodPaid)
+        {
+            // Counter payment already settled this meal. Reuse departure/cleanup,
+            // but never spawn a second bill or collect the revenue twice.
+            SetState(GroupState.NeedsBill);
+            PayAndLeave();
+            yield break;
+        }
         hasReceivedBill = false;
         SetState(GroupState.NeedsBill);
         SpawnBillBubble();

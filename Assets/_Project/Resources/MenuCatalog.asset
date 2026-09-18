@@ -13,7 +13,8 @@ MonoBehaviour:
   m_Name: MenuCatalog
   m_EditorClassIdentifier: 
   restaurantType: 0
-  sceneNames: []
+  sceneNames:
+  - Lobby2
   products:
   - {fileID: 11400000, guid: edaf5c0e3af958946a66152437a2106c, type: 2}
   - {fileID: 11400000, guid: dbf95199eafdb55449eeca2f3431c97f, type: 2}

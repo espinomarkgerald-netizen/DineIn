@@ -163,6 +163,13 @@ public class TakeoutFlowManager : MonoBehaviour
         SetPhase(TakeoutPhase.WaitingForPayment);
         onPaymentRequested?.Invoke();
 
+        if (group.FastFood != null)
+        {
+            if (RestaurantTaskClaim.IsClaimedByPlayer(group))
+                group.FastFood.RequestPaymentAfterReview(group);
+            return;
+        }
+
         if (!automatedService && !MultiplayerServiceActions.IsActive)
             OpenCashierForTakeout(group);
 
@@ -203,6 +210,11 @@ public class TakeoutFlowManager : MonoBehaviour
     public void NotifyPaymentCompleted(CustomerGroup group)
     {
         if (MultiplayerRestaurantBridge.IsObserver) return;
+        if (group != null && group.FastFood != null)
+        {
+            group.FastFood.PaymentCompleted(group);
+            return;
+        }
         if (!IsActiveFront(group))
             return;
 
@@ -245,6 +257,7 @@ public class TakeoutFlowManager : MonoBehaviour
 
     public bool NotifyBagReady(CustomerGroup group)
     {
+        if (group != null && group.FastFood != null) return group.FastFood.BagReady(group);
         if (!IsActiveFront(group))
             return false;
 
@@ -319,6 +332,11 @@ public class TakeoutFlowManager : MonoBehaviour
 
     public void NotifyBagDelivered(CustomerGroup group)
     {
+        if (group != null && group.FastFood != null)
+        {
+            group.FastFood.BagDelivered(group);
+            return;
+        }
         if (!IsActiveFront(group))
             return;
 

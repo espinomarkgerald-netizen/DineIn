@@ -583,6 +583,13 @@ public class GameDayManager : MonoBehaviour
 
     public void StartShift()
     {
+        var fastFood = FastFoodRestaurant.For(this);
+        if (fastFood != null && !fastFood.HasNavigation)
+        {
+            Debug.LogError("Lobby2 needs its navigation baked and validated using Dine In > Fast Food > Bake Lobby2 Navigation.", fastFood);
+            ShowWarning("The restaurant is not ready to open yet.");
+            return;
+        }
         if (MultiplayerDayBridge.IsActive && multiplayerDayEnded) return;
         if (StartShiftInterception?.Invoke() == true || ObserveDayOnly) return;
         if (shiftRunning || closingOut)

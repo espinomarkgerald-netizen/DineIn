@@ -384,6 +384,7 @@ public class CashierRegisterUI : MonoBehaviour
         // it counts as a cash-handling error — the waiter abandoned the transaction.
         if (activeGroup != null && !sessionConfirmed)
         {
+            activeGroup.FastFood?.CancelCounterPayment(activeGroup);
             if (MultiplayerServiceActions.IsActive) MultiplayerServiceActions.Send("payment_cancel", activeGroup);
             else GameDayManager.Instance?.RegisterCashError();
         }
@@ -429,6 +430,14 @@ public class CashierRegisterUI : MonoBehaviour
 
         if (inputChangeAmount != expectedChange)
             return;
+
+        if (activeGroup != null && activeGroup.FastFood != null &&
+            !activeGroup.FastFood.ReserveSettlement(activeGroup))
+        {
+            sessionConfirmed = true;
+            CloseRegister();
+            return;
+        }
 
         // Mark session as completed before CloseRegister() so the abandonment check is skipped.
         sessionConfirmed = true;
@@ -503,6 +512,7 @@ public class CashierRegisterUI : MonoBehaviour
         }
 
         if (multiplayer && !group.BeginMultiplayerSettlement()) return false;
+        if (group.FastFood != null && !group.FastFood.ReserveSettlement(group)) return false;
         DailyFinanceBridge.Instance?.AddEarnings(amountEarned, "Autonomous cashier payment");
         GameDayManager.Instance?.RefreshRevenueUI();
         GameDayManager.Instance?.RegisterPaymentCompleted();

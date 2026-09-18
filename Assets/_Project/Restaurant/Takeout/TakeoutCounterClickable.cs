@@ -18,6 +18,12 @@ public class TakeoutCounterClickable : MonoBehaviour
         if (front == null)
             return;
 
+        if (front.FastFood != null)
+        {
+            front.FastFood.RequestCounterPayment(front);
+            return;
+        }
+
         if (front.CurrentTakeoutQueueState != CustomerGroup.TakeoutQueueState.AtOrderPoint)
             return;
 

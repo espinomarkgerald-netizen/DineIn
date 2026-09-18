@@ -106,7 +106,7 @@ public sealed class DailyNewspaperPresenter : MonoBehaviour
 
     public void RefreshVisibility()
     {
-        bool inLobby = SceneManager.GetActiveScene().name == LobbySceneName;
+        bool inLobby = SceneManager.GetActiveScene().name == LobbySceneName || SceneManager.GetActiveScene().name == "Lobby2";
         GameFlowManager flow = GameFlowManager.Instance;
         bool preparation = flow != null && flow.UsesSingleRestaurantFlow &&
             (flow.CurrentRestaurantSessionState == GameFlowManager.RestaurantSessionState.PreOpen ||

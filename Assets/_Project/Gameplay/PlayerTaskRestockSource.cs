@@ -118,7 +118,7 @@ public sealed class PlayerTaskRestockSource : MonoBehaviour
         for (int i = 0; i < SceneManager.sceneCount; i++)
         {
             string sceneName = SceneManager.GetSceneAt(i).name;
-            if (sceneName == "Lobby1" || sceneName == "RestockScene")
+            if (sceneName == "Lobby1" || sceneName == "Lobby2" || sceneName == "RestockScene")
                 return true;
         }
 

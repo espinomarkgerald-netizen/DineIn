@@ -177,6 +177,8 @@ public class LobbyAutonomousService : MonoBehaviour
         cashierStation = cashierBooth != null
             ? cashierBooth.StandPoint
             : FindStation(cashierObject != null ? cashierObject.transform : null, "CashierStation");
+        var fastFood = FastFoodRestaurant.For(this);
+        if (fastFood != null && fastFood.CashierApproach != null) cashierStation = fastFood.CashierApproach;
 
         if (waiterTrolleyParkingPoint == null)
             waiterTrolleyParkingPoint = FindStation(null, "WaiterTrolleyParkingPoint");
@@ -2480,6 +2482,10 @@ public class LobbyAutonomousService : MonoBehaviour
 
     private TakeoutBagInteractable FindReadyTakeoutBag()
     {
+        foreach (var bag in cachedTakeoutBags)
+            if (bag != null && bag.TargetGroup != null && bag.TargetGroup.FastFood != null
+                && bag.TargetGroup.FastFood.IsBagReady(bag.TargetGroup)
+                && RestaurantTaskClaim.CanBotStart(bag, managerReactionSeconds)) return bag;
         CustomerGroup target = takeoutFlow != null ? takeoutFlow.ActiveGroup : null;
         if (!IsTakeoutBagDeliveryReady(target))
             return null;
@@ -2583,6 +2589,7 @@ public class LobbyAutonomousService : MonoBehaviour
 
     private bool IsTakeoutBagDeliveryReady(CustomerGroup group)
     {
+        if (group != null && group.FastFood != null) return group.FastFood.IsBagReady(group);
         return takeoutFlow != null &&
                group != null &&
                group.IsTakeout &&

@@ -50,6 +50,11 @@ public class TakeoutCounterInteractable : MonoBehaviour
 
     public void Interact()
     {
+        if (CurrentFront != null && CurrentFront.FastFood != null)
+        {
+            CurrentFront.FastFood.RequestCounterPayment(CurrentFront);
+            return;
+        }
         if (MultiplayerServiceActions.IsActive) { BeginServingCurrentFront(); return; }
         if (!CanServeCurrentFront())
         {
@@ -89,6 +94,7 @@ public class TakeoutCounterInteractable : MonoBehaviour
 
     public void CompleteServingCurrentFront()
     {
+        if (CurrentFront != null && CurrentFront.FastFood != null) return;
         if (MultiplayerServiceActions.IsActive) return;
         if (queueManager == null)
             return;

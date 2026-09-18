@@ -105,6 +105,14 @@ public class CashierBoothInteractable : MonoBehaviour, IInteractable
         var hands = WaiterHands.For(player);
         if (hands == null) return;
 
+        var counterCustomer = TakeoutFlowManager.Instance?.ActiveGroup;
+        if (counterCustomer != null && counterCustomer.FastFood != null)
+        {
+            if (!hands.HasTray && !hands.HasBill && !hands.HasMoney)
+                counterCustomer.FastFood.OpenCounterPayment(counterCustomer);
+            return;
+        }
+
         // Money must win over ticket here so payment auto-open never accidentally
         // re-submits a stale ticket when the waiter is carrying both.
         if (hands.HasMoney)

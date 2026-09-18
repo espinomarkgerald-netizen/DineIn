@@ -30,8 +30,9 @@ public class MoneyPickup : MonoBehaviour, IInteractable, ICancelableTaskTarget
     public bool IsAvailableForCollection =>
         !isPickedUp && targetGroup != null && amount > 0 &&
         (!MultiplayerServiceActions.IsActive || orderNumber == targetGroup.currentOrderNumber && !targetGroup.MultiplayerPaymentComplete) &&
-        targetGroup.state == CustomerGroup.GroupState.NeedsBill;
-    public bool IsAvailableForBotCollection => IsAvailableForCollection &&
+        (targetGroup.state == CustomerGroup.GroupState.NeedsBill ||
+         targetGroup.IsFastFoodCounterCustomer && targetGroup.FastFood.CanSettle(targetGroup));
+    public bool IsAvailableForBotCollection => IsAvailableForCollection && targetGroup.FastFood == null &&
         (!isCardPayment || Time.time >= paymentCreatedAt + GetCardPlayerPrioritySeconds());
 
     public Transform StandPoint => standPoint != null ? standPoint : transform;
@@ -205,6 +206,7 @@ public class MoneyPickup : MonoBehaviour, IInteractable, ICancelableTaskTarget
 
     public void CancelCardPaymentUI()
     {
+        targetGroup?.FastFood?.CancelCounterPayment(targetGroup);
         if (MultiplayerServiceActions.IsActive) { MultiplayerServiceActions.Send("payment_cancel", targetGroup); return; }
         if (!isCardPayment || isPickedUp)
             return;

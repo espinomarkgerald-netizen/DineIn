@@ -296,11 +296,18 @@ public class GroupSpawner : MonoBehaviour
         }
 
         groupsSpawnedThisShift++;
-        GroupCreated?.Invoke(group, spawnAsTakeout);
+        var fastFood = FastFoodRestaurant.For(this);
+        if (fastFood == null) GroupCreated?.Invoke(group, spawnAsTakeout);
 
         // Apply shift-scaled patience so each group gets the correct timer for this day
         if (ShiftScaler.Instance != null)
             group.SetPatienceSeconds(ShiftScaler.Instance.CurrentPatienceSeconds);
+
+        if (fastFood != null && fastFood.Route(group))
+        {
+            GroupCreated?.Invoke(group, !group.FastFoodDineIn);
+            return group;
+        }
 
         if (spawnAsTakeout)
         {
