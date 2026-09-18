@@ -20,12 +20,12 @@ public class GameplayUIBlocker : MonoBehaviour
 
     public static bool IsBlocked()
     {
-        return Instance != null && Instance.IsAnyBlockingPanelActive(null);
+        return HygieneManager.DecisionPaused || Instance != null && Instance.IsAnyBlockingPanelActive(null);
     }
 
     public static bool IsBlockedExcept(GameObject ignoredTarget)
     {
-        return Instance != null && Instance.IsAnyBlockingPanelActive(ignoredTarget);
+        return HygieneManager.DecisionPaused || Instance != null && Instance.IsAnyBlockingPanelActive(ignoredTarget);
     }
 
     public static bool IsBlockedExcept(Component ignoredComponent)
@@ -52,6 +52,7 @@ public class GameplayUIBlocker : MonoBehaviour
 
     public bool IsAnyBlockingPanelActive(GameObject ignoredTarget)
     {
+        if (HygieneManager.DecisionPaused) return true;
         for (int i = 0; i < blockingPanels.Count; i++)
         {
             BlockingPanel panel = blockingPanels[i];

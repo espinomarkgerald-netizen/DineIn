@@ -3,6 +3,7 @@ using UnityEngine;
 public class SinkInteractable : MonoBehaviour, IInteractable
 {
     [SerializeField] private Transform standPoint;
+    private void OnEnable() => HygieneManager.Instance?.RegisterStation(this);
 
     public Transform StandPoint => standPoint != null ? standPoint : transform;
     public bool AutoReturnHome => !MultiplayerServiceActions.IsActive;
@@ -27,6 +28,7 @@ public class SinkInteractable : MonoBehaviour, IInteractable
         WaiterHands waiterHands = WaiterHands.For(player);
         if (waiterHands != null && waiterHands.HasTray)
         {
+            HygieneManager.Instance?.RecordKitchenUse(this);
             waiterHands.DisposeTray(true);
             return;
         }
@@ -34,6 +36,7 @@ public class SinkInteractable : MonoBehaviour, IInteractable
         BusserHands busserHands = BusserHands.For(player);
         if (busserHands != null && busserHands.HasTray)
         {
+            HygieneManager.Instance?.RecordKitchenUse(this);
             FoodTray cleanedTray = busserHands.holdingTray;
             busserHands.DisposeTray(true);
             NotifyTutorialTrayCleaned(cleanedTray);

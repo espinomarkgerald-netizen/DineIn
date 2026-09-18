@@ -115,7 +115,7 @@ public class MultiplayerTaskClaims : MonoBehaviourPunCallbacks, IOnEventCallback
     private bool SendRequest(string taskId, bool acquire)
     {
         if (!Active || string.IsNullOrWhiteSpace(taskId)) return false;
-        var request = new PendingRequest { generation = ++nextGeneration, acquire = acquire, sentAt = Time.unscaledTime };
+        var request = new PendingRequest { generation = ++nextGeneration, acquire = acquire, sentAt = HygieneManager.ServiceTime };
         pendingRequests[taskId] = request;
         bool sent = Send(taskId, request);
         if (!sent && pendingRequests.TryGetValue(taskId, out var current) && current == request)
@@ -139,6 +139,7 @@ public class MultiplayerTaskClaims : MonoBehaviourPunCallbacks, IOnEventCallback
 
     private void HandleRequest(string taskId, int actor, bool acquire, long generation)
     {
+        if (HygieneManager.Defer(() => { if (this != null) HandleRequest(taskId, actor, acquire, generation); })) return;
         if (!session.IsAuthority || !session.ValidActor(actor) || !PhotonNetwork.CurrentRoom.Players.TryGetValue(actor, out var player)
             || player.IsInactive || string.IsNullOrWhiteSpace(taskId) || generation <= 0) return;
         var key = (actor, taskId);
@@ -181,7 +182,7 @@ public class MultiplayerTaskClaims : MonoBehaviourPunCallbacks, IOnEventCallback
             var booth = MultiplayerCustomerInteractionBridge.ResolveBooth(boothId);
             accepted &= booth != null && booth.CanRequestHumanCleanup
                 && session.TryGetManager(actor, out var manager) && manager != null && manager.activeInHierarchy
-                && PhotonNetwork.CurrentRoom.CustomProperties["restaurant.booth.dirty:" + boothId] is int flags && (flags & 1) != 0;
+                && HygieneManager.HandsEmpty(manager.GetComponent<PlayerMovement>());
         }
         if (acquire && taskId.StartsWith("Order:", StringComparison.Ordinal)
             && taskId.EndsWith(":Pickup", StringComparison.Ordinal))
@@ -451,9 +452,9 @@ public class MultiplayerTaskClaims : MonoBehaviourPunCallbacks, IOnEventCallback
     private void Update()
     {
         if (!Active) return;
-        if (session.IsAuthority && Time.unscaledTime >= nextSnapshot)
+        if (session.IsAuthority && HygieneManager.ServiceTime >= nextSnapshot)
         {
-            nextSnapshot = Time.unscaledTime + SnapshotSeconds;
+            nextSnapshot = HygieneManager.ServiceTime + SnapshotSeconds;
             PruneFinishedTasks();
             SendSnapshot();
         }
@@ -461,7 +462,7 @@ public class MultiplayerTaskClaims : MonoBehaviourPunCallbacks, IOnEventCallback
         foreach (var entry in new List<KeyValuePair<string, PendingRequest>>(pendingRequests))
         {
             if (!pendingRequests.TryGetValue(entry.Key, out var request) || request != entry.Value
-                || Time.unscaledTime - request.sentAt < RequestTimeoutSeconds) continue;
+                || HygieneManager.ServiceTime - request.sentAt < RequestTimeoutSeconds) continue;
             RequestSnapshot();
             if (request.acquire)
             {
@@ -470,7 +471,7 @@ public class MultiplayerTaskClaims : MonoBehaviourPunCallbacks, IOnEventCallback
             }
             else
             {
-                request.sentAt = Time.unscaledTime;
+                request.sentAt = HygieneManager.ServiceTime;
                 Send(entry.Key, request); // Same generation: retry cannot release a newer attempt.
             }
         }

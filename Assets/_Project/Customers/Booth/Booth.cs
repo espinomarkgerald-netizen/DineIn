@@ -10,6 +10,12 @@ public class Booth : MonoBehaviour, Photon.Realtime.IOnEventCallback
     private PlayerMovement cleanupMover;
     private IInteractable cleanupMove;
     private bool cleanupRequested, cleanupCancelled, authorityCleaning;
+    private long authorityCleanupLease;
+    public bool CleaningPromptOpen { get; private set; }
+    public bool NeedsSurfaceCleaning => isDirty || HygieneManager.Instance?.BoothDirt(this) >= .25f;
+    public void OpenCleaningPrompt() { if (CanRequestHumanCleanup) { CleaningPromptOpen = true; RefreshCleanUIVisibility(); } }
+    public void CloseCleaningPrompt() { CleaningPromptOpen = false; RefreshCleanUIVisibility(); }
+    public void CancelHeldCleanup() => CancelHumanCleanup();
     public int CleanupWorkActor { get; private set; }
     public readonly MultiplayerWorkTiming CleanupWorkTiming = new();
     private float cleanupStartedAt = -1f;
@@ -17,18 +23,17 @@ public class Booth : MonoBehaviour, Photon.Realtime.IOnEventCallback
     public float HumanCleanupProgress => cleanupStartedAt < 0f ? 0f :
         Mathf.Clamp01((Time.time - cleanupStartedAt) / Mathf.Max(0.05f, MessHoldSeconds));
     public bool HumanCleanupActive => cleanupRequested || cleanupMover != null || cleanupStartedAt >= 0f;
-    public bool CanRequestHumanCleanup => isDirty && currentGroup == null && !HasTrayOnTable() && gameObject.activeInHierarchy;
+    public bool CanRequestHumanCleanup => NeedsSurfaceCleaning && currentGroup == null && !HasTrayOnTable() && gameObject.activeInHierarchy;
     internal bool CanBusserCleanMultiplayer
     {
         get
         {
             if (!MultiplayerProgressionContext.Ready || !MultiplayerSessionManager.Instance.IsAuthority
-                || !isDirty || currentGroup != null || !gameObject.activeInHierarchy || cleanupCommitPending) return false;
+                || !NeedsSurfaceCleaning || currentGroup != null || !gameObject.activeInHierarchy || cleanupCommitPending) return false;
             var claims = MultiplayerSessionManager.Instance.GetComponent<MultiplayerTaskClaims>();
             var room = Photon.Pun.PhotonNetwork.CurrentRoom;
             string key = "restaurant.booth.dirty:" + MultiplayerCustomerInteractionBridge.BoothIdentity(this);
-            return claims != null && !claims.IsClaimed(CleanupTaskId) && room != null
-                && room.CustomProperties[key] is int flags && (flags & 1) != 0;
+            return claims != null && !claims.IsClaimed(CleanupTaskId) && room != null;
         }
     }
     internal bool MultiplayerCleanupCommitPending => cleanupCommitPending;
@@ -66,6 +71,35 @@ public class Booth : MonoBehaviour, Photon.Realtime.IOnEventCallback
         if (!cleanupClaims.RequestClaim(CleanupTaskId)) { cleanupRequested = false; CancelHumanCleanup(); }
     }
 
+    // Explicit staff-help choice reuses the same human cleanup path and claim.
+    public void RequestHygieneAssistance(PlayerMovement mover)
+    {
+        CleaningPromptOpen = true;
+        if (MultiplayerProgressionContext.Ready) { RequestHumanCleanup(); return; }
+        if (mover == null || !CanRequestHumanCleanup || !RestaurantTaskClaim.TryClaimPlayer(this)) return;
+        if (!mover.UI_MoveToAction(CleanupStand, CleanupRadius, () =>
+        {
+            RefreshCleanUIVisibility();
+            if (cleanUI == null || !CanRequestHumanCleanup) { RestaurantTaskClaim.ReleasePlayer(this); return; }
+            cleanUI.OnPointerDown(null);
+            StartCoroutine(WatchHygieneAssistance(mover, mover.CommandVersion));
+        }, () => { cleanUI?.OnPointerUp(null); RestaurantTaskClaim.ReleasePlayer(this); }))
+            RestaurantTaskClaim.ReleasePlayer(this);
+    }
+
+    private System.Collections.IEnumerator WatchHygieneAssistance(PlayerMovement mover, uint version)
+    {
+        while (NeedsSurfaceCleaning && mover != null && mover.CommandVersion == version && RestaurantTaskClaim.IsClaimedByPlayer(this))
+            yield return null;
+        if (NeedsSurfaceCleaning) CancelHygieneAssistance();
+    }
+    public void CancelHygieneAssistance()
+    {
+        if (!RestaurantTaskClaim.IsClaimedByPlayer(this)) return;
+        cleanUI?.OnPointerUp(null);
+        RestaurantTaskClaim.ReleasePlayer(this);
+    }
+
     private void OnCleanupOwnerChanged(string id, int owner)
     {
         if (id == CleanupTaskId && owner != MultiplayerSessionManager.Instance.LocalActorNumber && HumanCleanupActive)
@@ -89,9 +123,9 @@ public class Booth : MonoBehaviour, Photon.Realtime.IOnEventCallback
             if (!CanRequestHumanCleanup || cleanupCancelled || !cleanupClaims.IsClaimedBy(id, session.LocalActorNumber))
             { CancelHumanCleanup(); return; }
             cleanupStartedAt = Time.time;
-            if (session.IsAuthority) BeginAuthorityCleanup(session.LocalActorNumber);
+            if (session.IsAuthority) BeginAuthorityCleanup(session.LocalActorNumber, cleanupClaims.GetLease(CleanupTaskId));
             else if (!MultiplayerWire.Raise(CleanupRequestEvent,
-                MultiplayerCustomerInteractionBridge.BoothIdentity(this),
+                new object[] { MultiplayerCustomerInteractionBridge.BoothIdentity(this), cleanupClaims.GetLease(CleanupTaskId) },
                 new Photon.Realtime.RaiseEventOptions { Receivers = Photon.Realtime.ReceiverGroup.MasterClient },
                 ExitGames.Client.Photon.SendOptions.SendReliable)) CancelHumanCleanup();
         }, () => { cleanupMover = null; cleanupMove = null; CancelHumanCleanup(); });
@@ -115,8 +149,9 @@ public class Booth : MonoBehaviour, Photon.Realtime.IOnEventCallback
 
     public void OnEvent(ExitGames.Client.Photon.EventData data)
     {
-        if (data.Code == CleanupRequestEvent && MultiplayerWire.TryRead(data, out var payload) && payload is string id
-            && id == MultiplayerCustomerInteractionBridge.BoothIdentity(this)) BeginAuthorityCleanup(data.Sender);
+        if (data.Code == CleanupRequestEvent && MultiplayerWire.TryRead(data, out var payload) && payload is object[] args
+            && args.Length == 2 && args[0] is string id && args[1] is long lease
+            && id == MultiplayerCustomerInteractionBridge.BoothIdentity(this)) BeginAuthorityCleanup(data.Sender, lease);
     }
 
     private bool ValidateCleanupActor(int actor)
@@ -128,38 +163,42 @@ public class Booth : MonoBehaviour, Photon.Realtime.IOnEventCallback
             || !session.GetComponent<MultiplayerTaskClaims>().IsClaimedBy(CleanupTaskId, actor)
             || !session.TryGetManager(actor, out var manager) || manager == null || !manager.activeInHierarchy) return false;
         string key = "restaurant.booth.dirty:" + MultiplayerCustomerInteractionBridge.BoothIdentity(this);
-        if (room.CustomProperties[key] is not int flags || (flags & 1) == 0) return false;
+        if (!HygieneManager.HandsEmpty(manager.GetComponent<PlayerMovement>())) return false;
         Vector3 offset = manager.transform.position - CleanupStand.position;
         offset.y = 0f;
         return offset.sqrMagnitude <= CleanupRadius * CleanupRadius;
     }
 
-    private void BeginAuthorityCleanup(int actor)
+    private void BeginAuthorityCleanup(int actor, long lease)
     {
+        if (HygieneManager.Defer(() => { if (this != null) BeginAuthorityCleanup(actor, lease); })) return;
         var session = MultiplayerSessionManager.Instance;
-        if (session == null || !session.IsAuthority || authorityCleaning) return;
-        if (!ValidateCleanupActor(actor))
-        { session.GetComponent<MultiplayerTaskClaims>().CompleteOnAuthority(CleanupTaskId, actor); return; }
-        StartCoroutine(CompleteHumanCleanup(actor));
+        if (session == null || !session.IsAuthority || lease <= 0 || authorityCleaning && authorityCleanupLease == lease
+            || session.GetComponent<MultiplayerTaskClaims>().GetLease(CleanupTaskId) != lease) return;
+        authorityCleaning = true; authorityCleanupLease = lease;
+        StartCoroutine(CompleteHumanCleanup(actor, lease));
     }
 
-    private System.Collections.IEnumerator CompleteHumanCleanup(int actor)
+    private System.Collections.IEnumerator CompleteHumanCleanup(int actor, long lease)
     {
-        authorityCleaning = true;
+        var session = MultiplayerSessionManager.Instance;
+        var claims = session.GetComponent<MultiplayerTaskClaims>();
+        bool OwnsLease() => this != null && authorityCleanupLease == lease && claims != null
+            && claims.GetLease(CleanupTaskId) == lease && claims.IsClaimedBy(CleanupTaskId, actor);
+        float deadline = HygieneManager.ServiceTime + .4f;
+        while (OwnsLease() && !ValidateCleanupActor(actor) && HygieneManager.ServiceTime < deadline) yield return null;
+        if (!OwnsLease()) { if (authorityCleanupLease == lease) authorityCleaning = false; yield break; }
         CleanupWorkActor = actor;
         CleanupWorkTiming.Begin(Mathf.Max(0.05f, MessHoldSeconds));
         float elapsed = 0f;
-        while (elapsed < Mathf.Max(0.05f, MessHoldSeconds) && ValidateCleanupActor(actor))
+        while (elapsed < Mathf.Max(0.05f, MessHoldSeconds) && OwnsLease() && ValidateCleanupActor(actor))
         { elapsed += Time.deltaTime; yield return null; }
-        if (elapsed >= Mathf.Max(0.05f, MessHoldSeconds) && ValidateCleanupActor(actor)
+        if (elapsed >= Mathf.Max(0.05f, MessHoldSeconds) && OwnsLease() && ValidateCleanupActor(actor)
             && TryCommitMultiplayerCleanup())
             while (cleanupCommitPending && MultiplayerProgressionContext.Ready) yield return null;
-        CleanupWorkTiming.Clear();
-        CleanupWorkActor = 0;
-        var session = MultiplayerSessionManager.Instance;
-        if (session != null && session.IsAuthority)
+        if (authorityCleanupLease == lease) { CleanupWorkTiming.Clear(); CleanupWorkActor = 0; authorityCleaning = false; }
+        if (session != null && session.IsAuthority && claims.GetLease(CleanupTaskId) == lease)
             session.GetComponent<MultiplayerTaskClaims>().CompleteOnAuthority(CleanupTaskId, actor);
-        authorityCleaning = false;
     }
 
     private void OnEnable() => Photon.Pun.PhotonNetwork.AddCallbackTarget(this);
@@ -219,8 +258,9 @@ public class Booth : MonoBehaviour, Photon.Realtime.IOnEventCallback
     internal bool TryCommitMultiplayerCleanup()
     {
         if (!MultiplayerProgressionContext.Ready || !MultiplayerSessionManager.Instance.IsAuthority
-            || !isDirty || currentGroup != null || cleanupCommitPending) return false;
+            || !NeedsSurfaceCleaning || currentGroup != null || cleanupCommitPending) return false;
         var room = Photon.Pun.PhotonNetwork.CurrentRoom;
+        if (!isDirty) { HygieneManager.Instance?.CleanDining(this); RefreshCleanUIVisibility(); return true; }
         dirtySnapshotKey ??= "restaurant.booth.dirty:" + MultiplayerCustomerInteractionBridge.BoothIdentity(this);
         if (room == null || room.CustomProperties[dirtySnapshotKey] is not int flags || (flags & 1) == 0)
             return false;
@@ -235,6 +275,7 @@ public class Booth : MonoBehaviour, Photon.Realtime.IOnEventCallback
         cleanupCommitPending = false;
         if (!isDirty) return;
         isDirty = false;
+        HygieneManager.Instance?.CleanDining(this);
         var drop = FindTableFoodSpawn();
         var tray = drop != null ? drop.GetComponentInChildren<FoodTray>(true) : null;
         if (tray != null)
@@ -265,15 +306,16 @@ public class Booth : MonoBehaviour, Photon.Realtime.IOnEventCallback
         }
     }
 
-    public bool MultiplayerCleaningBlocked => MultiplayerRestaurantBridge.IsObserver && isDirty;
+    public bool MultiplayerCleaningBlocked => MultiplayerRestaurantBridge.IsObserver && NeedsSurfaceCleaning;
 
     public CustomerGroup CurrentGroup => currentGroup;
     public bool IsDirty => isDirty;
     public float MessHoldSeconds => messHoldSeconds;
-    public bool CanCleanMessNow => !MultiplayerCleaningBlocked && isDirty && currentGroup == null && !HasTrayOnTable();
+    public bool CanCleanMessNow => !MultiplayerCleaningBlocked && CanRequestHumanCleanup;
 
     private void Awake()
     {
+        HygieneManager.Instance?.RegisterBooth(this);
         MultiplayerWorldRegistry.Track(this);
         EnsureNavigationObstacle();
 
@@ -303,6 +345,7 @@ public class Booth : MonoBehaviour, Photon.Realtime.IOnEventCallback
 
     public void SetCurrentGroup(CustomerGroup g)
     {
+        if (g != null) { CleaningPromptOpen = false; CancelHumanCleanup(); }
         currentGroup = g;
         messSpawnedForCurrentGroup = false;
         eatingTimer = -1f;
@@ -335,6 +378,8 @@ public class Booth : MonoBehaviour, Photon.Realtime.IOnEventCallback
 
     public bool IsAvailableFor(int groupSize)
     {
+        if (HumanCleanupActive || IsAutomatedMessCleaning || RestaurantTaskClaim.IsClaimedByBot(this)
+            || RestaurantTaskClaim.IsClaimedByPlayer(this) || HygieneManager.Instance?.IsBoothQueued(this) == true) return false;
         if (isDirty) return false;
         if (HasTrayOnTable()) return false;
 
@@ -423,6 +468,8 @@ public class Booth : MonoBehaviour, Photon.Realtime.IOnEventCallback
             return;
 
         isDirty = value;
+        if (value) HygieneManager.Instance?.RecordDiningUse(this, .15f);
+        else HygieneManager.Instance?.CleanDining(this);
 
         if (debugLogs)
             Debug.Log($"[Booth] {name} SetDirty = {isDirty}", this);
@@ -434,11 +481,14 @@ public class Booth : MonoBehaviour, Photon.Realtime.IOnEventCallback
     public void CleanMess()
     {
         SetDirty(false);
+        HygieneManager.Instance?.CleanDining(this);
+        CleaningPromptOpen = false;
     }
 
     public bool BeginAutomatedMessCleaning()
     {
         if (MultiplayerCleaningBlocked) return false;
+        CleaningPromptOpen = true;
         RefreshCleanUIVisibility();
         return cleanUI != null && cleanUI.BeginAutomatedCleaning();
     }
@@ -533,6 +583,7 @@ public class Booth : MonoBehaviour, Photon.Realtime.IOnEventCallback
 
     private bool ShouldShowCleanUI()
     {
+        if (HygieneManager.Instance != null && !CleaningPromptOpen && !HumanCleanupActive && !IsAutomatedMessCleaning) return false;
         if (MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer) return CanRequestHumanCleanup;
         return CanCleanMessNow;
     }

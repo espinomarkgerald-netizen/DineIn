@@ -109,6 +109,7 @@ public class DrinkDispenser : Counter {
         GameObject newDrink = Instantiate(filledDrinkPrefab);
         newDrink.name = filledDrinkPrefab.name;
         interactingPlayer.PickUp(newDrink);
+        HygieneManager.Instance?.RecordKitchenUse(this);
 
         CloseMenu();
         Debug.Log("Cup filled with " + newDrink.name + "!");

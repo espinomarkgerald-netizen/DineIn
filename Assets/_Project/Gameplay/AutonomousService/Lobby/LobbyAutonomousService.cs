@@ -64,6 +64,8 @@ public class LobbyAutonomousService : MonoBehaviour
     private AutonomousStaffBot host;
     private AutonomousStaffBot waiter;
     private AutonomousStaffBot busser;
+    public bool HasCleaningStaff => busser != null && busser.isActiveAndEnabled && busser.gameObject.activeInHierarchy;
+    public Vector3 CleaningStaffPosition => busser != null ? busser.transform.position : transform.position;
     private WaiterHands waiterHands;
     private BusserHands busserHands;
     private Booth multiplayerCleanupBooth;
@@ -439,6 +441,7 @@ public class LobbyAutonomousService : MonoBehaviour
             return null;
 
         AutonomousStaffBot bot = AddBot(roleObject, homePoint, avoidancePriority);
+        if (role == EmployeeRole.Busser) HygieneStaffCleaningVisual.Ensure(roleObject);
         bot?.ConfigurePerformance(employeeManager.GetAssignedEmployee(role));
         return bot;
     }
@@ -719,6 +722,17 @@ public class LobbyAutonomousService : MonoBehaviour
     private void TryStartBusserTask()
     {
         if (busser == null || busser.IsBusy || busserHands == null)
+            return;
+
+        var hygiene = HygieneManager.Instance;
+        if (hygiene != null && !string.IsNullOrEmpty(hygiene.State.queuedBooth))
+        {
+            var requested = MultiplayerCustomerInteractionBridge.ResolveBooth(hygiene.State.queuedBooth);
+            if (requested != null && requested.CanCleanMessNow && !busserHands.HasTray
+                && TryStartClaimedTask(busser, requested, CleanBooth(requested))) return;
+        }
+
+        if (HygieneManager.Instance?.TryStartLobbyCleaning(busser) == true)
             return;
 
         if (TryStartBusserTrolleyBatch())
@@ -1622,6 +1636,8 @@ public class LobbyAutonomousService : MonoBehaviour
                     FoodTray tray = batch[i];
                     if (tray == null || !trolley.Contains(tray))
                         continue;
+                    tray.GetComponent<FoodTrayInteractable>()?.ReportHygieneWashed();
+                    HygieneManager.Instance?.RecordKitchenUse(sink);
                     trolley.Dispose(tray);
                     GameDayManager.Instance?.RegisterTrayCleaned();
                 }
@@ -1909,10 +1925,10 @@ public class LobbyAutonomousService : MonoBehaviour
             yield break;
         }
 
-        while (booth != null && booth.IsDirty && booth.IsAutomatedMessCleaning)
+        while (booth != null && booth.NeedsSurfaceCleaning && booth.IsAutomatedMessCleaning)
             yield return null;
 
-        if (booth != null && booth.IsDirty)
+        if (booth != null && booth.NeedsSurfaceCleaning)
         {
             booth.CancelAutomatedMessCleaning();
             RestaurantTaskClaim.ReleaseBot(booth, busser);
@@ -2357,6 +2373,7 @@ public class LobbyAutonomousService : MonoBehaviour
         yield return busser.WorkFor(cleaningSeconds);
 
         busserHands.DisposeTray(true);
+        HygieneManager.Instance?.RecordKitchenUse(sink);
         GameDayManager.Instance?.RegisterTrayCleaned();
         busser.SetCarrying(false);
     }
@@ -2376,7 +2393,7 @@ public class LobbyAutonomousService : MonoBehaviour
 
         yield return busser.MoveTo(booth.GetNavigableApproachPosition());
         if (!busser.LastMoveSucceeded || !CanBusserClean(booth))
-            yield break;
+        { HygieneManager.Instance?.ReportBoothApproachFailure(booth); yield break; }
 
         Vector3 lookTarget = booth.tableLookTarget != null
             ? booth.tableLookTarget.position
@@ -2389,11 +2406,17 @@ public class LobbyAutonomousService : MonoBehaviour
             yield break;
         }
 
-        while (booth != null && booth.IsDirty && booth.IsAutomatedMessCleaning)
-            yield return null;
-
-        if (booth != null && booth.IsDirty)
-            booth.CancelAutomatedMessCleaning();
+        busser.PresentCommittedWork(booth.MessHoldSeconds);
+        try
+        {
+            while (booth != null && booth.NeedsSurfaceCleaning && booth.IsAutomatedMessCleaning)
+                yield return null;
+        }
+        finally
+        {
+            busser.WorkTiming.Clear();
+            if (booth != null) booth.CancelAutomatedMessCleaning();
+        }
     }
 
     private Booth FindAvailableBooth(int groupSize)

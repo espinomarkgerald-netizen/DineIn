@@ -7,7 +7,7 @@ using UnityEngine.UI;
 /// Prefab-backed presentation for Casual Dining objectives. Existing finance,
 /// approval and customer mood managers remain the authoritative data sources.
 /// </summary>
-public sealed class CasualDiningProgressHUD : MonoBehaviour
+public sealed partial class CasualDiningProgressHUD : MonoBehaviour
 {
     public enum DayTimeLayoutMode
     {
@@ -295,6 +295,7 @@ public sealed class CasualDiningProgressHUD : MonoBehaviour
         }
         AnimatePanel();
         AnimateProgress(now);
+        RefreshHygieneProgress();
     }
 
     public void RefreshBlockingVisibility()
@@ -313,7 +314,8 @@ public sealed class CasualDiningProgressHUD : MonoBehaviour
         // RestockScene is loaded additively while Lobby1 remains loaded. Checking
         // all loaded scenes therefore leaks this gameplay HUD into both restock rooms.
         // The active scene is authoritative: only normal Lobby gameplay may show it.
-        supportedSceneVisible = SceneManager.GetActiveScene().name == supportedScene || MultiplayerHUDBridge.IsActive;
+        supportedSceneVisible = SceneManager.GetActiveScene().name == supportedScene || MultiplayerHUDBridge.IsActive
+            || HygieneManager.Instance != null && HygieneManager.Instance.gameObject.scene == SceneManager.GetActiveScene();
         if (hudCanvas != null) hudCanvas.enabled = supportedSceneVisible;
         if (supportedSceneVisible) HideLegacyProgressBars();
     }
@@ -481,6 +483,7 @@ public sealed class CasualDiningProgressHUD : MonoBehaviour
             if (safeAspect < 1f)
             {
                 float objectiveHeight = panelRect != null ? panelRect.sizeDelta.y : expandedSize.y;
+                if (hygieneLayoutActive && approvalRow != null) objectiveHeight += hygieneRows * (approvalRow.rect.height + 4f);
                 clockPosition.y -= objectiveHeight * objectiveScale + portraitClockSecondRowGap;
             }
             dayTimeRoot.anchoredPosition = clockPosition;

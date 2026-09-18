@@ -5311,6 +5311,7 @@ GameObject:
   - component: {fileID: 924130691265336568}
   - component: {fileID: 290838933294587994}
   - component: {fileID: 7124887052611251403}
+  - component: {fileID: 818360223991872644}
   m_Layer: 0
   m_Name: Busser
   m_TagString: Player
@@ -5318,6 +5319,21 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
+--- !u!114 &818360223991872644
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5123694006237456069}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c5fe7ca9cf7d40eaa739fab80583d854, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  presentation: {fileID: 11400000, guid: d36b09e72f59465cb7e9a9238f53cc0d, type: 2}
+  mopAnchor: {fileID: 0}
+  bucketAnchor: {fileID: 0}
 --- !u!4 &8919137375850875683
 Transform:
   m_ObjectHideFlags: 0

@@ -62,6 +62,7 @@ public class CustomerAgent : MonoBehaviour
 
     private void Awake()
     {
+        HygieneWalker.Ensure(gameObject);
         Agent = GetComponent<NavMeshAgent>();
         Agent.stoppingDistance = 0.15f;
         Agent.autoBraking = true;

@@ -38,7 +38,7 @@ public partial class MultiplayerCustomerInteractionBridge
             selection = selection
         };
         bridge.pendingReviewedOrder = command;
-        bridge.reviewedOrderStarted = Time.unscaledTime;
+        bridge.reviewedOrderStarted = HygieneManager.ServiceTime;
         bridge.SendReviewedOrder(command);
         return true;
     }
@@ -57,7 +57,7 @@ public partial class MultiplayerCustomerInteractionBridge
 
     private void SendReviewedOrder(ReviewedOrderCommand command)
     {
-        nextReviewedOrderRetry = Time.unscaledTime + 1f;
+        nextReviewedOrderRetry = HygieneManager.ServiceTime + 1f;
         string json = JsonUtility.ToJson(command);
         if (session.IsAuthority) ReceiveReviewedOrderCommand(session.LocalActorNumber, json);
         else MultiplayerWire.Raise(ConfirmRequestEvent, json,
@@ -71,14 +71,14 @@ public partial class MultiplayerCustomerInteractionBridge
         if (command == null) return;
         if (!command.context.MatchesSession(session, session.LocalActorNumber))
         { pendingReviewedOrder = null; return; }
-        if (Time.unscaledTime - reviewedOrderStarted >= 40f)
+        if (HygieneManager.ServiceTime - reviewedOrderStarted >= 40f)
         {
             pendingReviewedOrder = null;
             if (OrderSubmissionStillVisible(command.context))
                 WarningSlideUI.Instance?.Show("Order confirmation timed out. Check the customer and try again.");
             return;
         }
-        if (Time.unscaledTime >= nextReviewedOrderRetry) SendReviewedOrder(command);
+        if (HygieneManager.ServiceTime >= nextReviewedOrderRetry) SendReviewedOrder(command);
     }
 
     private bool OrderSubmissionStillVisible(MultiplayerActionContext context) => context != null
@@ -87,6 +87,7 @@ public partial class MultiplayerCustomerInteractionBridge
 
     private void ReceiveReviewedOrderCommand(int sender, object payload)
     {
+        if (HygieneManager.Defer(() => { if (this != null) ReceiveReviewedOrderCommand(sender, payload); })) return;
         if (session == null || !session.IsAuthority || payload is not string json || json.Length > 32768) return;
         ReviewedOrderCommand command;
         try { command = JsonUtility.FromJson<ReviewedOrderCommand>(json); }

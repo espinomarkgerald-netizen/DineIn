@@ -131,6 +131,7 @@ public sealed partial class ManagerComplaintSystem : MonoBehaviour
 
     private void Update()
     {
+        if (HygieneManager.DecisionPaused) return;
         if (MultiplayerRestaurantBridge.IsObserver) return;
         if (MultiplayerServiceActions.IsActive && networkOwner > 0 && !MultiplayerSessionManager.Instance.ValidActor(networkOwner) && !resolving)
         {

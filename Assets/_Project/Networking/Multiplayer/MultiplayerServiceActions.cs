@@ -199,33 +199,34 @@ public sealed partial class MultiplayerServiceActions : MonoBehaviourPunCallback
         context.expectedRevision = active.session.IsAuthority ? active.revision : active.received;
         if (operation.StartsWith("cleanup_", StringComparison.Ordinal)) context.orderNumber = value;
         active.pending = new Command { context = context, value = value };
-        active.requestUntil = Time.unscaledTime + 8f;
+        active.requestUntil = HygieneManager.ServiceTime + 8f;
         active.Transmit();
         return true;
     }
     private void Transmit()
     {
-        retryAt = Time.unscaledTime + 1f;
+        retryAt = HygieneManager.ServiceTime + 1f;
         if (session.IsAuthority) Handle(pending, session.LocalActorNumber);
         else MultiplayerWire.Raise(RequestEvent, JsonUtility.ToJson(pending),
             new RaiseEventOptions { Receivers = ReceiverGroup.MasterClient }, SendOptions.SendReliable);
     }
     private void Update()
     {
+        if (HygieneManager.DecisionPaused) return;
         if (!session.IsConnected || !MultiplayerProgressionContext.Ready || session.Ended) return;
         int current = GameFlowManager.Instance.CurrentDay;
         if (day != current) { ResetDay(); day = current; }
         if (pending != null)
         {
-            if (!session.CanAct || Time.unscaledTime > requestUntil)
+            if (!session.CanAct || HygieneManager.ServiceTime > requestUntil)
             {
                 if (pending.operation == "card_confirm") CardPaymentResult = false;
                 pending = null; WarningSlideUI.Instance?.Show("Service request timed out. Check the customer before retrying.");
                 TrySendQueuedCancellation();
             }
-            else if (Time.unscaledTime >= retryAt) Transmit();
+            else if (HygieneManager.ServiceTime >= retryAt) Transmit();
         }
-        if (session.IsAuthority && Time.unscaledTime >= nextPublish)
+        if (session.IsAuthority && HygieneManager.ServiceTime >= nextPublish)
         {
             RecoverDirtyTrays();
             foreach (int key in new List<int>(reservations.Keys))
@@ -244,9 +245,9 @@ public sealed partial class MultiplayerServiceActions : MonoBehaviourPunCallback
                     bag.PresentNetworkOwner(null, 0, bag.PickupPosition, bag.PickupRotation);
             Publish();
         }
-        if (!session.IsHostConnection && Time.unscaledTime >= nextObservedApply)
+        if (!session.IsHostConnection && HygieneManager.ServiceTime >= nextObservedApply)
         {
-            nextObservedApply = Time.unscaledTime + 0.2f;
+            nextObservedApply = HygieneManager.ServiceTime + 0.2f;
             ReadSnapshot();
             ApplyObserved(); // Newly instantiated customers/players may arrive after the property.
         }
@@ -287,6 +288,7 @@ public sealed partial class MultiplayerServiceActions : MonoBehaviourPunCallback
     }
     private void Handle(Command request, int actor)
     {
+        if (HygieneManager.Defer(() => { if (this != null) Handle(request, actor); })) return;
         if (!session.IsAuthority || request?.context == null || !request.context.MatchesSession(session, actor)) return;
         string key = actor + ":" + request.id;
         if (receipts.TryGetValue(key, out var cached))
@@ -302,9 +304,10 @@ public sealed partial class MultiplayerServiceActions : MonoBehaviourPunCallback
     private IEnumerator ExecuteWhenArrived(Command request, int actor, string key)
     {
         var reply = new Reply { result = new MultiplayerActionResult { context = request.context, outcome = MultiplayerActionOutcome.Unavailable }, value = request.value };
-        float until = Time.unscaledTime + 0.4f;
+        float until = HygieneManager.ServiceTime + 0.4f;
         while (true)
         {
+            if (HygieneManager.DecisionPaused) { yield return null; continue; }
             var outcome = Validate(request, actor, out var player, out var group);
             if (outcome != MultiplayerActionOutcome.Success) { reply.result.outcome = outcome; break; }
             if (!TryArrivalPoint(request, group, out var point, out float radius) || Near(player, point, radius))
@@ -314,7 +317,7 @@ public sealed partial class MultiplayerServiceActions : MonoBehaviourPunCallback
                 if (success) reply.result.outcome = MultiplayerActionOutcome.Success;
                 break;
             }
-            if (Time.unscaledTime >= until) { reply.result.outcome = MultiplayerActionOutcome.Unreachable; break; }
+            if (HygieneManager.ServiceTime >= until) { reply.result.outcome = MultiplayerActionOutcome.Unreachable; break; }
             yield return null;
         }
         executing.Remove(key);
@@ -557,12 +560,12 @@ public sealed partial class MultiplayerServiceActions : MonoBehaviourPunCallback
         }
         else if (reply.operation == "card_open")
         {
-            deferredCard = reply; cardOpenUntil = Time.unscaledTime + 8f; TryOpenCard();
+            deferredCard = reply; cardOpenUntil = HygieneManager.ServiceTime + 8f; TryOpenCard();
         }
         else if (reply.operation == "cash_confirm" || reply.operation == "payment_cancel")
             CashierRegisterUI.Instance?.CloseNetworkPayment(group);
         else if (reply.operation == "money_pickup")
-        { deferredPickup = reply; pickupAttachUntil = Time.unscaledTime + 8f; TryFinishPickupPresentation(); }
+        { deferredPickup = reply; pickupAttachUntil = HygieneManager.ServiceTime + 8f; TryFinishPickupPresentation(); }
         if (reply.operation == "cash_confirm" || reply.operation == "card_confirm" || reply.operation == "payment_cancel")
         { cancelAfterPending = null; deferredPickup = null; cashierAfterPickup = false; }
         TrySendQueuedCancellation();
@@ -584,7 +587,7 @@ public sealed partial class MultiplayerServiceActions : MonoBehaviourPunCallback
             else WarningSlideUI.Instance?.Show("Payment collected. Take it to the cashier.");
             return;
         }
-        if (Time.unscaledTime >= pickupAttachUntil)
+        if (HygieneManager.ServiceTime >= pickupAttachUntil)
         {
             deferredPickup = null; cashierAfterPickup = false;
             appliedObjects = 0; nextObservedApply = 0;
@@ -608,7 +611,7 @@ public sealed partial class MultiplayerServiceActions : MonoBehaviourPunCallback
         var money = group != null ? Money(group) : null;
         var ui = FindFirstObjectByType<CardPaymentUI>(FindObjectsInactive.Include);
         if (session.CanAct && deferredCard.result.context.MatchesOrder(group) && money != null && ui != null && ui.Open(money)) { deferredCard = null; return; }
-        if (!session.CanAct || Time.unscaledTime >= cardOpenUntil)
+        if (!session.CanAct || HygieneManager.ServiceTime >= cardOpenUntil)
         { deferredCard = null; if (group != null) Send("payment_cancel", group); }
     }
     private static string Holder(Transform item)
@@ -632,7 +635,7 @@ public sealed partial class MultiplayerServiceActions : MonoBehaviourPunCallback
     private void Publish()
     {
         if (!session.IsAuthority) return;
-        nextPublish = Time.unscaledTime + 0.3f;
+        nextPublish = HygieneManager.ServiceTime + 0.3f;
         var flow = TakeoutFlowManager.Instance;
         var snapshot = new Snapshot { run = session.RunId, day = GameFlowManager.Instance.CurrentDay,
             takeoutView = ViewId(flow?.ActiveGroup), takeoutPhase = (int)(flow?.CurrentPhase ?? TakeoutFlowManager.TakeoutPhase.None),

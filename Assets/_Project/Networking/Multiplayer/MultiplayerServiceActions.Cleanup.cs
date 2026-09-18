@@ -65,7 +65,7 @@ public sealed partial class MultiplayerServiceActions
         if (reply.operation == "cleanup_pickup" && reply.accepted)
         {
             deferredDirtyPickup = reply;
-            dirtyAttachUntil = Time.unscaledTime + 8f;
+            dirtyAttachUntil = HygieneManager.ServiceTime + 8f;
         }
         if (reply.operation != "cleanup_wash") return;
         var mover = dirtyDisposalMover;
@@ -121,7 +121,7 @@ public sealed partial class MultiplayerServiceActions
                 return;
             }
         }
-        if (Time.unscaledTime >= dirtyAttachUntil)
+        if (HygieneManager.ServiceTime >= dirtyAttachUntil)
         {
             deferredDirtyPickup = null; dirtyPickupMover = null;
             WarningSlideUI.Instance?.Show("The tray is still synchronizing. Select the sink when it appears in your hands.");
@@ -161,6 +161,7 @@ public sealed partial class MultiplayerServiceActions
         var sink = FindFirstObjectByType<SinkInteractable>();
         if (sink == null || !Near(player, sink.StandPoint, sink.GetInteractRadius())) return false;
         dirtyOwners.Remove(tray.orderNumber);
+        HygieneManager.Instance?.RecordKitchenUse(sink);
         session.GetComponent<MultiplayerTaskClaims>().CompleteOnAuthority($"Order:{tray.orderNumber}:Cleanup", actor);
         hands.DisposeTray(true);
         GameDayManager.Instance.RegisterTrayCleaned();

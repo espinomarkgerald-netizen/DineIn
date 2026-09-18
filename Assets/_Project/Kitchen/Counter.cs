@@ -4,6 +4,7 @@ public class Counter : MonoBehaviour {
     public GameObject currentItem;
     public Transform itemPlacementPoint;
     public Transform standPoint;
+    protected virtual void OnEnable() => HygieneManager.Instance?.RegisterStation(this);
 
     public virtual void Interact(PlayerHolding player) {
 
@@ -11,6 +12,7 @@ public class Counter : MonoBehaviour {
         if (player.heldObject != null && player.heldObject.TryGetComponent(out Plate playerPlate)) {
             if (currentItem != null && !currentItem.GetComponent<Plate>()) {
                 if (playerPlate.TryAddIngredient(currentItem)) {
+                    HygieneManager.Instance?.RecordKitchenUse(this);
                     currentItem = null;
                     return;
                 }
@@ -21,6 +23,7 @@ public class Counter : MonoBehaviour {
         if (currentItem != null && currentItem.TryGetComponent(out Plate counterPlate)) {
             if (player.heldObject != null && !player.heldObject.GetComponent<Plate>()) {
                 if (counterPlate.TryAddIngredient(player.heldObject)) {
+                    HygieneManager.Instance?.RecordKitchenUse(this);
                     player.heldObject = null;
                     return;
                 }
@@ -36,6 +39,7 @@ public class Counter : MonoBehaviour {
     }
 
     protected void PlaceItem(PlayerHolding player) {
+        HygieneManager.Instance?.RecordKitchenUse(this);
         currentItem = player.heldObject;
         currentItem.transform.parent = itemPlacementPoint;
         currentItem.transform.localPosition = Vector3.zero;
@@ -46,11 +50,15 @@ public class Counter : MonoBehaviour {
         if (currentItem.TryGetComponent(out IngredientStack stack)) {
             GameObject single = stack.ConsumeOne();
             if (single != null)
+            {
                 player.PickUp(single);
+                HygieneManager.Instance?.RecordKitchenUse(this);
+            }
             if (stack.Remaining <= 0)
                 currentItem = null;
         } else {
             player.PickUp(currentItem);
+            HygieneManager.Instance?.RecordKitchenUse(this);
             currentItem = null;
         }
     }

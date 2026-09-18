@@ -153,7 +153,10 @@ public class BusserHands : MonoBehaviour
         RestaurantTaskClaim.Complete(tray);
 
         if (destroyObject && tray != null)
+        {
+            tray.GetComponent<FoodTrayInteractable>()?.ReportHygieneWashed();
             Destroy(tray.gameObject);
+        }
 
         Debug.Log("[BusserHands] DisposeTray");
 

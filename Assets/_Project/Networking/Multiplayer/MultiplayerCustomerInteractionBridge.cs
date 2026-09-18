@@ -329,6 +329,7 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
 
     private void HandleReview(int viewId, int actor, int sender)
     {
+        if (HygieneManager.Defer(() => { if (this != null) HandleReview(viewId, actor, sender); })) return;
         if (!session.IsAuthority || actor != sender) return;
         var view = PhotonView.Find(viewId);
         var customer = view != null ? view.GetComponent<MultiplayerCustomerSpawn>() : null;
@@ -480,6 +481,7 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
 
     private void HandleBillFlow(int viewId, int stage, int actor)
     {
+        if (HygieneManager.Defer(() => { if (this != null) HandleBillFlow(viewId, stage, actor); })) return;
         var view = PhotonView.Find(viewId);
         var group = view != null ? view.GetComponent<MultiplayerCustomerSpawn>()?.Group : null;
         var manager = BillManager.Instance;
@@ -539,13 +541,13 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
         var manager = BillManager.Instance;
         // Reuse the normal printing entry; payment follows bill delivery separately.
         manager.RequestBill(group);
-        float deadline = Time.unscaledTime + 30f;
+        float deadline = HygieneManager.ServiceTime + 30f;
         while (BillActionIsCurrent(actor, action, day) && group != null && claims.IsClaimedBy($"Customer:{viewId}:Bill", actor)
             && group.currentOrderNumber == action.order && group.state == CustomerGroup.GroupState.NeedsBill && session.IsAuthority)
         {
             if (paper == null && manager != null) paper = manager.FindBillForGroup(group);
             if (paper != null) break;
-            if (Time.unscaledTime >= deadline) break;
+            if (HygieneManager.ServiceTime >= deadline) break;
             yield return null;
         }
         // A cancelled/replaced print must not acknowledge a newer pickup/delivery.
@@ -581,7 +583,7 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
         // An acknowledgement does not attach an item. Wait for the authoritative
         // projection before enabling the next explicit player action.
         awaitingBillProjection = stage == 3 ? MultiplayerCustomerSpawn.BillStage.Carried : MultiplayerCustomerSpawn.BillStage.Printed;
-        billProjectionDeadline = Time.unscaledTime + 8f;
+        billProjectionDeadline = HygieneManager.ServiceTime + 8f;
         billTransitionPending = true;
     }
 
@@ -761,7 +763,7 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
         if (greetWaiting || target == null || !greetApproached || cancelled) return;
         greetWaiting = true;
         greetLease = claims.GetLease(taskId);
-        greetReplyUntil = Time.unscaledTime + 8f;
+        greetReplyUntil = HygieneManager.ServiceTime + 8f;
         CustomerGreetBubbleSpawner.Instance?.Hide();
         if (session.IsAuthority) HandleGreet(target.photonView.ViewID, session.LocalActorNumber, session.LocalActorNumber, greetLease);
         else if (!MultiplayerWire.Raise(GreetRequestEvent, new object[] { target.photonView.ViewID, session.LocalActorNumber, greetLease },
@@ -818,6 +820,7 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
 
     private void HandleGreet(int viewId, int actor, int sender, long lease)
     {
+        if (HygieneManager.Defer(() => { if (this != null) HandleGreet(viewId, actor, sender, lease); })) return;
         if (!session.IsAuthority || actor != sender || !session.ValidActor(sender)) return;
         string key = $"{viewId}:{actor}:{lease}";
         if (!greetingRequests.Add(key)) return;
@@ -828,11 +831,12 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
     {
         string run = session.RunId;
         int day = GameFlowManager.Instance.CurrentDay;
-        float until = Time.unscaledTime + 0.4f;
+        float until = HygieneManager.ServiceTime + 0.4f;
         bool accepted = false;
         string id = $"Customer:{viewId}:GreetSeat";
         while (session.RunId == run && GameFlowManager.Instance.CurrentDay == day && session.IsAuthority && session.ValidActor(actor))
         {
+            if (HygieneManager.DecisionPaused) { yield return null; continue; }
             var customer = PhotonView.Find(viewId)?.GetComponent<MultiplayerCustomerSpawn>();
             var group = customer != null ? customer.Group : null;
             var line = FindFirstObjectByType<LobbyLineManager>();
@@ -851,7 +855,7 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
                 if (!group.hasBeenGreeted) { group.MarkGreeted(); customer.PublishGreeted(); }
                 break;
             }
-            if (Time.unscaledTime >= until) break;
+            if (HygieneManager.ServiceTime >= until) break;
             yield return null;
         }
         greetingRequests.Remove(key);
@@ -994,6 +998,7 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
 
     private void HandleSeat(int viewId, int actor, int sender, string boothId)
     {
+        if (HygieneManager.Defer(() => { if (this != null) HandleSeat(viewId, actor, sender, boothId); })) return;
         if (!session.IsAuthority || actor != sender
             || !PhotonNetwork.CurrentRoom.Players.TryGetValue(sender, out var player) || player.IsInactive) return;
         string id = $"Customer:{viewId}:GreetSeat";
@@ -1200,7 +1205,8 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
 
     private void Update()
     {
-        if (greetWaiting && Time.unscaledTime >= greetReplyUntil)
+        if (HygieneManager.DecisionPaused) return;
+        if (greetWaiting && HygieneManager.ServiceTime >= greetReplyUntil)
         { Cancel(); WarningSlideUI.Instance?.Show("Greeting timed out. Select the customer to try again."); }
         TickBillActions();
         TickReviewedOrderSubmission();

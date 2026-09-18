@@ -31,6 +31,7 @@ public class Fryer : Counter {
     }
 
     private void FinishCooking() {
+        HygieneManager.Instance?.RecordKitchenUse(this);
         isCooking = false;
 
         // --- NEW: TRACK BURNING ---

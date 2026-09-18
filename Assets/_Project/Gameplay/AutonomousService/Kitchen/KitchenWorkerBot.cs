@@ -25,6 +25,7 @@ public class KitchenWorkerBot : MonoBehaviour
     private AutonomousStaffBot staffBot;
     private KitchenManager kitchenManager;
     private int currentIndex;
+    private int hygieneStationIndex;
     private bool subscribed;
 
     public EmployeeRole EmployeeRole => employeeRole;
@@ -61,7 +62,7 @@ public class KitchenWorkerBot : MonoBehaviour
     private void Update()
     {
         if (MultiplayerRestaurantBridge.IsObserver) return;
-        if (activeOrders.Count == 0 || staffBot == null || staffBot.IsBusy)
+        if (activeOrders.Count == 0 && HygieneManager.Instance?.State.Cleaning != true || staffBot == null || staffBot.IsBusy)
             return;
 
         staffBot.StartTask(WorkWhileOrdersAreActive());
@@ -113,7 +114,7 @@ public class KitchenWorkerBot : MonoBehaviour
 
         currentIndex = Mathf.Clamp(currentIndex, 0, workPoints.Length - 1);
 
-        while (activeOrders.Count > 0)
+        while (activeOrders.Count > 0 || HygieneManager.Instance?.State.Cleaning == true)
         {
             Transform target = FindNextWorkPoint();
 
@@ -123,10 +124,19 @@ public class KitchenWorkerBot : MonoBehaviour
                 yield break;
             }
 
-            yield return staffBot.MoveTo(target);
+            Vector3 approach = target.position;
+            Transform equipment = null;
+            bool registeredStation = HygieneManager.Instance != null && HygieneManager.Instance.TryGetWorkStation(
+                employeeRole, ref hygieneStationIndex, transform.position, out equipment, out approach);
+            if (registeredStation) yield return staffBot.MoveWithin(approach, .25f, .5f, 12f);
+            else yield return staffBot.MoveTo(target);
 
-            if (activeOrders.Count > 0)
+            if (staffBot.LastMoveSucceeded && (activeOrders.Count > 0 || HygieneManager.Instance?.State.Cleaning == true))
+            {
+                bool wasCleaning = HygieneManager.Instance?.State.Cleaning == true;
                 yield return staffBot.WorkFor(waitAtPoint);
+                if (!wasCleaning && activeOrders.Count > 0) HygieneManager.Instance?.RecordKitchenUse(registeredStation ? equipment : target);
+            }
         }
     }
 

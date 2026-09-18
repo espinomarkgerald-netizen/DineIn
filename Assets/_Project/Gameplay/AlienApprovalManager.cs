@@ -25,6 +25,15 @@ public class AlienApprovalManager : MonoBehaviour
     private int positiveGroupApprovalEarnedToday;
     private int approvalLostToday;
     private int oneStarPenaltyAppliedDay = -1;
+    private int lastHygieneHour = -1;
+    public void RegisterHygieneFeedback(int hour, bool positive)
+    {
+        if (!CanMutateApproval || hour <= lastHygieneHour) return;
+        lastHygieneHour = hour;
+        int delta = positive ? Mathf.Min(1, Mathf.Max(0, maxPositiveGroupApprovalPerDay - positiveGroupApprovalEarnedToday)) : GetCappedLoss(1);
+        if (positive) positiveGroupApprovalEarnedToday += delta;
+        ApplyApprovalDelta(delta);
+    }
 
     public int Approval { get; private set; }
 
@@ -118,6 +127,7 @@ public class AlienApprovalManager : MonoBehaviour
     public void ResetApproval()
     {
         if (!CanMutateApproval) return;
+        lastHygieneHour = -1;
         Approval = Mathf.Clamp(startingApproval, 0, 100);
         positiveGroupApprovalEarnedToday = 0;
         approvalLostToday = 0;
@@ -129,6 +139,7 @@ public class AlienApprovalManager : MonoBehaviour
     public void BeginNewDay()
     {
         if (!CanMutateApproval) return;
+        lastHygieneHour = -1;
         positiveGroupApprovalEarnedToday = 0;
         approvalLostToday = 0;
         oneStarPenaltyAppliedDay = -1;
@@ -137,6 +148,7 @@ public class AlienApprovalManager : MonoBehaviour
     public void RestoreApprovalForContinue(int approval)
     {
         if (MultiplayerProgressionContext.IsActive || !CanMutateApproval) return;
+        lastHygieneHour = -1;
         Approval = Mathf.Clamp(approval, 1, 100);
         positiveGroupApprovalEarnedToday = 0;
         approvalLostToday = 0;

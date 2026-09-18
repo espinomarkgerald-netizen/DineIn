@@ -65,16 +65,19 @@ public class KitchenManager : MonoBehaviour
         public ForecastState state;
         public bool isPaused;
         public bool awaitingSpawn;
+        public bool hygieneWaiting;
+        public bool hygienePaused;
+        public float hygieneRemaining;
 
         public OrderForecast Snapshot => new OrderForecast(
             group,
             orderNumber,
             isTakeout,
             startedAt,
-            preparationDelaySeconds,
-            cookDurationSeconds,
+            hygienePaused ? 0f : preparationDelaySeconds,
+            hygienePaused ? hygieneRemaining : cookDurationSeconds,
             predictedReadyAt,
-            state, isPaused, awaitingSpawn);
+            state, isPaused || hygienePaused, awaitingSpawn);
     }
 
     [Header("Dine-In Spawn Points")]
@@ -251,11 +254,22 @@ public class KitchenManager : MonoBehaviour
     public event Action<OrderForecast> OrderForecastChanged;
 
     public int ActiveForecastCount => activeOrderForecasts.Count;
+    public int HygieneActiveCookingCount
+    {
+        get
+        {
+            int count = 0;
+            foreach (var entry in activeOrderForecasts.Values)
+                if (!entry.hygieneWaiting && !entry.awaitingSpawn && entry.state == ForecastState.Cooking && !entry.isPaused) count++;
+            return count;
+        }
+    }
     public bool HasAcceptedOrder(int order) => cookingOrders.Contains(order) || completedOrders.Contains(order)
         || activeOrderForecasts.ContainsKey(order) || completedOrderForecasts.ContainsKey(order);
 
     private void Awake()
     {
+        HygieneManager.Ensure(this);
         pickupQueue = GetComponent<TrayPickupQueue>();
         if (pickupQueue == null)
             pickupQueue = gameObject.AddComponent<TrayPickupQueue>();
@@ -467,7 +481,8 @@ public class KitchenManager : MonoBehaviour
             cookDurationSeconds = cookSnapshot,
             predictedReadyAt = startedAt + preparationSnapshot + cookSnapshot,
             state = ForecastState.Cooking,
-            isPaused = pauseAfterAcceptance
+            isPaused = pauseAfterAcceptance,
+            hygieneWaiting = true
         };
         activeOrderForecasts[orderNo] = activeForecast;
 
@@ -495,14 +510,42 @@ public class KitchenManager : MonoBehaviour
 
         try
         {
+            if (!resumeAtSpawn)
+            {
+                // The reviewed order stays accepted while the kitchen is closed.
+                // No second submission or stock withdrawal is needed on reopening.
+                while (HygieneManager.HoldNewCooking)
+                {
+                    if (!IsOrderStillValid(group, orderNo)) yield break;
+                    if (activeOrderForecasts.TryGetValue(orderNo, out var queued))
+                    {
+                        bool newlyPaused = !queued.hygienePaused;
+                        queued.hygienePaused = true;
+                        queued.hygieneRemaining = preparationSnapshot + cookSnapshot;
+                        if (newlyPaused) NotifyForecastChanged(queued);
+                    }
+                    yield return null;
+                }
+                cookSnapshot *= HygieneManager.CookMultiplier;
+                if (activeOrderForecasts.TryGetValue(orderNo, out var admitted))
+                {
+                    admitted.hygieneWaiting = admitted.hygienePaused = false;
+                    admitted.cookDurationSeconds = cookSnapshot;
+                    admitted.startedAt = Time.time;
+                    admitted.predictedReadyAt = Time.time + preparationSnapshot + cookSnapshot;
+                    NotifyForecastChanged(admitted);
+                }
+            }
             if (!resumeAtSpawn && preparationSnapshot > 0f)
-                yield return new WaitForSeconds(preparationSnapshot);
+                yield return WaitForKitchenTime(group, orderNo, preparationSnapshot, cookSnapshot);
 
             if (!resumeAtSpawn && !MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer && ProcessingBillIndicatorUI.Instance != null)
                 ProcessingBillIndicatorUI.Instance.Show("Order #" + orderNo + " is being prepared");
 
             if (!resumeAtSpawn && cookSnapshot > 0f)
-                yield return new WaitForSeconds(cookSnapshot);
+                yield return WaitForKitchenTime(group, orderNo, cookSnapshot, 0f);
+
+            while (HygieneManager.KitchenPaused) yield return null;
 
             if (!IsOrderStillValid(group, orderNo))
             {
@@ -554,8 +597,14 @@ public class KitchenManager : MonoBehaviour
             if (freeSlot == null)
                 SetForecastState(orderNo, ForecastState.WaitingForSpawnSlot);
 
-            while (freeSlot == null && Time.time - slotWaitStarted < maxSlotWaitSeconds)
+            while (freeSlot == null)
             {
+                while (HygieneManager.KitchenPaused)
+                {
+                    slotWaitStarted += Time.deltaTime;
+                    yield return null;
+                }
+                if (Time.time - slotWaitStarted >= maxSlotWaitSeconds) break;
                 if (!IsOrderStillValid(group, orderNo))
                 {
                     if (!MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer && ProcessingBillIndicatorUI.Instance != null)
@@ -575,6 +624,10 @@ public class KitchenManager : MonoBehaviour
                 Debug.LogError($"[KitchenManager] Timed out waiting for a free {serviceType} slot for order #{orderNo}.", this);
                 yield break;
             }
+
+            // Do not yield after selecting a free slot: another order could select
+            // the same slot while this coroutine is suspended.
+            if (!IsOrderStillValid(group, orderNo)) yield break;
 
             if (isTakeout)
             {
@@ -692,6 +745,25 @@ public class KitchenManager : MonoBehaviour
     {
         if (active != null)
             OrderForecastChanged?.Invoke(active.Snapshot);
+    }
+
+    private IEnumerator WaitForKitchenTime(CustomerGroup group, int orderNo, float seconds, float followingSeconds)
+    {
+        float remaining = seconds;
+        while (remaining > 0f && IsOrderStillValid(group, orderNo))
+        {
+            bool paused = HygieneManager.KitchenPaused;
+            if (activeOrderForecasts.TryGetValue(orderNo, out var active))
+            {
+                bool changed = active.hygienePaused != paused;
+                active.hygienePaused = paused;
+                active.hygieneRemaining = remaining + followingSeconds;
+                active.predictedReadyAt = Time.time + remaining + followingSeconds;
+                if (changed) NotifyForecastChanged(active);
+            }
+            yield return null;
+            if (!paused && !HygieneManager.KitchenPaused) remaining -= Time.deltaTime;
+        }
     }
 
     private bool IsOrderStillValid(CustomerGroup group, int orderNo)

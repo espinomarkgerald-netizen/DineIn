@@ -45,7 +45,7 @@ public partial class MultiplayerCustomerInteractionBridge
             operation == "food_pickup" ? "Prepared" : "Carried");
         if (!IsFoodOperation(context) || context.lease <= 0 || !claims.IsClaimedBy(claim, session.LocalActorNumber)) return;
         pendingFoodAction = new FoodAction { request = new FoodRequest { context = context, slot = slot, sequence = ++nextFoodSequence },
-            deadline = Time.unscaledTime + 10f, retryAt = Time.unscaledTime + 1f };
+            deadline = HygieneManager.ServiceTime + 10f, retryAt = HygieneManager.ServiceTime + 1f };
         if (operation == "food_pickup") carryPending = true;
         DispatchFoodAction();
     }
@@ -91,7 +91,7 @@ public partial class MultiplayerCustomerInteractionBridge
             bool attached = pickupTarget != null && hands != null && hands.holdingTray == pickupTarget
                 && pickupTarget.transform.IsChildOf(hands.TrayHoldPoint);
             if (attached) { foodPickupAcknowledged = false; carryPending = false; }
-            else if (Time.unscaledTime >= foodProjectionDeadline)
+            else if (HygieneManager.ServiceTime >= foodProjectionDeadline)
             {
                 // A presentation dependency timing out must not abandon the
                 // host's already-accepted physical pickup or its claim.
@@ -102,7 +102,7 @@ public partial class MultiplayerCustomerInteractionBridge
         if (pendingFoodAction == null) return;
         var context = pendingFoodAction.request.context;
         if (!context.MatchesSession(session, session.LocalActorNumber)) { ForgetFoodIntent(); return; }
-        if (Time.unscaledTime >= pendingFoodAction.deadline)
+        if (HygieneManager.ServiceTime >= pendingFoodAction.deadline)
         {
             bool pickupMayHaveCommitted = pendingFoodAction.request.context.operation == "food_pickup";
             ForgetFoodIntent();
@@ -113,12 +113,13 @@ public partial class MultiplayerCustomerInteractionBridge
             WarningSlideUI.Instance?.Show("The food action timed out. Select its current action to retry.");
             return;
         }
-        if (Time.unscaledTime >= pendingFoodAction.retryAt)
-        { pendingFoodAction.retryAt = Time.unscaledTime + 1f; DispatchFoodAction(); }
+        if (HygieneManager.ServiceTime >= pendingFoodAction.retryAt)
+        { pendingFoodAction.retryAt = HygieneManager.ServiceTime + 1f; DispatchFoodAction(); }
     }
 
     private void ReceiveFoodRequest(int sender, object payload)
     {
+        if (HygieneManager.Defer(() => { if (this != null) ReceiveFoodRequest(sender, payload); })) return;
         if (session == null || !session.IsAuthority || payload is not string json || json.Length > 8192) return;
         ResetFoodScope();
         FoodRequest request;
@@ -140,10 +141,11 @@ public partial class MultiplayerCustomerInteractionBridge
     private IEnumerator ValidateFoodArrival(FoodAction action)
     {
         var context = action.request.context;
-        float deadline = Time.unscaledTime + 0.4f;
+        float deadline = HygieneManager.ServiceTime + 0.4f;
         while (session != null && session.IsAuthority && context.MatchesSession(session, context.actor)
             && foodActions.TryGetValue(context.actor, out var active) && active == action && action.result == null)
         {
+            if (HygieneManager.DecisionPaused) { yield return null; continue; }
             var outcome = ValidateFoodAction(action.request, out var customer, out var manager, out var tray,
                 out var stand, out float radius, out var drop);
             if (outcome == MultiplayerActionOutcome.Success)
@@ -160,7 +162,7 @@ public partial class MultiplayerCustomerInteractionBridge
                 if (accepted && !pickup) claims.CompleteOnAuthority(FoodClaim(context), context.actor);
                 yield break;
             }
-            if (outcome != MultiplayerActionOutcome.Unreachable || Time.unscaledTime >= deadline)
+            if (outcome != MultiplayerActionOutcome.Unreachable || HygieneManager.ServiceTime >= deadline)
             { CompleteFoodAction(action, outcome); yield break; }
             yield return null;
         }
@@ -261,7 +263,7 @@ public partial class MultiplayerCustomerInteractionBridge
         if (result.context.operation == "food_pickup")
         {
             // The customer/item snapshot is the sole source of attachment.
-            foodPickupAcknowledged = true; carryPending = true; foodProjectionDeadline = Time.unscaledTime + 8f;
+            foodPickupAcknowledged = true; carryPending = true; foodProjectionDeadline = HygieneManager.ServiceTime + 8f;
         }
         else
         {

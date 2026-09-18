@@ -1,6 +1,7 @@
 using UnityEngine;
 
 public class Shelf : MonoBehaviour {
+    private void OnEnable() => HygieneManager.Instance?.RegisterStation(this);
     [Tooltip("The prefab that will spawn when the player interacts with this shelf.")]
     public GameObject ingredientToSpawn;
     public Transform standPoint;
@@ -47,6 +48,7 @@ public class Shelf : MonoBehaviour {
         stack.Init(ingredientToSpawn, amount);
 
         player.PickUp(newIngredient);
+        HygieneManager.Instance?.RecordKitchenUse(this, .025f);
     }
 
     /// <summary>Finds the KitchenPlayerMovement marked as active player with the PrepCook role.</summary>

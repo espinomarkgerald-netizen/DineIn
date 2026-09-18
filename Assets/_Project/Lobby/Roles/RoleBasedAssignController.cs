@@ -96,6 +96,7 @@ public class RoleBasedAssignController : MonoBehaviour
             return;
 
         System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+        if (HygieneManager.Instance != null && HygieneManager.Instance.TrySelectCleaning(GetComponent<PlayerMovement>(), hits)) return;
 
         if (managerPlayer != null && managerPlayer.Can(ManagerPlayer.Capability.Host))
         {

@@ -25,6 +25,7 @@ public class PlateSpawner : Counter {
 
             // 3. Tell the player script that it is officially holding the plate
             player.heldObject = newPlate;
+            HygieneManager.Instance?.RecordKitchenUse(this, .025f);
 
         } else {
             Debug.Log("Chef's hands are full! Can't carry another plate.");

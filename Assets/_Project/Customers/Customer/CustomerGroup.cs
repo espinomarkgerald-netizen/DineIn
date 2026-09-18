@@ -866,6 +866,7 @@ public partial class CustomerGroup : MonoBehaviour
 
     private void OnDestroy()
     {
+        HygieneManager.Instance?.ForgetCustomer(this);
         RestaurantTaskClaim.Complete(this);
         NotifyLeftLineIfNeeded();
         ClearLinePatienceUI();
@@ -874,6 +875,7 @@ public partial class CustomerGroup : MonoBehaviour
 
     private void LateUpdate()
     {
+        HygieneManager.Instance?.RecordCustomerActivity(this);
         if (groupUiAnchor != null)
             groupUiAnchor.position = GetMembersHeadAnchorWorld();
 
@@ -2355,6 +2357,7 @@ public partial class CustomerGroup : MonoBehaviour
 
         hasReceivedBill = true;
         RestaurantTaskClaim.Complete(this);
+        HygieneManager.Instance?.RecordDiningUse(assignedBooth, .02f);
         ClearBillBubble();
         GameDayManager.Instance?.RegisterBillDelivered();
         StartCoroutine(SpawnMoneyBubbleAfterDelay());
@@ -2491,6 +2494,7 @@ public partial class CustomerGroup : MonoBehaviour
     {
         if (!CanDecideCustomerOutcome) return;
         if (state != GroupState.NeedsBill) return;
+        HygieneManager.Instance?.RecordDiningUse(assignedBooth, .02f);
 
         if (angryResultLocked || receivedWrongOrder)
         {
@@ -2787,6 +2791,18 @@ public partial class CustomerGroup : MonoBehaviour
             ui.Init(this);
     }
 
+    public bool CanShowHygieneFeedback => state == GroupState.Eating && assignedBooth != null
+        && (!PauseBeforeEating || MultiplayerEatingStarted && !MultiplayerEatingComplete)
+        && !ComplaintPending && thoughtBubbleInstance == null && thoughtBubblePrefab != null;
+    public void PresentHygieneFeedback(bool positive)
+    {
+        if (!CanShowHygieneFeedback) return;
+        string previous = OutcomeThought; int previousMood = OutcomeThoughtMood;
+        ShowCustomThought(positive ? "This is a very clean restaurant." : "This can be cleaned more.",
+            positive ? happyFaceSprite : unhappyFaceSprite, true);
+        // Ambient feedback is independent of the eventual departure result.
+        OutcomeThought = previous; OutcomeThoughtMood = previousMood;
+    }
     private void ShowThought(string[] comments, Sprite faceSprite)
     {
         if (!CanDecideCustomerOutcome) return;

@@ -55,7 +55,7 @@ public partial class MultiplayerCustomerInteractionBridge
         string expected = stage == 0 ? "NeedsBill" : stage == 2 ? "Printed" : "Carried";
         var context = MultiplayerActionContext.Capture(session, billTarget, operation, $"Customer:{view}:Bill", expected);
         pendingBillAction = new BillAction { request = new BillRequest { context = context, sequence = ++nextBillAction, stage = stage },
-            deadline = Time.unscaledTime + 40f, retryAt = Time.unscaledTime + 1f };
+            deadline = HygieneManager.ServiceTime + 40f, retryAt = HygieneManager.ServiceTime + 1f };
         DispatchBillAction();
     }
     private void DispatchBillAction()
@@ -76,23 +76,24 @@ public partial class MultiplayerCustomerInteractionBridge
     private void TickBillActions()
     {
         ResetBillActionDay();
-        if (awaitingBillProjection != MultiplayerCustomerSpawn.BillStage.None && Time.unscaledTime >= billProjectionDeadline)
+        if (awaitingBillProjection != MultiplayerCustomerSpawn.BillStage.None && HygieneManager.ServiceTime >= billProjectionDeadline)
         {
             WarningSlideUI.Instance?.Show("The bill view did not arrive. Its paper is retained; select the customer to retry.");
             CancelBill();
         }
         if (pendingBillAction == null) return;
-        if (Time.unscaledTime >= pendingBillAction.deadline)
+        if (HygieneManager.ServiceTime >= pendingBillAction.deadline)
         {
             WarningSlideUI.Instance?.Show("Billing timed out. Select the bill action to retry.");
             pendingBillAction = null; billTransitionPending = false;
             PauseBillApproach(); return;
         }
-        if (Time.unscaledTime >= pendingBillAction.retryAt)
-        { pendingBillAction.retryAt = Time.unscaledTime + 1f; DispatchBillAction(); }
+        if (HygieneManager.ServiceTime >= pendingBillAction.retryAt)
+        { pendingBillAction.retryAt = HygieneManager.ServiceTime + 1f; DispatchBillAction(); }
     }
     private void ReceiveBillAction(int actor, object payload)
     {
+        if (HygieneManager.Defer(() => { if (this != null) ReceiveBillAction(actor, payload); })) return;
         if (session == null || payload is not string json || json.Length > 8192) return;
         ResetBillActionDay();
         try
@@ -142,9 +143,10 @@ public partial class MultiplayerCustomerInteractionBridge
     }
     private IEnumerator ValidateBillArrival(int actor, BillAction action, int day)
     {
-        float deadline = Time.unscaledTime + 0.4f;
+        float deadline = HygieneManager.ServiceTime + 0.4f;
         while (BillActionIsCurrent(actor, action, day))
         {
+            if (HygieneManager.DecisionPaused) { yield return null; continue; }
             var group = MultiplayerServiceActions.Resolve(action.view);
             if (!action.request.context.MatchesOrder(group))
             { ReplyBill(action.view, 4, actor, null, MultiplayerActionOutcome.WrongTarget); yield break; }
@@ -162,7 +164,7 @@ public partial class MultiplayerCustomerInteractionBridge
             if (stand == null) { ReplyBill(action.view, 4, actor, null, MultiplayerActionOutcome.Unavailable); yield break; }
             bool arrived = session.TryGetManager(actor, out var root) && BillWithinReach(root, stand, radius);
             if (arrived) { HandleBillFlow(action.view, stage, actor); yield break; }
-            if (Time.unscaledTime >= deadline)
+            if (HygieneManager.ServiceTime >= deadline)
             { ReplyBill(action.view, 4, actor, null, MultiplayerActionOutcome.Unreachable); yield break; }
             yield return null;
         }

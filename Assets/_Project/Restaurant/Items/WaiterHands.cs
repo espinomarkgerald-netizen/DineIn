@@ -315,6 +315,8 @@ public class WaiterHands : MonoBehaviour
         }
 
         holdingTray = tray;
+        if (tray.TargetGroup != null && tray.TargetGroup.state == CustomerGroup.GroupState.OrderTaken)
+            HygieneManager.Instance?.RecordKitchenUse(tray, .025f);
 
         AttachKeepingWorldScale(
             tray.transform,
@@ -336,7 +338,10 @@ public class WaiterHands : MonoBehaviour
         RestaurantTaskClaim.Complete(tray);
 
         if (destroyObject && tray != null)
+        {
+            tray.GetComponent<FoodTrayInteractable>()?.ReportHygieneWashed();
             Destroy(tray.gameObject);
+        }
 
         NotifyHandsChanged();
     }

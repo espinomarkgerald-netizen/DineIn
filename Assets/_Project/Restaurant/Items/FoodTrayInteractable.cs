@@ -25,6 +25,8 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
     private TrayMode mode = TrayMode.None;
     private bool pickupRequested;
     private bool pendingCleanup;
+    private Booth hygieneBooth;
+    private bool hygieneWashed;
     private bool uiHiddenUntilStateChange;
     private bool claimedByStaff;
     private bool staffCarried;
@@ -188,8 +190,22 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
         HideUI();
     }
 
+    public void ReportHygieneWashed()
+    {
+        if (!hygieneIncidentRecorded || hygieneWashed || HygieneManager.Instance?.CanRecordActivity != true) return;
+        hygieneWashed = true;
+        if (hygieneBooth != null && hygieneBooth.CurrentGroup == null) HygieneManager.Instance.CleanDining(hygieneBooth);
+    }
+
     public void SetCleanupPickable(bool value)
     {
+        if (value && !hygieneIncidentRecorded && !MultiplayerRestaurantBridge.IsObserver)
+        {
+            hygieneIncidentRecorded = true;
+            hygieneBooth = GetComponentInParent<Booth>();
+            if (hygieneBooth == null && tray != null && tray.TargetGroup != null) hygieneBooth = tray.TargetGroup.assignedBooth;
+            HygieneManager.Instance?.RecordDiningUse(hygieneBooth, .06f);
+        }
         if (queueOwner != null)
             queueOwner.Unregister(this);
 
@@ -202,6 +218,8 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
         uiHiddenUntilStateChange = false;
         RefreshUI();
     }
+
+    private bool hygieneIncidentRecorded;
 
     /// <summary>
     /// Makes food rejected during a Manager complaint available to the existing

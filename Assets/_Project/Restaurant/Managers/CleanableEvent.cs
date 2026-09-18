@@ -16,10 +16,19 @@ public class CleanableEvent : MonoBehaviour
 
     public event Action<CleanableEvent> OnCleaned;
 
+    private bool reportsHygiene;
+    private void Start()
+    {
+        // Dirty trays already report through their pickup/cleanup lifecycle.
+        reportsHygiene = GetComponentInParent<FoodTray>() == null;
+        if (reportsHygiene) HygieneManager.Instance?.RecordLobbyIncident(true, transform.position);
+    }
+
     public void Clean()
     {
         if (IsCleaned) return;
         IsCleaned = true;
+        if (reportsHygiene) HygieneManager.Instance?.RecordLobbyIncident(false, transform.position);
 
         if (cleanVfxPrefab != null)
             Instantiate(cleanVfxPrefab, transform.position, Quaternion.identity);

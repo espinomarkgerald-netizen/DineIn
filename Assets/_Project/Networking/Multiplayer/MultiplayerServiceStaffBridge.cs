@@ -44,6 +44,8 @@ public sealed class MultiplayerServiceStaffBridge : MonoBehaviour, IOnEventCallb
         {
             var root = roots[i] = roster.GetStaffRoot((MultiplayerStaffRosterController.ServiceRole)i);
             if (root == null) continue;
+            if ((MultiplayerStaffRosterController.ServiceRole)i == MultiplayerStaffRosterController.ServiceRole.Busser)
+                HygieneStaffCleaningVisual.Ensure(root);
             animators[i] = new MultiplayerAnimatorState(root);
             poses[i] = new MultiplayerPoseBuffer();
             // These scene prefabs also carry legacy human/PUN components.

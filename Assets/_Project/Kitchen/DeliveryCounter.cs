@@ -44,6 +44,7 @@ public class DeliveryCounter : Counter {
 
             if (success) {
                 Destroy(player.heldObject);
+                HygieneManager.Instance?.RecordKitchenUse(this);
                 player.heldObject = null;
             }
         }

@@ -14,6 +14,7 @@ public class CupSpawner : Counter {
         GameObject newCup = Instantiate(emptyCupPrefab);
         newCup.name = emptyCupPrefab.name;
         player.PickUp(newCup);
+        HygieneManager.Instance?.RecordKitchenUse(this, .025f);
         Debug.Log("Grabbed an Empty Cup!");
     }
 }

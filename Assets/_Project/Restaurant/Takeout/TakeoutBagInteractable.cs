@@ -122,6 +122,7 @@ public class TakeoutBagInteractable : MonoBehaviour
         isHeld = true;
         heldByPlayer = playerInitiated;
         HeldBag = this;
+        HygieneManager.Instance?.RecordKitchenUse(this, .025f);
 
         HideUI();
 
@@ -251,6 +252,7 @@ public class TakeoutBagInteractable : MonoBehaviour
             || hands.HasBill || hands.HasMoney || hands.HasTray || hands.HasTicket
             || hands.GetComponent<BusserHands>()?.HasTray == true
             || RestaurantTaskClaim.IsClaimedByBot(this)) return false;
+        HygieneManager.Instance?.RecordKitchenUse(this, .025f);
         PresentNetworkOwner(hands, actor, pickupPosition, pickupRotation);
         return true;
     }

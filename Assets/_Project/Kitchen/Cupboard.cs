@@ -4,6 +4,7 @@ using System.Collections;
 
 public class Cupboard : MonoBehaviour {
     public static Cupboard activeCupboard;
+    private void OnEnable() => HygieneManager.Instance?.RegisterStation(this);
 
     public Transform standPoint;
 
@@ -121,6 +122,7 @@ public class Cupboard : MonoBehaviour {
 
         // --- ADD THIS ONE LINE HERE! ---
         PerformanceManager.AddIngredientUsed();
+        HygieneManager.Instance?.RecordKitchenUse(this, .025f);
 
         return true;
     }

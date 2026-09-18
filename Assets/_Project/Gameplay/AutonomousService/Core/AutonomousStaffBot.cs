@@ -122,6 +122,7 @@ public class AutonomousStaffBot : MonoBehaviour
 
     private void Awake()
     {
+        HygieneWalker.Ensure(gameObject);
         MultiplayerWorldRegistry.Track(this);
         fallbackHomePosition = transform.position;
         fallbackHomeRotation = transform.rotation;
@@ -394,6 +395,12 @@ public class AutonomousStaffBot : MonoBehaviour
         BeginIdlePresentation();
     }
 
+    public void PresentCommittedWork(float seconds)
+    {
+        JobCommitted = true;
+        CurrentState = StaffState.Working;
+        WorkTiming.Begin(seconds);
+    }
     public IEnumerator WorkFor(float seconds)
     {
         JobCommitted = true;

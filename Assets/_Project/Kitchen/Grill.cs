@@ -114,6 +114,7 @@ public class Grill : Counter {
     }
 
     private void CookItem(IngredientComponent rawItem) {
+        HygieneManager.Instance?.RecordKitchenUse(this);
         bool burntIt = false;
 
         // If it was already cooked/fried/breaded, we burnt it!

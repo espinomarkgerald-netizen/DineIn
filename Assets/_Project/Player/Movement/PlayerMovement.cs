@@ -147,6 +147,7 @@ public class PlayerMovement : MonoBehaviour
 
     private void Awake()
     {
+        HygieneWalker.Ensure(gameObject);
         agent = GetComponent<NavMeshAgent>();
 
         int managementTerminalLayer = LayerMask.NameToLayer("ManagementTerminal");
@@ -191,6 +192,7 @@ public class PlayerMovement : MonoBehaviour
 
     private void Update()
     {
+        if (HygieneManager.InputBlocked) return;
         // Tutorial popups can disappear on click. Remember the press independently
         // of ManagerPlayer's control flag; never turn its release into a world task.
         if (TutorialSystem.IsTutorialMode)
@@ -282,6 +284,7 @@ public class PlayerMovement : MonoBehaviour
         if (hits == null || hits.Length == 0) return;
 
         System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+        if (HygieneManager.Instance != null && HygieneManager.Instance.TrySelectCleaning(this, hits)) return;
 
         WaiterHands ownedHands = WaiterHands.For(this);
         bool isCarryingTray = ownedHands != null && ownedHands.HasTray;

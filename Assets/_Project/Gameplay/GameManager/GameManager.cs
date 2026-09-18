@@ -609,6 +609,7 @@ public class GameDayManager : MonoBehaviour
         ApplyTakeoutUnlock();
         ApplyCustomerTypeUnlocks();
         ResetShiftRuntime();
+        HygieneManager.Instance?.ResetForShift();
 
         timeRemaining = ShiftLengthSeconds;
         shiftRunning = true;
@@ -2003,6 +2004,7 @@ public class GameDayManager : MonoBehaviour
     public void RegisterTrayCleaned()
     {
         if (!ServiceActive) return;
+        HygieneManager.Instance?.RecordLobbyIncident(false);
         traysCleaned++;
         RefreshUI();
     }
