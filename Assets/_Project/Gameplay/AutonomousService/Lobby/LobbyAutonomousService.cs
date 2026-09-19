@@ -1285,7 +1285,8 @@ public class LobbyAutonomousService : MonoBehaviour
         if (TakeoutBagInteractable.HeldBag != bag)
         {
             yield return waiter.MoveWithin(
-                bag.transform.position,
+                group.FastFood != null && group.FastFood.PickupApproach != null
+                    ? group.FastFood.PickupApproach.position : bag.transform.position,
                 pickupServiceDistance,
                 3f);
             if (!waiter.LastMoveSucceeded || bag == null)
@@ -1371,7 +1372,8 @@ public class LobbyAutonomousService : MonoBehaviour
         if (!hands.HasTray)
         {
             yield return waiter.MoveWithin(
-                tray.transform.position,
+                group.FastFood != null && group.FastFood.PickupApproach != null
+                    ? group.FastFood.PickupApproach.position : tray.transform.position,
                 pickupServiceDistance,
                 2f);
             if (!waiter.LastMoveSucceeded)
@@ -1475,7 +1477,9 @@ public class LobbyAutonomousService : MonoBehaviour
             }
 
             waiter.SetApproachingTarget(tray);
-            yield return waiter.MoveWithin(tray.transform.position, pickupServiceDistance, 2f);
+            yield return waiter.MoveWithin(tray.TargetGroup?.FastFood?.PickupApproach != null
+                ? tray.TargetGroup.FastFood.PickupApproach.position : tray.transform.position,
+                pickupServiceDistance, 2f);
             FoodTrayInteractable interactable = tray != null
                 ? tray.GetComponent<FoodTrayInteractable>()
                 : null;

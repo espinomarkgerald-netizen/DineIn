@@ -17,6 +17,8 @@ public sealed class FastFoodRestaurant : MonoBehaviour
     [SerializeField] private Transform cashierApproach;
     [SerializeField] private Transform customerExit;
     [SerializeField] private MoneyPickup cardPaymentPrefab;
+    [Tooltip("The Lobby2 surface that owns the authored navigation bake. Keep it on its original transform.")]
+    [SerializeField] private Unity.AI.Navigation.NavMeshSurface navigationSurface;
 
     [Header("Customer choices")]
     [SerializeField, Range(0f, 1f)] private float takeoutChance = .3f;
@@ -42,7 +44,11 @@ public sealed class FastFoodRestaurant : MonoBehaviour
     public bool Operational => isActiveAndEnabled && gameObject.scene.name == "Lobby2";
     public Transform CustomerExit => customerExit;
     public Transform CashierApproach => cashierApproach;
-    public bool HasNavigation => GetComponent<Unity.AI.Navigation.NavMeshSurface>()?.navMeshData != null
+    public Transform PickupApproach => customerPickupPoint;
+    public Unity.AI.Navigation.NavMeshSurface NavigationSurface => navigationSurface != null
+        ? navigationSurface : GetComponent<Unity.AI.Navigation.NavMeshSurface>();
+    public bool HasNavigation => NavigationSurface != null && NavigationSurface.isActiveAndEnabled
+        && NavigationSurface.navMeshData != null
         && cashierApproach != null && customerPickupPoint != null
         && NavMesh.SamplePosition(cashierApproach.position, out _, 1f, NavMesh.AllAreas)
         && NavMesh.SamplePosition(customerPickupPoint.position, out _, 1f, NavMesh.AllAreas);
@@ -181,7 +187,14 @@ public sealed class FastFoodRestaurant : MonoBehaviour
     }
     private void OnOutcome(CustomerGroup group, CustomerGroup.FinalResult result)
     {
+        if (group == null) return;
         readyWait.Remove(group);
+        if (currentCard != null && currentCard.TargetGroup == group)
+        {
+            CardPaymentUI.Instance?.CancelPayment();
+            Destroy(currentCard.gameObject);
+            currentCard = null;
+        }
         if (group != null && group.FastFoodPaid && result != CustomerGroup.FinalResult.Happy
             && !group.FastFoodWasServed && refunded.Add(group))
         {
@@ -233,6 +246,18 @@ public sealed class FastFoodRestaurant : MonoBehaviour
         paid.Remove(group);
         waitingSlots.Remove(group);
         counterQueue.ReleaseGroup(group);
+    }
+
+    public void FinishClosing()
+    {
+        // The existing closing grace period is over. Settle failed, unserved
+        // prepaid orders before the daily finance result is captured.
+        foreach (var group in paid.ToArray())
+            if (group != null && !group.FastFoodWasServed
+                && group.state != CustomerGroup.GroupState.Leaving
+                && group.state != CustomerGroup.GroupState.UnhappyLeft
+                && group.state != CustomerGroup.GroupState.AngryLeft)
+                group.FailFastFoodService("The restaurant closed before this order was served.");
     }
 
     public void RequestPaymentAfterReview(CustomerGroup group) => StartCoroutine(OpenAfterReview(group));

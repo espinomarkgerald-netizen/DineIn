@@ -135,6 +135,12 @@ internal static class LobbyHUDRootAuthoring
         GameObject instance = (GameObject)PrefabUtility.InstantiatePrefab(source, previewScene);
         instance.name = branchName;
         instance.transform.SetParent(parent, false);
+        // Screen-space canvas assets can carry a zero scale from their source scene.
+        // Do not save an invisible utility-button branch into the combined HUD.
+        if (instance.GetComponent<Canvas>() != null &&
+            (Mathf.Approximately(instance.transform.localScale.x, 0f) ||
+             Mathf.Approximately(instance.transform.localScale.y, 0f)))
+            instance.transform.localScale = Vector3.one;
         PrefabUtility.UnpackPrefabInstance(
             instance,
             PrefabUnpackMode.Completely,

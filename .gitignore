@@ -4,6 +4,10 @@
 #
 .utmp/
 /[Ll]ibrary/
+# Local Unity cache retained during crash recovery
+/Library_CrashBackup/
+# Python validation cache
+__pycache__/
 /[Tt]emp/
 /[Oo]bj/
 /[Bb]uild/

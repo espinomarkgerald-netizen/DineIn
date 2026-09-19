@@ -113,6 +113,9 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
 
     private Transform ResolveStandPoint()
     {
+        if (mode == TrayMode.Delivery && tray != null && tray.TargetGroup != null
+            && tray.TargetGroup.FastFood != null && tray.TargetGroup.FastFood.PickupApproach != null)
+            return tray.TargetGroup.FastFood.PickupApproach;
         if (mode == TrayMode.Cleanup)
         {
             // A used tray is sitting on a non-walkable tabletop. Use the same

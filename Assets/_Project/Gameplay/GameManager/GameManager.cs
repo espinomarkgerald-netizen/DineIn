@@ -697,6 +697,7 @@ public class GameDayManager : MonoBehaviour
         }
 
         if (ObserveDayOnly || (MultiplayerDayBridge.IsActive && !MultiplayerSessionManager.Instance.IsAuthority)) yield break;
+        FastFoodRestaurant.For(this)?.FinishClosing();
         closingOut = false;
         closingResultsRoutine = null;
         if (MultiplayerDayBridge.IsActive)

@@ -1,5 +1,6 @@
 #if UNITY_EDITOR
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Unity.AI.Navigation;
 using UnityEditor;
@@ -11,7 +12,7 @@ using UnityEngine.SceneManagement;
 /// <summary>Explicit edit-time tools. Nothing runs automatically on import or in Play mode.</summary>
 public static class FastFoodSceneTools
 {
-    private const string NavigationPath = "Assets/_Project/Scenes/RoleBased/Lobby2Navigation.asset";
+    private const string NavigationPath = "Assets/_Project/Scenes/RoleBased/Lobby2/NavMesh-Fast Food Revamp.asset";
 
     private static FastFoodRestaurant Restaurant()
     {
@@ -37,17 +38,37 @@ public static class FastFoodSceneTools
             Require(waiting.GetArrayElementAtIndex(i).objectReferenceValue != null, "Missing waiting point " + i);
         var tables = data.FindProperty("diningTables");
         Require(tables.arraySize > 0, "Author at least one dining table.");
+        var registered = new HashSet<Booth>();
         for (int i = 0; i < tables.arraySize; i++)
         {
             var booth = tables.GetArrayElementAtIndex(i).objectReferenceValue as Booth;
             Require(booth != null && booth.gameObject.activeInHierarchy, "Inactive/missing dining table " + i);
+            Require(registered.Add(booth), booth.name + ": registered more than once.");
+            Require(PrefabUtility.IsPartOfPrefabInstance(booth), booth.name + ": use an authored Fast Food table prefab.");
             Require(booth.approachPoint != null && booth.NetworkTrayPoint != null && booth.seats.Count > 0 && booth.seats.All(seat => seat != null), booth.name + ": missing service anchors.");
-            Require(booth.GetComponent<BoothDeliverInteractable>() != null, booth.name + ": missing tray delivery interaction.");
+            Require(booth.seats.Distinct().Count() == booth.seats.Count && booth.seats.All(seat => seat.IsChildOf(booth.transform)), booth.name + ": duplicate or foreign seats.");
+            Require(booth.seats.Select(seat => seat.position).Distinct().Count() == booth.seats.Count, booth.name + ": overlapping seats.");
+            Require(booth.approachPoint.IsChildOf(booth.transform) && booth.NetworkTrayPoint.IsChildOf(booth.transform), booth.name + ": service points belong to another object.");
+            Require(booth.GetComponentsInChildren<BoothDeliverInteractable>(true).Length == 1, booth.name + ": needs exactly one tray delivery interaction.");
+            Require(booth.GetComponent<BoothDeliverInteractable>().DeliveryPoint == booth.NetworkTrayPoint, booth.name + ": delivery and tray points disagree.");
+            Require(booth.GetComponentsInChildren<CustomerDeliverInteractable>(true).Length == 0, booth.name + ": duplicate legacy delivery interaction.");
+            Require(booth.GetComponents<Collider>().Any(collider => collider.enabled), booth.name + ": no enabled click collider.");
             Require(booth.gameObject.layer == LayerMask.NameToLayer("Booth"), booth.name + ": incorrect interaction layer.");
-            Require(booth.GetComponentInChildren<BoothMessCleanUI>(true) != null, booth.name + ": missing cleaning UI.");
+            Require(booth.GetComponentsInChildren<BoothMessCleanUI>(true).Length == 1, booth.name + ": missing or duplicate cleaning UI.");
             var table = booth.GetComponent<FastFoodTable>();
-            Require(table != null && table.Furniture != null, booth.name + ": imported furniture could not be resolved.");
+            Require(table != null && table.Furniture != null && table.Furniture.transform.IsChildOf(booth.transform), booth.name + ": furniture must be inside its prefab.");
+            var hygiene = booth.GetComponent<HygieneSurface>();
+            Require(hygiene != null && !hygiene.exclude && hygiene.area == HygieneArea.Lobby && hygiene.kind == HygieneSurfaceKind.Dining, booth.name + ": missing dining hygiene settings.");
+            var boothData = new SerializedObject(booth);
+            foreach (string field in new[] { "tableLookTarget", "tableNumberAnchor", "cleanUIRoot", "cleanUI" })
+                Require(boothData.FindProperty(field).objectReferenceValue != null, booth.name + ": missing " + field);
+            Require(boothData.FindProperty("menuBookPrefab").objectReferenceValue == null && booth.CurrentGroup == null && !booth.IsDirty, booth.name + ": prefab contains legacy menu or runtime state.");
+            Require(!booth.GetComponentsInChildren<MonoBehaviour>(true).Any(component => component != null &&
+                (component.GetType().Name == "BoothMoneySpawner" || component.GetType().Name == "PaymentPickupInteractable" || component.GetType().Name == "BoothPuddleSpawner")), booth.name + ": legacy table billing/spill component.");
         }
+        Require(SceneComponents<FastFoodTable>(restaurant).All(table => registered.Contains(table.GetComponent<Booth>())), "A Fast Food table is missing from diningTables.");
+        foreach (var transform in SceneComponents<Transform>(restaurant))
+            Require(GameObjectUtility.GetMonoBehavioursWithMissingScriptCount(transform.gameObject) == 0, transform.name + ": missing script.");
         var kitchen = data.FindProperty("kitchen").objectReferenceValue as KitchenManager;
         var kitchenData = new SerializedObject(kitchen);
         Require(kitchen.foodTrayPrefab != null && kitchen.traySpawnPoints.Length > 0, "Missing dine-in kitchen output.");
@@ -56,7 +77,49 @@ public static class FastFoodSceneTools
         Require(services.Length == 1 && services[0].GetComponent<GameDayManager>() != null,
             "Author one staff service on GameManager so its existing bootstrap does not add a second instance.");
         Require(restaurant.GetComponentInChildren<SinkInteractable>() != null, "Missing active Fast Food sink.");
+        ValidateStations(restaurant);
+        ValidateHUD();
+        Require(restaurant.NavigationSurface != null && restaurant.NavigationSurface.gameObject.scene == restaurant.gameObject.scene
+            && restaurant.NavigationSurface.isActiveAndEnabled, "Assign the active Lobby2 navigation surface to Fast Food Services.");
         Debug.Log("[FastFood] Lobby2 structure passed. This does not validate gameplay or navigation.", restaurant);
+    }
+
+    private static T[] SceneComponents<T>(FastFoodRestaurant restaurant) where T : Component =>
+        restaurant.gameObject.scene.GetRootGameObjects().SelectMany(root => root.GetComponentsInChildren<T>(true))
+            .Where(component => component.gameObject.activeInHierarchy).ToArray();
+
+    private static void ValidateStations(FastFoodRestaurant restaurant)
+    {
+        var computers = SceneComponents<ManagementComputerStation>(restaurant);
+        var counters = SceneComponents<FastFoodCounter>(restaurant);
+        var sinks = SceneComponents<SinkInteractable>(restaurant);
+        Require(computers.Length == 1 && counters.Length == 1 && sinks.Length == 1, "Author one active computer, Fast Food cashier and sink.");
+        foreach (Component component in new Component[] { computers[0], counters[0], sinks[0] })
+        {
+            var station = (IInteractable)component;
+            var stationData = new SerializedObject(component);
+            Require(component.GetComponents<Collider>().Any(collider => collider.enabled), component.name + ": missing authored click collider.");
+            Require(stationData.FindProperty("standPoint").objectReferenceValue != null && station.StandPoint.IsChildOf(component.transform), component.name + ": author a stand point inside the station.");
+        }
+        Require(new SerializedObject(computers[0]).FindProperty("controller").objectReferenceValue != null, "Connect the computer to ManagementComputerCanvas.");
+        Require(new SerializedObject(counters[0]).FindProperty("restaurant").objectReferenceValue == restaurant, "Cashier is connected to the wrong restaurant.");
+        Require(restaurant.gameObject.scene.GetRootGameObjects().SelectMany(root => root.GetComponentsInChildren<CashierRegisterUI>(true)).Count() == 1, "Missing/duplicate cashier UI.");
+    }
+
+    private static void ValidateHUD()
+    {
+        var root = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Project/Resources/UI/LobbyHUD.prefab");
+        Require(root != null && root.GetComponent<LobbyHUDRoot>() != null, "Missing complete LobbyHUD prefab.");
+        var controls = root.GetComponentInChildren<LobbyHUDRedesign>(true);
+        Require(controls != null && root.GetComponentInChildren<CasualDiningProgressHUD>(true) != null
+            && root.GetComponentInChildren<PlayerTaskHUD>(true) != null && root.GetComponentInChildren<LobbyPauseMenuView>(true) != null, "Incomplete combined HUD.");
+        foreach (var canvas in root.GetComponentsInChildren<Canvas>(true))
+            Require(canvas.transform.localScale.x > 0f && canvas.transform.localScale.y > 0f, canvas.name + ": zero HUD canvas scale.");
+        foreach (string button in new[] { "CameraButton", "ComputerButton", "NewspaperButton", "TaskButton" })
+        {
+            var transform = controls.transform.Find("SafeArea/" + button);
+            Require(transform != null && transform.gameObject.activeSelf && transform.GetComponent<UnityEngine.UI.Button>() != null, "Missing/inactive HUD button: " + button);
+        }
     }
 
     [MenuItem("Dine In/Fast Food/Bake Lobby2 Navigation")]
@@ -64,12 +127,16 @@ public static class FastFoodSceneTools
     {
         FastFoodRestaurant restaurant = Restaurant();
         Validate();
-        NavMeshSurface surface = restaurant.GetComponent<NavMeshSurface>();
+        NavMeshSurface surface = restaurant.NavigationSurface;
         Require(surface != null, "Fast Food Services needs its authored NavMeshSurface.");
+        // Never overwrite a shared or other restaurant's navigation asset.
+        string existingPath = AssetDatabase.GetAssetPath(surface.navMeshData);
+        string destination = existingPath.StartsWith("Assets/_Project/Scenes/RoleBased/Lobby2/", StringComparison.Ordinal)
+            ? existingPath : NavigationPath;
         surface.BuildNavMesh();
         Require(surface.navMeshData != null, "Lobby2 navigation bake returned no data.");
-        var asset = AssetDatabase.LoadAssetAtPath<NavMeshData>(NavigationPath);
-        if (asset == null) AssetDatabase.CreateAsset(surface.navMeshData, NavigationPath);
+        var asset = AssetDatabase.LoadAssetAtPath<NavMeshData>(destination);
+        if (asset == null) AssetDatabase.CreateAsset(surface.navMeshData, destination);
         else
         {
             surface.RemoveData();
@@ -92,7 +159,7 @@ public static class FastFoodSceneTools
     public static void ValidateNavigation()
     {
         var restaurant = Restaurant();
-        var surface = restaurant.GetComponent<NavMeshSurface>();
+        var surface = restaurant.NavigationSurface;
         Require(surface != null && surface.navMeshData != null, "Lobby2 navigation has not been baked. Use Dine In > Fast Food > Bake Lobby2 Navigation.");
         var data = new SerializedObject(restaurant);
         var start = (Transform)data.FindProperty("cashierApproach").objectReferenceValue;
@@ -100,7 +167,7 @@ public static class FastFoodSceneTools
         var points = restaurant.gameObject.scene.GetRootGameObjects().SelectMany(root => root.GetComponentsInChildren<Transform>())
             .Where(t => t.name == "ApproachPoint" && t.GetComponentInParent<FastFoodTable>() != null
                 || t.name.StartsWith("Paid Waiting ") || t.name == "Customer Pickup Approach"
-                || t.name == "Customer Order Point" || t.name == "Sink Approach"
+                || t.name == "Customer Order Point" || t.name == "Sink Approach" || t.name == "ManagementComputerStandPoint"
                 || t.name == "Customer Entrance" || t.name == "Customer Exit"
                 || t.name.EndsWith("HomePoint") || t.name.EndsWith("TrolleyParkingPoint")
                 || t.name == "ChefPrepPoint" || t.name == "ChefCookPoint"

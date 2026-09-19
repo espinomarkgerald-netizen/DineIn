@@ -90,6 +90,20 @@ public class TakeoutBagInteractable : MonoBehaviour
         if (hands == null)
             return;
 
+        if (targetGroup != null && targetGroup.FastFood != null)
+        {
+            var mover = RoleManager.Instance?.GetActivePlayerMovement();
+            var approach = targetGroup.FastFood.PickupApproach;
+            if (isHeld || HeldBag != null || hands.HasTray || hands.HasBill || hands.HasMoney || hands.HasTicket
+                || mover == null || approach == null || !RestaurantTaskClaim.TryClaimPlayer(this)) return;
+            bool moving = mover.UI_MoveToAction(approach, 1.4f, () =>
+            {
+                if (this != null && !TryPickupInternal(hands, true)) RestaurantTaskClaim.ReleasePlayer(this);
+            }, () => RestaurantTaskClaim.ReleasePlayer(this));
+            if (!moving) RestaurantTaskClaim.ReleasePlayer(this);
+            return;
+        }
+
         if (!TryPickupInternal(hands, true))
             return;
     }

@@ -46,7 +46,7 @@ public partial class CustomerGroup
             SetServiceType(ServiceType.DineIn);
             SetState(GroupState.Waiting);
             StopLinePatience();
-            ShowCustomThought("We'll wait for a table.", happyFaceSprite);
+            ShowCustomThought(Size == 1 ? "I'll find a seat." : "We'll find a table.", happyFaceSprite);
         }
         SpawnTableNumber();
         return true;
