@@ -30,6 +30,34 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
     private bool uiHiddenUntilStateChange;
     private bool claimedByStaff;
     private bool staffCarried;
+    private CustomerGroup customerCarrier;
+    public bool IsCustomerReserved => customerCarrier != null;
+
+    public bool TryBeginCustomerPickup(CustomerGroup owner)
+    {
+        if (owner == null || owner.FastFood == null || tray == null || tray.TargetGroup != owner ||
+            mode != TrayMode.Delivery || staffCarried || customerCarrier != null ||
+            RestaurantTaskClaim.IsClaimedByPlayer(tray) || RestaurantTaskClaim.IsClaimedByBot(tray)) return false;
+        modeBeforeStaffPickup = mode;
+        queueBeforeStaffPickup = queueOwner;
+        readySinceBeforeStaffPickup = readySince;
+        queueOwner?.Unregister(this);
+        queueOwner = null;
+        mode = TrayMode.None;
+        customerCarrier = owner;
+        pickupRequested = false;
+        HideUI();
+        return true;
+    }
+
+    public void RestoreAfterCustomerPickup(CustomerGroup owner)
+    {
+        if (customerCarrier != owner) return;
+        customerCarrier = null;
+        staffCarried = true; // Restore the same queue and ready timestamp.
+        RestoreAfterStaffPickup();
+    }
+
     private bool complaintRemoval;
     private TrayMode modeBeforeStaffPickup = TrayMode.None;
     private TrayPickupQueue queueBeforeStaffPickup;
@@ -176,6 +204,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
 
     public void NotifyDeliveredToTable()
     {
+        customerCarrier = null;
         if (queueOwner != null)
             queueOwner.Unregister(this);
         if (queueBeforeStaffPickup != null && queueBeforeStaffPickup != queueOwner)
@@ -313,6 +342,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
 
         if (mode == TrayMode.Delivery)
         {
+            if (tray.TargetGroup != null && tray.TargetGroup.FastFood != null) return false;
             if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Waiter))
                 return false;
 
@@ -482,6 +512,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
 
         if (mode == TrayMode.Delivery)
         {
+            if (tray.TargetGroup != null && tray.TargetGroup.FastFood != null) return false;
             if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Waiter))
             {
                 ShowWarning("Only the waiter can deliver food.");
@@ -607,6 +638,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
 
         if (mode == TrayMode.Delivery)
         {
+            if (tray != null && tray.TargetGroup != null && tray.TargetGroup.FastFood != null) { HideUI(); return; }
             if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Waiter))
             {
                 HideUI();

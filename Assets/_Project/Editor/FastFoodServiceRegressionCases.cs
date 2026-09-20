@@ -88,22 +88,53 @@ public static class FastFoodServiceRegressionCases
             Set(restaurant, "serviceStations", new[] { kiosk, counter });
             restaurantRoot.SetActive(true);
             Call(d, "ConfigureFastFood", restaurant, false);
+            Call(b, "ConfigureFastFood", restaurant, false);
+            Call(c, "ConfigureFastFood", restaurant, false);
             var ownership = (Dictionary<CustomerGroup, FastFoodServiceStation>)typeof(FastFoodRestaurant)
                 .GetField("stationOwners", Fields).GetValue(restaurant);
-            ownership.Add(d, kiosk);
+            ownership.Add(d, counter);
+            Set(restaurant, "serviceAvailable", true);
+            Set(restaurant, "acceptingCustomers", true);
+            Set(restaurant, "waitingPoints", new[] { Fixture("paid waiting").transform });
+            Set(restaurant, "outsideWaitingPoints", new[] { Fixture("outside waiting").transform });
+            var pickups = new[] { Fixture("pickup one").transform, Fixture("pickup two").transform };
+            Set(restaurant, "customerPickupSlots", pickups);
+            counter.gameObject.SetActive(true);
+            kiosk.gameObject.SetActive(true);
             d.currentOrderNumber = 77;
             d.state = CustomerGroup.GroupState.OrderTaken;
             Set(d, "hasConfirmedOrder", true);
-            d.SetTakeoutQueueState(CustomerGroup.TakeoutQueueState.AtOrderPoint);
-            restaurant.TransferToCounter(d);
-            Assert(otherQueue.CurrentFront == d && queue.Count == 0 && d.currentOrderNumber == 77 && d.HasConfirmedOrder,
-                "Kiosk transfer lost the order or retained the original queue slot.");
+            queue.Remove(d);
+            otherQueue.Enqueue(d);
+            d.SetTakeoutQueueState(CustomerGroup.TakeoutQueueState.WalkingToOrderPoint);
+            Call(otherFlow, "SyncFrontCustomer");
             Assert(!restaurant.CanSettle(d), "Payment was accepted before arrival at the counter.");
             d.SetTakeoutQueueState(CustomerGroup.TakeoutQueueState.AtOrderPoint);
             Call(otherFlow, "SyncFrontCustomer");
             Assert(TakeoutFlowManager.For(d) == otherFlow && TakeoutQueueManager.For(d) == otherQueue &&
                 otherFlow.CurrentPhase == TakeoutFlowManager.TakeoutPhase.WaitingForPayment,
-                "A kiosk order was reviewed again or used the wrong station.");
+                "A confirmed counter order was reviewed again or used the wrong station.");
+            Assert(new SerializedObject(kiosk).FindProperty("kioskOrderSeconds").floatValue < counter.CashierOrderSeconds + counter.CashierPaymentSeconds,
+                "Default kiosk ordering should be faster than counter order plus payment.");
+            var paidSlots = (Dictionary<CustomerGroup, int>)typeof(FastFoodRestaurant).GetField("waitingSlots", Fields).GetValue(restaurant);
+            paidSlots[b] = 0;
+            Assert(!restaurant.CanSettle(d), "Payment overbooked the paid waiting area.");
+            paidSlots.Clear();
+            restaurant.StopAdmissions();
+            Assert(!restaurant.CanAdmitCustomer && restaurant.CanSettle(d),
+                "Closing admissions interrupted a customer already admitted for service.");
+            Assert(restaurant.TryReservePickup(b, out var pickupB) && restaurant.TryReservePickup(c, out var pickupC) && pickupB != pickupC,
+                "Two customers reserved the same pickup position.");
+            Assert(!restaurant.TryReservePickup(d, out _), "Pickup capacity was exceeded.");
+            restaurant.ReleasePickup(b); restaurant.ReleasePickup(b);
+            Assert(restaurant.TryReservePickup(d, out var pickupD) && pickupD == pickupB,
+                "Released pickup position could not be reused.");
+            restaurant.ReleasePickup(c); restaurant.ReleasePickup(d);
+            Set(restaurant, "acceptingCustomers", true);
+            var outdoor = (List<CustomerGroup>)typeof(FastFoodRestaurant).GetField("outsideQueue", Fields).GetValue(restaurant);
+            outdoor.Add(b);
+            Assert(!restaurant.CanAdmitCustomer, "A full outdoor FIFO admitted a new group ahead of its waiting customer.");
+            outdoor.Clear();
             Assert(restaurant.ReserveSettlement(d) && !restaurant.ReserveSettlement(d), "Payment could be reserved twice.");
             Assert(!restaurant.ReserveSettlement(b), "Non-front customer could reserve payment.");
             flow.ResetFastFoodDay(); queue.ResetFastFoodDay();
@@ -126,7 +157,7 @@ public static class FastFoodServiceRegressionCases
             Object.DestroyImmediate(targetRoot);
             Call(selector, "LateUpdate");
             Assert(selector.CurrentSelection == null && mover.CommandVersion == command, "Destroyed selection retained a target or issued input.");
-            Debug.Log("[FastFood] PASS: FIFO, unchanged slots, destroyed front, duplicate removal/departure, overflow, settlement reservation, day reset, presentation-only selection.");
+            Debug.Log("[FastFood] PASS: FIFO, unchanged slots, destroyed front, duplicate removal/departure, overflow, counter arrival, paid/outdoor capacity, closing grace, exclusive pickup, settlement reservation, day reset, presentation-only selection.");
         }
         finally
         {

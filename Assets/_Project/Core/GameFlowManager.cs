@@ -53,6 +53,7 @@ public class GameFlowManager : MonoBehaviour
     [SerializeField] private bool lobbyCompleted;
     [SerializeField] private bool kitchenCompleted;
     private int financeSettledDay = -1;
+    private bool fastFoodServiceStarted;
 
     [Header("UI")]
     [SerializeField] private TMP_Text dayText;
@@ -75,9 +76,9 @@ public class GameFlowManager : MonoBehaviour
     public RestaurantSessionState CurrentRestaurantSessionState => restaurantSessionState;
     public bool HasUnfinishedRestaurantDay => useSingleRestaurantFlow &&
         (restaurantSessionState == RestaurantSessionState.PreOpen ||
-         restaurantSessionState == RestaurantSessionState.Running);
+         restaurantSessionState == RestaurantSessionState.Running || fastFoodServiceStarted);
     public bool HasRunningRestaurantDay => useSingleRestaurantFlow &&
-        restaurantSessionState == RestaurantSessionState.Running;
+        (restaurantSessionState == RestaurantSessionState.Running || fastFoodServiceStarted);
     public bool RestaurantDayHasTerminalOutcome => TryGetRestaurantDayOutcome(out _);
 
     public event Action<int> OnDayChanged;
@@ -183,6 +184,7 @@ public class GameFlowManager : MonoBehaviour
 
             currentDay = MultiplayerRestaurantBridge.IsActive ? currentDay + 1 : Mathf.Min(currentDay + 1, campaignDayLimit);
             PrepareRestaurantDay();
+            if (restaurantSceneName == "Lobby2") GameSaveManager.Instance?.RequestSave();
             LoadRestaurantScene();
             return;
         }
@@ -401,6 +403,7 @@ public class GameFlowManager : MonoBehaviour
         // Preparation choices must persist normally. The rollback checkpoint is
         // captured only when service begins, after those choices are complete.
         GameSaveManager.Instance?.CaptureDayStartCheckpoint();
+        fastFoodServiceStarted = restaurantSceneName == "Lobby2";
         restaurantSessionState = campaignCompleted
             ? RestaurantSessionState.Endless
             : RestaurantSessionState.Running;
@@ -524,6 +527,7 @@ public class GameFlowManager : MonoBehaviour
         data.lobbyCompleted = lobbyCompleted;
         data.kitchenCompleted = kitchenCompleted;
         data.campaignCompleted = campaignCompleted;
+        data.fastFoodDayComplete = restaurantSceneName == "Lobby2" && restaurantSessionState == RestaurantSessionState.DayComplete;
     }
 
     public void ApplySaveData(GameSaveData data)
@@ -531,6 +535,8 @@ public class GameFlowManager : MonoBehaviour
         if (data == null)
             return;
 
+        fastFoodServiceStarted = false;
+        financeSettledDay = data.fastFoodDayComplete && restaurantSceneName == "Lobby2" ? data.currentDay : -1;
         currentDay = MultiplayerRestaurantBridge.IsActive ? Mathf.Max(1, data.currentDay) : Mathf.Clamp(data.currentDay, 1, 30);
         currentPhase = (GamePhase)Mathf.Clamp(data.currentPhase, 0, Enum.GetValues(typeof(GamePhase)).Length - 1);
         currentDayHalf = (DayHalf)Mathf.Clamp(data.currentDayHalf, 0, Enum.GetValues(typeof(DayHalf)).Length - 1);
@@ -547,6 +553,8 @@ public class GameFlowManager : MonoBehaviour
                 : RestaurantSessionState.PreOpen;
         }
 
+        if (restaurantSceneName == "Lobby2" && data.fastFoodDayComplete)
+            restaurantSessionState = RestaurantSessionState.DayComplete;
         RefreshDayText();
         NotifyDayChanged();
     }
@@ -598,6 +606,12 @@ public class GameFlowManager : MonoBehaviour
         if (restaurantSessionState != RestaurantSessionState.DayComplete)
             return;
 
+        if (restaurantSceneName == "Lobby2" && GameSaveManager.Instance != null &&
+            !GameSaveManager.Instance.CommitRestaurantResults())
+        {
+            WarningSlideUI.Instance?.Show("Your day report could not be saved. Please try again.");
+            return;
+        }
         EvaluateRestaurantDay();
     }
 
@@ -613,8 +627,9 @@ public class GameFlowManager : MonoBehaviour
         if (!useSingleRestaurantFlow || restaurantSessionState == RestaurantSessionState.DayComplete)
             return;
 
+        fastFoodServiceStarted = false;
         restaurantSessionState = RestaurantSessionState.DayComplete;
-        GameSaveManager.Instance?.CommitDayCheckpoint();
+        if (restaurantSceneName != "Lobby2") GameSaveManager.Instance?.CommitDayCheckpoint();
         EndOfDayFinance();
 
         if (!campaignCompleted)
@@ -625,7 +640,8 @@ public class GameFlowManager : MonoBehaviour
 
         CasualDiningPolishManager.EnsureInstance()?.FinalizeDay(currentDay);
 
-        GameSaveManager.Instance?.RequestSave();
+        if (restaurantSceneName == "Lobby2") GameSaveManager.Instance?.CommitRestaurantResults();
+        else GameSaveManager.Instance?.RequestSave();
     }
 
     public bool TryGetRestaurantDayOutcome(out GameOverReason reason)
@@ -686,6 +702,7 @@ public class GameFlowManager : MonoBehaviour
         if (currentDay >= campaignDayLimit)
         {
             PrepareRestaurantDay();
+            if (restaurantSceneName == "Lobby2") GameSaveManager.Instance?.RequestSave();
             LoadRestaurantScene();
         }
         else
@@ -742,6 +759,7 @@ public class GameFlowManager : MonoBehaviour
         Time.timeScale = 1f;
         PrepareRestaurantDay();
         restaurantSessionState = RestaurantSessionState.Endless;
+        if (restaurantSceneName == "Lobby2") GameSaveManager.Instance?.RequestSave();
         LoadRestaurantScene();
     }
 
@@ -755,6 +773,7 @@ public class GameFlowManager : MonoBehaviour
 
     private void PrepareRestaurantDay()
     {
+        fastFoodServiceStarted = false;
         if (MultiplayerRestaurantBridge.IsObserver) return;
         financeSettledDay = -1;
         currentDay = MultiplayerRestaurantBridge.IsActive ? Mathf.Max(1, currentDay) : Mathf.Clamp(currentDay, 1, campaignDayLimit);
@@ -812,6 +831,7 @@ public class GameFlowManager : MonoBehaviour
 
     private void ConfigureSingleRestaurantFlow(string sceneName)
     {
+        CampaignSaveStore.SelectRestaurant(sceneName);
         useSingleRestaurantFlow = true;
         restaurantSceneName = sceneName;
         campaignDayLimit = Mathf.Max(1, campaignDayLimit);

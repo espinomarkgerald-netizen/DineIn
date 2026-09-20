@@ -13,7 +13,11 @@ using SyncAction = CampaignSyncPolicy.Action;
 /// <summary>Local-first, whole-snapshot sync using PlayFab's optimistic concurrency control.</summary>
 public sealed class CampaignCloudSync : MonoBehaviour
 {
-    private const string FileName = "CampaignSave_v1.json";
+    private string operationRestaurant;
+    private string operationFileName;
+    private string operationStatePath;
+    private string lastRestaurant;
+    private string FileName => operationFileName;
     [Serializable] private sealed class SyncState
     {
         public string account;
@@ -29,7 +33,7 @@ public sealed class CampaignCloudSync : MonoBehaviour
     private float pendingVersionSince;
     public static bool HasConflict { get; private set; }
     public static string Status { get; private set; } = "Campaign saves locally. Cloud sync is waiting for an account.";
-    private static string StatePath => CampaignSaveStore.SavePath + ".cloud_state.json";
+    private string StatePath => operationStatePath;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     private static void Install()
@@ -45,7 +49,11 @@ public sealed class CampaignCloudSync : MonoBehaviour
     private void SceneLoaded(Scene scene, LoadSceneMode mode)
     {
         if (scene.name == "NewGameMenu" || scene.name == "NewMainMenu") CampaignSaveStore.NeedsReload = true;
-        if (scene.name == "Lobby1") ReloadCampaign();
+        if (scene.name == "Lobby1" || scene.name == "Lobby2")
+        {
+            CampaignSaveStore.SelectRestaurant(scene.name);
+            ReloadCampaign();
+        }
         nextCheck = 0f;
     }
     private void ReloadCampaign()
@@ -60,9 +68,9 @@ public sealed class CampaignCloudSync : MonoBehaviour
         if (CampaignSaveStore.ProtectedSession) return;
         string account = PlayFabAuthManager.Instance != null && PlayFabAuthManager.Instance.IsLoggedIn
             ? PlayFabAuthManager.Instance.PlayFabId : null;
-        if (lastAccount != account)
+        if (lastAccount != account || lastRestaurant != CampaignSaveStore.RestaurantScene)
         {
-            lastAccount = account; nextCheck = 0f; lastNotice = null;
+            lastAccount = account; lastRestaurant = CampaignSaveStore.RestaurantScene; nextCheck = 0f; lastNotice = null;
             uploadPending = false; pendingProfileVersion = -1; HasConflict = false;
         }
         if (busy || Time.unscaledTime < nextCheck) return;
@@ -81,13 +89,17 @@ public sealed class CampaignCloudSync : MonoBehaviour
         catch (Exception e) { Failed(e.Message); }
     }
 
-    private static bool StillCurrent(PlayFabAuthenticationContext context) =>
+    private bool StillCurrent(PlayFabAuthenticationContext context) =>
+        operationRestaurant == CampaignSaveStore.RestaurantScene &&
         !CampaignSaveStore.ProtectedSession && PlayFabAuthManager.Instance != null &&
         PlayFabAuthManager.Instance.IsLoggedIn && PlayFabAuthManager.Instance.PlayFabId == context.PlayFabId &&
         PlayFabSettings.staticPlayer.ClientSessionTicket == context.ClientSessionTicket;
 
     private void Sync(PlayFabAuthenticationContext context)
     {
+        operationRestaurant = CampaignSaveStore.RestaurantScene;
+        operationFileName = CampaignSaveStore.CloudFileName;
+        operationStatePath = CampaignSaveStore.SavePath + ".cloud_state.json";
         var local = CampaignSaveStore.Read();
         var state = File.Exists(StatePath) ? JsonUtility.FromJson<SyncState>(File.ReadAllText(StatePath)) : new SyncState();
         if (state == null || File.Exists(StatePath) && string.IsNullOrEmpty(state.account))
@@ -251,8 +263,8 @@ public sealed class CampaignCloudSync : MonoBehaviour
             FileNames = new List<string> { FileName }
         }, _ => Failed("Upload interrupted; will retry."), error => Failed(error.ErrorMessage));
     }
-    private static void SaveState(SyncState state) => CampaignSaveStore.AtomicWrite(StatePath, JsonUtility.ToJson(state));
-    private static void Acknowledge(SyncState state, string account, string hash)
+    private void SaveState(SyncState state) => CampaignSaveStore.AtomicWrite(StatePath, JsonUtility.ToJson(state));
+    private void Acknowledge(SyncState state, string account, string hash)
     {
         state.account = account;
         state.baseHash = hash;

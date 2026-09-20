@@ -30,6 +30,54 @@ public class CustomerAgent : MonoBehaviour
     public Animator MovementAnimator => animator;
     public Transform HeadAnchor => ResolveHeadAnchor();
 
+    [Header("Tray carrying (authored on the customer prefab)")]
+    [SerializeField] private Transform trayCarryAnchor;
+    // Retained serialized references for prefab compatibility. Hand targets belong to the tray.
+    [SerializeField, HideInInspector] private Transform trayLeftGrip;
+    [SerializeField, HideInInspector] private Transform trayRightGrip;
+    [SerializeField, Min(.01f)] private float trayPoseBlendSeconds = .15f;
+    private FoodTray carriedFoodTray;
+    private FoodTrayCarryPose carryPose;
+    private Vector3 originalTrayScale;
+    private float carryWeight;
+    private Vector3 releasedLeftGrip, releasedRightGrip;
+    private Quaternion releasedLeftRotation, releasedRightRotation;
+    public Transform TrayCarryAnchor => trayCarryAnchor;
+    public Transform TrayLeftGrip => carryPose != null ? carryPose.LeftGrip : null;
+    public Transform TrayRightGrip => carryPose != null ? carryPose.RightGrip : null;
+    public float TrayCarryWeight => carryWeight;
+    public Vector3 TrayLeftGripPosition => carryPose != null ? carryPose.LeftGrip.position : releasedLeftGrip;
+    public Vector3 TrayRightGripPosition => carryPose != null ? carryPose.RightGrip.position : releasedRightGrip;
+    public Quaternion TrayLeftGripRotation => carryPose != null ? carryPose.LeftGrip.rotation : releasedLeftRotation;
+    public Quaternion TrayRightGripRotation => carryPose != null ? carryPose.RightGrip.rotation : releasedRightRotation;
+
+    public bool BeginTrayCarry(FoodTray tray)
+    {
+        if (tray == null || carriedFoodTray != null || trayCarryAnchor == null) return false;
+        var pose = tray.GetComponent<FoodTrayCarryPose>();
+        if (pose == null || !pose.IsValid) return false;
+        carriedFoodTray = tray;
+        carryPose = pose;
+        originalTrayScale = tray.transform.lossyScale;
+        WaiterHands.SetAllColliders(tray.gameObject, false);
+        tray.transform.SetParent(null, true);
+        tray.transform.localScale = Vector3.one * pose.CarryWorldScale;
+        WaiterHands.AttachKeepingWorldScale(tray.transform, trayCarryAnchor, Vector3.zero, Quaternion.identity);
+        tray.transform.position += trayCarryAnchor.position - pose.CarryOrigin.position;
+        return true;
+    }
+
+    public void EndTrayCarry(FoodTray tray)
+    {
+        if (carriedFoodTray == null || carriedFoodTray != tray) return;
+        releasedLeftGrip = TrayLeftGripPosition; releasedRightGrip = TrayRightGripPosition;
+        releasedLeftRotation = TrayLeftGripRotation; releasedRightRotation = TrayRightGripRotation;
+        tray.transform.SetParent(null, true);
+        tray.transform.localScale = originalTrayScale;
+        carriedFoodTray = null;
+        carryPose = null;
+    }
+
     [Header("Arrival Tuning")]
     [SerializeField] private float fallbackArriveDistance = 0.55f;
     [SerializeField] private float destinationSampleRadius = 1.5f;
@@ -154,6 +202,16 @@ public class CustomerAgent : MonoBehaviour
 
     private void LateUpdate()
     {
+        if (carriedFoodTray != null && carryPose != null && carryPose.IsValid)
+        {
+            releasedLeftGrip = carryPose.LeftGrip.position;
+            releasedRightGrip = carryPose.RightGrip.position;
+            releasedLeftRotation = carryPose.LeftGrip.rotation;
+            releasedRightRotation = carryPose.RightGrip.rotation;
+        }
+        else carryPose = null; // A cancelled order can destroy the tray before its collector resumes.
+        carryWeight = Mathf.MoveTowards(carryWeight, carriedFoodTray != null && carryPose != null ? 1f : 0f,
+            Time.deltaTime / Mathf.Max(.01f, trayPoseBlendSeconds));
         proceduralAnimation?.LateUpdate();
     }
 

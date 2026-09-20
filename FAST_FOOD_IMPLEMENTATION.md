@@ -1,125 +1,156 @@
 # Lobby2 Fast Food — implementation and verification
 
-## Scope
+Updated: 20 September 2026. This is the current implementation reference for the approved single-player master plan. It supersedes the older Fast Food notes in this file.
 
-Single-player Lobby2. Casual Dining keeps its existing service path. Multiplayer scene, protocol, and result recording are unchanged. Existing imported Fast Food artwork and the user's pre-existing asset changes are retained.
+## Status
 
-## Implemented flow
+The code, scene references and prefab authoring described below are implemented. Runtime and Editor assemblies compile offline against Unity 6000.0.40f1 with **zero compiler errors**. The serialized asset checks and nine isolated persistence assertions pass.
 
-1. Groups spawn on the outside-left pavement, walk through the two authored left-entrance waypoints, then choose a shortest available queue. There are two cashier counters and two self-service kiosks; every station owns independent queue/phase state.
-2. Counter customers use the existing manager order-review controls or the assigned cashier. Kiosk customers spend five gameplay seconds choosing, then use the existing order/stock confirmation operation. Kiosks do not display a waiter/order-taking action bubble.
-3. Kiosk customers have an editable 70% chance to pay there automatically. The remaining customers join a shortest cashier queue with the **same confirmed order and order number**. They do not review or reserve ingredients again. Counter customers pay cash/change or card through the existing payment controls/unlock rules. Kiosk automatic payment is independent of the counter card-terminal upgrade.
-4. Payment is valid only for that station's arrived front customer. Settlement is reserved before finance callbacks, so repeated confirmation cannot charge again. Cancelled manager payment can be reopened at the matching counter. A single hired cashier alternates available counters; the manager can serve the other counter. This does not duplicate the hired employee.
-5. Payment frees the station. Customers move to separate paid-waiting spaces. Dine-in groups choose and reserve a compatible clean table themselves. Full tables keep the paid order waiting.
-6. Takeaway cooking begins after payment; dine-in cooking begins after seating. Both use KitchenManager, the existing recipes and stock rules. Seating does not reserve stock again or create duplicate kitchen jobs.
-7. Lobby2 defaults to 100% customer tray pickup. One member collects the ready tray and returns via the table approach. The table/order number stays at the table's authored number anchor. Unreachable pickup retains manager delivery; unreachable return fails/refunds an unserved order rather than teleporting a customer through the restaurant.
-8. Tray anchors apply the model's horizontal orientation and offset its non-centred pivot on all three table prefabs. Manager delivery and customer pickup use the same anchors. Clicking a table selects its outline and routes available dirty-tray pickup/cleaning; carrying a matching meal still uses the existing delivery interaction.
-9. Takeaway groups walk to the pickup point and collect their matching bag. The manager can still deliver a bag if the customer cannot reach pickup. Dine-in groups eat and leave without a second bill/payment. The busser and manager retain dirty-tray disposal and hygiene controls.
-10. Unserved prepaid failures receive one refund. Prepared-food waiting has an editable timeout; kitchen cleaning and waiting for a seat do not spend it. Day teardown resets every station, current customer, payment, claim, kitchen output and held item.
-11. Lobby2 uses Chef, Barista, Cashier and Busser. Receptionist and waiter objects are disabled in the scene and remain disabled when assignments refresh. Their roles are hidden from Lobby2 HR and opening requirements; the saved employees and other restaurants remain intact.
+**Playable end-to-end is not yet verified.** Unity was not launched on this machine. Existing navigation data was preserved, not rebaked. Actual scene import, movement clearance, tray/hand alignment, animations, cloud operations and a complete human-controlled day need the external Unity verification below. Static checks do not prove those visual or runtime outcomes.
 
-## Editable hierarchy
+## Final gameplay rules
 
-Open `Assets/_Project/Scenes/RoleBased/Lobby2.unity` outside Play mode:
+- Lobby2 only, single player. Two independent cashier stations and two kiosks.
+- Cashier, chef, barista and busser are the required roles. One assigned cashier serves both counters in rotation. Receptionist and waiter are not used.
+- Counter work defaults to 2 seconds ordering plus 2 seconds payment, excluding walking; existing staff speed modifiers apply. Kiosk ordering defaults to 2 seconds with automatic payment. No kiosk-to-counter payment transfer.
+- A stable representative orders and collects. Companions have distinct authored waiting positions. Groups reserve a station before approaching it.
+- Each station has one front position and two queue positions. Two outdoor pockets absorb overflow; arrivals pause at capacity. Six paid waiting positions prevent checkout from creating an unbounded crowd. Three exclusive customer pickup positions prevent collectors sharing one destination.
+- Food preparation begins at payment, while dine-in customers find their own suitable table. Prepared food waits for seating before appearing for pickup. Customers collect every dine-in meal themselves.
+- Existing table numbering stays at the table while the representative collects. No manager food-delivery workaround is required.
+- Customers carry trays using a customer carry frame and tray-owned left/right grips. Hand pose blends in/out over 0.15 seconds; tabletop scale is restored after carrying.
+- Takeaway remains enabled at the existing 30% default. Only its representative approaches the ready bag. The rest of the group waits, then leaves together.
+- Existing stockout policy remains: some customers agree to wait; others leave unsatisfied. Existing stockout dialogue/mood/HUD reporting and slower arrivals are reused.
+- At closing, arrivals stop immediately. Admitted customers have up to 120 gameplay seconds to finish, followed by 20 seconds to exit. Unserved paid orders follow the existing one-time refund path.
+- Preparation changes save normally. Starting service creates a rollback checkpoint. Leaving during service restores preparation; active customers/tasks are not resumed. A completed report is saved before advancing the day.
 
-- **Fast Food Services / FastFoodRestaurant**: customer mix, self-pickup probability, all four service stations, entrance waypoints/travel timeout, paid-waiting spacing, pickup timeout, ready-food timeout and kitchen/payment references.
-- **Fast Food Services / Dining Tables - Editable Service Anchors**: 15 prefab instances: eight four-seat booths, five two-seat long tables and two four-seat round tables (50 seats). The group keeps its original name to preserve the existing tables' hygiene identities. The second round table was visible art without a service proxy and is now registered too. Window bar stools remain decorative.
-- **Fast Food Services / Cashier Counter 1 and Cashier Counter 2**: FastFoodServiceStation, the cashier prefab, and their own queue/flow references. Counter 1 references the existing queue/flow objects and anchors under Counter and Waiting Points; counter 2 owns its queue/flow components and anchors. Each cashier prefab has a click collider, outline, service interaction and staff-side Cashier Approach. The station and restaurant links are scene overrides.
-- **Fast Food Services / Kiosk 1 and Kiosk 2**: independent queue/flow components, Customer Order Point, QueuePoint_01/02, Overflow Root and a Fast Food Kiosk prefab instance. Edit Kiosk Order Seconds and Kiosk Pay Here Chance on FastFoodServiceStation. Set the chance to 0 or 1 to exercise each payment path externally.
-- **Fast Food Services / Counter and Waiting Points**: first counter queue points, customer food-pickup approach and six paid waiting positions. Overflow roots define queue growth direction; kiosk queues face east, counter queues face the counter. Paid waiting is separated from ordering queues.
-- **Fast Food Services / Fast Food Sink**: both existing sink meshes, click collider, wash interaction, hygiene marker and Sink Approach, in one prefab.
-- **Fast Food Services**: Customer Spawn - Outside Left, Left Entrance - Outside, Left Entrance - Inside, Customer Exit, takeaway output and ground click collider. Move these anchors in Edit mode to tune the route. Its Navigation Surface field explicitly references the existing active surface on Fast Food Revamp; the empty duplicate surface is disabled.
-- **GameManager / LobbyAutonomousService**: existing staff service settings, now authored once to prevent duplicate runtime creation.
-- **GameManager / RestaurantManager / KitchenManager**: existing recipe cooking/preparation and output slots.
-- Existing staff home/work/trolley points have Lobby2 positions. Existing shared restock/hygiene systems are reused, including their normal runtime customer/item/UI instances.
-- `Resources/MenuCatalog.asset` explicitly maps the Fast Food menu to Lobby2.
+## Ownership and reuse
 
-### Reusable prefabs and editing
-
-`Assets/_Project/Restaurant/Prefabs/FastFood/` contains **Fast Food Booth**, **Fast Food Long Table**, **Fast Food Round Table**, **Fast Food Cashier** and **Fast Food Sink**. Open them in Prefab Mode outside Play mode. Meshes and materials reference the original model assets. Scene instances retain their original mesh/material references and world transforms.
-
-Each table owns `Furniture`, `ApproachPoint`, `FacingPoint`, `SeatPoint_01...`, `TableFoodSpawn`, `TableNumberAnchor` and `Table Cleaning`. Edit these transforms directly. `Booth.seats` sets capacity; keep it matched to usable visible seats. FacingPoint controls customer facing independently of food placement. The right-hand booth row overrides ApproachPoint toward its outer aisle. Long-table points follow their offset tabletop and integrated stools. One `BoothDeliverInteractable` handles delivery, and one `HygieneSurface` tracks dining dirt. There are no table-side bill/money or legacy puddle spawners.
-
-The FastFoodTable Inspector now includes anchor-selection shortcuts and authoring diagnostics. Right-click its component header and choose **Validate Table Authoring** for a direct check. Disabled, white, width-4 QuickOutline components are authored on all three furniture prefabs, both cashiers, both kiosks, sink and paper bag. Edit these components in Prefab Mode. A separate unused menu-book anchor or competing tray registry is not required: Fast Food orders happen at the counter, and the existing FoodTray/Booth lifecycle remains the tray source of truth.
-
-## Queue, input and day-boundary repair
-
-- Queue membership is FIFO; duplicate enqueue/removal/departure is harmless. A destroyed, inactive or departing front no longer blocks promotion. New arrivals do not restart movement for unchanged slots.
-- Only the current front can reserve payment. Human order confirmation hands the claim to its payment continuation after stock submission succeeds. Review and open payment panels suspend the Fast Food phase timeout; cancellation restores normal timeout and allows retry.
-- Successful payment releases the counter once. Duplicate kitchen-finished callbacks cannot start multiple customer collectors. Customer-returned trays preserve their world scale.
-- Lobby2 outline selection is driven by the target accepted by PlayerMovement or the existing hygiene selection path. It does not run an independent pointer raycast. Unavailable/destroyed targets, movement cancellation and blocking panels clear selection. Paper-bag world clicks use the normal mouse/touch and UI filters; pickup buttons retain their existing approach sequence.
-- GameDayManager still owns the clock/spawn/results loop. Start validates service references before opening. At closing, unserved customers finish their existing outcome/refund path before finance results. Closing and subsequent starts clear scene-local queue/flow/kitchen state, staff jobs, held items, table reservations and pending payment UI. A service generation invalidates delayed payment continuations.
-- The delivery-truck edge indicator now supports Lobby2. Lobby1 selection remains on its existing path; multiplayer Fast Food is not enabled.
-
-The existing **Computer Final** scene prefab is active, connected to ManagementComputerCanvas, and its stand point is at floor height. The complete HUD remains editable at `Assets/_Project/Resources/UI/LobbyHUD.prefab`, also available through **Tools > Dine In > UI > Open Complete Lobby HUD Prefab**. Camera/computer buttons retain their original assets and listeners. Zero scales on the controls, progress and pause canvases were reset to one; rebuilding the combined HUD now also normalizes its canvas branches.
-
-`BoothMessCleanUI.cs` was renamed to match its existing public class while retaining its original `.meta` GUID and code. Existing prefab script references remain intact.
-
-## Required Unity authoring/verification step
-
-**No Unity launch, compilation, build, navigation bake, or gameplay test was performed by this implementation session.** This follows the user's restriction. C# syntax parsing and serialized-reference checks are not proof of playability.
-
-The existing user-authored bake at `Assets/_Project/Scenes/RoleBased/Lobby2/NavMesh-Fast Food Revamp.asset` is preserved on its original transform. Previously Start Day checked a different, empty surface; it now checks the assigned active surface. A saved bake does not establish that every corrected service point is reachable. Include this asset and its `.meta` in the commit along with the scene.
-
-On the external Unity **6000.0.40f1** verification machine:
-
-1. Open Lobby2. Resolve any Unity compiler/import errors first.
-2. Run **Dine In > Fast Food > Validate Lobby2 Structure**.
-3. Run **Validate Lobby2 Navigation**, including both booth aisles, cashier, computer, sink, kitchen and pickup points.
-4. If routes fail or geometry has changed, run **Dine In > Fast Food > Bake Lobby2 Navigation** on the external machine. It updates only a Lobby2 navigation asset. Save the scene and asset, then validate again. Visually inspect seating and tray alignment for all three table types.
-5. Verify manager movement, camera framing, stock-room access and truck collection before starting service. These require runtime/visual validation after the layout change.
-6. Separately, enter Play Mode in an empty scene on the external machine, then run **Dine In > Fast Food > Run Service Regressions (Empty Play Mode Scene)**. It creates temporary fixtures and covers FIFO, unchanged slots, destroyed-front recovery, repeated removal/departure, authored overflow, independent station ownership, kiosk-to-counter transfer without another order review, rejection before counter arrival, duplicate/stale settlement reservations, repeated reset, and presentation without movement commands. It refuses to run over a live restaurant and removes its fixtures afterward. This runner has been prepared but has not been executed here.
-
-## External regression checklist
-
-Use a disposable Fast Food save. Do not treat a staff-completed shift as proof that human controls work.
-
-| Scenario | Required result |
+| Area | Implementation owner / scope |
 |---|---|
-| Human dine-in order | Review correct quantities; stock deducted once; cash/change completes once; counter advances; customers choose seats; one tray appears. |
-| Card/cancel/retry | Unlock card equipment; cancel and reopen payment; confirm once; no stale claim, duplicate earnings or stuck hands. |
-| Customer pickup | Set self-pickup probability to 1; one member collects; the rest stay seated; tray lands on the matching table; eating begins. |
-| Manager delivery | Set self-pickup probability to 0; manager completes pickup/delivery at all three table types. Wrong table cannot consume the tray. Restore 1 for normal customer self-pickup; Fast Food has no waiter delivery job. |
-| Takeaway | Set takeaway probability to 1; pay; next customer can order; collect matching bag; deliver to numbered waiting group; group exits once. |
-| Mixed/full tables | Restore probabilities; fill every compatible table; paid groups wait without stealing occupied/dirty seats or consuming stock again. Clean/free a table; oldest compatible group seats. |
-| Kitchen/output pressure | Fill output slots; kitchen queues or safely fails/refunds; never stacks two outputs in one slot. Pause kitchen for cleaning while orders are queued. |
-| Recovery | Interrupt customer pickup route, cancel review/payment, let ready food time out, close the day with waiting customers. No permanent reservation, orphaned held item or double refund. |
-| Full loop | Manager disposes dirty trays at the sink, cleans tables, restocks dry/freezer items, reads newspaper and starts two consecutive days. Reopen the save and verify restaurant isolation. |
-| Table prefabs | Each of the 15 tables seats its full capacity without overlapping customers; facing, tray placement and number position match the model. Leaving vacates all seats; occupied, dirty or tray-blocked tables cannot be reserved. |
-| Table cleaning | Clean each furniture type through both manager hold-to-clean and staff requests. Dirt/shine follows the same table; no duplicate prompt or missing-script error. |
-| HUD/stations | Camera focuses the manager; computer opens through its button and world click. Cashier reopens payment; sink disposes the tray. All controls return after management, pause and restock panels close. |
-| Casual Dining regression | Lobby1 human seating, ticket/cooking, bill, cash/card, restock and hygiene remain unchanged. |
-| Queue recovery | Queue at least four groups; add another while the others stand still; delete the front in a disposable run. Remaining groups advance once, in order. Cancel order/payment and retry without skipping the front. |
-| Selection parity | Mouse and touch select the same service object that highlights. Dragging the camera or tapping UI cannot pick up a bag. Cancel movement, open a modal, let staff claim the target, and destroy a selected item; no stale outline or new command is generated. |
-| Day boundaries | End with a held bag/tray, active payment, queued customers and paid customers waiting for tables. Refund each unserved paid order once; no retained hands, jobs, seats or UI after results/start. |
+| Day, clock, spawning, result screen | Existing `GameDayManager` and `GameFlowManager`; Fast Food opening guards, closing grace and saved report added |
+| Arrival and station selection | `FastFoodRestaurant`, `GroupSpawner`, existing queue managers; bounded reservations include en-route groups |
+| Queue/payment | Four authored `FastFoodServiceStation` instances, each with its own `TakeoutQueueManager` and `TakeoutFlowManager`; existing register/card UI and settlement guard |
+| Stock and food | Existing `LobbyStockBridge`, `KitchenManager`, recipe catalogue, food/tray prefabs; stock consumption stays in the existing confirmation path |
+| Group behaviour | `CustomerGroup.FastFood.cs` plus narrow Fast Food branches in `CustomerGroup`; one representative, self-seating, pickup, remakes and closing |
+| Carry pose | `CustomerAgent`, `AlienProceduralAnimation`, pure authoring component `FoodTrayCarryPose`; no separate tray inventory |
+| Tables and outlines | Existing `Booth` contracts and editable `FastFoodTable` prefabs; keep complete-mesh outline authoring |
+| Staff | Existing `LobbyAutonomousService`, `AutonomousStaffBot`, `KitchenWorkerBot`, hands, sink and trolley systems |
+| Restock | Existing `RestockFlowCoordinator`, `RestockOrderManager`, `InventoryManager`, truck/hotbar and shared `RestockScene` |
+| Shelf presentation | `FastFoodShelfPreview` reads stored-container/batch data; `StoredBoxPreview` is art/UI only, without colliders, draggable stock or inventory identity |
+| Management/HUD | Existing management canvas and full LobbyHUD; room computer bindings, idle Task panel station summary, existing kitchen/order indicators |
+| Persistence | Existing `GameSaveManager`, `CampaignSaveStore`, `CampaignCloudSync`, objectives, finance and roster systems; restaurant-specific files, not a replacement save service |
 
-During each scenario, **Dine In > Fast Food > Check Live Service Invariants** checks duplicate output, payment-before-seating, unique table ownership and counter release. This diagnostic does not simulate button presses or replace the checklist.
+## Authoring outside Play Mode
 
-## Remaining verification limits
+Open `Assets/_Project/Scenes/RoleBased/Lobby2.unity`.
 
-`python tools/validate_lobby2_authoring.py` performs dependency-free, read-only checks of prefab ownership, unique seats, service/cleaning references, all 15 registrations, station instances, authored outlines and queue anchors, navigation binding, and HUD canvas scales/buttons. These serialized checks and C# syntax parsing pass. They do not replace Unity compilation or gameplay verification.
+### Fast Food Services
 
-Runtime behavior, navigation reachability, visual seating/animation appearance, device performance and Unity compilation remain unverified. Do not label this version verified playable until the checks above pass. Multiplayer Fast Food is intentionally deferred.
+The `FastFoodRestaurant` component owns editable service station, table, entrance, paid waiting, outdoor waiting, pickup, exit, kitchen and navigation references. Timings and takeaway chance are Inspector fields. A missing required service reference blocks opening with feedback.
 
-## Four-station and visual acceptance cases (external Unity 6000.0.40f1)
+- **Outdoor Waiting - Editable Group Pockets:** two outside positions.
+- **Counter and Waiting Points:** existing paid waiting and service points, plus three customer pickup positions.
+- Each counter/kiosk has its own order point, two queue points, staff approach and three **Companion** children beneath its order point. Move the point and companion hierarchy together.
+- Entrance route starts outside on the left and passes through the left entrance. Customer spawning stays out on the map.
+- `FastFoodLobbyAuthoring` explicitly references the office computer, two shelf entrances, sink, cashier home and busser home.
 
-These require external execution. Static source and YAML checks cannot establish navigation or visual playability.
+Do not delete a queue/flow or duplicate its reference into another station. Run structural and navigation validation after moving points. The existing NavMesh asset remaining assigned does not establish that a moved point is reachable.
 
-1. Open Lobby2 without entering Play mode. Run **Dine In > Fast Food > Validate Lobby2 Structure** and **Validate Lobby2 Navigation**. The latter now checks both cashier approaches, all station queues/overflow points and the outside-left entrance route. Re-bake Lobby2 navigation with the existing menu command if any route is missing; do not replace another restaurant's navigation asset.
-2. Start a stocked day. Follow green, pink and blue groups from the outside-left spawn through the entrance. Verify door clearance, formation spacing and FIFO at all four stations. No group should appear directly inside the dining room.
-3. Force each kiosk's Pay Here Chance to 1. Confirm one stock reservation, one payment, one freed queue slot and one kitchen result. Repeat with chance 0: follow the same number into either counter; cancel/reopen cash and card payment; verify no second order review, stock reservation or charge.
-4. Serve the second counter manually while the cashier serves the first, then reverse. Competing clicks cannot steal an owned customer. Fire/unassign the cashier and verify manager service still works at both counters; reassign without enabling a waiter/receptionist.
-5. On booth, long table and round table, observe one-, two- and four-person groups. Check food rests flat and centred, clear of diners. Watch a member leave to collect: the number remains over its table. Repeat manager delivery with self-pickup chance temporarily set to 0. Verify tray pickup controls disappear during eating.
-6. Click clean, occupied and dirty tables on mouse and touch. Verify accepted outlines, existing manager cleaning options, tray pickup and automatic sink disposal. Neither a table selection nor kiosk information tap should create an unrelated service claim.
-7. Exercise takeaway automatic collection and manager delivery, blocked pickup/return routes, stockout, payment cancellation and duplicate clicks. Confirm failed unserved paid orders refund once and output/claims disappear.
-8. Complete two consecutive days and a fresh run. Verify every queue starts empty, assigned staff remain correct, no stale register/card panel or permanently held item remains, and restaurant openings use only the four Fast Food roles.
-9. Regression-test Lobby1 manually: waiter/receptionist staffing, order review, tray placement, bill/cash/card, restock and cleaning retain their prior controls. Multiplayer gameplay has not been extended to Lobby2.
+### Tables and furniture
 
-**Defaults/settings:** kiosk order 5 seconds; kiosk immediate payment 70%; counter order/payment deadlines 60/45 seconds; outside entrance travel deadline 60 seconds per segment. These are serialized Inspector fields. Existing kitchen, restock, cash-change and counter card timings remain the shared implementations.
+Open prefabs in `Assets/_Project/Restaurant/Prefabs/FastFood/` in Prefab Mode: **Fast Food Booth**, **Fast Food Long Table**, **Fast Food Round Table**, cashier, kiosk and sink assets.
 
-### Checks performed for the four-station update
+Table hierarchy owns furniture, approach point, facing point, seat points, `TableFoodSpawn`, `TableNumberAnchor` and cleaning UI. Scene registration contains eight booths, five long tables and two round tables. Use the `FastFoodTable` Inspector shortcuts and validation to edit anchors. Preserve original imported meshes/materials and the full-mesh outline repair. The model needs its current Read/Write import setting for QuickOutline's combined submesh handling.
 
-- Read-only Roslyn semantic analysis: 545 runtime sources and 55 editor sources, zero errors using the existing Unity reference assemblies. No assemblies were emitted and Unity was not launched.
-- `tools/validate_lobby2_authoring.py`: passed scene/prefab references, reciprocal hierarchy links, unique station queues/flows, entrance route, horizontal table tray mounts and existing HUD structure.
-- `git diff --check`: passed.
-- External navigation, visual alignment, Unity import/compilation and gameplay regressions remain unexecuted. This is an implementation handoff, not a verified-playable result.
+`TableFoodSpawn` is oriented for the tray model's local Z to face upward. Do not reset it to an identity quaternion merely because the tabletop is horizontal.
+
+### Kitchen output and customer tray
+
+The four dine-in output points remain assigned on `KitchenManager`. Their orientations now match the tray's authored axis, and their horizontal spacing is greater than the tray width. Takeaway output is separate. Spawn-slot timeout is 60 seconds in Lobby2.
+
+Open `Restaurant/Assets/Level1/GameObjects/RestaurantObjects/Customers/Food Tray.prefab`:
+
+- `FoodTrayCarryPose` references **Customer Carry Origin**, **Customer Left Grip**, **Customer Right Grip**.
+- `Carry World Scale` defaults to 160 while carried. Counter/table scale is restored on release.
+- Customer prefabs have an editable `trayCarryAnchor` and pose blend duration. The previous customer-local grip references remain serialized but hidden for compatibility; active hand targets come from the tray itself.
+- Green, blue, pink and generic customer prefabs all have carry frames. Verify each body/hand configuration visually; source inspection cannot establish clipping quality.
+
+### Storage and management
+
+The dry/freezer shelf-bank objects own clickable `RestockStockRoomEntrance` components connected to the shared RestockScene. Each bank owns twelve Inspector-editable preview slots under **Stored Stock Preview - Read Only**. Empty slots start inactive. Move slots in the hierarchy to fit a changed shelf model. Their nested art comes from `RestockRoom/Prefabs/StoredBoxPreview.prefab`.
+
+Physical containers remain exclusively owned by RestockScene and the existing ledger. Preview visibility uses actual remaining batch quantities and actual stored room. Cached Restock roots are refreshed when closing the stock room so newly restored boxes are hidden too; this addresses the boxes appearing over dining tables. Returning to the restaurant restores the existing input/camera/time state. Failed loading/activation returns to the restaurant with feedback.
+
+**Room Management Computer** is the active physical computer. **Legacy Lobby Computer (Unused)** stays inactive. The full HUD remains editable at `Resources/UI/LobbyHUD.prefab`; camera, computer, newspaper and task buttons remain present.
+
+## Preparation and opening
+
+1. Load the selected restaurant profile before staff evaluate assignments.
+2. Use the office computer to select menu/prices, assign the four required roles, inspect equipment, order stock and review objectives.
+3. Receive deliveries using the existing truck/hotbar flow; enter dry/freezer storage, place boxes and return.
+4. Opening validates service references, the assigned navigation data, required staff and successful save loading. Existing readiness/stock warnings remain in use.
+5. Save the service-start checkpoint before enabling Fast Food spawning. A failed checkpoint write leaves the restaurant closed and reports the failure.
+
+## Recovery and exactly-once boundaries
+
+- Station reservations count incoming groups, preventing travel-time overbooking. Outdoor FIFO customers retain priority over new arrivals.
+- Missing/disabled stations cause a bounded customer failure; destroyed queue members cannot permanently block the front.
+- Payment requires the correct station front, arrival at its order point, confirmed order, payment phase and available paid waiting space. Reservation happens before finance callbacks to prevent duplicate payment.
+- Cooking submission reuses KitchenManager acceptance checks. Remakes receive a new order identity without a second payment or a waiter ticket.
+- Seat wait is bounded (120 seconds). Pickup travel and ready-food waits are bounded. Kitchen cleaning pauses the relevant wait.
+- Pickup positions and tray ownership release on success, cancellation, failure or destroyed customers. Failed carries restore the original output pose/queue when the order is still valid.
+- Dine-in delivery buttons are hidden/disabled for manager pickup in Fast Food; dirty-tray cleanup remains available.
+- Table/tray cleaning reuses task claims. Fast Food automated table cleaning also has a deadline and releases work state afterward.
+- Day reset stops service coroutines, staff jobs and held-item activity, dismisses stale payment/review UI and clears queues, customers, table reservations and kitchen objects.
+
+## Save/load details
+
+Files live under Unity's existing `Application.persistentDataPath`:
+
+| Profile | Main save | Service-start checkpoint | PlayFab file |
+|---|---|---|---|
+| Casual Dining | `dinein_save.json` (existing configurable name) | `dinein_save_day_start.json` | `CampaignSave_v1.json` |
+| Fast Food | `dinein_fastfood_save.json` | `dinein_fastfood_save_day_start.json` | `FastFoodCampaignSave_v1.json` |
+
+The selected profile persists through additive RestockScene/menu transitions. Profile changes reload stock, equipment, money, staff, menu and progression; ingredient unlocks are rebuilt from saved recipes. Tutorial graduation always writes the Casual Dining profile. Tutorial/multiplayer persistence boundaries remain enforced.
+
+Schema 3 remains in place, with optional Fast Food objective, finance and report fields. Fast Food report reload restores completed-day status without charging payroll or awarding objectives again. Beginning the next day saves its preparation state before reloading Lobby2.
+
+Main-save/checkpoint pair changes use the existing recoverable journal. Rollback retires its checkpoint after restoration so new preparation changes remain durable. Final report commit retires the checkpoint with the final save. An invalid journal or unreadable save is preserved and blocks service rather than silently overwriting progress.
+
+Cloud operations capture the restaurant/file they started with; stale callbacks cannot install progress into a different profile. Confirmed currency exchange credits also retain the originating profile and receipt deduplication. Cloud/account behavior still needs live integration testing.
+
+## Validation performed here
+
+- Offline `Assembly-CSharp` and `Assembly-CSharp-Editor` compile using installed Unity 6000.0.40f1 references: zero errors. Existing warnings remain.
+- `python tools/validate_lobby2_authoring.py`: passes scene/prefab file IDs, references, reciprocal hierarchy links/cycles, SceneRoots ordering, table registrations, separate station ownership, queue/companion/pickup/outside positions, tray axis/spacing, art-only previews, four customer carry rigs and HUD bindings.
+- `python tools/verify_fastfood_persistence.py --unity "D:/Unity/Unity/Hub/Editor/6000.0.40f1/Editor"`: nine assertions pass against the real `CampaignSaveStore` implementation with isolated temporary files. Covers profile separation, checkpoint recovery, late credits, duplicate credits, invalid-journal preservation, balance switching and tutorial guards. JSON/scene/account adapters are used; this is not a Unity lifecycle or PlayFab integration test.
+- Editor service regression runner updated for counter arrival, bounded waiting capacity, closing admissions, unique pickup slots and payment reservation. It compiles but was **not executed** here.
+- No local Unity launch, scene import test, NavMesh bake or human playthrough was performed.
+
+## Required external Unity acceptance pass
+
+Use Unity **6000.0.40f1**, with a disposable copy of the saves and existing player backups preserved.
+
+1. Open Lobby2 without crashes/import errors. Run **Dine In > Fast Food > Validate Lobby2 Structure**.
+2. Run **Validate Lobby2 Navigation**, including outside pockets, companion points, pickup points, table aisles, office, shelves, sink and staff homes. If required, use **Bake Lobby2 Navigation**, save and validate again on the external machine.
+3. In an empty Play Mode scene, run **Run Service Regressions (Empty Play Mode Scene)**. The command creates and removes its own temporary Lobby2 fixture; never run inside the restaurant.
+4. In Lobby2, test all fifteen tables and each station: complete furniture outline, accepted interaction, no movement from presentation-only selection, correct clean/self-clean/staff-clean prompts.
+5. Restock from both shelves: truck collection, hotbar, place/move/discard boxes, dry/freezer selection and repeated return. Verify stock counts and expiry labels in the real stock room. Only bank previews may remain visible in Lobby2; nothing floats over tables.
+6. Open service with each missing role in turn, then assign all four. Confirm only cashier/chef/barista/busser operate, with one cashier alternating the two counters. Confirm manager assistance still uses normal order/payment/cleanup interactions.
+7. Admit mixed group sizes and all alien variants. Fill every station and outdoor pocket. Confirm distinct destinations, left-door entrance, FIFO promotion, no spawn/despawn flicker at capacity and clear kiosk progress.
+8. Exercise cash, card, kiosk payment, review cancellation and repeated interaction. Confirm one charge, one stock deduction and one kitchen submission per accepted order.
+9. Observe cooking while a paid dine-in group waits for a table. Fill paid waiting positions; payment must pause instead of placing extra groups on the same spot.
+10. Collect simultaneous trays and takeaway bags. Confirm separate pickup spaces, one representative moving, table number staying at its table, level waist-height trays and both hands meeting the grips. Inspect at all three table types and for green/blue/pink/generic customers.
+11. Check eating, wrong/burnt meal complaint and remake, one-time refund for an unserved departure, satisfaction bars and departure paths. No second charge or waiter ticket for a prepaid remake.
+12. Check busser pickup, surface cleaning, sink/trolley return, lobby cleaning and task release. Remove/reassign a staff role during a job and verify no locked table or permanent staff task.
+13. Test unavailable station, blocked path, no stock, no free seat, occupied output slots, destroyed customer/tray, paused kitchen and failed stock-room load. All must recover within configured timeouts and restore input.
+14. Reach closing with unpaid, cooking, collecting, eating and takeaway groups. Confirm admissions stop; service/exit grace runs; remaining objects/claims clear; result totals/refunds/payroll/objectives settle once.
+15. Reload during preparation, quit mid-service, then change preparation and reload again. Preparation must persist after rollback. Reload a completed report twice: balances/objectives/payroll must remain unchanged. Advance/reload the next day and test endless/recovery transitions.
+16. Switch Lobby1 ↔ Lobby2 and enter/leave RestockScene. Confirm independent money, stock, staff and progression. Regression-test the shared Restock hide/show, Casual Dining unlock restoration, tutorial graduation and cloud/currency profile switch callbacks. Multiplayer rules are unchanged, but shared persistence/Restock boundaries still warrant a smoke check.
+
+**Release gate:** all external cases pass with no missing-reference errors, overlapping/trapped customers, floating/sideways trays, leaked boxes, stuck claims or save regression. Until then, describe this as implemented and statically checked, not fully playtested.
+
+## Scope boundaries
+
+Do not rebuild inventory, restaurant management screens, finance, customer mood/leave bubbles, hygiene shaders, full seating outline logic or multiplayer Fast Food. Existing project art/import changes unrelated to this implementation are preserved. No commit or push was performed by this task.

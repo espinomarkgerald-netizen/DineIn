@@ -9,8 +9,15 @@ public sealed class FastFoodServiceStation : MonoBehaviour, IInteractable
     [SerializeField] private TakeoutQueueManager queue;
     [SerializeField] private TakeoutFlowManager flow;
     [SerializeField] private Transform staffApproach;
-    [SerializeField, Min(1f)] private float kioskOrderSeconds = 5f;
-    [SerializeField, Range(0f, 1f)] private float kioskPayHereChance = .7f;
+    [SerializeField, Min(1f)] private float kioskOrderSeconds = 2f;
+    [SerializeField, Min(.1f)] private float cashierOrderSeconds = 2f;
+    [SerializeField, Min(.1f)] private float cashierPaymentSeconds = 2f;
+    [Tooltip("Companion positions while the representative uses this station; authored in scene space.")]
+    [SerializeField] private Transform[] companionPoints;
+    public float CashierOrderSeconds => cashierOrderSeconds;
+    public float CashierPaymentSeconds => cashierPaymentSeconds;
+    public Transform[] CompanionPoints => companionPoints;
+    public float ServiceProgress => timedCustomer != null ? Mathf.Clamp01(elapsed / kioskOrderSeconds) : 0f;
     private CustomerGroup timedCustomer;
     private float elapsed;
     public bool IsKiosk => kind == StationKind.Kiosk;
@@ -24,7 +31,7 @@ public sealed class FastFoodServiceStation : MonoBehaviour, IInteractable
         HygieneManager.HandsEmpty(RoleManager.Instance?.GetActivePlayerMovement());
     public void Interact(PlayerMovement mover)
     {
-        if (CanInteract()) WarningSlideUI.Instance?.Show("Customers can order and pay here, or pay at a counter.");
+        if (CanInteract()) WarningSlideUI.Instance?.Show("Customers order and pay automatically here.");
     }
 
     private void Update()
@@ -40,11 +47,6 @@ public sealed class FastFoodServiceStation : MonoBehaviour, IInteractable
             if (elapsed < kioskOrderSeconds) return;
             // The existing stock reservation and confirmed-order operation runs once.
             if (!group.TakeOrderFromWaiter(group.chosenFood, group.chosenDrink, null)) return;
-            if (Random.value >= kioskPayHereChance)
-            {
-                group.FastFood.TransferToCounter(group);
-                return;
-            }
         }
         if (group.FastFood.CanSettle(group))
             CashierRegisterUI.ResolveInstance()?.CompleteAutomatedPayment(group);

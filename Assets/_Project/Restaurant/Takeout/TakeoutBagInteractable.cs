@@ -295,7 +295,8 @@ public class TakeoutBagInteractable : MonoBehaviour, IInteractable
         if (isHeld || claimedByStaff || RestaurantTaskClaim.IsClaimedByPlayer(this) || RestaurantTaskClaim.IsClaimedByBot(this) ||
             group == null || group != targetGroup || group.FastFood == null ||
             !group.FastFoodPaid || !group.FastFood.IsBagReady(group) ||
-            !group.HasReachedTakeoutPoint(group.FastFood.PickupApproach.position, 1.5f)) return false;
+            group.FastFoodRepresentative == null || group.FastFood.ReservedPickupFor(group) == null ||
+            !group.FastFoodRepresentative.HasArrived(group.FastFood.ReservedPickupFor(group).position)) return false;
         if (!group.ReceiveTakeoutBagFromWaiter(deliveredContents)) return false;
         Destroy(gameObject);
         return true;

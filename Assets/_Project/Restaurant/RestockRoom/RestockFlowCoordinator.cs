@@ -271,6 +271,12 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
         multiplayerView = MultiplayerRestockBridge.IsActive;
         // Acquire the transition lock before the iris begins. A second mobile tap
         // must not cancel the first close callback and leave the screen covered.
+        if (!Application.CanStreamedLevelBeLoaded(RestockSceneName))
+        {
+            Debug.LogError("[RestockFlow] The shared RestockScene is missing from the build.");
+            ShowMessage("The stock room is unavailable right now.");
+            return;
+        }
         loading = true;
         requestedRoom = room;
         EnsureHud();
@@ -395,14 +401,16 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
 
         if (!restockScene.IsValid() || !restockScene.isLoaded)
         {
-            AsyncOperation load = SceneManager.LoadSceneAsync(RestockSceneName, LoadSceneMode.Additive);
+            AsyncOperation load = null;
+            try { load = SceneManager.LoadSceneAsync(RestockSceneName, LoadSceneMode.Additive); }
+            catch (Exception exception) { Debug.LogException(exception); }
             if (load == null)
             {
                 RestoreLobby();
                 if (!multiplayerView) Time.timeScale = previousTimeScale;
                 loading = false;
                 RevealCurrentScene();
-                ShowMessage("RestockScene could not be loaded.");
+                ShowMessage("The stock room could not open. Please try again.");
                 yield break;
             }
 
@@ -442,11 +450,20 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
         // Keep new PUN/customer objects in the restaurant while the stock-room camera is local.
         if (!multiplayerView) SceneManager.SetActiveScene(restockScene);
         TakeRestockInputOwnership();
-        roomController = new RestockRoomController(restockScene, hud, this);
-        roomController.Activate(requestedRoom);
-        roomOpen = true;
-        loading = false;
-        RevealCurrentScene();
+        try
+        {
+            roomController = new RestockRoomController(restockScene, hud, this);
+            roomController.Activate(requestedRoom);
+            roomOpen = true;
+            loading = false;
+            RevealCurrentScene();
+        }
+        catch (Exception exception)
+        {
+            Debug.LogException(exception);
+            CloseRestockRoomNow();
+            ShowMessage("The stock room could not open. You have returned to the restaurant.");
+        }
     }
 
     private void CloseRestockRoomNow()
@@ -698,6 +715,23 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
             EnsureTruckIndicator(truckInteractable);
         }
 
+        if (lobbyScene.name == "Lobby2")
+        {
+            FastFoodLobbyAuthoring bindings = null;
+            foreach (var root in lobbyScene.GetRootGameObjects())
+            {
+                bindings = root.GetComponentInChildren<FastFoodLobbyAuthoring>(true);
+                if (bindings != null) break;
+            }
+            if (bindings == null || !bindings.ValidateAuthoring(out _))
+            {
+                Debug.LogError("[RestockFlow] Lobby2 needs its authored room computer and storage entrance references.");
+                return;
+            }
+            dryEntrance = bindings.DryStorageEntrance;
+            freezerEntrance = bindings.FreezerEntrance;
+            return;
+        }
         if (dryEntrance == null || freezerEntrance == null)
             BindLobbyShelfEntrances(origin);
 
@@ -1210,6 +1244,19 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
 
     private void HideRestockRoots()
     {
+        for (int i = restockRoots.Count - 1; i >= 0; i--)
+            if (restockRoots[i] == null) { restockRoots.RemoveAt(i); restockRootAuthoredStates.RemoveAt(i); }
+        // Activate() may restore boxes AFTER the initial root snapshot. Track them too.
+        // Never re-snapshot already hidden roots or authored inactive states would be lost.
+        if (restockScene.IsValid() && restockScene.isLoaded)
+        {
+            foreach (var root in restockScene.GetRootGameObjects())
+                if (!restockRoots.Contains(root))
+                {
+                    restockRoots.Add(root);
+                    restockRootAuthoredStates.Add(root.activeSelf);
+                }
+        }
         for (int i = 0; i < restockRoots.Count; i++)
         {
             if (restockRoots[i] != null)

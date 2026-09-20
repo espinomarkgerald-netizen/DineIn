@@ -100,6 +100,8 @@ public class UnlockManager : MonoBehaviour
 
         unlockedRecipes.Clear();
         unlockedEquipment.Clear();
+        bool restoreRestaurantIngredients = !CampaignSaveStore.ProtectedSession;
+        if (restoreRestaurantIngredients) unlockedIngredients.Clear();
         unlockedKitchenItems.Clear();
 
         if (data.unlockedRecipeIDs != null)
@@ -110,6 +112,13 @@ public class UnlockManager : MonoBehaviour
                     unlockedRecipes.Add(id);
             }
         }
+
+        var catalog = MenuCatalog.ForScene(CampaignSaveStore.RestaurantScene);
+        if (restoreRestaurantIngredients && catalog != null)
+            foreach (var recipe in catalog.Products)
+                if (recipe != null && unlockedRecipes.Contains(recipe.recipeID) && recipe.ingredients != null)
+                    foreach (var ingredient in recipe.ingredients)
+                        if (ingredient.item != null) unlockedIngredients.Add(ingredient.item);
 
         if (data.unlockedEquipmentIDs != null)
         {

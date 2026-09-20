@@ -82,6 +82,8 @@ public sealed class PlayerTaskHUD : MonoBehaviour
     [SerializeField] private Color completionColor = new Color(0.08f, 0.45f, 0.26f, 0.98f);
     [SerializeField, Range(0.08f, 0.75f)] private float backgroundTaskBubbleAlpha = 0.28f;
 
+    private FastFoodRestaurant fastFoodStatus;
+    private float nextFastFoodStatusAt;
     private Coroutine panelRoutine;
     private Coroutine buttonRoutine;
     private Coroutine badgeRoutine;
@@ -413,7 +415,14 @@ public sealed class PlayerTaskHUD : MonoBehaviour
 
         PlayerTaskView task = PlayerTaskGuidance.Current;
         if (!task.IsValid)
+        {
+            if (fastFoodStatus != null && panelOpen && completionRoutine == null && Time.unscaledTime >= nextFastFoodStatusAt)
+            {
+                nextFastFoodStatusAt = Time.unscaledTime + .5f;
+                if (detailText != null) detailText.text = fastFoodStatus.ServiceSummary;
+            }
             return;
+        }
 
         if (!panelOpen && !badgeVisible && now >= reminderAt)
             SetBadge(true);
@@ -421,6 +430,7 @@ public sealed class PlayerTaskHUD : MonoBehaviour
 
     public void RefreshSceneVisibility()
     {
+        fastFoodStatus = SceneManager.GetActiveScene().name == "Lobby2" ? FindFirstObjectByType<FastFoodRestaurant>() : null;
         supportedSceneVisible = false;
         objectivesSceneVisible = false;
         if (MultiplayerDayBridge.IsActive)
@@ -576,7 +586,7 @@ public sealed class PlayerTaskHUD : MonoBehaviour
                 taskText.text = "CURRENT TASK\nNO ACTIVE TASK";
             if (detailText != null)
             {
-                detailText.text = "CHOOSE A CUSTOMER OR WORK ITEM";
+                detailText.text = fastFoodStatus != null ? fastFoodStatus.ServiceSummary : "CHOOSE A CUSTOMER OR WORK ITEM";
                 detailText.gameObject.SetActive(true);
             }
             ShowPanel(2f, false);

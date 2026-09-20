@@ -49,8 +49,15 @@ public sealed class FastFoodTable : MonoBehaviour, IInteractable
                 if (seat == null || !seat.IsChildOf(transform) || !seats.Add(seat) || !positions.Add(seat.position))
                 { problem = "Seats must be unique child transforms at distinct positions."; break; }
         }
-        if (problem == null && (GetComponent<Collider>() == null || GetComponent<Outline>() == null))
+        if (problem == null && (GetComponent<Collider>() == null || GetComponent<Outline>() == null ||
+            !Application.isPlaying && GetComponent<Outline>().enabled))
             problem = "Author a click collider and a disabled Outline on the prefab root.";
+        if (problem == null)
+        {
+            var mesh = furniture.GetComponent<MeshFilter>()?.sharedMesh;
+            if (mesh == null || !mesh.isReadable)
+                problem = "Furniture needs a readable mesh. Enable Read/Write in its model import settings so every material section can outline.";
+        }
         if (problem == null && (GetComponentsInChildren<BoothDeliverInteractable>(true).Length != 1 ||
             GetComponent<BoothDeliverInteractable>() == null ||
             GetComponent<BoothDeliverInteractable>().DeliveryPoint != booth.NetworkTrayPoint))

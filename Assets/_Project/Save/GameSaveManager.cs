@@ -23,7 +23,7 @@ public class GameSaveManager : MonoBehaviour
     public GameSaveData CaptureRuntimeState() => CaptureCurrentData();
     public void CompleteDeferredInitialLoad()
     {
-        if (IsPersistenceSuspended || !CampaignSaveStore.RuntimeCampaign || !autoLoadOnStart || hasAutoLoaded) return;
+        if (IsPersistenceSuspended || !CampaignSaveStore.RuntimeCampaign || !autoLoadOnStart || HasCompletedInitialLoad) return;
         hasAutoLoaded = true;
         LoadGame();
     }
@@ -36,17 +36,21 @@ public class GameSaveManager : MonoBehaviour
     public bool SuppressWritesForTests { get; set; }
 #endif
 
-    private string SavePath => Path.Combine(Application.persistentDataPath, saveFileName);
+    private string SavePath => Path.Combine(Application.persistentDataPath, CampaignSaveStore.ResolveFileName(saveFileName));
     public string CampaignSavePath => SavePath;
     // Preserve the existing clean post-tutorial start; never overwrite an existing career.
     public void CreateInitialCampaign(GameSaveData cleanStart)
     {
-        if (IsPersistenceSuspended || MultiplayerRestockBridge.IsActive || HasSave() ||
-            File.Exists(DayCheckpointPath) || cleanStart == null) return;
+        // Tutorial graduation always belongs to Casual Dining, even after visiting Fast Food.
+        string initialPath = Path.Combine(Application.persistentDataPath, saveFileName);
+        string initialCheckpoint = Path.Combine(Application.persistentDataPath,
+            Path.GetFileNameWithoutExtension(saveFileName) + "_day_start.json");
+        if (IsPersistenceSuspended || MultiplayerRestockBridge.IsActive || File.Exists(initialPath) ||
+            File.Exists(initialCheckpoint) || cleanStart == null) return;
 #if UNITY_EDITOR
         if (SuppressWritesForTests) return;
 #endif
-        CampaignSaveStore.AtomicWrite(SavePath, JsonUtility.ToJson(cleanStart, true));
+        CampaignSaveStore.AtomicWrite(initialPath, JsonUtility.ToJson(cleanStart, true));
     }
     public void ReloadCampaignFromDisk()
     {
@@ -56,12 +60,13 @@ public class GameSaveManager : MonoBehaviour
     }
     private string DayCheckpointPath => Path.Combine(
         Application.persistentDataPath,
-        Path.GetFileNameWithoutExtension(saveFileName) + "_day_start.json");
+        Path.GetFileNameWithoutExtension(CampaignSaveStore.ResolveFileName(saveFileName)) + "_day_start.json");
 
     private bool hasAutoLoaded;
+    private string loadedPath;
 
-    public bool InitialLoadCompletedWithoutOverride => !autoLoadOnStart || hasAutoLoaded;
-    public bool HasCompletedInitialLoad => IsPersistenceSuspended || !autoLoadOnStart || hasAutoLoaded;
+    public bool InitialLoadCompletedWithoutOverride => !autoLoadOnStart || (hasAutoLoaded && loadedPath == SavePath);
+    public bool HasCompletedInitialLoad => IsPersistenceSuspended || !autoLoadOnStart || (hasAutoLoaded && loadedPath == SavePath);
 
     private void Awake()
     {
@@ -100,7 +105,7 @@ public class GameSaveManager : MonoBehaviour
     private void Start()
     {
         if (IsPersistenceSuspended || !CampaignSaveStore.RuntimeCampaign) return;
-        if (autoLoadOnStart && !hasAutoLoaded)
+        if (autoLoadOnStart && (!hasAutoLoaded || loadedPath != SavePath))
         {
             hasAutoLoaded = true;
             // Load immediately on Start — no yield needed now that LocalGameSaveManager
@@ -136,7 +141,7 @@ public class GameSaveManager : MonoBehaviour
         // Other managers can request a save from Awake while this manager is
         // waiting to auto-load in Start. Never overwrite the existing file with
         // scene defaults during that bootstrap window.
-        if (autoLoadOnStart && !hasAutoLoaded)
+        if (autoLoadOnStart && (!hasAutoLoaded || loadedPath != SavePath))
             return;
 
         if (IsApplyingSave)
@@ -153,12 +158,11 @@ public class GameSaveManager : MonoBehaviour
         if (SuppressWritesForTests)
             return;
 #endif
-        if (autoLoadOnStart && !hasAutoLoaded)
+        if (autoLoadOnStart && (!hasAutoLoaded || loadedPath != SavePath))
             return;
 
-        if (GameFlowManager.Instance != null &&
-            GameFlowManager.Instance.HasRunningRestaurantDay &&
-            File.Exists(DayCheckpointPath))
+        if (File.Exists(DayCheckpointPath) && (CampaignSaveStore.IsFastFood ||
+            (GameFlowManager.Instance != null && GameFlowManager.Instance.HasRunningRestaurantDay)))
         {
             Debug.Log("[GameSaveManager] Unfinished day active; preserving the day-start checkpoint.");
             return;
@@ -176,13 +180,13 @@ public class GameSaveManager : MonoBehaviour
         if (SuppressWritesForTests)
             return;
 #endif
-        if ((autoLoadOnStart && !hasAutoLoaded) || IsApplyingSave)
+        if ((autoLoadOnStart && (!hasAutoLoaded || loadedPath != SavePath)) || IsApplyingSave)
             return;
 
         GameSaveData data = CaptureCurrentData();
         string json = JsonUtility.ToJson(data, true);
-        File.WriteAllText(SavePath, json);
-        File.WriteAllText(DayCheckpointPath, json);
+        CampaignSaveStore.WritePair(new CampaignSaveStore.Snapshot { save = json, checkpoint = json });
+        CampaignSaveStore.NeedsReload = false;
         Debug.Log($"[GameSaveManager] Captured Day {data.currentDay} start checkpoint.");
     }
 
@@ -197,7 +201,12 @@ public class GameSaveManager : MonoBehaviour
             return false;
 
         ApplySaveData(data, true, false);
-        WriteSaveData(SavePath, data);
+        if (CampaignSaveStore.IsFastFood)
+        {
+            CampaignSaveStore.WritePair(new CampaignSaveStore.Snapshot { save = JsonUtility.ToJson(data, true), checkpoint = null });
+            CampaignSaveStore.NeedsReload = false;
+        }
+        else WriteSaveData(SavePath, data);
         Debug.Log($"[GameSaveManager] Restored Day {data.currentDay} start checkpoint.");
         return true;
     }
@@ -207,6 +216,27 @@ public class GameSaveManager : MonoBehaviour
         if (IsPersistenceSuspended || CampaignSaveStore.ProtectedSession) return;
         if (File.Exists(DayCheckpointPath))
             File.Delete(DayCheckpointPath);
+    }
+
+    public bool CommitRestaurantResults()
+    {
+        if (!CampaignSaveStore.RuntimeCampaign || IsApplyingSave || !HasCompletedInitialLoad) return false;
+#if UNITY_EDITOR
+        if (SuppressWritesForTests) return true;
+#endif
+        try
+        {
+            // Recoverable pair transaction: a crash cannot load a stale day-start snapshot over final results.
+            CampaignSaveStore.WritePair(new CampaignSaveStore.Snapshot {
+                save = JsonUtility.ToJson(CaptureCurrentData(), true), checkpoint = null });
+            CampaignSaveStore.NeedsReload = false;
+            return true;
+        }
+        catch (System.Exception error)
+        {
+            Debug.LogError("[GameSaveManager] Results could not be committed. Checkpoint preserved: " + error.Message);
+            return false;
+        }
     }
 
     private GameSaveData CaptureCurrentData()
@@ -247,6 +277,12 @@ public class GameSaveManager : MonoBehaviour
 
         CasualDiningPolishManager.EnsureInstance()?.FillSaveData(data);
         ManagerComplaintSystem.EnsureInstance()?.FillSaveData(data);
+        if (CampaignSaveStore.IsFastFood)
+        {
+            DailyObjectiveManager.Instance?.FillSaveData(data);
+            data.fastFoodFinance = DailyFinanceBridge.Instance?.CaptureNetworkState();
+            if (data.fastFoodDayComplete) data.fastFoodDayStats = GameDayManager.Instance?.CaptureFastFoodReport();
+        }
 
         return data;
     }
@@ -255,7 +291,7 @@ public class GameSaveManager : MonoBehaviour
     {
         if (CampaignSaveStore.ProtectedSession) return;
         string json = JsonUtility.ToJson(data, true);
-        File.WriteAllText(path, json);
+        CampaignSaveStore.AtomicWrite(path, json);
 
         Debug.Log("[GameSaveManager] Game saved to: " + path);
         Debug.Log("[GameSaveManager] Saved money: " + data.money);
@@ -281,12 +317,39 @@ public class GameSaveManager : MonoBehaviour
 
     public void LoadGame()
     {
+        try { LoadGameCore(); }
+        catch (System.Exception error)
+        {
+            hasAutoLoaded = false;
+            CampaignSaveStore.NeedsReload = true;
+            Debug.LogError("[GameSaveManager] Save could not be loaded; original files preserved. " + error.Message);
+            WarningSlideUI.Instance?.Show("Restaurant progress could not be loaded. Reopen the restaurant after checking its save.");
+        }
+    }
+
+    private void LoadGameCore()
+    {
         if (IsPersistenceSuspended) return;
+        bool profileChanged = loadedPath != null && loadedPath != SavePath;
+        loadedPath = SavePath;
+        if (profileChanged)
+        {
+            DailyObjectiveManager.Instance?.ResetForNewRun();
+            DailyRevenueTracker.Instance?.ResetForNewDay();
+            DailyFinanceBridge.Instance?.ResetDay();
+            FinanceManager.Instance?.ResetDailyExpenses();
+        }
         CampaignSaveStore.RecoverPendingWrite();
         if (!CampaignSaveStore.ProtectedSession) CampaignSaveStore.NeedsReload = false;
-        if (!HasSave())
+        if (!HasSave() && !File.Exists(DayCheckpointPath))
         {
             Debug.Log("[GameSaveManager] No save file found — using defaults.");
+            if (CampaignSaveStore.IsFastFood || profileChanged)
+            {
+                ApplySaveData(new GameSaveData(), false, false);
+                EmployeeManager.Instance?.PrepareFreshRestaurantRoster();
+                RequestSave();
+            }
             if (GameFlowManager.Instance != null &&
                 GameFlowManager.Instance.HasRunningRestaurantDay)
                 CaptureDayStartCheckpoint();
@@ -301,16 +364,24 @@ public class GameSaveManager : MonoBehaviour
 
         if (data == null)
         {
-            Debug.LogWarning("[GameSaveManager] Save file could not be parsed.");
-            return;
+            throw new System.IO.InvalidDataException("Save file could not be parsed.");
         }
 
+        if (data.currentDay < 1 || data.saveSchemaVersion > 3 || !json.Contains("\"money\"") || !json.Contains("\"currentDay\""))
+            throw new System.IO.InvalidDataException("Save is incomplete or from a newer version.");
         bool hasCasualDiningSchema = json.Contains("\"saveSchemaVersion\"");
         if (!hasCasualDiningSchema)
             data.saveSchemaVersion = 0;
         bool requiresCasualDiningMigration = !hasCasualDiningSchema || data.saveSchemaVersion < 3;
 
         ApplySaveData(data, false, requiresFiniteInventoryMigration);
+
+        if (CampaignSaveStore.IsFastFood && loadPath == DayCheckpointPath)
+        {
+            // Rollback is complete. Subsequent preparation edits must not be masked by an old checkpoint.
+            CampaignSaveStore.WritePair(new CampaignSaveStore.Snapshot { save = JsonUtility.ToJson(data, true), checkpoint = null });
+            CampaignSaveStore.NeedsReload = false;
+        }
 
         Debug.Log("[GameSaveManager] Game loaded from: " + loadPath);
         Debug.Log("[GameSaveManager] Loaded money: " + data.money);
@@ -365,6 +436,14 @@ public class GameSaveManager : MonoBehaviour
 
             CasualDiningPolishManager.EnsureInstance()?.ApplySaveData(data);
             ManagerComplaintSystem.EnsureInstance()?.ApplySaveData(data);
+            if (CampaignSaveStore.IsFastFood)
+            {
+                DailyObjectiveManager.Instance?.ApplySaveData(data);
+                FinanceManager.Instance?.ResetDailyExpenses();
+                DailyRevenueTracker.Instance?.ResetForNewDay();
+                DailyFinanceBridge.Instance?.ApplyRestaurantSave(data.fastFoodFinance);
+                if (data.fastFoodDayComplete) GameDayManager.Instance?.RestoreFastFoodReport(data.fastFoodDayStats);
+            }
 
             if (MoneyManager.Instance != null)
             {

@@ -74,16 +74,66 @@ public static class FastFoodSceneTools
         var kitchen = data.FindProperty("kitchen").objectReferenceValue as KitchenManager;
         var kitchenData = new SerializedObject(kitchen);
         Require(kitchen.foodTrayPrefab != null && kitchen.traySpawnPoints.Length > 0, "Missing dine-in kitchen output.");
+        var carryPose = kitchen.foodTrayPrefab.GetComponent<FoodTrayCarryPose>();
+        Require(carryPose != null && carryPose.IsValid, "Author tray carry origin and both hand grips on Food Tray.");
+        var previews = SceneComponents<FastFoodShelfPreview>(restaurant);
+        Require(previews.Length == 2, "Author one stock preview on each storage bank.");
+        foreach (var preview in previews)
+        {
+            var slots = new SerializedObject(preview).FindProperty("slots");
+            Require(slots.arraySize > 0, preview.name + ": missing preview slots.");
+            for (int i = 0; i < slots.arraySize; i++)
+            {
+                var slot = slots.GetArrayElementAtIndex(i).objectReferenceValue as GameObject;
+                Require(slot != null && slot.transform.IsChildOf(preview.transform), "Preview slot must belong to its storage bank.");
+                Require(slot.GetComponentsInChildren<Collider>(true).Length == 0 &&
+                    slot.GetComponentsInChildren<MonoBehaviour>(true).All(c => c != null && c.GetType().Namespace != null &&
+                        (c.GetType().Namespace.StartsWith("TMPro") || c.GetType().Namespace.StartsWith("UnityEngine.UI"))),
+                    slot.name + ": previews must contain art/UI only, without inventory or interaction components.");
+            }
+        }
         Require(kitchenData.FindProperty("takeoutBagPrefab").objectReferenceValue != null && kitchenData.FindProperty("takeoutSpawnPoints").arraySize > 0, "Missing takeaway kitchen output.");
         var services = restaurant.gameObject.scene.GetRootGameObjects().SelectMany(root => root.GetComponentsInChildren<LobbyAutonomousService>(true)).ToArray();
         Require(services.Length == 1 && services[0].GetComponent<GameDayManager>() != null,
             "Author one staff service on GameManager so its existing bootstrap does not add a second instance.");
         Require(restaurant.GetComponentInChildren<SinkInteractable>() != null, "Missing active Fast Food sink.");
         ValidateStations(restaurant);
+        var bindings = restaurant.GetComponent<FastFoodLobbyAuthoring>();
+        Require(bindings != null, "Add the authored Lobby2 room and storage bindings.");
+        Require(bindings.ValidateAuthoring(out var bindingProblem), bindingProblem);
+        Require(SceneComponents<ManagementComputerStation>(restaurant).Single() == bindings.RoomComputer,
+            "Only the computer in the office room may be active.");
+        var entrances = SceneComponents<RestockStockRoomEntrance>(restaurant);
+        Require(entrances.Length == 2 && entrances.Contains(bindings.DryStorageEntrance) && entrances.Contains(bindings.FreezerEntrance),
+            "Author exactly two shelf entrances into the shared RestockScene.");
+        Require(EditorBuildSettings.scenes.Any(scene => scene.enabled && scene.path.EndsWith("/RestockScene.unity")),
+            "Enable the shared RestockScene in Build Settings.");
+        foreach (var entrance in entrances)
+            Require(entrance.GetComponent<Collider>().enabled && entrance.gameObject.layer == LayerMask.NameToLayer("Interactable "),
+                entrance.name + ": shelf collider is not clickable.");
         foreach (var station in SceneComponents<FastFoodCounter>(restaurant).Cast<Component>()
             .Concat(SceneComponents<SinkInteractable>(restaurant)).Concat(SceneComponents<ManagementComputerStation>(restaurant)))
             Require(station.GetComponent<Outline>() != null, station.name + ": missing authored outline.");
         Require(SceneComponents<TapOutlineSelector>(restaurant).Length == 1, "Author exactly one outline selector in Lobby2.");
+        foreach (string path in new[] {
+            "Assets/_Project/Art/Models/Customer/Old Alien Models/GreenCustomer.prefab",
+            "Assets/_Project/Art/Models/Customer/Old Alien Models/BlueCustomer.prefab",
+            "Assets/_Project/Art/Models/Customer/Old Alien Models/PinkCustomer.prefab",
+            "Assets/_Project/Restaurant/Assets/Level1/GameMechanics/Customer.prefab" })
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+            Require(prefab != null, "Missing customer prefab: " + path);
+            var agent = prefab.GetComponentInChildren<CustomerAgent>(true);
+            Require(agent != null, path + ": missing CustomerAgent.");
+            var agentData = new SerializedObject(agent);
+            foreach (string field in new[] { "trayCarryAnchor", "trayLeftGrip", "trayRightGrip" })
+            {
+                var anchor = agentData.FindProperty(field).objectReferenceValue as Transform;
+                Require(anchor != null && anchor.IsChildOf(agent.transform), path + ": missing authored " + field);
+            }
+            Require(Vector3.Dot(agent.TrayCarryAnchor.forward, agent.transform.up) > .99f,
+                path + ": tray carry frame must keep the tray horizontal.");
+        }
         ValidateHUD();
         Require(restaurant.NavigationSurface != null && restaurant.NavigationSurface.gameObject.scene == restaurant.gameObject.scene
             && restaurant.NavigationSurface.isActiveAndEnabled, "Assign the active Lobby2 navigation surface to Fast Food Services.");
@@ -109,6 +159,8 @@ public static class FastFoodSceneTools
         {
             Require(service.Queue != null && service.Flow != null && service.StaffApproach != null,
                 service.name + ": incomplete station references.");
+            Require(service.CompanionPoints.Length == 3 && service.CompanionPoints.All(p => p != null && p.IsChildOf(service.Queue.OrderPoint)) &&
+                service.CompanionPoints.Distinct().Count() == 3, service.name + ": author three distinct companions under the order point.");
             Require(service.Queue.ValidateAuthoring(out var problem), service.name + ": " + problem);
         }
         foreach (Component component in new Component[] { computers[0], counters[0], counters[1], sinks[0] })
@@ -188,13 +240,17 @@ public static class FastFoodSceneTools
         Require(NavMesh.SamplePosition(start.position, out var origin, 1f, NavMesh.AllAreas), "Cashier approach is outside the navigation mesh.");
         var points = restaurant.gameObject.scene.GetRootGameObjects().SelectMany(root => root.GetComponentsInChildren<Transform>())
             .Where(t => t.name == "ApproachPoint" && t.GetComponentInParent<FastFoodTable>() != null
-                || t.name.StartsWith("Paid Waiting ") || t.name == "Customer Pickup Approach"
+                || t.name.StartsWith("Paid Waiting ") || t.name.StartsWith("Customer Pickup ") || t.name.StartsWith("Outside Group ") || t.name.StartsWith("Companion ")
                 || t.name == "Customer Order Point" || t.name == "Sink Approach" || t.name == "ManagementComputerStandPoint"
                 || t.name.StartsWith("Customer Spawn") || t.name.StartsWith("Left Entrance") || t.name == "Customer Exit"
                 || t.name.StartsWith("QueuePoint_") || t.name == "OverflowRoot" || t.name == "Overflow Root" || t.name == "Cashier Approach"
                 || t.name.EndsWith("HomePoint") || t.name.EndsWith("TrolleyParkingPoint")
                 || t.name == "ChefPrepPoint" || t.name == "ChefCookPoint"
                 || t.name == "BaristaServePoint" || t.name == "BaristaDrinkPoint");
+        var bindings = restaurant.GetComponent<FastFoodLobbyAuthoring>();
+        Require(bindings != null && bindings.ValidateAuthoring(out _), "Assign the Lobby2 room and storage references first.");
+        points = points.Concat(new[] { bindings.RoomComputer.StandPoint, bindings.DryStorageEntrance.StandPoint,
+            bindings.FreezerEntrance.StandPoint, bindings.CashierHome, bindings.BusserHome }).Distinct();
         foreach (var point in points)
         {
             Require(NavMesh.SamplePosition(point.position, out var destination, 1f, NavMesh.AllAreas), point.name + " is outside the navigation mesh.");

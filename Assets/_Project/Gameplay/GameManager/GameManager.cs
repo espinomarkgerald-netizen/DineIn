@@ -311,6 +311,12 @@ public class GameDayManager : MonoBehaviour
         RefreshUI();
         SetupMoodBars(true);
 
+        if (gameObject.scene.name == "Lobby2" && GameFlowManager.Instance != null &&
+            GameFlowManager.Instance.CurrentRestaurantSessionState == GameFlowManager.RestaurantSessionState.DayComplete)
+        {
+            ShowResults();
+            return;
+        }
         if (useManagementComputerForDayStart)
         {
             SetPanelVisible(dayIntroPanel, false);
@@ -584,6 +590,9 @@ public class GameDayManager : MonoBehaviour
     public void StartShift()
     {
         var fastFood = FastFoodRestaurant.For(this);
+        if (fastFood != null && (GameSaveManager.Instance == null || GameFlowManager.Instance == null ||
+            !GameSaveManager.Instance.HasCompletedInitialLoad || CampaignSaveStore.NeedsReload))
+        { ShowWarning("Restaurant progress is not ready. Please wait for loading to finish."); return; }
         if (fastFood != null && !fastFood.ValidateServiceSetup(out var setupProblem))
         {
             Debug.LogError("Lobby2 service setup: " + setupProblem, fastFood);
@@ -621,6 +630,16 @@ public class GameDayManager : MonoBehaviour
         ApplyDifficultyScaling();
         ApplyTakeoutUnlock();
         ApplyCustomerTypeUnlocks();
+        if (fastFood != null)
+        {
+            try { GameFlowManager.Instance.MarkRestaurantServiceStarted(); }
+            catch (System.Exception error)
+            {
+                Debug.LogError("[FastFood] Could not save the start of service: " + error.Message);
+                ShowWarning("Your preparation could not be saved. Please try opening again.");
+                return;
+            }
+        }
         ResetShiftRuntime();
         fastFood?.BeginServiceDay();
         HygieneManager.Instance?.ResetForShift();
@@ -628,7 +647,7 @@ public class GameDayManager : MonoBehaviour
         timeRemaining = ShiftLengthSeconds;
         shiftRunning = true;
         closingOut = false;
-        GameFlowManager.Instance?.MarkRestaurantServiceStarted();
+        if (fastFood == null) GameFlowManager.Instance?.MarkRestaurantServiceStarted();
 
         SetPanelVisible(resultsPanel, false);
         SetPanelVisible(dayIntroPanel, false);
@@ -694,9 +713,11 @@ public class GameDayManager : MonoBehaviour
 
     private IEnumerator ShowResultsWhenClear()
     {
+        var fastFood = FastFoodRestaurant.For(this);
+        fastFood?.StopAdmissions();
         float waited = 0f;
-        while (FindObjectsByType<CustomerGroup>(FindObjectsSortMode.None).Length > 0 &&
-               waited < maxClosingGraceSeconds)
+        while ((fastFood != null ? fastFood.ActiveCustomerCount : FindObjectsByType<CustomerGroup>(FindObjectsSortMode.None).Length) > 0 &&
+               waited < (fastFood != null ? fastFood.ClosingServiceSeconds : maxClosingGraceSeconds))
         {
             if (ObserveDayOnly || (MultiplayerDayBridge.IsActive && !MultiplayerSessionManager.Instance.IsAuthority)) yield break;
             yield return new WaitForSeconds(1f);
@@ -704,7 +725,13 @@ public class GameDayManager : MonoBehaviour
         }
 
         if (ObserveDayOnly || (MultiplayerDayBridge.IsActive && !MultiplayerSessionManager.Instance.IsAuthority)) yield break;
-        FastFoodRestaurant.For(this)?.FinishClosing();
+        if (fastFood != null)
+        {
+            fastFood.BeginClosingExit();
+            float exitDeadline = Time.time + fastFood.ClosingExitSeconds;
+            while (fastFood.ActiveCustomerCount > 0 && Time.time < exitDeadline) yield return null;
+            fastFood.FinishClosing();
+        }
         closingOut = false;
         closingResultsRoutine = null;
         if (MultiplayerDayBridge.IsActive)
@@ -736,6 +763,7 @@ public class GameDayManager : MonoBehaviour
         shiftRunning = false;
         closingOut = false;
         timeRemaining = 0f;
+        FastFoodRestaurant.For(this)?.BeginClosingExit();
         FastFoodRestaurant.For(this)?.FinishClosing();
         ShowResults();
         return true;
@@ -972,6 +1000,8 @@ public class GameDayManager : MonoBehaviour
             return false;
         }
 
+        var admission = FastFoodRestaurant.For(this);
+        if (admission != null && !admission.CanAdmitCustomer) return false;
         CustomerGroup spawnedGroup = groupSpawner.SpawnGroup();
         if (spawnedGroup == null)
         {
@@ -1031,6 +1061,25 @@ public class GameDayManager : MonoBehaviour
             return DailyFinanceBridge.Instance.GetProgress01();
 
         return 0f;
+    }
+
+    public int[] CaptureFastFoodReport() => new[] { groupsSeated, ordersTaken, ordersProcessed, foodDelivered, billsDelivered, traysCleaned, paymentsCompleted, tipsEarned, happyCustomers, neutralCustomers, angryCustomers, cashErrors, groupsSpawnedThisShift };
+    public void RestoreFastFoodReport(int[] stats)
+    {
+        if (gameObject.scene.name != "Lobby2" || stats == null || stats.Length != 13) return;
+        groupsSeated = Mathf.Max(0, stats[0]);
+        ordersTaken = Mathf.Max(0, stats[1]);
+        ordersProcessed = Mathf.Max(0, stats[2]);
+        foodDelivered = Mathf.Max(0, stats[3]);
+        billsDelivered = Mathf.Max(0, stats[4]);
+        traysCleaned = Mathf.Max(0, stats[5]);
+        paymentsCompleted = Mathf.Max(0, stats[6]);
+        tipsEarned = Mathf.Max(0, stats[7]);
+        happyCustomers = Mathf.Max(0, stats[8]);
+        neutralCustomers = Mathf.Max(0, stats[9]);
+        angryCustomers = Mathf.Max(0, stats[10]);
+        cashErrors = Mathf.Max(0, stats[11]);
+        groupsSpawnedThisShift = Mathf.Max(0, stats[12]);
     }
 
     private void ShowResults()
@@ -1189,12 +1238,13 @@ public class GameDayManager : MonoBehaviour
 
     private string GetMostUsefulImprovement(int revenueGap)
     {
+        bool fastFood = FastFoodRestaurant.For(this) != null;
         if (CustomersServed <= 0)
-            return "Seat and fully serve at least one group.";
+            return fastFood ? "Complete at least one customer order." : "Seat and fully serve at least one group.";
 
         float angryRatio = angryCustomers / (float)CustomersServed;
         if (angryRatio >= 0.2f)
-            return "Reduce waits: greet, serve food and collect bills sooner.";
+            return fastFood ? "Keep counters staffed, meals available and tables clean to reduce waits." : "Reduce waits: greet, serve food and collect bills sooner.";
 
         if (cashErrors > 0)
             return "Finish every payment and return the exact change.";
@@ -1203,7 +1253,7 @@ public class GameDayManager : MonoBehaviour
             return "Serve more groups and complete every customer payment.";
 
         if (neutralCustomers > happyCustomers)
-            return "Deliver food and bills faster to turn neutral guests happy.";
+            return fastFood ? "Shorten ordering and pickup waits to turn neutral guests happy." : "Deliver food and bills faster to turn neutral guests happy.";
 
         return "Keep your service speed and accurate cash handling.";
     }

@@ -1902,7 +1902,14 @@ public partial class CustomerGroup : MonoBehaviour
         if (!waitingForRemake)
             GameDayManager.Instance?.RegisterOrderTaken();
 
+        bool prepaidRemake = waitingForRemake && FastFood != null && FastFoodPaid;
         waitingForRemake = false;
+        if (prepaidRemake)
+        {
+            SpawnTableNumber();
+            FastFood.SubmitKitchen(this);
+            return;
+        }
 
         if (IsTakeout)
         {
@@ -3865,7 +3872,13 @@ public partial class CustomerGroup : MonoBehaviour
                 sideSpacing,
                 rowSpacing);
 
-            if (!TryResolveTakeoutDestination(desiredTarget, worldPoint, out Vector3 resolvedTarget))
+            if (FastFood != null)
+                desiredTarget = GetFastFoodFormationTarget(member, i, worldPoint, forward, right, sideSpacing, rowSpacing);
+            Vector3 resolvedTarget;
+            bool resolved = FastFood != null
+                ? TryResolveDistinctFastFoodDestination(desiredTarget, out resolvedTarget)
+                : TryResolveTakeoutDestination(desiredTarget, worldPoint, out resolvedTarget);
+            if (!resolved)
             {
                 member.StopAtCurrentPosition();
                 Debug.LogWarning(
@@ -3875,7 +3888,7 @@ public partial class CustomerGroup : MonoBehaviour
             }
 
             if (member.TryWalkTo(resolvedTarget, out Vector3 actualDestination) ||
-                member.TryWalkTo(worldPoint, out actualDestination))
+                (FastFood == null && member.TryWalkTo(worldPoint, out actualDestination)))
             {
                 takeoutMemberDestinations[member] = actualDestination;
                 continue;
@@ -3918,6 +3931,7 @@ public partial class CustomerGroup : MonoBehaviour
             Vector3 target;
             if (!takeoutMemberDestinations.TryGetValue(member, out target))
             {
+                if (FastFood != null) return false;
                 target = GetTakeoutFormationTarget(
                     worldPoint,
                     forward,

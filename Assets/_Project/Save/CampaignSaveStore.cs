@@ -11,7 +11,20 @@ public static class CampaignSaveStore
     public static bool ProtectedSession => GameSaveManager.IsPersistenceSuspended ||
         MultiplayerRestockBridge.IsActive || SceneManager.GetSceneByName("Lobby1 Multiplayer").isLoaded ||
         SceneManager.GetSceneByName("Lobby1Tutorial").isLoaded;
-    public static bool RuntimeCampaign => !ProtectedSession && SceneManager.GetSceneByName("Lobby1").isLoaded;
+    // Keep the selected restaurant through additive RestockScene and menu transitions.
+    public static string RestaurantScene { get; private set; } = "Lobby1";
+    public static bool IsFastFood => RestaurantScene == "Lobby2";
+    public static string ResolveFileName(string casualName) => IsFastFood ? "dinein_fastfood_save.json" : casualName;
+    public static string CloudFileName => IsFastFood ? "FastFoodCampaignSave_v1.json" : "CampaignSave_v1.json";
+    public static void SelectRestaurant(string sceneName)
+    {
+        if (ProtectedSession || (sceneName != "Lobby1" && sceneName != "Lobby2") || RestaurantScene == sceneName) return;
+        RestaurantScene = sceneName;
+        NeedsReload = true;
+        cachedStamp = null;
+    }
+    public static bool RuntimeCampaign => !ProtectedSession &&
+        SceneManager.GetSceneByName(RestaurantScene).isLoaded;
     public static bool AtMenu => !ProtectedSession && !RuntimeCampaign &&
         (SceneManager.GetActiveScene().name == "NewMainMenu" ||
          SceneManager.GetActiveScene().name == "NewGameMenu");
@@ -20,12 +33,13 @@ public static class CampaignSaveStore
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetRuntime()
     {
+        RestaurantScene = "Lobby1";
         NeedsReload = false;
         IsCreditPending = false;
         cachedStamp = null;
     }
     public static string SavePath => GameSaveManager.Instance != null
-        ? GameSaveManager.Instance.CampaignSavePath : Path.Combine(Application.persistentDataPath, "dinein_save.json");
+        ? GameSaveManager.Instance.CampaignSavePath : Path.Combine(Application.persistentDataPath, ResolveFileName("dinein_save.json"));
     public static string CheckpointPath => Path.Combine(Path.GetDirectoryName(SavePath),
         Path.GetFileNameWithoutExtension(SavePath) + "_day_start.json");
 
@@ -94,7 +108,7 @@ public static class CampaignSaveStore
         NeedsReload = true;
     }
 
-    private static void WritePair(Snapshot snapshot)
+    internal static void WritePair(Snapshot snapshot)
     {
         // A journal makes the two-file update recoverable after a crash between writes.
         snapshot.hash = Hash(snapshot.save, snapshot.checkpoint);
@@ -168,7 +182,7 @@ public static class CampaignSaveStore
         catch (Exception e) { Debug.LogError("[Campaign] Local wallet save failed: " + e.Message); return false; }
     }
 
-    [Serializable] private sealed class Credit { public string id, account; public int amount; }
+    [Serializable] private sealed class Credit { public string id, account, restaurant; public int amount; }
     [Serializable] private sealed class Binding { public string account; }
     public static bool AccountMatches(string account)
     {
@@ -177,13 +191,13 @@ public static class CampaignSaveStore
         var binding = JsonUtility.FromJson<Binding>(File.ReadAllText(path));
         return binding != null && (string.IsNullOrEmpty(binding.account) || binding.account == account);
     }
-    public static void QueueConfirmedCredit(string account, int amount, string receipt)
+    public static void QueueConfirmedCredit(string account, int amount, string receipt, string restaurant = null, string savePath = null)
     {
         string path = Path.Combine(Application.persistentDataPath, "campaign_credits");
         Directory.CreateDirectory(path);
         AtomicWrite(Path.Combine(path, receipt + ".json"),
-            JsonUtility.ToJson(new Credit { id = receipt, account = account, amount = amount }));
-        string binding = SavePath + ".cloud_state.json";
+            JsonUtility.ToJson(new Credit { id = receipt, account = account, amount = amount, restaurant = restaurant ?? RestaurantScene }));
+        string binding = (savePath ?? SavePath) + ".cloud_state.json";
         if (!File.Exists(binding)) AtomicWrite(binding, JsonUtility.ToJson(new Binding { account = account }));
         IsCreditPending = false;
         ApplyConfirmedCredits();
@@ -197,7 +211,8 @@ public static class CampaignSaveStore
         foreach (string file in Directory.GetFiles(path, "*.json"))
         {
             var credit = JsonUtility.FromJson<Credit>(File.ReadAllText(file));
-            if (credit == null || credit.account != auth.PlayFabId || credit.amount <= 0) continue;
+            if (credit == null || credit.account != auth.PlayFabId || credit.amount <= 0 ||
+                (string.IsNullOrEmpty(credit.restaurant) ? "Lobby1" : credit.restaurant) != RestaurantScene) continue;
             var snapshot = Read();
             if (!string.IsNullOrEmpty(snapshot.save) && !Valid(snapshot))
                 throw new InvalidDataException("Campaign is invalid; confirmed credit preserved for recovery.");

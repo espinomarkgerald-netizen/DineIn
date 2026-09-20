@@ -62,11 +62,14 @@ public class KitchenWorkerBot : MonoBehaviour
     private void Update()
     {
         if (MultiplayerRestaurantBridge.IsObserver) return;
-        if (activeOrders.Count == 0 && HygieneManager.Instance?.State.Cleaning != true || staffBot == null || staffBot.IsBusy)
+        if (!HasWork || staffBot == null || staffBot.IsBusy)
             return;
 
         staffBot.StartTask(WorkWhileOrdersAreActive());
     }
+
+    private bool HasWork => activeOrders.Count > 0 || HygieneManager.Instance?.State.Cleaning == true ||
+        (gameObject.scene.name == "Lobby2" && kitchenManager != null && kitchenManager.HygieneActiveCookingCount > 0);
 
     private void BindKitchenManager()
     {
@@ -114,7 +117,7 @@ public class KitchenWorkerBot : MonoBehaviour
 
         currentIndex = Mathf.Clamp(currentIndex, 0, workPoints.Length - 1);
 
-        while (activeOrders.Count > 0 || HygieneManager.Instance?.State.Cleaning == true)
+        while (HasWork)
         {
             Transform target = FindNextWorkPoint();
 
@@ -131,7 +134,7 @@ public class KitchenWorkerBot : MonoBehaviour
             if (registeredStation) yield return staffBot.MoveWithin(approach, .25f, .5f, 12f);
             else yield return staffBot.MoveTo(target);
 
-            if (staffBot.LastMoveSucceeded && (activeOrders.Count > 0 || HygieneManager.Instance?.State.Cleaning == true))
+            if (staffBot.LastMoveSucceeded && HasWork)
             {
                 bool wasCleaning = HygieneManager.Instance?.State.Cleaning == true;
                 yield return staffBot.WorkFor(waitAtPoint);

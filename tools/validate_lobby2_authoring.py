@@ -71,6 +71,10 @@ def main():
     assert "public class BoothMessCleanUI" in cleaning.read_text(), "Cleaning script filename/class mismatch"
     cleaning_guid = guid(cleaning)
     outline_guid = guid(ROOT / "Assets/QuickOutline/Scripts/Outline.cs")
+    # QuickOutline skips submesh preparation for unreadable models, leaving only
+    # the last material section outlined. Check the import setting, not Editor-only mesh access.
+    model_meta = ASSETS / "Art/Models/FastFoodRestaurant/Fast Food Revamp.fbx.meta"
+    assert re.search(r"^    isReadable: 1$", model_meta.read_text(), re.M), "Fast Food model must enable Read/Write for complete outlines"
     assets = {}
     for path in sorted((ASSETS / "Restaurant/Prefabs/FastFood").glob("*.prefab")):
         docs = read(path)
@@ -99,6 +103,8 @@ def main():
         _, table = component(docs, table_guid)[0]
         _, delivery = component(docs, delivery_guid)[0]
         root_go = reference(booth, "m_GameObject")
+        assert reference(outlines[0][1], "m_GameObject") == root_go, (path, "outline must cover the whole seating root")
+        assert value(outlines[0][1], "precomputeOutline") == "1", (path, "enable editor outline baking")
         assert value(docs[root_go][1], "m_Layer") == "7"
         root_transform = next(i for i, (t, d) in docs.items()
                               if t == 4 and reference(d, "m_GameObject") == root_go)
@@ -177,6 +183,48 @@ def main():
         assert reference(f, "kitchenManager") == reference(restaurant, "kitchen")
         assert reference(station, "staffApproach") in scene
         assert len(array(q, "queuePoints")) >= 2 and reference(q, "orderPoint") in scene
+    for _, station in stations:
+        assert all(float(value(station, field)) > 0 for field in ("kioskOrderSeconds", "cashierOrderSeconds", "cashierPaymentSeconds"))
+        assert "kioskPayHereChance:" not in station, "Kiosks must use automatic payment"
+        companions = array(station, "companionPoints")
+        assert len(set(companions)) == 3
+        order = reference(scene[reference(station, "queue")][1], "orderPoint")
+        assert all(reference(scene[p][1], "m_Father") == order for p in companions)
+        assert len({vector(scene[p][1], "m_LocalPosition") for p in companions}) == 3
+    for field, count in (("outsideWaitingPoints", 2), ("customerPickupSlots", 3), ("waitingPoints", 6)):
+        points = array(restaurant, field)
+        assert len(set(points)) == count, (field, "missing/duplicate positions")
+        assert len({vector(scene[p][1], "m_LocalPosition") for p in points}) == count
+    previews = component(scene, guid(ASSETS / "Restaurant/FastFoodShelfPreview.cs"))
+    assert len(previews) == 2 and {value(p, "storageType") for _, p in previews} == {"0", "1"}
+    preview_path = ASSETS / "Restaurant/RestockRoom/Prefabs/StoredBoxPreview.prefab"
+    preview = read(preview_path)
+    assert not any(t in (54, 64, 65, 135, 136) for t, _ in preview.values()), "Preview has physical interaction components"
+    allowed_ui = {"f4688fdb7df04437aeb418b961361dc5", "fe87c0e1cc204ed48ad3b37840f39efc", "0cd44c1031e13a943bb63640046fad76"}
+    for t, doc in preview.values():
+        if t == 114:
+            assert any(g in value(doc, "m_Script") for g in allowed_ui), ("Preview includes non-art script", value(doc, "m_Script"))
+    for _, preview_component in previews:
+        slots = array(preview_component, "slots")
+        assert len(set(slots)) == 12
+        assert all(value(scene[p][1], "m_IsActive") == "0" for p in slots), "Preview stock must start hidden"
+    tray_path = ASSETS / "Restaurant/Assets/Level1/GameObjects/RestaurantObjects/Customers/Food Tray.prefab"
+    tray = read(tray_path)
+    pose = component(tray, guid(ASSETS / "Restaurant/Items/FoodTrayCarryPose.cs"))[0][1]
+    grips = [reference(pose, f) for f in ("carryOrigin", "leftGrip", "rightGrip")]
+    assert len(set(grips)) == 3 and all(g in tray for g in grips)
+    assert len({reference(tray[g][1], "m_Father") for g in grips}) == 1
+    assert float(value(pose, "carryWorldScale")) > 0
+    kitchen = scene[reference(restaurant, "kitchen")][1]
+    outputs = array(kitchen, "traySpawnPoints")
+    assert len(outputs) == 4
+    xs = []
+    for point in outputs:
+        x,y,z,w = vector(scene[point][1], "m_LocalRotation")
+        assert 2*(y*z-w*x) > .99, "Kitchen tray local Z must face up"
+        xs.append(vector(scene[point][1], "m_LocalPosition")[0])
+    assert all(b-a >= 1.875 for a,b in zip(sorted(xs), sorted(xs)[1:])), "Output trays overlap horizontally"
+    print("PASS: bounded outside/paid/pickup spaces, companion positions, art-only shelf previews, tray grips and output spacing.")
     entrance = array(restaurant, "entranceRoute")
     assert len(entrance) == 2
     assert vector(scene[entrance[0]][1], "m_LocalPosition")[0] < -25
@@ -195,6 +243,57 @@ def main():
     assert value(navigation, "m_Enabled") == "1"
     navigation_asset = ASSETS / "Scenes/RoleBased/Lobby2/NavMesh-Fast Food Revamp.asset"
     assert navigation_asset.is_file() and guid(navigation_asset) in value(navigation, "m_NavMeshData")
+
+    bindings = component(scene, guid(ASSETS / "Restaurant/FastFoodLobbyAuthoring.cs"))
+    assert len(bindings) == 1, "Expected one authored Lobby2 binding component"
+    binding = bindings[0][1]
+    assert reference(binding, "m_GameObject") == reference(restaurant, "m_GameObject")
+    shelves = component(scene, guid(ASSETS / "Restaurant/RestockRoom/RestockStockRoomEntrance.cs"))
+    assert len(shelves) == 2, "Two authored shelf entrances must reuse RestockScene"
+    assert {i for i, _ in shelves} == {reference(binding, "dryStorageEntrance"), reference(binding, "freezerEntrance")}
+    for field, storage in (("dryStorageEntrance", "0"), ("freezerEntrance", "1")):
+        shelf = scene[reference(binding, field)][1]
+        assert value(shelf, "storageType") == storage
+        owner = reference(shelf, "m_GameObject")
+        assert value(scene[owner][1], "m_Layer") == "10"
+        parent = next(i for i, (t, d) in scene.items() if t == 4 and reference(d, "m_GameObject") == owner)
+        assert reference(scene[reference(shelf, "standPoint")][1], "m_Father") == parent
+        assert reference(shelf, "statusText") and reference(shelf, "signBackground")
+        assert any(t == 65 and reference(d, "m_GameObject") == owner and value(d, "m_Enabled") == "1" for t, d in scene.values())
+        assert any(reference(d, "m_GameObject") == owner for _, d in component(scene, outline_guid))
+        meshes = [d for t, d in scene.values() if t == 4 and reference(d, "m_Father") == parent
+                  and value(scene[reference(d, "m_GameObject")][1], "m_Name").startswith("Shelf")]
+        assert len(meshes) == 2, "Each entrance must encompass both visible shelf meshes"
+    # Resolve the component by its authored reference; GUID lookup remains independent of source directory layout.
+    computer = scene[reference(binding, "roomComputer")][1]
+    computer_go = reference(computer, "m_GameObject")
+    assert value(scene[computer_go][1], "m_Name") == "Room Management Computer"
+    assert reference(computer, "controller") and reference(computer, "standPoint")
+    legacy = scene[8121800376007299293][1]
+    assert re.search(r"propertyPath: m_IsActive\n      value: 0", legacy), "The duplicate lobby computer must stay inactive"
+    assert reference(binding, "sink") and reference(binding, "cashierHome") and reference(binding, "busserHome")
+    build_settings = (ROOT / "ProjectSettings/EditorBuildSettings.asset").read_text()
+    assert re.search(r"- enabled: 1\n    path: .*RestockScene.unity", build_settings), "Existing RestockScene must remain build-enabled"
+    assert "selfPickupChance:" not in restaurant, "Fast food has no waiter: dine-in customers collect every meal"
+    worker_guid = guid(ASSETS / "Gameplay/AutonomousService/Kitchen/KitchenWorkerBot.cs")
+    assert all(reference(d, "homePoint") for _, d in component(scene, worker_guid)), "Kitchen staff need authored home points"
+    agent_guid = guid(ASSETS / "Customers/Customer/CustomerAgent.cs")
+    customer_paths = list((ASSETS / "Art/Models/Customer/Old Alien Models").glob("*Customer.prefab"))
+    customer_paths.append(ASSETS / "Restaurant/Assets/Level1/GameMechanics/Customer.prefab")
+    assert len(customer_paths) == 4
+    for path in customer_paths:
+        docs = read(path)
+        agent = component(docs, agent_guid)[0][1]
+        agent_transform = next(i for i, (t, d) in docs.items() if t == 4 and reference(d, "m_GameObject") == reference(agent, "m_GameObject"))
+        anchors = [reference(agent, key) for key in ("trayCarryAnchor", "trayLeftGrip", "trayRightGrip")]
+        assert all(anchors) and len(set(anchors)) == 3
+        for anchor in anchors:
+            assert reference(docs[anchor][1], "m_Father") == agent_transform, (path, "carry anchors must follow the stable root")
+            assert anchor in array(docs[agent_transform][1], "m_Children")
+        x, y, z, w = vector(docs[anchors[0]][1], "m_LocalRotation")
+        assert 2 * (y*z - w*x) > .99, (path, "carried tray model local Z must face up")
+        assert vector(docs[anchors[1]][1], "m_LocalPosition")[0] < 0 < vector(docs[anchors[2]][1], "m_LocalPosition")[0]
+    print("PASS: shared restock entrances, room computer, staff home points and four customer carry rigs.")
 
     hud = read(ASSETS / "Resources/UI/LobbyHUD.prefab")
     for _, (typ, canvas) in hud.items():

@@ -1452,7 +1452,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
             everyRoleCovered = missingRoles.Count == 0;
         }
         string staffDetails = everyRoleCovered
-            ? "HOST  ✓   WAITER  ✓   CASHIER  ✓   BUSSER  ✓   CHEF  ✓   BARISTA  ✓"
+            ? (CampaignSaveStore.IsFastFood ? "CASHIER  ✓   BUSSER  ✓   CHEF  ✓   BARISTA  ✓" : "HOST  ✓   WAITER  ✓   CASHIER  ✓   BUSSER  ✓   CHEF  ✓   BARISTA  ✓")
             : missingRoles.Count > 0
                 ? "MISSING: " + string.Join("  •  ", missingRoles).ToUpperInvariant()
                 : "NO ACTIVE EMPLOYEES";

@@ -224,6 +224,9 @@ public class GroupSpawner : MonoBehaviour
 
     public CustomerGroup SpawnGroup()
     {
+        var admission = FastFoodRestaurant.For(this);
+        if (admission != null && !admission.CanAdmitCustomer) return null;
+
         if (SpawnPermission != null && !SpawnPermission()) return null;
         if (groupPrefab == null)
         {

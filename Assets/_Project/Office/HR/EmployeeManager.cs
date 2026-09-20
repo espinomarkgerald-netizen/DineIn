@@ -253,7 +253,7 @@ public class EmployeeManager : MonoBehaviour
     /// checklist and the authoritative shift controller the same answer.
     /// </summary>
     public static bool IsRoleUsedInCurrentRestaurant(EmployeeRole role) =>
-        UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "Lobby2" ||
+        !CampaignSaveStore.IsFastFood || CampaignSaveStore.ProtectedSession ||
         (role != EmployeeRole.Host && role != EmployeeRole.Waiter);
 
     public bool HasAllRequiredRolesAssigned
@@ -340,11 +340,21 @@ public class EmployeeManager : MonoBehaviour
         }
     }
 
+    public void PrepareFreshRestaurantRoster()
+    {
+        SlotsLocked = false;
+        allEmployees.Clear(); applicantPoolsInitialized = false;
+        if (generator == null) generator = FindFirstObjectByType<EmployeeGenerator>();
+        EnsureEmployeesGenerated();
+        AssignmentsChanged?.Invoke();
+    }
+
     public void ApplySaveData(GameSaveData data)
     {
         if (data?.employees == null)
             return;
 
+        if (CampaignSaveStore.IsFastFood && !GameSaveManager.IsPersistenceSuspended) SlotsLocked = false;
         allEmployees.Clear();
         foreach (EmployeeSaveEntry entry in data.employees)
         {

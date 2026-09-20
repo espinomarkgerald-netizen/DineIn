@@ -555,7 +555,11 @@ public class KitchenManager : MonoBehaviour
             if (!resumeAtSpawn && cookSnapshot > 0f)
                 yield return WaitForKitchenTime(group, orderNo, cookSnapshot, 0f);
 
-            while (HygieneManager.KitchenPaused) yield return null;
+            while (HygieneManager.KitchenPaused)
+            {
+                if (group != null && group.FastFood != null && !IsOrderStillValid(group, orderNo)) yield break;
+                yield return null;
+            }
 
             if (!IsOrderStillValid(group, orderNo))
             {
@@ -575,8 +579,10 @@ public class KitchenManager : MonoBehaviour
                 yield break;
             }
 
-            // Defensive hold if a Fast Food seat becomes unavailable during
-            // preparation. Normal dine-in submission now occurs after seating.
+            // Fast Food begins cooking at payment. Keep prepared food in the kitchen until
+            // seating completes; the restaurant owns the bounded seat-wait timeout.
+            if (group != null && group.FastFoodAwaitingSeat)
+                SetForecastState(orderNo, ForecastState.WaitingForSpawnSlot);
             while (group != null && group.FastFoodAwaitingSeat)
             {
                 if (!IsOrderStillValid(group, orderNo)) yield break;

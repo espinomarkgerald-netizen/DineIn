@@ -196,6 +196,17 @@ internal sealed class AlienProceduralAnimation
         if (head == null)
             return;
 
+        // Carrying owns both arms. Reactions and waiting gestures must not pull
+        // the hands away from the tray while walking back to the table.
+        if (owner.TrayCarryWeight > .001f)
+        {
+            ApplyCcdArm(leftUpperArm, leftLowerArm, leftHand, owner.TrayLeftGripPosition, owner.TrayCarryWeight);
+            ApplyCcdArm(rightUpperArm, rightLowerArm, rightHand, owner.TrayRightGripPosition, owner.TrayCarryWeight);
+            if (leftHand != null) leftHand.rotation = Quaternion.Slerp(leftHand.rotation, owner.TrayLeftGripRotation, owner.TrayCarryWeight);
+            if (rightHand != null) rightHand.rotation = Quaternion.Slerp(rightHand.rotation, owner.TrayRightGripRotation, owner.TrayCarryWeight);
+            return;
+        }
+
         if (isSeated)
             ApplySeatedIdleMotion();
 

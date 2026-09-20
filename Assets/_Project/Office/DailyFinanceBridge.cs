@@ -48,6 +48,16 @@ public class DailyFinanceBridge : MonoBehaviour
         ingredientCostToday = state[3]; totalRequiredEarningsToday = state[4]; earnedToday = state[5];
     }
 
+    public void ApplyRestaurantSave(int[] state)
+    {
+        if (!CampaignSaveStore.IsFastFood || GameSaveManager.Instance?.IsApplyingSave != true) return;
+        ResetDay();
+        if (state == null || state.Length != 6) return;
+        employeeCostToday = Mathf.Max(0, state[0]); marketingCostToday = Mathf.Max(0, state[1]);
+        billsCostToday = Mathf.Max(0, state[2]); ingredientCostToday = Mathf.Max(0, state[3]);
+        totalRequiredEarningsToday = Mathf.Max(0, state[4]); earnedToday = Mathf.Max(0, state[5]);
+    }
+
     private void Awake()
     {
         if (Instance != null && Instance != this)

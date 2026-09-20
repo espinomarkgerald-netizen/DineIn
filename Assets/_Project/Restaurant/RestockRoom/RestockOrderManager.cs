@@ -67,6 +67,7 @@ public sealed class RestockOrderManager : MonoBehaviour
     [SerializeField, Min(1f)] private float deliveryDelaySeconds = 5f;
 
     public event Action OrdersChanged;
+    public event Action StoredContainersChanged;
     public event Action<RestockOrderSaveData> OrderDelivered;
     public IReadOnlyList<RestockOrderSaveData> Orders => orders;
     public IReadOnlyList<RestockStoredContainerSaveData> StoredContainers => storedContainers;
@@ -163,6 +164,7 @@ public sealed class RestockOrderManager : MonoBehaviour
 
         orders.Add(order);
         OrdersChanged?.Invoke();
+        StoredContainersChanged?.Invoke();
         return order.orderID;
     }
 
@@ -249,6 +251,7 @@ public sealed class RestockOrderManager : MonoBehaviour
         if (changed)
         {
             OrdersChanged?.Invoke();
+        StoredContainersChanged?.Invoke();
             GameSaveManager.Instance?.RequestSave();
         }
 
@@ -337,6 +340,7 @@ public sealed class RestockOrderManager : MonoBehaviour
                 }
                 RefreshStoredState(order);
                 OrdersChanged?.Invoke();
+        StoredContainersChanged?.Invoke();
                 GameSaveManager.Instance?.RequestSave();
                 message = item.displayName + " stored (" +
                           Mathf.Max(1, item.unitsPerBox) + " units added)." +
@@ -358,6 +362,7 @@ public sealed class RestockOrderManager : MonoBehaviour
 
         order.deliveryNoticeShown = true;
         OrdersChanged?.Invoke();
+        StoredContainersChanged?.Invoke();
         GameSaveManager.Instance?.RequestSave();
         return true;
     }
@@ -452,6 +457,7 @@ public sealed class RestockOrderManager : MonoBehaviour
         if (!MultiplayerRestockBridge.CanCommit || entry == null || FindStoredContainer(entry.containerID) != null) return;
         storedContainers.Add(CloneStoredContainer(entry));
         OrdersChanged?.Invoke();
+        StoredContainersChanged?.Invoke();
     }
 
     public void ApplySaveData(GameSaveData data)
@@ -494,6 +500,7 @@ public sealed class RestockOrderManager : MonoBehaviour
         }
 
         OrdersChanged?.Invoke();
+        StoredContainersChanged?.Invoke();
     }
 
     public void RegisterPhysicalContainer(
@@ -527,6 +534,7 @@ public sealed class RestockOrderManager : MonoBehaviour
         entry.rotationY = rotationY;
         entry.storageType = grid.StorageType;
         entry.wrongStorage = grid.StorageType != identity.Item.requiredStorage;
+        StoredContainersChanged?.Invoke();
         GameSaveManager.Instance?.RequestSave();
     }
 
@@ -541,7 +549,10 @@ public sealed class RestockOrderManager : MonoBehaviour
                 containerID,
                 StringComparison.Ordinal));
         if (removed > 0)
+        {
+            StoredContainersChanged?.Invoke();
             GameSaveManager.Instance?.RequestSave();
+        }
     }
 
     public int RestorePhysicalContainers(
@@ -664,6 +675,7 @@ public sealed class RestockOrderManager : MonoBehaviour
 
         if (relocatedCount > 0 || repairedLegacyRotations)
             GameSaveManager.Instance?.RequestSave();
+        StoredContainersChanged?.Invoke();
         return recoveryCount;
     }
 
@@ -672,6 +684,7 @@ public sealed class RestockOrderManager : MonoBehaviour
         orders.Clear();
         storedContainers.Clear();
         OrdersChanged?.Invoke();
+        StoredContainersChanged?.Invoke();
     }
 
     private void TickDeliveries()
@@ -703,6 +716,7 @@ public sealed class RestockOrderManager : MonoBehaviour
         if (changed)
         {
             OrdersChanged?.Invoke();
+        StoredContainersChanged?.Invoke();
             GameSaveManager.Instance?.RequestSave();
         }
     }

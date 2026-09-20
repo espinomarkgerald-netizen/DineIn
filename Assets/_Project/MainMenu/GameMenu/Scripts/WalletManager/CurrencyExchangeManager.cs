@@ -186,6 +186,8 @@ public class CurrencyExchangeManager : MonoBehaviour
         }
         catch (Exception e) { onFailure(e.Message); return; }
         string receipt = Guid.NewGuid().ToString("N");
+        string restaurant = CampaignSaveStore.RestaurantScene;
+        string savePath = CampaignSaveStore.SavePath;
         CampaignSaveStore.IsCreditPending = true;
         PlayFabClientAPI.SubtractUserVirtualCurrency(
             new SubtractUserVirtualCurrencyRequest
@@ -197,7 +199,7 @@ public class CurrencyExchangeManager : MonoBehaviour
             {
                 try
                 {
-                    CampaignSaveStore.QueueConfirmedCredit(account, package.normalMoneyReward, receipt);
+                    CampaignSaveStore.QueueConfirmedCredit(account, package.normalMoneyReward, receipt, restaurant, savePath);
                     onSuccess();
                 }
                 catch (Exception e)

@@ -322,6 +322,8 @@ public class TakeoutFlowManager : MonoBehaviour
             CardPaymentUI.Instance?.IsOpenFor(activeGroup) == true))
         { phaseStartedAt += Time.deltaTime; return; }
 
+        if (activeGroup.FastFood != null && currentPhase == TakeoutPhase.WaitingForPayment && !activeGroup.FastFood.HasPaidWaitingSpace)
+        { phaseStartedAt += Time.deltaTime; return; }
         float timeoutSeconds = currentPhase switch
         {
             TakeoutPhase.WaitingForOrder => waitingForOrderTimeoutSeconds,
