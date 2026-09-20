@@ -1742,6 +1742,7 @@ public partial class CustomerGroup : MonoBehaviour
         }
 
         ClearOrderBubble();
+        if (FastFood?.StationFor(this)?.IsKiosk == true) return;
 
         orderBubbleInstance = MultiplayerTaskPresentation.Acquire(orderBubblePrefab, MultiplayerBubbleTaskId("Order"));
         orderBubbleInstance.name = $"{name}_OrderBubble";
@@ -1905,7 +1906,7 @@ public partial class CustomerGroup : MonoBehaviour
 
         if (IsTakeout)
         {
-            TakeoutFlowManager.Instance?.NotifyOrderTaken(this);
+            TakeoutFlowManager.For(this)?.NotifyOrderTaken(this);
             return;
         }
 
@@ -1938,7 +1939,12 @@ public partial class CustomerGroup : MonoBehaviour
 
         var follow = tableNumberInstance.GetComponentInChildren<UIFollowWorldPoint>(true);
         if (follow != null)
-            ConfigureCustomerBubble(follow);
+        {
+            if (FastFoodDineIn && assignedBooth != null && assignedBooth.tableNumberAnchor != null)
+                follow.InitAboveTarget(assignedBooth.tableNumberAnchor, Vector3.zero, GetFollowCam(),
+                    ResolveBubbleOffsetPixels(), PrimaryBubblePriority, bubbleStackGapPixels);
+            else ConfigureCustomerBubble(follow);
+        }
 
         var num = tableNumberInstance.GetComponentInChildren<TableNumberUI>(true);
         if (num != null)
@@ -2386,7 +2392,7 @@ public partial class CustomerGroup : MonoBehaviour
     internal void FinishMultiplayerSettlement()
     {
         if (!CanDecideCustomerOutcome || !MultiplayerPaymentComplete) return;
-        if (IsTakeout) TakeoutFlowManager.Instance?.NotifyPaymentCompleted(this);
+        if (IsTakeout) TakeoutFlowManager.For(this)?.NotifyPaymentCompleted(this);
         else PayAndLeave();
     }
 
@@ -2561,7 +2567,7 @@ public partial class CustomerGroup : MonoBehaviour
         CancelManagerComplaint();
         if (!MultiplayerPaymentComplete) ReportFinalResult(FinalResult.Neutral);
         CancelOutstandingGroupTask();
-        if (IsTakeout) { TakeoutQueueManager.Instance?.ReleaseGroup(this); TakeoutFlowManager.Instance?.ForceRelease(this); }
+        if (IsTakeout) { TakeoutQueueManager.For(this)?.ReleaseGroup(this); TakeoutFlowManager.For(this)?.ForceRelease(this); }
         CleanupOnLeave();
     }
 
@@ -2616,13 +2622,13 @@ public partial class CustomerGroup : MonoBehaviour
 
         if (IsTakeout)
         {
-            TakeoutQueueManager qm = TakeoutQueueManager.Instance;
+            TakeoutQueueManager qm = TakeoutQueueManager.For(this);
             if (qm != null)
                 qm.ReleaseGroup(this);
             else
                 Destroy(gameObject);
 
-            TakeoutFlowManager.Instance?.ForceRelease(this);
+            TakeoutFlowManager.For(this)?.ForceRelease(this);
             return;
         }
 
@@ -4075,7 +4081,7 @@ public partial class CustomerGroup : MonoBehaviour
 
         SetState(GroupState.Leaving);
 
-        TakeoutFlowManager.Instance?.NotifyBagDelivered(this);
+        TakeoutFlowManager.For(this)?.NotifyBagDelivered(this);
         return true;
     }
 

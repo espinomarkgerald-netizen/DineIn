@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 890000000000000011}
   - component: {fileID: 890000000000000012}
   - component: {fileID: 920000000000000000}
+  - component: {fileID: 960000000000000001}
   m_Layer: 10
   m_Name: Fast Food Sink
   m_TagString: Untagged
@@ -295,3 +296,21 @@ MonoBehaviour:
   kitchenUse: 3
   surfaceId: 0
   spotScale: 1
+--- !u!114 &960000000000000001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 890000000000000009}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5fea29bb7c508c244a1f805a5fd3fc4d, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  outlineMode: 0
+  outlineColor: {r: 1, g: 1, b: 1, a: 1}
+  outlineWidth: 4
+  precomputeOutline: 0
+  bakeKeys: []
+  bakeValues: []

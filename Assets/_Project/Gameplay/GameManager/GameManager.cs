@@ -584,6 +584,12 @@ public class GameDayManager : MonoBehaviour
     public void StartShift()
     {
         var fastFood = FastFoodRestaurant.For(this);
+        if (fastFood != null && !fastFood.ValidateServiceSetup(out var setupProblem))
+        {
+            Debug.LogError("Lobby2 service setup: " + setupProblem, fastFood);
+            ShowWarning("The restaurant setup needs attention before opening.");
+            return;
+        }
         if (fastFood != null && !fastFood.HasNavigation)
         {
             Debug.LogError("Lobby2 needs its navigation baked and validated using Dine In > Fast Food > Bake Lobby2 Navigation.", fastFood);
@@ -616,6 +622,7 @@ public class GameDayManager : MonoBehaviour
         ApplyTakeoutUnlock();
         ApplyCustomerTypeUnlocks();
         ResetShiftRuntime();
+        fastFood?.BeginServiceDay();
         HygieneManager.Instance?.ResetForShift();
 
         timeRemaining = ShiftLengthSeconds;
@@ -729,6 +736,7 @@ public class GameDayManager : MonoBehaviour
         shiftRunning = false;
         closingOut = false;
         timeRemaining = 0f;
+        FastFoodRestaurant.For(this)?.FinishClosing();
         ShowResults();
         return true;
     }

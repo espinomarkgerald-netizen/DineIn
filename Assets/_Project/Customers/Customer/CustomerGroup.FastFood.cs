@@ -99,17 +99,19 @@ public partial class CustomerGroup
         {
             WaiterHands.SetAllColliders(tray.gameObject, false);
             WaiterHands.AttachKeepingWorldScale(tray.transform, collector.transform,
-                carryOffset, Quaternion.identity);
+                carryOffset, Quaternion.Euler(-90f, 0f, -90f));
         }
 
         Vector3 approach = assignedBooth.GetNavigableApproachPosition();
-        collector.TryWalkTo(approach, out approach);
+        bool returning = collector.TryWalkTo(approach, out approach);
         deadline = Time.time + timeout;
-        while (!collector.HasArrived(approach) && Time.time < deadline)
+        while (returning && !collector.HasArrived(approach) && Time.time < deadline)
         {
             if (leavingRoutineStarted || tray == null) yield break;
             yield return null;
         }
+        if (!returning || !collector.HasArrived(approach))
+        { FailFastFoodService("The table return path is blocked."); yield break; }
         if (seat != null) collector.SnapToSeat(seat.position, assignedBooth.GetSeatedRotation(seat.position));
         if (tray == null || leavingRoutineStarted) yield break;
         if (!arrived)
@@ -119,9 +121,7 @@ public partial class CustomerGroup
         }
         Transform drop = assignedBooth.NetworkTrayPoint;
         if (drop == null) { FailFastFoodService("The table needs a TableFoodSpawn anchor."); yield break; }
-        tray.transform.SetParent(drop, false);
-        tray.transform.localPosition = Vector3.zero;
-        tray.transform.localRotation = Quaternion.identity;
+        WaiterHands.AttachKeepingWorldScale(tray.transform, drop, Vector3.zero, Quaternion.identity);
         WaiterHands.SetAllColliders(tray.gameObject, true);
         ReceiveFoodFromWaiter(tray.DeliveredContents, tray);
         }

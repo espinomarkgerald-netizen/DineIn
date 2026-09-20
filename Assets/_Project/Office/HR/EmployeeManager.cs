@@ -252,6 +252,10 @@ public class EmployeeManager : MonoBehaviour
     /// board has one scheduled employee. Keeping this rule here gives the
     /// checklist and the authoritative shift controller the same answer.
     /// </summary>
+    public static bool IsRoleUsedInCurrentRestaurant(EmployeeRole role) =>
+        UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "Lobby2" ||
+        (role != EmployeeRole.Host && role != EmployeeRole.Waiter);
+
     public bool HasAllRequiredRolesAssigned
     {
         get
@@ -259,7 +263,7 @@ public class EmployeeManager : MonoBehaviour
             IReadOnlyList<EmployeeRole> lobbyRoles = EmployeeRoleCatalog.LobbyRoles;
             for (int i = 0; i < lobbyRoles.Count; i++)
             {
-                if (GetAssignedEmployee(lobbyRoles[i]) == null)
+                if (IsRoleUsedInCurrentRestaurant(lobbyRoles[i]) && GetAssignedEmployee(lobbyRoles[i]) == null)
                     return false;
             }
 
@@ -289,7 +293,7 @@ public class EmployeeManager : MonoBehaviour
         for (int i = 0; i < requiredRoles.Count; i++)
         {
             EmployeeRole role = requiredRoles[i];
-            if (GetAssignedEmployee(role) == null)
+            if (IsRoleUsedInCurrentRestaurant(role) && GetAssignedEmployee(role) == null)
                 missing.Add(role);
         }
     }

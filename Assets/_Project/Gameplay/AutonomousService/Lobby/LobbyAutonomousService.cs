@@ -63,6 +63,9 @@ public class LobbyAutonomousService : MonoBehaviour
 
     private AutonomousStaffBot host;
     private AutonomousStaffBot waiter;
+    private AutonomousStaffBot cashier;
+    private FastFoodRestaurant fastFoodRestaurant;
+    private int nextCounter;
     private AutonomousStaffBot busser;
     public bool HasCleaningStaff => busser != null && busser.isActiveAndEnabled && busser.gameObject.activeInHierarchy;
     public Vector3 CleaningStaffPosition => busser != null ? busser.transform.position : transform.position;
@@ -177,7 +180,7 @@ public class LobbyAutonomousService : MonoBehaviour
         cashierStation = cashierBooth != null
             ? cashierBooth.StandPoint
             : FindStation(cashierObject != null ? cashierObject.transform : null, "CashierStation");
-        var fastFood = FastFoodRestaurant.For(this);
+        var fastFood = fastFoodRestaurant = FastFoodRestaurant.For(this);
         if (fastFood != null && fastFood.CashierApproach != null) cashierStation = fastFood.CashierApproach;
 
         if (waiterTrolleyParkingPoint == null)
@@ -253,12 +256,15 @@ public class LobbyAutonomousService : MonoBehaviour
         waiterHands = waiter != null ? waiter.GetComponent<WaiterHands>() : null;
         busserHands = busser != null ? busser.GetComponent<BusserHands>() : null;
 
-        waiterTrolley = ConfigureTrolley(
-            waiterTrolley,
-            waiterObject,
-            EquipmentUpgradeEffect.WaiterTrolley,
-            "Upgrades/WaiterTrolley",
-            ResolveTrolleyParkingPoint(EquipmentUpgradeEffect.WaiterTrolley));
+        if (fastFoodRestaurant == null)
+            waiterTrolley = ConfigureTrolley(
+                waiterTrolley, waiterObject, EquipmentUpgradeEffect.WaiterTrolley,
+                "Upgrades/WaiterTrolley", ResolveTrolleyParkingPoint(EquipmentUpgradeEffect.WaiterTrolley));
+        else if (waiterTrolley != null)
+        {
+            ShutdownTrolley(waiterTrolley, waiter);
+            waiterTrolley.SetVisible(false);
+        }
         busserTrolley = ConfigureTrolley(
             busserTrolley,
             busserObject,
@@ -266,9 +272,13 @@ public class LobbyAutonomousService : MonoBehaviour
             "Upgrades/BusserTrolley",
             ResolveTrolleyParkingPoint(EquipmentUpgradeEffect.BusserTrolley));
 
-        SetRoleObjectActive(cashierObject, IsAssigned(EmployeeRole.Cashier));
-        if (cashierObject != null && cashierObject.activeSelf)
-            KeepCharacterStationary(cashierObject);
+        if (fastFoodRestaurant != null)
+            cashier = ConfigureLobbyBot(cashierObject, EmployeeRole.Cashier, cashierStation, waiterAvoidancePriority);
+        else
+        {
+            SetRoleObjectActive(cashierObject, IsAssigned(EmployeeRole.Cashier));
+            if (cashierObject != null && cashierObject.activeSelf) KeepCharacterStationary(cashierObject);
+        }
 
         }
 
@@ -437,7 +447,8 @@ public class LobbyAutonomousService : MonoBehaviour
         Transform homePoint,
         int avoidancePriority)
     {
-        bool assigned = MultiplayerServiceStaffBridge.AllowRole(roleObject, IsAssigned(role));
+        bool assigned = MultiplayerServiceStaffBridge.AllowRole(roleObject, IsAssigned(role)) &&
+            (fastFoodRestaurant == null || (role != EmployeeRole.Host && role != EmployeeRole.Waiter));
         SetRoleObjectActive(roleObject, assigned);
         if (!assigned || roleObject == null)
             return null;
@@ -540,8 +551,8 @@ public class LobbyAutonomousService : MonoBehaviour
             if (MultiplayerServiceStaffBridge.CanSimulate && GameDayManager.Instance != null && GameDayManager.Instance.ServiceActive)
             {
                 RefreshSceneQueryCache(false);
-                TryStartHostTask();
-                TryStartWaiterTask();
+                if (fastFoodRestaurant != null) TryStartFastFoodCashierTask();
+                else { TryStartHostTask(); TryStartWaiterTask(); }
                 TryStartBusserTask();
             }
 
@@ -560,6 +571,38 @@ public class LobbyAutonomousService : MonoBehaviour
         cachedTakeoutBags = FindObjectsByType<TakeoutBagInteractable>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
         cachedFoodTrays = FindObjectsByType<FoodTray>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
         cachedPayments = FindObjectsByType<MoneyPickup>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+    }
+
+    private void TryStartFastFoodCashierTask()
+    {
+        if (cashier == null || !cashier.isActiveAndEnabled || cashier.IsBusy || fastFoodRestaurant.ServiceStations == null) return;
+        var stations = fastFoodRestaurant.ServiceStations;
+        for (int i = 0; i < stations.Count; i++)
+        {
+            int index = (nextCounter + i) % stations.Count;
+            var station = stations[index];
+            if (station == null || station.IsKiosk || station.StaffApproach == null) continue;
+            var group = station.Queue.CurrentFront;
+            if (group == null || group.IsPlayerReviewingOrder || group.FastFoodPaid ||
+                group.CurrentTakeoutQueueState != CustomerGroup.TakeoutQueueState.AtOrderPoint ||
+                (group.state != CustomerGroup.GroupState.ReadyToOrder && !fastFoodRestaurant.CanSettle(group))) continue;
+            if (TryStartClaimedTask(cashier, group, ServeFastFoodCounter(station, group)))
+            { nextCounter = (index + 1) % stations.Count; return; }
+        }
+    }
+
+    private IEnumerator ServeFastFoodCounter(FastFoodServiceStation station, CustomerGroup group)
+    {
+        yield return cashier.MoveWithin(station.StaffApproach.position, counterServiceDistance, 3f);
+        if (!cashier.LastMoveSucceeded || group == null || station.Queue.CurrentFront != group) yield break;
+        yield return cashier.FaceTowards(station.Queue.OrderPoint.position);
+        yield return cashier.WorkFor(tableServiceSeconds);
+        if (group == null || station.Queue.CurrentFront != group || group.IsPlayerReviewingOrder) yield break;
+        if (group.state == CustomerGroup.GroupState.ReadyToOrder &&
+            !group.TakeOrderFromWaiter(group.chosenFood, group.chosenDrink, null)) yield break;
+        yield return cashier.WorkFor(counterServiceSeconds);
+        if (group != null && fastFoodRestaurant.CanSettle(group))
+            ResolveCashierRegister()?.CompleteAutomatedPayment(group);
     }
 
     private void TryStartHostTask()

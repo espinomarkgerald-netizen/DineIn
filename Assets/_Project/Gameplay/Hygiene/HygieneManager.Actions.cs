@@ -42,7 +42,7 @@ public sealed partial class HygieneManager
             if (!TutorialCustomerFlowBridge.AllowsWorldInteraction(hit.collider.transform)) continue;
             var booth = hit.collider.GetComponentInParent<Booth>();
             if (booth != null && booth.CanRequestHumanCleanup)
-            { cleaningSelectionFrame = Time.frameCount; selectedCleaningBooth = booth; booth.OpenCleaningPrompt(); return true; }
+            { cleaningSelectionFrame = Time.frameCount; selectedCleaningBooth = booth; booth.OpenCleaningPrompt(); TapOutlineSelector.PresentCleaning(mover, booth); return true; }
             if (hit.collider.GetComponentInParent<BusserHands>() != null)
             { cleaningSelectionFrame = Time.frameCount; RequestLobbyDialogue(); return true; }
             // Do not select a booth through a customer or service item.

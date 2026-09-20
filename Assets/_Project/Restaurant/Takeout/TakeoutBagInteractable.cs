@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class TakeoutBagInteractable : MonoBehaviour
+public class TakeoutBagInteractable : MonoBehaviour, IInteractable
 {
     public static TakeoutBagInteractable HeldBag { get; private set; }
     public int NetworkOwner { get; private set; }
@@ -37,6 +37,21 @@ public class TakeoutBagInteractable : MonoBehaviour
     public List<string> DeliveredContents => new(deliveredContents);
     public static bool HasHeldBag => HeldBag != null;
     public static bool PlayerHasHeldBag => LocalHeldBag != null && LocalHeldBag.heldByPlayer;
+    public Transform StandPoint => targetGroup != null && targetGroup.FastFood != null
+        ? targetGroup.FastFood.PickupApproach : transform;
+    public bool AutoReturnHome => false;
+    public float GetInteractRadius() => 1.4f;
+    public bool CanInteract()
+    {
+        var hands = WaiterHands.ActivePlayerHands;
+        return targetGroup != null && targetGroup.FastFood != null && targetGroup.FastFood.IsBagReady(targetGroup)
+            && !isHeld && HeldBag == null && !claimedByStaff && !RestaurantTaskClaim.IsClaimedByBot(this)
+            && hands != null && !hands.HasTray && !hands.HasBill && !hands.HasMoney && !hands.HasTicket;
+    }
+    public void Interact(PlayerMovement mover)
+    {
+        if (CanInteract()) TryPickupInternal(WaiterHands.For(mover), true);
+    }
 
     private void Awake()
     {
@@ -79,6 +94,8 @@ public class TakeoutBagInteractable : MonoBehaviour
 
     private void OnMouseDown()
     {
+        // Lobby2 mouse/touch input goes through PlayerMovement's UI and drag filters.
+        if (targetGroup != null && targetGroup.FastFood != null) return;
         TryPickup();
     }
 
@@ -101,6 +118,7 @@ public class TakeoutBagInteractable : MonoBehaviour
                 if (this != null && !TryPickupInternal(hands, true)) RestaurantTaskClaim.ReleasePlayer(this);
             }, () => RestaurantTaskClaim.ReleasePlayer(this));
             if (!moving) RestaurantTaskClaim.ReleasePlayer(this);
+            else TapOutlineSelector.PresentFor(mover, this);
             return;
         }
 
@@ -268,6 +286,18 @@ public class TakeoutBagInteractable : MonoBehaviour
             || RestaurantTaskClaim.IsClaimedByBot(this)) return false;
         HygieneManager.Instance?.RecordKitchenUse(this, .025f);
         PresentNetworkOwner(hands, actor, pickupPosition, pickupRotation);
+        return true;
+    }
+
+    // Customer pickup never borrows the manager's global hands/held-bag slot.
+    public bool TryCustomerCollect(CustomerGroup group)
+    {
+        if (isHeld || claimedByStaff || RestaurantTaskClaim.IsClaimedByPlayer(this) || RestaurantTaskClaim.IsClaimedByBot(this) ||
+            group == null || group != targetGroup || group.FastFood == null ||
+            !group.FastFoodPaid || !group.FastFood.IsBagReady(group) ||
+            !group.HasReachedTakeoutPoint(group.FastFood.PickupApproach.position, 1.5f)) return false;
+        if (!group.ReceiveTakeoutBagFromWaiter(deliveredContents)) return false;
+        Destroy(gameObject);
         return true;
     }
 

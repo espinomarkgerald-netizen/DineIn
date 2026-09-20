@@ -237,10 +237,11 @@ public class OrderBubbleUI : MonoBehaviour
         if (group == null || group.state != CustomerGroup.GroupState.ReadyToOrder)
             return false;
 
+        if (group.FastFood?.StationFor(group)?.IsKiosk == true) return false;
         if (!group.IsTakeout)
             return true;
 
-        TakeoutFlowManager flow = TakeoutFlowManager.Instance;
+        TakeoutFlowManager flow = TakeoutFlowManager.For(group);
         if (flow != null && flow.ActiveGroup != group)
         {
             warning = "Another takeout customer is currently at the counter.";
@@ -269,6 +270,7 @@ public class OrderBubbleUI : MonoBehaviour
 
         if (group.IsTakeout)
         {
+            if (group.FastFood != null) return group.FastFood.StationFor(group)?.StaffApproach;
             TakeoutCustomerInteractable takeoutTarget =
                 group.GetComponent<TakeoutCustomerInteractable>();
             return takeoutTarget != null ? takeoutTarget.StandPoint : group.UIAnchor;

@@ -4,6 +4,8 @@ using UnityEngine.Events;
 public class TakeoutFlowManager : MonoBehaviour
 {
     public static TakeoutFlowManager Instance { get; private set; }
+    public static TakeoutFlowManager For(CustomerGroup group) => group != null && group.FastFood != null
+        ? group.FastFood.StationFor(group)?.Flow : Instance;
 
     public enum TakeoutPhase
     {
@@ -61,6 +63,11 @@ public class TakeoutFlowManager : MonoBehaviour
         if (MultiplayerDayBridge.IsActive) ClearRuntime();
     }
 
+    public void ResetFastFoodDay()
+    {
+        if (gameObject.scene.name == "Lobby2" && !MultiplayerDayBridge.IsActive) ClearRuntime();
+    }
+
     public void SetAutomatedService(bool enabled)
     {
         automatedService = enabled;
@@ -68,13 +75,13 @@ public class TakeoutFlowManager : MonoBehaviour
 
     private void Awake()
     {
-        if (Instance != null && Instance != this)
+        if (Instance != null && Instance != this && (gameObject.scene.name != "Lobby2" || MultiplayerDayBridge.IsActive))
         {
             Destroy(gameObject);
             return;
         }
 
-        Instance = this;
+        if (Instance == null) Instance = this;
 
         if (kitchenManager == null)
             kitchenManager = FindFirstObjectByType<KitchenManager>();
@@ -143,6 +150,12 @@ public class TakeoutFlowManager : MonoBehaviour
             return;
 
         orderFlowStarted = true;
+        // Kiosk pay-at-counter customers already own a reviewed, stocked order.
+        if (activeGroup.FastFood != null && activeGroup.HasConfirmedOrder)
+        {
+            SetPhase(TakeoutPhase.WaitingForPayment);
+            return;
+        }
         SetPhase(TakeoutPhase.WaitingForOrder);
 
         onFrontReady?.Invoke();
@@ -165,8 +178,8 @@ public class TakeoutFlowManager : MonoBehaviour
 
         if (group.FastFood != null)
         {
-            if (RestaurantTaskClaim.IsClaimedByPlayer(group))
-                group.FastFood.RequestPaymentAfterReview(group);
+            // The reviewed-order transaction owns the human payment continuation.
+            // Staff use their existing counter-payment job after this transition.
             return;
         }
 
@@ -303,6 +316,10 @@ public class TakeoutFlowManager : MonoBehaviour
         if (activeGroup == null || phaseStartedAt < 0f)
             return;
         if (activeGroup.WaitingForStock && currentPhase == TakeoutPhase.WaitingForOrder)
+        { phaseStartedAt += Time.deltaTime; return; }
+        if (activeGroup.FastFood != null && (activeGroup.IsPlayerReviewingOrder ||
+            CashierRegisterUI.Instance?.IsOpenFor(activeGroup) == true ||
+            CardPaymentUI.Instance?.IsOpenFor(activeGroup) == true))
         { phaseStartedAt += Time.deltaTime; return; }
 
         float timeoutSeconds = currentPhase switch

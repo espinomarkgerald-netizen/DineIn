@@ -277,6 +277,13 @@ public sealed class BotTrolleyCarrier : MonoBehaviour
         EndUse(true);
     }
 
+    public void ResetFastFoodDay()
+    {
+        if (gameObject.scene.name != "Lobby2" || MultiplayerDayBridge.IsActive) return;
+        foreach (var tray in new List<FoodTray>(trays)) Dispose(tray);
+        EndUse(true);
+    }
+
     public bool TryDetach(FoodTray tray, Transform destination)
     {
         if (tray == null || destination == null || !trays.Remove(tray))

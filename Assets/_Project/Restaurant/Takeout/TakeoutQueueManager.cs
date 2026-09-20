@@ -7,6 +7,8 @@ public class TakeoutQueueManager : MonoBehaviour
     [SerializeField] private Transform[] queuePoints;
     [SerializeField] private Transform orderPoint;
     [SerializeField] private Transform exitPoint;
+    [Tooltip("Optional authored direction/origin for positions beyond the last queue point.")]
+    [SerializeField] private Transform overflowRoot;
 
     [Header("Settings")]
     [SerializeField] private float arrivalThreshold = 0.75f;
@@ -25,18 +27,24 @@ public class TakeoutQueueManager : MonoBehaviour
     private int currentFrontTravelRetries;
 
     public CustomerGroup CurrentFront => currentFront;
+    public int Count => queue.Count;
+    public IReadOnlyList<Transform> QueuePoints => queuePoints;
+    public Transform OrderPoint => orderPoint;
+    public Transform ExitPoint => exitPoint;
 
     public static TakeoutQueueManager Instance { get; private set; }
+    public static TakeoutQueueManager For(CustomerGroup group) => group != null && group.FastFood != null
+        ? group.FastFood.StationFor(group)?.Queue : Instance;
 
     private void Awake()
     {
-        if (Instance != null && Instance != this)
+        if (Instance != null && Instance != this && (gameObject.scene.name != "Lobby2" || MultiplayerDayBridge.IsActive))
         {
             Destroy(gameObject);
             return;
         }
 
-        Instance = this;
+        if (Instance == null) Instance = this;
     }
 
     private void OnDestroy()
@@ -48,7 +56,8 @@ public class TakeoutQueueManager : MonoBehaviour
     private void Update()
     {
         if (MultiplayerRestaurantBridge.IsObserver) return;
-        CleanupInvalidReferences();
+        if (CleanupInvalidReferences() || currentFront == null && queue.Count > 0)
+            RefreshQueue();
         UpdateFrontArrival();
         UpdateQueuedArrival();
         UpdateLeavingGroups();
@@ -74,6 +83,7 @@ public class TakeoutQueueManager : MonoBehaviour
         queue.Remove(group);
         slotLookup.Remove(group);
         leavingGroups.Remove(group);
+        group.SetTakeoutQueueState(CustomerGroup.TakeoutQueueState.None);
 
         if (currentFront == group)
         {
@@ -83,6 +93,21 @@ public class TakeoutQueueManager : MonoBehaviour
         }
 
         RefreshQueue();
+    }
+
+    public void ResetFastFoodDay()
+    {
+        if (gameObject.scene.name != "Lobby2" || MultiplayerDayBridge.IsActive) return;
+        foreach (var group in queue)
+            if (group != null)
+            {
+                RestaurantTaskClaim.Complete(group);
+                group.SetTakeoutQueueState(CustomerGroup.TakeoutQueueState.None);
+            }
+        queue.Clear(); slotLookup.Clear(); leavingGroups.Clear();
+        currentFront = null;
+        currentFrontMoveStartedAt = -1f;
+        currentFrontTravelRetries = 0;
     }
 
     [ContextMenu("Release Front")]
@@ -126,7 +151,7 @@ public class TakeoutQueueManager : MonoBehaviour
     /// </summary>
     public void ReleaseGroup(CustomerGroup group)
     {
-        if (group == null)
+        if (group == null || leavingGroups.Contains(group))
             return;
 
         if (group == currentFront)
@@ -156,16 +181,31 @@ public class TakeoutQueueManager : MonoBehaviour
         RefreshQueue();
     }
 
+    public bool ValidateAuthoring(out string problem)
+    {
+        problem = null;
+        if (orderPoint == null || exitPoint == null || queuePoints == null || queuePoints.Length == 0)
+            problem = "Assign the order point, exit, and at least one queue point.";
+        else
+        {
+            var unique = new HashSet<Transform> { orderPoint, exitPoint };
+            foreach (var point in queuePoints)
+                if (point == null || point.gameObject.scene != gameObject.scene || !unique.Add(point))
+                { problem = "Queue points must be distinct, assigned transforms in this scene."; break; }
+        }
+        return problem == null;
+    }
+
     private void RefreshQueue()
     {
         CleanupInvalidReferences();
-        slotLookup.Clear();
 
         if (queue.Count == 0)
         {
             currentFront = null;
             currentFrontMoveStartedAt = -1f;
             currentFrontTravelRetries = 0;
+            slotLookup.Clear();
             return;
         }
 
@@ -192,11 +232,14 @@ public class TakeoutQueueManager : MonoBehaviour
             if (group == null || group == currentFront)
                 continue;
 
+            // New arrivals do not restart the movement/animation of groups whose
+            // assigned slot has not changed. Promotion moves only affected groups.
+            bool unchanged = slotLookup.TryGetValue(group, out int previousSlot) && previousSlot == slot;
             slotLookup[group] = slot;
 
             if (queuePoints != null && queuePoints.Length > 0)
             {
-                if (TryGetQueueSlotPose(slot, out Vector3 position, out Vector3 forward))
+                if (!unchanged && TryGetQueueSlotPose(slot, out Vector3 position, out Vector3 forward))
                 {
                     group.SetTakeoutQueueState(CustomerGroup.TakeoutQueueState.WalkingToQueueSlot);
                     group.MoveToTakeoutPoint(position, forward, memberSideSpacing, memberRowSpacing);
@@ -205,6 +248,7 @@ public class TakeoutQueueManager : MonoBehaviour
 
             slot++;
         }
+        if (currentFront != null) slotLookup.Remove(currentFront);
     }
 
     private void UpdateFrontArrival()
@@ -302,12 +346,23 @@ public class TakeoutQueueManager : MonoBehaviour
         }
     }
 
-    private void CleanupInvalidReferences()
+    private bool CleanupInvalidReferences()
     {
+        bool changed = false;
         for (int i = queue.Count - 1; i >= 0; i--)
         {
-            if (queue[i] == null)
+            var group = queue[i];
+            if (group == null || !group.isActiveAndEnabled ||
+                group.state == CustomerGroup.GroupState.Leaving ||
+                group.state == CustomerGroup.GroupState.UnhappyLeft ||
+                group.state == CustomerGroup.GroupState.AngryLeft)
+            {
+                // Unity's destroyed-object wrapper remains a usable dictionary key.
+                if (!ReferenceEquals(group, null)) slotLookup.Remove(group);
+                if (group != null) RestaurantTaskClaim.Complete(group);
                 queue.RemoveAt(i);
+                changed = true;
+            }
         }
 
         for (int i = leavingGroups.Count - 1; i >= 0; i--)
@@ -322,6 +377,7 @@ public class TakeoutQueueManager : MonoBehaviour
             currentFrontMoveStartedAt = -1f;
             currentFrontTravelRetries = 0;
         }
+        return changed;
     }
 
     private void MoveGroupToTransform(CustomerGroup group, Transform target)
@@ -366,6 +422,13 @@ public class TakeoutQueueManager : MonoBehaviour
         if (overflow == 0)
             return true;
 
+        if (overflowRoot != null)
+        {
+            forward = overflowRoot.forward;
+            position = overflowRoot.position - forward * (overflow - 1) * overflowGroupSpacing;
+            return true;
+        }
+
         Vector3 backDirection = -point.forward;
         if (queuePoints.Length > 1)
         {
@@ -380,5 +443,19 @@ public class TakeoutQueueManager : MonoBehaviour
 
         position += backDirection.normalized * overflow * overflowGroupSpacing;
         return true;
+    }
+
+    private void OnDrawGizmosSelected()
+    {
+        Gizmos.color = Color.cyan;
+        if (orderPoint != null) Gizmos.DrawWireSphere(orderPoint.position, arrivalThreshold);
+        if (queuePoints == null) return;
+        for (int i = 0; i < queuePoints.Length + 3; i++)
+            if (TryGetQueueSlotPose(i, out var position, out var forward))
+            {
+                Gizmos.color = i < queuePoints.Length ? Color.green : Color.yellow;
+                Gizmos.DrawWireSphere(position, arrivalThreshold);
+                Gizmos.DrawRay(position, forward);
+            }
     }
 }

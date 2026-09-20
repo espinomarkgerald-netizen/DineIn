@@ -242,6 +242,12 @@ public class AutonomousStaffBot : MonoBehaviour
         transform.rotation = fallbackHomeRotation;
     }
 
+    public void ResetFastFoodDay()
+    {
+        if (gameObject.scene.name != "Lobby2" || MultiplayerDayBridge.IsActive) return;
+        OnDisable();
+    }
+
     public void ConfigurePerformance(EmployeeData employee)
     {
         if (employee == null)

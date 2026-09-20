@@ -29,6 +29,7 @@ public static class FastFoodSceneTools
     public static void Validate()
     {
         FastFoodRestaurant restaurant = Restaurant();
+        Require(restaurant.ValidateServiceSetup(out var setupProblem), setupProblem);
         var data = new SerializedObject(restaurant);
         foreach (string field in new[] { "counterQueue", "counterFlow", "kitchen", "customerPickupPoint", "cashierApproach", "customerExit", "cardPaymentPrefab" })
             Require(data.FindProperty(field).objectReferenceValue != null, "Missing Fast Food reference: " + field);
@@ -57,6 +58,7 @@ public static class FastFoodSceneTools
             Require(booth.GetComponentsInChildren<BoothMessCleanUI>(true).Length == 1, booth.name + ": missing or duplicate cleaning UI.");
             var table = booth.GetComponent<FastFoodTable>();
             Require(table != null && table.Furniture != null && table.Furniture.transform.IsChildOf(booth.transform), booth.name + ": furniture must be inside its prefab.");
+            Require(table.ValidateAuthoring(out var tableProblem), booth.name + ": " + tableProblem);
             var hygiene = booth.GetComponent<HygieneSurface>();
             Require(hygiene != null && !hygiene.exclude && hygiene.area == HygieneArea.Lobby && hygiene.kind == HygieneSurfaceKind.Dining, booth.name + ": missing dining hygiene settings.");
             var boothData = new SerializedObject(booth);
@@ -78,6 +80,10 @@ public static class FastFoodSceneTools
             "Author one staff service on GameManager so its existing bootstrap does not add a second instance.");
         Require(restaurant.GetComponentInChildren<SinkInteractable>() != null, "Missing active Fast Food sink.");
         ValidateStations(restaurant);
+        foreach (var station in SceneComponents<FastFoodCounter>(restaurant).Cast<Component>()
+            .Concat(SceneComponents<SinkInteractable>(restaurant)).Concat(SceneComponents<ManagementComputerStation>(restaurant)))
+            Require(station.GetComponent<Outline>() != null, station.name + ": missing authored outline.");
+        Require(SceneComponents<TapOutlineSelector>(restaurant).Length == 1, "Author exactly one outline selector in Lobby2.");
         ValidateHUD();
         Require(restaurant.NavigationSurface != null && restaurant.NavigationSurface.gameObject.scene == restaurant.gameObject.scene
             && restaurant.NavigationSurface.isActiveAndEnabled, "Assign the active Lobby2 navigation surface to Fast Food Services.");
@@ -93,8 +99,19 @@ public static class FastFoodSceneTools
         var computers = SceneComponents<ManagementComputerStation>(restaurant);
         var counters = SceneComponents<FastFoodCounter>(restaurant);
         var sinks = SceneComponents<SinkInteractable>(restaurant);
-        Require(computers.Length == 1 && counters.Length == 1 && sinks.Length == 1, "Author one active computer, Fast Food cashier and sink.");
-        foreach (Component component in new Component[] { computers[0], counters[0], sinks[0] })
+        Require(computers.Length == 1 && counters.Length == 2 && sinks.Length == 1, "Author one computer, two Fast Food cashiers and one sink.");
+        var serviceStations = SceneComponents<FastFoodServiceStation>(restaurant);
+        Require(serviceStations.Length == 4 && serviceStations.Count(s => s.IsKiosk) == 2,
+            "Author two independent counters and two kiosks.");
+        Require(serviceStations.Select(s => s.Queue).Distinct().Count() == 4 &&
+            serviceStations.Select(s => s.Flow).Distinct().Count() == 4, "Each service station needs its own queue and flow.");
+        foreach (var service in serviceStations)
+        {
+            Require(service.Queue != null && service.Flow != null && service.StaffApproach != null,
+                service.name + ": incomplete station references.");
+            Require(service.Queue.ValidateAuthoring(out var problem), service.name + ": " + problem);
+        }
+        foreach (Component component in new Component[] { computers[0], counters[0], counters[1], sinks[0] })
         {
             var station = (IInteractable)component;
             var stationData = new SerializedObject(component);
@@ -102,7 +119,12 @@ public static class FastFoodSceneTools
             Require(stationData.FindProperty("standPoint").objectReferenceValue != null && station.StandPoint.IsChildOf(component.transform), component.name + ": author a stand point inside the station.");
         }
         Require(new SerializedObject(computers[0]).FindProperty("controller").objectReferenceValue != null, "Connect the computer to ManagementComputerCanvas.");
-        Require(new SerializedObject(counters[0]).FindProperty("restaurant").objectReferenceValue == restaurant, "Cashier is connected to the wrong restaurant.");
+        foreach (var counter in counters)
+        {
+            var serialized = new SerializedObject(counter);
+            Require(serialized.FindProperty("restaurant").objectReferenceValue == restaurant &&
+                serialized.FindProperty("station").objectReferenceValue != null, "Connect each cashier to its restaurant and station.");
+        }
         Require(restaurant.gameObject.scene.GetRootGameObjects().SelectMany(root => root.GetComponentsInChildren<CashierRegisterUI>(true)).Count() == 1, "Missing/duplicate cashier UI.");
     }
 
@@ -168,7 +190,8 @@ public static class FastFoodSceneTools
             .Where(t => t.name == "ApproachPoint" && t.GetComponentInParent<FastFoodTable>() != null
                 || t.name.StartsWith("Paid Waiting ") || t.name == "Customer Pickup Approach"
                 || t.name == "Customer Order Point" || t.name == "Sink Approach" || t.name == "ManagementComputerStandPoint"
-                || t.name == "Customer Entrance" || t.name == "Customer Exit"
+                || t.name.StartsWith("Customer Spawn") || t.name.StartsWith("Left Entrance") || t.name == "Customer Exit"
+                || t.name.StartsWith("QueuePoint_") || t.name == "OverflowRoot" || t.name == "Overflow Root" || t.name == "Cashier Approach"
                 || t.name.EndsWith("HomePoint") || t.name.EndsWith("TrolleyParkingPoint")
                 || t.name == "ChefPrepPoint" || t.name == "ChefCookPoint"
                 || t.name == "BaristaServePoint" || t.name == "BaristaDrinkPoint");
@@ -199,7 +222,7 @@ public static class FastFoodSceneTools
                 Require(group.assignedBooth.CurrentGroup == group, group.name + ": table reservation disagrees with customer.");
             Require(trays.Count(tray => tray.TargetGroup == group) <= 1, group.name + ": duplicate trays.");
             Require(bags.Count(bag => bag.TargetGroup == group) <= 1, group.name + ": duplicate takeaway bags.");
-            Require(!group.FastFoodPaid || TakeoutQueueManager.Instance.CurrentFront != group,
+            Require(!group.FastFoodPaid || TakeoutQueueManager.For(group)?.CurrentFront != group,
                 group.name + ": paid customer still blocking counter.");
         }
         Require(groups.Where(group => group.assignedBooth != null)

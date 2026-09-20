@@ -268,6 +268,8 @@ public class PlayerMovement : MonoBehaviour
         if (taskLocked)
             return;
 
+        TapOutlineSelector.PresentFor(this, null);
+
         if (activeCam == null)
         {
             activeCam = PlayerSetup.FindActiveSceneCamera();
@@ -429,6 +431,8 @@ public class PlayerMovement : MonoBehaviour
 
         if (!TryStartPath(currentDestination))
             FailCurrentMove("That task cannot be reached from here.");
+        else
+            TapOutlineSelector.PresentFor(this, target);
     }
 
     private void TickArrival()
@@ -690,6 +694,7 @@ public class PlayerMovement : MonoBehaviour
             return;
 
         NotifyTaskCancelled();
+        TapOutlineSelector.PresentFor(this, null);
 
         RegisterCommand();
 
@@ -720,6 +725,7 @@ public class PlayerMovement : MonoBehaviour
 
     public void CancelLockedTask()
     {
+        TapOutlineSelector.PresentFor(this, null);
         CommandVersion++;
         NotifyTaskCancelled();
         UnlockTask();

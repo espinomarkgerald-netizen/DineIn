@@ -26,7 +26,7 @@ public sealed class RestockTruckOffscreenIndicator : MonoBehaviour
     private void LateUpdate()
     {
         if (marker == null || truck == null ||
-            SceneManager.GetActiveScene().name != "Lobby1" ||
+            (SceneManager.GetActiveScene().name != "Lobby1" && SceneManager.GetActiveScene().name != "Lobby2") ||
             !truck.HasReadyDelivery)
         {
             Hide();

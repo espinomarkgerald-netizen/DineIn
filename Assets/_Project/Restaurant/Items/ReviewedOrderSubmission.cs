@@ -85,6 +85,7 @@ public static class ReviewedOrderSubmission
             return false;
         }
         RestaurantTaskClaim.Complete(group);
+        group.FastFood?.RequestPaymentAfterReview(group);
         failure = Failure.None;
         return true;
     }

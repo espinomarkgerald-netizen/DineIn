@@ -455,6 +455,23 @@ public class Booth : MonoBehaviour, Photon.Realtime.IOnEventCallback
         ClearMenuBook();
     }
 
+    public void ResetFastFoodDay()
+    {
+        if (gameObject.scene.name != "Lobby2" || MultiplayerDayBridge.IsActive) return;
+        CancelHygieneAssistance();
+        CancelAutomatedMessCleaning();
+        RestaurantTaskClaim.Complete(this);
+        currentGroup = null;
+        messSpawnedForCurrentGroup = false;
+        eatingTimer = -1f;
+        foreach (var seat in seats) SeatAnchor.VacateSeat(seat);
+        ClearBoothProps();
+        CleaningPromptOpen = false;
+        isDirty = false;
+        ApplyDirtyVisuals();
+        RefreshCleanUIVisibility();
+    }
+
     public void SetDirty(bool value)
     {
         if (MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer &&

@@ -3,19 +3,75 @@ using UnityEngine;
 /// <summary>Authored furniture and service anchors owned by one Fast Food table prefab.</summary>
 [DisallowMultipleComponent]
 [RequireComponent(typeof(Booth))]
-public sealed class FastFoodTable : MonoBehaviour
+public sealed class FastFoodTable : MonoBehaviour, IInteractable
 {
     [Tooltip("The furniture renderer inside this prefab. Seats and service points are its sibling objects.")]
     [SerializeField] private Renderer furniture;
     public Renderer Furniture => furniture;
+    public Transform StandPoint => GetComponent<Booth>().approachPoint;
+    public bool AutoReturnHome => false;
+    public float GetInteractRadius() => 1.5f;
+    public bool CanInteract()
+    {
+        var mover = RoleManager.Instance?.GetActivePlayerMovement();
+        return gameObject.scene.name == "Lobby2" && StandPoint != null && HygieneManager.HandsEmpty(mover);
+    }
+    public void Interact(PlayerMovement mover)
+    {
+        if (!CanInteract()) return;
+        var booth = GetComponent<Booth>();
+        var tray = booth.NetworkTrayPoint != null
+            ? booth.NetworkTrayPoint.GetComponentInChildren<FoodTrayInteractable>() : null;
+        if (tray != null && tray.CanInteract()) { mover.UI_MoveTo(tray); return; }
+        if (booth.CanRequestHumanCleanup) booth.OpenCleaningPrompt();
+        // Clean/occupied tables remain selectable without starting a service task.
+    }
     public bool Contains(Renderer renderer) => renderer != null && renderer.transform.IsChildOf(transform);
+    public bool ValidateAuthoring(out string problem)
+    {
+        var booth = GetComponent<Booth>();
+        problem = null;
+        if (furniture == null || !furniture.transform.IsChildOf(transform))
+            problem = "Assign the furniture renderer inside this prefab.";
+        else if (booth == null || booth.approachPoint == null || booth.tableLookTarget == null ||
+            booth.tableNumberAnchor == null || booth.NetworkTrayPoint == null)
+            problem = "Assign ApproachPoint, FacingPoint, TableNumberAnchor and TableFoodSpawn.";
+        else if (!booth.approachPoint.IsChildOf(transform) || !booth.tableLookTarget.IsChildOf(transform) ||
+            !booth.tableNumberAnchor.IsChildOf(transform) || !booth.NetworkTrayPoint.IsChildOf(transform))
+            problem = "Service anchors must belong to this prefab.";
+        else if (booth.seats == null || booth.seats.Count == 0)
+            problem = "Assign at least one usable seat; the Seats list defines capacity.";
+        else
+        {
+            var seats = new System.Collections.Generic.HashSet<Transform>();
+            var positions = new System.Collections.Generic.HashSet<Vector3>();
+            foreach (var seat in booth.seats)
+                if (seat == null || !seat.IsChildOf(transform) || !seats.Add(seat) || !positions.Add(seat.position))
+                { problem = "Seats must be unique child transforms at distinct positions."; break; }
+        }
+        if (problem == null && (GetComponent<Collider>() == null || GetComponent<Outline>() == null))
+            problem = "Author a click collider and a disabled Outline on the prefab root.";
+        if (problem == null && (GetComponentsInChildren<BoothDeliverInteractable>(true).Length != 1 ||
+            GetComponent<BoothDeliverInteractable>() == null ||
+            GetComponent<BoothDeliverInteractable>().DeliveryPoint != booth.NetworkTrayPoint))
+            problem = "Keep exactly one root delivery interaction bound to TableFoodSpawn.";
+        return problem == null;
+    }
+
+    [ContextMenu("Validate Table Authoring")]
+    private void ValidateTable()
+    {
+        if (ValidateAuthoring(out var problem)) Debug.Log(name + ": table authoring is valid. Navigation still needs validation.", this);
+        else Debug.LogError(name + ": " + problem, this);
+    }
     private void OnDrawGizmosSelected()
     {
         Booth booth = GetComponent<Booth>();
+        if (booth == null) return;
         Gizmos.color = Color.cyan;
         if (booth.approachPoint != null) Gizmos.DrawWireSphere(booth.approachPoint.position, .4f);
         Gizmos.color = Color.green;
-        foreach (var seat in booth.seats)
+        if (booth.seats != null) foreach (var seat in booth.seats)
             if (seat != null) { Gizmos.DrawWireSphere(seat.position, .25f); Gizmos.DrawRay(seat.position, seat.forward * .5f); }
         if (booth.NetworkTrayPoint != null)
         {

@@ -110,6 +110,16 @@ public class KitchenManager : MonoBehaviour
     public void ResetMultiplayerDay()
     {
         if (!MultiplayerDayBridge.IsActive) return;
+        ClearServiceOrders();
+    }
+
+    public void ResetFastFoodDay()
+    {
+        if (gameObject.scene.name == "Lobby2" && !MultiplayerDayBridge.IsActive) ClearServiceOrders();
+    }
+
+    private void ClearServiceOrders()
+    {
         StopAllCoroutines();
         cookingOrders.Clear(); completedOrders.Clear(); activeOrderForecasts.Clear(); completedOrderForecasts.Clear();
         preparedResults.Clear(); preparedSlots.Clear(); spawningResults.Clear();
@@ -565,9 +575,8 @@ public class KitchenManager : MonoBehaviour
                 yield break;
             }
 
-            // Fast Food prepares paid orders while customers find their own seats.
-            // Keep the output in the kitchen until a table can receive it; this
-            // does not re-submit the order or consume ingredients a second time.
+            // Defensive hold if a Fast Food seat becomes unavailable during
+            // preparation. Normal dine-in submission now occurs after seating.
             while (group != null && group.FastFoodAwaitingSeat)
             {
                 if (!IsOrderStillValid(group, orderNo)) yield break;
@@ -656,7 +665,7 @@ public class KitchenManager : MonoBehaviour
 
                 requiredInteractable.Init(group);
 
-                TakeoutFlowManager flow = TakeoutFlowManager.Instance;
+                TakeoutFlowManager flow = TakeoutFlowManager.For(group);
                 if (flow == null || !flow.NotifyBagReady(group))
                 {
                     Debug.LogError($"[KitchenManager] Takeout flow rejected the ready bag for order #{orderNo}.", this);

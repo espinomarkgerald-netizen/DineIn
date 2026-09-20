@@ -208,6 +208,7 @@ public sealed class ManagementComputerHRPanel : MonoBehaviour
 
         foreach (EmployeeRole role in roles)
         {
+            if (!EmployeeManager.IsRoleUsedInCurrentRestaurant(role)) continue;
             if (RoleVisibilityFilter != null && !RoleVisibilityFilter(role)) continue;
             if (showApplicants && !showEmployed && !HasApplicantsForRole(role))
                 continue;

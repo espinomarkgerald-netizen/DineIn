@@ -466,7 +466,7 @@ public class CashierRegisterUI : MonoBehaviour
 
             if (paidGroup.IsTakeout)
             {
-                TakeoutFlowManager.Instance?.NotifyPaymentCompleted(paidGroup);
+                TakeoutFlowManager.For(paidGroup)?.NotifyPaymentCompleted(paidGroup);
             }
             else
             {
@@ -494,7 +494,7 @@ public class CashierRegisterUI : MonoBehaviour
         if (group == null)
             return false;
 
-        TakeoutFlowManager takeoutFlow = TakeoutFlowManager.Instance;
+        TakeoutFlowManager takeoutFlow = TakeoutFlowManager.For(group);
         bool validTakeoutPayment = group.IsTakeout &&
                                    takeoutFlow != null &&
                                    takeoutFlow.ActiveGroup == group &&
@@ -539,6 +539,16 @@ public class CashierRegisterUI : MonoBehaviour
             return 0;
 
         return group.GetCurrentOrderTotal();
+    }
+
+    public bool IsOpenFor(CustomerGroup group) => IsOpen && activeGroup == group;
+
+    public void DismissFastFoodPayment(CustomerGroup group)
+    {
+        if (group == null || group.FastFood == null || activeGroup != group) return;
+        // Service/day teardown is not a player cash-handling mistake.
+        sessionConfirmed = true;
+        CloseRegister();
     }
 
     public void CloseNetworkPayment(CustomerGroup group)

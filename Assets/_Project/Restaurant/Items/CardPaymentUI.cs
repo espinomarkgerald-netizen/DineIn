@@ -167,6 +167,16 @@ public sealed class CardPaymentUI : MonoBehaviour
         HideImmediate();
     }
 
+    public bool IsOpenFor(CustomerGroup group) => IsOpen && activePayment != null && activePayment.TargetGroup == group;
+
+    public void DismissFastFoodPayment(CustomerGroup group)
+    {
+        if (group == null || group.FastFood == null || activePayment == null || activePayment.TargetGroup != group) return;
+        StopAllCoroutines();
+        feedbackRoutine = null; activePayment = null; completing = false; dragging = false;
+        HideImmediate();
+    }
+
     // Session teardown or an expired host reservation must close without issuing another payment.
     public void CloseNetworkPayment(CustomerGroup group = null)
     {

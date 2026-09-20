@@ -70,9 +70,14 @@ def main():
     cleaning = ASSETS / "Restaurant/Booths/BoothMessCleanUI.cs"
     assert "public class BoothMessCleanUI" in cleaning.read_text(), "Cleaning script filename/class mismatch"
     cleaning_guid = guid(cleaning)
+    outline_guid = guid(ROOT / "Assets/QuickOutline/Scripts/Outline.cs")
     assets = {}
     for path in sorted((ASSETS / "Restaurant/Prefabs/FastFood").glob("*.prefab")):
         docs = read(path)
+        outlines = component(docs, outline_guid)
+        assert len(outlines) == 1, (path, "expected one authored outline")
+        assert value(outlines[0][1], "m_Enabled") == "0", (path, "outline must start hidden")
+        assert value(outlines[0][1], "outlineWidth") == "4", (path, "match Lobby1 outline width")
         assets[guid(path)] = (path, docs)
         roots = 0
         for ident, (typ, text) in docs.items():
@@ -108,6 +113,9 @@ def main():
         assert reference(booth, "menuBookPrefab") == reference(booth, "currentGroup") == 0
         assert reference(booth, "cleanUI") == component(docs, cleaning_guid)[0][0]
         assert reference(delivery, "booth") == component(docs, booth_guid)[0][0]
+        rotation = vector(docs[reference(delivery, "tableFoodSpawn")][1], "m_LocalRotation")
+        x, y, z, w = rotation
+        assert 2 * (y*z - w*x) > .99, (path, "tray model's local Z must face up at the tabletop")
         assert value(docs[reference(docs[reference(delivery, "tableFoodSpawn")][1], "m_GameObject")][1], "m_Name") == "TableFoodSpawn"
         renderer = docs[reference(table, "furniture")][1]
         art_go = reference(renderer, "m_GameObject")
@@ -135,6 +143,17 @@ def main():
         if instance in instances:
             assert reference(text, "m_CorrespondingSourceObject") in instances[instance][1], ident
     restaurant = component(scene, guid(ASSETS / "Restaurant/FastFoodRestaurant.cs"))[0][1]
+    queue = component(scene, guid(ASSETS / "Restaurant/Takeout/TakeoutQueueManager.cs"))[0][1]
+    queue_points = array(queue, "queuePoints")
+    assert len(queue_points) > 0 and len(set(queue_points)) == len(queue_points), "Missing/duplicate queue anchors"
+    queue_parent = reference(scene[queue_points[0]][1], "m_Father")
+    assert value(scene[reference(scene[queue_parent][1], "m_GameObject")][1], "m_Name") == "Counter and Waiting Points"
+    for point in queue_points + [reference(queue, "orderPoint"), reference(queue, "overflowRoot")]:
+        assert point and reference(scene[point][1], "m_Father") == queue_parent, "Queue anchors must be editable under services"
+        assert point in array(scene[queue_parent][1], "m_Children"), "Missing queue hierarchy child"
+    assert len(component(scene, guid(ASSETS / "Restaurant/Managers/TapOutlineSelector.cs"))) == 1
+    bag = read(ASSETS / "Art/Models/3D Models/PaperBag.prefab")
+    assert len(component(bag, outline_guid)) == 1, "Missing takeaway bag outline"
     dining = array(restaurant, "diningTables")
     assert len(dining) == len(set(dining)) == 15, "Expected the 14 original tables plus the second round table"
     counts = {}
@@ -144,7 +163,34 @@ def main():
         assert reference(scene[ident][1], "m_CorrespondingSourceObject") == component(prefab, booth_guid)[0][0]
         counts[path.stem] = counts.get(path.stem, 0) + 1
     assert counts == {"Fast Food Booth": 8, "Fast Food Long Table": 5, "Fast Food Round Table": 2}, counts
-    assert len(instances) == 17, "15 tables, cashier, and sink must remain prefab instances"
+    assert len(instances) == 20, "15 tables, two cashiers, two kiosks, and sink must remain prefab instances"
+    station_guid = guid(ASSETS / "Restaurant/FastFoodServiceStation.cs")
+    stations = component(scene, station_guid)
+    assert len(stations) == 4 and sum(value(d, "kind") == "1" for _, d in stations) == 2
+    assert set(array(restaurant, "serviceStations")) == {i for i, _ in stations}
+    for field in ("queue", "flow"):
+        assert len({reference(d, field) for _, d in stations}) == 4, "Stations cannot share service state"
+    for _, station in stations:
+        q = scene[reference(station, "queue")][1]
+        f = scene[reference(station, "flow")][1]
+        assert reference(f, "queueManager") == reference(station, "queue")
+        assert reference(f, "kitchenManager") == reference(restaurant, "kitchen")
+        assert reference(station, "staffApproach") in scene
+        assert len(array(q, "queuePoints")) >= 2 and reference(q, "orderPoint") in scene
+    entrance = array(restaurant, "entranceRoute")
+    assert len(entrance) == 2
+    assert vector(scene[entrance[0]][1], "m_LocalPosition")[0] < -25
+    assert vector(scene[entrance[1]][1], "m_LocalPosition")[0] > -25
+    for ident, (typ, text) in scene.items():
+        if typ != 4 or " stripped\n" in text: continue
+        parent = reference(text, "m_Father")
+        if parent and " stripped\n" not in scene[parent][1]:
+            assert ident in array(scene[parent][1], "m_Children"), (ident, parent, "missing reciprocal hierarchy link")
+        visited = {ident}
+        while parent and parent in scene:
+            assert parent not in visited, (ident, "hierarchy cycle")
+            visited.add(parent)
+            parent = reference(scene[parent][1], "m_Father")
     navigation = scene[reference(restaurant, "navigationSurface")][1]
     assert value(navigation, "m_Enabled") == "1"
     navigation_asset = ASSETS / "Scenes/RoleBased/Lobby2/NavMesh-Fast Food Revamp.asset"
@@ -160,7 +206,7 @@ def main():
     for button in ("CameraButton", "ComputerButton", "NewspaperButton", "TaskButton"):
         nodes = [d for t, d in hud.values() if t == 1 and value(d, "m_Name") == button]
         assert len(nodes) == 1 and value(nodes[0], "m_IsActive") == "1", button
-    print("PASS: prefab ownership, seats, service/cleaning links, 15 scene tables, station instances, navigation binding, HUD scales and buttons.")
+    print("PASS: prefab ownership, seats, service/cleaning links, horizontal tray mounts, authored outlines/queue anchors, 15 tables, two counters/two kiosks, entrance route, hierarchy links, navigation binding and HUD.")
     print("Unity compilation, navigation routes, animation and human gameplay still require external verification.")
 
 
