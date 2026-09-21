@@ -387,7 +387,8 @@ public sealed class PlayerTaskHUD : MonoBehaviour
 
         bool blocked = hideWhileGameplayUIBlocked && GameplayUIBlocker.IsBlocked();
         bool canPresent = supportedSceneVisible && !blocked;
-        if (hudGroup != null)
+        // The controls presenter owns the shared CanvasGroup in the combined HUD.
+        if (hudGroup != null && !preserveAuthoredPresentation)
         {
             hudGroup.alpha = canPresent ? 1f : 0f;
             hudGroup.interactable = canPresent;
@@ -438,12 +439,12 @@ public sealed class PlayerTaskHUD : MonoBehaviour
             supportedSceneVisible = MultiplayerLobbyVisible;
             objectivesSceneVisible = supportedSceneVisible;
         }
-        else if (useLobbyHudRedesignLayout)
+        else if (useLobbyHudRedesignLayout || preserveAuthoredPresentation)
         {
             // RestockScene is additive, so a loaded Lobby1 scene is not enough.
             // The redesigned HUD belongs only to the active normal Lobby view.
             bool activeLobby = SceneManager.GetActiveScene().name == "Lobby1" || SceneManager.GetActiveScene().name == "Lobby2" || MultiplayerHUDBridge.IsActive;
-            supportedSceneVisible = activeLobby;
+            supportedSceneVisible = activeLobby || (preserveAuthoredPresentation && SceneManager.GetActiveScene().name == "RestockScene");
             objectivesSceneVisible = activeLobby;
         }
         else for (int i = 0; i < SceneManager.sceneCount && !supportedSceneVisible; i++)
@@ -464,7 +465,7 @@ public sealed class PlayerTaskHUD : MonoBehaviour
             }
         }
 
-        if (hudCanvas != null)
+        if (hudCanvas != null && !preserveAuthoredPresentation)
             hudCanvas.enabled = supportedSceneVisible;
         if (objectivesButton != null)
             objectivesButton.gameObject.SetActive(objectivesSceneVisible && !hideLegacyObjectivesButton);

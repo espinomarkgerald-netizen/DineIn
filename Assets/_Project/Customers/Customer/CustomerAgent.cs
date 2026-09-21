@@ -105,6 +105,8 @@ public class CustomerAgent : MonoBehaviour
     private bool hasActiveDestination;
     private Vector3 activeDestination;
     private int destinationIssuedFrame = -1;
+    private Vector3 seatedNavMeshPosition;
+    private bool navigationSuspendedForSeat;
     private Transform headAnchor;
     private AlienProceduralAnimation proceduralAnimation;
 
@@ -326,6 +328,8 @@ public class CustomerAgent : MonoBehaviour
         if (IsSeated)
             Unseat();
 
+        if (!Agent.enabled) return false;
+
         Agent.updatePosition = true;
         Agent.updateRotation = true;
 
@@ -427,7 +431,7 @@ public class CustomerAgent : MonoBehaviour
 
     public bool HasArrived(Vector3 targetPos)
     {
-        if (Agent == null) return false;
+        if (Agent == null || !Agent.enabled || !Agent.isOnNavMesh) return false;
         if (Agent.pathPending) return false;
 
         if (Agent.hasPath && Agent.remainingDistance != Mathf.Infinity)
@@ -457,15 +461,20 @@ public class CustomerAgent : MonoBehaviour
     {
         if (Agent == null) return;
 
-        Agent.ResetPath();
-        Agent.isStopped = true;
+        if (Agent.enabled && Agent.isOnNavMesh)
+        {
+            seatedNavMeshPosition = Agent.nextPosition;
+            Agent.ResetPath();
+            Agent.isStopped = true;
+        }
         hasActiveDestination = false;
         currentAnimSpeed = 0f;
         Agent.updatePosition = false;
         Agent.updateRotation = false;
 
-        // Keep the NavMeshAgent at the booth approach while the visible character
-        // occupies a seat inside the booth's carved obstacle.
+        // Seated characters must not leave invisible avoidance blockers at the approach.
+        navigationSuspendedForSeat = true;
+        Agent.enabled = false;
         transform.position = seatPos;
         transform.rotation = seatRot;
 
@@ -481,6 +490,13 @@ public class CustomerAgent : MonoBehaviour
     public void Unseat()
     {
         if (Agent == null) return;
+
+        if (navigationSuspendedForSeat)
+        {
+            transform.position = seatedNavMeshPosition;
+            Agent.enabled = true;
+            navigationSuspendedForSeat = false;
+        }
 
         IsSeated = false;
         IsEating = false;

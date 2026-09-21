@@ -305,6 +305,8 @@ public class WaiterHands : MonoBehaviour
     public bool PickupTray(FoodTray tray)
     {
         if (tray == null) return false;
+        if (tray.TargetGroup != null && !tray.TargetGroup.AllowsStaffFoodDelivery &&
+            tray.GetComponent<FoodTrayInteractable>()?.IsCleanupPickable != true) return false;
         if (HasTray) return false;
 
         Transform parent = TrayHoldPoint;
@@ -433,6 +435,7 @@ public class WaiterHands : MonoBehaviour
 
     public bool TryDeliverTrayTo(CustomerGroup group, bool destroyTrayObject = true)
     {
+        if (group != null && !group.AllowsStaffFoodDelivery) return false;
         if (holdingTray != null && holdingTray.NetworkCarryLocked) return false;
         if (group == null || holdingTray == null)
             return false;

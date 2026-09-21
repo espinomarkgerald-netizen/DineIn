@@ -21,6 +21,8 @@ public class TakeoutQueueManager : MonoBehaviour
     private readonly List<CustomerGroup> queue = new();
     private readonly Dictionary<CustomerGroup, int> slotLookup = new();
     private readonly List<CustomerGroup> leavingGroups = new();
+    private readonly Dictionary<CustomerGroup, float> departureDeadlines = new();
+    [SerializeField, Min(1f)] private float maxExitTravelSeconds = 20f;
 
     private CustomerGroup currentFront;
     private float currentFrontMoveStartedAt = -1f;
@@ -83,6 +85,7 @@ public class TakeoutQueueManager : MonoBehaviour
         queue.Remove(group);
         slotLookup.Remove(group);
         leavingGroups.Remove(group);
+        departureDeadlines.Remove(group);
         group.SetTakeoutQueueState(CustomerGroup.TakeoutQueueState.None);
 
         if (currentFront == group)
@@ -105,6 +108,7 @@ public class TakeoutQueueManager : MonoBehaviour
                 group.SetTakeoutQueueState(CustomerGroup.TakeoutQueueState.None);
             }
         queue.Clear(); slotLookup.Clear(); leavingGroups.Clear();
+        departureDeadlines.Clear();
         currentFront = null;
         currentFrontMoveStartedAt = -1f;
         currentFrontTravelRetries = 0;
@@ -134,6 +138,7 @@ public class TakeoutQueueManager : MonoBehaviour
 
                 if (!leavingGroups.Contains(released))
                     leavingGroups.Add(released);
+                departureDeadlines[released] = Time.time + maxExitTravelSeconds;
             }
             else
             {
@@ -172,6 +177,7 @@ public class TakeoutQueueManager : MonoBehaviour
 
             if (!leavingGroups.Contains(group))
                 leavingGroups.Add(group);
+            departureDeadlines[group] = Time.time + maxExitTravelSeconds;
         }
         else
         {
@@ -325,7 +331,7 @@ public class TakeoutQueueManager : MonoBehaviour
 
     private void UpdateLeavingGroups()
     {
-        if (exitPoint == null || leavingGroups.Count == 0)
+        if (leavingGroups.Count == 0)
             return;
 
         for (int i = leavingGroups.Count - 1; i >= 0; i--)
@@ -334,13 +340,21 @@ public class TakeoutQueueManager : MonoBehaviour
 
             if (group == null)
             {
+                if (!ReferenceEquals(group, null)) departureDeadlines.Remove(group);
                 leavingGroups.RemoveAt(i);
                 continue;
             }
 
-            if (HasGroupReachedTransform(group, exitPoint))
+            if (!departureDeadlines.TryGetValue(group, out float deadline))
+                departureDeadlines[group] = deadline = Time.time + maxExitTravelSeconds;
+            bool timedOut = Time.time >= deadline;
+            if (exitPoint == null || HasGroupReachedTransform(group, exitPoint) || timedOut)
             {
                 leavingGroups.RemoveAt(i);
+                departureDeadlines.Remove(group);
+                if (timedOut)
+                    Debug.LogWarning($"[TakeoutQueue] Completing timed-out departure for {group.name}.", group);
+                RestaurantTaskClaim.Complete(group);
                 Destroy(group.gameObject);
             }
         }
@@ -368,7 +382,10 @@ public class TakeoutQueueManager : MonoBehaviour
         for (int i = leavingGroups.Count - 1; i >= 0; i--)
         {
             if (leavingGroups[i] == null)
+            {
+                if (!ReferenceEquals(leavingGroups[i], null)) departureDeadlines.Remove(leavingGroups[i]);
                 leavingGroups.RemoveAt(i);
+            }
         }
 
         if (currentFront != null && !queue.Contains(currentFront))

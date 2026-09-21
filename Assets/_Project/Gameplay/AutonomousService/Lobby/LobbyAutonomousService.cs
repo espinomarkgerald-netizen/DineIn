@@ -569,6 +569,13 @@ public class LobbyAutonomousService : MonoBehaviour
                 {
                     ReportFastFoodStaffReadiness();
                     TryStartFastFoodCashierTask();
+                    // Fast-food waiters only deliver requested meals; counter ordering/payment remains separate.
+                    if (waiter != null && !waiter.IsBusy && AreWaiterHandsFree(waiterHands))
+                    {
+                        var requestedTray = FindReadyDeliveryTray();
+                        if (requestedTray != null)
+                            TryStartClaimedTask(waiter, requestedTray, DeliverFood(requestedTray));
+                    }
                 }
                 else { TryStartHostTask(); TryStartWaiterTask(); }
                 TryStartBusserTask();
@@ -1744,7 +1751,7 @@ public class LobbyAutonomousService : MonoBehaviour
 
     private static bool IsDeliveryTrayReady(FoodTray tray)
     {
-        if (tray == null || tray.TargetGroup == null)
+        if (tray == null || tray.TargetGroup == null || !tray.TargetGroup.AllowsStaffFoodDelivery)
             return false;
         FoodTrayInteractable interactable = tray.GetComponent<FoodTrayInteractable>();
         CustomerGroup group = tray.TargetGroup;
@@ -1755,7 +1762,7 @@ public class LobbyAutonomousService : MonoBehaviour
 
     private static bool IsDeliveryTargetValid(FoodTray tray)
     {
-        if (tray == null || tray.TargetGroup == null)
+        if (tray == null || tray.TargetGroup == null || !tray.TargetGroup.AllowsStaffFoodDelivery)
             return false;
         CustomerGroup group = tray.TargetGroup;
         return group.state == CustomerGroup.GroupState.OrderTaken &&
@@ -2560,10 +2567,6 @@ public class LobbyAutonomousService : MonoBehaviour
 
     private TakeoutBagInteractable FindReadyTakeoutBag()
     {
-        foreach (var bag in cachedTakeoutBags)
-            if (bag != null && bag.TargetGroup != null && bag.TargetGroup.FastFood != null
-                && bag.TargetGroup.FastFood.IsBagReady(bag.TargetGroup)
-                && RestaurantTaskClaim.CanBotStart(bag, managerReactionSeconds)) return bag;
         CustomerGroup target = takeoutFlow != null ? takeoutFlow.ActiveGroup : null;
         if (!IsTakeoutBagDeliveryReady(target))
             return null;
@@ -2667,7 +2670,7 @@ public class LobbyAutonomousService : MonoBehaviour
 
     private bool IsTakeoutBagDeliveryReady(CustomerGroup group)
     {
-        if (group != null && group.FastFood != null) return group.FastFood.IsBagReady(group);
+        if (group != null && group.FastFood != null) return false;
         return takeoutFlow != null &&
                group != null &&
                group.IsTakeout &&

@@ -22,20 +22,13 @@ public sealed class FastFoodRestaurant : MonoBehaviour
 
     [Header("Stations and entrance (authored in Lobby2)")]
     [SerializeField] private FastFoodServiceStation[] serviceStations;
-    [SerializeField] private Transform[] entranceRoute;
-    [SerializeField, Min(5f)] private float entranceTravelTimeout = 60f;
     private readonly Dictionary<CustomerGroup, FastFoodServiceStation> stationOwners = new();
     public IReadOnlyList<FastFoodServiceStation> ServiceStations => serviceStations;
     public FastFoodServiceStation StationFor(CustomerGroup group) => group != null &&
         stationOwners.TryGetValue(group, out var station) ? station : null;
-    [Tooltip("Bounded outdoor waiting pockets. New spawns pause when stations and these pockets are full.")]
-    [SerializeField] private Transform[] outsideWaitingPoints;
-    [SerializeField, Min(10f)] private float outsideWaitSeconds = 60f;
     [SerializeField, Min(10f)] private float seatWaitSeconds = 120f;
-    [SerializeField, Min(10f)] private float closingServiceSeconds = 120f;
+    [SerializeField, Min(10f)] private float closingServiceSeconds = 30f;
     [SerializeField, Min(5f)] private float closingExitSeconds = 20f;
-    private readonly List<CustomerGroup> outsideQueue = new();
-    private readonly Dictionary<CustomerGroup, int> outsideSlots = new();
     [SerializeField] private Transform[] customerPickupSlots;
     private readonly Dictionary<CustomerGroup, Transform> pickupReservations = new();
     public bool HasPaidWaitingSpace => waitingPoints != null && waitingSlots.Count < waitingPoints.Length;
@@ -66,9 +59,7 @@ public sealed class FastFoodRestaurant : MonoBehaviour
             if (pair.Value == station && pair.Key != null && !pair.Key.FastFoodPaid && !pair.Key.IsFastFoodLeaving) count++;
         return count;
     }
-    public bool CanAdmitCustomer => acceptingCustomers &&
-        ((outsideQueue.Count == 0 && ChooseStation(false) != null) ||
-         outsideQueue.Count < (outsideWaitingPoints?.Length ?? 0));
+    public bool CanAdmitCustomer => acceptingCustomers && ChooseStation(false) != null;
 
     private FastFoodServiceStation ChooseStation(bool countersOnly)
     {
@@ -87,55 +78,10 @@ public sealed class FastFoodRestaurant : MonoBehaviour
         }
         return chosen;
     }
-    private IEnumerator AdmitCustomer(CustomerGroup group)
-    {
-        // Reserve before travelling, so four stations cannot overbook during approach.
-        var reservedStation = outsideQueue.Count == 0 ? ChooseStation(false) : null;
-        if (reservedStation == null)
-        {
-            if (outsideWaitingPoints == null || outsideQueue.Count >= outsideWaitingPoints.Length)
-            { customers.Remove(group); Destroy(group.gameObject); yield break; }
-            int pocketIndex = 0;
-            while (outsideSlots.ContainsValue(pocketIndex)) pocketIndex++;
-            outsideSlots[group] = pocketIndex;
-            var pocket = outsideWaitingPoints[pocketIndex];
-            outsideQueue.Add(group);
-            group.MoveToTakeoutPoint(pocket.position, pocket.forward, 1.5f, 1.5f);
-            float waitDeadline = Time.time + outsideWaitSeconds;
-            while (group != null && !group.IsFastFoodLeaving && Time.time < waitDeadline)
-            {
-                if (outsideQueue.Count > 0 && outsideQueue[0] == group && (reservedStation = ChooseStation(false)) != null) break;
-                yield return null;
-            }
-            outsideQueue.Remove(group);
-            outsideSlots.Remove(group);
-            if (group == null || group.IsFastFoodLeaving) yield break;
-            if (reservedStation == null) { group.FailFastFoodService("The ordering area stayed full."); yield break; }
-        }
-        stationOwners[group] = reservedStation;
-        if (entranceRoute != null) foreach (var point in entranceRoute)
-        {
-            if (group == null || group.state == CustomerGroup.GroupState.Leaving ||
-                group.state == CustomerGroup.GroupState.UnhappyLeft || group.state == CustomerGroup.GroupState.AngryLeft) yield break;
-            if (point == null) continue;
-            group.MoveToTakeoutPoint(point.position);
-            float deadline = Time.time + entranceTravelTimeout;
-            while (group != null && !group.IsFastFoodLeaving && !group.HasReachedTakeoutPoint(point.position, 1.25f) && Time.time < deadline)
-                yield return null;
-            if (group == null || group.IsFastFoodLeaving) yield break;
-            if (!group.HasReachedTakeoutPoint(point.position, 1.25f))
-            { group.FailFastFoodService("The entrance could not be reached."); yield break; }
-        }
-        if (group != null && !group.IsFastFoodLeaving)
-        {
-            if (reservedStation != null && reservedStation.isActiveAndEnabled && reservedStation.Queue != null)
-                reservedStation.Queue.Enqueue(group);
-            else group.FailFastFoodService("The ordering station is no longer available.");
-        }
-    }
-
     [Header("Customer choices")]
     [SerializeField, Range(0f, 1f)] private float takeoutChance = .3f;
+    [Tooltip("Non-pink dine-in groups requesting table delivery. Pink dine-in groups always request delivery.")]
+    [SerializeField, Range(0f, 1f)] private float tableDeliveryChance = .3f;
     [Header("Timing (gameplay seconds)")]
     [SerializeField, Min(.1f)] private float seatCheckInterval = .5f;
     [SerializeField, Min(5f)] private float pickupTravelTimeout = 20f;
@@ -196,8 +142,8 @@ public sealed class FastFoodRestaurant : MonoBehaviour
         if (counterQueue == null || counterFlow == null || kitchen == null || cashierApproach == null ||
             customerPickupPoint == null || customerExit == null || waitingPoints == null || waitingPoints.Length == 0)
             problem = "Assign all Fast Food service and waiting-point references.";
-        else if (serviceStations == null || serviceStations.Length != 4 || entranceRoute == null || entranceRoute.Length < 2)
-            problem = "Author two counters, two kiosks and the left entrance route.";
+        else if (serviceStations == null || serviceStations.Length != 4)
+            problem = "Author two counters and two kiosks with indoor queues.";
         else if (!counterQueue.ValidateAuthoring(out problem)) return false;
         else if (diningTables == null || diningTables.Length == 0) problem = "Register the dining tables.";
         else
@@ -230,14 +176,12 @@ public sealed class FastFoodRestaurant : MonoBehaviour
                 if (!station.Queue.ValidateAuthoring(out problem)) break;
             }
             if (problem == null && kiosks != 2) problem = "Use two kiosks and two cashier counters.";
-            foreach (var point in entranceRoute)
-                if (point == null) { problem = "An entrance route point is missing."; break; }
         }
         if (problem == null)
         {
-            foreach (var points in new[] { outsideWaitingPoints, customerPickupSlots })
+            foreach (var points in new[] { customerPickupSlots })
             {
-                if (points == null || points.Length == 0) { problem = "Author the outside waiting and pickup spaces."; break; }
+                if (points == null || points.Length == 0) { problem = "Author the customer pickup spaces."; break; }
                 var unique = new HashSet<Transform>();
                 foreach (var point in points)
                     if (point == null || point.gameObject.scene != gameObject.scene || !unique.Add(point))
@@ -285,6 +229,10 @@ public sealed class FastFoodRestaurant : MonoBehaviour
             group.FailFastFoodService("Counter service is unavailable.");
             return true;
         }
+        var station = ChooseStation(false);
+        // The spawner checks capacity before creating a group; guard direct callers too.
+        if (station == null) { Destroy(group.gameObject); return true; }
+        stationOwners[group] = station;
         group.ConfigureFastFood(this, Random.value >= takeoutChance);
         customers.Add(group);
         group.ServiceOutcomeReported += OnOutcome;
@@ -299,7 +247,8 @@ public sealed class FastFoodRestaurant : MonoBehaviour
             collider.height = 1.8f;
             collider.isTrigger = true;
         }
-        StartCoroutine(AdmitCustomer(group));
+        // Walk straight to the reserved indoor slot; NavMesh handles the doorway.
+        station.Queue.Enqueue(group);
         return true;
     }
 
@@ -323,7 +272,8 @@ public sealed class FastFoodRestaurant : MonoBehaviour
         StationFor(group)?.Queue.Remove(group); // Detach without sending this paid customer to the exit.
         StationFor(group)?.Flow.ForceRelease(group);
         paid.Add(group);
-        group.FastFoodSelfPickup = group.FastFoodDineIn;
+        group.FastFoodSelfPickup = group.FastFoodDineIn &&
+            group.CurrentCustomerType != CustomerGroup.CustomerType.Pink && Random.value >= tableDeliveryChance;
         PlaceInWaitingArea(group);
         if (group.FastFoodDineIn) seatWait[group] = 0f;
         SubmitKitchen(group);
@@ -350,7 +300,7 @@ public sealed class FastFoodRestaurant : MonoBehaviour
             if (group == null || group.HasReceivedCurrentFastFoodOrder || !paid.Contains(group))
             { readyWait.Remove(group); continue; }
             if (HygieneManager.KitchenPaused) continue;
-            if (group.FastFoodDineIn && !group.IsCollectingFastFoodTray && group.assignedBooth != null && !group.FastFoodAwaitingSeat)
+            if (group.CanCollectFastFoodTray)
             {
                 var prepared = kitchen.GetPreparedResult(group.currentOrderNumber);
                 if (prepared != null && prepared.GetComponent<FoodTrayInteractable>()?.IsDeliveryPickable == true &&
@@ -359,6 +309,8 @@ public sealed class FastFoodRestaurant : MonoBehaviour
             }
             // Starting the coroutine can synchronously reject an invalid order and remove it.
             if (!readyWait.ContainsKey(group)) continue;
+            // Seating has its own deadline; an active pickup has bounded travel deadlines.
+            if (group.FastFoodAwaitingSeat || group.IsCollectingFastFoodTray) continue;
             readyWait[group] += seatCheckInterval;
             if (readyWait[group] >= readyFoodWaitSeconds)
             {
@@ -431,8 +383,7 @@ public sealed class FastFoodRestaurant : MonoBehaviour
         CashierRegisterUI.Instance?.DismissFastFoodPayment(group);
         readyWait.Remove(group);
         seatWait.Remove(group);
-        outsideQueue.Remove(group);
-        outsideSlots.Remove(group); ReleasePickup(group);
+        ReleasePickup(group);
         if (currentCard != null && currentCard.TargetGroup == group)
         {
             CardPaymentUI.Instance?.DismissFastFoodPayment(group);
@@ -463,13 +414,7 @@ public sealed class FastFoodRestaurant : MonoBehaviour
             group.currentOrderNumber != order || !paid.Contains(group) || !readyOrders.Add(order)) return;
         if (!success) { group.FailFastFoodService("The kitchen could not prepare this order."); return; }
         readyWait[group] = 0f;
-        if (group.FastFoodDineIn && group.FastFoodSelfPickup)
-        {
-            FoodTray tray = kitchen.GetPreparedResult(order);
-            if (tray != null && !group.FastFoodAwaitingSeat && TryReservePickup(group, out var pickup))
-                group.StartCoroutine(group.CollectFastFoodTray(tray, pickup,
-                    pickupTravelTimeout));
-        }
+        // Update is the single scheduler, after the entire party is seated.
     }
 
     public bool BagReady(CustomerGroup group)
@@ -499,12 +444,10 @@ public sealed class FastFoodRestaurant : MonoBehaviour
             while (group != null && !group.IsFastFoodLeaving && collector != null && bag != null &&
                 !collector.HasArrived(destination) && Time.time < deadline) yield return null;
             if (group == null || group.IsFastFoodLeaving || collector == null || !collector.HasArrived(destination)) yield break;
-            while (group != null && bag != null && IsBagReady(group) && RestaurantTaskClaim.IsClaimedByPlayer(bag) && Time.time < deadline)
-                yield return null;
-            if (group != null && bag != null && IsBagReady(group) && !RestaurantTaskClaim.IsClaimedByPlayer(bag)) bag.TryCustomerCollect(group);
+            if (group != null && bag != null && IsBagReady(group)) bag.TryCustomerCollect(group);
         }
         finally { ReleasePickup(group); }
-        // Ready-food timeout retains bounded failure/refund even if a manager owns the bag.
+        // Ready-food timeout retains bounded failure/refund if the route fails.
     }
     public Booth DiningSurface(Renderer renderer)
     {
@@ -522,7 +465,10 @@ public sealed class FastFoodRestaurant : MonoBehaviour
         (StationFor(group)?.Queue ?? counterQueue).ReleaseGroup(group);
     }
 
-    public void StopAdmissions() => acceptingCustomers = false;
+    public void StopAdmissions()
+    {
+        acceptingCustomers = false;
+    }
     public void BeginClosingExit()
     {
         serviceAvailable = false;
@@ -654,7 +600,7 @@ public sealed class FastFoodRestaurant : MonoBehaviour
         if (serviceStations != null) foreach (var station in serviceStations)
         { station?.Queue?.ResetFastFoodDay(); station?.Flow?.ResetFastFoodDay(); }
         stationOwners.Clear();
-        outsideQueue.Clear(); outsideSlots.Clear(); seatWait.Clear(); pickupReservations.Clear();
+        seatWait.Clear(); pickupReservations.Clear();
         kitchen?.ResetFastFoodDay();
         customers.Clear(); readyBags.Clear(); readyOrders.Clear(); settled.Clear();
         waitingSlots.Clear(); cardChoices.Clear(); refunded.Clear(); readyWait.Clear();

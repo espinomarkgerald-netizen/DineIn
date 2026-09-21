@@ -200,8 +200,8 @@ internal sealed class AlienProceduralAnimation
         // the hands away from the tray while walking back to the table.
         if (owner.TrayCarryWeight > .001f)
         {
-            ApplyCcdArm(leftUpperArm, leftLowerArm, leftHand, owner.TrayLeftGripPosition, owner.TrayCarryWeight);
-            ApplyCcdArm(rightUpperArm, rightLowerArm, rightHand, owner.TrayRightGripPosition, owner.TrayCarryWeight);
+            ApplyCcdArm(leftUpperArm, leftLowerArm, leftHand, owner.TrayLeftGripPosition, owner.TrayCarryWeight, 12);
+            ApplyCcdArm(rightUpperArm, rightLowerArm, rightHand, owner.TrayRightGripPosition, owner.TrayCarryWeight, 12);
             if (leftHand != null) leftHand.rotation = Quaternion.Slerp(leftHand.rotation, owner.TrayLeftGripRotation, owner.TrayCarryWeight);
             if (rightHand != null) rightHand.rotation = Quaternion.Slerp(rightHand.rotation, owner.TrayRightGripRotation, owner.TrayCarryWeight);
             return;
@@ -889,13 +889,15 @@ internal sealed class AlienProceduralAnimation
         Transform lowerArm,
         Transform hand,
         Vector3 target,
-        float weight)
+        float weight,
+        int iterations = 2)
     {
         if (upperArm == null || lowerArm == null || hand == null || weight <= 0.001f)
             return;
 
-        float iterationWeight = 1f - Mathf.Pow(1f - Mathf.Clamp01(weight), 0.5f);
-        for (int i = 0; i < 2; i++)
+        // Preserve the requested blend strength when carrying uses extra solver passes.
+        float iterationWeight = 1f - Mathf.Pow(1f - Mathf.Clamp01(weight), 1f / Mathf.Max(1, iterations));
+        for (int i = 0; i < iterations; i++)
         {
             RotateBoneToward(lowerArm, hand, target, iterationWeight);
             RotateBoneToward(upperArm, hand, target, iterationWeight);

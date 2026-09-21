@@ -83,6 +83,22 @@ public class KitchenManager : MonoBehaviour
     [Header("Dine-In Spawn Points")]
     public Transform[] traySpawnPoints;
     public FoodTray foodTrayPrefab;
+    [Tooltip("Treat tray slots as the visual center of the tray bottom, rather than the imported mesh pivot.")]
+    [SerializeField] private bool centerTrayOnOutputSlot;
+    [SerializeField, Range(.1f, 1f)] private float outputTrayScale = 1f;
+
+    private FoodTray SpawnOutputTray(Transform slot)
+    {
+        var tray = Instantiate(foodTrayPrefab, slot.position, slot.rotation, slot);
+        if (!centerTrayOnOutputSlot) return tray;
+        tray.transform.localScale *= outputTrayScale;
+        var renderers = tray.GetComponentsInChildren<Renderer>();
+        if (renderers.Length == 0) return tray;
+        var bounds = renderers[0].bounds;
+        for (int i = 1; i < renderers.Length; i++) bounds.Encapsulate(renderers[i].bounds);
+        tray.transform.position += slot.position - new Vector3(bounds.center.x, bounds.min.y, bounds.center.z);
+        return tray;
+    }
 
     [Header("Takeout Spawn Points")]
     [SerializeField] private Transform[] takeoutSpawnPoints;
@@ -241,7 +257,7 @@ public class KitchenManager : MonoBehaviour
         var slot = traySpawnPoints[slotIndex];
         // Never choose an alternative slot on observers.
         if (slot.GetComponentInChildren<FoodTray>() != null) return;
-        var tray = Instantiate(foodTrayPrefab, slot.position, slot.rotation, slot);
+        var tray = SpawnOutputTray(slot);
         tray.Init(group, preserveOrderSnapshot: true);
         BlockPreparedPickup(tray);
         preparedResults[order] = tray;
@@ -686,7 +702,7 @@ public class KitchenManager : MonoBehaviour
             }
             else
             {
-                FoodTray tray = Instantiate(foodTrayPrefab, freeSlot.position, freeSlot.rotation, freeSlot);
+                FoodTray tray = SpawnOutputTray(freeSlot);
                 tray.Init(group, preserveOrderSnapshot: resumeAtSpawn);
                 // The normal kitchen path is also the multiplayer source of truth.
                 // Every completed output must be discoverable by pickup validation

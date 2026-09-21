@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 
 /// <summary>
 /// Single persistent owner for every editable Lobby HUD branch.  The combined
@@ -83,15 +84,16 @@ public sealed class LobbyHUDRoot : MonoBehaviour
             PlayerTaskHUD.EnsureCombinedBinding(controls);
         }
 
-        // The scene-owned LobbyPauseMenu controller activates and wires this
-        // branch when Lobby1 is loaded.  Keeping it inactive before then stops
-        // the pause button leaking into loading/menu scenes.
+        // The persistent pause controller activates this branch only in a lobby.
+        // Keep it hidden until the presenter has bound its settings controls.
         if (pauseMenuView != null)
             pauseMenuView.gameObject.SetActive(false);
     }
 
     private void Start()
     {
+        EnsurePauseController();
+        RefreshScenePresentation();
         if (!Application.isMobilePlatform) return;
 
         // Let each presenter finish binding in Awake, then enlarge through its
@@ -107,6 +109,39 @@ public sealed class LobbyHUDRoot : MonoBehaviour
     {
         if (Instance == this)
             Instance = null;
+    }
+
+    public void EnsurePauseController()
+    {
+        if (GetComponent<LobbyPauseMenu>() == null)
+            gameObject.AddComponent<LobbyPauseMenu>();
+    }
+
+    private void OnEnable()
+    {
+        SceneManager.sceneLoaded += HandleSceneLoaded;
+        SceneManager.activeSceneChanged += HandleActiveSceneChanged;
+    }
+
+    private void OnDisable()
+    {
+        SceneManager.sceneLoaded -= HandleSceneLoaded;
+        SceneManager.activeSceneChanged -= HandleActiveSceneChanged;
+    }
+
+    private void HandleSceneLoaded(Scene scene, LoadSceneMode mode) => RefreshScenePresentation();
+    private void HandleActiveSceneChanged(Scene previous, Scene current) => RefreshScenePresentation();
+
+    public void RefreshScenePresentation()
+    {
+        var controls = GetComponentInChildren<LobbyHUDRedesign>(true);
+        if (controls != null)
+        {
+            controls.gameObject.SetActive(true);
+            controls.RefreshVisibility();
+        }
+        GetComponentInChildren<PlayerTaskHUD>(true)?.RefreshSceneVisibility();
+        GetComponent<LobbyPauseMenu>()?.RefreshSceneContext();
     }
 
     public LobbyPauseMenuView AcquirePauseMenuView()

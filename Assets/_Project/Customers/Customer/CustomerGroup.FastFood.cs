@@ -8,12 +8,17 @@ public partial class CustomerGroup
     public bool FastFoodDineIn { get; private set; }
     public bool FastFoodPaid { get; private set; }
     public bool FastFoodSelfPickup { get; internal set; }
+    public bool FastFoodRequestsTableDelivery => FastFood != null && FastFoodPaid && FastFoodDineIn && !FastFoodSelfPickup;
+    public bool AllowsStaffFoodDelivery => FastFood == null || (FastFoodRequestsTableDelivery &&
+        !IsFastFoodLeaving && !FastFoodAwaitingSeat && assignedBooth != null && assignedBooth.CurrentGroup == this &&
+        members.Count > 0 && members.TrueForAll(member => member != null && member.IsSeated));
     public bool FastFoodWasServed => firstDeliveryCompleted;
     public bool FastFoodAwaitingSeat => FastFood != null && FastFoodPaid && FastFoodDineIn
         && !leavingRoutineStarted && (state == GroupState.Waiting || state == GroupState.WalkingToBooth);
     public bool IsFastFoodCounterCustomer => FastFood != null && !FastFoodPaid;
-    public bool IsFastFoodLeaving => leavingRoutineStarted;
-    public bool HasReceivedCurrentFastFoodOrder => deliveredFastFoodOrder == currentOrderNumber;
+    public bool IsFastFoodLeaving => leavingRoutineStarted || state == GroupState.Leaving
+        || state == GroupState.UnhappyLeft || state == GroupState.AngryLeft;
+    public bool HasReceivedCurrentFastFoodOrder => deliveredFastFoodOrder >= 0 && deliveredFastFoodOrder == currentOrderNumber;
     private int deliveredFastFoodOrder = -1;
     private CustomerAgent fastFoodRepresentative;
     public CustomerAgent FastFoodRepresentative
@@ -24,7 +29,7 @@ public partial class CustomerGroup
     internal void TryConfirmFastFoodRemake() => TakeOrderFromWaiter(chosenFood, chosenDrink, null);
     internal void EndFastFoodServiceAtClosing()
     {
-        if (leavingRoutineStarted) return;
+        if (IsFastFoodLeaving) return;
         if (HasReceivedCurrentFastFoodOrder && !waitingForRemake)
         { SetState(GroupState.NeedsBill); PayAndLeave(); }
         else FailFastFoodService("The restaurant closed before this order was served.");
@@ -47,14 +52,30 @@ public partial class CustomerGroup
         return center + right * (companion % 2 == 0 ? -1f : 1f) * Mathf.Max(.8f, sideSpacing)
             - forward * (1 + companion / 2) * Mathf.Max(1.2f, rowSpacing);
     }
-    private bool TryResolveDistinctFastFoodDestination(Vector3 desired, out Vector3 target)
+    private bool TryResolveDistinctFastFoodDestination(CustomerAgent member, Vector3 desired, out Vector3 target)
     {
         target = desired;
-        if (!UnityEngine.AI.NavMesh.SamplePosition(desired, out var hit, .65f, UnityEngine.AI.NavMesh.AllAreas)) return false;
-        target = hit.position;
-        foreach (var destination in takeoutMemberDestinations.Values)
-            if ((destination - target).sqrMagnitude < .64f) return false;
-        return true;
+        var agent = member.Agent;
+        if (agent == null || !agent.enabled || !agent.isOnNavMesh) return false;
+        var path = new UnityEngine.AI.NavMeshPath();
+        var filter = new UnityEngine.AI.NavMeshQueryFilter { agentTypeID = agent.agentTypeID, areaMask = agent.areaMask };
+        // A formation can straddle a doorway or mesh edge. Search nearby distinct,
+        // reachable positions instead of leaving a companion with no destination.
+        for (int candidate = 0; candidate < 25; candidate++)
+        {
+            float angle = (candidate - 1) % 8 * Mathf.PI / 4f;
+            float radius = candidate == 0 ? 0f : (1 + (candidate - 1) / 8) * .8f;
+            Vector3 probe = desired + new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * radius;
+            if (!UnityEngine.AI.NavMesh.SamplePosition(probe, out var hit, .65f, filter)) continue;
+            bool occupied = false;
+            foreach (var destination in takeoutMemberDestinations.Values)
+                if ((destination - hit.position).sqrMagnitude < .64f) { occupied = true; break; }
+            if (occupied || !agent.CalculatePath(hit.position, path) ||
+                path.status != UnityEngine.AI.NavMeshPathStatus.PathComplete) continue;
+            target = hit.position;
+            return true;
+        }
+        return false;
     }
 
     internal void ChooseFastFoodSeat(Booth booth)
@@ -99,23 +120,44 @@ public partial class CustomerGroup
         SetState(GroupState.OrderTaken);
         SpawnTableNumber();
         FastFood?.OnSeated(this);
+        if (FastFoodRequestsTableDelivery)
+            ShowCustomThought("Please bring our food to the table.", happyFaceSprite);
     }
 
     internal void FailFastFoodService(string reason)
     {
-        if (leavingRoutineStarted) return;
+        if (IsFastFoodLeaving) return;
         Debug.LogWarning("[FastFood] " + reason, this);
         BecomeUnhappyAndLeave();
+        if (FastFoodPaid)
+            ShowCustomThought(FastFoodRequestsTableDelivery ? "Our food never arrived." : "We couldn't collect our food.", unhappyFaceSprite);
     }
 
     private bool collectingFastFoodTray;
     internal bool IsCollectingFastFoodTray => collectingFastFoodTray;
+    private static bool HasReachedFastFoodTable(CustomerAgent customer, Vector3 approach)
+    {
+        if (customer == null) return false;
+        if (customer.HasArrived(approach)) return true;
+        var agent = customer.Agent;
+        if (agent == null || !agent.enabled || !agent.isOnNavMesh || agent.pathPending ||
+            agent.pathStatus != UnityEngine.AI.NavMeshPathStatus.PathComplete) return false;
+        Vector3 offset = customer.transform.position - approach;
+        offset.y = 0f;
+        // The player can legitimately be standing at the shared service point.
+        // Use the table's interaction radius, but never snap across a NavMesh wall.
+        return offset.sqrMagnitude <= 1.5f * 1.5f && !agent.Raycast(approach, out _);
+    }
+    internal bool CanCollectFastFoodTray => FastFoodPaid && FastFoodDineIn && FastFoodSelfPickup &&
+        !IsFastFoodLeaving && !collectingFastFoodTray && !HasReceivedCurrentFastFoodOrder &&
+        state == GroupState.OrderTaken && hasConfirmedOrder && !isPlayerReviewingOrder &&
+        assignedBooth != null && assignedBooth.CurrentGroup == this && members.Count > 0 &&
+        members.TrueForAll(member => member != null && member.IsSeated);
     internal IEnumerator CollectFastFoodTray(FoodTray tray, Transform pickupPoint, float timeout)
     {
         // A duplicate request must not release the collector that already owns this slot.
         if (collectingFastFoodTray) yield break;
-        if (tray == null || assignedBooth == null || pickupPoint == null ||
-            members.Count == 0 || leavingRoutineStarted || FastFoodAwaitingSeat)
+        if (tray == null || pickupPoint == null || !CanCollectFastFoodTray)
         { FastFood?.ReleasePickup(this); yield break; }
         var collector = FastFoodRepresentative;
         var booth = assignedBooth;
@@ -134,7 +176,7 @@ public partial class CustomerGroup
         bool delivered = false;
         try
         {
-            // Let an already accepted manager command finish before attempting pickup.
+            // Reservation is owned exclusively by this group's collector.
             float claimDeadline = Time.time + timeout;
             while (!leavingRoutineStarted && tray != null && !HasReceivedCurrentFastFoodOrder &&
                    !(reserved = interactable.TryBeginCustomerPickup(this)) && Time.time < claimDeadline)
@@ -156,14 +198,14 @@ public partial class CustomerGroup
             { FailFastFoodService("The customer could not carry this order."); yield break; }
             FastFood.ReleasePickup(this);
 
-            moving = collector.TryWalkTo(booth.GetNavigableApproachPosition(), out destination);
+            moving = collector.TryWalkTo(booth.GetCustomerApproachPosition(), out destination);
             deadline = Time.time + timeout;
-            while (moving && collector != null && !collector.HasArrived(destination) && Time.time < deadline)
+            while (moving && collector != null && !HasReachedFastFoodTable(collector, destination) && Time.time < deadline)
             {
                 if (leavingRoutineStarted || tray == null || booth == null) yield break;
                 yield return null;
             }
-            if (!moving || collector == null || !collector.HasArrived(destination))
+            if (!moving || !HasReachedFastFoodTable(collector, destination))
             { FailFastFoodService("The table return path is blocked."); yield break; }
             if (leavingRoutineStarted || tray == null || booth == null || booth.CurrentGroup != this ||
                 state != GroupState.OrderTaken || !hasConfirmedOrder || isPlayerReviewingOrder) yield break;

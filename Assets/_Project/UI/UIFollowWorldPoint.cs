@@ -37,6 +37,13 @@ public class UIFollowWorldPoint : MonoBehaviour
     [SerializeField, Min(0f)] private float stackGapPixels = 6f;
     [SerializeField] private int stackPriority;
 
+    [Header("Customer Bubble Presentation")]
+    [SerializeField] private bool preventSceneClipping = true;
+    [SerializeField, Min(0f)] private float revealDuration = 0.22f;
+    [SerializeField, Range(0.7f, 1f)] private float revealStartScale = 0.88f;
+    private float revealElapsed;
+    private float revealProgress;
+
     [Header("Block When UI Open")]
     [SerializeField] private bool hideWhenGameplayUIBlocked = true;
 
@@ -62,6 +69,7 @@ public class UIFollowWorldPoint : MonoBehaviour
     private void Awake()
     {
         rect = GetComponent<RectTransform>();
+        authoredScale = rect.localScale;
 
         canvasGroup = GetComponent<CanvasGroup>();
         if (canvasGroup == null)
@@ -78,6 +86,8 @@ public class UIFollowWorldPoint : MonoBehaviour
         target = followTarget;
         worldOffset = offset;
         cam = followCam != null ? followCam : Camera.main;
+        revealElapsed = 0f;
+        revealProgress = 0f;
 
         if (presentationSpace == PresentationSpace.WorldSpace)
             InitializeWorldSpace();
@@ -116,6 +126,9 @@ public class UIFollowWorldPoint : MonoBehaviour
 
     private void OnEnable()
     {
+        revealElapsed = 0f;
+        revealProgress = 0f;
+        SetVisible(false);
         if (placeAboveTarget)
             WorldBubbleStackLayout.Register(this);
     }
@@ -154,11 +167,28 @@ public class UIFollowWorldPoint : MonoBehaviour
             return;
         }
 
+        UpdateReveal();
         if (worldSpaceInitialized)
             UpdateWorldSpacePose();
         else
             UpdateScreenSpacePose();
     }
+
+    private void UpdateReveal()
+    {
+        if (!placeAboveTarget || LevelOneUIAccessibility.ReducedMotion || revealDuration <= 0f)
+        {
+            revealProgress = 1f;
+            return;
+        }
+
+        revealElapsed += LevelOneUIAccessibility.UnscaledAnimationDeltaTime;
+        revealProgress = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(revealElapsed / revealDuration));
+    }
+
+    private float RevealScale => placeAboveTarget
+        ? Mathf.Lerp(revealStartScale, 1f, revealProgress)
+        : 1f;
 
     private void InitializeWorldSpace()
     {
@@ -232,6 +262,7 @@ public class UIFollowWorldPoint : MonoBehaviour
         screenPos.x += screenOffset.x;
         screenPos.y += screenOffset.y + (stackIndex * stackStepY);
         rect.position = screenPos;
+        rect.localScale = authoredScale * RevealScale;
     }
 
     private void UpdateWorldSpacePose()
@@ -260,8 +291,20 @@ public class UIFollowWorldPoint : MonoBehaviour
         if (Application.isMobilePlatform)
             worldPosition = ClampWorldPositionToSafeArea(worldPosition, anchorPosition);
 
+        // Canvas sorting cannot prevent walls from depth-clipping world UI.
+        // Keep the screen position and pixel size on a camera-front plane.
+        if (placeAboveTarget && preventSceneClipping)
+        {
+            Vector3 screen = cam.WorldToScreenPoint(worldPosition);
+            float presentationDepth = cam.nearClipPlane + 0.1f;
+            if (!cam.orthographic && screen.z > 0f)
+                scale *= presentationDepth / screen.z;
+            screen.z = presentationDepth;
+            worldPosition = cam.ScreenToWorldPoint(screen);
+        }
+
         rect.SetPositionAndRotation(worldPosition, cam.transform.rotation);
-        rect.localScale = authoredScale * scale;
+        rect.localScale = authoredScale * scale * RevealScale;
     }
 
     private Vector3 ClampWorldPositionToSafeArea(Vector3 worldPosition, Vector3 anchorPosition)
@@ -393,7 +436,7 @@ public class UIFollowWorldPoint : MonoBehaviour
             target == followTarget &&
             isActiveAndEnabled &&
             gameObject.activeInHierarchy &&
-            (canvasGroup == null || canvasGroup.alpha > 0.001f);
+            taskAlpha > 0.001f;
     }
 
     internal bool SortsBefore(UIFollowWorldPoint other)
@@ -421,7 +464,7 @@ public class UIFollowWorldPoint : MonoBehaviour
         if (canvasGroup == null)
             return;
 
-        canvasGroup.alpha = value ? taskAlpha : 0f;
+        canvasGroup.alpha = value ? taskAlpha * (placeAboveTarget ? revealProgress : 1f) : 0f;
         canvasGroup.blocksRaycasts = value && taskInteractable && (!worldSpaceInitialized || receivesPointerInput);
         canvasGroup.interactable = value && taskInteractable && (!worldSpaceInitialized || receivesPointerInput);
     }

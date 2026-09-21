@@ -96,7 +96,6 @@ public static class FastFoodServiceRegressionCases
             Set(restaurant, "serviceAvailable", true);
             Set(restaurant, "acceptingCustomers", true);
             Set(restaurant, "waitingPoints", new[] { Fixture("paid waiting").transform });
-            Set(restaurant, "outsideWaitingPoints", new[] { Fixture("outside waiting").transform });
             var pickups = new[] { Fixture("pickup one").transform, Fixture("pickup two").transform };
             Set(restaurant, "customerPickupSlots", pickups);
             counter.gameObject.SetActive(true);
@@ -131,10 +130,12 @@ public static class FastFoodServiceRegressionCases
                 "Released pickup position could not be reused.");
             restaurant.ReleasePickup(c); restaurant.ReleasePickup(d);
             Set(restaurant, "acceptingCustomers", true);
-            var outdoor = (List<CustomerGroup>)typeof(FastFoodRestaurant).GetField("outsideQueue", Fields).GetValue(restaurant);
-            outdoor.Add(b);
-            Assert(!restaurant.CanAdmitCustomer, "A full outdoor FIFO admitted a new group ahead of its waiting customer.");
-            outdoor.Clear();
+            kiosk.gameObject.SetActive(false);
+            Set(otherQueue, "queuePoints", new Transform[0]);
+            Assert(!restaurant.CanAdmitCustomer, "Full indoor queues admitted another arrival.");
+            kiosk.gameObject.SetActive(true);
+            Assert(restaurant.CanAdmitCustomer, "An available kiosk failed to reopen admissions.");
+            Set(otherQueue, "queuePoints", new[] { firstSlot, secondSlot });
             Assert(restaurant.ReserveSettlement(d) && !restaurant.ReserveSettlement(d), "Payment could be reserved twice.");
             Assert(!restaurant.ReserveSettlement(b), "Non-front customer could reserve payment.");
             flow.ResetFastFoodDay(); queue.ResetFastFoodDay();

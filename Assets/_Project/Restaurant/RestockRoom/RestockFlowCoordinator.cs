@@ -481,6 +481,7 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
         if (!multiplayerView) Time.timeScale = previousTimeScale;
         roomOpen = false;
         loading = false;
+        LobbyHUDRoot.Instance?.RefreshScenePresentation();
         if (multiplayerView && restockScene.IsValid() && restockScene.isLoaded)
         {
             multiplayerRestockUnload = SceneManager.UnloadSceneAsync(restockScene);

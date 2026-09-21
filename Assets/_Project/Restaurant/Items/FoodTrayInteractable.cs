@@ -271,6 +271,8 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
     /// </summary>
     public bool TryBeginStaffPickup(AutonomousStaffBot owner, TrayMode expectedMode)
     {
+        if (expectedMode == TrayMode.Delivery && tray != null && tray.TargetGroup != null && !tray.TargetGroup.AllowsStaffFoodDelivery)
+            return false;
         if (MultiplayerRestaurantBridge.IsObserver) return false;
         if (owner == null || tray == null || staffCarried || mode != expectedMode ||
             !RestaurantTaskClaim.IsClaimedByBot(tray, owner))
@@ -342,7 +344,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
 
         if (mode == TrayMode.Delivery)
         {
-            if (tray.TargetGroup != null && tray.TargetGroup.FastFood != null) return false;
+            if (tray.TargetGroup != null && !tray.TargetGroup.AllowsStaffFoodDelivery) return false;
             if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Waiter))
                 return false;
 
@@ -512,7 +514,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
 
         if (mode == TrayMode.Delivery)
         {
-            if (tray.TargetGroup != null && tray.TargetGroup.FastFood != null) return false;
+            if (tray.TargetGroup != null && !tray.TargetGroup.AllowsStaffFoodDelivery) return false;
             if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Waiter))
             {
                 ShowWarning("Only the waiter can deliver food.");
@@ -638,7 +640,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
 
         if (mode == TrayMode.Delivery)
         {
-            if (tray != null && tray.TargetGroup != null && tray.TargetGroup.FastFood != null) { HideUI(); return; }
+            if (tray != null && tray.TargetGroup != null && !tray.TargetGroup.AllowsStaffFoodDelivery) { HideUI(); return; }
             if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Waiter))
             {
                 HideUI();

@@ -43,6 +43,7 @@ public class TakeoutBagInteractable : MonoBehaviour, IInteractable
     public float GetInteractRadius() => 1.4f;
     public bool CanInteract()
     {
+        if (targetGroup != null && targetGroup.FastFood != null) return false;
         var hands = WaiterHands.ActivePlayerHands;
         return targetGroup != null && targetGroup.FastFood != null && targetGroup.FastFood.IsBagReady(targetGroup)
             && !isHeld && HeldBag == null && !claimedByStaff && !RestaurantTaskClaim.IsClaimedByBot(this)
@@ -102,25 +103,11 @@ public class TakeoutBagInteractable : MonoBehaviour, IInteractable
     /// <summary>Picks up the bag and attaches it to the waiter's hold point.</summary>
     public void TryPickup()
     {
+        if (targetGroup != null && targetGroup.FastFood != null) return;
         if (MultiplayerServiceActions.IsActive) { MultiplayerServiceActions.Approach("bag_pickup", targetGroup, transform, 1.4f); return; }
         WaiterHands hands = WaiterHands.ActivePlayerHands;
         if (hands == null)
             return;
-
-        if (targetGroup != null && targetGroup.FastFood != null)
-        {
-            var mover = RoleManager.Instance?.GetActivePlayerMovement();
-            var approach = targetGroup.FastFood.PickupApproach;
-            if (isHeld || HeldBag != null || hands.HasTray || hands.HasBill || hands.HasMoney || hands.HasTicket
-                || mover == null || approach == null || !RestaurantTaskClaim.TryClaimPlayer(this)) return;
-            bool moving = mover.UI_MoveToAction(approach, 1.4f, () =>
-            {
-                if (this != null && !TryPickupInternal(hands, true)) RestaurantTaskClaim.ReleasePlayer(this);
-            }, () => RestaurantTaskClaim.ReleasePlayer(this));
-            if (!moving) RestaurantTaskClaim.ReleasePlayer(this);
-            else TapOutlineSelector.PresentFor(mover, this);
-            return;
-        }
 
         if (!TryPickupInternal(hands, true))
             return;
@@ -134,6 +121,7 @@ public class TakeoutBagInteractable : MonoBehaviour, IInteractable
 
     private bool TryPickupInternal(WaiterHands hands, bool playerInitiated)
     {
+        if (targetGroup != null && targetGroup.FastFood != null) return false;
         if (isHeld || HeldBag != null)
             return false;
 
@@ -249,6 +237,11 @@ public class TakeoutBagInteractable : MonoBehaviour, IInteractable
 
     private void RefreshUI()
     {
+        if (targetGroup != null && targetGroup.FastFood != null)
+        {
+            HideUI();
+            return;
+        }
         if (claimedByStaff || RestaurantTaskClaim.IsClaimedByBot(this))
         {
             HideUI();
@@ -280,6 +273,7 @@ public class TakeoutBagInteractable : MonoBehaviour, IInteractable
 
     public bool NetworkPickup(WaiterHands hands, int actor)
     {
+        if (targetGroup != null && targetGroup.FastFood != null) return false;
         if (!MultiplayerSessionManager.Instance.IsAuthority || isHeld || hands == null || actor <= 0
             || hands.HasBill || hands.HasMoney || hands.HasTray || hands.HasTicket
             || hands.GetComponent<BusserHands>()?.HasTray == true

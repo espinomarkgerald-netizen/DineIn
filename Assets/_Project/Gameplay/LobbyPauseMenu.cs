@@ -51,8 +51,8 @@ public sealed class LobbyPauseMenu : MonoBehaviour
     {
         paused = false;
         previousTimeScale = 1f;
-        Time.timeScale = 1f;
         BuildUI();
+        RefreshSceneContext();
     }
 
     private void OnDestroy()
@@ -79,11 +79,22 @@ public sealed class LobbyPauseMenu : MonoBehaviour
 
     private void LateUpdate()
     {
+        RefreshSceneContext();
         if (paused || pauseButton == null) return;
         bool loading = SceneLoader.Instance != null && SceneLoader.Instance.IsLoading;
         bool shouldShow = !loading && !GameplayUIBlocker.IsBlocked();
         if (pauseButton.gameObject.activeSelf != shouldShow)
             pauseButton.gameObject.SetActive(shouldShow);
+    }
+
+    public void RefreshSceneContext()
+    {
+        string scene = SceneManager.GetActiveScene().name;
+        bool lobby = scene == "Lobby1" || scene == "Lobby2" || MultiplayerHUDBridge.IsActive;
+        lobby &= !(RestockFlowCoordinator.Instance != null && RestockFlowCoordinator.Instance.IsRestockRoomOpen);
+        if (!lobby && paused) Resume();
+        if (combinedHudView != null && combinedHudView.gameObject.activeSelf != lobby)
+            combinedHudView.gameObject.SetActive(lobby);
     }
 
     private void BuildUI()

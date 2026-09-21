@@ -13,11 +13,14 @@ public sealed class FastFoodTable : MonoBehaviour, IInteractable
     public float GetInteractRadius() => 1.5f;
     public bool CanInteract()
     {
+        if (GetComponent<BoothDeliverInteractable>()?.CanInteract() == true) return true;
         var mover = RoleManager.Instance?.GetActivePlayerMovement();
         return gameObject.scene.name == "Lobby2" && StandPoint != null && HygieneManager.HandsEmpty(mover);
     }
     public void Interact(PlayerMovement mover)
     {
+        var delivery = GetComponent<BoothDeliverInteractable>();
+        if (delivery != null && delivery.CanInteract()) { delivery.Interact(mover); return; }
         if (!CanInteract()) return;
         var booth = GetComponent<Booth>();
         var tray = booth.NetworkTrayPoint != null

@@ -214,6 +214,8 @@ public class Booth : MonoBehaviour, Photon.Realtime.IOnEventCallback
     }
     [Header("Approach / Seating")]
     public Transform approachPoint;
+    [Tooltip("Optional customer access point, separate from staff delivery on long counters.")]
+    public Transform customerApproachPoint;
     public List<Transform> seats = new List<Transform>(4);
 
     [Header("Navigation")]
@@ -223,6 +225,8 @@ public class Booth : MonoBehaviour, Photon.Realtime.IOnEventCallback
     [Header("Facing")]
     public Transform tableLookTarget;
     public float seatYawOffset = 0f;
+    [Tooltip("Use each seat anchor's forward direction, for wall-facing stool counters.")]
+    public bool useAuthoredSeatRotation;
 
     [Header("Table Props - Menu Book")]
     public GameObject menuBookPrefab;
@@ -413,8 +417,19 @@ public class Booth : MonoBehaviour, Photon.Realtime.IOnEventCallback
         return desired;
     }
 
+    public Vector3 GetCustomerApproachPosition()
+    {
+        if (customerApproachPoint == null) return GetNavigableApproachPosition();
+        Vector3 desired = customerApproachPoint.position;
+        return NavMesh.SamplePosition(desired, out var hit, approachSampleRadius, NavMesh.AllAreas) ? hit.position : desired;
+    }
+
     public Quaternion GetSeatedRotation(Vector3 seatPos)
     {
+        if (useAuthoredSeatRotation && seats != null)
+            foreach (var seat in seats)
+                if (seat != null && (seat.position - seatPos).sqrMagnitude < .001f)
+                    return seat.rotation * Quaternion.Euler(0f, seatYawOffset, 0f);
         Vector3 dir = tableLookTarget != null ? tableLookTarget.position - seatPos : transform.forward;
         dir.y = 0f;
 

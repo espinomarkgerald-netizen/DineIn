@@ -517,6 +517,7 @@ public partial class CustomerGroup : MonoBehaviour
     {
         if (!IsNetworkObserver) return;
         firstDeliveryCompleted = true;
+        if (FastFood != null) deliveredFastFoodOrder = currentOrderNumber;
         activeFoodTray = tray;
         state = GroupState.Eating;
         assignedBooth?.ClearMenuBook();
@@ -1123,7 +1124,7 @@ public partial class CustomerGroup : MonoBehaviour
         if (assignedBooth == null)
             yield break;
 
-        Vector3 approachCenter = assignedBooth.GetNavigableApproachPosition();
+        Vector3 approachCenter = assignedBooth.GetCustomerApproachPosition();
         Vector3 towardBooth = assignedBooth.transform.position - approachCenter;
         towardBooth.y = 0f;
         if (towardBooth.sqrMagnitude < 0.0001f)
@@ -2013,6 +2014,7 @@ public partial class CustomerGroup : MonoBehaviour
         ClearTableNumber();
 
         firstDeliveryCompleted = true;
+        if (FastFood != null) deliveredFastFoodOrder = currentOrderNumber;
 
         if (isBurntFood)
         {
@@ -3876,7 +3878,7 @@ public partial class CustomerGroup : MonoBehaviour
                 desiredTarget = GetFastFoodFormationTarget(member, i, worldPoint, forward, right, sideSpacing, rowSpacing);
             Vector3 resolvedTarget;
             bool resolved = FastFood != null
-                ? TryResolveDistinctFastFoodDestination(desiredTarget, out resolvedTarget)
+                ? TryResolveDistinctFastFoodDestination(member, desiredTarget, out resolvedTarget)
                 : TryResolveTakeoutDestination(desiredTarget, worldPoint, out resolvedTarget);
             if (!resolved)
             {

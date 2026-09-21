@@ -266,8 +266,7 @@ public class GameDayManager : MonoBehaviour
         Instance = this;
         if (MultiplayerDayBridge.IsActive) ObserveDayOnly = !MultiplayerSessionManager.Instance.IsAuthority;
 
-        if (GetComponent<LobbyPauseMenu>() == null)
-            gameObject.AddComponent<LobbyPauseMenu>();
+        LobbyHUDRoot.EnsureInstance()?.EnsurePauseController();
 
         if (bootstrapSingleRestaurantFlow)
             GameFlowManager.EnsureSingleRestaurantFlow(restaurantSceneName);
@@ -705,7 +704,7 @@ public class GameDayManager : MonoBehaviour
             spawnRoutine = null;
         }
 
-        ShowWarning("Shift ended. Waiting for remaining customers.");
+        ShowWarning("6:00 PM — Closed to new customers. Finishing remaining orders.");
         if (closingResultsRoutine != null)
             StopCoroutine(closingResultsRoutine);
         closingResultsRoutine = StartCoroutine(ShowResultsWhenClear());
@@ -715,13 +714,13 @@ public class GameDayManager : MonoBehaviour
     {
         var fastFood = FastFoodRestaurant.For(this);
         fastFood?.StopAdmissions();
-        float waited = 0f;
+        float serviceDeadline = Time.time + (fastFood != null ? fastFood.ClosingServiceSeconds : maxClosingGraceSeconds);
         while ((fastFood != null ? fastFood.ActiveCustomerCount : FindObjectsByType<CustomerGroup>(FindObjectsSortMode.None).Length) > 0 &&
-               waited < (fastFood != null ? fastFood.ClosingServiceSeconds : maxClosingGraceSeconds))
+               Time.time < serviceDeadline)
         {
             if (ObserveDayOnly || (MultiplayerDayBridge.IsActive && !MultiplayerSessionManager.Instance.IsAuthority)) yield break;
-            yield return new WaitForSeconds(1f);
-            waited += 1f;
+            // Lobby2's registered count is cheap; preserve the legacy scene-scan cadence elsewhere.
+            yield return fastFood != null ? null : new WaitForSeconds(1f);
         }
 
         if (ObserveDayOnly || (MultiplayerDayBridge.IsActive && !MultiplayerSessionManager.Instance.IsAuthority)) yield break;
