@@ -267,6 +267,13 @@ public class GroupSpawner : MonoBehaviour
         int effectiveMaxGroupSize = Mathf.Max(1, maxGroupSize);
         if (spawnAsTakeout)
             effectiveMaxGroupSize = Mathf.Clamp(maxTakeoutGroupSize, 1, 2);
+        else if (admission != null)
+        {
+            // Never sell a dine-in order to a party that no unlocked table can seat.
+            int capacity = admission.LargestAvailableTableCapacity;
+            if (capacity == 0) return null;
+            effectiveMaxGroupSize = Mathf.Min(effectiveMaxGroupSize, capacity);
+        }
         if (Application.isMobilePlatform)
             effectiveMaxGroupSize = Mathf.Min(effectiveMaxGroupSize, Mathf.Max(1, mobileMaxGroupSize));
 

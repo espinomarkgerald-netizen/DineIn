@@ -43,6 +43,8 @@ public class Recipe : ScriptableObject
     public Vector3 servingRotation = Vector3.zero;
     [Tooltip("Per-axis multiplier of the model's authored scale. One preserves its normal size.")]
     public Vector3 servingScale = Vector3.one;
+    [Tooltip("For upright, metre-sized serving prefabs: compensate for legacy tray anchor scale and tilt. Leave off for legacy food and drinks.")]
+    public bool normalizedServingTransform;
 
     [Header("Unlock")]
     public int dayToUnlock = 1;      // The day this recipe becomes available

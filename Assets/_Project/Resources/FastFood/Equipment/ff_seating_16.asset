@@ -13,9 +13,9 @@ MonoBehaviour:
   m_Name: ff_seating_16
   m_EditorClassIdentifier: 
   itemID: ff_seating_16
-  displayName: Dining 8 - Booth.011
+  displayName: Booth 3
   cost: 500
-  dayToUnlock: 26
+  dayToUnlock: 10
   sprite: {fileID: 21300000, guid: bf59c2fd769dadc43a1098bbf7ae30aa, type: 3}
   catalogSection: 0
   description: Make all 4 seats at this table available.

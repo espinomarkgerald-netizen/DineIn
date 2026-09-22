@@ -5,6 +5,10 @@ public class OrderBubbleUI : MonoBehaviour
 {
     [Header("Click")]
     [SerializeField] private Button openButton;
+    [Header("Order-ready greeting")]
+    [SerializeField] private TMPro.TMP_Text greetingLabel;
+    [SerializeField] private string[] fastFoodGreetings = { "Hi!", "Hello!", "Hey there!" };
+    private string authoredGreeting;
 
     [Header("Legacy UI Refs (optional)")]
     public Image foodImage;
@@ -95,6 +99,19 @@ public class OrderBubbleUI : MonoBehaviour
     {
         group = g;
         AutoResolveReferences();
+        if (greetingLabel == null)
+            foreach (var text in GetComponentsInChildren<TMPro.TMP_Text>(true))
+                if (text.text.Trim() == "Waiter!") { greetingLabel = text; break; }
+        if (greetingLabel != null)
+        {
+            if (authoredGreeting == null) authoredGreeting = greetingLabel.text;
+            // Reset pooled bubbles when reused by the Casual Dining level.
+            bool fastFood = group != null && (group.FastFood != null || group.gameObject.scene.name == "Lobby2");
+            greetingLabel.text = fastFood
+                ? fastFoodGreetings != null && fastFoodGreetings.Length > 0
+                    ? fastFoodGreetings[Random.Range(0, fastFoodGreetings.Length)] : "Hello!"
+                : authoredGreeting;
+        }
         BindButton();
         ForceVisible();
         SetAlert();

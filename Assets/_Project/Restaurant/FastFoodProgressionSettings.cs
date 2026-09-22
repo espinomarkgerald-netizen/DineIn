@@ -9,9 +9,9 @@ public sealed class FastFoodProgressionSettings : ScriptableObject
     public const string SecondCashierID = "ff_second_cashier";
     public List<Equipment> equipment = new();
     [Header("Day curves (X is the actual day)")]
-    public AnimationCurve groups = AnimationCurve.Linear(1, 18, 15, 40);
+    public AnimationCurve groups = AnimationCurve.Linear(1, 20, 15, 44);
     public AnimationCurve groupsPerMinute = AnimationCurve.Linear(1, 3, 15, 6);
-    public AnimationCurve spawnSeconds = AnimationCurve.Linear(1, 22, 15, 12);
+    public AnimationCurve spawnSeconds = AnimationCurve.Linear(1, 20, 15, 11);
     public AnimationCurve patienceSeconds = AnimationCurve.Linear(1, 90, 15, 60);
     public AnimationCurve concurrentGroups = AnimationCurve.Linear(1, 4, 15, 9);
     public AnimationCurve salesQuota = AnimationCurve.Linear(1, 1800, 15, 4800);

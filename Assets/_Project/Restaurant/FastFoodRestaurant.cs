@@ -60,6 +60,21 @@ public sealed class FastFoodRestaurant : MonoBehaviour
         return count;
     }
     public bool CanAdmitCustomer => acceptingCustomers && ChooseStation(false) != null;
+    public int LargestAvailableTableCapacity
+    {
+        get
+        {
+            int capacity = 0;
+            if (diningTables != null)
+                foreach (var booth in diningTables)
+                    if (booth != null)
+                    {
+                        var table = booth.GetComponent<FastFoodTable>();
+                        capacity = Mathf.Max(capacity, table != null ? table.AvailableSeats : booth.seats.Count);
+                    }
+            return capacity;
+        }
+    }
 
     private FastFoodServiceStation ChooseStation(bool countersOnly)
     {
@@ -211,7 +226,12 @@ public sealed class FastFoodRestaurant : MonoBehaviour
     private void OnEnable()
     {
         if (kitchen != null) kitchen.OrderFinished += OnKitchenFinished;
-        furniture = GetComponentsInChildren<FastFoodTable>(true);
+        var registeredFurniture = new List<FastFoodTable>();
+        if (diningTables != null)
+            foreach (var booth in diningTables)
+                if (booth != null && booth.TryGetComponent<FastFoodTable>(out var table))
+                    registeredFurniture.Add(table);
+        furniture = registeredFurniture.ToArray();
         StartCoroutine(BindProgressionVisibility());
     }
     private EquipmentManager visibilityEquipment;
@@ -237,9 +257,26 @@ public sealed class FastFoodRestaurant : MonoBehaviour
                 var table = booth.GetComponent<FastFoodTable>();
                 if (table != null) booth.gameObject.SetActive(table.AvailableSeats > 0);
             }
+        if (diningTables != null)
+            foreach (var booth in diningTables)
+            {
+                var table = booth != null ? booth.GetComponent<FastFoodTable>() : null;
+                if (table == null || table.SharedDivider == null) continue;
+                bool sectionAvailable = true;
+                foreach (var other in diningTables)
+                {
+                    var neighbour = other != null ? other.GetComponent<FastFoodTable>() : null;
+                    if (neighbour != null && neighbour.SharedDivider == table.SharedDivider && neighbour.AvailableSeats == 0)
+                        sectionAvailable = false;
+                }
+                table.SharedDivider.SetActive(sectionAvailable);
+            }
         if (serviceStations != null)
             foreach (var station in serviceStations)
-                if (station != null) station.gameObject.SetActive(station.IsUnlocked);
+                if (station != null)
+                    // Counter 2 remains visible as part of the authored restaurant
+                    // even before its upgrade; routing and staffing still exclude it.
+                    station.gameObject.SetActive(!station.IsKiosk || station.IsUnlocked);
     }
     private void OnDisable()
     {
@@ -389,19 +426,36 @@ public sealed class FastFoodRestaurant : MonoBehaviour
         {
             if (!group.CanChooseFastFoodSeat) continue;
             if (diningTables == null) continue;
-            int start = diningTables.Length == 0 ? 0 : Random.Range(0, diningTables.Length);
-            for (int i = 0; i < diningTables.Length; i++)
+            var orderedTables = new List<Booth>(diningTables);
+            orderedTables.Sort((left, right) => CompareTableForGroup(left, right, group));
+            for (int i = 0; i < orderedTables.Count; i++)
             {
-                Booth table = diningTables[(start + i) % diningTables.Length];
+                Booth table = orderedTables[i];
                 if (table == null || !table.gameObject.activeInHierarchy || !table.IsAvailableFor(group.Size)
                     || table.NeedsSurfaceCleaning || table.NetworkTrayPoint == null) continue;
                 bool complete = true;
                 for (int seat = 0; seat < group.Size; seat++) complete &= table.GetSeat(seat) != null;
-                if (!complete) continue;
+                if (!complete || !group.CanReachFastFoodTable(table)) continue;
                 group.ChooseFastFoodSeat(table);
                 break;
             }
         }
+    }
+
+    private static int CompareTableForGroup(Booth left, Booth right, CustomerGroup group)
+    {
+        if (left == right) return 0;
+        if (left == null) return 1;
+        if (right == null) return -1;
+        var leftTable = left.GetComponent<FastFoodTable>();
+        var rightTable = right.GetComponent<FastFoodTable>();
+        int priority = (leftTable != null ? leftTable.LayoutPriority : 1000)
+            .CompareTo(rightTable != null ? rightTable.LayoutPriority : 1000);
+        if (priority != 0) return priority;
+        float leftDistance = group != null ? (left.transform.position - group.transform.position).sqrMagnitude : 0f;
+        float rightDistance = group != null ? (right.transform.position - group.transform.position).sqrMagnitude : 0f;
+        int distance = leftDistance.CompareTo(rightDistance);
+        return distance != 0 ? distance : string.CompareOrdinal(left.name, right.name);
     }
 
     public void OnSeated(CustomerGroup group)
@@ -466,12 +520,22 @@ public sealed class FastFoodRestaurant : MonoBehaviour
         yield return null;
         var bag = System.Array.Find(FindObjectsByType<TakeoutBagInteractable>(FindObjectsSortMode.None),
             item => item.TargetGroup == group);
-        if (bag == null || customerPickupPoint == null) yield break;
+        if (bag == null || customerPickupPoint == null)
+        {
+            if (group != null && !group.IsFastFoodLeaving)
+                group.FailFastFoodService("The prepared takeout bag or pickup point is unavailable.");
+            yield break;
+        }
         Transform pickup = null;
         float claimDeadline = Time.time + readyFoodWaitSeconds;
         while (group != null && !group.IsFastFoodLeaving && !TryReservePickup(group, out pickup) && Time.time < claimDeadline)
             yield return null;
-        if (pickup == null || group == null || group.IsFastFoodLeaving) yield break;
+        if (group == null || group.IsFastFoodLeaving) yield break;
+        if (pickup == null)
+        {
+            group.FailFastFoodService("A takeout pickup position was not available in time.");
+            yield break;
+        }
         try
         {
             // Takeout parties collect together; leaving a companion in the
@@ -480,11 +544,17 @@ public sealed class FastFoodRestaurant : MonoBehaviour
             float deadline = Time.time + pickupTravelTimeout;
             while (group != null && !group.IsFastFoodLeaving && bag != null &&
                 !group.HasReachedTakeoutPoint(pickup.position) && Time.time < deadline) yield return null;
-            if (group == null || group.IsFastFoodLeaving || !group.HasReachedTakeoutPoint(pickup.position)) yield break;
-            if (group != null && bag != null && IsBagReady(group)) bag.TryCustomerCollect(group);
+            if (group == null || group.IsFastFoodLeaving) yield break;
+            if (!group.HasReachedTakeoutPoint(pickup.position))
+            {
+                group.FailFastFoodService("The takeout pickup position could not be reached.");
+                yield break;
+            }
+            if (bag == null || !IsBagReady(group) || !bag.TryCustomerCollect(group))
+                group.FailFastFoodService("The prepared takeout order could not be collected.");
         }
         finally { ReleasePickup(group); }
-        // Ready-food timeout retains bounded failure/refund if the route fails.
+        // Failed collectors leave/refund immediately instead of idling in a released pickup slot.
     }
     public Booth DiningSurface(Renderer renderer)
     {

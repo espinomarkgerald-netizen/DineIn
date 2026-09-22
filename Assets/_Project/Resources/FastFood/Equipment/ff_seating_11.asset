@@ -13,9 +13,9 @@ MonoBehaviour:
   m_Name: ff_seating_11
   m_EditorClassIdentifier: 
   itemID: ff_seating_11
-  displayName: Dining 9 - Long Table
+  displayName: Window Table 5
   cost: 300
-  dayToUnlock: 19
+  dayToUnlock: 30
   sprite: {fileID: 21300000, guid: bf59c2fd769dadc43a1098bbf7ae30aa, type: 3}
   catalogSection: 0
   description: Make all 2 seats at this table available.

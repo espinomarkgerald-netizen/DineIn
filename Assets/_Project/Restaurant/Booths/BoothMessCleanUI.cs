@@ -15,6 +15,11 @@ public class BoothMessCleanUI : MonoBehaviour, IPointerDownHandler, IPointerUpHa
     [SerializeField] private Transform billboardRoot;
     [SerializeField] private Camera cam;
     [SerializeField] private bool faceCamera = true;
+    [Tooltip("Cleaning prompt width at a 1080-pixel viewport height; stays readable while zooming.")]
+    [SerializeField, Min(100f)] private float readableWidth = 240f;
+    [Tooltip("World-space clearance between the bottom of the prompt and the table.")]
+    [SerializeField, Min(0f)] private float tableClearance = .8f;
+    private readonly Vector3[] controlCorners = new Vector3[4];
 
     [Header("Blocked Feedback")]
     [SerializeField] private float blockedMessageSeconds = 0.9f;
@@ -85,7 +90,7 @@ public class BoothMessCleanUI : MonoBehaviour, IPointerDownHandler, IPointerUpHa
             if (radialFill != null) radialFill.gameObject.SetActive(!choices);
             if (authoredFrame != null) authoredFrame.enabled = !choices;
             staffButton.interactable = !queued;
-            if (staffLabel != null) staffLabel.text = queued ? "Staff requested" : "Ask staff to clean";
+            if (staffLabel != null) staffLabel.text = queued ? "Staff requested" : "Ask staff";
         }
         if (MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer && !automatedCleaning)
         {
@@ -149,13 +154,34 @@ public class BoothMessCleanUI : MonoBehaviour, IPointerDownHandler, IPointerUpHa
         if (cam == null)
             return;
 
-        Vector3 forward = cam.transform.forward;
-        forward.y = 0f;
+        // Yaw-only billboarding compresses text vertically in the tilted game camera.
+        billboardRoot.rotation = cam.transform.rotation;
+        if (authoredControl == null) authoredControl = label != null ? label.transform.parent as RectTransform : null;
+        if (authoredControl == null || booth == null) return;
+        float depth = Mathf.Max(.1f, Vector3.Dot(billboardRoot.position - cam.transform.position, cam.transform.forward));
+        float viewHeight = cam.orthographic ? 2f * cam.orthographicSize
+            : 2f * depth * Mathf.Tan(cam.fieldOfView * Mathf.Deg2Rad * .5f);
+        float width = selfButton != null ? ((RectTransform)selfButton.transform).rect.width : authoredControl.rect.width * 1.4f;
+        float currentWidth = width * Mathf.Abs(authoredControl.lossyScale.x);
+        if (currentWidth > .0001f)
+            billboardRoot.localScale *= (readableWidth / 1080f * viewHeight) / currentWidth;
 
-        if (forward.sqrMagnitude < 0.0001f)
-            return;
+        // Keep the entire prompt above the tabletop, including the lower staff button.
+        float bottom = selfButton != null && selfButton.gameObject.activeSelf
+            ? Mathf.Min(ControlBottom((RectTransform)selfButton.transform), ControlBottom((RectTransform)staffButton.transform))
+            : ControlBottom(authoredControl);
+        float tableY = booth.tableLookTarget != null ? booth.tableLookTarget.position.y : booth.transform.position.y + 3f;
+        var position = billboardRoot.position;
+        position.y += tableY + tableClearance - bottom;
+        billboardRoot.position = position;
+    }
 
-        billboardRoot.rotation = Quaternion.LookRotation(forward.normalized, Vector3.up);
+    private float ControlBottom(RectTransform control)
+    {
+        control.GetWorldCorners(controlCorners);
+        float bottom = float.PositiveInfinity;
+        foreach (var corner in controlCorners) bottom = Mathf.Min(bottom, corner.y);
+        return bottom;
     }
 
     public void OnPointerDown(PointerEventData eventData)
@@ -459,8 +485,8 @@ public class BoothMessCleanUI : MonoBehaviour, IPointerDownHandler, IPointerUpHa
         authoredControl = label.transform.parent as RectTransform;
         if (authoredControl == null) return;
         authoredFrame = authoredControl.GetComponent<Image>();
-        selfButton = CreateChoice("Clean it yourself", 0f, style.choiceButton, out _);
-        staffButton = CreateChoice("Ask staff to clean", -1f, style.choiceButton, out staffLabel);
+        selfButton = CreateChoice("Clean myself", .5f, style.choiceButton, out _);
+        staffButton = CreateChoice("Ask staff", -.5f, style.choiceButton, out staffLabel);
         selfButton.onClick.AddListener(() => selfSelected = true);
         staffButton.onClick.AddListener(() =>
         {

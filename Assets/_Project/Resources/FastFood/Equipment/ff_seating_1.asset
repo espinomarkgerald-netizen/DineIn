@@ -10,12 +10,12 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c675d5873bca1044da69f18c59bbe5d9, type: 3}
-  m_Name: ff_seating_9
+  m_Name: ff_seating_1
   m_EditorClassIdentifier: 
-  itemID: ff_seating_9
-  displayName: Booth 6
+  itemID: ff_seating_1
+  displayName: Booth 2
   cost: 500
-  dayToUnlock: 16
+  dayToUnlock: 8
   sprite: {fileID: 21300000, guid: bf59c2fd769dadc43a1098bbf7ae30aa, type: 3}
   catalogSection: 0
   description: Make all 4 seats at this table available.

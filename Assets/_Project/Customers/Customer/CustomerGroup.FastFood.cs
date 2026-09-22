@@ -35,6 +35,7 @@ public partial class CustomerGroup
         else FailFastFoodService("The restaurant closed before this order was served.");
     }
     private bool choosingFastFoodSeat;
+    [SerializeField, Min(1f)] private float fastFoodSeatingArrivalGraceSeconds = 6f;
     public bool CanChooseFastFoodSeat => FastFood != null && FastFoodPaid && FastFoodDineIn
         && !hasBeenAssigned && !leavingRoutineStarted && state == GroupState.Waiting;
 
@@ -88,6 +89,23 @@ public partial class CustomerGroup
         choosingFastFoodSeat = true;
         try { AssignToBooth(booth); }
         finally { choosingFastFoodSeat = false; }
+    }
+
+    internal bool CanReachFastFoodTable(Booth booth)
+    {
+        if (booth == null || booth.approachPoint == null) return false;
+        var path = new UnityEngine.AI.NavMeshPath();
+        foreach (var member in members)
+        {
+            var agent = member != null ? member.Agent : null;
+            if (agent == null || !agent.enabled || !agent.isOnNavMesh) return false;
+            var filter = new UnityEngine.AI.NavMeshQueryFilter
+                { agentTypeID = agent.agentTypeID, areaMask = agent.areaMask };
+            if (!UnityEngine.AI.NavMesh.SamplePosition(booth.GetCustomerApproachPosition(), out var hit, 1f, filter)
+                || !agent.CalculatePath(hit.position, path)
+                || path.status != UnityEngine.AI.NavMeshPathStatus.PathComplete) return false;
+        }
+        return members.Count > 0;
     }
 
     internal void ConfigureFastFood(FastFoodRestaurant restaurant, bool dineIn)

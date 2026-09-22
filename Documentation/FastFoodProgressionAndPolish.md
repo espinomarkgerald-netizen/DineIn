@@ -6,11 +6,11 @@ verify the starting experience.
 
 | Day | New availability |
 | --- | --- |
-| 1 | Five usable seats, one counter, burger, fries, existing drinks, takeout |
-| 2 | First extra stool |
-| 3 | Chicken nuggets; seating expansions begin |
-| 4 | Kiosk 1 |
-| 5 | Chicken sandwich; pink diners |
+| 1 | Five usable seats across two adjacent back stool tables and two round tables; one operational counter, burger, fries, existing drinks, takeout |
+| 2 | Remaining seats at back stool table 1 |
+| 3 | Chicken nuggets; remaining seats at back stool table 2 |
+| 4 | Kiosk 1; remaining seats at round table 1 |
+| 5 | Chicken sandwich; pink diners; remaining seats at round table 2 |
 | 6 | Second cashier station and second cashier hiring/assignment |
 | 7 | Fried chicken |
 | 8 | Card payments |
@@ -19,8 +19,11 @@ verify the starting experience.
 | 11 | Kiosk 2 |
 | 14 | Waiter trolley and optional delivery assistant |
 
-Additional seating purchases unlock progressively through day 26.
-Locked table and service-station roots are disabled until purchased. The existing
+Additional seating purchases unlock in adjacent sections through day 30.
+Starter capacities are 2, 1, 1, 1. Physical table purchase IDs are preserved.
+Locked tables and kiosks are disabled until purchased. Both counter models remain
+visible, but counter 2 cannot accept customers until purchased. Shared booth
+dividers appear only when their full section is available. The existing
 restaurant coordinator restores them on purchase/save-load events; starter
 seating stays active. Unlock notifications announce purchase availability.
 Pink diners still request table delivery; takeout customers collect their bags.
@@ -75,7 +78,8 @@ overlap for all 22 equipment unlock messages. Live play-mode visual checks remai
 
 ## Manual acceptance checklist
 
-1. Fresh Fast Food run: five assignable seats, one counter, two foods plus drinks.
+1. Fresh Fast Food run: four visible tables with five assignable seats (2/1/1/1),
+   two visible counters but only one operational, two foods plus drinks.
 2. Advance days: notifications appear once, including without scene reloads;
    reload saves and confirm seen notifications do not repeat.
 3. Read newspaper: reminder clears; next unread issue restores it. Check both levels.
@@ -88,5 +92,28 @@ overlap for all 22 equipment unlock messages. Live play-mode visual checks remai
    decisions and tutorial dialogue must suppress them.
 
 Editor menu: Dine In > Fast Food > Validate Progression runs asset checks.
+
+## Layout and serving repair
+
+`Apply Planned Seating Layout` aligns the starter tables and assigns stable
+layout priorities without resetting purchases. Re-bake Lobby2 navigation after
+moving furniture. The back stool tables now have authored prefabs and are included
+in the restaurant's registered interaction list even outside its hierarchy.
+
+Normalized food recipes opt into `normalizedServingTransform`: their world-unit
+models compensate for the legacy tray anchors' 300x scale and tilted orientation.
+Legacy drinks retain their existing transform behavior. `Validate Tray Serving
+Transforms` checks all six foods on both actual tray anchors for size, upright
+orientation and grounded placement.
+
+Dine-in parties cannot exceed the largest available table capacity. Seating
+checks complete paths before reservation and uses route length / agent speed
+plus editable arrival grace for travel deadlines. Failed Fast Food seating uses
+existing unserved-order cleanup instead of marking standing customers seated.
+
+Verified in edit mode: compilation, progression validation, 12 actual-tray visual
+transform checks, all authored navigation routes after rebaking, and isolated
+fresh/purchased equipment visibility. No player saves were changed. Full play-mode
+pickup, seating, delivery, cleanup and visual acceptance still need a playthrough.
 Install is an explicit authoring/reset-to-defaults utility, not a runtime step;
 do not rerun over custom tuning without reviewing its defaults.

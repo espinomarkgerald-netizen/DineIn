@@ -224,7 +224,7 @@ public static class FastFoodSceneTools
             if (other != surface) { Undo.RecordObject(other, "Use Lobby2 navigation"); other.RemoveData(); other.enabled = false; EditorUtility.SetDirty(other); }
         EditorUtility.SetDirty(surface);
         EditorSceneManager.MarkSceneDirty(restaurant.gameObject.scene);
-        AssetDatabase.SaveAssets();
+        AssetDatabase.SaveAssetIfDirty(surface.navMeshData);
         ValidateNavigation();
         Debug.Log("[FastFood] Navigation baked. Save Lobby2 to keep its surface reference and overrides.", restaurant);
     }

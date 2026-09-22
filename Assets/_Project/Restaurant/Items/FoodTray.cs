@@ -456,6 +456,19 @@ public class FoodTray : MonoBehaviour
         visual.localPosition = product.servingPositionOffset;
         visual.localRotation = Quaternion.Euler(product.servingRotation);
         visual.localScale = Vector3.Scale(visual.localScale, product.servingScale);
+        if (product.normalizedServingTransform && visual.parent != null)
+        {
+            // Legacy FBX tray anchors are scaled 300 and tilted onto their side.
+            // New serving prefabs are already authored upright in world units.
+            Vector3 inherited = visual.parent.lossyScale;
+            Vector3 authored = visual.localScale;
+            visual.localScale = new Vector3(
+                authored.x / Mathf.Max(Mathf.Abs(inherited.x), .00001f),
+                authored.y / Mathf.Max(Mathf.Abs(inherited.y), .00001f),
+                authored.z / Mathf.Max(Mathf.Abs(inherited.z), .00001f));
+            visual.rotation = Quaternion.Euler(0f, visual.parent.eulerAngles.y, 0f)
+                * Quaternion.Euler(product.servingRotation);
+        }
     }
 
     private static void ResetLocal(Transform t)

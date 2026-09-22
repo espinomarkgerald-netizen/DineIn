@@ -1114,9 +1114,8 @@ public partial class CustomerGroup : MonoBehaviour
         if (seatingRoutine != null)
             StopCoroutine(seatingRoutine);
 
-        seatingRoutine = StartCoroutine(SeatMembersFlow());
-
         assignedBooth.SetCurrentGroup(this);
+        seatingRoutine = StartCoroutine(SeatMembersFlow());
     }
 
     private IEnumerator SeatMembersFlow()
@@ -1134,6 +1133,7 @@ public partial class CustomerGroup : MonoBehaviour
         Vector3 right = Vector3.Cross(Vector3.up, towardBooth).normalized;
         Vector3[] approachTargets = new Vector3[members.Count];
         int validMemberCount = 0;
+        float approachTimeout = 12f;
 
         for (int i = 0; i < members.Count; i++)
         {
@@ -1149,11 +1149,28 @@ public partial class CustomerGroup : MonoBehaviour
                 desiredApproach = hit.position;
 
             approachTargets[i] = desiredApproach;
-            member.WalkTo(desiredApproach);
+            if (FastFood != null)
+            {
+                if (!member.TryWalkTo(desiredApproach, out approachTargets[i]))
+                {
+                    FailFastFoodService("We could not reach our table.");
+                    yield break;
+                }
+                var route = new NavMeshPath();
+                if (member.Agent.CalculatePath(approachTargets[i], route))
+                {
+                    float distance = 0f;
+                    var corners = route.corners;
+                    for (int corner = 1; corner < corners.Length; corner++)
+                        distance += Vector3.Distance(corners[corner - 1], corners[corner]);
+                    approachTimeout = Mathf.Max(approachTimeout,
+                        distance / Mathf.Max(.1f, member.Agent.speed) + fastFoodSeatingArrivalGraceSeconds);
+                }
+            }
+            else member.WalkTo(desiredApproach);
             validMemberCount++;
         }
 
-        float approachTimeout = 12f;
         float elapsed = 0f;
         while (seatedMembers.Count < validMemberCount && elapsed < approachTimeout)
         {
@@ -1175,6 +1192,14 @@ public partial class CustomerGroup : MonoBehaviour
 
             elapsed += Time.deltaTime;
             yield return null;
+        }
+
+        if (FastFood != null && (validMemberCount != members.Count || seatedMembers.Count != members.Count))
+        {
+            // Never claim a paid group is seated while a member is still standing.
+            // Existing failure cleanup releases the table and refunds the unserved order.
+            FailFastFoodService("We could not reach our seats.");
+            yield break;
         }
 
         // A partial path must not deadlock the restaurant. The final seat snap is
@@ -3847,8 +3872,13 @@ public partial class CustomerGroup : MonoBehaviour
         MoveToTakeoutPoint(worldPoint, transform.forward, 1.1f, 1f);
     }
 
+    private Vector3 takeoutFormationCenter;
+    private bool hasTakeoutFormationTarget;
+
     public void MoveToTakeoutPoint(Vector3 worldPoint, Vector3 forward, float sideSpacing, float rowSpacing)
     {
+        takeoutFormationCenter = worldPoint;
+        hasTakeoutFormationTarget = true;
         forward.y = 0f;
         if (forward.sqrMagnitude < 0.0001f)
             forward = Vector3.forward;
@@ -3915,6 +3945,9 @@ public partial class CustomerGroup : MonoBehaviour
         float rowSpacing,
         float threshold = 0.6f)
     {
+        // Destinations belong to this movement request, not an earlier queue/waiting slot.
+        if (FastFood != null && (!hasTakeoutFormationTarget ||
+            (takeoutFormationCenter - worldPoint).sqrMagnitude > .01f)) return false;
         forward.y = 0f;
         if (forward.sqrMagnitude < 0.0001f)
             forward = Vector3.forward;

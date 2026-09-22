@@ -24,6 +24,7 @@ MonoBehaviour:
   servingPositionOffset: {x: 0, y: 0, z: 0}
   servingRotation: {x: 0, y: 0, z: 0}
   servingScale: {x: 1, y: 1, z: 1}
+  normalizedServingTransform: 1
   dayToUnlock: 10
   ingredients:
   - item: {fileID: 11400000, guid: 558e90cf7d4776e4e96721137b67770d, type: 2}

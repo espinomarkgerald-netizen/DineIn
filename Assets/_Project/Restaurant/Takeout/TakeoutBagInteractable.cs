@@ -284,13 +284,19 @@ public class TakeoutBagInteractable : MonoBehaviour, IInteractable
     }
 
     // Customer pickup never borrows the manager's global hands/held-bag slot.
-    public bool TryCustomerCollect(CustomerGroup group)
+    internal bool CanCustomerCollect(CustomerGroup group)
     {
         if (isHeld || claimedByStaff || RestaurantTaskClaim.IsClaimedByPlayer(this) || RestaurantTaskClaim.IsClaimedByBot(this) ||
             group == null || group != targetGroup || group.FastFood == null ||
-            !group.FastFoodPaid || !group.FastFood.IsBagReady(group) ||
+            !group.FastFoodPaid || group.IsFastFoodLeaving || !group.FastFood.IsBagReady(group) ||
             group.FastFoodRepresentative == null || group.FastFood.ReservedPickupFor(group) == null ||
-            !group.FastFoodRepresentative.HasArrived(group.FastFood.ReservedPickupFor(group).position)) return false;
+            !group.HasReachedTakeoutPoint(group.FastFood.ReservedPickupFor(group).position)) return false;
+        return true;
+    }
+
+    public bool TryCustomerCollect(CustomerGroup group)
+    {
+        if (!CanCustomerCollect(group)) return false;
         if (!group.ReceiveTakeoutBagFromWaiter(deliveredContents)) return false;
         Destroy(gameObject);
         return true;

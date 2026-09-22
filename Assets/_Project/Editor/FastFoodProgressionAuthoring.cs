@@ -57,27 +57,7 @@ public static class FastFoodProgressionAuthoring
         var tableArray = source.FindProperty("diningTables");
         var tables = Enumerable.Range(0, tableArray.arraySize)
             .Select(i => (Booth)tableArray.GetArrayElementAtIndex(i).objectReferenceValue).ToArray();
-        Booth starterTable = tables.First(b => b.seats.Count == 4);
-        Booth starterStool = tables.First(b => b.seats.Count == 2);
-        int extra = 0;
-        foreach (var booth in tables)
-        {
-            var table = booth.GetComponent<FastFoodTable>();
-            var serialized = new SerializedObject(table);
-            serialized.FindProperty("starterSeats").intValue = booth == starterTable ? 4 : booth == starterStool ? 1 : 0;
-            Equipment upgrade = null;
-            if (booth != starterTable)
-            {
-                int index = Array.IndexOf(tables, booth) + 1;
-                int day = booth == starterStool ? 2 : Mathf.Min(26, 3 + extra++ * 2);
-                upgrade = Equipment(config, "ff_seating_" + index, booth.name, day,
-                    booth == starterStool ? 150 : booth.seats.Count == 2 ? 300 : 500,
-                    "Make all " + booth.seats.Count + " seats at this table available.", EquipmentCatalogSection.BoothsAndSeating);
-            }
-            serialized.FindProperty("seatingUpgrade").objectReferenceValue = upgrade;
-            serialized.ApplyModifiedPropertiesWithoutUndo();
-            PrefabUtility.RecordPrefabInstancePropertyModifications(table);
-        }
+        AuthorSeating(config, tables);
         var kiosk1 = Equipment(config, "ff_kiosk_1", "Kiosk 1", 4, 650,
             "Open the first self-service ordering and payment queue.", EquipmentCatalogSection.Upgrades);
         var cashier = Equipment(config, FastFoodProgressionSettings.SecondCashierID, "Second Cashier Station", 6, 750,
@@ -119,6 +99,136 @@ public static class FastFoodProgressionAuthoring
             bindingData.FindProperty("secondCashierHome").objectReferenceValue = home.transform;
             bindingData.ApplyModifiedPropertiesWithoutUndo();
         }
+    }
+
+    private static void AuthorSeating(FastFoodProgressionSettings config, Booth[] tables)
+    {
+        // Stable scene names identify physical tables; array/Hierarchy order is not progression.
+        string[] order = {
+            "Dining Back Stool Table 1", "Dining Back Stool Table 2",
+            "Dining 14 - Round Table", "Dining 15 - Round Table 2",
+            "Dining 7 - Booth.010", "Dining 2 - Booth.004",
+            "Dining 8 - Booth.011", "Dining 1 - Booth.003",
+            "Dining 6 - Booth.009", "Dining 3 - Booth.005",
+            "Dining 5 - Booth.008", "Dining 4 - Booth.006",
+            "Dining 13 - Long Table.006", "Dining 12 - Long Table.005",
+            "Dining 11 - Long Table.003", "Dining 10 - Long Table.001", "Dining 9 - Long Table"
+        };
+        if (tables.Length != order.Length || order.Any(n => tables.Count(b => b != null && b.name == n) != 1))
+            throw new InvalidOperationException("Lobby2 table registry no longer matches the authored layout. Review the seating order first.");
+        int[] stableIds = { 6, 17, 3, 15, 10, 1, 16, 14, 8, 9, 4, 12, 13, 7, 5, 2, 11 };
+        for (int rank = 0; rank < order.Length; rank++)
+        {
+            Booth booth = tables.Single(b => b.name == order[rank]);
+            var table = booth.GetComponent<FastFoodTable>();
+            Undo.RecordObject(table, "Plan Fast Food seating");
+            var data = new SerializedObject(table);
+            var upgrade = data.FindProperty("seatingUpgrade").objectReferenceValue as Equipment;
+            // Retain every existing physical-table purchase ID, including older saves.
+            if (upgrade == null)
+                upgrade = Equipment(config, "ff_seating_" + stableIds[rank], "Seating", 8,
+                    booth.seats.Count == 2 ? 300 : 500,
+                    "Make all seats at this table available.", EquipmentCatalogSection.BoothsAndSeating);
+            if (!config.equipment.Contains(upgrade)) config.equipment.Add(upgrade);
+            upgrade.dayToUnlock = rank < 4 ? rank + 2 : Mathf.Min(30, 6 + (rank - 4) * 2);
+            upgrade.displayName = rank < 2 ? "Back Stool Table " + (rank + 1)
+                : rank < 4 ? "Round Table " + (rank - 1)
+                : rank < 12 ? "Booth " + (rank - 3) : "Window Table " + (rank - 11);
+            upgrade.description = "Make all " + booth.seats.Count + " seats at this table available.";
+            Save(upgrade);
+            data.FindProperty("seatingUpgrade").objectReferenceValue = upgrade;
+            data.FindProperty("starterSeats").intValue = rank == 0 ? 2 : rank < 4 ? 1 : 0;
+            data.FindProperty("layoutId").stringValue = upgrade.itemID;
+            data.FindProperty("layoutPriority").intValue = rank;
+            data.ApplyModifiedProperties();
+            PrefabUtility.RecordPrefabInstancePropertyModifications(table);
+        }
+    }
+
+    [MenuItem("Dine In/Fast Food/Apply Planned Seating Layout")]
+    public static void ApplyPlannedSeatingLayout()
+    {
+        if (EditorApplication.isPlayingOrWillChangePlaymode)
+            throw new InvalidOperationException("Leave Play mode before applying the layout.");
+        var scene = SceneManager.GetSceneByPath(ScenePath);
+        if (!scene.IsValid() || !scene.isLoaded) throw new InvalidOperationException("Open Lobby2 first.");
+        var restaurant = scene.GetRootGameObjects().SelectMany(r => r.GetComponentsInChildren<FastFoodRestaurant>(true)).Single();
+        var source = new SerializedObject(restaurant).FindProperty("diningTables");
+        var tables = Enumerable.Range(0, source.arraySize).Select(i => (Booth)source.GetArrayElementAtIndex(i).objectReferenceValue).ToArray();
+        var config = Require<FastFoodProgressionSettings>(Data + "/Progression.asset");
+        AuthorSeating(config, tables);
+        foreach (var booth in tables)
+        {
+            var table = booth.GetComponent<FastFoodTable>();
+            Vector3 position = booth.transform.position;
+            switch (table.LayoutPriority)
+            {
+                case 0: position.z = 3.3f; break;
+                case 1: position.z = 23.3f; break;
+                case 2: position.x = -15.7f; position.z = 32f; break;
+                case 3: position.x = -15.7f; position.z = 22f; break;
+            }
+            Undo.RecordObject(booth.transform, "Align starter seating");
+            booth.transform.position = position;
+            PrefabUtility.RecordPrefabInstancePropertyModifications(booth.transform);
+            var tableData = new SerializedObject(table);
+            string dividerName = table.LayoutPriority >= 4 && table.LayoutPriority < 8 ? "Cube.005"
+                : table.LayoutPriority >= 8 && table.LayoutPriority < 12 ? "Cube.006" : null;
+            var divider = dividerName == null ? null : scene.GetRootGameObjects()
+                .SelectMany(r => r.GetComponentsInChildren<Transform>(true))
+                .SingleOrDefault(t => t.name == dividerName && t.parent != null && t.parent.name == "Fast Food Wall Separated");
+            tableData.FindProperty("sharedDivider").objectReferenceValue = divider != null ? divider.gameObject : null;
+            tableData.ApplyModifiedProperties();
+            PrefabUtility.RecordPrefabInstancePropertyModifications(table);
+        }
+        foreach (var recipe in Require<MenuCatalog>("Assets/_Project/Resources/MenuCatalog.asset").Products)
+            if (recipe.category == MenuProductCategory.Food && recipe.servingPrefab != null &&
+                AssetDatabase.GetAssetPath(recipe.servingPrefab).StartsWith(Food + "/", StringComparison.Ordinal))
+            { recipe.normalizedServingTransform = true; Save(recipe); }
+        Save(config);
+        EditorSceneManager.MarkSceneDirty(scene);
+        Debug.Log("[FastFood] Planned four starter tables / five seats, adjacent expansions, stable purchases and normalized servings. Bake navigation and save Lobby2.");
+    }
+
+    [MenuItem("Dine In/Fast Food/Validate Tray Serving Transforms")]
+    public static void ValidateTrayServingTransforms()
+    {
+        var preview = EditorSceneManager.NewPreviewScene();
+        try
+        {
+            var prefab = Require<GameObject>("Assets/_Project/Restaurant/Assets/Level1/GameObjects/RestaurantObjects/Customers/Food Tray.prefab");
+            var trayObject = UnityEngine.Object.Instantiate(prefab);
+            SceneManager.MoveGameObjectToScene(trayObject, preview);
+            var tray = trayObject.GetComponentInChildren<FoodTray>(true);
+            var data = new SerializedObject(tray);
+            var apply = typeof(FoodTray).GetMethod("ApplyServingTransform", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            int checks = 0;
+            foreach (var recipe in Require<MenuCatalog>("Assets/_Project/Resources/MenuCatalog.asset").Products)
+            {
+                if (recipe.category != MenuProductCategory.Food) continue;
+                if (!recipe.normalizedServingTransform) throw new InvalidOperationException(recipe.name + ": serving normalization is off.");
+                foreach (string anchorName in new[] { "foodAnchor1", "foodAnchor2" })
+                {
+                    var anchor = (Transform)data.FindProperty(anchorName).objectReferenceValue;
+                    var visual = UnityEngine.Object.Instantiate(recipe.servingPrefab, anchor);
+                    try
+                    {
+                        apply.Invoke(null, new object[] { visual.transform, recipe });
+                        var renderers = visual.GetComponentsInChildren<Renderer>(true);
+                        var bounds = renderers[0].bounds;
+                        foreach (var renderer in renderers) bounds.Encapsulate(renderer.bounds);
+                        if (Mathf.Max(bounds.size.x, bounds.size.z) > .6f || bounds.size.magnitude < .1f ||
+                            Vector3.Dot(visual.transform.up, Vector3.up) < .99f || Mathf.Abs(bounds.min.y - anchor.position.y) > .02f)
+                            throw new InvalidOperationException(recipe.name + " / " + anchorName + ": incorrect serving size, orientation or placement: " + bounds);
+                        checks++;
+                    }
+                    finally { UnityEngine.Object.DestroyImmediate(visual); }
+                }
+            }
+            if (checks != 12) throw new InvalidOperationException("Expected six foods on both tray anchors.");
+            Debug.Log("[FastFood] PASS: 12 actual-tray serving checks (size, upright orientation and base placement).");
+        }
+        finally { EditorSceneManager.ClosePreviewScene(preview); }
     }
 
     private static Equipment Equipment(FastFoodProgressionSettings config, string id, string title, int day, int price,
@@ -226,6 +336,7 @@ public static class FastFoodProgressionAuthoring
         recipe.sprite = Require<Sprite>(Art + "/Menu/" + name + ".png");
         recipe.descriptionText = name + " prepared fresh for Fast Food service.";
         recipe.servingPositionOffset = Vector3.zero; recipe.servingRotation = Vector3.zero; recipe.servingScale = Vector3.one;
+        recipe.normalizedServingTransform = true;
         var root = new GameObject(name + " Serving");
         try
         {
