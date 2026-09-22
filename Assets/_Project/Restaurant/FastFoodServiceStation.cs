@@ -6,6 +6,9 @@ public sealed class FastFoodServiceStation : MonoBehaviour, IInteractable
 {
     public enum StationKind { Counter, Kiosk }
     [SerializeField] private StationKind kind;
+    [SerializeField] private Equipment stationUpgrade;
+    public bool IsUnlocked => FastFoodProgressionSettings.Current == null || stationUpgrade == null ||
+        EquipmentManager.Instance?.Purchased(stationUpgrade.itemID) == true;
     [SerializeField] private TakeoutQueueManager queue;
     [SerializeField] private TakeoutFlowManager flow;
     [SerializeField] private Transform staffApproach;
@@ -31,12 +34,14 @@ public sealed class FastFoodServiceStation : MonoBehaviour, IInteractable
         HygieneManager.HandsEmpty(RoleManager.Instance?.GetActivePlayerMovement());
     public void Interact(PlayerMovement mover)
     {
-        if (CanInteract()) WarningSlideUI.Instance?.Show("Customers order and pay automatically here.");
+        if (CanInteract()) WarningSlideUI.Instance?.Show(IsUnlocked
+            ? "Customers order and pay automatically here."
+            : "Unlock " + stationUpgrade.displayName + " from Day " + stationUpgrade.dayToUnlock + " in Computer > Equipment.");
     }
 
     private void Update()
     {
-        if (!IsKiosk || gameObject.scene.name != "Lobby2" || MultiplayerDayBridge.IsActive) return;
+        if (!IsKiosk || !IsUnlocked || gameObject.scene.name != "Lobby2" || MultiplayerDayBridge.IsActive) return;
         var group = queue != null ? queue.CurrentFront : null;
         if (group != timedCustomer) { timedCustomer = group; elapsed = 0f; }
         if (group == null || group.FastFood == null || group.FastFoodPaid ||

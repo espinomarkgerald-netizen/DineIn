@@ -32,6 +32,8 @@ public class EmployeeManager : MonoBehaviour
     private bool applicantsUnseen;
 
     public int MaxHiredPerRole => maxHiredPerRole;
+    public int HiringLimit(EmployeeRole role) => FastFoodProgressionSettings.Current != null &&
+        role == EmployeeRole.Cashier ? (FastFoodProgressionSettings.HasSecondCashier ? 2 : 1) : maxHiredPerRole;
     public int ApplicantNextRefreshDay => applicantNextRefreshDay;
     public bool HasUnseenApplicants => applicantsUnseen;
 
@@ -136,9 +138,12 @@ public class EmployeeManager : MonoBehaviour
         if (employee == null || !employee.hired || SlotsLocked || !EmployeeRoleCatalog.IsSupported(employee.role))
             return false;
 
+        bool secondCashierSlot = employee.role == EmployeeRole.Cashier && FastFoodProgressionSettings.HasSecondCashier;
+        if (secondCashierSlot && !employee.assigned && GetAssignedEmployee(employee.role, 1) != null)
+            return false;
         foreach (EmployeeData candidate in allEmployees)
         {
-            if (candidate != null && candidate.role == employee.role)
+            if (!secondCashierSlot && candidate != null && candidate.role == employee.role)
                 candidate.assigned = false;
         }
 
@@ -155,12 +160,15 @@ public class EmployeeManager : MonoBehaviour
             return employee != null && MultiplayerRestaurantBridge.Request("hire", employee.EmployeeID);
         if (employee == null || employee.hired || SlotsLocked ||
             !EmployeeRoleCatalog.IsSupported(employee.role) ||
-            GetHiredCount(employee.role) >= maxHiredPerRole)
+            GetHiredCount(employee.role) >= HiringLimit(employee.role))
             return false;
 
         employee.hired = true;
         employee.applicantAvailableUntilDay = 0;
         if (GetHiredCount(employee.role) == 1 && GetAssignedEmployee(employee.role) == null)
+            AssignEmployeeForDay(employee);
+        else if (employee.role == EmployeeRole.Cashier && FastFoodProgressionSettings.HasSecondCashier &&
+                 GetAssignedEmployee(employee.role, 1) == null)
             AssignEmployeeForDay(employee);
 
         GameSaveManager.Instance?.RequestSave();
@@ -218,6 +226,14 @@ public class EmployeeManager : MonoBehaviour
     public EmployeeData GetAssignedEmployee(EmployeeRole role) =>
         allEmployees.Find(employee => employee != null && employee.assigned && employee.role == role);
 
+    public EmployeeData GetAssignedEmployee(EmployeeRole role, int index)
+    {
+        foreach (var employee in allEmployees)
+            if (employee != null && employee.assigned && employee.role == role && index-- == 0)
+                return employee;
+        return null;
+    }
+
     public bool UnassignEmployeeForDay(EmployeeData employee)
     {
         if (MultiplayerRestaurantBridge.IsActive && !MultiplayerRestaurantBridge.Committing)
@@ -254,7 +270,11 @@ public class EmployeeManager : MonoBehaviour
     /// </summary>
     public static bool IsRoleUsedInCurrentRestaurant(EmployeeRole role) =>
         !CampaignSaveStore.IsFastFood || CampaignSaveStore.ProtectedSession ||
-        (role != EmployeeRole.Host && role != EmployeeRole.Waiter);
+        (role != EmployeeRole.Host && (role != EmployeeRole.Waiter ||
+         EquipmentUpgradeService.IsPurchased(EquipmentUpgradeEffect.WaiterTrolley)));
+
+    private static bool IsRequiredRole(EmployeeRole role) => IsRoleUsedInCurrentRestaurant(role) &&
+        !(FastFoodProgressionSettings.Current != null && role == EmployeeRole.Waiter);
 
     public bool HasAllRequiredRolesAssigned
     {
@@ -263,7 +283,7 @@ public class EmployeeManager : MonoBehaviour
             IReadOnlyList<EmployeeRole> lobbyRoles = EmployeeRoleCatalog.LobbyRoles;
             for (int i = 0; i < lobbyRoles.Count; i++)
             {
-                if (IsRoleUsedInCurrentRestaurant(lobbyRoles[i]) && GetAssignedEmployee(lobbyRoles[i]) == null)
+                if (IsRequiredRole(lobbyRoles[i]) && GetAssignedEmployee(lobbyRoles[i]) == null)
                     return false;
             }
 
@@ -293,7 +313,7 @@ public class EmployeeManager : MonoBehaviour
         for (int i = 0; i < requiredRoles.Count; i++)
         {
             EmployeeRole role = requiredRoles[i];
-            if (IsRoleUsedInCurrentRestaurant(role) && GetAssignedEmployee(role) == null)
+            if (IsRequiredRole(role) && GetAssignedEmployee(role) == null)
                 missing.Add(role);
         }
     }

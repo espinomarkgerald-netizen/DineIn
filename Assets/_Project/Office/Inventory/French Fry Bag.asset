@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   itemID: frozen-fries
   itemType: 1
+  restaurantType: 0
   displayName: "French Fries \xD710"
   unitsPerBox: 10
   requiredStorage: 1
@@ -24,5 +25,5 @@ MonoBehaviour:
   averageUsagePerCustomer: 0.4
   shelfLifeDays: 7
   wrongStorageSpoilageMultiplier: 3
-  sprite: {fileID: 21300000, guid: 8e78f254a43696f4b9db23ccbb32431a, type: 3}
-  dayToUnlock: 10
+  sprite: {fileID: 21300000, guid: 7d5df57a66f4c5049b61acd93fb6c032, type: 3}
+  dayToUnlock: 1

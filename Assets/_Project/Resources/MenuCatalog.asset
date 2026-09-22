@@ -22,6 +22,9 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 145e34b7e62455c45aff9dd96c9823f1, type: 2}
   - {fileID: 11400000, guid: b3c3f4dff704b0a4c800ceda5ac3312d, type: 2}
   - {fileID: 11400000, guid: c7d97d5365b15b847b62eca0b8cda024, type: 2}
+  - {fileID: 11400000, guid: 19ff35b886c0fa74198eb3c89144ad00, type: 2}
+  - {fileID: 11400000, guid: f953ffcb8366c9e42af437cc7126bde6, type: 2}
+  - {fileID: 11400000, guid: c1abab3cc18696f48814f46f02c89623, type: 2}
   foodBundles:
   - bundleId: bundle-chicken-fries
     displayName: Chicken + Fries
@@ -31,7 +34,7 @@ MonoBehaviour:
     - {fileID: 11400000, guid: edaf5c0e3af958946a66152437a2106c, type: 2}
     - {fileID: 11400000, guid: dbf95199eafdb55449eeca2f3431c97f, type: 2}
     useCustomPrice: 1
-    customPrice: 349
+    customPrice: 209
   - bundleId: bundle-chicken-burger
     displayName: Chicken + Burger
     availableOnMenu: 1
@@ -40,7 +43,7 @@ MonoBehaviour:
     - {fileID: 11400000, guid: edaf5c0e3af958946a66152437a2106c, type: 2}
     - {fileID: 11400000, guid: a6e7e96bc1502504eb53eb9e1ebb2863, type: 2}
     useCustomPrice: 1
-    customPrice: 399
+    customPrice: 249
   - bundleId: bundle-burger-fries
     displayName: Burger + Fries
     availableOnMenu: 1
@@ -59,3 +62,6 @@ MonoBehaviour:
   - {fileID: 11400000, guid: b32890b307b693b44bb82cdd6505a12a, type: 2}
   - {fileID: 11400000, guid: 70830520795d900449881daee8ed45ad, type: 2}
   - {fileID: 11400000, guid: 2dc7af590d2f8034fa4956e75867995a, type: 2}
+  - {fileID: 11400000, guid: f91156710db550f40ae9b473711f315a, type: 2}
+  - {fileID: 11400000, guid: 501f1cc693c99824fb261750b399a25e, type: 2}
+  - {fileID: 11400000, guid: 558e90cf7d4776e4e96721137b67770d, type: 2}

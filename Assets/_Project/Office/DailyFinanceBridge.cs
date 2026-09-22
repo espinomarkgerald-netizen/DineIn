@@ -163,6 +163,10 @@ public class DailyFinanceBridge : MonoBehaviour
             ? Mathf.Max(1, GameFlowManager.Instance.ProgressionDay)
             : 1;
 
+        var fastFood = FastFoodProgressionSettings.Current;
+        if (fastFood != null)
+            return Mathf.Max(0, Mathf.RoundToInt(fastFood.Evaluate(fastFood.salesQuota, day)));
+
         if (day == 1)
             return dayOneSalesQuota;
 

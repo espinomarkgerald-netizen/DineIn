@@ -39,6 +39,7 @@ public class GroupSpawner : MonoBehaviour
     [SerializeField] private TakeoutQueueManager takeoutQueueManager;
     [SerializeField] private bool takeoutEnabled = false;
     [SerializeField] [Range(0f, 1f)] private float takeoutSpawnChance = 0.2f;
+    [SerializeField, Range(1, 2)] private int maxTakeoutGroupSize = 2;
 
     [Header("Spawn Settings")]
     [SerializeField] private bool autoSpawn = false;
@@ -256,24 +257,26 @@ public class GroupSpawner : MonoBehaviour
         }
 
         float takeoutRoll = Random.value;
-        bool spawnAsTakeout = takeoutEnabled
-            && takeoutQueueManager != null
-            && takeoutRoll < takeoutSpawnChance;
+        bool spawnAsTakeout = admission != null
+            ? admission.ShouldSpawnTakeout(takeoutRoll)
+            : takeoutEnabled && takeoutQueueManager != null && takeoutRoll < takeoutSpawnChance;
 
         if (takeoutEnabled && takeoutQueueManager == null)
             Debug.LogWarning("[GroupSpawner] Takeout is enabled but TakeoutQueueManager is missing. Falling back to dine-in.");
 
         int effectiveMaxGroupSize = Mathf.Max(1, maxGroupSize);
+        if (spawnAsTakeout)
+            effectiveMaxGroupSize = Mathf.Clamp(maxTakeoutGroupSize, 1, 2);
         if (Application.isMobilePlatform)
             effectiveMaxGroupSize = Mathf.Min(effectiveMaxGroupSize, Mathf.Max(1, mobileMaxGroupSize));
 
-        int effectiveMinGroupSize = Mathf.Clamp(minGroupSize, 1, effectiveMaxGroupSize);
+        int effectiveMinGroupSize = spawnAsTakeout ? 1 : Mathf.Clamp(minGroupSize, 1, effectiveMaxGroupSize);
         int size = Random.Range(effectiveMinGroupSize, effectiveMaxGroupSize + 1);
 
         Debug.Log(
             $"[GroupSpawner] Routing {type} group of {size}: " +
             $"takeoutEnabled={takeoutEnabled}, queueAssigned={takeoutQueueManager != null}, " +
-            $"roll={takeoutRoll:0.000}, chance={takeoutSpawnChance:0.000}, selectedTakeout={spawnAsTakeout}.",
+            $"roll={takeoutRoll:0.000}, fastFood={admission != null}, selectedTakeout={spawnAsTakeout}.",
             this);
 
         CustomerGroup group = Instantiate(groupPrefab, spawnPoint.position, Quaternion.identity);
@@ -306,7 +309,7 @@ public class GroupSpawner : MonoBehaviour
         if (ShiftScaler.Instance != null)
             group.SetPatienceSeconds(ShiftScaler.Instance.CurrentPatienceSeconds);
 
-        if (fastFood != null && fastFood.Route(group))
+        if (fastFood != null && fastFood.Route(group, !spawnAsTakeout))
         {
             GroupCreated?.Invoke(group, !group.FastFoodDineIn);
             return group;

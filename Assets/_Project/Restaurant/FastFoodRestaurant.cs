@@ -70,7 +70,7 @@ public sealed class FastFoodRestaurant : MonoBehaviour
         for (int i = 0; i < serviceStations.Length; i++)
         {
             var station = serviceStations[(start + i) % serviceStations.Length];
-            if (station == null || !station.isActiveAndEnabled || station.Queue == null ||
+            if (station == null || !station.isActiveAndEnabled || !station.IsUnlocked || station.Queue == null ||
                 station.Flow == null || (countersOnly && station.IsKiosk)) continue;
             int load = StationLoad(station);
             if (load >= 1 + station.Queue.QueuePoints.Count) continue;
@@ -125,6 +125,7 @@ public sealed class FastFoodRestaurant : MonoBehaviour
             {
                 if (station == null || station.Queue == null) continue;
                 string label = station.IsKiosk ? "Kiosk " + (++kiosk) : "Counter " + (++counter);
+                if (!station.IsUnlocked) { lines.Append(label).AppendLine(": Locked - Computer > Equipment"); continue; }
                 lines.Append(label).Append(": ").Append(StationLoad(station)).Append(" / ")
                     .Append(1 + station.Queue.QueuePoints.Count).Append("   ");
                 if (station.IsKiosk) lines.Append(Mathf.RoundToInt(station.ServiceProgress * 100f)).Append("%");
@@ -211,14 +212,47 @@ public sealed class FastFoodRestaurant : MonoBehaviour
     {
         if (kitchen != null) kitchen.OrderFinished += OnKitchenFinished;
         furniture = GetComponentsInChildren<FastFoodTable>(true);
+        StartCoroutine(BindProgressionVisibility());
+    }
+    private EquipmentManager visibilityEquipment;
+
+    private IEnumerator BindProgressionVisibility()
+    {
+        // The coordinator stays active so purchased, inactive children can return.
+        while (EquipmentManager.Instance == null ||
+               GameSaveManager.Instance != null && !GameSaveManager.Instance.HasCompletedInitialLoad)
+            yield return null;
+        visibilityEquipment = EquipmentManager.Instance;
+        visibilityEquipment.PurchasesChanged += RefreshProgressionVisibility;
+        RefreshProgressionVisibility();
+    }
+
+    public void RefreshProgressionVisibility()
+    {
+        if (FastFoodProgressionSettings.Current == null) return;
+        if (diningTables != null)
+            foreach (var booth in diningTables)
+            {
+                if (booth == null) continue;
+                var table = booth.GetComponent<FastFoodTable>();
+                if (table != null) booth.gameObject.SetActive(table.AvailableSeats > 0);
+            }
+        if (serviceStations != null)
+            foreach (var station in serviceStations)
+                if (station != null) station.gameObject.SetActive(station.IsUnlocked);
     }
     private void OnDisable()
     {
         if (kitchen != null) kitchen.OrderFinished -= OnKitchenFinished;
+        if (visibilityEquipment != null) visibilityEquipment.PurchasesChanged -= RefreshProgressionVisibility;
+        visibilityEquipment = null;
         StopAllCoroutines();
     }
 
-    public bool Route(CustomerGroup group)
+    internal bool ShouldSpawnTakeout(float roll) => roll <
+        (FastFoodProgressionSettings.Current != null ? FastFoodProgressionSettings.Current.takeoutChance : takeoutChance);
+
+    public bool Route(CustomerGroup group, bool? dineIn = null)
     {
         if (!Operational) return false;
         if (group == null || customers.Contains(group)) return true;
@@ -233,7 +267,7 @@ public sealed class FastFoodRestaurant : MonoBehaviour
         // The spawner checks capacity before creating a group; guard direct callers too.
         if (station == null) { Destroy(group.gameObject); return true; }
         stationOwners[group] = station;
-        group.ConfigureFastFood(this, Random.value >= takeoutChance);
+        group.ConfigureFastFood(this, dineIn ?? !ShouldSpawnTakeout(Random.value));
         customers.Add(group);
         group.ServiceOutcomeReported += OnOutcome;
         group.state = CustomerGroup.GroupState.Waiting;
@@ -273,7 +307,8 @@ public sealed class FastFoodRestaurant : MonoBehaviour
         StationFor(group)?.Flow.ForceRelease(group);
         paid.Add(group);
         group.FastFoodSelfPickup = group.FastFoodDineIn &&
-            group.CurrentCustomerType != CustomerGroup.CustomerType.Pink && Random.value >= tableDeliveryChance;
+            group.CurrentCustomerType != CustomerGroup.CustomerType.Pink && Random.value >=
+            (FastFoodProgressionSettings.Current != null ? FastFoodProgressionSettings.Current.tableDeliveryChance : tableDeliveryChance);
         PlaceInWaitingArea(group);
         if (group.FastFoodDineIn) seatWait[group] = 0f;
         SubmitKitchen(group);
@@ -288,7 +323,8 @@ public sealed class FastFoodRestaurant : MonoBehaviour
             ? waitingPoints[slot % waitingPoints.Length] : customerPickupPoint;
         if (point == null) return;
         int overflow = waitingPoints != null && waitingPoints.Length > 0 ? slot / waitingPoints.Length : slot;
-        group.MoveToTakeoutPoint(point.position - point.forward * overflow * waitingSpacing);
+        group.MoveToTakeoutPoint(point.position - point.forward * overflow * waitingSpacing,
+            point.forward, 1.1f, 1f);
     }
 
     private void Update()
@@ -438,12 +474,13 @@ public sealed class FastFoodRestaurant : MonoBehaviour
         if (pickup == null || group == null || group.IsFastFoodLeaving) yield break;
         try
         {
-            var collector = group.FastFoodRepresentative;
-            if (collector == null || !collector.TryWalkTo(pickup.position, out var destination)) yield break;
+            // Takeout parties collect together; leaving a companion in the
+            // waiting area also leaves their shared thought bubble between them.
+            group.MoveToTakeoutPoint(pickup.position, pickup.forward, 1.1f, 1f);
             float deadline = Time.time + pickupTravelTimeout;
-            while (group != null && !group.IsFastFoodLeaving && collector != null && bag != null &&
-                !collector.HasArrived(destination) && Time.time < deadline) yield return null;
-            if (group == null || group.IsFastFoodLeaving || collector == null || !collector.HasArrived(destination)) yield break;
+            while (group != null && !group.IsFastFoodLeaving && bag != null &&
+                !group.HasReachedTakeoutPoint(pickup.position) && Time.time < deadline) yield return null;
+            if (group == null || group.IsFastFoodLeaving || !group.HasReachedTakeoutPoint(pickup.position)) yield break;
             if (group != null && bag != null && IsBagReady(group)) bag.TryCustomerCollect(group);
         }
         finally { ReleasePickup(group); }

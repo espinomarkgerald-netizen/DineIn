@@ -217,6 +217,7 @@ public class GameSaveData
     public List<RestockOrderSaveData> restockOrders = new List<RestockOrderSaveData>();
     public List<string> purchasedEquipmentIDs = new List<string>();
     public List<string> seenUnlockCelebrationIDs = new List<string>();
+    public List<string> restaurantBossTipsShown = new List<string>();
     public List<EmployeeSaveEntry> employees = new List<EmployeeSaveEntry>();
 
     [Header("Casual Dining Level 1 Polish")]

@@ -77,6 +77,10 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
     [SerializeField, Range(0f, 0.1f)] private float newspaperPulseStrength = 0.055f;
     [SerializeField, Min(0.2f)] private float newspaperPulseSeconds = 1.4f;
     private Vector3 newspaperOriginalScale = Vector3.one;
+    [SerializeField] private Color unreadNewspaperColor = new Color(1f, .78f, .28f, 1f);
+    private UnityEngine.UI.Graphic newspaperGraphic;
+    private Color newspaperOriginalColor;
+    private GameObject newspaperUnreadBadge;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetStatics()
@@ -205,14 +209,21 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
             ? CasualDiningPolishManager.Instance.GetIssueForDay(flow.CurrentDay) : null;
         bool unread = issue != null && !issue.viewed && newspaperButton.gameObject.activeInHierarchy;
         float pulse = unread && !LevelOneUIAccessibility.ReducedMotion
-            ? (1f - Mathf.Cos(Time.unscaledTime * Mathf.PI * 2f / newspaperPulseSeconds)) * 0.5f
+            ? (1f - Mathf.Cos(Time.unscaledTime * Mathf.PI * 2f / Mathf.Max(.2f, newspaperPulseSeconds))) * 0.5f
             : 0f;
         newspaperButton.transform.localScale = newspaperOriginalScale * (1f + pulse * newspaperPulseStrength);
+        if (newspaperGraphic != null)
+            newspaperGraphic.color = unread
+                ? Color.Lerp(newspaperOriginalColor, unreadNewspaperColor, .65f + pulse * .35f)
+                : newspaperOriginalColor;
+        if (newspaperUnreadBadge != null) newspaperUnreadBadge.SetActive(unread);
     }
 
     private void OnDisable()
     {
         if (newspaperButton != null) newspaperButton.transform.localScale = newspaperOriginalScale;
+        if (newspaperGraphic != null) newspaperGraphic.color = newspaperOriginalColor;
+        if (newspaperUnreadBadge != null) newspaperUnreadBadge.SetActive(false);
     }
 
     public void RefreshVisibility()
@@ -253,6 +264,31 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
         computerAuthoredActive = computerButton != null && computerButton.gameObject.activeSelf;
         newspaperAuthoredActive = newspaperButton != null && newspaperButton.gameObject.activeSelf;
         if (newspaperButton != null) newspaperOriginalScale = newspaperButton.transform.localScale;
+        if (newspaperButton != null)
+        {
+            newspaperGraphic = newspaperButton.targetGraphic;
+            if (newspaperGraphic != null) newspaperOriginalColor = newspaperGraphic.color;
+            newspaperUnreadBadge = new GameObject("UnreadBadge", typeof(RectTransform), typeof(UnityEngine.UI.Image));
+            var badge = (RectTransform)newspaperUnreadBadge.transform;
+            badge.SetParent(newspaperButton.transform, false);
+            badge.anchorMin = badge.anchorMax = new Vector2(1f, 1f);
+            badge.pivot = new Vector2(1f, 1f);
+            badge.sizeDelta = new Vector2(68f, 28f);
+            var background = newspaperUnreadBadge.GetComponent<UnityEngine.UI.Image>();
+            background.color = new Color(.85f, .16f, .08f, 1f);
+            background.raycastTarget = false;
+            var label = new GameObject("NewLabel", typeof(RectTransform), typeof(TMPro.TextMeshProUGUI));
+            var labelRect = (RectTransform)label.transform;
+            labelRect.SetParent(badge, false);
+            labelRect.anchorMin = Vector2.zero; labelRect.anchorMax = Vector2.one;
+            labelRect.offsetMin = labelRect.offsetMax = Vector2.zero;
+            var text = label.GetComponent<TMPro.TextMeshProUGUI>();
+            text.text = "NEW"; text.font = font != null ? font : TMPro.TMP_Settings.defaultFontAsset;
+            text.fontSize = 20f; text.fontStyle = TMPro.FontStyles.Bold;
+            text.alignment = TMPro.TextAlignmentOptions.Center; text.color = Color.white;
+            text.raycastTarget = false;
+            newspaperUnreadBadge.SetActive(false);
+        }
         authoredVisibilityCaptured = true;
     }
 

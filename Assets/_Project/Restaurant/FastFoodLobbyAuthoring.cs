@@ -9,6 +9,10 @@ public sealed class FastFoodLobbyAuthoring : MonoBehaviour
     [SerializeField] private RestockStockRoomEntrance dryStorageEntrance;
     [SerializeField] private RestockStockRoomEntrance freezerEntrance;
     [SerializeField] private Transform cashierHome;
+    [SerializeField] private GameObject secondCashier;
+    [SerializeField] private Transform secondCashierHome;
+    public GameObject SecondCashier => secondCashier;
+    public Transform SecondCashierHome => secondCashierHome;
     [SerializeField] private Transform busserHome;
     [SerializeField] private SinkInteractable sink;
     public ManagementComputerStation RoomComputer => roomComputer;

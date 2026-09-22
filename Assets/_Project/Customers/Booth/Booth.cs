@@ -382,6 +382,8 @@ public class Booth : MonoBehaviour, Photon.Realtime.IOnEventCallback
 
     public bool IsAvailableFor(int groupSize)
     {
+        if (TryGetComponent<FastFoodTable>(out var fastFoodTable) && fastFoodTable.AvailableSeats < groupSize)
+            return false;
         if (HumanCleanupActive || IsAutomatedMessCleaning || RestaurantTaskClaim.IsClaimedByBot(this)
             || RestaurantTaskClaim.IsClaimedByPlayer(this) || HygieneManager.Instance?.IsBoothQueued(this) == true) return false;
         if (isDirty) return false;

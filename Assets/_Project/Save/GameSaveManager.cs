@@ -268,6 +268,7 @@ public class GameSaveManager : MonoBehaviour
             EquipmentManager.Instance.FillSaveData(data);
 
         UnlockCelebrationManager.EnsureInstance()?.FillSaveData(data);
+        RestaurantBossTips.EnsureInstance()?.FillSaveData(data);
 
         if (EmployeeManager.Instance != null)
             EmployeeManager.Instance.FillSaveData(data);
@@ -428,6 +429,7 @@ public class GameSaveManager : MonoBehaviour
                 EquipmentManager.Instance.ApplySaveData(data);
 
             UnlockCelebrationManager.EnsureInstance()?.ApplySaveData(data);
+            RestaurantBossTips.EnsureInstance()?.ApplySaveData(data);
 
             if (EmployeeManager.Instance != null)
                 EmployeeManager.Instance.ApplySaveData(data);

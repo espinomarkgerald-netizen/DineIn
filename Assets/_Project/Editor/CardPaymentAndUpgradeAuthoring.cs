@@ -1070,7 +1070,7 @@ public static class CardPaymentAndUpgradeAuthoring
             RectTransform safe = GetOrCreateRect("SafeAreaContent", root.transform);
             Stretch(safe);
             RectTransform panel = GetOrCreateRect("BluePanel", safe);
-            Center(panel, new Vector2(720f, 480f), Vector2.zero);
+            Center(panel, new Vector2(720f, 560f), Vector2.zero);
             Image panelImage = GetOrAddComponent<Image>(panel.gameObject);
             panelImage.sprite = AssetDatabase.LoadAssetAtPath<Sprite>(
                 "Assets/_Project/MainMenu/Assets/Buttons/Frames/9Sliced.png");
@@ -1079,33 +1079,39 @@ public static class CardPaymentAndUpgradeAuthoring
 
             TMP_Text heading = GetOrCreateText(
                 "Heading", panel, "NEW UNLOCK!", 44f, TextAlignmentOptions.Center);
-            Center(heading.rectTransform, new Vector2(560f, 64f), new Vector2(0f, 178f));
+            Center(heading.rectTransform, new Vector2(480f, 64f), new Vector2(-30f, 218f));
             heading.fontStyle = FontStyles.Bold;
 
             RectTransform iconRect = GetOrCreateRect("UnlockIcon", panel);
-            Center(iconRect, new Vector2(150f, 150f), new Vector2(-205f, 32f));
+            Center(iconRect, new Vector2(150f, 150f), new Vector2(-220f, 40f));
             Image icon = GetOrAddComponent<Image>(iconRect.gameObject);
             icon.preserveAspect = true;
 
             TMP_Text title = GetOrCreateText(
                 "ItemName", panel, "ITEM NAME", 34f, TextAlignmentOptions.Left);
-            Center(title.rectTransform, new Vector2(400f, 64f), new Vector2(100f, 82f));
+            Center(title.rectTransform, new Vector2(400f, 104f), new Vector2(90f, 120f));
+            title.enableAutoSizing = true;
+            title.fontSizeMin = 24f;
+            title.fontSizeMax = 34f;
             title.fontStyle = FontStyles.Bold;
 
             TMP_Text description = GetOrCreateText(
                 "Description", panel, "Description", 24f, TextAlignmentOptions.TopLeft);
-            Center(description.rectTransform, new Vector2(400f, 132f), new Vector2(100f, -20f));
+            Center(description.rectTransform, new Vector2(400f, 126f), new Vector2(90f, -5f));
             description.enableAutoSizing = true;
             description.fontSizeMin = 18f;
             description.fontSizeMax = 28f;
 
             TMP_Text location = GetOrCreateText(
                 "Location", panel, "AVAILABLE IN THE COMPUTER", 21f, TextAlignmentOptions.Center);
-            Center(location.rectTransform, new Vector2(580f, 42f), new Vector2(0f, -132f));
+            Center(location.rectTransform, new Vector2(620f, 64f), new Vector2(0f, -133f));
+            location.enableAutoSizing = true;
+            location.fontSizeMin = 18f;
+            location.fontSizeMax = 21f;
             location.color = new Color(0.78f, 0.93f, 1f, 1f);
 
             Button continueButton = CreateButton(
-                "ContinueButton", panel, "CONTINUE", new Vector2(280f, 82f), new Vector2(0f, -190f),
+                "ContinueButton", panel, "CONTINUE", new Vector2(280f, 72f), new Vector2(0f, -220f),
                 "Assets/_Project/MainMenu/NewDesign/UI Elements/PNG/Green/Default/button_rectangle_depth_flat.png");
             Button close = CreateIconButton(
                 "CloseButton", panel, new Vector2(84f, 84f), new Vector2(-20f, -20f),

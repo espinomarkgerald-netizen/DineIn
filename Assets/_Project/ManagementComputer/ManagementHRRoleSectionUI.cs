@@ -81,7 +81,7 @@ public sealed class ManagementHRRoleSectionUI : MonoBehaviour
         applicants.Sort(CompareEmployees);
         if (roleTitle != null) roleTitle.text = role.ToString().ToUpperInvariant();
         if (roleSummary != null)
-            roleSummary.text = $"{employed.Count}/{manager.MaxHiredPerRole} EMPLOYED   •   {applicants.Count} APPLICANTS";
+            roleSummary.text = $"{employed.Count}/{manager.HiringLimit(role)} EMPLOYED   •   {applicants.Count} APPLICANTS";
 
         if (showEmployed && employed.Count == 0)
         {
@@ -104,12 +104,15 @@ public sealed class ManagementHRRoleSectionUI : MonoBehaviour
                 card.name = "Employee_" + employee.employeeName;
                 card.Bind(employee, manager.salaryConfig,
                     employee.assigned ? "ACTIVE THIS SHIFT" : "ROSTERED",
-                    employee.assigned ? "ACTIVE" : "SET ACTIVE",
-                    employee.assigned ? null : () =>
+                    employee.assigned && FastFoodProgressionSettings.HasSecondCashier && role == EmployeeRole.Cashier
+                        ? "REST" : employee.assigned ? "ACTIVE" : "SET ACTIVE",
+                    () =>
                     {
-                        if (manager.AssignEmployeeForDay(captured)) onRosterChanged?.Invoke();
+                        bool changed = captured.assigned
+                            ? manager.UnassignEmployeeForDay(captured) : manager.AssignEmployeeForDay(captured);
+                        if (changed) onRosterChanged?.Invoke();
                     },
-                    editable && !employee.assigned,
+                    editable && (!employee.assigned || (role == EmployeeRole.Cashier && FastFoodProgressionSettings.HasSecondCashier)),
                     "FIRE",
                     () =>
                     {
@@ -120,7 +123,7 @@ public sealed class ManagementHRRoleSectionUI : MonoBehaviour
             }
         }
 
-        bool hasSpace = employed.Count < manager.MaxHiredPerRole;
+        bool hasSpace = employed.Count < manager.HiringLimit(role);
         if (showApplicants)
         {
             int applicantRevealIndex = 0;
@@ -255,7 +258,7 @@ public sealed class ManagementHRRoleSectionUI : MonoBehaviour
             if (employee.hired) employedCount++;
             else applicantCount++;
         }
-        roleSummary.text = $"{employedCount}/{manager.MaxHiredPerRole} EMPLOYED   •   {applicantCount} APPLICANTS";
+        roleSummary.text = $"{employedCount}/{manager.HiringLimit(Role)} EMPLOYED   •   {applicantCount} APPLICANTS";
     }
 
     private static void PlayCardReveal(ManagementEmployeeCardUI card, int index)

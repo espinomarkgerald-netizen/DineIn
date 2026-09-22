@@ -7,7 +7,8 @@ public class EquipmentManager : MonoBehaviour
     public static EquipmentManager Instance { get; private set; }
 
     [SerializeField] private List<Equipment> allEquipment;
-    public List<Equipment> AllEquipment => allEquipment;
+    public List<Equipment> AllEquipment => FastFoodProgressionSettings.Current != null
+        ? FastFoodProgressionSettings.Current.equipment : allEquipment;
     public event Action PurchasesChanged;
     private HashSet<string> purchased = new HashSet<string>();
 
@@ -25,9 +26,10 @@ public class EquipmentManager : MonoBehaviour
 
     public void UnlockByDay(int day)
     {
-        foreach (var equip in allEquipment)
+        if (AllEquipment == null || UnlockManager.Instance == null) return;
+        foreach (var equip in AllEquipment)
         {
-            if (equip.dayToUnlock <= day && !UnlockManager.Instance.IsEquipmentUnlocked(equip.itemID))
+            if (equip != null && equip.dayToUnlock <= day && !UnlockManager.Instance.IsEquipmentUnlocked(equip.itemID))
                 UnlockManager.Instance.UnlockEquipment(equip.itemID);
         }
     }
@@ -48,8 +50,11 @@ public class EquipmentManager : MonoBehaviour
             return MultiplayerRestaurantBridge.Request("equipment", itemID);
         if (purchased.Contains(itemID)) return false;
 
-        Equipment e = allEquipment.Find(eq => eq.itemID == itemID);
+        Equipment e = AllEquipment?.Find(eq => eq != null && eq.itemID == itemID);
         if (e == null) return false;
+        int day = GameFlowManager.Instance != null ? GameFlowManager.Instance.ProgressionDay : 1;
+        if (e.dayToUnlock > day && UnlockManager.Instance?.IsEquipmentUnlocked(itemID) != true) return false;
+        if (GameDayManager.Instance?.ServiceActive == true) return false;
 
         if (!MoneyManager.Instance.Spend(e.cost, e.displayName)) return false;
 
@@ -73,8 +78,8 @@ public class EquipmentManager : MonoBehaviour
     public bool DebugUnlockAndPurchase(string itemID)
     {
         if (MultiplayerRestaurantBridge.IsActive) return false;
-        Equipment equipment = allEquipment != null
-            ? allEquipment.Find(candidate => candidate != null && candidate.itemID == itemID)
+        Equipment equipment = AllEquipment != null
+            ? AllEquipment.Find(candidate => candidate != null && candidate.itemID == itemID)
             : null;
         if (equipment == null)
             return false;

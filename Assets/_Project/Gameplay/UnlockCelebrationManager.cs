@@ -13,13 +13,25 @@ public sealed class UnlockCelebrationManager : MonoBehaviour
     private readonly HashSet<string> seen = new HashSet<string>();
     [Header("Presentation Scenes")]
     [Tooltip("Unlocks wait in the queue everywhere else and are only presented in these scenes.")]
-    [SerializeField] private string[] presentationSceneNames = { "Lobby1" };
+    [SerializeField] private string[] presentationSceneNames = { "Lobby1", "Lobby2" };
 
     private UnlockCelebrationUI view;
     private bool presenting;
     private bool hasActivePresentation;
     private UnlockPresentation activePresentation;
     private int lastScannedDay = -1;
+    private string lastScannedRestaurant;
+    private float nextDayCheck;
+
+    private void Update()
+    {
+        if (Time.unscaledTime < nextDayCheck) return;
+        nextDayCheck = Time.unscaledTime + .25f;
+        if (GameFlowManager.Instance == null || EquipmentManager.Instance == null ||
+            (GameSaveManager.Instance != null &&
+             (!GameSaveManager.Instance.HasCompletedInitialLoad || GameSaveManager.Instance.IsApplyingSave))) return;
+        HandlePresentationSceneReady();
+    }
 
     public static UnlockCelebrationManager EnsureInstance()
     {
@@ -77,6 +89,14 @@ public sealed class UnlockCelebrationManager : MonoBehaviour
 
     public void ApplySaveData(GameSaveData data)
     {
+        StopAllCoroutines();
+        if (view != null) view.HideForSceneTransition();
+        pending.Clear();
+        queued.Clear();
+        presenting = false;
+        hasActivePresentation = false;
+        lastScannedDay = -1;
+        lastScannedRestaurant = null;
         seen.Clear();
         if (data?.seenUnlockCelebrationIDs == null)
             return;
@@ -130,9 +150,12 @@ public sealed class UnlockCelebrationManager : MonoBehaviour
     private void QueueCurrentDayUnlocks()
     {
         int day = GameFlowManager.Instance != null ? GameFlowManager.Instance.CurrentDay : 1;
-        if (lastScannedDay == day)
+        string restaurant = CampaignSaveStore.RestaurantScene;
+        if (lastScannedDay == day && lastScannedRestaurant == restaurant)
             return;
+        if (EquipmentManager.Instance == null || RecipeManager.AllRecipesStatic == null) return;
         lastScannedDay = day;
+        lastScannedRestaurant = restaurant;
 
         EquipmentManager equipment = EquipmentManager.Instance;
         if (equipment?.AllEquipment != null)
@@ -174,9 +197,14 @@ public sealed class UnlockCelebrationManager : MonoBehaviour
     {
         presenting = true;
         while (!CanPresentInCurrentScene() ||
+               (GameSaveManager.Instance != null &&
+                (!GameSaveManager.Instance.HasCompletedInitialLoad || GameSaveManager.Instance.IsApplyingSave)) ||
                GameplayUIBlocker.IsBlocked() ||
                (GameDayManager.Instance != null && GameDayManager.Instance.ServiceActive))
             yield return new WaitForSecondsRealtime(0.25f);
+
+        RemoveSeenFromPendingQueue();
+        if (pending.Count == 0) { presenting = false; yield break; }
 
         if (view == null)
         {

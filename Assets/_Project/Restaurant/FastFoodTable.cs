@@ -7,6 +7,19 @@ public sealed class FastFoodTable : MonoBehaviour, IInteractable
 {
     [Tooltip("The furniture renderer inside this prefab. Seats and service points are its sibling objects.")]
     [SerializeField] private Renderer furniture;
+    [Header("Progression")]
+    [SerializeField] private Equipment seatingUpgrade;
+    [SerializeField, Min(0)] private int starterSeats;
+    public int AvailableSeats
+    {
+        get
+        {
+            int capacity = GetComponent<Booth>().seats.Count;
+            if (FastFoodProgressionSettings.Current == null || seatingUpgrade == null ||
+                EquipmentManager.Instance?.Purchased(seatingUpgrade.itemID) == true) return capacity;
+            return Mathf.Min(capacity, starterSeats);
+        }
+    }
     public Renderer Furniture => furniture;
     public Transform StandPoint => GetComponent<Booth>().approachPoint;
     public bool AutoReturnHome => false;
@@ -19,6 +32,12 @@ public sealed class FastFoodTable : MonoBehaviour, IInteractable
     }
     public void Interact(PlayerMovement mover)
     {
+        if (AvailableSeats == 0)
+        {
+            WarningSlideUI.Instance?.Show("Unlock " + seatingUpgrade.displayName +
+                " from Day " + seatingUpgrade.dayToUnlock + " in Computer > Equipment.");
+            return;
+        }
         var delivery = GetComponent<BoothDeliverInteractable>();
         if (delivery != null && delivery.CanInteract()) { delivery.Interact(mover); return; }
         if (!CanInteract()) return;

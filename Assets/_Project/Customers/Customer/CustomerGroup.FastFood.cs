@@ -44,6 +44,10 @@ public partial class CustomerGroup
         if (member == FastFoodRepresentative) return center;
         int companion = 0;
         for (int i = 0; i < index; i++) if (members[i] != null && members[i] != FastFoodRepresentative) companion++;
+        // Takeout pairs stay beside their representative instead of using the
+        // separate companion anchors authored for larger dine-in parties.
+        if (!FastFoodDineIn)
+            return center - right * (companion + 1) * Mathf.Max(.8f, sideSpacing);
         var station = FastFood.StationFor(this);
         if (station != null && station.Queue.CurrentFront == this && station.Queue.OrderPoint != null &&
             (center - station.Queue.OrderPoint.position).sqrMagnitude < .01f &&

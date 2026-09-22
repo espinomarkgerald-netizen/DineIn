@@ -89,8 +89,8 @@ public sealed class DailyNewspaperPresenter : MonoBehaviour
         {
             int day = GameFlowManager.Instance != null ? GameFlowManager.Instance.CurrentDay : 1;
             NewspaperIssueSaveEntry issue = manager != null ? manager.GetIssueForDay(day) : null;
-            float pulse = issue != null && !issue.viewed
-                ? 1f + Mathf.Sin(Time.unscaledTime * 4.5f) * 0.045f
+            float pulse = issue != null && !issue.viewed && !LevelOneUIAccessibility.ReducedMotion
+                ? 1f + (1f - Mathf.Cos(Time.unscaledTime * Mathf.PI * 2f / 1.4f)) * .0275f
                 : 1f;
             newspaperButtonRect.localScale = Vector3.one * pulse;
         }

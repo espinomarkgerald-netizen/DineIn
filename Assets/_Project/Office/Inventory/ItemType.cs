@@ -32,5 +32,8 @@ public enum ItemType
     CucumberLemonadePowder,
     PineappleJuicePowder,
     MangoJuicePowder,
-    FourSeasonsJuicePowder
+    FourSeasonsJuicePowder,
+    FrozenNuggets,
+    ChickenPatty,
+    FrozenFishFillet
 }

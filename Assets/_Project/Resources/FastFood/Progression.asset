@@ -1,0 +1,186 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 67136335fe67deb47b5346c0de2ff75a, type: 3}
+  m_Name: Progression
+  m_EditorClassIdentifier: 
+  equipment:
+  - {fileID: 11400000, guid: a1927afad9317f54aa52dc5a6a792d99, type: 2}
+  - {fileID: 11400000, guid: 80931ce04659f7a48abd883e66fa0b97, type: 2}
+  - {fileID: 11400000, guid: 659f371ab1721cc41b551f684690c8c7, type: 2}
+  - {fileID: 11400000, guid: d49e6b645c9aefa408dad0d56267eb9a, type: 2}
+  - {fileID: 11400000, guid: 52b168d0192aa3a4099bfeacb306d03b, type: 2}
+  - {fileID: 11400000, guid: eb2b11138b12386448621b47499363db, type: 2}
+  - {fileID: 11400000, guid: de8e15b0100305648ab4e60c7d1c4120, type: 2}
+  - {fileID: 11400000, guid: f0b381fe51589f243aa1c0db72d15fdb, type: 2}
+  - {fileID: 11400000, guid: c7373f615e95aff4d9156be2e0900b48, type: 2}
+  - {fileID: 11400000, guid: ad60f4652f85eaa49a5f0c1317d926a7, type: 2}
+  - {fileID: 11400000, guid: 18fd5467994425e4691a171a8cb05953, type: 2}
+  - {fileID: 11400000, guid: 69c284f5c7d510b489a6f797cad91f61, type: 2}
+  - {fileID: 11400000, guid: e7e83e61760aeb24c89f393e469e2d8d, type: 2}
+  - {fileID: 11400000, guid: ab2fbaab7ce75b042b5d496dfecd2564, type: 2}
+  - {fileID: 11400000, guid: 1a7bbd734f6750f46b821ff902300a78, type: 2}
+  - {fileID: 11400000, guid: ef869aad033afa74ab87dee7b87dae59, type: 2}
+  - {fileID: 11400000, guid: 3e5589ad22e7818428db88d97334a1ac, type: 2}
+  - {fileID: 11400000, guid: 42d1aec7cdea9214aa05b8d3f2fd2dfc, type: 2}
+  - {fileID: 11400000, guid: b8574cce52f818749ab8fc95e6a6353e, type: 2}
+  - {fileID: 11400000, guid: 921111cf294df814f883c8d993a445d7, type: 2}
+  - {fileID: 11400000, guid: 12abbe923480c5a408c8c48cfdffc193, type: 2}
+  - {fileID: 11400000, guid: 3b6b4b2f9b242c040886809f6308a326, type: 2}
+  groups:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 1
+      value: 18
+      inSlope: 0
+      outSlope: 1.5714285
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 15
+      value: 40
+      inSlope: 1.5714285
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  groupsPerMinute:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 1
+      value: 3
+      inSlope: 0
+      outSlope: 0.21428572
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 15
+      value: 6
+      inSlope: 0.21428572
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  spawnSeconds:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 1
+      value: 22
+      inSlope: 0
+      outSlope: -0.71428573
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 15
+      value: 12
+      inSlope: -0.71428573
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  patienceSeconds:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 1
+      value: 90
+      inSlope: 0
+      outSlope: -2.142857
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 15
+      value: 60
+      inSlope: -2.142857
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  concurrentGroups:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 1
+      value: 4
+      inSlope: 0
+      outSlope: 0.35714287
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 15
+      value: 9
+      inSlope: 0.35714287
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  salesQuota:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 1
+      value: 1800
+      inSlope: 0
+      outSlope: 214.28572
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 15
+      value: 4800
+      inSlope: 214.28572
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  difficultyCeilingDay: 15
+  pinkCustomerDay: 5
+  blueCustomerDay: 10
+  takeoutChance: 0.55
+  tableDeliveryChance: 0.3

@@ -22,7 +22,10 @@ public enum ItemTypeKitchen {
     CucumberLemonadePitcher,
     PineappleJuicePitcher,
     MangoJuicePitcher,
-    FourSeasonsJuicePitcher
+    FourSeasonsJuicePitcher,
+    ChickenNuggets,
+    ChickenSandwich,
+    FishFilletSandwich
 }
 
 public class ItemIdentity : MonoBehaviour {

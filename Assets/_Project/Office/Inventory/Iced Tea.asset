@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   itemID: iced-tea-mix
   itemType: 6
+  restaurantType: 0
   displayName: "Iced Tea Mix \u2013 20 Servings"
   unitsPerBox: 20
   requiredStorage: 0

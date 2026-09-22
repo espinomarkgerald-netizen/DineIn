@@ -72,6 +72,12 @@ public class ShiftScaler : MonoBehaviour
 
         // Hard clamp at 1 — never schedule zero or negative groups
         CurrentGroupCount = Mathf.Max(1, capped + modifier);
+        var fastFood = FastFoodProgressionSettings.Current;
+        if (fastFood != null)
+        {
+            CurrentPatienceSeconds = fastFood.Evaluate(fastFood.patienceSeconds, day);
+            CurrentGroupCount = Mathf.Max(1, Mathf.RoundToInt(fastFood.Evaluate(fastFood.groups, day)) + modifier);
+        }
 
         GroupSpawner spawner = FindFirstObjectByType<GroupSpawner>();
         if (spawner != null)

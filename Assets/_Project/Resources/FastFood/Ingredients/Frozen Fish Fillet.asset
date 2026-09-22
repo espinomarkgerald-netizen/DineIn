@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 13584ed6afc92734f8aea60ecc3d8b1f, type: 3}
+  m_Name: Frozen Fish Fillet
+  m_EditorClassIdentifier: 
+  itemID: ff-frozen-fish-fillet
+  itemType: 29
+  restaurantType: 0
+  displayName: Frozen Fish Fillet x20
+  unitsPerBox: 20
+  requiredStorage: 1
+  containerType: 2
+  worldContainerPrefab: {fileID: 7163686026178324243, guid: 29f19047587c15147b51a21bd3a31c76, type: 3}
+  gridFootprint: {x: 1, y: 1}
+  boxCost: 260
+  averageUsagePerCustomer: 0.6
+  shelfLifeDays: 7
+  wrongStorageSpoilageMultiplier: 3
+  sprite: {fileID: 21300000, guid: 931e012347e1ec14385310720417fdd3, type: 3}
+  dayToUnlock: 10

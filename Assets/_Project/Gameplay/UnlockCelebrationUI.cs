@@ -114,7 +114,9 @@ public sealed class UnlockCelebrationUI : MonoBehaviour
         }
         if (titleText != null) titleText.text = presentation.title.ToUpperInvariant();
         if (descriptionText != null) descriptionText.text = presentation.description;
-        if (locationText != null) locationText.text = presentation.location.ToUpperInvariant();
+        if (locationText != null) locationText.text =
+            "DAY " + (GameFlowManager.Instance != null ? GameFlowManager.Instance.CurrentDay : 1) +
+            " - UNLOCKED TODAY\n" + presentation.location.ToUpperInvariant();
 
         gameObject.SetActive(true);
         transform.SetAsLastSibling();

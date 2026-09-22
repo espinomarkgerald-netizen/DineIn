@@ -14,15 +14,19 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   recipeID: 03
   recipeName: Fries
+  restaurantType: 0
   category: 0
   availableOnMenu: 1
   menuSortOrder: 1
   kitchenItemType: 3
-  sprite: {fileID: 21300000, guid: 8e78f254a43696f4b9db23ccbb32431a, type: 3}
-  servingPrefab: {fileID: 8159564397572836276, guid: acdbe8307feda294f9dd3e6ff47e1f1d, type: 3}
-  dayToUnlock: 10
+  sprite: {fileID: 21300000, guid: d7865c5038827d6478c46ce8a989d686, type: 3}
+  servingPrefab: {fileID: 5690986328917448776, guid: e54833115ef996343928860808f85611, type: 3}
+  servingPositionOffset: {x: 0, y: 0, z: 0}
+  servingRotation: {x: 0, y: 0, z: 0}
+  servingScale: {x: 1, y: 1, z: 1}
+  dayToUnlock: 1
   ingredients:
   - item: {fileID: 11400000, guid: 2dc7af590d2f8034fa4956e75867995a, type: 2}
     amount: 1
   sellPrice: 79
-  descriptionText: Fries na Masarap
+  descriptionText: Fries prepared fresh for Fast Food service.

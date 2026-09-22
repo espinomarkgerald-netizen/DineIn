@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   itemID: pineapple-mix
   itemType: 7
+  restaurantType: 0
   displayName: "Pineapple Mix \u2013 20"
   unitsPerBox: 20
   requiredStorage: 0

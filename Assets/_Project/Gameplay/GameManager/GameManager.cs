@@ -679,6 +679,16 @@ public class GameDayManager : MonoBehaviour
         maxGroupsPerMinute  = Mathf.Max(1, Mathf.RoundToInt(groupsPerMinuteCurve.Evaluate(t)));
         spawnIntervalMin    = Mathf.Max(1f, spawnIntervalMinCurve.Evaluate(t));
         spawnIntervalMax    = Mathf.Max(spawnIntervalMin + 1f, spawnIntervalMaxCurve.Evaluate(t));
+        var fastFood = FastFoodProgressionSettings.Current;
+        if (fastFood != null)
+        {
+            maxCustomersToSpawn = Mathf.Max(1, Mathf.RoundToInt(fastFood.Evaluate(fastFood.groups, day)));
+            maxGroupsPerMinute = Mathf.Max(1, Mathf.RoundToInt(fastFood.Evaluate(fastFood.groupsPerMinute, day)));
+            spawnIntervalMin = Mathf.Max(1f, fastFood.Evaluate(fastFood.spawnSeconds, day));
+            spawnIntervalMax = spawnIntervalMin + 6f;
+            maxConcurrentGroups = Mathf.Max(1, Mathf.RoundToInt(fastFood.Evaluate(fastFood.concurrentGroups, day)));
+            rushMaxConcurrentGroups = maxConcurrentGroups + 1;
+        }
 
         // Apply approval-based spawn modifier: word of mouth from happy aliens
         // brings more visitors; repeated dissatisfaction drives them away.
@@ -908,7 +918,7 @@ public class GameDayManager : MonoBehaviour
             return;
 
         int currentDay = GameFlowManager.Instance != null ? GameFlowManager.Instance.CurrentDay : 1;
-        bool shouldEnable = currentDay >= takeoutUnlockDay;
+        bool shouldEnable = FastFoodProgressionSettings.Current != null || currentDay >= takeoutUnlockDay;
 
         groupSpawner.SetTakeoutEnabled(shouldEnable);
 
@@ -931,8 +941,9 @@ public class GameDayManager : MonoBehaviour
 
         int currentDay = GameFlowManager.Instance != null ? GameFlowManager.Instance.CurrentDay : 1;
 
-        bool enablePink = currentDay >= pinkCustomerUnlockDay;
-        bool enableBlue = currentDay >= blueCustomerUnlockDay;
+        var fastFood = FastFoodProgressionSettings.Current;
+        bool enablePink = currentDay >= (fastFood != null ? fastFood.pinkCustomerDay : pinkCustomerUnlockDay);
+        bool enableBlue = currentDay >= (fastFood != null ? fastFood.blueCustomerDay : blueCustomerUnlockDay);
 
         groupSpawner.SetCustomerTypeAvailability(true, enablePink, enableBlue);
 
