@@ -284,6 +284,21 @@ public class AutonomousStaffBot : MonoBehaviour
         activeTask = StartCoroutine(RunTask(task));
     }
 
+    public void ReturnHomeWhenIdle()
+    {
+        if (IsBusy || !isActiveAndEnabled) return;
+        StopHappyIdle();
+        activeTask = StartCoroutine(ReturnHomeOnly());
+    }
+
+    private IEnumerator ReturnHomeOnly()
+    {
+        // Ensure the coroutine handle is assigned even if the character is already home.
+        yield return null;
+        yield return ReturnHome();
+        activeTask = null;
+    }
+
     public void SetCarrying(bool value)
     {
         // The lobby carry controller is exclusively the two-handed tray pose.

@@ -112,7 +112,7 @@ public sealed class ManagementEmployeeCardUI : MonoBehaviour
         EmployeeRole role = employee != null ? employee.role : EmployeeRole.Host;
 
         if (nameText != null) nameText.text = employeeName;
-        if (roleText != null) roleText.text = employee != null ? role.ToString().ToUpperInvariant() : "AVAILABLE";
+        if (roleText != null) roleText.text = employee != null ? EmployeeRoleCatalog.DisplayName(role).ToUpperInvariant() : "AVAILABLE";
         if (avatarInitial != null)
             avatarInitial.text = employee != null && !string.IsNullOrWhiteSpace(employeeName)
                 ? employeeName.Substring(0, 1).ToUpperInvariant()

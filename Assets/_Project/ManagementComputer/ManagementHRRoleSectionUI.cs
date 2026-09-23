@@ -79,7 +79,7 @@ public sealed class ManagementHRRoleSectionUI : MonoBehaviour
 
         employed.Sort(CompareEmployees);
         applicants.Sort(CompareEmployees);
-        if (roleTitle != null) roleTitle.text = role.ToString().ToUpperInvariant();
+        if (roleTitle != null) roleTitle.text = EmployeeRoleCatalog.DisplayName(role).ToUpperInvariant();
         if (roleSummary != null)
             roleSummary.text = $"{employed.Count}/{manager.HiringLimit(role)} EMPLOYED   •   {applicants.Count} APPLICANTS";
 
@@ -104,7 +104,7 @@ public sealed class ManagementHRRoleSectionUI : MonoBehaviour
                 card.name = "Employee_" + employee.employeeName;
                 card.Bind(employee, manager.salaryConfig,
                     employee.assigned ? "ACTIVE THIS SHIFT" : "ROSTERED",
-                    employee.assigned && FastFoodProgressionSettings.HasSecondCashier && role == EmployeeRole.Cashier
+                    employee.assigned && manager.ActiveSlotLimit(role) > 1
                         ? "REST" : employee.assigned ? "ACTIVE" : "SET ACTIVE",
                     () =>
                     {
@@ -112,7 +112,7 @@ public sealed class ManagementHRRoleSectionUI : MonoBehaviour
                             ? manager.UnassignEmployeeForDay(captured) : manager.AssignEmployeeForDay(captured);
                         if (changed) onRosterChanged?.Invoke();
                     },
-                    editable && (!employee.assigned || (role == EmployeeRole.Cashier && FastFoodProgressionSettings.HasSecondCashier)),
+                    editable && (!employee.assigned || manager.ActiveSlotLimit(role) > 1),
                     "FIRE",
                     () =>
                     {

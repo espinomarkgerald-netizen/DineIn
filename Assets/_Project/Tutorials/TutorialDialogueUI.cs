@@ -24,6 +24,8 @@ public class TutorialDialogueUI : MonoBehaviour
     [SerializeField, Range(1f, 1.2f)] private float portraitBopPeakScale = 1.06f;
     [SerializeField, Min(0f)] private float portraitBopLift = 5f;
     [Header("Lobby Tutorial Layout")]
+    [Tooltip("Reuse the authored tutorial presentation in campaign guides without starting TutorialSystem.")]
+    [SerializeField] private bool useTutorialPresentation;
     [SerializeField] private Vector2 dialogueOffset = Vector2.zero;
     [SerializeField, Min(12f)] private float dialogueMinimumFontSize = 18f;
     [SerializeField, Min(12f)] private float dialogueMaximumFontSize = 30f;
@@ -145,6 +147,8 @@ public class TutorialDialogueUI : MonoBehaviour
     private Sprite continuePromptBackground;
     private bool pointerReleased;
     private RectTransform portraitPlacement;
+    public Func<Vector2, bool> CanAdvanceAt { get; set; }
+    public TMP_Text BodyText => bodyText;
 
     public void SetWorldFocusTarget(Transform target) => focusWorld = target;
 
@@ -162,7 +166,7 @@ public class TutorialDialogueUI : MonoBehaviour
 
     private void Awake()
     {
-        polishedLobby = gameObject.scene.name == "Lobby1Tutorial";
+        polishedLobby = useTutorialPresentation || gameObject.scene.name == "Lobby1Tutorial";
         if (bodyText != null) bodyText.OnPreRenderText += AnimateRevealedLetters;
         // The dialogue panel, nameplate, and text always stay at their authored pose.
         // Only the Big Boss portrait reacts when its sprite actually changes.
@@ -189,7 +193,7 @@ public class TutorialDialogueUI : MonoBehaviour
             }
         }
 
-        if (FindFirstObjectByType<TutorialSystem>(FindObjectsInactive.Include) != null)
+        if (useTutorialPresentation || FindFirstObjectByType<TutorialSystem>(FindObjectsInactive.Include) != null)
         {
             Canvas layer = GetComponent<Canvas>();
             if (layer == null) layer = gameObject.AddComponent<Canvas>();
@@ -218,7 +222,7 @@ public class TutorialDialogueUI : MonoBehaviour
                 continuePrompt.color = Color.white;
                 continuePrompt.alignment = TextAlignmentOptions.Center;
                 continuePrompt.raycastTarget = false;
-                continuePrompt.text = "Tap anywhere to continue";
+                continuePrompt.text = TutorialInputTerminology.IsMobile ? "Tap to continue" : "Click to continue";
                 continuePrompt.rectTransform.anchorMin = Vector2.zero;
                 continuePrompt.rectTransform.anchorMax = Vector2.one;
                 continuePrompt.rectTransform.sizeDelta = Vector2.zero;
@@ -542,8 +546,9 @@ public class TutorialDialogueUI : MonoBehaviour
         body.offsetMin = new Vector2(dialogueTextPadding.x, dialogueTextPadding.w);
         body.offsetMax = -new Vector2(dialogueTextPadding.z, dialogueTextPadding.y);
         bodyText.enableAutoSizing = true;
-        bodyText.fontSizeMin = dialogueMinimumFontSize;
-        bodyText.fontSizeMax = Mathf.Max(dialogueMinimumFontSize, dialogueMaximumFontSize);
+        float textScale = useTutorialPresentation && LevelOneUIAccessibility.LargeText ? 1.15f : 1f;
+        bodyText.fontSizeMin = dialogueMinimumFontSize * textScale;
+        bodyText.fontSizeMax = Mathf.Max(dialogueMinimumFontSize, dialogueMaximumFontSize) * textScale;
         bodyText.fontSize = bodyText.fontSizeMax;
         bodyText.overflowMode = TextOverflowModes.Truncate;
     }
@@ -652,6 +657,8 @@ public class TutorialDialogueUI : MonoBehaviour
         if (Input.touchCount == 1) began |= Input.GetTouch(0).phase == TouchPhase.Began;
         if (!pointerReleased || !began || Input.touchCount > 1) return;
         pointerReleased = false;
+        Vector2 position = Input.touchCount == 1 ? Input.GetTouch(0).position : (Vector2)Input.mousePosition;
+        if (CanAdvanceAt != null && !CanAdvanceAt(position)) return;
         OnNextPressed(); // One input reveals OR advances, never both.
     }
 

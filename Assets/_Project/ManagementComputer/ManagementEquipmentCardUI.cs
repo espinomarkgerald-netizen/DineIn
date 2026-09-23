@@ -22,6 +22,7 @@ public sealed class ManagementEquipmentCardUI : MonoBehaviour
     [SerializeField] private Color ownedColor = new Color(0.08f, 0.56f, 0.31f, 1f);
 
     private float textScale = 1f;
+    public Equipment Equipment { get; private set; }
 
     public void SetTextScale(float scale)
     {
@@ -65,6 +66,8 @@ public sealed class ManagementEquipmentCardUI : MonoBehaviour
     {
         if (equipment == null)
             return;
+
+        Equipment = equipment;
 
         if (icon != null)
         {

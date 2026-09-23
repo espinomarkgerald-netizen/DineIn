@@ -27,6 +27,7 @@ public sealed class TutorialHandIndicator : MonoBehaviour
     [Header("Canvas Reference")]
     [SerializeField] private Canvas targetCanvas;
     [SerializeField] private Camera worldCamera;
+    [SerializeField] private bool keepHintsWithOwner;
 
     [Header("Timing")]
     [SerializeField, Min(0.5f)] private float swipeCycleSeconds = 2.1f;
@@ -118,7 +119,7 @@ public sealed class TutorialHandIndicator : MonoBehaviour
         root.layer = gameObject.layer;
         // A scene-root overlay survives panels disabling/rebuilding their own
         // canvases (Computer, Menu, Restock, Notepad and Cashier).
-        root.transform.SetParent(null, false);
+        root.transform.SetParent(keepHintsWithOwner ? transform.root : null, false);
         hintRoot = (RectTransform)root.transform;
         hintRoot.anchorMin = Vector2.zero;
         hintRoot.anchorMax = Vector2.one;

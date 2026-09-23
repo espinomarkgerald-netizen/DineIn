@@ -8,6 +8,7 @@ public class EmployeeManager : MonoBehaviour
     public static EmployeeManager Instance { get; private set; }
     public event Action AssignmentsChanged;
     public event Action ApplicantsRefreshed;
+    public event Action<EmployeeData> ApplicantHired;
     public EmployeeGenerator generator;
 
     [Header("Salary")]
@@ -32,8 +33,12 @@ public class EmployeeManager : MonoBehaviour
     private bool applicantsUnseen;
 
     public int MaxHiredPerRole => maxHiredPerRole;
-    public int HiringLimit(EmployeeRole role) => FastFoodProgressionSettings.Current != null &&
-        role == EmployeeRole.Cashier ? (FastFoodProgressionSettings.HasSecondCashier ? 2 : 1) : maxHiredPerRole;
+    public int HiringLimit(EmployeeRole role) =>
+        StaffHiringProgressionSettings.Limit(role, maxHiredPerRole, GetHiredCount(role));
+    public int ActiveSlotLimit(EmployeeRole role) => EmployeeRoleCatalog.UsesFastFoodRoles &&
+        (role == EmployeeRole.Busser &&
+            (StaffHiringProgressionSettings.CurrentDay >= StaffHiringProgressionSettings.UnlockDay(role) || GetHiredCount(role) > 1) ||
+         role == EmployeeRole.Cashier && FastFoodProgressionSettings.HasSecondCashier) ? 2 : 1;
     public int ApplicantNextRefreshDay => applicantNextRefreshDay;
     public bool HasUnseenApplicants => applicantsUnseen;
 
@@ -138,12 +143,12 @@ public class EmployeeManager : MonoBehaviour
         if (employee == null || !employee.hired || SlotsLocked || !EmployeeRoleCatalog.IsSupported(employee.role))
             return false;
 
-        bool secondCashierSlot = employee.role == EmployeeRole.Cashier && FastFoodProgressionSettings.HasSecondCashier;
-        if (secondCashierSlot && !employee.assigned && GetAssignedEmployee(employee.role, 1) != null)
+        bool multipleSlots = ActiveSlotLimit(employee.role) > 1;
+        if (multipleSlots && !employee.assigned && GetAssignedEmployee(employee.role, 1) != null)
             return false;
         foreach (EmployeeData candidate in allEmployees)
         {
-            if (!secondCashierSlot && candidate != null && candidate.role == employee.role)
+            if (!multipleSlots && candidate != null && candidate.role == employee.role)
                 candidate.assigned = false;
         }
 
@@ -167,10 +172,11 @@ public class EmployeeManager : MonoBehaviour
         employee.applicantAvailableUntilDay = 0;
         if (GetHiredCount(employee.role) == 1 && GetAssignedEmployee(employee.role) == null)
             AssignEmployeeForDay(employee);
-        else if (employee.role == EmployeeRole.Cashier && FastFoodProgressionSettings.HasSecondCashier &&
+        else if (ActiveSlotLimit(employee.role) > 1 &&
                  GetAssignedEmployee(employee.role, 1) == null)
             AssignEmployeeForDay(employee);
 
+        ApplicantHired?.Invoke(employee);
         GameSaveManager.Instance?.RequestSave();
         return true;
     }
@@ -189,7 +195,7 @@ public class EmployeeManager : MonoBehaviour
         if (wasAssigned)
         {
             EmployeeData replacement = allEmployees.Find(candidate =>
-                candidate != null && candidate.hired && candidate.role == role);
+                candidate != null && candidate.hired && !candidate.assigned && candidate.role == role);
             if (replacement != null)
                 AssignEmployeeForDay(replacement);
         }
@@ -269,9 +275,10 @@ public class EmployeeManager : MonoBehaviour
     /// checklist and the authoritative shift controller the same answer.
     /// </summary>
     public static bool IsRoleUsedInCurrentRestaurant(EmployeeRole role) =>
+        EmployeeRoleCatalog.IsSupported(role) && (
+        EmployeeRoleCatalog.UsesFastFoodRoles && (role == EmployeeRole.Chef || role == EmployeeRole.Barista) ? false :
         !CampaignSaveStore.IsFastFood || CampaignSaveStore.ProtectedSession ||
-        (role != EmployeeRole.Host && (role != EmployeeRole.Waiter ||
-         EquipmentUpgradeService.IsPurchased(EquipmentUpgradeEffect.WaiterTrolley)));
+        (role != EmployeeRole.Host && role != EmployeeRole.Waiter));
 
     private static bool IsRequiredRole(EmployeeRole role) => IsRoleUsedInCurrentRestaurant(role) &&
         !(FastFoodProgressionSettings.Current != null && role == EmployeeRole.Waiter);
@@ -409,6 +416,7 @@ public class EmployeeManager : MonoBehaviour
             allEmployees.Add(employee);
         }
 
+        MigrateLegacyKitchenRoles();
         int loadedDay = Mathf.Max(1, data.currentDay);
         int latestAllowedRefresh = loadedDay + Mathf.Max(1, applicantRefreshIntervalDays);
         applicantNextRefreshDay = data.employeeApplicantNextRefreshDay > 0
@@ -444,6 +452,8 @@ public class EmployeeManager : MonoBehaviour
     {
         if (MultiplayerRestaurantBridge.IsActive && !MultiplayerRestaurantBridge.Committing)
         { if (employee != null) MultiplayerRestaurantBridge.Request("assign", employee.EmployeeID); return; }
+        if (employee == null || slot == null || SlotsLocked ||
+            (!employee.hired && GetHiredCount(employee.role) >= HiringLimit(employee.role))) return;
         if (employee.role != slot.roleType)
         {
             Debug.Log("Role mismatch");
@@ -520,23 +530,27 @@ public class EmployeeManager : MonoBehaviour
 
     private void AutoAssignSoleHire(EmployeeRole role)
     {
-        EmployeeData onlyHire = null;
         int count = 0;
         foreach (EmployeeData employee in allEmployees)
         {
             if (employee == null || !employee.hired || employee.role != role)
                 continue;
 
-            onlyHire = employee;
             count++;
-            if (count > 1)
+            if (count > ActiveSlotLimit(role))
                 return;
         }
 
-        if (count == 1 && onlyHire != null && GetAssignedEmployee(role) == null)
+        // Two hires for two unlocked posts need no daily selection, just like one hire for one post.
+        // Also repair saves from the old one-active-worker rule when both posts are available.
+        if (count > 0)
         {
-            onlyHire.assigned = true;
-            onlyHire.assignedSlotName = role.ToString();
+            foreach (var employee in allEmployees)
+                if (employee != null && employee.hired && employee.role == role)
+                {
+                    employee.assigned = true;
+                    employee.assignedSlotName = role.ToString();
+                }
         }
     }
 
@@ -667,10 +681,10 @@ public class EmployeeManager : MonoBehaviour
                 95f - snapshot.paymentErrors * 20f,
             EmployeeRole.Busser =>
                 90f - snapshot.dirtyTableDelays * 18f,
-            EmployeeRole.Chef =>
+            EmployeeRole.GrillStation or EmployeeRole.FryStation or EmployeeRole.Chef =>
                 snapshot.ordersCompleted * 100f / orders -
                 snapshot.orderFailures * 7f - snapshot.stockoutRefusals * 3f,
-            EmployeeRole.Barista =>
+            EmployeeRole.FastFoodAssembler or EmployeeRole.Barista =>
                 snapshot.ordersCompleted * 100f / orders -
                 snapshot.orderFailures * 6f - snapshot.wrongOrders * 5f,
             _ => 75f
@@ -709,8 +723,59 @@ public class EmployeeManager : MonoBehaviour
             1.35f);
     }
 
+    public static void MigrateFastFoodKitchenRoster(List<EmployeeData> roster)
+    {
+        if (roster == null) return;
+        bool legacy = roster.Exists(e => e != null && (e.role == EmployeeRole.Chef || e.role == EmployeeRole.Barista));
+        if (!legacy) return;
+        // Reserve the assigned workers before choosing the spare employee for Fry.
+        var grill = roster.Find(e => e != null && e.role == EmployeeRole.Chef && e.assigned)
+            ?? roster.Find(e => e != null && e.role == EmployeeRole.Chef && e.hired)
+            ?? roster.Find(e => e != null && e.role == EmployeeRole.Chef);
+        var assembler = roster.Find(e => e != null && e.role == EmployeeRole.Barista && e.assigned)
+            ?? roster.Find(e => e != null && e.role == EmployeeRole.Barista && e.hired)
+            ?? roster.Find(e => e != null && e.role == EmployeeRole.Barista);
+        var fry = roster.Exists(e => e != null && e.role == EmployeeRole.FryStation) ? null :
+            roster.Find(e => e != null && e != grill && e != assembler && e.hired &&
+                (e.role == EmployeeRole.Chef || e.role == EmployeeRole.Barista)) ??
+            roster.Find(e => e != null && e != grill && e != assembler &&
+                (e.role == EmployeeRole.Chef || e.role == EmployeeRole.Barista));
+        foreach (var employee in roster)
+        {
+            if (employee == null) continue;
+            if (employee == fry)
+            {
+                employee.role = EmployeeRole.FryStation;
+                employee.hired = employee.assigned = true;
+                employee.applicantAvailableUntilDay = 0;
+            }
+            else if (employee.role == EmployeeRole.Chef) employee.role = EmployeeRole.GrillStation;
+            else if (employee.role == EmployeeRole.Barista) employee.role = EmployeeRole.FastFoodAssembler;
+            if (employee.assigned) employee.assignedSlotName = employee.role.ToString();
+        }
+    }
+
     private void MigrateLegacyKitchenRoles()
     {
+        if (EmployeeRoleCatalog.UsesFastFoodRoles)
+        {
+            // Preserve paid delivery assistants from older saves as lobby staff, including identity and skills.
+            foreach (var employee in allEmployees)
+            {
+                if (employee == null || !employee.hired || employee.role != EmployeeRole.Waiter) continue;
+                if (GetAssignedEmployee(EmployeeRole.Busser, 1) != null) employee.assigned = false;
+                employee.role = EmployeeRole.Busser;
+                employee.assignedSlot = null;
+                employee.assignedSlotName = employee.assigned ? EmployeeRole.Busser.ToString() : string.Empty;
+            }
+            bool hadLegacyKitchen = allEmployees.Exists(e => e != null &&
+                (e.role == EmployeeRole.Chef || e.role == EmployeeRole.Barista));
+            MigrateFastFoodKitchenRoster(allEmployees);
+            if (hadLegacyKitchen && !allEmployees.Exists(e => e != null && e.role == EmployeeRole.FryStation))
+                EnsureApplicantPool(EmployeeRole.FryStation, CurrentDay());
+            RebuildRoleGroups();
+            return;
+        }
         bool changed = false;
         foreach (EmployeeData employee in allEmployees)
         {

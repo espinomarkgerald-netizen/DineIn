@@ -194,7 +194,7 @@ public class RoleManager : MonoBehaviour
             case StaffRole.Role.Cashier:
                 return "Cashier";
             case StaffRole.Role.Busser:
-                return "Busser";
+                return EmployeeRoleCatalog.DisplayName(EmployeeRole.Busser);
             default:
                 return activeRole.name;
         }

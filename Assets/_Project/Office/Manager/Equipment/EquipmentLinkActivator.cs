@@ -1,29 +1,41 @@
+using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>
-/// Place one instance of this on any active GameObject in each scene that uses EquipmentLink.
-/// Runs on Start (after all Awakes) so EquipmentManager.Instance is guaranteed to exist.
-/// Activates all purchased equipment in the scene, including GameObjects that start inactive.
-/// </summary>
+/// <summary>Keep this coordinator active so locked children can appear immediately after purchase or save load.</summary>
 public class EquipmentLinkActivator : MonoBehaviour
 {
-    private void Start()
+    private EquipmentManager manager;
+    private readonly List<EquipmentLink> links = new();
+
+    private void OnEnable() => StartCoroutine(BindAfterSave());
+
+    private IEnumerator BindAfterSave()
     {
-        if (EquipmentManager.Instance == null)
-        {
-            Debug.LogWarning("EquipmentLinkActivator: EquipmentManager.Instance is null.");
-            return;
-        }
+        while (EquipmentManager.Instance == null || GameSaveManager.Instance != null &&
+            (!GameSaveManager.Instance.HasCompletedInitialLoad || GameSaveManager.Instance.IsApplyingSave))
+            yield return null;
 
-        EquipmentLink[] allLinks = FindObjectsByType<EquipmentLink>(
-            FindObjectsInactive.Include,
-            FindObjectsSortMode.None
-        );
+        links.Clear();
+        foreach (var root in gameObject.scene.GetRootGameObjects())
+            links.AddRange(root.GetComponentsInChildren<EquipmentLink>(true));
+        manager = EquipmentManager.Instance;
+        manager.PurchasesChanged += Refresh;
+        Refresh();
+    }
 
-        foreach (var link in allLinks)
-        {
-            bool purchased = EquipmentManager.Instance.Purchased(link.itemID);
-            link.gameObject.SetActive(purchased);
-        }
+    private void Refresh()
+    {
+        if (manager == null) return;
+        foreach (var link in links)
+            if (link != null && !string.IsNullOrEmpty(link.itemID))
+                link.gameObject.SetActive(manager.Purchased(link.itemID));
+    }
+
+    private void OnDisable()
+    {
+        StopAllCoroutines();
+        if (manager != null) manager.PurchasesChanged -= Refresh;
+        manager = null;
     }
 }

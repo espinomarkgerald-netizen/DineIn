@@ -32,10 +32,10 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 8241654469398438681}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMin: {x: 0.6, y: 1}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 141, y: -32}
-  m_SizeDelta: {x: -318, y: 36}
+  m_AnchoredPosition: {x: -3, y: -32}
+  m_SizeDelta: {x: -30, y: 36}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &9178969393588248060
 CanvasRenderer:
@@ -169,9 +169,9 @@ RectTransform:
   m_Father: {fileID: 8241654469398438681}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
-  m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -141, y: -32}
-  m_SizeDelta: {x: -318, y: 40}
+  m_AnchorMax: {x: 0.6, y: 1}
+  m_AnchoredPosition: {x: 3, y: -30}
+  m_SizeDelta: {x: -30, y: 48}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &7839199604184013785
 CanvasRenderer:
@@ -195,7 +195,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 1
+  m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
@@ -1287,6 +1287,7 @@ MonoBehaviour:
   singleRailScrollPosition: {x: 0, y: -230}
   singleRailScrollHeight: 286
   singleRailSectionHeight: 380
+  applicantReflowDuration: 0.16
 --- !u!225 &744376319703709470
 CanvasGroup:
   m_ObjectHideFlags: 0

@@ -149,7 +149,7 @@ public class LobbyAutonomousService : MonoBehaviour
             employeeManager.AssignmentsChanged -= RefreshStaffAssignments;
 
         if (equipmentManager != null)
-            equipmentManager.PurchasesChanged -= RefreshStaffAssignments;
+            equipmentManager.PurchasesChanged -= OnEquipmentPurchased;
 
         if (takeoutFlow != null)
             takeoutFlow.SetAutomatedService(false);
@@ -217,12 +217,30 @@ public class LobbyAutonomousService : MonoBehaviour
             return;
 
         if (equipmentManager != null)
-            equipmentManager.PurchasesChanged -= RefreshStaffAssignments;
+            equipmentManager.PurchasesChanged -= OnEquipmentPurchased;
 
         equipmentManager = current;
         if (equipmentManager != null)
-            equipmentManager.PurchasesChanged += RefreshStaffAssignments;
+            equipmentManager.PurchasesChanged += OnEquipmentPurchased;
     }
+
+    private void OnEquipmentPurchased()
+    {
+        // Hiring before buying register 2 must work in the same preparation phase as buying before hiring.
+        if (fastFoodRestaurant != null && employeeManager != null && !employeeManager.SlotsLocked &&
+            FastFoodProgressionSettings.HasSecondCashier && employeeManager.GetAssignedEmployee(EmployeeRole.Cashier, 1) == null)
+            foreach (var employee in employeeManager.allEmployees)
+                if (employee != null && employee.hired && !employee.assigned && employee.role == EmployeeRole.Cashier)
+                {
+                    employeeManager.AssignEmployeeForDay(employee);
+                    break;
+                }
+        RefreshStaffAssignments();
+    }
+
+    private EmployeeData DeliveryEmployee => employeeManager == null ? null :
+        fastFoodRestaurant != null ? employeeManager.GetAssignedEmployee(EmployeeRole.Busser, 1) :
+        employeeManager.GetAssignedEmployee(EmployeeRole.Waiter);
 
     private void RefreshStaffAssignments()
     {
@@ -233,7 +251,7 @@ public class LobbyAutonomousService : MonoBehaviour
         {
         // Disabling a role stops its coroutine immediately. Release every
         // trolley claim first so no tray or pickup bubble remains locked.
-        if (waiter != null && !IsAssigned(EmployeeRole.Waiter))
+        if (waiter != null && DeliveryEmployee == null)
             CancelActiveTrolleyBatch(waiterTrolley, waiter, activeWaiterTrolleyBatch);
         if (busser != null && !IsAssigned(EmployeeRole.Busser))
         {
@@ -246,11 +264,19 @@ public class LobbyAutonomousService : MonoBehaviour
             EmployeeRole.Host,
             FindStation(null, "HostHomePoint"),
             hostAvoidancePriority);
-        waiter = ConfigureLobbyBot(
-            waiterObject,
-            EmployeeRole.Waiter,
-            FindStation(null, "WaiterHomePoint"),
-            waiterAvoidancePriority);
+        if (fastFoodRestaurant != null)
+        {
+            // Reuse the authored delivery character and the proven waiter hands/trolley routines.
+            var deliveryEmployee = DeliveryEmployee;
+            SetRoleObjectActive(waiterObject, deliveryEmployee != null);
+            waiter = deliveryEmployee != null && waiterObject != null
+                ? AddBot(waiterObject, FindStation(null, "WaiterHomePoint"), waiterAvoidancePriority) : null;
+            waiter?.ConfigurePerformance(deliveryEmployee);
+            LabelLobbyWorker(waiterObject, "Lobby #2");
+            LabelLobbyWorker(busserObject, "Lobby #1");
+        }
+        else waiter = ConfigureLobbyBot(waiterObject, EmployeeRole.Waiter,
+            FindStation(null, "WaiterHomePoint"), waiterAvoidancePriority);
         busser = ConfigureLobbyBot(
             busserObject,
             EmployeeRole.Busser,
@@ -288,6 +314,8 @@ public class LobbyAutonomousService : MonoBehaviour
             secondCashier = secondEmployee != null && secondObject != null
                 ? AddBot(secondObject, authoring.SecondCashierHome, waiterAvoidancePriority + 1) : null;
             secondCashier?.ConfigurePerformance(secondEmployee);
+            LabelLobbyWorker(cashierObject, "Cashier #1");
+            LabelLobbyWorker(secondObject, "Cashier #2");
         }
         else
         {
@@ -309,7 +337,7 @@ public class LobbyAutonomousService : MonoBehaviour
             if (fastFoodRestaurant != null && fastFoodRestaurant.ServiceStations != null)
             {
                 foreach (var station in fastFoodRestaurant.ServiceStations)
-                    if (station != null) station.Flow?.SetAutomatedService(station.IsKiosk || cashier != null);
+                    if (station != null) station.Flow?.SetAutomatedService(station.IsKiosk || cashier != null || secondCashier != null);
             }
             else takeoutFlow?.SetAutomatedService(waiter != null);
             ConfigureIdlePresentation();
@@ -482,6 +510,18 @@ public class LobbyAutonomousService : MonoBehaviour
     private bool IsAssigned(EmployeeRole role) =>
         employeeManager != null && employeeManager.GetAssignedEmployee(role) != null;
 
+    private static void LabelLobbyWorker(GameObject worker, string label)
+    {
+        if (worker == null) return;
+        foreach (var text in worker.GetComponentsInChildren<TMPro.TMP_Text>(true))
+        {
+            string previous = text.text.Trim();
+            if (previous == "Waiter" || previous == "Busser" || previous == "Cashier" || previous == "Cahier" ||
+                previous.StartsWith("Lobby #", System.StringComparison.Ordinal) ||
+                previous.StartsWith("Cashier #", System.StringComparison.Ordinal)) text.text = label;
+        }
+    }
+
     private static void SetRoleObjectActive(GameObject roleObject, bool active)
     {
         active = MultiplayerServiceStaffBridge.AllowRole(roleObject, active);
@@ -613,9 +653,9 @@ public class LobbyAutonomousService : MonoBehaviour
     private string lastFastFoodStaffWarning;
     private void ReportFastFoodStaffReadiness()
     {
-        string warning = cashier == null && busser == null ? "Assign a cashier and busser in the staff scheduler."
+        string warning = cashier == null && busser == null ? "Assign a Cashier and Lobby Person in the staff scheduler."
             : cashier == null ? "Assign a cashier to serve the counters."
-            : busser == null ? "Assign a busser to clear used trays and tables." : null;
+            : busser == null ? "Assign a Lobby Person to clear used trays and tables." : null;
         if (warning == lastFastFoodStaffWarning) return;
         lastFastFoodStaffWarning = warning;
         if (warning != null) WarningSlideUI.Instance?.Show(warning);
@@ -631,10 +671,24 @@ public class LobbyAutonomousService : MonoBehaviour
     {
         if (worker == null || !worker.isActiveAndEnabled || worker.IsBusy || fastFoodRestaurant.ServiceStations == null) return;
         var stations = fastFoodRestaurant.ServiceStations;
+        bool dedicatedCounters = cashier != null && cashier.isActiveAndEnabled &&
+            secondCashier != null && secondCashier.isActiveAndEnabled;
+        FastFoodServiceStation assignedCounter = null;
+        if (dedicatedCounters)
+        {
+            int counterIndex = 0;
+            foreach (var candidate in stations)
+            {
+                if (candidate == null || candidate.IsKiosk) continue;
+                if (counterIndex++ == (worker == secondCashier ? 1 : 0))
+                { assignedCounter = candidate; break; }
+            }
+        }
         for (int i = 0; i < stations.Count; i++)
         {
             int index = (nextCounter + i) % stations.Count;
             var station = stations[index];
+            if (dedicatedCounters && station != assignedCounter) continue;
             if (station == null || !station.isActiveAndEnabled || !station.IsUnlocked || station.IsKiosk || station.StaffApproach == null || station.Queue == null) continue;
             var group = station.Queue.CurrentFront;
             if (group == null || group.IsPlayerReviewingOrder || group.FastFoodPaid ||
@@ -1729,6 +1783,10 @@ public class LobbyAutonomousService : MonoBehaviour
         if (trolley.Count > 0)
         {
             trolley.SetTransporting();
+            // The Fast Food sink approach fits a person, not a cart in front of them.
+            // Dock beside the sink first so the trolley cannot be pushed through the sink or worker.
+            if (fastFoodRestaurant != null)
+                yield return ReturnTrolleyToParking(trolley, busser);
             yield return busser.MoveTo(sink.StandPoint);
             if (busser.LastMoveSucceeded)
             {
@@ -1761,8 +1819,12 @@ public class LobbyAutonomousService : MonoBehaviour
         trolley.ReleaseAllForRetry(busser.transform.position);
         ReleaseBatchClaims(batch, busser);
         ReleaseBoothClaims(cleanupBooths, busser);
-        trolley.SetReturning();
-        yield return ReturnTrolleyToParking(trolley, busser);
+        if (trolley.IsInUse)
+        {
+            trolley.SetReturning();
+            yield return ReturnTrolleyToParking(trolley, busser);
+        }
+        else trolley.EndUse(true);
         activeBusserTrolleyBatch.Clear();
         activeBusserTrolleyBooths.Clear();
     }
@@ -2792,7 +2854,20 @@ public class LobbyAutonomousService : MonoBehaviour
         if (legacyPlayerMovement != null)
             legacyPlayerMovement.enabled = false;
 
+        // Locked staff are inactive during the scene-wide cleanup. Clear copied player
+        // selection visuals on activation too (including the second cashier's UFO).
+        foreach (var indicator in roleObject.GetComponentsInChildren<RoleIndicator>(true))
+        {
+            indicator.SetSelected(false);
+            indicator.enabled = false;
+        }
+
         bot.ConfigureHome(homePoint, avoidancePriority);
+        // Newly enabled staff otherwise idle at their old scene position until their first job.
+        // Use navigation rather than teleporting through customers or furniture.
+        if (roleObject.scene.name == "Lobby2" && homePoint != null && !bot.IsBusy &&
+            (roleObject.transform.position - homePoint.position).sqrMagnitude > 1f)
+            bot.ReturnHomeWhenIdle();
         return bot;
     }
 

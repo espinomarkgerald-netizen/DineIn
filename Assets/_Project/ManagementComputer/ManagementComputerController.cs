@@ -95,6 +95,10 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
 
     public bool IsOpen => desktopRoot != null && desktopRoot.activeSelf;
     public ManagementComputerWindow AppWindow => appWindow;
+    public GameObject DesktopRoot => desktopRoot;
+    public int SelectedApp => selectedApp;
+    public Button GetAppButton(ManagementComputerApp app) => appButtons != null &&
+        (int)app < appButtons.Length ? appButtons[(int)app] : null;
 
     public void ConfigureReferences(
         GameObject configuredDesktopRoot,
@@ -190,6 +194,12 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
 
     private void RouteScrollingWhenCanvasDepthIsInvalid()
     {
+        Vector2 coachPointer = Input.touchCount > 0 ? Input.GetTouch(0).position : (Vector2)Input.mousePosition;
+        if (RestaurantBossTips.Instance?.CoachConsumesPointer(coachPointer) == true)
+        {
+            ResetFallbackInputState();
+            return;
+        }
         Vector2 position = Input.mousePosition;
         Vector2 wheel = Input.mouseScrollDelta;
 
@@ -332,7 +342,8 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
             released = Input.GetMouseButtonUp(0);
         }
 
-        if (!released || fallbackConsumedRelease)
+        if (!released || fallbackConsumedRelease ||
+            RestaurantBossTips.Instance?.CoachConsumesPointer(position) == true)
             return;
 
         TMP_InputField input = FindTopmostInputFieldAt(position);
@@ -362,7 +373,8 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
     public void OnPointerClick(PointerEventData eventData)
     {
         if (!IsOpen || eventData == null ||
-            eventData.button != PointerEventData.InputButton.Left || desktopRoot == null)
+            eventData.button != PointerEventData.InputButton.Left || desktopRoot == null ||
+            RestaurantBossTips.Instance?.CoachConsumesPointer(eventData.position) == true)
             return;
 
         TMP_InputField input = FindTopmostInputFieldAt(eventData.position);
@@ -383,7 +395,8 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
 
     private void InvokeFallbackButton(Button target, Vector2 screenPosition)
     {
-        if (target == null || lastFallbackButtonFrame == Time.frameCount)
+        if (target == null || lastFallbackButtonFrame == Time.frameCount ||
+            RestaurantBossTips.Instance?.CoachConsumesPointer(screenPosition) == true)
             return;
 
         // In the Unity 6 depth -1 case, both Update's raw-input fallback and
@@ -859,7 +872,9 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
             IsShiftActive ? "OPEN" : "CLOSED", string.Empty, null, false);
         AddRow(GetAppIcon(ManagementComputerApp.Menu), "Today's menu", "Products available to the notepad, customers, kitchen and bar",
             menuCount.ToString(), "OPEN MENU", () => OpenApp((int)ManagementComputerApp.Menu));
-        AddRow(GetAppIcon(ManagementComputerApp.Staff), "Scheduled staff", "One employee can be scheduled for each role",
+        AddRow(GetAppIcon(ManagementComputerApp.Staff), "Scheduled staff", EmployeeRoleCatalog.UsesFastFoodRoles
+                ? "Two Lobby People share clearing and delivery; register 2 supports a second Cashier"
+                : "One employee can be scheduled for each role",
             (EmployeeManager.Instance != null ? EmployeeManager.Instance.AssignedEmployeeCount : 0).ToString(),
             "OPEN STAFF", () => OpenApp((int)ManagementComputerApp.Staff));
         AddRow(GetAppIcon(ManagementComputerApp.Restock), "Inventory", "Ingredient stock shared with restaurant orders",
@@ -906,7 +921,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         panel.GetComponent<UIRevealAnimation>()?.Play();
 
         appWindow.SetMessage(editable
-            ? "Hire applicants, keep up to three workers per role, and choose one active worker for the shift."
+            ? "Hire applicants within each role's shown limit. Choose your active staff before opening."
             : "HR decisions are locked while the shift is running.");
     }
 
@@ -1029,7 +1044,9 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         sectionUI.Bind(title, subtitle);
         sectionUI.GetComponent<UIRevealAnimation>()?.Play();
 
-        foreach (Equipment equipment in manager.AllEquipment)
+        var orderedEquipment = new List<Equipment>(manager.AllEquipment);
+        orderedEquipment.Sort(Equipment.CompareProgression);
+        foreach (Equipment equipment in orderedEquipment)
         {
             if (equipment == null || equipment.catalogSection != section)
                 continue;
@@ -1454,7 +1471,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         string staffDetails = everyRoleCovered
             ? (CampaignSaveStore.IsFastFood ? "CASHIER  ✓   BUSSER  ✓   CHEF  ✓   BARISTA  ✓" : "HOST  ✓   WAITER  ✓   CASHIER  ✓   BUSSER  ✓   CHEF  ✓   BARISTA  ✓")
             : missingRoles.Count > 0
-                ? "MISSING: " + string.Join("  •  ", missingRoles).ToUpperInvariant()
+                ? "MISSING: " + string.Join("  •  ", missingRoles.ConvertAll(EmployeeRoleCatalog.DisplayName)).ToUpperInvariant()
                 : "NO ACTIVE EMPLOYEES";
         AddChecklistEntry(
             snapshot,

@@ -325,9 +325,14 @@ public class GameFlowManager : MonoBehaviour
 
     public void ResetRun()
     {
+        ResetRunAtDay(1);
+    }
+
+    private void ResetRunAtDay(int day)
+    {
         if (MultiplayerRestaurantBridge.IsActive) return;
         GameSaveManager.Instance?.CommitDayCheckpoint();
-        currentDay = 1;
+        currentDay = day;
         currentPhase = GamePhase.Management;
         currentDayHalf = DayHalf.Morning;
         lobbyCompleted = false;
@@ -353,12 +358,34 @@ public class GameFlowManager : MonoBehaviour
         EquipmentManager.Instance?.ResetPurchases();
         UnlockManager.Instance?.ResetAll();
 
+        // Reset presentation state too: going back to the same day must replay its unlocks
+        // and optional Big Boss guidance, without replaying every earlier day's notifications.
+        var freshPresentation = new GameSaveData();
+        if (EquipmentManager.Instance?.AllEquipment != null)
+            foreach (var equipment in EquipmentManager.Instance.AllEquipment)
+                if (equipment != null && equipment.dayToUnlock < day)
+                {
+                    freshPresentation.seenUnlockCelebrationIDs.Add("equipment:" + equipment.itemID);
+                    freshPresentation.restaurantBossTipsShown.Add("coach:" + CampaignSaveStore.RestaurantScene + ":equipment:" + equipment.itemID);
+                }
+        if (RecipeManager.AllRecipesStatic != null)
+            foreach (var recipe in RecipeManager.AllRecipesStatic)
+                if (recipe != null && recipe.dayToUnlock < day)
+                    freshPresentation.seenUnlockCelebrationIDs.Add("recipe:" + recipe.recipeID);
+        foreach (var role in new[] { EmployeeRole.Busser, EmployeeRole.Cashier })
+            if (StaffHiringProgressionSettings.UnlockDay(role) < day)
+                freshPresentation.restaurantBossTipsShown.Add("coach:" + CampaignSaveStore.RestaurantScene + ":hire:" + role);
+        UnlockCelebrationManager.EnsureInstance()?.ApplySaveData(freshPresentation);
+        RestaurantBossTips.EnsureInstance()?.ApplySaveData(freshPresentation);
+        MenuAvailabilityManager.Instance?.ApplySaveData(freshPresentation);
+
         EquipmentManager.Instance?.UnlockByDay(ProgressionDay);
+        RecipeManager.Instance?.UnlockByDay(ProgressionDay);
 
         NotifyDayChanged();
         GameSaveManager.Instance?.RequestSave();
 
-        Debug.Log("[GameFlow] Run fully reset to Day 1.");
+        Debug.Log($"[GameFlow] Current restaurant run fully reset to Day {day}.");
 
         if (useSingleRestaurantFlow)
         {
@@ -495,24 +522,14 @@ public class GameFlowManager : MonoBehaviour
 
     public bool TrySetCurrentDayDebug(int day)
     {
-        if (MultiplayerRestaurantBridge.IsActive) return false;
+        if (!DevSettingsConsole.HasAuthorizedDevAccess || MultiplayerRestaurantBridge.IsActive ||
+            !CampaignSaveStore.RuntimeCampaign || CampaignSaveStore.NeedsReload ||
+            GameSaveManager.Instance == null || !GameSaveManager.Instance.HasCompletedInitialLoad ||
+            GameSaveManager.Instance.IsApplyingSave) return false;
         if (day < 1 || day > 30)
             return false;
 
-        currentDay = day;
-
-        EquipmentManager.Instance?.UnlockByDay(ProgressionDay);
-        RecipeManager.Instance?.UnlockByDay(ProgressionDay);
-
-        EquipmentShopManager shop = FindFirstObjectByType<EquipmentShopManager>();
-        shop?.InitializeShop();
-
-        if (currentPhase == GamePhase.Lobby || currentPhase == GamePhase.Restaurant)
-            ShiftScaler.Instance?.ApplyScaling(currentDay);
-
-        CasualDiningPolishManager.EnsureInstance()?.PrepareDay(currentDay, campaignCompleted);
-        NotifyDayChanged();
-        GameSaveManager.Instance?.RequestSave();
+        ResetRunAtDay(day);
         return true;
     }
 

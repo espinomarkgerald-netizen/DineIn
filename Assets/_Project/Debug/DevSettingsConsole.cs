@@ -330,7 +330,7 @@ public class DevSettingsConsole : MonoBehaviour
             return false;
         }
 
-        SetConsoleMessage($"SUCCESS: Day set to {value}.", successColor);
+        SetConsoleMessage($"SUCCESS: Fresh Day {value}. Purchases, staff and unlock guidance reset for this restaurant.", successColor);
         return true;
     }
 
@@ -665,7 +665,8 @@ public class DevSettingsConsole : MonoBehaviour
     {
         SetConsoleMessage(
             "DEV CODES\n" +
-            "day(n), reputation(n), money(n), addMoney(n)\n" +
+            "day(n): RESTART restaurant at day n (resets purchases, staff, money and guides)\n" +
+            "reputation(n), money(n), addMoney(n)\n" +
             "startDay(), endDay(), gameOver(), resetRun(), recover()\n" +
             "zeroStocks(), fillStocks(n), setCoin(n), addCoin(n)\n" +
             "complaint(1), complaint(2), wrongOrder(), burntFood()\n" +
@@ -709,10 +710,19 @@ public class DevSettingsConsole : MonoBehaviour
 
     private bool CanExecuteCommands()
     {
-        if (Application.isEditor)
+        if (Application.isEditor || IsWindowsDebugBuild())
             return true;
 
         return (IsDesktopPlayer() || IsAndroidPlayer()) && playerBuildAccessVerified;
+    }
+
+    private static bool IsWindowsDebugBuild()
+    {
+#if UNITY_STANDALONE_WIN && DEVELOPMENT_BUILD
+        return true;
+#else
+        return false;
+#endif
     }
 
     private static bool IsDesktopPlayer()
@@ -760,7 +770,7 @@ public class DevSettingsConsole : MonoBehaviour
 
     private void RefreshPlayerBuildAuthorization()
     {
-        if (Application.isEditor)
+        if (Application.isEditor || IsWindowsDebugBuild())
         {
             ApplyAuthorizationState();
             return;

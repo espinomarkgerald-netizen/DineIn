@@ -61,7 +61,7 @@ public static class FastFoodProgressionAuthoring
         var kiosk1 = Equipment(config, "ff_kiosk_1", "Kiosk 1", 4, 650,
             "Open the first self-service ordering and payment queue.", EquipmentCatalogSection.Upgrades);
         var cashier = Equipment(config, FastFoodProgressionSettings.SecondCashierID, "Second Cashier Station", 6, 750,
-            "Open counter 2 and unlock a second cashier hire and active assignment in HR.", EquipmentCatalogSection.Upgrades);
+            "Open counter 2. Hire a second cashier from Day 15 in Computer > Staff to staff both registers.", EquipmentCatalogSection.Upgrades);
         var kiosk2 = Equipment(config, "ff_kiosk_2", "Kiosk 2", 11, 1100,
             "Open the second self-service queue for the busiest days.", EquipmentCatalogSection.Upgrades);
         int counters = 0, kiosks = 0;
@@ -75,7 +75,7 @@ public static class FastFoodProgressionAuthoring
         }
         Upgrade(config, "Card Payment", 8, 850, "Accept card payments at cashier counters.");
         Upgrade(config, "Busser Trolley", 9, 950, "Carry several used trays per cleanup trip.");
-        Upgrade(config, "Waiter Trolley", 14, 1400, "Unlock an optional delivery assistant in HR and carry table-delivery meals together.");
+        Upgrade(config, "Waiter Trolley", 14, 1400, "Lobby Person 2 carries several table-delivery meals per trip. Hire a second Lobby Person in Staff.");
 
         var roles = restaurant.gameObject.scene.GetRootGameObjects().SelectMany(g => g.GetComponentsInChildren<RoleManager>(true)).Single();
         var bindings = restaurant.GetComponent<FastFoodLobbyAuthoring>();
@@ -131,6 +131,7 @@ public static class FastFoodProgressionAuthoring
                     "Make all seats at this table available.", EquipmentCatalogSection.BoothsAndSeating);
             if (!config.equipment.Contains(upgrade)) config.equipment.Add(upgrade);
             upgrade.dayToUnlock = rank < 4 ? rank + 2 : Mathf.Min(30, 6 + (rank - 4) * 2);
+            upgrade.catalogSortOrder = rank;
             upgrade.displayName = rank < 2 ? "Back Stool Table " + (rank + 1)
                 : rank < 4 ? "Round Table " + (rank - 1)
                 : rank < 12 ? "Booth " + (rank - 3) : "Window Table " + (rank - 11);
@@ -248,6 +249,8 @@ public static class FastFoodProgressionAuthoring
         var item = AssetDatabase.LoadAssetAtPath<EquipmentUpgrade>(path);
         if (item == null) { item = UnityEngine.Object.Instantiate(original); AssetDatabase.CreateAsset(item, path); }
         item.dayToUnlock = day; item.cost = price; item.description = description;
+        if (name == "Busser Trolley") item.displayName = "Lobby Trolley";
+        if (name == "Waiter Trolley") item.displayName = "Delivery Trolley";
         Save(item); config.equipment.Add(item);
     }
 

@@ -29,5 +29,7 @@ public sealed class FastFoodProgressionSettings : ScriptableObject
     public float Evaluate(AnimationCurve curve, int day) =>
         curve.Evaluate(Mathf.Clamp(day, 1, Mathf.Max(1, difficultyCeilingDay)));
     public static bool HasSecondCashier => Current != null &&
-        EquipmentManager.Instance != null && EquipmentManager.Instance.Purchased(SecondCashierID);
+        EquipmentManager.Instance != null && EquipmentManager.Instance.Purchased(SecondCashierID) &&
+        (StaffHiringProgressionSettings.CurrentDay >= StaffHiringProgressionSettings.UnlockDay(EmployeeRole.Cashier) ||
+         EmployeeManager.Instance != null && EmployeeManager.Instance.GetHiredCount(EmployeeRole.Cashier) > 1);
 }

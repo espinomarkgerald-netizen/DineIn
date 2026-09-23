@@ -24,15 +24,28 @@ public static class EmployeeRoleCatalog
     };
 
     public static IReadOnlyList<EmployeeRole> LobbyRoles => LobbyRoleArray;
-    public static IReadOnlyList<EmployeeRole> KitchenRoles => KitchenRoleArray;
+    public static bool UsesFastFoodRoles => CampaignSaveStore.IsFastFood && !CampaignSaveStore.ProtectedSession;
+    private static readonly EmployeeRole[] FastFoodKitchenRoles =
+        { EmployeeRole.GrillStation, EmployeeRole.FryStation, EmployeeRole.FastFoodAssembler };
+    public static IReadOnlyList<EmployeeRole> KitchenRoles => UsesFastFoodRoles ? FastFoodKitchenRoles : KitchenRoleArray;
+
+    public static string DisplayName(EmployeeRole role) => role switch
+    {
+        EmployeeRole.Busser when UsesFastFoodRoles => "Lobby Person",
+        EmployeeRole.GrillStation => "Grill Station",
+        EmployeeRole.FryStation => "Fry Station",
+        EmployeeRole.FastFoodAssembler => "Assembler",
+        _ => role.ToString()
+    };
 
     public static IReadOnlyList<EmployeeRole> GetRoles(EmployeeDepartment department) =>
-        department == EmployeeDepartment.Kitchen ? KitchenRoleArray : LobbyRoleArray;
+        department == EmployeeDepartment.Kitchen ? KitchenRoles : LobbyRoleArray;
 
     public static bool IsSupported(EmployeeRole role) =>
         role == EmployeeRole.Host || role == EmployeeRole.Waiter ||
         role == EmployeeRole.Cashier || role == EmployeeRole.Busser ||
-        role == EmployeeRole.Chef || role == EmployeeRole.Barista;
+        role == EmployeeRole.Chef || role == EmployeeRole.Barista ||
+        (UsesFastFoodRoles && (role == EmployeeRole.GrillStation || role == EmployeeRole.FryStation || role == EmployeeRole.FastFoodAssembler));
 
     public static EmployeeRole MigrateLegacyRole(EmployeeRole role)
     {

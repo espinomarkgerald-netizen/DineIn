@@ -262,12 +262,12 @@ public sealed class FastFoodRestaurant : MonoBehaviour
             {
                 var table = booth != null ? booth.GetComponent<FastFoodTable>() : null;
                 if (table == null || table.SharedDivider == null) continue;
-                bool sectionAvailable = true;
+                bool sectionAvailable = false;
                 foreach (var other in diningTables)
                 {
                     var neighbour = other != null ? other.GetComponent<FastFoodTable>() : null;
-                    if (neighbour != null && neighbour.SharedDivider == table.SharedDivider && neighbour.AvailableSeats == 0)
-                        sectionAvailable = false;
+                    if (neighbour != null && neighbour.SharedDivider == table.SharedDivider && neighbour.AvailableSeats > 0)
+                        sectionAvailable = true;
                 }
                 table.SharedDivider.SetActive(sectionAvailable);
             }

@@ -44,12 +44,13 @@ public class EquipmentShopManager : MonoBehaviour
     public void RebuildShop()
     {
         Debug.Log($"EquipmentShopManager equipmentList count: {equipmentList?.Count}");
-        if (!contentParent) return;
+        if (!contentParent || equipmentList == null) return;
 
         // Debug: print total unlocked items before building
         int unlockedCount = 0;
         foreach (var equip in equipmentList)
         {
+            if (equip == null) continue;
             bool isUnlocked = UnlockManager.Instance?.IsEquipmentUnlocked(equip.itemID) ?? false;
             Debug.Log($"Equipment {equip.displayName} unlocked? {isUnlocked}");
             if (isUnlocked) unlockedCount++;
@@ -68,19 +69,10 @@ public class EquipmentShopManager : MonoBehaviour
             return;
         }
 
-        // Sort unlocked first
+        // Keep progression order stable even when ownership changes.
         var sorted = new List<Equipment>(equipmentList);
-        sorted.Sort((a, b) =>
-        {
-            bool aUnlocked = UnlockManager.Instance?.IsEquipmentUnlocked(a.itemID) ?? false;
-            bool bUnlocked = UnlockManager.Instance?.IsEquipmentUnlocked(b.itemID) ?? false;
-
-            int unlockCompare = bUnlocked.CompareTo(aUnlocked);
-            if (unlockCompare != 0)
-                return unlockCompare;
-
-            return a.dayToUnlock.CompareTo(b.dayToUnlock);
-        });
+        sorted.RemoveAll(item => item == null);
+        sorted.Sort(Equipment.CompareProgression);
 
         foreach (var equip in sorted)
         {

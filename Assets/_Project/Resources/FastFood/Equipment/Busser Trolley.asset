@@ -13,11 +13,12 @@ MonoBehaviour:
   m_Name: Busser Trolley
   m_EditorClassIdentifier: 
   itemID: upgrade_busser_trolley
-  displayName: Busser Trolley
+  displayName: Lobby Trolley
   cost: 950
   dayToUnlock: 9
   sprite: {fileID: 21300000, guid: 5ad6f17cd98050e4193e24379bfdd2fc, type: 3}
   catalogSection: 1
+  catalogSortOrder: 0
   description: Carry several used trays per cleanup trip.
   effect: 1
   carryCapacity: 4

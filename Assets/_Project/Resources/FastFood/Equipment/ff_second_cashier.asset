@@ -18,5 +18,5 @@ MonoBehaviour:
   dayToUnlock: 6
   sprite: {fileID: 21300000, guid: bf59c2fd769dadc43a1098bbf7ae30aa, type: 3}
   catalogSection: 1
-  description: Open counter 2 and unlock a second cashier hire and active assignment
-    in HR.
+  description: Open counter 2. Hire a second cashier from Day 15 in Computer > Staff
+    to staff both registers.

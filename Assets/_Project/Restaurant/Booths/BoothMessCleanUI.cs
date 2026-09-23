@@ -208,7 +208,7 @@ public class BoothMessCleanUI : MonoBehaviour, IPointerDownHandler, IPointerUpHa
         {
             ShowBlocked(RestaurantTaskClaim.PlayerHasActiveTask
                 ? "Finish Current Task"
-                : "Busser Is Cleaning");
+                : EmployeeRoleCatalog.DisplayName(EmployeeRole.Busser) + " Is Cleaning");
             return;
         }
 
@@ -377,13 +377,13 @@ public class BoothMessCleanUI : MonoBehaviour, IPointerDownHandler, IPointerUpHa
         if (mover != null && !HygieneManager.HandsEmpty(mover)) { blockedReason = "Hands full"; return false; }
         if (RestaurantTaskClaim.IsClaimedByBot(booth))
         {
-            blockedReason = "Busser Is Cleaning";
+            blockedReason = EmployeeRoleCatalog.DisplayName(EmployeeRole.Busser) + " Is Cleaning";
             return false;
         }
 
         if (!IsBusserRoleActive())
         {
-            blockedReason = "Busser Only";
+            blockedReason = EmployeeRoleCatalog.DisplayName(EmployeeRole.Busser) + " Only";
             return false;
         }
 

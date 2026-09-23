@@ -12,7 +12,7 @@ public sealed class FastFoodTable : MonoBehaviour, IInteractable
     [SerializeField, Min(0)] private int starterSeats;
     [SerializeField] private string layoutId;
     [SerializeField, Min(0)] private int layoutPriority = 100;
-    [Tooltip("Optional shared booth divider. Shown only once its entire booth section is available.")]
+    [Tooltip("Optional shared booth divider. Shown when any booth in its section is available.")]
     [SerializeField] private GameObject sharedDivider;
     public GameObject SharedDivider => sharedDivider;
     public string LayoutId => layoutId;

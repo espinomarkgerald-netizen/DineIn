@@ -44,6 +44,14 @@ public sealed class ManagementComputerHRPanel : MonoBehaviour
     public Button KitchenTab => kitchenTab;
     public Button ApplicantsTab => applicantsTab;
     public ScrollRect BodyScroll => bodyScroll;
+    public ManagementEmployeeCardUI FindApplicantCard(EmployeeRole role)
+    {
+        if (sectionsRoot == null || CurrentView != ManagementHRView.Applicants) return null;
+        foreach (var card in sectionsRoot.GetComponentsInChildren<ManagementEmployeeCardUI>())
+            if (card.Employee != null && card.Employee.role == role && !card.Employee.hired &&
+                card.PrimaryButton != null && card.PrimaryButton.interactable) return card;
+        return null;
+    }
 
     public void ConfigureReferences(
         TMP_Text configuredDepartmentTitle,
@@ -138,8 +146,10 @@ public sealed class ManagementComputerHRPanel : MonoBehaviour
         if (departmentDescription != null)
             departmentDescription.text = (lobby
                 ? "Front-of-house service roles"
-                : "Kitchen staffing is limited to Chef and Barista") +
-                " • Choose one active employee per role";
+                : EmployeeRoleCatalog.UsesFastFoodRoles ? "Grill Station, Fry Station and Assembler" : "Kitchen staffing is limited to Chef and Barista") +
+                (EmployeeRoleCatalog.UsesFastFoodRoles && lobby
+                    ? " • Lobby #1 clears; Lobby #2 delivers. Register 2 supports Cashier #2."
+                    : " • Choose one active employee per role");
         SetTabVisual(lobbyTab, lobbyTabLabel, lobby);
         SetTabVisual(kitchenTab, kitchenTabLabel, !lobby);
         SetTabVisual(applicantsTab, applicantsTabLabel, false);
@@ -190,8 +200,8 @@ public sealed class ManagementComputerHRPanel : MonoBehaviour
             if (departmentTitle != null) departmentTitle.text = "NO MATCHING APPLICANTS";
             if (departmentDescription != null)
                 departmentDescription.text = manager != null
-                    ? $"No {role} applicant is currently available • New applicants refresh on Day {manager.ApplicantNextRefreshDay}"
-                    : $"No {role} applicant is currently available";
+                    ? $"No {EmployeeRoleCatalog.DisplayName(role)} applicant is currently available • New applicants refresh on Day {manager.ApplicantNextRefreshDay}"
+                    : $"No {EmployeeRoleCatalog.DisplayName(role)} applicant is currently available";
             return;
         }
 

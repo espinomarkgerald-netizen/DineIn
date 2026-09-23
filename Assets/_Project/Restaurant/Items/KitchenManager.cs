@@ -357,6 +357,14 @@ public class KitchenManager : MonoBehaviour
         return found;
     }
 
+    public void CopyActiveForecasts(List<OrderForecast> destination)
+    {
+        if (destination == null) return;
+        destination.Clear();
+        foreach (var active in activeOrderForecasts.Values)
+            destination.Add(active.Snapshot);
+    }
+
     public int CopyActiveDineInForecasts(List<OrderForecast> destination)
     {
         if (destination == null)

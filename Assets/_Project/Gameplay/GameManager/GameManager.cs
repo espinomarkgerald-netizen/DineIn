@@ -618,7 +618,7 @@ public class GameDayManager : MonoBehaviour
             string missing = multiplayerMissing != null ? string.Join(", ", multiplayerMissing)
                 : EmployeeManager.Instance == null
                 ? "STAFF SYSTEM UNAVAILABLE"
-                : string.Join(", ", EmployeeManager.Instance.GetMissingRequiredRoles());
+                : string.Join(", ", EmployeeManager.Instance.GetMissingRequiredRoles().ConvertAll(EmployeeRoleCatalog.DisplayName));
             ShowWarning("COVER EVERY ROLE BEFORE STARTING: " + missing.ToUpperInvariant());
             return;
         }

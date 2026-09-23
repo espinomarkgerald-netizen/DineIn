@@ -22,6 +22,8 @@ public sealed class FastFoodLobbyAuthoring : MonoBehaviour
     public Transform BusserHome => busserHome;
     public SinkInteractable Sink => sink;
 
+    // Staff homes and trolley parking are authored in the scene, as in Casual Dining.
+    // Runtime assignment changes must not move those anchors.
     public bool ValidateAuthoring(out string problem)
     {
         problem = null;

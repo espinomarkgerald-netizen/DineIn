@@ -9,5 +9,8 @@ public enum EmployeeRole
     LineCook,
     Assembler,
     Chef,
-    Barista
+    Barista,
+    GrillStation,
+    FryStation,
+    FastFoodAssembler
 }

@@ -22,6 +22,10 @@ public sealed class UnlockCelebrationManager : MonoBehaviour
     private int lastScannedDay = -1;
     private string lastScannedRestaurant;
     private float nextDayCheck;
+    public bool HasQueuedUnlocks => presenting || hasActivePresentation || pending.Count > 0;
+    public bool ReadyForCoaching => !HasQueuedUnlocks &&
+        lastScannedDay == StaffHiringProgressionSettings.CurrentDay &&
+        lastScannedRestaurant == CampaignSaveStore.RestaurantScene;
 
     private void Update()
     {
@@ -115,6 +119,7 @@ public sealed class UnlockCelebrationManager : MonoBehaviour
         Equipment equipment = FindEquipment(itemID);
         if (equipment == null)
             return;
+        RestaurantBossTips.EnsureInstance()?.QueueEquipmentGuide(equipment);
         Queue(new UnlockPresentation(
             "equipment:" + itemID,
             equipment.displayName,
@@ -200,6 +205,7 @@ public sealed class UnlockCelebrationManager : MonoBehaviour
                (GameSaveManager.Instance != null &&
                 (!GameSaveManager.Instance.HasCompletedInitialLoad || GameSaveManager.Instance.IsApplyingSave)) ||
                GameplayUIBlocker.IsBlocked() ||
+               RestaurantBossTips.Instance?.IsCoaching == true ||
                (GameDayManager.Instance != null && GameDayManager.Instance.ServiceActive))
             yield return new WaitForSecondsRealtime(0.25f);
 

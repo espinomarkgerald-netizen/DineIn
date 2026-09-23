@@ -496,11 +496,12 @@ public static class ManagementComputerInstaller
         layout.flexibleWidth = 1f;
 
         TMP_Text title = CreateText("RoleTitle", root.transform, 28f, FontStyles.Normal, DarkText,
-            TextAlignmentOptions.MidlineLeft, new Vector2(0f, 1f), Vector2.one,
-            new Vector2(18f, -52f), new Vector2(-300f, -12f));
+            TextAlignmentOptions.MidlineLeft, new Vector2(0f, 1f), new Vector2(0.6f, 1f),
+            new Vector2(18f, -54f), new Vector2(-12f, -6f));
+        title.raycastTarget = false;
         TMP_Text summary = CreateText("RoleSummary", root.transform, 16f, FontStyles.Normal,
             new Color(0.28f, 0.39f, 0.50f), TextAlignmentOptions.MidlineRight,
-            new Vector2(0f, 1f), Vector2.one, new Vector2(300f, -50f), new Vector2(-18f, -14f));
+            new Vector2(0.6f, 1f), Vector2.one, new Vector2(12f, -50f), new Vector2(-18f, -14f));
         CreateText("EmployedLabel", root.transform, 18f, FontStyles.Normal, DarkText,
             TextAlignmentOptions.MidlineLeft, new Vector2(0f, 1f), Vector2.one,
             new Vector2(18f, -82f), new Vector2(-18f, -54f)).text = "YOUR EMPLOYEES";

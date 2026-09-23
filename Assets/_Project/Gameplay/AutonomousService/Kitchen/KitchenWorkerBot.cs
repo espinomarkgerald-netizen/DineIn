@@ -17,6 +17,8 @@ public class KitchenWorkerBot : MonoBehaviour
     [SerializeField] private Transform homePoint;
     [SerializeField] private Transform[] workPoints;
     [SerializeField] private float waitAtPoint = 1.5f;
+    [Tooltip("Fast Food preparation products handled at this station. Assembler accepts every order.")]
+    [SerializeField] private ItemTypeKitchen[] stationProducts;
 
     [Header("Navigation")]
     [SerializeField, Range(0, 99)] private int avoidancePriority = 60;
@@ -68,8 +70,7 @@ public class KitchenWorkerBot : MonoBehaviour
         staffBot.StartTask(WorkWhileOrdersAreActive());
     }
 
-    private bool HasWork => activeOrders.Count > 0 || HygieneManager.Instance?.State.Cleaning == true ||
-        (gameObject.scene.name == "Lobby2" && kitchenManager != null && kitchenManager.HygieneActiveCookingCount > 0);
+    private bool HasWork => activeOrders.Count > 0 || HygieneManager.Instance?.State.Cleaning == true;
 
     private void BindKitchenManager()
     {
@@ -85,7 +86,14 @@ public class KitchenWorkerBot : MonoBehaviour
 
         kitchenManager.OrderStarted += HandleOrderStarted;
         kitchenManager.OrderFinished += HandleOrderFinished;
+        kitchenManager.OrderForecastChanged += HandleForecastChanged;
         subscribed = true;
+        if (gameObject.scene.name == "Lobby2")
+        {
+            var forecasts = new List<KitchenManager.OrderForecast>();
+            kitchenManager.CopyActiveForecasts(forecasts);
+            foreach (var forecast in forecasts) HandleForecastChanged(forecast);
+        }
     }
 
     private void UnbindKitchenManager()
@@ -94,6 +102,7 @@ public class KitchenWorkerBot : MonoBehaviour
         {
             kitchenManager.OrderStarted -= HandleOrderStarted;
             kitchenManager.OrderFinished -= HandleOrderFinished;
+            kitchenManager.OrderForecastChanged -= HandleForecastChanged;
         }
 
         subscribed = false;
@@ -102,12 +111,29 @@ public class KitchenWorkerBot : MonoBehaviour
 
     private void HandleOrderStarted(CustomerGroup group, int orderNumber)
     {
+        if (gameObject.scene.name == "Lobby2" && employeeRole != EmployeeRole.FastFoodAssembler)
+        {
+            if (group == null || group.currentOrder == null || stationProducts == null) return;
+            bool matches = group.currentOrder.ResolveProducts().Exists(product =>
+                product != null && System.Array.IndexOf(stationProducts, product.kitchenItemType) >= 0);
+            if (!matches) return;
+        }
         activeOrders.Add(orderNumber);
     }
 
     private void HandleOrderFinished(CustomerGroup group, int orderNumber, bool succeeded)
     {
         activeOrders.Remove(orderNumber);
+    }
+
+    private void HandleForecastChanged(KitchenManager.OrderForecast forecast)
+    {
+        if (gameObject.scene.name != "Lobby2") return;
+        // Takeout orders can be accepted while paused, then released without a new OrderStarted event.
+        if (forecast.State == KitchenManager.ForecastState.Cooking && !forecast.IsPaused && !forecast.AwaitingSpawn)
+            HandleOrderStarted(forecast.Group, forecast.OrderNumber);
+        else
+            activeOrders.Remove(forecast.OrderNumber);
     }
 
     private IEnumerator WorkWhileOrdersAreActive()
@@ -129,7 +155,7 @@ public class KitchenWorkerBot : MonoBehaviour
 
             Vector3 approach = target.position;
             Transform equipment = null;
-            bool registeredStation = HygieneManager.Instance != null && HygieneManager.Instance.TryGetWorkStation(
+            bool registeredStation = gameObject.scene.name != "Lobby2" && HygieneManager.Instance != null && HygieneManager.Instance.TryGetWorkStation(
                 employeeRole, ref hygieneStationIndex, transform.position, out equipment, out approach);
             if (registeredStation) yield return staffBot.MoveWithin(approach, .25f, .5f, 12f);
             else yield return staffBot.MoveTo(target);

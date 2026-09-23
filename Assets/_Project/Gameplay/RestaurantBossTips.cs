@@ -18,6 +18,15 @@ public sealed class RestaurantBossTips : MonoBehaviour
     private readonly HashSet<string> shown = new();
     private string dayKey;
     private float quietSeconds, nextCheck;
+    private RestaurantUnlockCoach unlockCoach;
+    public Sprite BossPortrait => portrait;
+    public bool IsCoaching => unlockCoach != null && unlockCoach.IsActive;
+    public GameObject CoachOverlayRoot => unlockCoach != null ? unlockCoach.OverlayRoot : null;
+    public bool CoachConsumesPointer(Vector2 position) => unlockCoach != null && unlockCoach.ConsumesPointer(position);
+    public bool HasSeenCoach(string id) => shown.Contains("coach:" + id);
+    public void MarkCoachSeen(string id) { shown.Add("coach:" + id); }
+    public void QueueEquipmentGuide(Equipment equipment) => unlockCoach?.QueueEquipment(equipment);
+    public void HideIdleTip() => dialogue?.HideDialogue();
 
     public static RestaurantBossTips EnsureInstance()
     {
@@ -32,11 +41,13 @@ public sealed class RestaurantBossTips : MonoBehaviour
         Instance = this;
         DontDestroyOnLoad(gameObject);
         dialogue?.HideDialogue();
+        unlockCoach = gameObject.AddComponent<RestaurantUnlockCoach>();
     }
     private void OnDestroy() { if (Instance == this) Instance = null; }
 
     private void Update()
     {
+        if (IsCoaching) return;
         string scene = SceneManager.GetActiveScene().name;
         bool restaurant = scene == "Lobby1" || scene == "Lobby2" || scene == "Lobby1 Multiplayer";
         if (!restaurant || TutorialSystem.IsTutorialMode || GameplayUIBlocker.IsBlocked() ||
@@ -75,9 +86,14 @@ public sealed class RestaurantBossTips : MonoBehaviour
         GameSaveManager.Instance?.RequestSave();
     }
 
-    public void FillSaveData(GameSaveData data) => data.restaurantBossTipsShown = new List<string>(shown);
+    public void FillSaveData(GameSaveData data)
+    {
+        data.restaurantBossTipsShown = new List<string>(shown);
+        unlockCoach?.FillSaveData(data);
+    }
     public void ApplySaveData(GameSaveData data)
     {
+        unlockCoach?.ApplySaveData(data);
         shown.Clear();
         if (data.restaurantBossTipsShown != null)
             foreach (string id in data.restaurantBossTipsShown) if (!string.IsNullOrEmpty(id)) shown.Add(id);

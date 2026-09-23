@@ -44,6 +44,7 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
     [Header("Utility Buttons")]
     [SerializeField] private Button cameraButton;
     [SerializeField] private Button computerButton;
+    public Button ComputerButton => computerButton;
     [SerializeField] private Button newspaperButton;
     [SerializeField] private TMP_Text interactionLabel;
 
@@ -237,7 +238,10 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
             && RestockFlowCoordinator.Instance.IsRestockRoomOpen;
         inLobby &= !localMultiplayerRestock;
         bool taskHudScene = (inLobby || inRestock) && !localMultiplayerRestock;
-        bool visible = taskHudScene && !GameplayUIBlocker.IsBlocked();
+        // The coach's mask controls input, but must not hide the HUD button it is explaining.
+        // All other modals (computer, newspaper, pause, etc.) retain their usual visibility rules.
+        bool visible = taskHudScene &&
+            !GameplayUIBlocker.IsBlockedExcept(RestaurantBossTips.Instance?.CoachOverlayRoot);
         if (!inLobby)
         {
             selectedInteractionName = string.Empty;

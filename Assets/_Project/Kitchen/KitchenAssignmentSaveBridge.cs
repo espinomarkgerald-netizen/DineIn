@@ -84,6 +84,16 @@ public class KitchenAssignmentSaveBridge : MonoBehaviour
 
     public float GetMealSpawnTime()
     {
+        if (EmployeeRoleCatalog.UsesFastFoodRoles && EmployeeManager.Instance != null)
+        {
+            var staff = EmployeeManager.Instance;
+            var grill = staff.GetAssignedEmployee(EmployeeRole.GrillStation);
+            var fry = staff.GetAssignedEmployee(EmployeeRole.FryStation);
+            var assembler = staff.GetAssignedEmployee(EmployeeRole.FastFoodAssembler);
+            // Keep the existing two-stage duration: cooking average plus assembly.
+            return Mathf.Max(1f, (GetTimeFromStars(grill?.stars ?? 0) +
+                GetTimeFromStars(fry?.stars ?? 0)) * .5f + GetTimeFromStars(assembler?.stars ?? 0));
+        }
         float total = GetChefSpawnTime() + GetBaristaSpawnTime();
         return Mathf.Max(1f, total);
     }
