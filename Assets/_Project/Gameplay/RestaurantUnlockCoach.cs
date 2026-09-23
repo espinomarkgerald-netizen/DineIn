@@ -79,6 +79,11 @@ public sealed class RestaurantUnlockCoach : MonoBehaviour
             if (IsActive) StopGuide(true);
             return;
         }
+        if (IsActive && (view == null || !view.gameObject.activeInHierarchy))
+        {
+            StopGuide(true);
+            return;
+        }
         if (Time.timeScale <= 0f || HygieneManager.DecisionPaused ||
             ManagerComplaintSystem.Instance?.HasActiveComplaint == true)
         {
@@ -109,6 +114,9 @@ public sealed class RestaurantUnlockCoach : MonoBehaviour
         if (step == Step.Equipment)
         {
             if (computer == null || !computer.IsOpen) { StopGuide(true); return; }
+            if (computer.SelectedApp != (int)ManagementComputerApp.Equipment ||
+                computer.AppWindow == null || !computer.AppWindow.gameObject.activeInHierarchy)
+            { StopGuide(true); return; }
             if (GameplayUIBlocker.IsBlockedExcept(computer.DesktopRoot))
             {
                 view.SetSuspended(true);
@@ -145,7 +153,7 @@ public sealed class RestaurantUnlockCoach : MonoBehaviour
         }
         if (equipmentGuide) { ShowEquipmentPage(); return; }
         var panel = computer.AppWindow.GetComponentInChildren<ManagementComputerHRPanel>();
-        if (panel == null || panel.ApplicantsTab == null) return;
+        if (panel == null || panel.ApplicantsTab == null) { StopGuide(true); return; }
         if (panel != focusedPanel) { focusedPanel = panel; focusedApplicants = false; }
         if (panel.CurrentView != ManagementHRView.Applicants)
         {
@@ -182,7 +190,7 @@ public sealed class RestaurantUnlockCoach : MonoBehaviour
         }
         // Let the player compare and choose any candidate in this role's applicant rail.
         view.SetTarget(card != null ? card.transform.parent as RectTransform : null,
-            card != null ? card.PrimaryButton.transform as RectTransform : null);
+            card != null && card.PrimaryButton != null ? card.PrimaryButton.transform as RectTransform : null);
     }
 
     private bool TryMilestone(EmployeeRole candidate)
@@ -192,43 +200,45 @@ public sealed class RestaurantUnlockCoach : MonoBehaviour
         role = candidate;
         milestone = MilestoneID(candidate);
         equipmentGuide = false;
-        Begin();
+        if (!Begin()) return false;
         employeeManager = EmployeeManager.Instance;
         employeeManager.ApplicantHired += OnHired;
         string name = EmployeeRoleCatalog.DisplayName(role);
         step = Step.Introduction;
         bool alreadyHired = employeeManager.GetHiredCount(role) >= 2;
-        Show("DAY " + StaffHiringProgressionSettings.UnlockDay(role) + "  •  NEW HIRE SLOT",
+        view.ShowOffer("DAY " + StaffHiringProgressionSettings.UnlockDay(role) + "  •  NEW HIRE SLOT",
             alreadyHired
-                ? "Your extra " + name + " hire slot is open. You already have extra staff, so let's review how scheduling works."
+                ? "Your extra " + name + " hire slot is open. You already have extra staff. I can walk you through scheduling them."
                 : "Hey, the restaurant is getting busy. I've opened another " + name +
-                  " hire slot, so you can hire someone else. Let me show you how.",
-            alreadyHired ? "REVIEW" : "SHOW ME", () => { if (alreadyHired) ShowSummary(true); else ShowComputerStep(); }, true);
+                  " hire slot, so you can bring in another team member.",
+            () => { if (alreadyHired) ShowSummary(true); else ShowComputerStep(); }, Complete);
         return true;
     }
 
-    private void Begin()
+    private bool Begin()
     {
         session = Session;
         owner.HideIdleTip();
         if (view == null) view = RestaurantUnlockCoachUI.Create(owner.BossPortrait);
+        if (view == null) { deferredSession = session; return false; }
         view.Later = () => StopGuide(true);
         view.Skip = Complete;
         focusedPanel = null;
         focusedApplicants = false;
+        return true;
     }
 
     private void BeginEquipment()
     {
         equipmentGuide = true;
         equipmentIndex = 0;
-        Begin();
+        if (!Begin()) return;
         step = Step.Introduction;
-        Show("NEW EQUIPMENT  •  QUICK TOUR",
-            "You've unlocked " + equipmentBatch.Count + " new equipment " +
-            (equipmentBatch.Count == 1 ? "item" : "items") +
-            ". Let's find them in the computer. I'll explain what each does. Buy only what fits your budget.",
-            "SHOW ME", ShowComputerStep, true);
+        string additions = string.Join(", ", equipmentBatch.ConvertAll(item => item.displayName));
+        view.ShowOffer("NEW EQUIPMENT  •  QUICK TOUR",
+            "I've made some new additions available for your restaurant: " + additions +
+            ". You'll find them in Computer > Equipment. Buy only what fits your budget.",
+            ShowComputerStep, Complete);
     }
 
     private void ShowComputerStep()

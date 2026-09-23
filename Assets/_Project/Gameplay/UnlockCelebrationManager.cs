@@ -119,9 +119,21 @@ public sealed class UnlockCelebrationManager : MonoBehaviour
         Equipment equipment = FindEquipment(itemID);
         if (equipment == null)
             return;
-        RestaurantBossTips.EnsureInstance()?.QueueEquipmentGuide(equipment);
+        // The Big Boss offer is the equipment announcement, followed by an optional tour.
+        // Keep the existing notice as a fallback if the authored guide is unavailable.
+        if (CampaignSaveStore.RuntimeCampaign && !TutorialSystem.IsTutorialMode &&
+            Resources.Load<GameObject>(RestaurantUnlockCoachUI.ResourcePath) != null)
+        {
+            RestaurantBossTips.EnsureInstance()?.QueueEquipmentGuide(equipment);
+            return;
+        }
+        QueueEquipmentNotice(equipment);
+    }
+
+    private void QueueEquipmentNotice(Equipment equipment)
+    {
         Queue(new UnlockPresentation(
-            "equipment:" + itemID,
+            "equipment:" + equipment.itemID,
             equipment.displayName,
             string.IsNullOrWhiteSpace(equipment.description)
                 ? "A new restaurant item is now available."
@@ -149,7 +161,9 @@ public sealed class UnlockCelebrationManager : MonoBehaviour
     {
         seen.Remove("equipment:" + itemID);
         queued.Remove("equipment:" + itemID);
-        QueueEquipment(itemID);
+        // Explicit debug replays must still work after the player declines coaching.
+        Equipment equipment = FindEquipment(itemID);
+        if (equipment != null) QueueEquipmentNotice(equipment);
     }
 
     private void QueueCurrentDayUnlocks()
@@ -225,6 +239,9 @@ public sealed class UnlockCelebrationManager : MonoBehaviour
         if (view == null)
         {
             Debug.LogWarning("[UnlockCelebration] Editable UI prefab is missing.");
+            // Release the presentation queue so an unavailable notice cannot hold up coaching.
+            pending.Clear();
+            queued.Clear();
             presenting = false;
             yield break;
         }

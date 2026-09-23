@@ -39,6 +39,7 @@ public sealed class UnlockCelebrationUI : MonoBehaviour
     [SerializeField] private Button closeButton;
     [SerializeField] private CanvasGroup canvasGroup;
     [SerializeField, Min(0f)] private float entranceDuration = 0.28f;
+    [SerializeField, Min(1f)] private float noticeDuration = 8f;
     [SerializeField, Min(0f)] private float safeAreaPadding = 20f;
     [SerializeField, Range(0.5f, 1f)] private float maximumSafeWidth = 0.86f;
     [SerializeField, Range(0.5f, 1f)] private float maximumSafeHeight = 0.82f;
@@ -48,6 +49,7 @@ public sealed class UnlockCelebrationUI : MonoBehaviour
     private Rect lastSafeArea = new Rect(-1f, -1f, -1f, -1f);
     private Vector2Int lastScreenSize = new Vector2Int(-1, -1);
     private float responsivePanelScale = 1f;
+    private float dismissAt;
 
     public int AuthoringVersion => authoringVersion;
 
@@ -91,12 +93,25 @@ public sealed class UnlockCelebrationUI : MonoBehaviour
             canvasGroup = GetComponent<CanvasGroup>();
         continueButton?.onClick.AddListener(Dismiss);
         closeButton?.onClick.AddListener(Dismiss);
+        // Only the notice and its own buttons receive input; the backdrop must not block play.
+        foreach (Graphic graphic in GetComponentsInChildren<Graphic>(true))
+        {
+            graphic.raycastTarget = graphic.transform == panel ||
+                graphic.GetComponentInParent<Button>() != null;
+            if (graphic is Image backdrop && graphic.transform != panel &&
+                (panel == null || !graphic.transform.IsChildOf(panel)) &&
+                graphic.GetComponentInParent<Button>() == null)
+                backdrop.enabled = false;
+        }
         if (dismissed == null)
             gameObject.SetActive(false);
     }
 
     private void Update()
     {
+        if (dismissed != null && (Time.unscaledTime >= dismissAt ||
+            GameDayManager.Instance != null && GameDayManager.Instance.ServiceActive))
+        { Dismiss(); return; }
         if (gameObject.activeSelf &&
             (lastSafeArea != Screen.safeArea ||
              lastScreenSize.x != Screen.width || lastScreenSize.y != Screen.height))
@@ -106,6 +121,7 @@ public sealed class UnlockCelebrationUI : MonoBehaviour
     public void Show(UnlockPresentation presentation, Action onDismissed)
     {
         dismissed = onDismissed;
+        dismissAt = Time.unscaledTime + noticeDuration;
         if (icon != null)
         {
             icon.sprite = presentation.icon;
@@ -126,7 +142,7 @@ public sealed class UnlockCelebrationUI : MonoBehaviour
             canvasGroup.interactable = true;
             canvasGroup.blocksRaycasts = true;
         }
-        GameplayUIBlocker.Instance?.SetPanelBlocksGameplay(gameObject, true);
+        GameplayUIBlocker.Instance?.SetPanelBlocksGameplay(gameObject, false);
         ApplySafeArea();
         StopAllCoroutines();
         StartCoroutine(AnimateEntrance());
@@ -163,9 +179,12 @@ public sealed class UnlockCelebrationUI : MonoBehaviour
     public void HideForSceneTransition()
     {
         StopAllCoroutines();
+        dismissed = null;
         GameplayUIBlocker.Instance?.SetPanelBlocksGameplay(gameObject, false);
         gameObject.SetActive(false);
     }
+
+    private void OnDisable() => GameplayUIBlocker.Instance?.SetPanelBlocksGameplay(gameObject, false);
 
     private void ApplySafeArea()
     {
