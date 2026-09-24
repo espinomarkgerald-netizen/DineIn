@@ -35,10 +35,9 @@ public static class FastFoodStaffAuthoring
             fry = clone.GetComponent<KitchenWorkerBot>();
         }
         Configure(grill, EmployeeRole.GrillStation, Anchor(grillPoint, "GrillWorkPoint"),
-            new[] { ItemTypeKitchen.Burger }, 60);
+            new[] { ItemTypeKitchen.Burger, ItemTypeKitchen.ChickenSandwich, ItemTypeKitchen.FishFilletSandwich }, 60);
         Configure(fry, EmployeeRole.FryStation, Anchor(fryPoint, "FryWorkPoint"),
-            new[] { ItemTypeKitchen.Chicken, ItemTypeKitchen.Fries, ItemTypeKitchen.ChickenNuggets,
-                ItemTypeKitchen.ChickenSandwich, ItemTypeKitchen.FishFilletSandwich }, 65);
+            new[] { ItemTypeKitchen.Chicken, ItemTypeKitchen.Fries, ItemTypeKitchen.ChickenNuggets }, 65);
         var assemblyData = new SerializedObject(assembler);
         assemblyData.FindProperty("employeeRole").intValue = (int)EmployeeRole.FastFoodAssembler;
         assemblyData.ApplyModifiedProperties();

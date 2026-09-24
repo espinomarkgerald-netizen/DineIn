@@ -257,7 +257,7 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
             hudGroup.blocksRaycasts = visible;
         }
 
-        SetLobbyOnlyControlsVisible(inLobby);
+        SetLobbyOnlyControlsVisible(inLobby && FastFoodCookingController.Instance?.IsHelpingKitchen != true);
     }
 
     private void CaptureAuthoredVisibility()

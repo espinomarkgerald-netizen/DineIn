@@ -281,6 +281,7 @@ public class GameSaveManager : MonoBehaviour
         if (CampaignSaveStore.IsFastFood)
         {
             DailyObjectiveManager.Instance?.FillSaveData(data);
+            FastFoodCookingController.Instance?.FillSaveData(data);
             data.fastFoodFinance = DailyFinanceBridge.Instance?.CaptureNetworkState();
             if (data.fastFoodDayComplete) data.fastFoodDayStats = GameDayManager.Instance?.CaptureFastFoodReport();
         }
@@ -441,6 +442,7 @@ public class GameSaveManager : MonoBehaviour
             if (CampaignSaveStore.IsFastFood)
             {
                 DailyObjectiveManager.Instance?.ApplySaveData(data);
+                FastFoodCookingController.ForScene()?.ApplySaveData(data);
                 FinanceManager.Instance?.ResetDailyExpenses();
                 DailyRevenueTracker.Instance?.ResetForNewDay();
                 DailyFinanceBridge.Instance?.ApplyRestaurantSave(data.fastFoodFinance);

@@ -300,7 +300,8 @@ public sealed partial class CasualDiningProgressHUD : MonoBehaviour
 
     public void RefreshBlockingVisibility()
     {
-        bool canPresent = supportedSceneVisible && (!hideWhileGameplayUIBlocked || !GameplayUIBlocker.IsBlocked());
+        bool canPresent = supportedSceneVisible && FastFoodCookingController.Instance?.IsHelpingKitchen != true
+            && (!hideWhileGameplayUIBlocked || !GameplayUIBlocker.IsBlocked());
         if (hudGroup != null)
         {
             hudGroup.alpha = canPresent ? 1f : 0f;

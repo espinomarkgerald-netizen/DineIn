@@ -1834,6 +1834,14 @@ public partial class CustomerGroup : MonoBehaviour
             return false;
         }
 
+        if (FastFoodCookingController.Handles(this))
+        {
+            var products = currentOrder != null ? currentOrder.ResolveProducts() : new List<Recipe>();
+            if (FastFoodCookingController.Instance.Accept(this, products, () => CompleteOrderTaking(food, drink, ticketOwner))) return true;
+            WarnAndLeaveForMissingStock();
+            return false;
+        }
+
         if (LobbyStockBridge.Instance != null)
         {
             List<Recipe> products = currentOrder != null

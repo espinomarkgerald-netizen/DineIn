@@ -38,6 +38,8 @@ public class ItemData : ScriptableObject
 
     [Tooltip("Cardboard-box or crate prefab. Its label is populated from this item data.")]
     public GameObject worldContainerPrefab;
+    [Tooltip("Optional raw ingredient preview for kitchen dragging. Empty uses the station's saved preview template.")]
+    public GameObject kitchenPreviewPrefab;
 
     [Tooltip("First version uses one physical shelf cell per container.")]
     public Vector2Int gridFootprint = Vector2Int.one;

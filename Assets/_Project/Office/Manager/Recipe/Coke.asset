@@ -14,12 +14,19 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   recipeID: 04
   recipeName: Coke
+  restaurantType: 0
   category: 1
   availableOnMenu: 1
   menuSortOrder: 0
   kitchenItemType: 4
+  cookingStation: 3
+  firstCookingIngredient: {fileID: 11400000, guid: 69cc4862a76fc1542bbcb2ba9bbff83b, type: 2}
   sprite: {fileID: 21300000, guid: 85cf06d21ea9d7b4d9eb81f3472adce4, type: 3}
   servingPrefab: {fileID: 4581912667970629835, guid: 34220fa8a4035ac43b85eaf3bbdb6d6c, type: 3}
+  servingPositionOffset: {x: 0, y: 0, z: 0}
+  servingRotation: {x: 0, y: 0, z: 0}
+  servingScale: {x: 1, y: 1, z: 1}
+  normalizedServingTransform: 0
   dayToUnlock: 1
   ingredients:
   - item: {fileID: 11400000, guid: 69cc4862a76fc1542bbcb2ba9bbff83b, type: 2}

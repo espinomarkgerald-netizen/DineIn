@@ -72,7 +72,9 @@ public static class ReviewedOrderSubmission
                 return group.ConfirmPlayerReviewedOrder(food, drink,
                     acceptedGroup => acceptedGroup.IsTakeout || kitchen.ProcessOrder(acceptedGroup));
             };
-            committed = stock == null ? commit() : stock.TryUseOrderStock(products, commit);
+            committed = FastFoodCookingController.Handles(group)
+                ? FastFoodCookingController.Instance.Accept(group, products, commit)
+                : stock == null ? commit() : stock.TryUseOrderStock(products, commit);
         }
         finally
         {

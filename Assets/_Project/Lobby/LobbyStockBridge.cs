@@ -138,6 +138,16 @@ public class LobbyStockBridge : MonoBehaviour
         if (!MenuAvailabilityManager.IsProductAvailable(product))
             return 0;
 
+        var cooking = FastFoodCookingController.Instance;
+        if (cooking != null && cooking.Active)
+        {
+            int free = cooking.State.Portions.FindAll(p => p.recipe == product && p.order < 0 && p.stage != FastFoodCookingStage.Burnt && !p.dragging).Count;
+            var costs = FastFoodCookingState.Requirements(product);
+            int raw = int.MaxValue;
+            foreach (var cost in costs) raw = Mathf.Min(raw, cooking.State.Available(cost.Key) / cost.Value);
+            return free + (raw == int.MaxValue ? 0 : raw);
+        }
+
         var inv = InventoryManager.Instance;
         if (inv == null || product == null)
             return 0;
@@ -168,6 +178,14 @@ public class LobbyStockBridge : MonoBehaviour
 
     public bool HasOrderStock(IReadOnlyList<Recipe> products, int quantity = 1)
     {
+        var cooking = FastFoodCookingController.Instance;
+        if (cooking != null && cooking.Active)
+        {
+            if (products == null) return false;
+            var expanded = new List<Recipe>();
+            for (int i = 0; i < Mathf.Max(1, quantity); i++) expanded.AddRange(products);
+            return cooking.State.CanAccept(expanded);
+        }
         var inv = InventoryManager.Instance;
         if (inv == null || products == null || products.Count == 0)
             return false;
@@ -191,6 +209,14 @@ public class LobbyStockBridge : MonoBehaviour
     /// </summary>
     public int GetOrderStock(IReadOnlyList<Recipe> products)
     {
+        var cooking = FastFoodCookingController.Instance;
+        if (cooking != null && cooking.Active)
+        {
+            int low = 0, high = 1;
+            while (high < 4096 && HasOrderStock(products, high)) high *= 2;
+            while (low + 1 < high) { int mid = (low + high) / 2; if (HasOrderStock(products, mid)) low = mid; else high = mid; }
+            return low;
+        }
         var inv = InventoryManager.Instance;
         if (inv == null || products == null || products.Count == 0)
             return 0;
@@ -230,6 +256,11 @@ public class LobbyStockBridge : MonoBehaviour
     }
 
     private void RefreshProductStocks(bool notifyOutOfStock)
+        => RefreshProductStocksInternal(notifyOutOfStock);
+
+    public void RefreshKitchenAvailability() => RefreshProductStocksInternal(false);
+
+    private void RefreshProductStocksInternal(bool notifyOutOfStock)
     {
         BindInventory();
         MenuCatalog catalog = MenuCatalog.Default;
@@ -252,7 +283,7 @@ public class LobbyStockBridge : MonoBehaviour
             OnProductStockChanged?.Invoke(product, current);
             bool applyingSave = GameSaveManager.Instance != null &&
                                 GameSaveManager.Instance.IsApplyingSave;
-            if (notifyOutOfStock && !applyingSave && previous > 0 && current == 0)
+            if (notifyOutOfStock && !applyingSave && previous > 0 && current == 0 && FastFoodCookingController.Instance == null)
             {
                 string message = product.DisplayName +
                     " is out of stock. Restock it from the management computer.";

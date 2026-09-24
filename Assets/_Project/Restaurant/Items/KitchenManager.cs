@@ -136,6 +136,7 @@ public class KitchenManager : MonoBehaviour
 
     private void ClearServiceOrders()
     {
+        if (gameObject.scene.name == "Lobby2") FastFoodCookingController.Instance?.ResetForDay();
         StopAllCoroutines();
         cookingOrders.Clear(); completedOrders.Clear(); activeOrderForecasts.Clear(); completedOrderForecasts.Clear();
         preparedResults.Clear(); preparedSlots.Clear(); spawningResults.Clear();
@@ -541,6 +542,7 @@ public class KitchenManager : MonoBehaviour
     {
         bool spawnedSuccessfully = false;
         bool heldBeforeSpawn = false;
+        var cooking = FastFoodCookingController.Handles(group) ? FastFoodCookingController.Instance : null;
 
         try
         {
@@ -570,13 +572,19 @@ public class KitchenManager : MonoBehaviour
                     NotifyForecastChanged(admitted);
                 }
             }
-            if (!resumeAtSpawn && preparationSnapshot > 0f)
+            if (cooking != null && !resumeAtSpawn)
+            {
+                yield return cooking.WaitForAssembly(group);
+                if (!cooking.IsAssembled(orderNo)) yield break;
+            }
+
+            if (cooking == null && !resumeAtSpawn && preparationSnapshot > 0f)
                 yield return WaitForKitchenTime(group, orderNo, preparationSnapshot, cookSnapshot);
 
             if (!resumeAtSpawn && !MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer && ProcessingBillIndicatorUI.Instance != null)
                 ProcessingBillIndicatorUI.Instance.Show("Order #" + orderNo + " is being prepared");
 
-            if (!resumeAtSpawn && cookSnapshot > 0f)
+            if (cooking == null && !resumeAtSpawn && cookSnapshot > 0f)
                 yield return WaitForKitchenTime(group, orderNo, cookSnapshot, 0f);
 
             while (HygieneManager.KitchenPaused)
@@ -741,6 +749,7 @@ public class KitchenManager : MonoBehaviour
         {
             if (!heldBeforeSpawn)
             {
+                cooking?.Release(orderNo, spawnedSuccessfully);
                 cookingOrders.Remove(orderNo);
                 if (resumeAtSpawn && activeOrderForecasts.TryGetValue(orderNo, out var finished))
                 {

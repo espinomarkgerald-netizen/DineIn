@@ -118,6 +118,14 @@ public sealed class RestockRoomController
             identity = dragPreview.AddComponent<RestockStorageContainer>();
         identity.Bind(dragItem);
 
+        previewOutline = PrepareWorldDragPreview(dragPreview);
+        UpdateHotbarWorldDrag(screenPosition);
+        return true;
+    }
+
+    // Shared by restocking and kitchen help: a preview must never participate in physics or gameplay.
+    public static Outline PrepareWorldDragPreview(GameObject dragPreview)
+    {
         Collider[] colliders = dragPreview.GetComponentsInChildren<Collider>(true);
         for (int i = 0; i < colliders.Length; i++)
             colliders[i].enabled = false;
@@ -134,15 +142,14 @@ public sealed class RestockRoomController
         for (int i = 0; i < behaviours.Length; i++)
             behaviours[i].enabled = false;
 
-        previewOutline = dragPreview.GetComponent<Outline>();
+        var previewOutline = dragPreview.GetComponent<Outline>();
         if (previewOutline == null)
             previewOutline = dragPreview.AddComponent<Outline>();
         previewOutline.OutlineMode = Outline.Mode.OutlineAll;
         previewOutline.OutlineWidth = 5f;
         previewOutline.enabled = true;
 
-        UpdateHotbarWorldDrag(screenPosition);
-        return true;
+        return previewOutline;
     }
 
     public void UpdateHotbarWorldDrag(Vector2 screenPosition)

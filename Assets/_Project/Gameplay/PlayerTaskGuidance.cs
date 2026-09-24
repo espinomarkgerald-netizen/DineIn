@@ -6,7 +6,8 @@ public enum PlayerTaskCategory
 {
     None,
     Service,
-    Restock
+    Restock,
+    Kitchen
 }
 
 public readonly struct PlayerTaskView
@@ -56,11 +57,18 @@ public static class PlayerTaskGuidance
     public static event Action Changed;
 
     public static PlayerTaskView Current => current;
+    private static bool kitchenFocus;
+    public static void SetKitchenFocus(bool value) { kitchenFocus = value; SelectCurrent(); }
+    public static PlayerTaskView RestockNotification
+    {
+        get { foreach (var task in Tasks.Values) if (task.Category == PlayerTaskCategory.Restock && task.IsValid) return task; return default; }
+    }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetRuntimeState()
     {
         Tasks.Clear();
+        kitchenFocus = false;
         current = default;
         Changed = null;
     }
@@ -108,6 +116,8 @@ public static class PlayerTaskGuidance
         foreach (KeyValuePair<string, PlayerTaskView> pair in Tasks)
         {
             PlayerTaskView candidate = pair.Value;
+            if (kitchenFocus && candidate.Category != PlayerTaskCategory.Kitchen) continue;
+            if (!kitchenFocus && candidate.Category == PlayerTaskCategory.Kitchen) continue;
             if (!candidate.IsValid)
                 continue;
 

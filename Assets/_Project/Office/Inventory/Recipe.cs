@@ -32,6 +32,17 @@ public class Recipe : ScriptableObject
     [Header("Kitchen")]
     [Tooltip("The matching kitchen item type. Must be set for kitchen orders to spawn this recipe.")]
     public ItemTypeKitchen kitchenItemType = ItemTypeKitchen.None;
+    [Header("Fast Food Cooking")]
+    [Tooltip("Station for this product. None retains the legacy automatic mapping.")]
+    public FastFoodStationMode cookingStation;
+    [Tooltip("Ingredient to cook first. Remaining ingredients follow the Ingredients list order.")]
+    public ItemData firstCookingIngredient;
+    [Tooltip("Optional kitchen model override. Include a Collider and FastFoodCookingDragHandle. Its local transform is relative to the saved food anchor.")]
+    public GameObject kitchenCookingPrefab;
+    [Tooltip("Optional finished serving override for the kitchen assembly tray. Its local transform is relative to a saved tray anchor.")]
+    public GameObject kitchenServingPrefab;
+    [Tooltip("Optional drag preview for this finished food. Empty uses the station template.")]
+    public GameObject kitchenPreviewPrefab;
 
     [Header("Visuals")]
     public Sprite sprite;

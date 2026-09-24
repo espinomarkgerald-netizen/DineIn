@@ -182,6 +182,7 @@ public class RestockStoredContainerSaveData
 public class GameSaveData
 {
     public int saveSchemaVersion = 3;
+    public List<FastFoodReadyFoodSaveEntry> fastFoodReadyFood = new List<FastFoodReadyFoodSaveEntry>();
     public DailyObjectiveManager.NetworkState objectives;
     public bool fastFoodDayComplete;
     public int[] fastFoodDayStats;

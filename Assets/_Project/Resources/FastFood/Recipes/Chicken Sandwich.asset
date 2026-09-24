@@ -19,6 +19,8 @@ MonoBehaviour:
   availableOnMenu: 1
   menuSortOrder: 3
   kitchenItemType: 20
+  cookingStation: 1
+  firstCookingIngredient: {fileID: 11400000, guid: 501f1cc693c99824fb261750b399a25e, type: 2}
   sprite: {fileID: 21300000, guid: 0f00fb3fb2b499446a680a63de58e54d, type: 3}
   servingPrefab: {fileID: 4502035195088835335, guid: 2185e7938ea9e4f49bb5812113228cfb, type: 3}
   servingPositionOffset: {x: 0, y: 0, z: 0}

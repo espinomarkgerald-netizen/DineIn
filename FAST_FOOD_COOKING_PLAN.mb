@@ -1,0 +1,121 @@
+# Fast Food Cooking — Implementation and Verification
+
+Target: single-player Fast Food in Lobby2. Updated 2026-09-25.
+
+## Agreed gameplay
+
+Help Kitchen opens Grill, Fry, and Assembler selection. One station is active at a time, using a focused first-person perspective and the existing Restock pointer/3D-preview conventions. Station interactions operate on shared restaurant state.
+
+Staff perform most of the work. The default allocation is one eligible player assignment per ten, with one unfinished assignment at a time. Entering a station can offer one unstarted assignment immediately. The player handles one serving at a time; the rest stays with staff. Outside Assembler, staff handle all assembly.
+
+Back to Stations and Exit Kitchen cancel an uncommitted drag and hand committed work to staff without restarting timers. Normal game pauses, hygiene pauses, and the existing Restock scene pause remain authoritative.
+
+## Production and assembly
+
+Grill owns burgers, chicken sandwiches, and fish fillet sandwiches. Drag the recipe protein to the cooking slot, wait for Ready, collect it onto the preparation board, and add the remaining recipe ingredients. Only the completed product counts.
+
+Fry owns fries, nuggets, and fried chicken. Drag the raw serving to the fryer, wait for Ready, then collect the finished serving. Portions follow the menu recipe, including foods consisting of several pieces.
+
+Cooking has a Ready window followed by Burnt. Discarding unfinished burnt food releases its reservation and retries without consuming ingredients. Cooking/overcook durations and staff speed are editable.
+
+Assembler displays scrollable live tickets with product images, placed/required counts, timers, and Player/Staff labels. Drag completed servings and drinks onto the physical tray. Drinks fill instantly on valid placement. Serve becomes available when all requirements are present. Wrong/excess drops return safely. Staff finish handed-over trays.
+
+Batches aggregate production, not customer tickets. Progress counts completed products, and serving food does not reverse that count. Targets stay fixed after production begins, except cancellation removes abandoned demand. The default reserve is two servings per available food product, generated while paid orders are active. Deadlines hand player work to staff without adding a fine.
+
+## Inventory rules
+
+There is one inventory authority.
+
+- Acceptance and cooking preparation reserve ingredients without consuming them.
+- Available portions exclude reservations; the HUD also shows units in use.
+- Completing a full burger, finished fried serving, or filled drink atomically consumes recipe ingredients once.
+- Assembly and order delivery do not debit the raw ingredients again.
+- Cancelled or burnt unfinished work releases reservations without a raw-stock charge.
+- Finished cancelled food returns to ready stock.
+- Player and staff cannot reserve the same portion or finish the same order twice.
+- Remake order numbers transfer the existing reservation rather than creating another one.
+
+The inventory stores units and unitsPerBox, not separately tracked sealed boxes. The hotbar uses existing ingredient icons and displays available units, units in use, and whole box equivalents. There is no separate box-opening system.
+
+Fast Food uses completion-time consumption; other restaurant modes keep their existing acceptance-time behavior. Existing KitchenManager delivery remains authoritative, with its old automatic cooking delay bypassed for orders awaiting this assembly flow.
+
+Finished food is included in the existing restaurant save data. Unfinished Fast Food sessions continue to roll back through the existing day-start checkpoint. This change does not introduce mid-shift customer recovery or a new save system. Completed stock is retained across normal service resets.
+
+## HUD and visual rules
+
+Reuse existing Restock panel sprites, TMP font assets, ingredient icons, and product images. Temporary 3D geometry represents ingredients/food until final assets are available.
+
+- Selection shows each station's current workload.
+- Station header shows production/order progress.
+- Bottom hotbar shows station ingredients or the player's outstanding assembly items.
+- World surfaces provide cooking, preparation/tray, and discard targets.
+- Preview outlines use the shared Restock preparation helper and green/red placement feedback.
+- Invalid drops animate back toward their source.
+- The optional existing task HUD shows only the active station's next step.
+- Lobby tasks cannot displace station guidance, even at higher priority.
+- Global restock needs appear in a separate notification tray.
+- Go to Restock exits kitchen help safely and uses the existing restock navigation.
+- Unrelated lobby controls are hidden during kitchen help and restored on exit.
+
+The kitchen simulation does not depend on a station panel being visible.
+
+## Implementation layout
+
+- FastFoodCookingState.cs: reservations, production stages, batches, staff work, tickets and shared ready food.
+- FastFoodCookingController.cs: saved Lobby2 controller, real order/payment integration, inventory transactions, editable guidance and save hooks.
+- FastFoodCookingView.cs: runtime binding to saved UI, station rigs, templates and pointer handling. No runtime UI, camera, surface or material construction.
+- FastFoodCookingView.Authoring.cs: Editor-only initial layout creation, excluded from player builds.
+- FastFoodCookingStation.cs: serialized cameras, targets, anchors, food/preview templates and interaction colors.
+- FastFoodCookingDragHandle / FastFoodCookingTicketView / FastFoodCookingDropTarget: saved template and interaction bindings.
+- Existing order acceptance, KitchenManager, stock bridge, task guidance, staff visuals and save hooks are extended.
+- RestockRoomController.PrepareWorldDragPreview is shared between the existing Restock interaction and cooking.
+- FastFoodCookingAuthoring creates the complete persistent hierarchy once and validates it; build validation rejects a Lobby2 without its authored kitchen.
+
+The runtime-only bootstrap has been removed. Lobby2 now contains the authored kitchen. The migration was run through the Unity Editor API and the scene was saved. Re-running Dine In > Fast Food > Create Editable Kitchen in Lobby2 validates an existing authored kitchen without rebuilding or replacing edits.
+
+## Where to edit everything
+
+Open Lobby2 and expand the **Fast Food Cooking** root.
+
+- **FastFoodCookingController**: player/staff assignment ratio, staff slots, reserve stock and refresh interval, cook/ready/deadline timers, staff speed, assembly time, and every task instruction.
+- **Fast Food Kitchen HUD**: edit the actual Canvas, panels, labels, buttons, sprites, font sizes, anchors, padding, scroll views and layout groups. Button actions are saved UnityEvents in the Inspector.
+- **FastFoodCookingView**: dynamic text formats, stage labels, notices, low-stock threshold, feedback colors/durations, and return-animation settings.
+- **Grill / Fry / Assembler Station**: move the actual saved camera, surfaces, colliders, food anchors and tray anchors. Edit the station title, colors, ray range and drag-preview position on FastFoodCookingStation. Runtime does not recalculate camera framing or surface transforms.
+- **Station surface labels** under the HUD Station: edit each saved label and badge directly. They are not repositioned by runtime code.
+- **Editable Templates** and **Assets/_Project/Restaurant/CookingAssets**: ingredient slots, order tickets, ticket product images, cooking-food models, completed servings, drinks, drag previews and materials. These are connected prefab instances; edit prefab assets to change all instances, or keep scene-instance overrides.
+- **Recipe assets**: ingredients and quantities, first cooking ingredient, cooking station, product icons, and optional per-product kitchen cooking/serving/preview prefabs. A custom cooking-food prefab must include a Collider and FastFoodCookingDragHandle.
+- **ItemData assets**: raw ingredient icon, units per box, and optional ingredient-specific kitchen preview prefab.
+- **Existing task HUD, inventory, staff, save and Restock assets** remain their existing authorities; this migration does not duplicate them.
+
+Live orders, progress counters and food instances are transient gameplay state, not editor-authored orders. They instantiate the saved templates; their layout and appearance are editable. Reservation safety, completion-only consumption and save rules remain code invariants, not switches that can accidentally allow double consumption.
+
+Inactive station roots and panels are intentionally saved in the hierarchy. Select an inactive object to edit its Inspector; enable the desired panel temporarily to work on its layout, then save. Play Mode initializes the normal station selection flow. Do not save tuning edits only during Play Mode.
+
+Use **Dine In > Fast Food > Validate Editable Kitchen** to check the authored references. The migration does not overwrite an existing authored layout.
+
+## Verification
+
+Run the isolated gameplay checks:
+
+    powershell -File tools/verify_fastfood_cooking.ps1
+
+Run the existing persistence checks:
+
+    python tools/verify_fastfood_persistence.py --unity "D:/Unity/Unity/Hub/Editor/6000.0.40f1/Editor"
+
+The gameplay harness compiles the actual cooking ledger and task broker with small asset/platform adapters. It verifies reservations, completion-only consumption, burns, cancellation, contention, staff automation, handoff, drink filling, duplicates, deadlines, remakes, retry after restocking, and guidance filtering. It does not simulate Unity lifecycle, rendering, navigation, or touch input.
+
+The authoring migration was compiled in the connected Unity Editor. Scene references, persistent button bindings and saved prefab references were checked through the Editor API. The gameplay harness has 27 scenarios, including explicit station and first-ingredient overrides. These checks are separate from a Play Mode or device playthrough.
+
+## Manual acceptance checklist
+
+1. Start Lobby2, take/pay for orders, and select Help Kitchen. Confirm only one focused station is visible and the lobby HUD restores after Exit.
+2. At Grill, drag protein, collect it when Ready, add remaining ingredients, and check that all recipe costs are deducted only after the complete product.
+3. At Fry, complete one serving; burn/discard another. Check that unfinished burnt food has no consumption charge.
+4. At Assembler, inspect pictured tickets, fill the player tray and drink, and Serve once. Verify dine-in delivery and takeaway pickup still work.
+5. Leave during cooking and partial assembly. Confirm staff finish the same work while other stations continue.
+6. Toggle task guidance, inspect restock notices, and navigate to Restock. Check cancelled drags do not lose stock.
+7. Verify camera positions against actual equipment, readable HUDs, long orders, mouse/touch dragging, and supported screen sizes.
+8. Complete/restart a day and verify raw/finished stock and finance recovery.
+
+Unity playthrough, mobile/device checks, camera/layout visual verification and build deployment must be reported separately from the isolated checks. They have not been established by the harness.

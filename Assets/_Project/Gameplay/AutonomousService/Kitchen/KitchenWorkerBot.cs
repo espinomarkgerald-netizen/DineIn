@@ -70,7 +70,20 @@ public class KitchenWorkerBot : MonoBehaviour
         staffBot.StartTask(WorkWhileOrdersAreActive());
     }
 
-    private bool HasWork => activeOrders.Count > 0 || HygieneManager.Instance?.State.Cleaning == true;
+    private bool HasWork => activeOrders.Count > 0 || HasCookingWork || HygieneManager.Instance?.State.Cleaning == true;
+
+    private bool HasCookingWork
+    {
+        get
+        {
+            var cooking = FastFoodCookingController.Instance;
+            if (cooking == null || !cooking.Active || gameObject.scene.name != "Lobby2") return false;
+            var mode = employeeRole == EmployeeRole.GrillStation ? FastFoodStationMode.Grill :
+                employeeRole == EmployeeRole.FryStation ? FastFoodStationMode.Fry : FastFoodStationMode.Assembler;
+            if (mode == FastFoodStationMode.Assembler) return cooking.State.Tickets.Exists(t => t.active && !t.submitted && !t.player);
+            return cooking.State.Portions.Exists(p => !p.player && FastFoodCookingState.Station(p.recipe) == mode && p.stage != FastFoodCookingStage.Complete);
+        }
+    }
 
     private void BindKitchenManager()
     {
@@ -114,8 +127,10 @@ public class KitchenWorkerBot : MonoBehaviour
         if (gameObject.scene.name == "Lobby2" && employeeRole != EmployeeRole.FastFoodAssembler)
         {
             if (group == null || group.currentOrder == null || stationProducts == null) return;
-            bool matches = group.currentOrder.ResolveProducts().Exists(product =>
-                product != null && System.Array.IndexOf(stationProducts, product.kitchenItemType) >= 0);
+            bool matches = group.currentOrder.ResolveProducts().Exists(product => product != null &&
+                (FastFoodCookingController.Instance != null && (employeeRole == EmployeeRole.GrillStation || employeeRole == EmployeeRole.FryStation)
+                    ? FastFoodCookingState.Station(product) == (employeeRole == EmployeeRole.GrillStation ? FastFoodStationMode.Grill : FastFoodStationMode.Fry)
+                    : System.Array.IndexOf(stationProducts, product.kitchenItemType) >= 0));
             if (!matches) return;
         }
         activeOrders.Add(orderNumber);
