@@ -14,7 +14,7 @@ public static class TutorialGameModeEntry
 
     public static string RouteCampaign(string careerScene)
     {
-        IsMenuLaunch = !HasCompletedTutorial;
+        IsMenuLaunch = careerScene == "Lobby1" && !HasCompletedTutorial;
         IsRevisitLaunch = false;
         return IsMenuLaunch ? "Lobby1Tutorial" : careerScene;
     }

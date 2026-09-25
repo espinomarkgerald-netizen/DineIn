@@ -96,6 +96,16 @@ public sealed class RestaurantUnlockCoachUI : MonoBehaviour
             IsExplaining && dialogue.IsVisible && !choicesRoot.gameObject.activeSelf;
     }
 
+    private void OnEnable()
+    {
+        // Inactive authored prefabs can retain the order but lose overrideSorting.
+        // Restore it after activation so choices and exits receive rays above the mask.
+        var controlsLayer = controlsRoot.parent.GetComponent<Canvas>();
+        controlsLayer.overrideSorting = true;
+        controlsLayer.sortingOrder = 32762;
+        controlsLayer.GetComponent<UnityEngine.UI.GraphicRaycaster>().enabled = true;
+    }
+
     public bool ConsumesPointer(Vector2 position) => dismissedFrame == Time.frameCount ||
         (isActiveAndEnabled && (OverControls(position) || (IsExplaining && !suspended)));
 

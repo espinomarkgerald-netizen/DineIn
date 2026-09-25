@@ -4270,6 +4270,7 @@ MonoBehaviour:
   restaurantSelector: {fileID: 0}
   campaignRestaurantScenes:
   - Lobby1
+  - Lobby2
 --- !u!1 &542076750
 GameObject:
   m_ObjectHideFlags: 0

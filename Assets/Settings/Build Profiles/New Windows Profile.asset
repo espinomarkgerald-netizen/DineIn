@@ -28,6 +28,14 @@ MonoBehaviour:
     m_path: Assets/_Project/Scenes/RoleBased/Lobby2.unity
   - m_enabled: 1
     m_path: Assets/_Project/Scenes/RoleBased/Lobby1.unity
+  - m_enabled: 1
+    m_path: Assets/_Project/Scenes/RoleBased/RestockScene.unity
+  - m_enabled: 1
+    m_path: Assets/_Project/Scenes/RoleBased/Lobby1 Multiplayer.unity
+  - m_enabled: 1
+    m_path: Assets/_Project/Scenes/NewMenu/NewMainMenu.unity
+  - m_enabled: 1
+    m_path: Assets/_Project/Scenes/NewMenu/NewGameMenu.unity
   m_ScriptingDefines: []
   m_PlayerSettingsYaml:
     m_Settings: []

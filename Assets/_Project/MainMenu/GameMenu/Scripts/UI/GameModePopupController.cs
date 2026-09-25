@@ -26,8 +26,8 @@ public class GameModePopupController : MonoBehaviour
     [SerializeField] private RestaurantSelector restaurantSelector;
 
     [Header("Campaign Scene Routing")]
-    [Tooltip("Scene names by restaurant index. Casual Dining is index 0 and loads Lobby1.")]
-    [SerializeField] private string[] campaignRestaurantScenes = { "Lobby1" };
+    [Tooltip("Scene names by restaurant index. Casual Dining (0) loads Lobby1; Fast Food (1) loads Lobby2.")]
+    [SerializeField] private string[] campaignRestaurantScenes = { "Lobby1", "Lobby2" };
 
     /// <summary>The most recent mode chosen during this GameMenu session.</summary>
     public GameModeChoice SelectedMode { get; private set; } = GameModeChoice.None;
