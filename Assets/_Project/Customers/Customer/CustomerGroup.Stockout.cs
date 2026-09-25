@@ -75,6 +75,7 @@ public partial class CustomerGroup
 
     private void LeaveForStockout(bool waited)
     {
+        RestaurantStockout.ShowDepartureWarning();
         WaitingForStock = false;
         if (linePatienceInstance != null) linePatienceInstance.SetActive(false);
         CasualDiningPolishManager.EnsureInstance().RegisterIncident(DailyIncidentType.StockoutRefusal);

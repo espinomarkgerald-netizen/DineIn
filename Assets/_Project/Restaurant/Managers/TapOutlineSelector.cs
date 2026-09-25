@@ -9,6 +9,8 @@ public class TapOutlineSelector : MonoBehaviour
     [SerializeField] private LayerMask selectableMask;
 
     private Outline currentOutline;
+    private Color previousOutlineColor;
+    private bool previousOutlineEnabled;
     private IInteractable selectedInteraction;
     private Booth selectedCleaning;
     private Component selectedComponent;
@@ -46,6 +48,9 @@ public class TapOutlineSelector : MonoBehaviour
         selectedComponent = target;
         selectedInteraction = interaction;
         selectedCleaning = cleaning;
+        previousOutlineColor = currentOutline.OutlineColor;
+        previousOutlineEnabled = currentOutline.enabled;
+        currentOutline.OutlineColor = Color.white;
         currentOutline.enabled = true;
         PublishSelection(target.transform);
     }
@@ -106,15 +111,16 @@ public class TapOutlineSelector : MonoBehaviour
         if (Physics.Raycast(ray, out RaycastHit hit, 500f, selectableMask))
         {
             // Turn off old outline
-            if (currentOutline != null)
-                currentOutline.enabled = false;
-            currentOutline = null;
+            Clear();
 
             // Turn on new outline
             Outline outline = hit.collider.GetComponentInParent<Outline>();
 
             if (outline != null)
             {
+                previousOutlineColor = outline.OutlineColor;
+                previousOutlineEnabled = outline.enabled;
+                outline.OutlineColor = Color.white;
                 outline.enabled = true;
                 currentOutline = outline;
                 PublishSelection(outline.transform);
@@ -135,7 +141,10 @@ public class TapOutlineSelector : MonoBehaviour
     void Clear()
     {
         if (currentOutline != null)
-            currentOutline.enabled = false;
+        {
+            currentOutline.OutlineColor = previousOutlineColor;
+            currentOutline.enabled = previousOutlineEnabled;
+        }
 
         currentOutline = null;
         selectedInteraction = null;

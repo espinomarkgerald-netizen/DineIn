@@ -14,6 +14,29 @@ public sealed partial class FastFoodCookingView
     private float fryerPrepUntil;
     private string lastInstruction="",lastStaffCue="";
     private MaterialPropertyBlock previewProperties;
+    [SerializeField] private RectTransform discardBox;
+    private Vector2 pointerPosition;
+    private float dragDepth;
+    private bool discardHovered, stagingDrag;
+    [SerializeField] private Outline[] equipmentOutlines=System.Array.Empty<Outline>();
+    private readonly System.Collections.Generic.List<(Outline outline,bool enabled)> outlineStates=new();
+    public bool ShowKitchenNotice(string message,int kind=2)
+    {
+        if(!opened || floatingCue==null)return false;
+        floatingCue.Show(message,null,kind);
+        return true;
+    }
+    void EnableEquipmentOutlines()
+    {
+        foreach(var outline in equipmentOutlines)
+            if(outline!=null){outlineStates.Add((outline,outline.enabled));outline.enabled=true;}
+    }
+    void RestoreEquipmentOutlines()
+    {
+        foreach(var state in outlineStates)if(state.outline!=null)state.outline.enabled=state.enabled;
+        outlineStates.Clear();
+    }
+    void LateUpdate() { if(drag!=null)MoveDrag(pointerPosition); }
 
     public void PreviousStation()=>SwitchStation(-1);
     public void NextStation()=>SwitchStation(1);
@@ -55,28 +78,8 @@ public sealed partial class FastFoodCookingView
     }
     void ResetPolish()
     {
+        batchProgressContext=null;
         fryerPrepUntil=0;lastInstruction="";lastStaffCue="";
         if(floatingCue!=null)floatingCue.Clear();
-    }
-    void PrepareCenteredGhost()
-    {
-        var renderers=preview.GetComponentsInChildren<MeshRenderer>(true);
-        if(renderers.Length==0)return;
-        var bounds=renderers[0].bounds;
-        foreach(var renderer in renderers)bounds.Encapsulate(renderer.bounds);
-        var offset=preview.transform.InverseTransformVector(bounds.center-preview.transform.position);
-        // Only the transient copy moves: authored food pivots and serving placement stay intact.
-        foreach(Transform child in preview.transform)child.localPosition-=offset;
-        foreach(var renderer in renderers)
-        {
-            if(ghostMaterial!=null)
-            {
-                var materials=renderer.sharedMaterials;
-                for(int i=0;i<materials.Length;i++)materials[i]=ghostMaterial;
-                renderer.sharedMaterials=materials;
-            }
-            renderer.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;
-            renderer.receiveShadows=false;
-        }
     }
 }

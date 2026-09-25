@@ -18,11 +18,15 @@ public sealed class FastFoodCookingController : MonoBehaviour
     public static FastFoodCookingController Instance { get; private set; }
     public FastFoodCookingState State { get; private set; }
     public bool IsHelpingKitchen => view != null && view.IsOpen;
+    public bool CanEnterKitchen => Active && view != null && view.CanOpen;
+    public void EnterKitchen() { if (CanEnterKitchen) view.Open(); }
     public void ExitKitchen() => view?.Exit();
+    public bool ShowKitchenNotice(string message,int kind=2) => view!=null && view.ShowKitchenNotice(message,kind);
     [Header("Relaxed kitchen help")]
     // Retained only for old scene serialization; occupied stations no longer use a quota.
     [SerializeField, HideInInspector] private int playerEvery = 10;
-    [SerializeField, Range(1, 6)] private int playerBatchSize = 6;
+    [SerializeField, Range(1, 12)] private int playerBatchSize = 8;
+    [SerializeField, Min(0)] private float stationGraceSeconds = 5;
     [SerializeField, Min(1)] private int staffSlots = 4;
     [SerializeField, Min(0)] private int reserveServings = 2;
     [SerializeField, Min(1)] private float cookSeconds = 8, overcookSeconds = 8, batchDeadline = 300;
@@ -40,8 +44,8 @@ public sealed class FastFoodCookingController : MonoBehaviour
     [SerializeField] private GuidanceText assemblyGuidance=new GuidanceText("Assemble order #{0}","Drag the pictured food and drinks onto your tray.");
     [SerializeField] private GuidanceText serveGuidance=new GuidanceText("Serve the completed order","Drag the pictured food and drinks onto your tray.");
     [SerializeField] private GuidanceText loadGuidance=new GuidanceText("Load {0}","Drag its hotbar icon onto the cooking slot.");
-    [SerializeField] private GuidanceText cookGuidance=new GuidanceText("Cooking {0}","Wait for Ready, then move it to the preparation board.");
-    [SerializeField] private GuidanceText collectGuidance=new GuidanceText("Collect the ready food","Drag it onto the preparation board before it burns.");
+    [SerializeField] private GuidanceText cookGuidance=new GuidanceText("Cooking {0}","Fill the free bays. Tap ready grill food into your hotbar; raised fryer baskets transfer food to the drying rack.");
+    [SerializeField] private GuidanceText collectGuidance=new GuidanceText("Collect the ready food","Tap a raised fryer basket, or tap each ready grill patty.");
     [SerializeField] private GuidanceText prepareGuidance=new GuidanceText("Add {0}","Drop the ingredient onto the preparation board.");
     [SerializeField] private GuidanceText burntGuidance=new GuidanceText("Discard burnt food","Drag it to Discard. Unfinished food does not consume ingredients.");
     private readonly Dictionary<int, CustomerGroup> groups = new Dictionary<int, CustomerGroup>();
@@ -79,7 +83,8 @@ public sealed class FastFoodCookingController : MonoBehaviour
     private void Configure()
     {
         State.playerEvery = Mathf.Max(2, playerEvery); State.staffSlotsPerStation = Mathf.Max(1, staffSlots);
-        State.playerBatchSize = Mathf.Clamp(playerBatchSize, 1, 6);
+        State.playerBatchSize = Mathf.Clamp(playerBatchSize, 1, 12);
+        State.stationGraceSeconds = Mathf.Max(0, stationGraceSeconds);
         foreach (var rig in GetComponentsInChildren<FastFoodCookingStation>(true))
         {
             if (rig.mode == FastFoodStationMode.Assembler) continue;
@@ -87,6 +92,7 @@ public sealed class FastFoodCookingController : MonoBehaviour
             if (slots.Length == 0 || slots.Where((s, i) => s.slotIndex != i).Any())
                 throw new InvalidOperationException(rig.name + " must have unique, consecutive saved slot indices.");
             State.ConfigureSlots(rig.mode, slots.Select(s => s.owner).ToArray());
+            if (rig.mode == FastFoodStationMode.Fry) State.fryRackCapacity = Mathf.Max(1, rig.completedFoodAnchors.Length);
         }
         State.completionHoldSeconds = Mathf.Max(0, finishedBatchDisplaySeconds);
         State.cookSeconds = Mathf.Max(1, cookSeconds); State.overcookSeconds = Mathf.Max(1, overcookSeconds);

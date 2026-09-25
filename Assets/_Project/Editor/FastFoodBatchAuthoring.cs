@@ -28,7 +28,7 @@ public static class FastFoodBatchAuthoring
         foreach(var rig in rigs)
         {
             Undo.RecordObject(rig,"Author batch kitchen references");
-            var slots=rig.GetComponentsInChildren<FastFoodCookingDropTarget>(true).Where(t=>t.kind==0).OrderBy(t=>t.transform.position.x).ToArray();
+            var slots=rig.GetComponentsInChildren<FastFoodCookingDropTarget>(true).Where(t=>t.kind==0&&!t.collectionSurface).OrderBy(t=>t.transform.position.x).ToArray();
             rig.cookingSlots=rig.mode==FastFoodStationMode.Assembler?Array.Empty<FastFoodCookingDropTarget>():slots;
             rig.cookingViewAnchor=Anchor(rig.transform,"Cooking View",rig.stationCamera.transform.position,rig.stationCamera.transform.rotation);
             if(rig.mode!=FastFoodStationMode.Assembler)
@@ -83,7 +83,7 @@ public static class FastFoodBatchAuthoring
         {Undo.RecordObject(r,"Kitchen effect shadow receivers");r.receiveShadows=false;EditorUtility.SetDirty(r);}
         DisableOilShadows();
         var texts=new SerializedObject(controller);
-        texts.FindProperty("cookGuidance").FindPropertyRelative("detail").stringValue="Fill the free bays. Cooked sandwich proteins move to the holding tray; prep opens when the batch is ready.";
+        texts.FindProperty("cookGuidance").FindPropertyRelative("detail").stringValue="Fill the free bays. Tap ready grill food into your hotbar; raised fryer baskets transfer food to the drying rack.";
         texts.FindProperty("prepareGuidance").FindPropertyRelative("detail").stringValue="Drag each pictured ingredient onto the board. Finish with the top bun.";
         texts.ApplyModifiedProperties();
         AssetDatabase.SaveAssets();EditorSceneManager.MarkSceneDirty(scene);

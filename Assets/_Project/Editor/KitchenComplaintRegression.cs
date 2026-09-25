@@ -33,14 +33,21 @@ public static class KitchenComplaintRegression
                 Call(complaint, "PopulateDialogue");
                 var button = (UnityEngine.UI.Button)Get(complaint, "professionalButton");
                 Require(button.gameObject.activeSelf && button.interactable, "Response unavailable.");
-                Require(!((UnityEngine.UI.Button)Get(complaint, "acceptableButton")).gameObject.activeSelf
-                    && !((UnityEngine.UI.Button)Get(complaint, "poorButton")).gameObject.activeSelf,
-                    "Complaint still presents three responses.");
-                Require(((TMPro.TMP_Text)Get(complaint, "professionalButtonText")).text.Contains("RESPOND"),
-                    "Response label not populated.");
-                Require(((RectTransform)button.transform).sizeDelta.x == 880f
-                    && ((RectTransform)button.transform).anchoredPosition.x == 0f,
-                    "Single response is not authored wide and centered.");
+                var definition = settings.GetDefinition(type);
+                var responses = new[] { definition.professional, definition.acceptable, definition.poor };
+                var names = new[] { "professional", "acceptable", "poor" };
+                var bounds = new System.Collections.Generic.List<Rect>();
+                for (int i = 0; i < names.Length; i++)
+                {
+                    var choice = (UnityEngine.UI.Button)Get(complaint, names[i] + "Button");
+                    var label = (TMPro.TMP_Text)Get(complaint, names[i] + "ButtonText");
+                    Require(choice.gameObject.activeSelf && choice.interactable, "Missing complaint choice: " + names[i]);
+                    Require(label.text.Contains(responses[i].buttonHeading) && label.text.Contains(responses[i].managerLine), "Choice copy is not data-bound.");
+                    var rect = (RectTransform)choice.transform;
+                    var area = new Rect(rect.anchoredPosition - Vector2.Scale(rect.sizeDelta, rect.pivot), rect.sizeDelta);
+                    foreach (var previous in bounds) Require(!previous.Overlaps(area), "Complaint response cards overlap.");
+                    bounds.Add(area);
+                }
             }
         }
         finally { PrefabUtility.UnloadPrefabContents(prefab); }
@@ -94,7 +101,7 @@ public static class KitchenComplaintRegression
             Cursor.lockState = cursor;
             Cursor.visible = cursorVisible;
         }
-        Debug.Log("[Kitchen complaint] PASS: both complaint types, single authored response, missing-camera guard, all station exits.");
+        Debug.Log("[Kitchen complaint] PASS: both complaint types, three distinct authored responses, missing-camera guard, all station exits.");
     }
 }
 #endif

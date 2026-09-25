@@ -230,6 +230,7 @@ public sealed partial class FastFoodCookingView
         { rt.anchorMin=min; rt.anchorMax=max; rt.offsetMin=rt.offsetMax=Vector2.zero; }
         void Tray(FastFoodCookingDropTarget target,float width)
         {
+            if(target.transform.Find("Drying Rack")!=null)return;
             var source=UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Project/Restaurant/Assets/Level1/GameObjects/RestaurantObjects/Customers/Food Tray.prefab");
             var mesh=source.GetComponentInChildren<MeshFilter>().sharedMesh;
             var bounds=mesh.bounds; float scale=width/bounds.size.x;
@@ -260,9 +261,9 @@ public sealed partial class FastFoodCookingView
         Stretch(progress.rectTransform,new Vector2(.035f,.20f),new Vector2(.965f,.62f)); progress.fontSize=26;
         heading.alignment=progress.alignment=TextAlignmentOptions.MidlineLeft;
         Stretch((RectTransform)progressFill.transform.parent,new Vector2(.035f,.09f),new Vector2(.965f,.14f));
-        Fixed(Find("Stations"),Vector2.one,Vector2.one,new Vector2(-210,-24),new Vector2(154,64));
+        Fixed(Find("Stations"),Vector2.one,Vector2.one,new Vector2(-210,-24),new Vector2(164,64));
         Fixed(Find("Exit Kitchen"),Vector2.one,Vector2.one,new Vector2(-32,-24),new Vector2(164,64));
-        Fixed((RectTransform)noticeButtonLabel.transform.parent,Vector2.one,Vector2.one,new Vector2(-32,-100),new Vector2(240,52));
+        Fixed((RectTransform)noticeButtonLabel.transform.parent,Vector2.one,Vector2.one,new Vector2(-32,-100),new Vector2(164,52));
         noticeButtonLabel.fontSize=24;
         Fixed(notification,Vector2.one,Vector2.one,new Vector2(-32,-164),new Vector2(300,188));
         Fixed((RectTransform)feedback.transform.parent,new Vector2(.5f,0),new Vector2(.5f,0),new Vector2(0,254),new Vector2(540,46));

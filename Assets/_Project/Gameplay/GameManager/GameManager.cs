@@ -180,6 +180,7 @@ public class GameDayManager : MonoBehaviour
     private float neutralBarVisual;
     private bool warnedLastMinute;
     private bool rushAnnounced;
+    private bool rushSoonAnnounced;
     private Coroutine panelAnimationRoutine;
     private Coroutine storeRedirectRoutine;
     private Button resultsContinueButton;
@@ -349,16 +350,22 @@ public class GameDayManager : MonoBehaviour
 
         RefreshUI();
 
-        if (!warnedLastMinute && timeRemaining <= 60f)
+        if (!warnedLastMinute && timeRemaining <= realSecondsPerGameHour)
         {
             warnedLastMinute = true;
-            ShowWarning("5:00 PM — last hour. Finish the remaining customers.");
+            ShowWarning("1 hour before store closing — finish the remaining customers.");
         }
 
-        if (!rushAnnounced && timeRemaining <= rushStartTimeRemainingSeconds)
+        if (!rushSoonAnnounced && rushStartTimeRemainingSeconds > 0 && timeRemaining <= rushStartTimeRemainingSeconds + realSecondsPerGameHour)
+        {
+            rushSoonAnnounced = true;
+            if(timeRemaining > rushStartTimeRemainingSeconds)
+                ShowWarning("Rush hour in " + Mathf.CeilToInt((timeRemaining-rushStartTimeRemainingSeconds)/realSecondsPerGameHour*60) + " minutes — check your supplies.");
+        }
+        if (!rushAnnounced && rushStartTimeRemainingSeconds > 0 && timeRemaining <= rushStartTimeRemainingSeconds)
         {
             rushAnnounced = true;
-            ShowWarning("Rush hour has started. Expect customers more frequently.");
+            ShowWarning(FormattedGameTime + " — rush hour started!");
         }
 
         if (timeRemaining <= 0f)
@@ -714,7 +721,7 @@ public class GameDayManager : MonoBehaviour
             spawnRoutine = null;
         }
 
-        ShowWarning("6:00 PM — Closed to new customers. Finishing remaining orders.");
+        ShowWarning(FormatClock(closingHour) + " — closed to new customers. Finishing remaining orders.");
         if (closingResultsRoutine != null)
             StopCoroutine(closingResultsRoutine);
         closingResultsRoutine = StartCoroutine(ShowResultsWhenClear());
@@ -840,6 +847,7 @@ public class GameDayManager : MonoBehaviour
         neutralBarVisual = 0f;
         warnedLastMinute = false;
         rushAnnounced = false;
+        rushSoonAnnounced = false;
 
         SetupMoodBars(true);
     }
@@ -2128,7 +2136,8 @@ public class GameDayManager : MonoBehaviour
         if (string.IsNullOrWhiteSpace(message))
             return;
 
-        WarningSlideUI.Instance?.Show(message);
+        if(FastFoodCookingController.ForScene()?.ShowKitchenNotice(message)!=true)
+            WarningSlideUI.Instance?.Show(message);
     }
 
     private static string FormatClock(float hourValue)

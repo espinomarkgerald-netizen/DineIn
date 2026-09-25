@@ -1,5 +1,36 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
+--- !u!1 &448314658189057349
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 5716674276568504060}
+  m_Layer: 0
+  m_Name: Grab Anchor
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &5716674276568504060
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 448314658189057349}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0.12832053, z: -0.000000014901161}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 6648534347723800005}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &915451422076452017
 GameObject:
   m_ObjectHideFlags: 0
@@ -11,6 +42,7 @@ GameObject:
   - component: {fileID: 4398259028955822788}
   - component: {fileID: 412928734904232909}
   - component: {fileID: 5977452308904950644}
+  - component: {fileID: 7521995020344879565}
   m_Layer: 0
   m_Name: Nuggets.006
   m_TagString: Untagged
@@ -64,7 +96,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: e1dc3b26dd59c124aa79689117c6c506, type: 2}
+  - {fileID: 2100000, guid: 0cc4c0508eb50654f88aae1e34dc0331, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -86,6 +118,24 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &7521995020344879565
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 915451422076452017}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5fea29bb7c508c244a1f805a5fd3fc4d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  outlineMode: 1
+  outlineColor: {r: 0, g: 0, b: 0, a: 1}
+  outlineWidth: 1.6
+  precomputeOutline: 0
+  bakeKeys: []
+  bakeValues: []
 --- !u!1 &1689876761533762127
 GameObject:
   m_ObjectHideFlags: 0
@@ -97,6 +147,7 @@ GameObject:
   - component: {fileID: 615781428949983604}
   - component: {fileID: 8759192227355550112}
   - component: {fileID: 8913399573336497324}
+  - component: {fileID: 2212363371817885980}
   m_Layer: 0
   m_Name: Nuggets.002
   m_TagString: Untagged
@@ -150,7 +201,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: fe586ffeaff6b3945ad40c03d1e65083, type: 2}
+  - {fileID: 2100000, guid: 0cc4c0508eb50654f88aae1e34dc0331, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -172,6 +223,24 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &2212363371817885980
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1689876761533762127}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5fea29bb7c508c244a1f805a5fd3fc4d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  outlineMode: 1
+  outlineColor: {r: 0, g: 0, b: 0, a: 1}
+  outlineWidth: 1.6
+  precomputeOutline: 0
+  bakeKeys: []
+  bakeValues: []
 --- !u!1 &2029206712936668692
 GameObject:
   m_ObjectHideFlags: 0
@@ -183,6 +252,7 @@ GameObject:
   - component: {fileID: 8490966179124965777}
   - component: {fileID: 8062552994014978029}
   - component: {fileID: 5606900403014419428}
+  - component: {fileID: 4568226117171760386}
   m_Layer: 0
   m_Name: Nuggets.004
   m_TagString: Untagged
@@ -236,7 +306,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: e1dc3b26dd59c124aa79689117c6c506, type: 2}
+  - {fileID: 2100000, guid: 0cc4c0508eb50654f88aae1e34dc0331, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -258,6 +328,24 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &4568226117171760386
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2029206712936668692}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5fea29bb7c508c244a1f805a5fd3fc4d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  outlineMode: 1
+  outlineColor: {r: 0, g: 0, b: 0, a: 1}
+  outlineWidth: 1.6
+  precomputeOutline: 0
+  bakeKeys: []
+  bakeValues: []
 --- !u!1 &2547718201287204177
 GameObject:
   m_ObjectHideFlags: 0
@@ -269,6 +357,7 @@ GameObject:
   - component: {fileID: 6119082482011802986}
   - component: {fileID: 2450588055046754846}
   - component: {fileID: 2435652880776347245}
+  - component: {fileID: 8717701190904491109}
   m_Layer: 0
   m_Name: Nuggets.007
   m_TagString: Untagged
@@ -322,7 +411,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: e1dc3b26dd59c124aa79689117c6c506, type: 2}
+  - {fileID: 2100000, guid: 0cc4c0508eb50654f88aae1e34dc0331, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -344,6 +433,24 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &8717701190904491109
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2547718201287204177}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5fea29bb7c508c244a1f805a5fd3fc4d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  outlineMode: 1
+  outlineColor: {r: 0, g: 0, b: 0, a: 1}
+  outlineWidth: 1.6
+  precomputeOutline: 0
+  bakeKeys: []
+  bakeValues: []
 --- !u!1 &2927809163859746002
 GameObject:
   m_ObjectHideFlags: 0
@@ -355,6 +462,7 @@ GameObject:
   - component: {fileID: 8115928060771192799}
   - component: {fileID: 1817048955947623261}
   - component: {fileID: 761549338162081068}
+  - component: {fileID: 6948346086061318835}
   m_Layer: 0
   m_Name: Nuggets
   m_TagString: Untagged
@@ -408,7 +516,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: fe586ffeaff6b3945ad40c03d1e65083, type: 2}
+  - {fileID: 2100000, guid: 0cc4c0508eb50654f88aae1e34dc0331, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -430,6 +538,24 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &6948346086061318835
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2927809163859746002}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5fea29bb7c508c244a1f805a5fd3fc4d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  outlineMode: 1
+  outlineColor: {r: 0, g: 0, b: 0, a: 1}
+  outlineWidth: 1.6
+  precomputeOutline: 0
+  bakeKeys: []
+  bakeValues: []
 --- !u!1 &3901093195962572869
 GameObject:
   m_ObjectHideFlags: 0
@@ -441,6 +567,7 @@ GameObject:
   - component: {fileID: 4833981791722301776}
   - component: {fileID: 6332666092111592499}
   - component: {fileID: 2884202718248126894}
+  - component: {fileID: 2087193066410260338}
   m_Layer: 0
   m_Name: Nuggets.001
   m_TagString: Untagged
@@ -494,7 +621,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: fe586ffeaff6b3945ad40c03d1e65083, type: 2}
+  - {fileID: 2100000, guid: 0cc4c0508eb50654f88aae1e34dc0331, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -516,6 +643,24 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &2087193066410260338
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3901093195962572869}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5fea29bb7c508c244a1f805a5fd3fc4d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  outlineMode: 1
+  outlineColor: {r: 0, g: 0, b: 0, a: 1}
+  outlineWidth: 1.6
+  precomputeOutline: 0
+  bakeKeys: []
+  bakeValues: []
 --- !u!1 &4854944706628365649
 GameObject:
   m_ObjectHideFlags: 0
@@ -527,6 +672,7 @@ GameObject:
   - component: {fileID: 2300553329281497149}
   - component: {fileID: 2943978455240636705}
   - component: {fileID: 6140268748510362863}
+  - component: {fileID: 9115406623189366658}
   m_Layer: 0
   m_Name: Nuggets.003
   m_TagString: Untagged
@@ -580,7 +726,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: fe586ffeaff6b3945ad40c03d1e65083, type: 2}
+  - {fileID: 2100000, guid: 0cc4c0508eb50654f88aae1e34dc0331, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -602,6 +748,24 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &9115406623189366658
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4854944706628365649}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5fea29bb7c508c244a1f805a5fd3fc4d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  outlineMode: 1
+  outlineColor: {r: 0, g: 0, b: 0, a: 1}
+  outlineWidth: 1.6
+  precomputeOutline: 0
+  bakeKeys: []
+  bakeValues: []
 --- !u!1 &5526223935645794351
 GameObject:
   m_ObjectHideFlags: 0
@@ -613,6 +777,7 @@ GameObject:
   - component: {fileID: 6459214277590999450}
   - component: {fileID: 8916972267499731176}
   - component: {fileID: 4060567626375709598}
+  - component: {fileID: 5342093409452478087}
   m_Layer: 0
   m_Name: Nuggets.005
   m_TagString: Untagged
@@ -666,7 +831,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: e1dc3b26dd59c124aa79689117c6c506, type: 2}
+  - {fileID: 2100000, guid: 0cc4c0508eb50654f88aae1e34dc0331, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -688,6 +853,24 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &5342093409452478087
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5526223935645794351}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5fea29bb7c508c244a1f805a5fd3fc4d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  outlineMode: 1
+  outlineColor: {r: 0, g: 0, b: 0, a: 1}
+  outlineWidth: 1.6
+  precomputeOutline: 0
+  bakeKeys: []
+  bakeValues: []
 --- !u!1 &6702976356735444983
 GameObject:
   m_ObjectHideFlags: 0
@@ -720,6 +903,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 8796343725401168256}
+  - {fileID: 5716674276568504060}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!65 &8859279234665618032
@@ -737,12 +921,12 @@ BoxCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 0
+  m_IsTrigger: 1
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 0.6000001, y: 0.2566411, z: 0.41098678}
-  m_Center: {x: -0.000000029802322, y: 0.12832054, z: -0.000000029802322}
+  m_Size: {x: 0.70000005, y: 0.3566411, z: 0.51098686}
+  m_Center: {x: 0, y: 0.12832053, z: -0.000000014901161}
 --- !u!114 &8805019383872228780
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -758,6 +942,8 @@ MonoBehaviour:
   view: {fileID: 0}
   icon: {fileID: 0}
   count: {fileID: 0}
+  grabAnchor: {fileID: 5716674276568504060}
+  hitPadding: 0.05
   stockFormat: x{1}
   servingFormat: x{1}
   readyText: Drag to tray

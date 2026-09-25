@@ -18,7 +18,7 @@ MonoBehaviour:
   shadowColor: {r: 0.48, g: 0.55, b: 0.7, a: 1}
   shadowTintStrength: 1
   shadowBrightness: 0.186
-  deepShadowBrightness: 0.42
+  deepShadowBrightness: 0.531
   shadowThreshold: 0.701
   deepShadowThreshold: 0.15
   lightTint: {r: 1, g: 0.96, b: 0.82, a: 1}
@@ -27,10 +27,10 @@ MonoBehaviour:
   bandSoftness: 0.232
   ambientColor: {r: 1, g: 1, b: 1, a: 1}
   ambientStrength: 0
-  sceneLightColorInfluence: 0.539
+  sceneLightColorInfluence: 0.795
   useSceneFog: 0
   paletteGradeEnabled: 1
-  saturation: 0.64
+  saturation: 1.09
   warmth: -0.44
   rimEnabled: 1
   rimColor: {r: 1, g: 0.86, b: 0.62, a: 1}

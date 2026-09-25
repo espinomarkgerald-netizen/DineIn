@@ -1,5 +1,36 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
+--- !u!1 &132792648337456128
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 6734040204501482991}
+  m_Layer: 0
+  m_Name: Grab Anchor
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &6734040204501482991
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 132792648337456128}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.000000014901161, y: 0.11409761, z: -0.00000008940697}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 540687526143930736}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &976242248570464040
 GameObject:
   m_ObjectHideFlags: 0
@@ -11,6 +42,7 @@ GameObject:
   - component: {fileID: 1773971103662597466}
   - component: {fileID: 902826010994057702}
   - component: {fileID: 6122524668462897998}
+  - component: {fileID: 5073159974466705518}
   m_Layer: 0
   m_Name: Fries.005
   m_TagString: Untagged
@@ -64,7 +96,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 3031c22bcfc8fba48932dc4572d41920, type: 2}
+  - {fileID: 2100000, guid: 799b60d4144f7fd44b29c7b6f0cc1fec, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -86,6 +118,24 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &5073159974466705518
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 976242248570464040}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5fea29bb7c508c244a1f805a5fd3fc4d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  outlineMode: 1
+  outlineColor: {r: 0, g: 0, b: 0, a: 1}
+  outlineWidth: 1.6
+  precomputeOutline: 0
+  bakeKeys: []
+  bakeValues: []
 --- !u!1 &1847098413161418782
 GameObject:
   m_ObjectHideFlags: 0
@@ -143,6 +193,7 @@ GameObject:
   - component: {fileID: 616096828333686237}
   - component: {fileID: 2203078773408409431}
   - component: {fileID: 4310665593475916086}
+  - component: {fileID: 6971209420902319190}
   m_Layer: 0
   m_Name: Fries.014
   m_TagString: Untagged
@@ -196,7 +247,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 5e07b946c60a62e4b9ee4bdda45891d2, type: 2}
+  - {fileID: 2100000, guid: 799b60d4144f7fd44b29c7b6f0cc1fec, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -218,6 +269,24 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &6971209420902319190
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1964599369649963982}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5fea29bb7c508c244a1f805a5fd3fc4d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  outlineMode: 1
+  outlineColor: {r: 0, g: 0, b: 0, a: 1}
+  outlineWidth: 1.6
+  precomputeOutline: 0
+  bakeKeys: []
+  bakeValues: []
 --- !u!1 &2131119444992593428
 GameObject:
   m_ObjectHideFlags: 0
@@ -229,6 +298,7 @@ GameObject:
   - component: {fileID: 4607735721981920126}
   - component: {fileID: 7531780908561737598}
   - component: {fileID: 8943104205558018730}
+  - component: {fileID: 7058677715311323632}
   m_Layer: 0
   m_Name: Fries
   m_TagString: Untagged
@@ -282,7 +352,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: f701228297d3daa4a818f633f6cbd806, type: 2}
+  - {fileID: 2100000, guid: 799b60d4144f7fd44b29c7b6f0cc1fec, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -304,6 +374,24 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &7058677715311323632
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2131119444992593428}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5fea29bb7c508c244a1f805a5fd3fc4d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  outlineMode: 1
+  outlineColor: {r: 0, g: 0, b: 0, a: 1}
+  outlineWidth: 1.6
+  precomputeOutline: 0
+  bakeKeys: []
+  bakeValues: []
 --- !u!1 &2197035684505513180
 GameObject:
   m_ObjectHideFlags: 0
@@ -315,6 +403,7 @@ GameObject:
   - component: {fileID: 3345165439294736379}
   - component: {fileID: 2961543199401390634}
   - component: {fileID: 2214539457851817876}
+  - component: {fileID: 5445538900289354541}
   m_Layer: 0
   m_Name: Fries.010
   m_TagString: Untagged
@@ -368,7 +457,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: ff2fb4482dfaa8e4881b54cc856b7106, type: 2}
+  - {fileID: 2100000, guid: 799b60d4144f7fd44b29c7b6f0cc1fec, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -390,6 +479,24 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &5445538900289354541
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2197035684505513180}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5fea29bb7c508c244a1f805a5fd3fc4d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  outlineMode: 1
+  outlineColor: {r: 0, g: 0, b: 0, a: 1}
+  outlineWidth: 1.6
+  precomputeOutline: 0
+  bakeKeys: []
+  bakeValues: []
 --- !u!1 &2447815386942649423
 GameObject:
   m_ObjectHideFlags: 0
@@ -401,6 +508,7 @@ GameObject:
   - component: {fileID: 3678465022317539019}
   - component: {fileID: 3417164719624437083}
   - component: {fileID: 8335721693700366335}
+  - component: {fileID: 8059255254141709399}
   m_Layer: 0
   m_Name: Fries.004
   m_TagString: Untagged
@@ -454,7 +562,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: fc347542e73beb040b42df98a40b666a, type: 2}
+  - {fileID: 2100000, guid: 799b60d4144f7fd44b29c7b6f0cc1fec, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -476,6 +584,24 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &8059255254141709399
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2447815386942649423}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5fea29bb7c508c244a1f805a5fd3fc4d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  outlineMode: 1
+  outlineColor: {r: 0, g: 0, b: 0, a: 1}
+  outlineWidth: 1.6
+  precomputeOutline: 0
+  bakeKeys: []
+  bakeValues: []
 --- !u!1 &2510242909311244977
 GameObject:
   m_ObjectHideFlags: 0
@@ -487,6 +613,7 @@ GameObject:
   - component: {fileID: 2406859558764159562}
   - component: {fileID: 6000120483191199745}
   - component: {fileID: 885150301493897779}
+  - component: {fileID: 6537830754686069700}
   m_Layer: 0
   m_Name: Fries.013
   m_TagString: Untagged
@@ -540,7 +667,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 15bfe127e7d09c940af2b1592d56abae, type: 2}
+  - {fileID: 2100000, guid: 799b60d4144f7fd44b29c7b6f0cc1fec, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -562,6 +689,24 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &6537830754686069700
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2510242909311244977}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5fea29bb7c508c244a1f805a5fd3fc4d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  outlineMode: 1
+  outlineColor: {r: 0, g: 0, b: 0, a: 1}
+  outlineWidth: 1.6
+  precomputeOutline: 0
+  bakeKeys: []
+  bakeValues: []
 --- !u!1 &3124388385304478572
 GameObject:
   m_ObjectHideFlags: 0
@@ -573,6 +718,7 @@ GameObject:
   - component: {fileID: 6386985171993889712}
   - component: {fileID: 5872780968368231187}
   - component: {fileID: 2785657334420800632}
+  - component: {fileID: 4504504217362675482}
   m_Layer: 0
   m_Name: Fries.001
   m_TagString: Untagged
@@ -626,7 +772,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: f00495be19836554a8e7430b0c522dcf, type: 2}
+  - {fileID: 2100000, guid: 799b60d4144f7fd44b29c7b6f0cc1fec, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -648,6 +794,24 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &4504504217362675482
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3124388385304478572}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5fea29bb7c508c244a1f805a5fd3fc4d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  outlineMode: 1
+  outlineColor: {r: 0, g: 0, b: 0, a: 1}
+  outlineWidth: 1.6
+  precomputeOutline: 0
+  bakeKeys: []
+  bakeValues: []
 --- !u!1 &3202716781365362709
 GameObject:
   m_ObjectHideFlags: 0
@@ -659,6 +823,7 @@ GameObject:
   - component: {fileID: 5562941541826598817}
   - component: {fileID: 8409784935029628924}
   - component: {fileID: 4067733760951885181}
+  - component: {fileID: 1345536175440626326}
   m_Layer: 0
   m_Name: Fries.009
   m_TagString: Untagged
@@ -712,7 +877,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 3e7ba3e7a3e5cbe4ba8e27cfe7e61ddf, type: 2}
+  - {fileID: 2100000, guid: 799b60d4144f7fd44b29c7b6f0cc1fec, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -734,6 +899,24 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &1345536175440626326
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3202716781365362709}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5fea29bb7c508c244a1f805a5fd3fc4d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  outlineMode: 1
+  outlineColor: {r: 0, g: 0, b: 0, a: 1}
+  outlineWidth: 1.6
+  precomputeOutline: 0
+  bakeKeys: []
+  bakeValues: []
 --- !u!1 &4266519409153345506
 GameObject:
   m_ObjectHideFlags: 0
@@ -745,6 +928,7 @@ GameObject:
   - component: {fileID: 8350767304768297001}
   - component: {fileID: 345688002448583684}
   - component: {fileID: 8184177596920380514}
+  - component: {fileID: 4791204401130728175}
   m_Layer: 0
   m_Name: Fries.011
   m_TagString: Untagged
@@ -798,7 +982,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 848ffdce57ee46942998d33abeb04f65, type: 2}
+  - {fileID: 2100000, guid: 799b60d4144f7fd44b29c7b6f0cc1fec, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -820,6 +1004,24 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &4791204401130728175
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4266519409153345506}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5fea29bb7c508c244a1f805a5fd3fc4d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  outlineMode: 1
+  outlineColor: {r: 0, g: 0, b: 0, a: 1}
+  outlineWidth: 1.6
+  precomputeOutline: 0
+  bakeKeys: []
+  bakeValues: []
 --- !u!1 &5351167971138191090
 GameObject:
   m_ObjectHideFlags: 0
@@ -852,6 +1054,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 348456317042079415}
+  - {fileID: 6734040204501482991}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!65 &7569496133697840989
@@ -869,12 +1072,12 @@ BoxCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 0
+  m_IsTrigger: 1
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 0.493352, y: 0.22819518, z: 0.6}
-  m_Center: {x: 0, y: 0.11409759, z: -0.000000059604645}
+  m_Size: {x: 0.5933521, y: 0.32819515, z: 0.70000005}
+  m_Center: {x: 0.000000014901161, y: 0.11409761, z: -0.00000008940697}
 --- !u!114 &8143372879600319900
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -890,6 +1093,8 @@ MonoBehaviour:
   view: {fileID: 0}
   icon: {fileID: 0}
   count: {fileID: 0}
+  grabAnchor: {fileID: 6734040204501482991}
+  hitPadding: 0.05
   stockFormat: x{1}
   servingFormat: x{1}
   readyText: Drag to tray
@@ -905,6 +1110,7 @@ GameObject:
   - component: {fileID: 7259633167980715265}
   - component: {fileID: 2065411503462902966}
   - component: {fileID: 6730270454966074793}
+  - component: {fileID: 4577821657367816368}
   m_Layer: 0
   m_Name: Fries.008
   m_TagString: Untagged
@@ -958,7 +1164,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 8b7196fed1149474faaaf02a404fd761, type: 2}
+  - {fileID: 2100000, guid: 799b60d4144f7fd44b29c7b6f0cc1fec, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -980,6 +1186,24 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &4577821657367816368
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5623981471822031171}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5fea29bb7c508c244a1f805a5fd3fc4d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  outlineMode: 1
+  outlineColor: {r: 0, g: 0, b: 0, a: 1}
+  outlineWidth: 1.6
+  precomputeOutline: 0
+  bakeKeys: []
+  bakeValues: []
 --- !u!1 &5657804329366140183
 GameObject:
   m_ObjectHideFlags: 0
@@ -991,6 +1215,7 @@ GameObject:
   - component: {fileID: 9051575466321920272}
   - component: {fileID: 996516048168614704}
   - component: {fileID: 8656634336962777029}
+  - component: {fileID: 5756484973071869527}
   m_Layer: 0
   m_Name: Fries.012
   m_TagString: Untagged
@@ -1044,7 +1269,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: a26dbaf9c8f5d26489786df7c7a0ce29, type: 2}
+  - {fileID: 2100000, guid: 799b60d4144f7fd44b29c7b6f0cc1fec, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -1066,6 +1291,24 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &5756484973071869527
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5657804329366140183}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5fea29bb7c508c244a1f805a5fd3fc4d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  outlineMode: 1
+  outlineColor: {r: 0, g: 0, b: 0, a: 1}
+  outlineWidth: 1.6
+  precomputeOutline: 0
+  bakeKeys: []
+  bakeValues: []
 --- !u!1 &7491807752639513641
 GameObject:
   m_ObjectHideFlags: 0
@@ -1077,6 +1320,7 @@ GameObject:
   - component: {fileID: 2707840545242961328}
   - component: {fileID: 2972024602914365539}
   - component: {fileID: 4939164465299489821}
+  - component: {fileID: 6708511428606122620}
   m_Layer: 0
   m_Name: Fries.007
   m_TagString: Untagged
@@ -1130,7 +1374,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: b6533a442c490c14195f65c15205924f, type: 2}
+  - {fileID: 2100000, guid: 799b60d4144f7fd44b29c7b6f0cc1fec, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -1152,6 +1396,24 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &6708511428606122620
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7491807752639513641}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5fea29bb7c508c244a1f805a5fd3fc4d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  outlineMode: 1
+  outlineColor: {r: 0, g: 0, b: 0, a: 1}
+  outlineWidth: 1.6
+  precomputeOutline: 0
+  bakeKeys: []
+  bakeValues: []
 --- !u!1 &8009651443711222814
 GameObject:
   m_ObjectHideFlags: 0
@@ -1163,6 +1425,7 @@ GameObject:
   - component: {fileID: 9050026786434762239}
   - component: {fileID: 1566567963707010366}
   - component: {fileID: 7916390330733593193}
+  - component: {fileID: 1758885285466432535}
   m_Layer: 0
   m_Name: Fries.006
   m_TagString: Untagged
@@ -1216,7 +1479,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: babab84b2ffc26944ba89f5a042561fa, type: 2}
+  - {fileID: 2100000, guid: 799b60d4144f7fd44b29c7b6f0cc1fec, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -1238,6 +1501,24 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &1758885285466432535
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8009651443711222814}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5fea29bb7c508c244a1f805a5fd3fc4d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  outlineMode: 1
+  outlineColor: {r: 0, g: 0, b: 0, a: 1}
+  outlineWidth: 1.6
+  precomputeOutline: 0
+  bakeKeys: []
+  bakeValues: []
 --- !u!1 &8241989411489215732
 GameObject:
   m_ObjectHideFlags: 0
@@ -1249,6 +1530,7 @@ GameObject:
   - component: {fileID: 1002090377838222055}
   - component: {fileID: 5951426496034867119}
   - component: {fileID: 8591280496484681077}
+  - component: {fileID: 2520528653835852374}
   m_Layer: 0
   m_Name: Fries.003
   m_TagString: Untagged
@@ -1302,7 +1584,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 407aeca3b7a358c45be41fef59c259e8, type: 2}
+  - {fileID: 2100000, guid: 799b60d4144f7fd44b29c7b6f0cc1fec, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -1324,6 +1606,24 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &2520528653835852374
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8241989411489215732}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5fea29bb7c508c244a1f805a5fd3fc4d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  outlineMode: 1
+  outlineColor: {r: 0, g: 0, b: 0, a: 1}
+  outlineWidth: 1.6
+  precomputeOutline: 0
+  bakeKeys: []
+  bakeValues: []
 --- !u!1 &9203061825897351382
 GameObject:
   m_ObjectHideFlags: 0
@@ -1335,6 +1635,7 @@ GameObject:
   - component: {fileID: 7061151663046047365}
   - component: {fileID: 7263670451045801725}
   - component: {fileID: 8897878702605184253}
+  - component: {fileID: 1096143720671836055}
   m_Layer: 0
   m_Name: Fries.002
   m_TagString: Untagged
@@ -1388,7 +1689,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: ea5ecb8d63070ce47a881c8466aaf372, type: 2}
+  - {fileID: 2100000, guid: 799b60d4144f7fd44b29c7b6f0cc1fec, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -1410,3 +1711,21 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &1096143720671836055
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9203061825897351382}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5fea29bb7c508c244a1f805a5fd3fc4d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  outlineMode: 1
+  outlineColor: {r: 0, g: 0, b: 0, a: 1}
+  outlineWidth: 1.6
+  precomputeOutline: 0
+  bakeKeys: []
+  bakeValues: []

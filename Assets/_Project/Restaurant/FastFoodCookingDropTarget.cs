@@ -1,5 +1,5 @@
 using UnityEngine;
-public sealed class FastFoodCookingDropTarget : MonoBehaviour
+public sealed class FastFoodCookingDropTarget : MonoBehaviour, UnityEngine.EventSystems.IPointerClickHandler
 {
     [HideInInspector] public FastFoodCookingView view;
     [Tooltip("0 = cooking, 1 = preparation / assembly, 2 = discard")]
@@ -13,4 +13,11 @@ public sealed class FastFoodCookingDropTarget : MonoBehaviour
     public TMPro.TMP_Text status;
     public FastFoodCookingTimer timer;
     public GameObject cookingFeedback;
+    [Tooltip("A broad grill click area; collects only when this grill has one ready patty.")]
+    public bool collectionSurface;
+    public void OnPointerClick(UnityEngine.EventSystems.PointerEventData e)
+    {
+        if (kind == 0 && e.button == UnityEngine.EventSystems.PointerEventData.InputButton.Left && !e.dragging)
+            view?.CollectFromSurface(slotIndex, collectionSurface);
+    }
 }

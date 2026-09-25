@@ -151,8 +151,10 @@ public static class FastFoodKitchenFixRegression
             var canvas=canvasObject.GetComponent<Canvas>(); canvas.renderMode=RenderMode.ScreenSpaceCamera; canvas.worldCamera=camera; canvas.planeDistance=1;
             var root=UnityEngine.Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>(FastFoodCookingAuthoring.TemplateFolder+"/Order Ticket.prefab"),canvas.transform);
             root.SetActive(true);
-            var rect=(RectTransform)root.transform; rect.anchorMin=rect.anchorMax=rect.pivot=new Vector2(.5f,.5f); rect.anchoredPosition=Vector2.zero; rect.sizeDelta=new Vector2(360,300);
+            var rect=(RectTransform)root.transform; rect.anchorMin=rect.anchorMax=rect.pivot=new Vector2(.5f,.5f); rect.anchoredPosition=Vector2.zero;
             var ticket=root.GetComponent<FastFoodCookingTicketView>(); ticket.title.text="ORDER #6"; ticket.timer.text="4:56";
+            ticket.FitProducts(5);ticket.visibility.alpha=1;ticket.motion.anchoredPosition=Vector2.zero;
+            ticket.progressFill.fillAmount=.65f;
             foreach(var recipe in MenuCatalog.Default.Products.Where(r=>r!=null && r.sprite!=null).Take(5))
             {
                 var product=UnityEngine.Object.Instantiate(ticket.productTemplate,ticket.products);

@@ -44,6 +44,10 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
     [Header("Utility Buttons")]
     [SerializeField] private Button cameraButton;
     [SerializeField] private Button computerButton;
+    [SerializeField] private UnityEngine.UI.Button kitchenButton;
+    [SerializeField] private Sprite kitchenIcon;
+    [SerializeField] private Vector2 kitchenButtonSize = new Vector2(96f, 96f);
+    [SerializeField, Min(0f)] private float kitchenButtonGap = 16f;
     public Button ComputerButton => computerButton;
     [SerializeField] private Button newspaperButton;
     [SerializeField] private TMP_Text interactionLabel;
@@ -258,6 +262,14 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
         }
 
         SetLobbyOnlyControlsVisible(inLobby && FastFoodCookingController.Instance?.IsHelpingKitchen != true);
+        if (kitchenButton != null)
+        {
+            var kitchen = FastFoodCookingController.Instance;
+            bool show = activeScene == "Lobby2" && inLobby && kitchen != null &&
+                kitchen.Active && !kitchen.IsHelpingKitchen;
+            kitchenButton.gameObject.SetActive(show);
+            kitchenButton.interactable = show && kitchen.CanEnterKitchen;
+        }
     }
 
     private void CaptureAuthoredVisibility()
@@ -604,6 +616,7 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
         livePanelToggle?.onClick.AddListener(ToggleLivePanel);
         cameraButton?.onClick.AddListener(FocusCameraOnManager);
         computerButton?.onClick.AddListener(OpenComputerThroughManager);
+        kitchenButton?.onClick.AddListener(OpenKitchen);
         newspaperButton?.onClick.AddListener(OpenNewspaper);
     }
 
@@ -612,8 +625,11 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
         livePanelToggle?.onClick.RemoveListener(ToggleLivePanel);
         cameraButton?.onClick.RemoveListener(FocusCameraOnManager);
         computerButton?.onClick.RemoveListener(OpenComputerThroughManager);
+        kitchenButton?.onClick.RemoveListener(OpenKitchen);
         newspaperButton?.onClick.RemoveListener(OpenNewspaper);
     }
+
+    private static void OpenKitchen() => FastFoodCookingController.Instance?.EnterKitchen();
 
     private void ResolveCanvas()
     {
@@ -671,6 +687,7 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
         liveCountsText = livePanel != null ? livePanel.Find("Counts")?.GetComponent<TMP_Text>() : null;
         cameraButton = safe.Find("CameraButton")?.GetComponent<Button>();
         computerButton = safe.Find("ComputerButton")?.GetComponent<Button>();
+        kitchenButton = safe.Find("KitchenButton")?.GetComponent<UnityEngine.UI.Button>();
         newspaperButton = safe.Find("NewspaperButton")?.GetComponent<Button>();
         interactionLabel = safe.Find("InteractionLabel")?.GetComponent<TMP_Text>();
         return livePanel != null && livePanelToggle != null && liveCountsText != null &&
@@ -698,6 +715,7 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
         BuildLivePanel(safe.transform);
         BuildCameraButton(safe.transform);
         BuildComputerButton(safe.transform);
+        BuildKitchenButton();
         BuildNewspaperButton(safe.transform);
         BuildInteractionLabel(safe.transform);
     }
@@ -771,6 +789,43 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
         // icon rect extend beyond the frame so the actual monitor artwork
         // fills the button while the button hit target stays unchanged.
         Stretch(image.rectTransform, -30f);
+    }
+
+    private void BuildKitchenButton()
+    {
+        if (computerButton == null || kitchenButton != null) return;
+        var reference = (RectTransform)computerButton.transform;
+        var background = computerButton.GetComponent<UnityEngine.UI.Image>();
+        var root = CreateImage("KitchenButton", reference.parent, background.sprite, background.color);
+        var rect = (RectTransform)root.transform;
+        rect.anchorMin = reference.anchorMin; rect.anchorMax = reference.anchorMax;
+        rect.pivot = reference.pivot; rect.localScale = reference.localScale;
+        var frame = root.GetComponent<UnityEngine.UI.Image>();
+        frame.type = background.type; frame.pixelsPerUnitMultiplier = background.pixelsPerUnitMultiplier;
+        kitchenButton = root.AddComponent<UnityEngine.UI.Button>();
+        kitchenButton.targetGraphic = frame;
+        kitchenButton.transition = computerButton.transition;
+        kitchenButton.colors = computerButton.colors; kitchenButton.spriteState = computerButton.spriteState;
+        if (computerButton.GetComponent<UISubtlePressFeedback>() != null)
+            root.AddComponent<UISubtlePressFeedback>();
+        var icon = CreateImage("Icon", root.transform, kitchenIcon, Color.white).GetComponent<UnityEngine.UI.Image>();
+        icon.preserveAspect = true; icon.raycastTarget = false;
+        Stretch(icon.rectTransform, 14f);
+        LayoutKitchenButton();
+        root.SetActive(false);
+    }
+
+    private void LayoutKitchenButton()
+    {
+        if (computerButton == null || kitchenButton == null) return;
+        var reference = (RectTransform)computerButton.transform;
+        var rect = (RectTransform)kitchenButton.transform;
+        rect.anchorMin = reference.anchorMin; rect.anchorMax = reference.anchorMax;
+        rect.pivot = reference.pivot; rect.localScale = reference.localScale;
+        rect.sizeDelta = new Vector2(Mathf.Max(44f, kitchenButtonSize.x), Mathf.Max(44f, kitchenButtonSize.y));
+        rect.anchoredPosition = reference.anchoredPosition + new Vector2(
+            -reference.rect.width * reference.pivot.x + rect.sizeDelta.x * rect.pivot.x,
+            reference.rect.height * (1 - reference.pivot.y) + kitchenButtonGap + rect.sizeDelta.y * rect.pivot.y);
     }
 
     private void BuildNewspaperButton(Transform parent)
@@ -889,6 +944,14 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
         UseCombinedAuthoredLayout();
     }
 
+    public void ConfigureKitchenButtonForEditor(Sprite icon)
+    {
+        TryBindVisualTree();
+        kitchenIcon = icon;
+        BuildKitchenButton();
+        LayoutKitchenButton();
+    }
+
     public void ConfigureForEditor(
         Sprite configuredBlueFrame,
         Sprite configuredNeutralButtonFrame,
@@ -905,6 +968,8 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
         cameraIcon = configuredCameraIcon;
         computerIcon = configuredComputerIcon;
         newspaperIcon = configuredNewspaperIcon;
+        kitchenIcon = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>(
+            "Assets/_Project/Art/Icons/GameIcons/HUD/Spatula.png");
         font = configuredFont;
         authoredVisualVersion = configuredVisualVersion;
         ResolveCanvas();

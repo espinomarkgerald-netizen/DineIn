@@ -72,7 +72,7 @@ public sealed partial class ManagerComplaintSystem
         }
         networkOwner = value.owner;
         bool localOpen = value.open && value.owner == MultiplayerSessionManager.Instance.LocalActorNumber;
-        bool wasOpen = dialogueOpen;
+        bool wasOpen = dialogueRoot != null && dialogueRoot.activeSelf;
         dialogueOpen = value.open; resolving = value.resolving;
         worldMarker?.SetWorldMarkerVisible(!value.open);
         if (localOpen && activeDefinition != null)
@@ -80,7 +80,7 @@ public sealed partial class ManagerComplaintSystem
             ExitKitchenForLocalPresentation();
             if (changed || !wasOpen) { PopulateDialogue(); FocusCameraOnGroup(); }
             dialogueRoot?.SetActive(true);
-            if (dialoguePanel != null) dialoguePanel.localScale = Vector3.one;
+            if (changed || !wasOpen) PlayDialogueEntrance();
             if (customerLineText != null) customerLineText.text = value.customerLine;
             if (managerResponseText != null) managerResponseText.text = value.response;
             if (coachingText != null) { coachingText.text = value.coaching; coachingText.color = value.color; }

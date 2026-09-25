@@ -18,6 +18,9 @@ public sealed class FastFoodCookingStation : MonoBehaviour
     [Min(.5f)] public float preparationViewSize = 2;
     [Range(20,90)] public float preparationFieldOfView = 45;
     public Transform[] completedFoodAnchors = System.Array.Empty<Transform>();
+    [Header("Fryer baskets and holding rack")]
+    public FastFoodFryerBasket[] baskets = System.Array.Empty<FastFoodFryerBasket>();
+    public FastFoodCookingDropTarget[] collectionSurfaces = System.Array.Empty<FastFoodCookingDropTarget>();
     public FastFoodCookingDropTarget[] Slots => cookingSlots.Length > 0 ? cookingSlots : cooking != null ? new[] { cooking } : System.Array.Empty<FastFoodCookingDropTarget>();
     public RectTransform labels;
     public TMP_Text status, workload;

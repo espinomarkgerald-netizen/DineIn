@@ -107,6 +107,14 @@ public class GameFlowManager : MonoBehaviour
         return Instance;
     }
 
+    // A fresh play session must not inherit an editor/debug speed or a previous
+    // session's pause. Run before scene Awake; normal pause owners remain in control afterward.
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetSessionTimeScale()
+    {
+        Time.timeScale = 1f;
+    }
+
     private void Awake()
     {
         if (Instance != null && Instance != this)

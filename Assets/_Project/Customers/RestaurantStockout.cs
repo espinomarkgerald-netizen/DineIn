@@ -11,12 +11,13 @@ public static class RestaurantStockout
     private static float nextCheck;
     private static int shortage, scene, day;
     private static bool warned;
+    private static bool warnedDeparture;
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void Reset()
     {
         if (!ReferenceEquals(inventory, null)) inventory.OnStockChanged -= StockChanged;
         if (!ReferenceEquals(menu, null)) menu.MenuChanged -= Invalidate;
-        inventory = null; menu = null; nextCheck = -1f; shortage = scene = day = 0; warned = false;
+        inventory = null; menu = null; nextCheck = -1f; shortage = scene = day = 0; warned = warnedDeparture = false;
     }
     private static void Invalidate() => nextCheck = -1f;
     private static void StockChanged(ItemType item, int count) => Invalidate();
@@ -28,7 +29,7 @@ public static class RestaurantStockout
             int currentScene = SceneManager.GetActiveScene().handle;
             int currentDay = GameFlowManager.Instance != null ? GameFlowManager.Instance.CurrentDay : 0;
             if (scene != currentScene || day != currentDay)
-            { scene = currentScene; day = currentDay; warned = false; Invalidate(); }
+            { scene = currentScene; day = currentDay; warned = warnedDeparture = false; Invalidate(); }
             if (!ReferenceEquals(inventory, InventoryManager.Instance))
             {
                 if (!ReferenceEquals(inventory, null)) inventory.OnStockChanged -= StockChanged;
@@ -47,7 +48,7 @@ public static class RestaurantStockout
             {
                 nextCheck = Time.unscaledTime + 0.5f;
                 shortage = Evaluate();
-                if (shortage == 0) warned = false;
+                if (shortage == 0) warned = warnedDeparture = false;
             }
             return shortage;
         }
@@ -84,9 +85,19 @@ public static class RestaurantStockout
     public static void ShowLocalWarning(string message)
     {
         _ = Shortage;
-        if (warned || WarningSlideUI.Instance == null) return;
+        if (warned) return;
         // Partial-order shortages retain existing feedback; global shortages are episode-deduplicated.
         warned = shortage != 0;
-        WarningSlideUI.Instance.Show(message);
+        if(FastFoodCookingController.ForScene()?.ShowKitchenNotice(message)!=true)
+            WarningSlideUI.Instance?.Show(message);
+    }
+    public static void ShowDepartureWarning()
+    {
+        _=Shortage;
+        if(warnedDeparture)return;
+        warnedDeparture=true;
+        const string message="People are leaving because they cannot order a meal. Restock now!";
+        if(FastFoodCookingController.ForScene()?.ShowKitchenNotice(message,1)!=true)
+            WarningSlideUI.Instance?.Show(message);
     }
 }

@@ -14,13 +14,74 @@ public sealed partial class FastFoodCookingView
     private int acceptedStep;
     private readonly Dictionary<FastFoodCookingState.Portion, FastFoodCookingStage> observedStages = new();
     private MaterialPropertyBlock foodProperties;
+    [SerializeField, Min(.05f)] private float noticeRevealSeconds = .18f;
+    private Coroutine noticeRoutine;
+    private CanvasGroup noticeVisibility;
+    private Vector2 noticeRestPosition;
+
+    void InitializeUIFeedback()
+    {
+        foreach (var button in canvas.GetComponentsInChildren<UnityEngine.UI.Button>(true))
+            if (button.GetComponent<UISubtlePressFeedback>() == null)
+                button.gameObject.AddComponent<UISubtlePressFeedback>();
+        noticeRestPosition = notification.anchoredPosition;
+        noticeVisibility = notification.GetComponent<CanvasGroup>();
+        if (noticeVisibility == null) noticeVisibility = notification.gameObject.AddComponent<CanvasGroup>();
+    }
+
+    void PulseUI(RectTransform target)
+    {
+        if (target == null || !target.gameObject.activeInHierarchy) return;
+        var pulse = target.GetComponent<UISubtlePressFeedback>();
+        if (pulse == null) pulse = target.gameObject.AddComponent<UISubtlePressFeedback>();
+        pulse.PlayConfirmation();
+    }
+
+    void ShowNotice(bool show)
+    {
+        if (noticeRoutine != null) StopCoroutine(noticeRoutine);
+        noticeRoutine = StartCoroutine(AnimateNotice(show));
+    }
+
+    IEnumerator AnimateNotice(bool show)
+    {
+        bool wasVisible = notification.gameObject.activeSelf;
+        if (show) notification.gameObject.SetActive(true);
+        float start = wasVisible ? noticeVisibility.alpha : 0;
+        noticeVisibility.blocksRaycasts = show;
+        noticeVisibility.interactable = show;
+        float seconds = LevelOneUIAccessibility.ReducedMotion ? .06f : noticeRevealSeconds;
+        for (float elapsed = 0; elapsed < seconds; elapsed += Time.unscaledDeltaTime)
+        {
+            float alpha = Mathf.Lerp(start, show ? 1 : 0, Mathf.SmoothStep(0, 1, elapsed / seconds));
+            noticeVisibility.alpha = alpha;
+            notification.anchoredPosition = noticeRestPosition + Vector2.up * (LevelOneUIAccessibility.ReducedMotion ? 0 : 18 * (1 - alpha));
+            yield return null;
+        }
+        noticeVisibility.alpha = show ? 1 : 0;
+        notification.anchoredPosition = noticeRestPosition;
+        notification.gameObject.SetActive(show); noticeRoutine = null;
+    }
+
+    void HideNoticeImmediate()
+    {
+        if (noticeRoutine != null) StopCoroutine(noticeRoutine);
+        noticeRoutine = null;
+        if (notification == null) return;
+        notification.gameObject.SetActive(false);
+        if (noticeVisibility != null)
+        {
+            noticeVisibility.alpha = 0; noticeVisibility.blocksRaycasts = false;
+            notification.anchoredPosition = noticeRestPosition;
+        }
+    }
 
     private sealed class CookingVisual
     {
         public readonly Transform root;
         public readonly FastFoodCookingState.Portion portion;
         public readonly Vector3 position, scale;
-        public readonly List<(Renderer renderer, int index, Color color)> surfaces = new();
+        public readonly List<(Renderer renderer, int index, Color color, Color raw)> surfaces = new();
         public int colorStep = -1;
         public CookingVisual(GameObject visual, FastFoodCookingState.Portion food)
         {
@@ -32,9 +93,11 @@ public sealed partial class FastFoodCookingView
                 for (int i = 0; i < materials.Length; i++)
                 {
                     var material = materials[i];
+                    if(material==null || material.name.StartsWith("Outline") || material.HasProperty("_CookingSurface") && material.GetFloat("_CookingSurface")<.5f)continue;
                     var color = material != null && material.HasProperty("_BaseColor") ? material.GetColor("_BaseColor") :
                         material != null && material.HasProperty("_Color") ? material.GetColor("_Color") : Color.white;
-                    surfaces.Add((renderer, i, color));
+                    var raw=material.HasProperty("_RawColor")?material.GetColor("_RawColor"):color*food.recipe.kitchenRawColorMultiplier;
+                    surfaces.Add((renderer, i, color, raw));
                 }
             }
         }
@@ -48,10 +111,9 @@ public sealed partial class FastFoodCookingView
         if (step == visual.colorStep) return;
         visual.colorStep = step;
         if (foodProperties == null) foodProperties = new MaterialPropertyBlock();
-        var multiplier = step == 13 ? activeStation.burntColor : Color.Lerp(portion.recipe.kitchenRawColorMultiplier, Color.white, step / 12f);
         foreach (var surface in visual.surfaces)
         {
-            var color = surface.color * multiplier; color.a = surface.color.a;
+            var color = step==13?activeStation.burntColor:Color.Lerp(surface.raw,surface.color,step/12f); color.a=surface.color.a;
             foodProperties.Clear();
             foodProperties.SetColor("_BaseColor", color); foodProperties.SetColor("_Color", color);
             surface.renderer.SetPropertyBlock(foodProperties, surface.index);

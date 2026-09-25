@@ -23,12 +23,13 @@ public sealed class FastFoodCookingTimer : MonoBehaviour
     {
         bool cooking = portion.stage == FastFoodCookingStage.Cooking;
         bool ready = portion.stage == FastFoodCookingStage.Ready;
+        bool liftedFry = ready && FastFoodCookingState.Station(portion.recipe) == FastFoodStationMode.Fry;
         float remaining = Mathf.Max(0, (cooking ? cookSeconds : overcookSeconds) - portion.elapsed);
         float amount = cooking ? Mathf.Clamp01(portion.elapsed / Mathf.Max(.01f,cookSeconds))
             : ready ? 1-Mathf.Clamp01(portion.elapsed / Mathf.Max(.01f,overcookSeconds)) : 1;
         ring.SetAmount(amount);
         ring.color = cooking ? cookingColor : ready ? amount <= .25f ? warningColor : readyColor : burntColor;
-        seconds.text = cooking || ready ? Mathf.CeilToInt(remaining / Mathf.Max(.01f,speed)).ToString() : "!";
+        seconds.text = liftedFry ? "✓" : cooking || ready ? Mathf.CeilToInt(remaining / Mathf.Max(.01f,speed)).ToString() : "!";
         caption.text = ready ? "READY" : portion.stage == FastFoodCookingStage.Burnt ? "BURNT" : staff ? "STAFF" : "";
         float pulse = ready && !paused && !LevelOneUIAccessibility.ReducedMotion
             ? readyPulse * (.5f+.5f*Mathf.Sin(Time.time*pulseFrequency*Mathf.PI*2)) : 0;

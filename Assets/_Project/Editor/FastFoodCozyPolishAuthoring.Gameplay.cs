@@ -41,7 +41,7 @@ public static partial class FastFoodCozyPolishAuthoring
         EditorUtility.SetDirty(controller); EditorUtility.SetDirty(view);
         EditorSceneManager.MarkSceneDirty(scene); AssetDatabase.SaveAssets();
         if (!EditorSceneManager.SaveScene(scene)) throw new InvalidOperationException("Could not save Lobby2.");
-        return "Saved 8 grill positions and 8 fryer positions (4 staff / 4 player per station), editable effects, glass drinks, quiet feedback audio, and compact animated UI.";
+        return "Saved 8 shared grill positions and 8 shared fryer positions, editable effects, glass drinks, quiet feedback audio, and compact animated UI.";
     }
 
     static void AuthorOwnedSlots(FastFoodCookingStation rig)
@@ -112,6 +112,7 @@ public static partial class FastFoodCozyPolishAuthoring
                     dropBox.center = target.transform.InverseTransformPoint(target.foodAnchor.position) - Vector3.up * .04f;
                     dropBox.size = new Vector3(dropBox.size.x,.06f,dropBox.size.z);
                 }
+                target.owner = FastFoodCookingSlotOwner.Player;
                 target.gameObject.layer = source.gameObject.layer; target.slotIndex = slots.Count;
                 EditorUtility.SetDirty(target); slots.Add(target);
             }

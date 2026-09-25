@@ -28,6 +28,12 @@ public sealed partial class ManagerComplaintSystem : MonoBehaviour
     [SerializeField] private TMP_Text customerLineText;
     [SerializeField] private TMP_Text managerResponseText;
     [SerializeField] private TMP_Text coachingText;
+    [SerializeField] private CanvasGroup dialogueVisibility;
+    [SerializeField, Min(.05f)] private float dialogueEnterSeconds = .24f;
+    [SerializeField, Min(.05f)] private float dialogueExitSeconds = .18f;
+    private Coroutine panelRoutine;
+    private Vector2 dialogueRestPosition;
+    private bool dialoguePoseCaptured;
 
     [Header("Responses")]
     [SerializeField] private Button professionalButton;
@@ -421,13 +427,7 @@ public sealed partial class ManagerComplaintSystem : MonoBehaviour
         PopulateDialogue();
         if (dialogueRoot != null)
             dialogueRoot.SetActive(true);
-        if (dialoguePanel != null)
-        {
-            if (LevelOneUIAccessibility.ReducedMotion)
-                dialoguePanel.localScale = Vector3.one;
-            else
-                StartCoroutine(PopPanel(dialoguePanel));
-        }
+        PlayDialogueEntrance();
 
         FocusCameraOnGroup();
     }
@@ -447,16 +447,19 @@ public sealed partial class ManagerComplaintSystem : MonoBehaviour
         }
 
         if (managerResponseText != null)
-            managerResponseText.text = "LET'S MAKE THIS RIGHT";
+            managerResponseText.text = "How should we handle this?";
         if (coachingText != null)
-            coachingText.text = "LISTEN  >  ACKNOWLEDGE  >  APOLOGIZE  >  SOLVE";
+        {
+            coachingText.text = "";
+            coachingText.color = new Color(.12f, .20f, .24f);
+        }
 
         SetResponseButton(
             professionalButton,
             professionalButtonText,
             activeDefinition.professional);
-        if (acceptableButton != null) acceptableButton.gameObject.SetActive(false);
-        if (poorButton != null) poorButton.gameObject.SetActive(false);
+        SetResponseButton(acceptableButton, acceptableButtonText, activeDefinition.acceptable);
+        SetResponseButton(poorButton, poorButtonText, activeDefinition.poor);
         SetResponseButtonsInteractable(true);
     }
 
@@ -475,9 +478,12 @@ public sealed partial class ManagerComplaintSystem : MonoBehaviour
         ManagerComplaintResponseDefinition response)
     {
         if (button != null)
+        {
             button.gameObject.SetActive(response != null);
+            button.transform.localScale = Vector3.one;
+        }
         if (label != null && response != null)
-            label.text = "RESPOND\n\"" + response.managerLine + "\"";
+            label.text = "<b>" + response.buttonHeading + "</b>\n<size=80%>\"" + response.managerLine + "\"</size>";
     }
 
     private void BindButtons()
@@ -560,12 +566,13 @@ public sealed partial class ManagerComplaintSystem : MonoBehaviour
         }
 
         activeGroup.ResolveManagerComplaint(quality, activeType);
+        PresentSelectedResponse(response);
         SetResponseButtonsInteractable(false);
 
         if (managerResponseText != null)
             managerResponseText.text = unanswered
                 ? "MANAGER RESPONSE\nThe customer was ignored."
-                : "MANAGER RESPONSE\n\"" + (response?.managerLine ?? string.Empty) + "\"";
+                : "Your response: " + (response?.buttonHeading ?? string.Empty);
 
         if (coachingText != null)
         {
@@ -581,7 +588,7 @@ public sealed partial class ManagerComplaintSystem : MonoBehaviour
             coachingText.text = prefix + "\n" + detail +
                                 (cost > 0 ? "  COST: P" + cost : string.Empty);
             if (response != null)
-                coachingText.color = response.feedbackColor;
+                coachingText.color = Color.Lerp(response.feedbackColor, new Color(.08f, .14f, .18f), .55f);
         }
 
         GameSaveManager.Instance?.RequestSave();
@@ -594,6 +601,9 @@ public sealed partial class ManagerComplaintSystem : MonoBehaviour
     {
         yield return new WaitForSecondsRealtime(
             settings != null ? settings.responseFeedbackSeconds : 2f);
+        if (panelRoutine != null) StopCoroutine(panelRoutine);
+        panelRoutine = null;
+        yield return AnimateDialogue(false);
         CancelActiveComplaint(true);
         finishRoutine = null;
     }
@@ -682,20 +692,55 @@ public sealed partial class ManagerComplaintSystem : MonoBehaviour
             offscreenMarker.gameObject.SetActive(true);
     }
 
-    private IEnumerator PopPanel(RectTransform panel)
+    private void PresentSelectedResponse(ManagerComplaintResponseDefinition response)
     {
-        panel.localScale = Vector3.one * 0.88f;
-        float elapsed = 0f;
-        const float duration = 0.2f;
-        while (elapsed < duration && panel != null)
+        var buttons = new[] { professionalButton, acceptableButton, poorButton };
+        var definitions = new[] { activeDefinition?.professional, activeDefinition?.acceptable, activeDefinition?.poor };
+        for (int i = 0; i < buttons.Length; i++)
         {
-            elapsed += LevelOneUIAccessibility.UnscaledAnimationDeltaTime;
-            float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / duration));
-            panel.localScale = Vector3.one * Mathf.LerpUnclamped(0.88f, 1f, t);
+            var button = buttons[i];
+            if (button == null) continue;
+            bool selected = definitions[i] == response;
+            var colors = button.colors;
+            colors.disabledColor = selected ? Color.white : new Color(.78f, .8f, .82f, .45f);
+            button.colors = colors;
+            if (selected) button.GetComponent<UISubtlePressFeedback>()?.PlayConfirmation(.045f);
+        }
+    }
+
+    private void PlayDialogueEntrance()
+    {
+        if (dialoguePanel == null || dialogueRoot == null) return;
+        if (!dialoguePoseCaptured) { dialogueRestPosition = dialoguePanel.anchoredPosition; dialoguePoseCaptured = true; }
+        if (dialogueVisibility == null) dialogueVisibility = dialogueRoot.GetComponent<CanvasGroup>();
+        if (dialogueVisibility == null) dialogueVisibility = dialogueRoot.AddComponent<CanvasGroup>();
+        if (panelRoutine != null) StopCoroutine(panelRoutine);
+        panelRoutine = StartCoroutine(AnimateDialogue(true));
+    }
+
+    private IEnumerator AnimateDialogue(bool opening)
+    {
+        if (dialoguePanel == null || dialogueVisibility == null) yield break;
+        bool reduced = LevelOneUIAccessibility.ReducedMotion;
+        float seconds = reduced ? .08f : opening ? dialogueEnterSeconds : dialogueExitSeconds;
+        // The modal continues blocking background clicks throughout its exit.
+        dialogueVisibility.blocksRaycasts = true;
+        dialogueVisibility.interactable = opening;
+        float startAlpha = opening ? 0 : dialogueVisibility.alpha;
+        for (float elapsed = 0; elapsed < seconds; elapsed += LevelOneUIAccessibility.UnscaledAnimationDeltaTime)
+        {
+            float t = Mathf.Clamp01(elapsed / Mathf.Max(.05f, seconds));
+            float eased = Mathf.SmoothStep(0, 1, t);
+            dialogueVisibility.alpha = Mathf.Lerp(startAlpha, opening ? 1 : 0, eased);
+            float amount = opening ? 1 - eased : eased;
+            dialoguePanel.anchoredPosition = dialogueRestPosition + Vector2.down * (reduced ? 0 : 22 * amount);
+            dialoguePanel.localScale = Vector3.one * (reduced ? 1 : 1 - .04f * amount + (opening ? .015f * Mathf.Sin(t * Mathf.PI) : 0));
             yield return null;
         }
-        if (panel != null)
-            panel.localScale = Vector3.one;
+        dialogueVisibility.alpha = opening ? 1 : 0;
+        dialoguePanel.localScale = Vector3.one;
+        dialoguePanel.anchoredPosition = dialogueRestPosition;
+        panelRoutine = null;
     }
 
     private void CancelActiveComplaint(bool responseCompleted)
@@ -727,6 +772,9 @@ public sealed partial class ManagerComplaintSystem : MonoBehaviour
 
     private void HidePresentationImmediate()
     {
+        if (panelRoutine != null) StopCoroutine(panelRoutine);
+        panelRoutine = null;
+        if (dialoguePanel != null) { dialoguePanel.localScale = Vector3.one; if (dialoguePoseCaptured) dialoguePanel.anchoredPosition = dialogueRestPosition; }
         if (dialogueRoot != null)
             dialogueRoot.SetActive(false);
         if (offscreenMarker != null)

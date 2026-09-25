@@ -222,7 +222,7 @@ public class TutorialDialogueUI : MonoBehaviour
                 continuePrompt.color = Color.white;
                 continuePrompt.alignment = TextAlignmentOptions.Center;
                 continuePrompt.raycastTarget = false;
-                continuePrompt.text = TutorialInputTerminology.IsMobile ? "Tap to continue" : "Click to continue";
+                continuePrompt.text = TutorialInputTerminology.IsMobile ? "Tap anywhere to continue" : "Click anywhere to continue";
                 continuePrompt.rectTransform.anchorMin = Vector2.zero;
                 continuePrompt.rectTransform.anchorMax = Vector2.one;
                 continuePrompt.rectTransform.sizeDelta = Vector2.zero;

@@ -13,6 +13,9 @@ public static class FastFoodBatchRegression
         var waiting=state.NextLoad(item);
         if(waiting!=null)Require(!state.Load(waiting,item,0),"Occupied bay accepted a second portion.");
         state.Tick(state.cookSeconds+.01f,false,false);state.Tick(.01f,false,false);
+        if(state.Mode==FastFoodStationMode.Grill)
+            foreach(var ready in state.PlayerWork.Where(p=>p.stage==FastFoodCookingStage.Ready).ToArray())
+                Require(state.Collect(ready),"Tapped patty did not reach prep.");
     }
     static void AssembleAll(FastFoodCookingState state,Recipe recipe)
     {
@@ -40,6 +43,7 @@ public static class FastFoodBatchRegression
             var recipe=Recipe(type);consumed=0;
             state=new FastFoodCookingState(_=>1000,_=>{consumed++;return true;});state.EnsureReserve(new[]{recipe},3);state.Enter(FastFoodStationMode.Grill);
             state.Tick(9,false,false);state.Tick(.01f,false,false);
+            state.Tick(.01f,false,false); // The next update offers the newly handed-off prep work.
             Require(state.PrepReady&&consumed==0,"Fryer staff did not hand cooked protein to the player's grill prep.");
             AssembleAll(state,recipe);Require(consumed==3,"Sandwich consumed more than once across stations.");
             consumed=0;state=new FastFoodCookingState(_=>1000,_=>{consumed++;return true;});state.EnsureReserve(new[]{recipe},2);state.Enter(FastFoodStationMode.Fry);

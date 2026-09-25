@@ -63,7 +63,7 @@ public sealed class RestaurantUnlockCoachUI : MonoBehaviour
         group = GetComponent<CanvasGroup>();
         mask = TutorialUIFocusMask.Create(transform);
         maskGroup = mask.gameObject.AddComponent<CanvasGroup>();
-        // Campaign highlights are visual only, including during transitions.
+        // Action highlights are visual only; explanations consume the whole screen.
         maskGroup.blocksRaycasts = false;
         mask.GetComponent<UnityEngine.UI.GraphicRaycaster>().enabled = false;
         dialogueHome = dialogueRoot.anchoredPosition;
@@ -93,11 +93,11 @@ public sealed class RestaurantUnlockCoachUI : MonoBehaviour
         caption.gameObject.SetActive(false);
         objective.gameObject.SetActive(false);
         dialogue.CanAdvanceAt = position => !OverControls(position) && !suspended &&
-            !choicesRoot.gameObject.activeSelf && OverDialogue(position);
+            IsExplaining && dialogue.IsVisible && !choicesRoot.gameObject.activeSelf;
     }
 
     public bool ConsumesPointer(Vector2 position) => dismissedFrame == Time.frameCount ||
-        (isActiveAndEnabled && (OverControls(position) || (IsExplaining && OverDialogue(position))));
+        (isActiveAndEnabled && (OverControls(position) || (IsExplaining && !suspended)));
 
     private bool OverControls(Vector2 position) =>
         OverButton(laterButton, position) || OverButton(skipButton, position) ||
@@ -107,8 +107,14 @@ public sealed class RestaurantUnlockCoachUI : MonoBehaviour
         button != null && button.gameObject.activeInHierarchy &&
         RectTransformUtility.RectangleContainsScreenPoint((RectTransform)button.transform, position, null);
 
-    private bool OverDialogue(Vector2 position) => dialogue.IsVisible &&
-        RectTransformUtility.RectangleContainsScreenPoint(dialogue.BodyText.transform.parent as RectTransform, position, null);
+    private void SetExplanationInput(bool active)
+    {
+        if (active) maskGroup.alpha = 1f;
+        maskGroup.blocksRaycasts = active;
+        mask.GetComponent<UnityEngine.UI.GraphicRaycaster>().enabled = active;
+        mask.SetDialogueInput(active);
+        GameplayUIBlocker.Instance?.SetPanelBlocksGameplay(gameObject, active);
+    }
 
     public void ShowOffer(string title, string message, Action accept, Action decline)
     {
@@ -153,7 +159,7 @@ public sealed class RestaurantUnlockCoachUI : MonoBehaviour
         actionStep = !isModal;
         nextAction = onAction;
         IsExplaining = true;
-        GameplayUIBlocker.Instance?.SetPanelBlocksGameplay(gameObject, false);
+        SetExplanationInput(true);
         Layout();
         Paginate(message);
         page = 0;
@@ -201,7 +207,7 @@ public sealed class RestaurantUnlockCoachUI : MonoBehaviour
         if (!actionStep) { nextAction?.Invoke(); yield break; }
         dialogue.HideDialogue();
         IsExplaining = false;
-        GameplayUIBlocker.Instance?.SetPanelBlocksGameplay(gameObject, false);
+        SetExplanationInput(false);
         objective.text = "Follow the highlighted target. You can choose LATER at any time.";
         ShowActionFocus();
     }
@@ -285,11 +291,11 @@ public sealed class RestaurantUnlockCoachUI : MonoBehaviour
         group.blocksRaycasts = true;
         // Keep the dialogue component enabled: OnDisable clears its pending Next callback.
         // CanAdvanceAt rejects dialogue input while suspended; Skip remains interactive.
-        GameplayUIBlocker.Instance?.SetPanelBlocksGameplay(gameObject, false);
         if (value) { scroller.Cancel(); mask.Hide(); hand.HideHint(); worldIndicator.Hide(); }
         else if (IsExplaining) mask.Hide();
         else if (waitingForUI) PrepareFocus();
         else ShowActionFocus();
+        SetExplanationInput(IsExplaining && !value);
     }
 
     public void Hide()
@@ -311,7 +317,7 @@ public sealed class RestaurantUnlockCoachUI : MonoBehaviour
     {
         dialogue.HideDialogue();
         IsExplaining = false;
-        GameplayUIBlocker.Instance?.SetPanelBlocksGameplay(gameObject, false);
+        SetExplanationInput(false);
         reviewComplete = onComplete;
         reviewButton.gameObject.SetActive(true);
         ShowActionFocus();

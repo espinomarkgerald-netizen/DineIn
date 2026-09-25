@@ -56,6 +56,28 @@ public sealed class UISubtlePressFeedback : MonoBehaviour,
 
     public void OnPointerExit(PointerEventData eventData) => AnimateTo(restingScale);
 
+    // Explicit opt-in for kitchen confirmations and quantity changes.
+    public void PlayConfirmation(float strength = .1f)
+    {
+        ResolveReferences(); CaptureRestingScale();
+        if (routine != null) { StopCoroutine(routine); routine = null; }
+        if (visualTarget == null || !isActiveAndEnabled) return;
+        if (LevelOneUIAccessibility.ReducedMotion) { ApplyScale(restingScale); return; }
+        routine = StartCoroutine(ConfirmationRoutine(Mathf.Clamp(strength, 0, .2f)));
+    }
+
+    private IEnumerator ConfirmationRoutine(float strength)
+    {
+        float seconds = Mathf.Max(.16f, duration * 3);
+        for (float elapsed = 0; elapsed < seconds; elapsed += LevelOneUIAccessibility.UnscaledAnimationDeltaTime)
+        {
+            float t = elapsed / seconds;
+            ApplyScale(restingScale * (1 + Mathf.Sin(t * Mathf.PI) * strength));
+            yield return null;
+        }
+        ApplyScale(restingScale); routine = null;
+    }
+
     private void ResolveReferences()
     {
         if (button == null)

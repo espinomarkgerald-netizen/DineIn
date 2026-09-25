@@ -82,7 +82,7 @@ public static partial class FastFoodCozyPolishAuthoring
         var batchFill=Ref<UnityEngine.UI.Image>("progressFill");
         var batchTrack=(RectTransform)batchFill.transform.parent;
         Stretch(batchTrack,new Vector2(.035f,.035f),new Vector2(.965f,.18f));
-        StripePolish(batchFill,610,false);
+        CleanProgressBar(batchFill);
         string ticketPath=FastFoodCookingAuthoring.TemplateFolder+"/Order Ticket.prefab";
         var ticketRoot=PrefabUtility.LoadPrefabContents(ticketPath);
         try{PolishTicket(ticketRoot.GetComponent<FastFoodCookingTicketView>());PrefabUtility.SaveAsPrefabAsset(ticketRoot,ticketPath);}
@@ -184,7 +184,7 @@ public static partial class FastFoodCozyPolishAuthoring
         fill.sprite=AssetDatabase.LoadAssetAtPath<Sprite>("Assets/_Project/Restaurant/CookingAssets/Theme/Green depth_flat.asset");
         fill.type=UnityEngine.UI.Image.Type.Filled;fill.fillMethod=UnityEngine.UI.Image.FillMethod.Horizontal;fill.fillOrigin=0;fill.fillAmount=0;fill.color=Color.white;fill.raycastTarget=false;
         ticket.progressFill=fill;
-        StripePolish(fill,315,true);
+        CleanProgressBar(fill);
         // Reserve space under the products so neither row is clipped by the progress track.
         var productArea=ticket.products.parent as RectTransform;
         if(productArea!=null&&productArea!=motion)
@@ -195,18 +195,6 @@ public static partial class FastFoodCozyPolishAuthoring
         Stretch(ticket.timer.rectTransform,new Vector2(.05f,.02f),new Vector2(.95f,.12f));
         ticket.timer.fontSize=22;ticket.timer.enableAutoSizing=false;
         EditorUtility.SetDirty(ticket);
-    }
-    static void StripePolish(UnityEngine.UI.Image fill,float width,bool filled)
-    {
-        if(filled)EnsurePolish<UnityEngine.UI.Mask>(fill.gameObject).showMaskGraphic=true;
-        else EnsurePolish<UnityEngine.UI.RectMask2D>(fill.gameObject);
-        for(int i=0;i<Mathf.CeilToInt(width/24)+2;i++)
-        {
-            var stripe=Child(fill.transform,"HUD Stripe "+i);
-            Fixed(stripe,new Vector2(0,.5f),new Vector2(i*24-8,0),new Vector2(9,42));
-            stripe.localRotation=Quaternion.Euler(0,0,-18);
-            var image=EnsurePolish<UnityEngine.UI.Image>(stripe.gameObject);image.color=new Color(1,1,1,.2f);image.raycastTarget=false;
-        }
     }
     static void AuthorUprightDrinks()
     {

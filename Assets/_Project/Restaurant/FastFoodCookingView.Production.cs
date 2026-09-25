@@ -16,7 +16,7 @@ public sealed partial class FastFoodCookingView
     [SerializeField] private string staffAssemblyFormat = "Staff assembling {0} other orders";
     [SerializeField] private string staffIdleText = "Staff ready to help";
     private readonly List<CookingVisual> cookingVisuals = new();
-    [SerializeField] private string loadStepFormat="Drag {0} to an open spot on your right";
+    [SerializeField] private string loadStepFormat="Drag {0} to any open cooking spot";
     [SerializeField] private string cookingStepText="Cooking — watch the progress rings";
     [SerializeField] private string collectStepText="Move the ready food to the tray";
     [SerializeField] private string completedBatchText="Batch ready — nicely done!";
@@ -44,6 +44,7 @@ public sealed partial class FastFoodCookingView
             cameraStartPosition=stationCamera.transform.position;cameraStartRotation=stationCamera.transform.rotation;
             cameraStartSize=stationCamera.orthographicSize;cameraStartFov=stationCamera.fieldOfView;
         }
+        State.FryerPrepPaused=State.Mode==FastFoodStationMode.Fry && (prepView || cameraMoving);
         if(!cameraMoving)return;
         var target=prepView?activeStation.preparationViewAnchor:activeStation.cookingViewAnchor;
         if(target==null){cameraMoving=false;return;}
@@ -56,7 +57,7 @@ public sealed partial class FastFoodCookingView
     }
     private string ProductionSignature() => State.Mode==FastFoodStationMode.Assembler ? "" :
         State.PrepReady+":"+State.ShowingCompletedBatch+":"+string.Join(";",State.Portions.Where(p=>p.player || (p.slot>=0 || p.proteinReady || p.stage==FastFoodCookingStage.Complete) && FastFoodCookingState.Station(p.recipe)==State.Mode)
-            .Select(p=>State.Portions.IndexOf(p)+"/"+p.slot+"/"+p.stage+"/"+p.ingredientStep))+":"+State.PlayerWork.Count(p=>p.stage==FastFoodCookingStage.Complete);
+            .Select(p=>State.Portions.IndexOf(p)+"/"+p.slot+"/"+p.stage+"/"+p.ingredientStep+"/"+p.placed))+":"+State.PlayerWork.Count(p=>p.stage==FastFoodCookingStage.Complete);
 
     private void RefreshProductionHeader()
     {
@@ -71,7 +72,7 @@ public sealed partial class FastFoodCookingView
         if(recipe!=null && State.Mode==FastFoodStationMode.Fry && FastFoodCookingState.PreparationStation(recipe)==FastFoodStationMode.Grill)
             heading.text=activeStation.stationTitle+"  /  FOR GRILL PREP";
         progressFill.transform.parent.gameObject.SetActive(recipe!=null);
-        progressFill.rectTransform.anchorMax=new Vector2(recipe==null?0:(float)(State.PrepReady?complete:ready)/Mathf.Max(1,work.Count),1);
+        SetBatchProgress((object)work.FirstOrDefault()?.batch??work.FirstOrDefault(),recipe==null?0:(float)(State.PrepReady?complete:ready)/Mathf.Max(1,work.Count));
         if(Time.unscaledTime>feedbackUntil)
         {
             string instruction="";
@@ -85,7 +86,7 @@ public sealed partial class FastFoodCookingView
             {
                 var portion=State.PlayerPortion;
                 instruction=portion.stage==FastFoodCookingStage.Waiting?State.FreeSlot(State.Mode,true)<0?cookingStepText:string.Format(loadStepFormat,FastFoodCookingState.Steps(portion.recipe)[0].item.displayName):
-                    portion.stage==FastFoodCookingStage.Ready?collectStepText:portion.stage==FastFoodCookingStage.Cooking?cookingStepText:"";
+                    portion.stage==FastFoodCookingStage.Ready?State.Mode==FastFoodStationMode.Fry?"Tap a raised basket to collect its food":"Tap each ready patty to collect":portion.stage==FastFoodCookingStage.Cooking?cookingStepText:"";
             }
             if(State.Mode==FastFoodStationMode.Fry && instruction.Length==0 && !State.ShowingCompletedBatch)
             {
@@ -102,7 +103,7 @@ public sealed partial class FastFoodCookingView
     private void RefreshStaffActivity()
     {
         if(staffActivity==null)return;
-        var work=State.Portions.Where(p=>!p.player || FastFoodCookingState.WorkStation(p)!=State.Mode)
+        var work=State.Portions.Where(p=>!p.player)
             .Where(p=>State.Mode==FastFoodStationMode.Assembler || FastFoodCookingState.WorkStation(p)==State.Mode
                 || State.Mode==FastFoodStationMode.Grill && FastFoodCookingState.PreparationStation(p.recipe)==State.Mode).ToArray();
         var cooking=work.FirstOrDefault(p=>p.stage==FastFoodCookingStage.Cooking);
@@ -136,7 +137,7 @@ public sealed partial class FastFoodCookingView
                 bay.timer.gameObject.SetActive(visible);
                 if(visible)
                 {
-                    bool staff=!portion.player || FastFoodCookingState.WorkStation(portion)!=State.Mode;
+                    bool staff=!portion.player;
                     // cookSeconds already includes the hygiene slowdown in the controller.
                     float speed=cooking&&staff?State.staffMultiplier:1;
                     bay.timer.Present(portion,State.cookSeconds,State.overcookSeconds,speed,staff,Time.timeScale<=0||HygieneManager.KitchenPaused);
@@ -162,8 +163,8 @@ public sealed partial class FastFoodCookingView
         {
             if(visual.root==null)continue;
             UpdateFoodColor(visual);
-            bool animate=!LevelOneUIAccessibility.ReducedMotion&&!HygieneManager.KitchenPaused;
-            float bob=animate&&visual.portion.stage==FastFoodCookingStage.Cooking?Mathf.Sin(Time.time*activeStation.cookingBobFrequency*Mathf.PI*2)*activeStation.cookingBobHeight:0;
+            bool animate=!LevelOneUIAccessibility.ReducedMotion&&!HygieneManager.KitchenPaused&&!State.FryerPrepPaused;
+            float bob=animate&&State.Mode==FastFoodStationMode.Fry&&visual.portion.stage==FastFoodCookingStage.Cooking?Mathf.Sin(Time.time*activeStation.cookingBobFrequency*Mathf.PI*2)*activeStation.cookingBobHeight:0;
             float pulse=animate&&visual.portion.player&&visual.portion.stage==FastFoodCookingStage.Ready?activeStation.readyPulseAmount*(.5f+.5f*Mathf.Sin(Time.time*activeStation.readyPulseFrequency*Mathf.PI*2)):0;
             visual.root.localPosition=visual.position+Vector3.up*bob;
             visual.root.localScale=visual.scale*(1+pulse);
@@ -186,13 +187,8 @@ public sealed partial class FastFoodCookingView
                 var layer=SpawnVisual(steps[i].visual,activeStation.prepFoodAnchor);
                 if(i==acceptedStep)AnimateAccepted(layer,p);
             }
-            int index=0;
-            foreach(var finished in State.PlayerWork.Where(x=>x.stage==FastFoodCookingStage.Complete))
-            {
-                if(index>=activeStation.completedFoodAnchors.Length)break;
-                var dish=SpawnVisual(finished.recipe.kitchenServingPrefab??activeStation.servingTemplate,activeStation.completedFoodAnchors[index++]);
-                AnimateAccepted(dish,finished);
-            }
+            // Only deliberately placed assembly layers belong on this board.
+            // Collected proteins are represented by their hotbar count.
         }
         else
         {
@@ -203,8 +199,6 @@ public sealed partial class FastFoodCookingView
                 AddSlot(recipe.kitchenIngredientIcon!=null?recipe.kitchenIngredientIcon:item.sprite,item.displayName,item,State.NextLoad(item),1);
                 hotbar.GetChild(hotbar.childCount-1).GetComponent<FastFoodCookingDragHandle>().previewTemplate=recipe.kitchenCookingPrefab;
             }
-            foreach(var group in State.PlayerWork.Where(x=>x.player&&x.stage==FastFoodCookingStage.Ready).GroupBy(x=>x.recipe))
-                AddSlot(group.Key.sprite,group.Key.DisplayName,null,group.First(),group.Count());
         }
         foreach(var bay in activeStation.Slots)
         {
@@ -217,15 +211,17 @@ public sealed partial class FastFoodCookingView
         if(State.Mode==FastFoodStationMode.Fry)
         {
             int index=0;
-            foreach(var finished in State.Portions.Where(x=>FastFoodCookingState.Station(x.recipe)==FastFoodStationMode.Fry && !x.placed &&
-                (x.stage==FastFoodCookingStage.Complete && FastFoodCookingState.PreparationStation(x.recipe)==FastFoodStationMode.Fry || x.proteinReady && x.stage==FastFoodCookingStage.Preparing)))
+            foreach(var finished in State.Portions.Where(FastFoodCookingState.OnFryRack))
             {
                 if(index>=activeStation.completedFoodAnchors.Length)break;
-                var template=finished.stage==FastFoodCookingStage.Complete?finished.recipe.kitchenServingPrefab:finished.recipe.kitchenCookingPrefab;
-                var dish=SpawnVisual(template!=null?template:activeStation.servingTemplate,activeStation.completedFoodAnchors[index++]);
+                var anchor=activeStation.completedFoodAnchors[index++];
+                if(collecting.ContainsKey(finished))continue;
+                var template=finished.recipe.kitchenCookingPrefab;
+                var dish=SpawnRackFood(template!=null?template:activeStation.cookingFoodTemplate,anchor,finished.recipe);
                 AnimateAccepted(dish,finished);
             }
         }
+        if(State.Mode==FastFoodStationMode.Grill)BindStoredProteinSlots();
         FitHotbar();
     }
 }

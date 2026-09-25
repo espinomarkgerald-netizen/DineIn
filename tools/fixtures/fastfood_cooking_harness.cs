@@ -68,8 +68,8 @@ public static class CookingHarness
         {var f=new Fixture();var p=f.PlayerBurger();f.FinishBurger(p);Assert(f.consumes==1&&f.stock[ItemType.Patty]==29&&f.stock[ItemType.Bun]==29&&f.stock[ItemType.Cheese]==29,"costs");Assert(!f.state.Collect(p)&&!f.state.Load(p,f.burger.ingredients[0].item),"no second completion");});
         Test("wrong ingredient cannot progress or charge stock",()=>
         {var f=new Fixture();var p=f.PlayerBurger();Assert(!f.state.Load(p,f.fries.ingredients[0].item)&&f.consumes==0,"invalid load");});
-        Test("uncollected fried food burns and releases its reservation without consuming",()=>
-        {var f=new Fixture();f.state.Accept(1,new[]{f.fries});f.state.Activate(1);f.state.Enter(FastFoodStationMode.Fry);var p=f.state.PlayerPortion;f.Cook(p);f.state.Tick(9,false,false);Assert(p.stage==FastFoodCookingStage.Burnt&&f.consumes==0&&f.state.Available(ItemType.Potato)==30,"burn");Assert(f.state.Discard(p)&&f.state.Available(ItemType.Potato)==29,"retry reservation");});
+        Test("uncollected grilled food burns and releases its reservation without consuming",()=>
+        {var f=new Fixture();var p=f.PlayerBurger();f.Cook(p);f.state.Tick(9,false,false);Assert(p.stage==FastFoodCookingStage.Burnt&&f.consumes==0&&f.state.Available(ItemType.Patty)==30,"burn");Assert(f.state.Discard(p)&&f.state.Available(ItemType.Patty)==29,"retry reservation");});
         Test("last ingredients cannot be promised twice",()=>
         {var f=new Fixture();f.stock[ItemType.Patty]=1;Assert(f.state.Accept(1,new[]{f.burger}),"first");Assert(!f.state.Accept(2,new[]{f.burger})&&f.stock[ItemType.Patty]==1,"second rejected, no debit");});
         Test("duplicate order acceptance creates no duplicate portions",()=>
@@ -118,7 +118,7 @@ public static class CookingHarness
         {var f=new Fixture();var expected=FastFoodCookingState.Requirements(f.burger);f.burger.firstCookingIngredient=f.burger.ingredients.Last().item;var steps=FastFoodCookingState.Steps(f.burger);Assert(steps[0].item==f.burger.firstCookingIngredient,"first step");Assert(expected.All(x=>FastFoodCookingState.Requirements(f.burger)[x.Key]==x.Value),"unchanged cost");});
         Test("staff finishes started grill work but starts no fresh work after entry",()=>
         {
-            var f=new Fixture();f.state.EnsureReserve(new[]{f.burger},3);f.state.Tick(1,false,false);
+            var f=new Fixture();f.state.staffSlotsPerStation=2;f.state.EnsureReserve(new[]{f.burger},3);f.state.Tick(1,false,false);
             var started=f.state.Portions.Where(p=>p.stage==FastFoodCookingStage.Cooking).ToArray();
             Assert(started.Length==2,"two prestarted jobs");
             f.state.Enter(FastFoodStationMode.Grill);
@@ -135,12 +135,14 @@ public static class CookingHarness
             for(int i=0;i<6;i++)f.state.Tick(1,false,false);
             Assert(f.state.FindTicket(1).submitted&&f.state.PlayerTicket.number==2&&f.consumes==2,"mixed ownership");
         });
-        Test("switching stations preserves partial prep and releases queued work",()=>
+        Test("switching stations preserves partial prep until the staff grace period expires",()=>
         {
             var f=new Fixture();var p=f.PlayerBurger();f.Cook(p);f.state.Collect(p);
             f.state.Load(p,FastFoodCookingState.AssemblySteps(f.burger)[0].item);
             int step=p.ingredientStep;f.state.Enter(FastFoodStationMode.Fry);
-            Assert(!p.player&&p.ingredientStep==step,"partial prep preserved");
+            Assert(p.player&&p.ingredientStep==step,"partial prep preserved during grace period");
+            f.state.Tick(f.state.stationGraceSeconds,false,false);
+            Assert(!p.player,"staff takeover after grace period");
             for(int i=0;i<10;i++)f.state.Tick(1,false,false);
             Assert(f.consumes==1,"staff completes without double debit");
         });

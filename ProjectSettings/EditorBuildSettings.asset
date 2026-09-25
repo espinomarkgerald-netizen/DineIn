@@ -32,7 +32,7 @@ EditorBuildSettings:
   - enabled: 0
     path: Assets/_Project/Scenes/RoleBased/Kitchen.unity
     guid: 4ef4f1fb1085f4d41a118d68e4b48794
-  - enabled: 1
+  - enabled: 0
     path: Assets/_Project/Scenes/RoleBased/LobbyTutorial.unity
     guid: dd92dfe19c80629418bdba09ac3f2e3e
   - enabled: 0
