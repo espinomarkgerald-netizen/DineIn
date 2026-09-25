@@ -72,6 +72,65 @@ public sealed class RestockOrderManager : MonoBehaviour
     public IReadOnlyList<RestockOrderSaveData> Orders => orders;
     public IReadOnlyList<RestockStoredContainerSaveData> StoredContainers => storedContainers;
 
+    [Serializable] public sealed class StorageShelfLayout { public StorageShelf[] shelves; }
+    [Serializable] public sealed class StorageShelf
+    {
+        public string id;
+        public RestockStorageType storage;
+        public int columns, rows;
+    }
+
+    // Called on room entry by the local owner or multiplayer authority. Restores
+    // starter/legacy stock without adding units or resetting expiry dates.
+    public void ReconcileStorageRecords(StorageShelf[] shelves, IReadOnlyList<ItemData> catalog)
+    {
+        var inventory = InventoryManager.Instance;
+        if (inventory == null || shelves == null || catalog == null || MultiplayerRestockBridge.ObserveOnly) return;
+        bool changed = inventory.NormalizeContainerBatches(catalog);
+        var represented = new HashSet<string>(StringComparer.Ordinal);
+        var occupied = new HashSet<string>(StringComparer.Ordinal);
+        string Cell(string shelf, int col, int row) => MultiplayerRestockBridge.ShelfIdentity(shelf) + ":" + col + ":" + row;
+        for (int i = 0; i < storedContainers.Count;)
+        {
+            var entry = storedContainers[i];
+            if (entry == null || !inventory.TryGetBatch(entry.stockBatchID, out var batch) || batch.unitsRemaining <= 0 || !represented.Add(entry.stockBatchID))
+            { storedContainers.RemoveAt(i); changed = true; continue; }
+            var shelf = Array.Find(shelves, s => MultiplayerRestockBridge.SameShelf(s.id, entry.shelfID));
+            if (shelf == null || shelf.storage != batch.currentStorage || entry.column < 0 || entry.column >= shelf.columns ||
+                entry.row < 0 || entry.row >= shelf.rows || !occupied.Add(Cell(shelf.id, entry.column, entry.row)))
+            { represented.Remove(entry.stockBatchID); storedContainers.RemoveAt(i); changed = true; continue; }
+            i++;
+        }
+        foreach (var batch in inventory.StockBatches)
+        {
+            if (batch == null || batch.unitsRemaining <= 0 || represented.Contains(batch.batchID)) continue;
+            ItemData item = null;
+            foreach (var candidate in catalog) if (candidate != null && candidate.itemType == batch.itemType) { item = candidate; break; }
+            if (item == null || item.worldContainerPrefab == null) continue;
+            bool placed = false;
+            foreach (var shelf in shelves)
+            {
+                if (shelf.storage != batch.currentStorage) continue;
+                for (int row = 0; row < shelf.rows && !placed; row++)
+                    for (int col = 0; col < shelf.columns && !placed; col++)
+                    {
+                        if (!occupied.Add(Cell(shelf.id, col, row))) continue;
+                        storedContainers.Add(new RestockStoredContainerSaveData {
+                            containerID = Guid.NewGuid().ToString("N"), stockBatchID = batch.batchID,
+                            itemID = item.StableItemId, itemType = item.itemType, shelfID = shelf.id,
+                            column = col, row = row, storageType = batch.currentStorage,
+                            wrongStorage = batch.wrongStorage, rotationY = item.worldContainerPrefab.transform.eulerAngles.y
+                        });
+                        represented.Add(batch.batchID); placed = changed = true;
+                    }
+                if (placed) break;
+            }
+        }
+        if (!changed) return;
+        StoredContainersChanged?.Invoke();
+        if (!MultiplayerRestockBridge.IsActive) GameSaveManager.Instance?.RequestSave();
+    }
+
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetStatics()
     {
@@ -299,6 +358,14 @@ public sealed class RestockOrderManager : MonoBehaviour
         if (InventoryManager.Instance == null)
         {
             message = "Inventory is not ready yet.";
+            return false;
+        }
+
+        var storage = FindFirstObjectByType<ManagementComputerController>()?.RestockStorage;
+        int used = InventoryManager.Instance.GetStorageContainerCount(shelfStorage, CurrentCatalog?.Ingredients);
+        if (storage != null && used >= storage.GetCapacity(shelfStorage))
+        {
+            message = $"{shelfStorage} storage is full ({used}/{storage.GetCapacity(shelfStorage)} occupied).";
             return false;
         }
 
@@ -567,6 +634,13 @@ public sealed class RestockOrderManager : MonoBehaviour
 
         Dictionary<string, RestockStorageContainer> existing =
             new Dictionary<string, RestockStorageContainer>(StringComparer.Ordinal);
+        if (!MultiplayerRestockBridge.IsActive)
+        {
+            var shelves = new List<StorageShelf>();
+            foreach (var grid in grids)
+                if (grid != null) shelves.Add(new StorageShelf { id = grid.StableShelfId, storage = grid.StorageType, columns = grid.columns, rows = grid.rows });
+            ReconcileStorageRecords(shelves.ToArray(), CurrentCatalog?.Ingredients);
+        }
         GameObject[] roots = scene.GetRootGameObjects();
         for (int r = 0; r < roots.Length; r++)
         {
@@ -931,11 +1005,7 @@ public sealed class RestockOrderManager : MonoBehaviour
         for (int i = 0; i < grids.Count; i++)
         {
             ShelfGrid grid = grids[i];
-            if (grid != null && (MultiplayerRestockBridge.IsActive
-                ? MultiplayerRestockBridge.SameShelf(grid.StableShelfId, shelfID) : string.Equals(
-                    grid.StableShelfId,
-                    shelfID,
-                    StringComparison.Ordinal)))
+            if (grid != null && MultiplayerRestockBridge.SameShelf(grid.StableShelfId, shelfID))
                 return grid;
         }
         return null;

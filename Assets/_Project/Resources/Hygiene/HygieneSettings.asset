@@ -13,8 +13,10 @@ MonoBehaviour:
   m_Name: HygieneSettings
   m_EditorClassIdentifier: 
   dirtSpeed: 1.5
-  kitchenDirtMultiplier: 1
+  maxKitchenDirtCyclesPerDay: 2
+  kitchenDirtMultiplier: 0.5
   dirtPerStationUse: 0.05
+  autonomousKitchenUseSeconds: 12
   lobbyDirtMultiplier: 0.35
   dirtPerLobbyIncident: 0.08
   seatingDirt: 0.04

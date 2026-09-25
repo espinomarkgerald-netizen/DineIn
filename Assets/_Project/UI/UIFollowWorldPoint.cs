@@ -267,6 +267,13 @@ public class UIFollowWorldPoint : MonoBehaviour
 
     private void UpdateWorldSpacePose()
     {
+        // Init can run while a station has disabled the lobby's MainCamera.
+        // LateUpdate acquires the camera and reveals the bubble on return.
+        if (cam == null || target == null)
+        {
+            SetVisible(false);
+            return;
+        }
         Vector3 anchorPosition = target.position + worldOffset;
         Vector3 viewportPosition = cam.WorldToViewportPoint(anchorPosition);
 

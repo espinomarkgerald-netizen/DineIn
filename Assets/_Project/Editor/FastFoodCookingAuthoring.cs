@@ -49,6 +49,118 @@ public static class FastFoodCookingAuthoring
 
     [MenuItem("Dine In/Fast Food/Validate Editable Kitchen")]
     public static void ValidateMenu() => Debug.Log(Validate(SceneManager.GetSceneByName("Lobby2")));
+    [MenuItem("Dine In/Fast Food/Polish Kitchen Ticket and Feedback")]
+    public static void PolishTicketAndFeedback()
+    {
+        var scene=SceneManager.GetSceneByName("Lobby2");
+        if(EditorApplication.isPlayingOrWillChangePlaymode || !scene.isLoaded)
+            throw new InvalidOperationException("Open Lobby2 outside Play mode first.");
+        string path=TemplateFolder+"/Order Ticket.prefab";
+        var contents=PrefabUtility.LoadPrefabContents(path);
+        try { FastFoodCookingView.ApplyCompactTicketInEditor(contents); PrefabUtility.SaveAsPrefabAsset(contents,path); }
+        finally { PrefabUtility.UnloadPrefabContents(contents); }
+        var view=scene.GetRootGameObjects().SelectMany(r=>r.GetComponentsInChildren<FastFoodCookingView>(true)).Single();
+        view.ApplyTicketLayoutInEditor();
+        string productPath=TemplateFolder+"/Ticket Product.prefab";
+        var productRoot=PrefabUtility.LoadPrefabContents(productPath);
+        try
+        {
+            var product=productRoot.GetComponent<FastFoodCookingDragHandle>();
+            product.icon.rectTransform.anchorMin=new Vector2(.12f,.34f);
+            product.icon.rectTransform.anchorMax=new Vector2(.88f,.92f);
+            product.icon.rectTransform.offsetMin=product.icon.rectTransform.offsetMax=Vector2.zero;
+            product.count.rectTransform.anchorMin=new Vector2(.08f,.10f);
+            product.count.rectTransform.anchorMax=new Vector2(.92f,.34f);
+            product.count.rectTransform.offsetMin=product.count.rectTransform.offsetMax=Vector2.zero;
+            product.count.fontSize=20;
+            PrefabUtility.SaveAsPrefabAsset(productRoot,productPath);
+        }
+        finally { PrefabUtility.UnloadPrefabContents(productRoot); }
+        foreach(var rig in view.GetComponentsInChildren<FastFoodCookingStation>(true))
+        {
+            if(rig.mode!=FastFoodStationMode.Assembler && rig.cookingFeedback==null)
+            {
+                var steam=new GameObject("Cooking Steam");
+                Undo.RegisterCreatedObjectUndo(steam,"Author cooking feedback");
+                steam.transform.SetParent(rig.foodAnchor,false);
+                steam.transform.localRotation=Quaternion.Euler(-90,0,0);
+                steam.layer=rig.foodAnchor.gameObject.layer;
+                var particles=steam.AddComponent<ParticleSystem>();
+                particles.Stop(true,ParticleSystemStopBehavior.StopEmittingAndClear);
+                var main=particles.main;
+                main.loop=true; main.playOnAwake=true; main.startLifetime=.8f;
+                main.startSpeed=.12f; main.startSize=.08f; main.startColor=new Color(1,1,1,.16f);
+                main.maxParticles=20; main.simulationSpace=ParticleSystemSimulationSpace.World;
+                var emission=particles.emission; emission.rateOverTime=8;
+                var shape=particles.shape; shape.shapeType=ParticleSystemShapeType.Cone; shape.radius=.07f; shape.angle=8;
+                var color=particles.colorOverLifetime; color.enabled=true;
+                var gradient=new Gradient();
+                gradient.SetKeys(new[]{new GradientColorKey(Color.white,0),new GradientColorKey(Color.white,1)},
+                    new[]{new GradientAlphaKey(0,0),new GradientAlphaKey(1,.2f),new GradientAlphaKey(0,1)});
+                color.color=gradient;
+                rig.cookingFeedback=steam;
+                steam.SetActive(false);
+            }
+            if(rig.cookingFeedback!=null)
+            {
+                var renderer=rig.cookingFeedback.GetComponent<ParticleSystemRenderer>();
+                if(renderer!=null && renderer.sharedMaterial==null)
+                    renderer.sharedMaterial=AssetDatabase.GetBuiltinExtraResource<Material>("Default-Particle.mat");
+            }
+            EditorUtility.SetDirty(rig);
+        }
+        foreach(var component in view.GetComponentsInChildren<Component>(true))
+            if(component!=null && PrefabUtility.IsPartOfPrefabInstance(component)) PrefabUtility.RecordPrefabInstancePropertyModifications(component);
+        EditorSceneManager.MarkSceneDirty(scene);
+        if(!EditorSceneManager.SaveScene(scene)) throw new InvalidOperationException("Could not save kitchen polish.");
+        Debug.Log(Validate(scene));
+    }
+    [MenuItem("Dine In/Fast Food/Simplify Kitchen Presentation")]
+    public static void SimplifyKitchenPresentation()
+    {
+        var scene=SceneManager.GetSceneByName("Lobby2");
+        if(EditorApplication.isPlayingOrWillChangePlaymode || !scene.isLoaded)
+            throw new InvalidOperationException("Open Lobby2 outside Play mode first.");
+        foreach(string name in new[]{"Ingredient Slot","Order Ticket"})
+        {
+            string path=TemplateFolder+"/"+name+".prefab";
+            var contents=PrefabUtility.LoadPrefabContents(path);
+            try
+            {
+                if(name=="Ingredient Slot")FastFoodCookingView.ApplyCompactSlotInEditor(contents);
+                else FastFoodCookingView.ApplyCompactTicketInEditor(contents);
+                PrefabUtility.SaveAsPrefabAsset(contents,path);
+            }
+            finally { PrefabUtility.UnloadPrefabContents(contents); }
+        }
+        var view=scene.GetRootGameObjects().SelectMany(r=>r.GetComponentsInChildren<FastFoodCookingView>(true)).Single();
+        view.ApplyCompactPresentationInEditor();
+        EditorSceneManager.MarkSceneDirty(scene);
+        if(!EditorSceneManager.SaveScene(scene))throw new InvalidOperationException("Could not save the compact kitchen presentation.");
+        Debug.Log(Validate(scene));
+    }
+    [MenuItem("Dine In/Fast Food/Use Natural UI Asset Colors")]
+    public static void UseNaturalUIAssetColors()
+    {
+        var scene=SceneManager.GetSceneByName("Lobby2");
+        if(EditorApplication.isPlayingOrWillChangePlaymode || !scene.isLoaded)
+            throw new InvalidOperationException("Open Lobby2 outside Play mode first.");
+        var view=scene.GetRootGameObjects().SelectMany(r=>r.GetComponentsInChildren<FastFoodCookingView>(true)).Single();
+        foreach(string name in new[]{"Ingredient Slot","Order Ticket","Ticket Product"})
+        {
+            string path=TemplateFolder+"/"+name+".prefab";
+            var contents=PrefabUtility.LoadPrefabContents(path);
+            try { FastFoodCookingView.ApplyNaturalUIAssetColors(contents); PrefabUtility.SaveAsPrefabAsset(contents,path); }
+            finally { PrefabUtility.UnloadPrefabContents(contents); }
+        }
+        view.ApplyNaturalUIColorsInEditor();
+        foreach(var component in view.GetComponentsInChildren<Component>(true))
+            if(component!=null && PrefabUtility.IsPartOfPrefabInstance(component))
+                PrefabUtility.RecordPrefabInstancePropertyModifications(component);
+        EditorSceneManager.MarkSceneDirty(scene);
+        EditorSceneManager.SaveScene(scene);
+        Debug.Log("Kitchen UI saved: blue backgrounds, grey foregrounds, contrasting Anton text, green positive, red negative and yellow warning actions.");
+    }
     public static string Validate(Scene scene)
     {
         var controllers=scene.GetRootGameObjects().SelectMany(r=>r.GetComponentsInChildren<FastFoodCookingController>(true)).ToArray();

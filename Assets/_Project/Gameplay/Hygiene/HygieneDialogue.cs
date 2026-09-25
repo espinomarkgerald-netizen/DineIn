@@ -128,6 +128,12 @@ public sealed partial class ManagerComplaintSystem
         };
         if (view.title == null || view.message == null || Array.Exists(view.buttons, b => b == null) || Array.Exists(view.labels, l => l == null))
         { Destroy(root); Debug.LogError("[Hygiene] Complaint dialogue bindings are incomplete."); return null; }
+        // Complaints use one wide response; hygiene still needs three choices.
+        var center = (RectTransform)view.buttons[1].transform;
+        var right = (RectTransform)view.buttons[2].transform;
+        var left = (RectTransform)view.buttons[0].transform;
+        left.sizeDelta = center.sizeDelta;
+        left.anchoredPosition = center.anchoredPosition * 2f - right.anchoredPosition;
         var style = HygieneCleaningPresentation.Load();
         if (style == null || style.choiceButton == null)
         { Destroy(root); Debug.LogError("[Hygiene] Missing green cleaning button asset."); return null; }

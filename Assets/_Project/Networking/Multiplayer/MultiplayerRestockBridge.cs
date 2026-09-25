@@ -4,6 +4,7 @@ using ExitGames.Client.Photon;
 using Photon.Pun;
 using Photon.Realtime;
 using UnityEngine;
+using ShelfLayout = RestockOrderManager.StorageShelfLayout;
 
 // Scene-owned transport over the existing inventory/order ledger. No campaign persistence.
 public sealed class MultiplayerRestockBridge : MonoBehaviourPunCallbacks, IOnEventCallback
@@ -39,13 +40,6 @@ public sealed class MultiplayerRestockBridge : MonoBehaviourPunCallbacks, IOnEve
     {
         public Receipt receipt;
         public string snapshot;
-    }
-    [Serializable] private sealed class ShelfLayout { public Shelf[] shelves; }
-    [Serializable] private sealed class Shelf
-    {
-        public string id;
-        public RestockStorageType storage;
-        public int columns, rows;
     }
 
     private MultiplayerSessionManager session;
@@ -199,6 +193,7 @@ public sealed class MultiplayerRestockBridge : MonoBehaviourPunCallbacks, IOnEve
                 message = "Another Player is restocking. Wait for them to leave the stock room.";
             else if (request.operation == "enter")
             {
+                RestockOrderManager.Instance?.ReconcileStorageRecords(layout?.shelves, Items);
                 state.owner = actor;
                 accepted = true;
             }
@@ -242,9 +237,7 @@ public sealed class MultiplayerRestockBridge : MonoBehaviourPunCallbacks, IOnEve
         foreach (RestockStorageType type in Enum.GetValues(typeof(RestockStorageType)))
         {
             int used = RestockOrderManager.Instance.GetReservedContainers(type, Items);
-            foreach (ItemData item in Items)
-                if (item != null && item.requiredStorage == type)
-                    used += Mathf.CeilToInt(InventoryManager.Instance.GetStock(item.itemType) / (float)Mathf.Max(1, item.unitsPerBox));
+            used += InventoryManager.Instance.GetStorageContainerCount(type, Items);
             foreach (RestockCartLine line in cart)
                 if (line.item.requiredStorage == type) used += line.quantity;
             if (used > Storage.GetCapacity(type)) return false;
@@ -258,7 +251,7 @@ public sealed class MultiplayerRestockBridge : MonoBehaviourPunCallbacks, IOnEve
     {
         message = "The shelf cell or delivered box is no longer available.";
         ItemData item = request.items != null && request.items.Length == 1 ? FindItem(request.items[0]) : null;
-        Shelf shelf = layout?.shelves == null ? null : Array.Find(layout.shelves, s => SameShelf(s.id, request.shelf));
+        var shelf = layout?.shelves == null ? null : Array.Find(layout.shelves, s => SameShelf(s.id, request.shelf));
         var orders = RestockOrderManager.Instance;
         var inventory = InventoryManager.Instance;
         if (item == null || item.worldContainerPrefab == null || inventory == null || orders == null)
@@ -271,29 +264,13 @@ public sealed class MultiplayerRestockBridge : MonoBehaviourPunCallbacks, IOnEve
         { message = "That delivered box has already been stored. The shared stock has been refreshed."; return false; }
         if (shelf.storage != item.requiredStorage && !request.wrongStorageConfirmed)
         { message = "Wrong storage. Confirm the shelf choice before placing this box."; return false; }
-        int occupied = 0;
         foreach (var entry in orders.StoredContainers)
         {
             if (entry == null || !inventory.TryGetBatch(entry.stockBatchID, out var batch) || batch.unitsRemaining <= 0) continue;
             if (SameShelf(entry.shelfID, shelf.id) && entry.column == request.column && entry.row == request.row)
             { message = "That shelf cell is occupied. Choose another cell."; return false; }
-            if (entry.storageType == shelf.storage) occupied++;
         }
-        if (occupied >= Storage.GetCapacity(shelf.storage))
-        { message = "This storage room is full."; return false; }
-        // Include starter stock and partially consumed batches, not just visible delivered boxes.
-        var capacityData = new GameSaveData();
-        inventory.FillSaveData(capacityData);
-        int used = 0;
-        foreach (var batch in capacityData.inventoryStockBatches)
-        {
-            if (batch.currentStorage != shelf.storage || batch.unitsRemaining <= 0) continue;
-            ItemData storedItem = null;
-            foreach (var candidate in Items)
-                if (candidate != null && candidate.itemType == batch.itemType) { storedItem = candidate; break; }
-            if (storedItem != null)
-                used += Mathf.CeilToInt(batch.unitsRemaining / (float)Mathf.Max(1, storedItem.unitsPerBox));
-        }
+        int used = inventory.GetStorageContainerCount(shelf.storage, Items);
         if (used >= Storage.GetCapacity(shelf.storage))
         { message = "This storage room is full, including partially used stock."; return false; }
         if (!orders.TryStoreOneContainer(item, shelf.storage, out message, out string batchID, out _)) return false;

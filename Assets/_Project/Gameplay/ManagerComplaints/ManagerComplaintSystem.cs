@@ -196,6 +196,8 @@ public sealed partial class ManagerComplaintSystem : MonoBehaviour
         activeGroup.BeginManagerComplaint(type);
         SpawnWorldMarker();
         GameSaveManager.Instance?.RequestSave();
+        if (FastFoodCookingController.Instance?.IsHelpingKitchen == true)
+            OpenActiveComplaint();
         return true;
     }
 
@@ -408,6 +410,7 @@ public sealed partial class ManagerComplaintSystem : MonoBehaviour
         if (activeGroup == null || activeDefinition == null || resolving)
             return;
 
+        ExitKitchenForLocalPresentation();
         dialogueOpen = true;
         activeGroup.SetManagerCallAnimation(false);
         if (worldMarker != null)
@@ -444,7 +447,7 @@ public sealed partial class ManagerComplaintSystem : MonoBehaviour
         }
 
         if (managerResponseText != null)
-            managerResponseText.text = "CHOOSE THE MANAGER'S RESPONSE";
+            managerResponseText.text = "LET'S MAKE THIS RIGHT";
         if (coachingText != null)
             coachingText.text = "LISTEN  >  ACKNOWLEDGE  >  APOLOGIZE  >  SOLVE";
 
@@ -452,12 +455,18 @@ public sealed partial class ManagerComplaintSystem : MonoBehaviour
             professionalButton,
             professionalButtonText,
             activeDefinition.professional);
-        SetResponseButton(
-            acceptableButton,
-            acceptableButtonText,
-            activeDefinition.acceptable);
-        SetResponseButton(poorButton, poorButtonText, activeDefinition.poor);
+        if (acceptableButton != null) acceptableButton.gameObject.SetActive(false);
+        if (poorButton != null) poorButton.gameObject.SetActive(false);
         SetResponseButtonsInteractable(true);
+    }
+
+    private void ExitKitchenForLocalPresentation()
+    {
+        // A remote player's complaint must not interrupt the host's local view.
+        if (MultiplayerServiceActions.IsActive && networkOwner > 0 &&
+            networkOwner != MultiplayerSessionManager.Instance.LocalActorNumber)
+            return;
+        FastFoodCookingController.Instance?.ExitKitchen();
     }
 
     private static void SetResponseButton(
@@ -468,7 +477,7 @@ public sealed partial class ManagerComplaintSystem : MonoBehaviour
         if (button != null)
             button.gameObject.SetActive(response != null);
         if (label != null && response != null)
-            label.text = response.buttonHeading + "\n\"" + response.managerLine + "\"";
+            label.text = "RESPOND\n\"" + response.managerLine + "\"";
     }
 
     private void BindButtons()
@@ -511,6 +520,9 @@ public sealed partial class ManagerComplaintSystem : MonoBehaviour
         if (activeGroup == null || !activeGroup.CanDecideCustomerOutcome || resolving)
             return;
 
+        ExitKitchenForLocalPresentation();
+        if (!dialogueOpen)
+            PopulateDialogue();
         resolving = true;
         dialogueOpen = true;
         if (dialogueRoot != null)

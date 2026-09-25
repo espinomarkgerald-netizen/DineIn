@@ -18,13 +18,17 @@ public sealed class FastFoodCookingController : MonoBehaviour
     public static FastFoodCookingController Instance { get; private set; }
     public FastFoodCookingState State { get; private set; }
     public bool IsHelpingKitchen => view != null && view.IsOpen;
+    public void ExitKitchen() => view?.Exit();
     [Header("Relaxed kitchen help")]
-    [SerializeField, Min(2)] private int playerEvery = 10;
+    // Retained only for old scene serialization; occupied stations no longer use a quota.
+    [SerializeField, HideInInspector] private int playerEvery = 10;
+    [SerializeField, Range(1, 6)] private int playerBatchSize = 6;
     [SerializeField, Min(1)] private int staffSlots = 4;
     [SerializeField, Min(0)] private int reserveServings = 2;
     [SerializeField, Min(1)] private float cookSeconds = 8, overcookSeconds = 8, batchDeadline = 300;
     [SerializeField, Min(1)] private float staffSpeed = 2;
     [SerializeField, Min(.1f)] private float assemblySeconds = 2;
+    [SerializeField, Min(0)] private float finishedBatchDisplaySeconds = .9f;
     [Serializable] public class GuidanceText
     {
         public string action;
@@ -75,6 +79,16 @@ public sealed class FastFoodCookingController : MonoBehaviour
     private void Configure()
     {
         State.playerEvery = Mathf.Max(2, playerEvery); State.staffSlotsPerStation = Mathf.Max(1, staffSlots);
+        State.playerBatchSize = Mathf.Clamp(playerBatchSize, 1, 6);
+        foreach (var rig in GetComponentsInChildren<FastFoodCookingStation>(true))
+        {
+            if (rig.mode == FastFoodStationMode.Assembler) continue;
+            var slots = rig.Slots.OrderBy(s => s.slotIndex).ToArray();
+            if (slots.Length == 0 || slots.Where((s, i) => s.slotIndex != i).Any())
+                throw new InvalidOperationException(rig.name + " must have unique, consecutive saved slot indices.");
+            State.ConfigureSlots(rig.mode, slots.Select(s => s.owner).ToArray());
+        }
+        State.completionHoldSeconds = Mathf.Max(0, finishedBatchDisplaySeconds);
         State.cookSeconds = Mathf.Max(1, cookSeconds); State.overcookSeconds = Mathf.Max(1, overcookSeconds);
         State.staffMultiplier = Mathf.Max(1, staffSpeed); State.assemblySeconds = Mathf.Max(.1f, assemblySeconds);
         State.deadlineSeconds = Mathf.Max(1, batchDeadline);
@@ -142,6 +156,7 @@ public sealed class FastFoodCookingController : MonoBehaviour
     {
         if (State.Mode == FastFoodStationMode.None) { PlayerTaskGuidance.ClearTask("FastFoodCooking"); return; }
         var p = State.PlayerPortion;
+        if(p==null && State.PlayerTicket==null) { PlayerTaskGuidance.ClearTask("FastFoodCooking"); return; }
         GuidanceText text=idleGuidance; object argument="";
         if (State.Mode == FastFoodStationMode.Assembler)
         {
@@ -153,13 +168,20 @@ public sealed class FastFoodCookingController : MonoBehaviour
             var steps = FastFoodCookingState.Steps(p.recipe);
             switch (p.stage)
             {
-                case FastFoodCookingStage.Waiting: text=loadGuidance; argument=steps[0].item.displayName; break;
+                case FastFoodCookingStage.Waiting:
+                    bool full=State.FreeSlot(State.Mode,true)<0;
+                    text=full?cookGuidance:loadGuidance; argument=full?p.recipe.DisplayName:steps[0].item.displayName; break;
                 case FastFoodCookingStage.Cooking: text=cookGuidance; argument=p.recipe.DisplayName; break;
                 case FastFoodCookingStage.Ready: text=collectGuidance; break;
-                case FastFoodCookingStage.Preparing: text=prepareGuidance; argument=steps[Mathf.Min(p.ingredientStep,steps.Count-1)].item.displayName; break;
+                case FastFoodCookingStage.Preparing:
+                    if (!State.PrepReady) { text=cookGuidance; argument=p.recipe.DisplayName; break; }
+                    text=prepareGuidance; var assembly=FastFoodCookingState.AssemblySteps(p.recipe);
+                    argument=assembly[Mathf.Min(p.ingredientStep,assembly.Count-1)].label; break;
                 case FastFoodCookingStage.Burnt: text=burntGuidance; break;
             }
         }
+        if (p != null && FastFoodCookingState.Station(p.recipe) != State.Mode && !p.proteinReady)
+        { PlayerTaskGuidance.SetTask("FastFoodCooking", State.Mode.ToString(), "Fryer is cooking " + p.recipe.DisplayName, "Your camera will move to the prep table when the batch is ready.", 1000, this, PlayerTaskCategory.Kitchen); return; }
         PlayerTaskGuidance.SetTask("FastFoodCooking", State.Mode.ToString(), string.Format(text.action,argument), string.Format(text.detail,argument), 1000, this, PlayerTaskCategory.Kitchen);
     }
     public void FillSaveData(GameSaveData data)

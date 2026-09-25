@@ -14,6 +14,15 @@ public class RecipeIngredient
     public int amount;
 }
 
+[System.Serializable]
+public class KitchenAssemblyStep
+{
+    public ItemData item;
+    public GameObject visual;
+    public Sprite icon;
+    public string label;
+}
+
 [CreateAssetMenu(menuName = "Game/Recipe")]
 public class Recipe : ScriptableObject
 {
@@ -37,12 +46,20 @@ public class Recipe : ScriptableObject
     public FastFoodStationMode cookingStation;
     [Tooltip("Ingredient to cook first. Remaining ingredients follow the Ingredients list order.")]
     public ItemData firstCookingIngredient;
+    [Tooltip("Station that assembles the cooked protein. None uses the cooking station.")]
+    public FastFoodStationMode preparationStation;
+    [Tooltip("Visual assembly actions. Recipe Ingredients remain the inventory cost; two bun halves still cost one bun.")]
+    public List<KitchenAssemblyStep> kitchenAssemblySteps = new List<KitchenAssemblyStep>();
     [Tooltip("Optional kitchen model override. Include a Collider and FastFoodCookingDragHandle. Its local transform is relative to the saved food anchor.")]
     public GameObject kitchenCookingPrefab;
     [Tooltip("Optional finished serving override for the kitchen assembly tray. Its local transform is relative to a saved tray anchor.")]
     public GameObject kitchenServingPrefab;
     [Tooltip("Optional drag preview for this finished food. Empty uses the station template.")]
     public GameObject kitchenPreviewPrefab;
+    [Tooltip("Optional hotbar icon for the cooking input. Does not change the inventory item or its cost.")]
+    public Sprite kitchenIngredientIcon;
+    [Tooltip("Multiply the cooking model's own material colors at the start; it returns to its natural cooked colors as the timer fills.")]
+    public Color kitchenRawColorMultiplier = Color.white;
 
     [Header("Visuals")]
     public Sprite sprite;

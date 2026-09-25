@@ -15,5 +15,5 @@ MonoBehaviour:
   restaurantID: casual-dining
   displayName: Casual Dining
   dryCapacity: 24
-  frozenCapacity: 20
+  frozenCapacity: 24
   expectedCustomers: 10

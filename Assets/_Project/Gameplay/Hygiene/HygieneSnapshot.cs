@@ -34,6 +34,7 @@ public static class HygieneSnapshot
             if (packet == null || packet.version != 5 || state == null || state.surfaces == null || state.surfaces.Count > HygieneState.MaxSurfaces
                 || !Finite(state.lobbyGraceRemainingHours) || state.lobbyGraceRemainingHours < 0f || state.lobbyGraceRemainingHours > 24f
                 || !Finite(state.lobbyClockHour) || state.lobbyClockHour < -1f
+                || state.kitchenDirtCyclesToday < 0 || state.kitchenDirtCyclesToday > 8
                 || state.floorRoute == null || state.floorRoute.Count > HygieneState.MaxFloorMarks
                 || state.floorRouteTotal < 0 || state.floorRouteTotal > HygieneState.MaxFloorMarks
                 || state.floorRouteDone < 0 || state.floorRouteDone > state.floorRouteTotal || !Unit(state.floorWorkProgress)

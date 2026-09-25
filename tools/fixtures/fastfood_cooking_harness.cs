@@ -14,11 +14,14 @@ namespace UnityEngine
 public enum ItemType { Patty, Bun, Cheese, ChickenPatty, FrozenFishFillet, Potato, Syrup }
 public enum ItemTypeKitchen { Burger, ChickenSandwich, FishFilletSandwich, Fries, Coke }
 public enum MenuProductCategory { Food, Drink }
-public class ItemData { public ItemType itemType; }
+public class ItemData { public ItemType itemType; public string displayName => itemType.ToString(); }
 public class RecipeIngredient { public ItemData item; public int amount; }
+public class KitchenAssemblyStep { public ItemData item; public string label; }
 public class Recipe
 {
     public FastFoodStationMode cookingStation;
+    public FastFoodStationMode preparationStation;
+    public List<KitchenAssemblyStep> kitchenAssemblySteps = new();
     public ItemData firstCookingIngredient;
     public MenuProductCategory category;
     public ItemTypeKitchen kitchenItemType;
@@ -65,8 +68,8 @@ public static class CookingHarness
         {var f=new Fixture();var p=f.PlayerBurger();f.FinishBurger(p);Assert(f.consumes==1&&f.stock[ItemType.Patty]==29&&f.stock[ItemType.Bun]==29&&f.stock[ItemType.Cheese]==29,"costs");Assert(!f.state.Collect(p)&&!f.state.Load(p,f.burger.ingredients[0].item),"no second completion");});
         Test("wrong ingredient cannot progress or charge stock",()=>
         {var f=new Fixture();var p=f.PlayerBurger();Assert(!f.state.Load(p,f.fries.ingredients[0].item)&&f.consumes==0,"invalid load");});
-        Test("burn releases reservation without consuming",()=>
-        {var f=new Fixture();var p=f.PlayerBurger();f.Cook(p);f.state.Tick(9,false,false);Assert(p.stage==FastFoodCookingStage.Burnt&&f.consumes==0&&f.state.Available(ItemType.Patty)==30,"burn");Assert(f.state.Discard(p)&&f.state.Available(ItemType.Patty)==29,"retry reservation");});
+        Test("uncollected fried food burns and releases its reservation without consuming",()=>
+        {var f=new Fixture();f.state.Accept(1,new[]{f.fries});f.state.Activate(1);f.state.Enter(FastFoodStationMode.Fry);var p=f.state.PlayerPortion;f.Cook(p);f.state.Tick(9,false,false);Assert(p.stage==FastFoodCookingStage.Burnt&&f.consumes==0&&f.state.Available(ItemType.Potato)==30,"burn");Assert(f.state.Discard(p)&&f.state.Available(ItemType.Potato)==29,"retry reservation");});
         Test("last ingredients cannot be promised twice",()=>
         {var f=new Fixture();f.stock[ItemType.Patty]=1;Assert(f.state.Accept(1,new[]{f.burger}),"first");Assert(!f.state.Accept(2,new[]{f.burger})&&f.stock[ItemType.Patty]==1,"second rejected, no debit");});
         Test("duplicate order acceptance creates no duplicate portions",()=>
@@ -89,16 +92,16 @@ public static class CookingHarness
         {var f=new Fixture();f.state.RestoreReady(f.burger,1);f.state.Accept(1,new[]{f.burger});f.state.Activate(1);f.state.Enter(FastFoodStationMode.Assembler);var p=f.state.FindTicket(1).portions[0];Assert(f.state.BeginServingDrag(p)&&!f.state.BeginServingDrag(p),"exclusive drag");p.dragging=false;Assert(f.state.BeginServingDrag(p)&&f.consumes==0,"retry");});
         Test("staff serves a completed tray handed over before Serve",()=>
         {var f=new Fixture();f.state.RestoreReady(f.burger,1);f.state.Accept(1,new[]{f.burger});f.state.Activate(1);f.state.Enter(FastFoodStationMode.Assembler);var p=f.state.FindTicket(1).portions[0];f.state.BeginServingDrag(p);f.state.Place(p);f.state.Enter(FastFoodStationMode.None);f.state.Tick(1,false,false);Assert(f.state.FindTicket(1).submitted,"handoff of full tray");});
-        Test("player gets one ticket out of ten; staff owns the rest",()=>
-        {var f=new Fixture();f.state.Enter(FastFoodStationMode.Assembler);for(int i=1;i<=10;i++){f.state.Accept(i,new[]{f.drink});f.state.Activate(i);}Assert(f.state.Tickets.Count(t=>t.player)==1,"90 percent staff");});
+        Test("occupied assembler owns all new tickets, one actionable at a time",()=>
+        {var f=new Fixture();f.state.Enter(FastFoodStationMode.Assembler);for(int i=1;i<=10;i++){f.state.Accept(i,new[]{f.drink});f.state.Activate(i);}Assert(f.state.Tickets.Count(t=>t.player)==10,"player ownership");Assert(!f.state.BeginServingDrag(f.state.Tickets[1].portions[0]),"queued ticket blocked");f.state.Tick(2,false,false);Assert(f.state.Tickets[1].elapsed==0&&f.consumes==0,"queue not timed or auto served");});
         Test("reserve stock is bounded and not charged until finished",()=>
         {var f=new Fixture();f.state.EnsureReserve(new[]{f.burger},2);f.state.EnsureReserve(new[]{f.burger},2);Assert(f.state.Portions.Count==2&&f.consumes==0,"bounded");for(int i=0;i<15;i++)f.state.Tick(1,false,false);Assert(f.state.ReadyStock(f.burger)==2&&f.consumes==2,"reserve cooked");});
         Test("final commit rejects changed stock without creating food",()=>
         {var f=new Fixture();var p=f.PlayerBurger();f.Cook(p);f.state.Collect(p);f.stock[ItemType.Cheese]=0;var steps=FastFoodCookingState.Steps(f.burger);f.state.Load(p,steps[1].item);Assert(!f.state.Load(p,steps[2].item)&&p.stage!=FastFoodCookingStage.Complete&&f.consumes==0,"atomic rejection");});
         Test("batch production stays completed after serving",()=>
         {var f=new Fixture();var p=f.PlayerBurger();f.FinishBurger(p);var b=p.batch;f.state.Enter(FastFoodStationMode.Assembler);f.state.BeginServingDrag(p);f.state.Place(p);f.state.Serve(1);f.state.Release(1,true);Assert(b.completed==1&&f.consumes==1,"historical batch progress");});
-        Test("deadline hands work to staff without consuming prematurely",()=>
-        {var f=new Fixture();var p=f.PlayerBurger();f.state.Tick(301,false,false);Assert(!p.player&&f.consumes==0,"handoff");});
+        Test("deadline does not steal work while player occupies station",()=>
+        {var f=new Fixture();var p=f.PlayerBurger();f.state.Tick(301,false,false);Assert(p.player&&f.consumes==0,"occupied ownership");});
         Test("remake order number preserves a single reservation",()=>
         {var f=new Fixture();f.state.Accept(1,new[]{f.burger});Assert(f.state.ReassignOrderNumber(1,2)&&f.state.FindTicket(1)==null&&f.state.FindTicket(2).portions[0].order==2,"rebind");Assert(f.state.Portions.Count==1&&f.state.Available(ItemType.Patty)==29,"one reservation");});
         Test("failed final ingredient can be retried after restocking",()=>
@@ -113,6 +116,34 @@ public static class CookingHarness
         {var f=new Fixture();f.burger.cookingStation=FastFoodStationMode.Fry;Assert(FastFoodCookingState.Station(f.burger)==FastFoodStationMode.Fry,"station override");});
         Test("authored first ingredient preserves costs and remaining order",()=>
         {var f=new Fixture();var expected=FastFoodCookingState.Requirements(f.burger);f.burger.firstCookingIngredient=f.burger.ingredients.Last().item;var steps=FastFoodCookingState.Steps(f.burger);Assert(steps[0].item==f.burger.firstCookingIngredient,"first step");Assert(expected.All(x=>FastFoodCookingState.Requirements(f.burger)[x.Key]==x.Value),"unchanged cost");});
-        Console.WriteLine("27 cooking and guidance scenarios passed. Unity lifecycle and rendering are not simulated.");
+        Test("staff finishes started grill work but starts no fresh work after entry",()=>
+        {
+            var f=new Fixture();f.state.EnsureReserve(new[]{f.burger},3);f.state.Tick(1,false,false);
+            var started=f.state.Portions.Where(p=>p.stage==FastFoodCookingStage.Cooking).ToArray();
+            Assert(started.Length==2,"two prestarted jobs");
+            f.state.Enter(FastFoodStationMode.Grill);
+            Assert(started.All(p=>!p.player)&&f.state.PlayerWork.Count==1,"ownership at entry");
+            for(int i=0;i<20;i++)f.state.Tick(1,false,false);
+            Assert(started.All(p=>p.stage==FastFoodCookingStage.Complete)&&f.consumes==2,"staff work completes");
+            Assert(f.state.PlayerPortion.stage==FastFoodCookingStage.Waiting,"new work remains player-owned");
+        });
+        Test("staff completes already-started assembler ticket while new tickets queue for player",()=>
+        {
+            var f=new Fixture();f.state.Accept(1,new[]{f.drink,f.drink});f.state.Activate(1);f.state.Tick(.25f,false,false);
+            f.state.Enter(FastFoodStationMode.Assembler);Assert(!f.state.FindTicket(1).player,"prestarted ticket retained");
+            f.state.Accept(2,new[]{f.drink});f.state.Activate(2);
+            for(int i=0;i<6;i++)f.state.Tick(1,false,false);
+            Assert(f.state.FindTicket(1).submitted&&f.state.PlayerTicket.number==2&&f.consumes==2,"mixed ownership");
+        });
+        Test("switching stations preserves partial prep and releases queued work",()=>
+        {
+            var f=new Fixture();var p=f.PlayerBurger();f.Cook(p);f.state.Collect(p);
+            f.state.Load(p,FastFoodCookingState.AssemblySteps(f.burger)[0].item);
+            int step=p.ingredientStep;f.state.Enter(FastFoodStationMode.Fry);
+            Assert(!p.player&&p.ingredientStep==step,"partial prep preserved");
+            for(int i=0;i<10;i++)f.state.Tick(1,false,false);
+            Assert(f.consumes==1,"staff completes without double debit");
+        });
+        Console.WriteLine("30 cooking and guidance scenarios passed. Unity lifecycle and rendering are not simulated.");
     }
 }

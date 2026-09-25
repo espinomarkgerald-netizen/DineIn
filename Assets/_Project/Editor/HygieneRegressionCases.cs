@@ -34,6 +34,7 @@ public static class HygieneRegressionCases
         CheckBoothShineAndColors();
         CheckLobbyRoute();
         CheckLobbyGrace();
+        CheckKitchenDailyLimit();
         CheckAuthoredCoverage();
         Require(Resources.Load<Shader>("Hygiene/DirtOverlay") != null, "Dirt shader must be included as a Resources asset.");
         Require(Resources.Load<Shader>("Hygiene/Footprints") != null, "Footprint shader must be included.");
@@ -53,6 +54,32 @@ public static class HygieneRegressionCases
         }
         finally { UnityEngine.Object.DestroyImmediate(canvas); }
         Debug.Log("[Hygiene regression] PASS: model timing, pause, thresholds, rejoin and authored UI bindings. Human-control acceptance still required.");
+    }
+    public static void CheckKitchenDailyLimit()
+    {
+        var state = new HygieneState { day = 1, run = "kitchen-limit-check" };
+        int limit = HygieneSettings.Current.maxKitchenDirtCyclesPerDay;
+        Require(limit == 2, "Shipped kitchen setting must allow at most two daily mess cycles.");
+        for (int cycle = 0; cycle < limit; cycle++)
+        {
+            Require(state.AddSurfaceDirt(101, HygieneArea.Kitchen, .65f), "Kitchen must still get its next allowed mess.");
+            Require(state.kitchenDirtCyclesToday == cycle + 1 && state.kitchenCycleActive, "Count a dirty episode once when it reaches the warning.");
+            state.AddSurfaceDirt(102, HygieneArea.Kitchen, .8f);
+            Require(state.kitchenDirtCyclesToday == cycle + 1, "Additional dirty appliances belong to the same episode.");
+            state.AddSurfaceDirt(101, HygieneArea.Kitchen, .5f);
+            Require(state.kitchenDirt == 1f, "An existing deferred episode can still reach forced cleaning.");
+            state = HygieneSnapshot.Decode(HygieneSnapshot.Encode(state));
+            Require(state != null && state.kitchenDirtCyclesToday == cycle + 1 && state.kitchenCycleActive, "Rejoin must preserve the daily count and current episode.");
+            state.BeginCleaning(KitchenCleaningMode.Immediate);
+            state.Tick(HygieneSettings.Current.immediateCleanSeconds + .01f);
+            Require(state.kitchenDirt == 0 && !state.kitchenCycleActive, "Finishing cleanup clears its mess without resetting the daily count.");
+        }
+        Require(state.KitchenDirtSuppressed && !state.AddSurfaceDirt(101,HygieneArea.Kitchen,1f), "No third mess may start today.");
+        Require(state.AddSurfaceDirt(201,HygieneArea.Lobby,.7f), "The kitchen cap must not suppress lobby dirt.");
+        state = HygieneSnapshot.Decode(HygieneSnapshot.Encode(state));
+        Require(state != null && state.KitchenDirtSuppressed, "Rejoin after the second cleaning must preserve suppression.");
+        var tomorrow = new HygieneState { day = 2 };
+        Require(tomorrow.AddSurfaceDirt(101,HygieneArea.Kitchen,.65f) && tomorrow.kitchenDirtCyclesToday == 1, "The next service day must get a fresh allowance.");
     }
     private static void CheckLobbyGrace()
     {
@@ -164,7 +191,7 @@ public static class HygieneRegressionCases
         Require(copy != null && copy.floorRoute.Count == 4 && copy.floorMarks[3].color == 3
             && copy.floorMarks[3].id == state.floorMarks[3].id, "Route and color identities survive rejoin.");
         Require(HygieneSnapshot.Decode("null") == null, "Null checkpoint is rejected.");
-        Require(HygieneSnapshot.Decode(HygieneSnapshot.Encode(state).Replace("\"version\":4", "\"version\":3")) == null,
+        Require(HygieneSnapshot.Decode(HygieneSnapshot.Encode(state).Replace("\"version\":5", "\"version\":4")) == null,
             "Old wire format is rejected.");
     }
     private static void CheckLobbyRoute()
@@ -187,7 +214,7 @@ public static class HygieneRegressionCases
         var restored = HygieneSnapshot.Decode(HygieneSnapshot.Encode(state));
         Require(restored != null && restored.floorRouteActive && restored.floorWorkSeconds == 4f
             && restored.floorRoute[0] == first, "Rejoin preserves the active route and shared work budget.");
-        state.floorWorkSeconds = 11f;
+        state.floorWorkSeconds = 3601f;
         Require(HygieneSnapshot.Decode(HygieneSnapshot.Encode(state)) == null, "Out-of-range work time must be rejected.");
         state = new HygieneState();
         for (int i = 0; i < HygieneState.MaxFloorMarks; i++) state.AddFloorDirt(new Vector3(i, 0f, 0f), .2f);

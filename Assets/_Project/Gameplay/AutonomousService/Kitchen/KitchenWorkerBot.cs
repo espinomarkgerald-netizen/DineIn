@@ -179,7 +179,7 @@ public class KitchenWorkerBot : MonoBehaviour
             {
                 bool wasCleaning = HygieneManager.Instance?.State.Cleaning == true;
                 yield return staffBot.WorkFor(waitAtPoint);
-                if (!wasCleaning && activeOrders.Count > 0) HygieneManager.Instance?.RecordKitchenUse(registeredStation ? equipment : target);
+                if (!wasCleaning && activeOrders.Count > 0) HygieneManager.Instance?.RecordKitchenUse(registeredStation ? equipment : target, autonomous: true);
             }
         }
     }

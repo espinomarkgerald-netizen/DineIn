@@ -16,6 +16,9 @@ public sealed class HygieneSurface : MonoBehaviour
     public HygieneKitchenUse kitchenUse;
     public int surfaceId;
     [Range(.1f, 5f)] public float spotScale = 1f;
+    [Header("Authored kitchen marks")]
+    public Material kitchenMarksMaterial;
+    public MeshRenderer[] kitchenOverlays = System.Array.Empty<MeshRenderer>();
     private void OnEnable() => HygieneManager.Instance?.RegisterSurface(this);
 }
 
@@ -38,6 +41,8 @@ public sealed class HygieneSurfaceRegistry : IDisposable
         public Target target;
         public MaterialPropertyBlock properties;
         public bool[] opaque;
+        public bool ownsOverlay;
+        public float kitchenOpacity;
         public float lastDirt = -1f;
     }
     private readonly List<Surface> surfaces = new();
@@ -46,6 +51,7 @@ public sealed class HygieneSurfaceRegistry : IDisposable
     private readonly Dictionary<Transform, Target> byRoot = new();
     private KitchenManager owner;
     private Material material;
+    private Material kitchenMaterial;
     private HygieneFootprintRenderer footprints;
     private Bounds serviceBounds;
     private bool hasServiceBounds;
@@ -62,6 +68,7 @@ public sealed class HygieneSurfaceRegistry : IDisposable
         var shader = Resources.Load<Shader>("Hygiene/DirtOverlay");
         if (shader == null) { Debug.LogError("[Hygiene] Missing dirt overlay shader."); return; }
         material = new Material(shader) { name = "Shared Hygiene Overlay", hideFlags = HideFlags.DontSave };
+        kitchenMaterial = Resources.Load<Material>("Hygiene/KitchenCookingMarks");
         foreach (var renderer in UnityEngine.Object.FindObjectsByType<MeshRenderer>(FindObjectsInactive.Include, FindObjectsSortMode.None)) Register(renderer);
         targets.Sort((a, b) => a.id.CompareTo(b.id));
         footprints = new HygieneFootprintRenderer(kitchen.transform);
@@ -136,12 +143,24 @@ public sealed class HygieneSurfaceRegistry : IDisposable
         target.visibleSurface = true;
         if (!hasServiceBounds) { serviceBounds = renderer.bounds; hasServiceBounds = true; }
         else serviceBounds.Encapsulate(renderer.bounds);
-        var go = new GameObject("Hygiene Overlay") { layer = renderer.gameObject.layer, hideFlags = HideFlags.DontSave };
-        go.transform.SetParent(renderer.transform, false);
-        go.AddComponent<MeshFilter>().sharedMesh = mesh.sharedMesh;
-        var overlay = go.AddComponent<MeshRenderer>();
+        MeshRenderer overlay = null;
+        if (authoring != null && authoring.kitchenOverlays != null)
+            foreach (var saved in authoring.kitchenOverlays)
+                if (saved != null && saved.transform.parent == renderer.transform) { overlay = saved; break; }
+        bool ownsOverlay = overlay == null;
+        if (ownsOverlay)
+        {
+            var go = new GameObject("Hygiene Overlay") { layer = renderer.gameObject.layer, hideFlags = HideFlags.DontSave };
+            go.transform.SetParent(renderer.transform, false);
+            go.AddComponent<MeshFilter>().sharedMesh = mesh.sharedMesh;
+            overlay = go.AddComponent<MeshRenderer>();
+        }
+        var overlayMaterial = target.area == HygieneArea.Kitchen
+            ? authoring != null && authoring.kitchenMarksMaterial != null ? authoring.kitchenMarksMaterial : kitchenMaterial
+            : material;
+        if (overlayMaterial == null) overlayMaterial = material;
         var materials = new Material[submeshes];
-        for (int i = 0; i < materials.Length; i++) materials[i] = material;
+        for (int i = 0; i < materials.Length; i++) materials[i] = overlayMaterial;
         overlay.sharedMaterials = materials;
         overlay.shadowCastingMode = ShadowCastingMode.Off; overlay.receiveShadows = false;
         overlay.lightProbeUsage = LightProbeUsage.Off; overlay.reflectionProbeUsage = ReflectionProbeUsage.Off;
@@ -149,7 +168,8 @@ public sealed class HygieneSurfaceRegistry : IDisposable
         var properties = new MaterialPropertyBlock();
         properties.SetFloat(Seed, (uint)target.id % 8192);
         properties.SetFloat(Scale, (authoring != null ? authoring.spotScale : 1f) * (target.kind == HygieneSurfaceKind.Dining ? 1.6f : 1f));
-        surfaces.Add(new Surface { source = renderer, overlay = overlay, target = target, properties = properties, opaque = opaque });
+        surfaces.Add(new Surface { source = renderer, overlay = overlay, target = target, properties = properties, opaque = opaque, ownsOverlay = ownsOverlay,
+            kitchenOpacity = overlayMaterial.HasProperty(Opacity) ? overlayMaterial.GetFloat(Opacity) : .5f });
         tracked.Add(renderer);
     }
     private static HygieneKitchenUse InferUse(string name) => name.Contains("stove") || name.Contains("oven") || name.Contains("fryer") || name.Contains("grill")
@@ -230,7 +250,7 @@ public sealed class HygieneSurfaceRegistry : IDisposable
             if (surface.source == null || surface.overlay == null)
             {
                 tracked.Remove(surface.source);
-                if (surface.overlay != null) UnityEngine.Object.Destroy(surface.overlay.gameObject);
+                if (surface.overlay != null && surface.ownsOverlay) UnityEngine.Object.Destroy(surface.overlay.gameObject);
                 surfaces.RemoveAt(i); continue;
             }
             float dirt = state.SurfaceDirt(surface.target.id);
@@ -240,7 +260,7 @@ public sealed class HygieneSurfaceRegistry : IDisposable
             surface.lastDirt = dirt;
             surface.properties.SetFloat(Dirt, dirt);
             surface.properties.SetFloat(Shine, shine);
-            float opacity = surface.target.kind == HygieneSurfaceKind.Counter ? .3f : surface.target.kind == HygieneSurfaceKind.Dining ? .9f : .75f;
+            float opacity = surface.target.area == HygieneArea.Kitchen ? surface.kitchenOpacity : surface.target.kind == HygieneSurfaceKind.Counter ? .3f : surface.target.kind == HygieneSurfaceKind.Dining ? .9f : .75f;
             for (int j = 0; j < surface.opaque.Length; j++)
             {
                 surface.properties.SetFloat(Opacity, surface.opaque[j] ? opacity : 0f);
@@ -277,7 +297,15 @@ public sealed class HygieneSurfaceRegistry : IDisposable
     }
     public void Dispose()
     {
-        foreach (var surface in surfaces) if (surface.overlay != null) UnityEngine.Object.Destroy(surface.overlay.gameObject);
+        foreach (var surface in surfaces) if (surface.overlay != null)
+        {
+            if (surface.ownsOverlay) UnityEngine.Object.Destroy(surface.overlay.gameObject);
+            else
+            {
+                surface.overlay.enabled = false; surface.overlay.SetPropertyBlock(null);
+                for(int i=0;i<surface.opaque.Length;i++)surface.overlay.SetPropertyBlock(null,i);
+            }
+        }
         surfaces.Clear(); targets.Clear(); tracked.Clear(); byRoot.Clear(); footprints?.Dispose();
         if (material != null) UnityEngine.Object.Destroy(material);
     }

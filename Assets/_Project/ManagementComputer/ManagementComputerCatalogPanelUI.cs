@@ -1013,16 +1013,8 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
 
     private int GetUsedCapacityBeforeCart(RestockStorageType type)
     {
-        int storedEstimate = 0;
-        for (int i = 0; i < restockItems.Count; i++)
-        {
-            ItemData item = restockItems[i];
-            if (item == null || item.requiredStorage != type)
-                continue;
-
-            int unitsPerBox = Mathf.Max(1, item.unitsPerBox);
-            storedEstimate += Mathf.CeilToInt(GetCurrentStock(item) / (float)unitsPerBox);
-        }
+        int storedEstimate = InventoryManager.Instance != null
+            ? InventoryManager.Instance.GetStorageContainerCount(type, restockItems) : 0;
 
         int reserved = orderManager != null
             ? orderManager.GetReservedContainers(type, restockItems)

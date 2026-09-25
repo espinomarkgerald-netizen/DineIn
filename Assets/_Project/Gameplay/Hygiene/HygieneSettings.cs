@@ -8,8 +8,12 @@ public sealed class HygieneSettings : ScriptableObject
     [Tooltip("Applies to all dirt sources. 1 = current balance, 0.5 = half as fast, 0 = no new dirt.")]
     [Range(0f, 5f)] public float dirtSpeed = 1f;
     [Header("Kitchen")]
+    [Tooltip("Maximum kitchen mess/cleaning cycles per service day. An active cycle can still finish cleaning.")]
+    [Range(0, 8)] public int maxKitchenDirtCyclesPerDay = 2;
     [Range(0f, 5f)] public float kitchenDirtMultiplier = 1f;
     [Range(0f, .2f)] public float dirtPerStationUse = .05f;
+    [Tooltip("Minimum active seconds between autonomous worker dirt events at the same work point. Manual uses are unaffected.")]
+    [Min(0f)] public float autonomousKitchenUseSeconds = 6f;
     [Header("Lobby surfaces and incidents")]
     [Range(0f, 2f)] public float lobbyDirtMultiplier = .35f;
     [Range(0f, .2f)] public float dirtPerLobbyIncident = .08f;

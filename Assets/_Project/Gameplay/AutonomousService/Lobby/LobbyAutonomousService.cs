@@ -621,7 +621,10 @@ public class LobbyAutonomousService : MonoBehaviour
                     ReportFastFoodStaffReadiness();
                     TryStartFastFoodCashierTask();
                     // Fast-food waiters only deliver requested meals; counter ordering/payment remains separate.
-                    if (waiter != null && !waiter.IsBusy && AreWaiterHandsFree(waiterHands) &&
+                    waiterHands?.ReconcileHeldItemReferences();
+                    if (waiter != null && !waiter.IsBusy && waiterHands != null && waiterHands.HasTray)
+                        TryStartClaimedTask(waiter, waiterHands.holdingTray, DeliverFood(waiterHands.holdingTray));
+                    else if (waiter != null && !waiter.IsBusy && AreWaiterHandsFree(waiterHands) &&
                         !TryStartWaiterTrolleyBatch())
                     {
                         var requestedTray = FindReadyDeliveryTray();
@@ -1167,8 +1170,9 @@ public class LobbyAutonomousService : MonoBehaviour
         }
         finally
         {
-            if (MultiplayerDayBridge.IsActive)
-                RestaurantTaskClaim.ReleaseBot(target, owner, generation);
+            RestaurantTaskClaim.ReleaseBot(target, owner, generation);
+            if (owner != null && owner.JobGeneration == generation && !RestaurantTaskClaim.IsClaimedByPlayer(target))
+                SetTaskUiClaimed(target, false);
         }
 
         if (MultiplayerDayBridge.IsActive && owner.JobGeneration != generation) yield break;
@@ -1213,6 +1217,7 @@ public class LobbyAutonomousService : MonoBehaviour
         UnityEngine.Object target,
         IEnumerator task)
     {
+        if (owner == null || !owner.isActiveAndEnabled || owner.IsBusy || task == null) return false;
         if (!RestaurantTaskClaim.TryClaimBot(target, owner, managerReactionSeconds))
             return false;
 
@@ -1518,7 +1523,11 @@ public class LobbyAutonomousService : MonoBehaviour
         WaiterHands hands = waiterHands;
         if (tray == null || group == null || group.assignedBooth == null || hands == null ||
             (hands.HasTray && hands.holdingTray != tray))
+        {
+            if (tray != null && hands != null && hands.holdingTray == tray)
+                hands.ReleaseTrayForRetry(waiter.transform.position);
             yield break;
+        }
 
         if (!hands.HasTray)
         {
@@ -1573,7 +1582,11 @@ public class LobbyAutonomousService : MonoBehaviour
 
         Transform dropPoint = FindTableFoodSpawn(group.assignedBooth);
         if (dropPoint == null || !hands.TryDeliverTrayTo(group, false))
+        {
+            hands.ReleaseTrayForRetry(waiter.transform.position);
+            waiter.SetCarrying(false);
             yield break;
+        }
 
         WaiterHands.AttachKeepingWorldScale(
             tray.transform,

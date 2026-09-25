@@ -196,6 +196,9 @@ public class AutonomousStaffBot : MonoBehaviour
         approachGeneration++;
         RestaurantTaskClaim.ReleaseJob(this, JobGeneration);
         ApproachingTarget = null;
+        var deliveryHands = GetComponent<WaiterHands>();
+        if (deliveryHands != null && deliveryHands.HasTray && !deliveryHands.holdingTray.NetworkCarryLocked)
+            deliveryHands.ReleaseTrayForRetry(transform.position);
         if (activeTask != null)
         {
             StopCoroutine(activeTask);
@@ -700,20 +703,49 @@ public class AutonomousStaffBot : MonoBehaviour
 
     private IEnumerator RunTask(IEnumerator task)
     {
-        CurrentState = StaffState.Reacting;
+        // Match ReturnHomeOnly: assign the coroutine handle even for an immediately finished job.
+        yield return null;
+        // Drive nested iterators so failures dispose their cleanup blocks and clear the busy handle.
+        var pending = new System.Collections.Generic.Stack<IEnumerator>();
+        try
+        {
+            CurrentState = StaffState.Reacting;
+            float reactionDelay = Random.Range(
+                Mathf.Min(reactionDelayRange.x, reactionDelayRange.y),
+                Mathf.Max(reactionDelayRange.x, reactionDelayRange.y)
+            ) * reactionTimeMultiplier;
+            if (reactionDelay > 0f) yield return new WaitForSeconds(reactionDelay);
 
-        float reactionDelay = Random.Range(
-            Mathf.Min(reactionDelayRange.x, reactionDelayRange.y),
-            Mathf.Max(reactionDelayRange.x, reactionDelayRange.y)
-        ) * reactionTimeMultiplier;
-
-        if (reactionDelay > 0f)
-            yield return new WaitForSeconds(reactionDelay);
-
-        yield return task;
-        RestaurantTaskClaim.ReleaseJob(this, JobGeneration);
-        ApproachingTarget = null;
-        yield return ReturnHome();
-        activeTask = null;
+            pending.Push(task);
+            bool returningHome = false;
+            while (true)
+            {
+                if (pending.Count == 0)
+                {
+                    if (returningHome) break;
+                    RestaurantTaskClaim.ReleaseJob(this, JobGeneration);
+                    ApproachingTarget = null;
+                    pending.Push(ReturnHome());
+                    returningHome = true;
+                }
+                var step = pending.Peek();
+                bool more;
+                try { more = step.MoveNext(); }
+                catch (System.Exception error) { Debug.LogException(error, this); break; }
+                if (!more) { pending.Pop(); (step as System.IDisposable)?.Dispose(); continue; }
+                if (step.Current is IEnumerator nested) { pending.Push(nested); continue; }
+                yield return step.Current;
+            }
+        }
+        finally
+        {
+            while (pending.Count > 0) (pending.Pop() as System.IDisposable)?.Dispose();
+            RestaurantTaskClaim.ReleaseJob(this, JobGeneration);
+            WorkTiming.Clear();
+            ApproachingTarget = null;
+            activeTask = null;
+            StopAgent();
+            CurrentState = StaffState.IdleAtHome;
+        }
     }
 }

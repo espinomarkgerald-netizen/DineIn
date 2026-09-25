@@ -21,8 +21,15 @@ MonoBehaviour:
   kitchenItemType: 2
   cookingStation: 2
   firstCookingIngredient: {fileID: 11400000, guid: 70830520795d900449881daee8ed45ad, type: 2}
+  preparationStation: 0
+  kitchenAssemblySteps: []
+  kitchenCookingPrefab: {fileID: 1851612571896607634, guid: d9ec6ab2ba3b5124587cad016b77f1b3, type: 3}
+  kitchenServingPrefab: {fileID: 1183839668841156037, guid: ce9b0c6576b449a45bef5eb51835cded, type: 3}
+  kitchenPreviewPrefab: {fileID: 1183839668841156037, guid: ce9b0c6576b449a45bef5eb51835cded, type: 3}
+  kitchenIngredientIcon: {fileID: 0}
+  kitchenRawColorMultiplier: {r: 1.08, g: 1.04, b: 0.88, a: 1}
   sprite: {fileID: 21300000, guid: 00988c0f0a4cc484bb82da61025041ed, type: 3}
-  servingPrefab: {fileID: 5631566317681272650, guid: 3e0d2d9828dc150489b1841b0331df0c, type: 3}
+  servingPrefab: {fileID: 1183839668841156037, guid: ce9b0c6576b449a45bef5eb51835cded, type: 3}
   servingPositionOffset: {x: 0, y: 0, z: 0}
   servingRotation: {x: 0, y: 0, z: 0}
   servingScale: {x: 1, y: 1, z: 1}

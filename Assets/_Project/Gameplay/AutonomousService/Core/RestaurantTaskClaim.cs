@@ -250,12 +250,14 @@ public static class RestaurantTaskClaim
 
     private static void RemoveInactiveMultiplayerOwner(Entry entry)
     {
-        if (!MultiplayerActive || (IsEligibleServiceBot(entry.botOwner)
+        if (entry.botOwner == null) return;
+        if ((MultiplayerActive ? IsEligibleServiceBot(entry.botOwner) : entry.botOwner.isActiveAndEnabled)
             && entry.target != null && (entry.claimedFrame == Time.frameCount ||
-                (entry.botOwner.IsBusy && entry.botOwner.JobGeneration == entry.jobGeneration)))) return;
+                (entry.botOwner.IsBusy && entry.botOwner.JobGeneration == entry.jobGeneration))) return;
         entry.botOwner = null;
         entry.multiplayerTaskId = null;
         if (entry.target is CustomerGroup group) group.ReleaseBotReceptionTask();
+        if (entry.target is FoodTray tray) tray.GetComponent<FoodTrayInteractable>()?.SetClaimedByStaff(false);
     }
 
     // Called on the authority before the human switch commits. Store the ID at
@@ -274,7 +276,7 @@ public static class RestaurantTaskClaim
 
     public static void ReleaseJob(AutonomousStaffBot bot, long generation)
     {
-        if (!MultiplayerActive || bot == null) return;
+        if (bot == null) return;
         foreach (Entry entry in Entries.Values)
             if (entry.botOwner == bot && entry.jobGeneration == generation)
             {

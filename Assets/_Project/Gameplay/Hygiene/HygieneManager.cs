@@ -104,6 +104,7 @@ public sealed partial class HygieneManager : MonoBehaviourPunCallbacks, Photon.R
         lastPayload = null;
         deferredActions.Clear();
         customerActivity.Clear();
+        nextAutonomousKitchenUse.Clear();
         ResetCleaningRequests();
         dirty = true;
         surfaces?.Refresh(State);
@@ -244,11 +245,15 @@ public sealed partial class HygieneManager : MonoBehaviourPunCallbacks, Photon.R
         station = null; approach = from;
         return CanRecordActivity && surfaces != null && surfaces.TryGetWorkStation(role, ref cursor, from, out station, out approach);
     }
-    public void RecordKitchenUse(Component equipment, float amount = -1f)
+    private readonly System.Collections.Generic.Dictionary<Component, float> nextAutonomousKitchenUse = new();
+
+    public void RecordKitchenUse(Component equipment, float amount = -1f, bool autonomous = false)
     {
         if (!CanRecordActivity || State.Cleaning || equipment == null || equipment.gameObject.scene != gameObject.scene) return;
+        if (autonomous && nextAutonomousKitchenUse.TryGetValue(equipment, out float nextUse) && ServiceTime < nextUse) return;
         float value = (amount < 0 ? Settings.dirtPerStationUse : amount) * Settings.kitchenDirtMultiplier * Settings.dirtSpeed;
         if (!surfaces.Use(State, equipment, value) && !surfaces.UseNearest(State, equipment.transform.position, value)) return;
+        if (autonomous) nextAutonomousKitchenUse[equipment] = ServiceTime + Mathf.Max(0f, Settings.autonomousKitchenUseSeconds);
         if (State.deferredKitchen && State.kitchenDirt >= 1f) State.forcedPending = true;
         Changed();
     }

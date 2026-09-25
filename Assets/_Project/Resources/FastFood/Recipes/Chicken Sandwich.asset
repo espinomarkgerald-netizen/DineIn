@@ -19,8 +19,27 @@ MonoBehaviour:
   availableOnMenu: 1
   menuSortOrder: 3
   kitchenItemType: 20
-  cookingStation: 1
+  cookingStation: 2
   firstCookingIngredient: {fileID: 11400000, guid: 501f1cc693c99824fb261750b399a25e, type: 2}
+  preparationStation: 1
+  kitchenAssemblySteps:
+  - item: {fileID: 11400000, guid: 9971ccd47beceb54db728151ab87f93a, type: 2}
+    visual: {fileID: 3729650465221033871, guid: c3936d8b7d97e8f4782cf685fa1e2f6e, type: 3}
+    icon: {fileID: 21300000, guid: 32df3e90e141fe04d810d49ce0de8d81, type: 3}
+    label: Bottom bun
+  - item: {fileID: 11400000, guid: 501f1cc693c99824fb261750b399a25e, type: 2}
+    visual: {fileID: 907297883667510000, guid: 18b8d5f496176a643a50de8a71fb9e12, type: 3}
+    icon: {fileID: 21300000, guid: f20ffeb3c50c628449c3fe27538819d4, type: 3}
+    label: Cooked Chicken
+  - item: {fileID: 11400000, guid: 9971ccd47beceb54db728151ab87f93a, type: 2}
+    visual: {fileID: 6589116422854553526, guid: 725c7ddeb07a4944bafec53b7d15ff2c, type: 3}
+    icon: {fileID: 21300000, guid: 32df3e90e141fe04d810d49ce0de8d81, type: 3}
+    label: Top bun
+  kitchenCookingPrefab: {fileID: 2907180704041537718, guid: 6fa1a6fd52610494c950ab84f4bf8fc5, type: 3}
+  kitchenServingPrefab: {fileID: 9100384886729478218, guid: e33c77792360c0c47bf88bd7ff3df514, type: 3}
+  kitchenPreviewPrefab: {fileID: 9100384886729478218, guid: e33c77792360c0c47bf88bd7ff3df514, type: 3}
+  kitchenIngredientIcon: {fileID: 0}
+  kitchenRawColorMultiplier: {r: 1.08, g: 1.04, b: 0.88, a: 1}
   sprite: {fileID: 21300000, guid: 0f00fb3fb2b499446a680a63de58e54d, type: 3}
   servingPrefab: {fileID: 4502035195088835335, guid: 2185e7938ea9e4f49bb5812113228cfb, type: 3}
   servingPositionOffset: {x: 0, y: 0, z: 0}

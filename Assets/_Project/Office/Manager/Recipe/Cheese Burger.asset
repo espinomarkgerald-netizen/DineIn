@@ -21,6 +21,29 @@ MonoBehaviour:
   kitchenItemType: 1
   cookingStation: 1
   firstCookingIngredient: {fileID: 11400000, guid: fa70f398aa0054b4d9981d18e83af534, type: 2}
+  preparationStation: 1
+  kitchenAssemblySteps:
+  - item: {fileID: 11400000, guid: 9971ccd47beceb54db728151ab87f93a, type: 2}
+    visual: {fileID: 3863667605791281548, guid: 6ae21017c2237a040835938839f7e6d8, type: 3}
+    icon: {fileID: 21300000, guid: 32df3e90e141fe04d810d49ce0de8d81, type: 3}
+    label: Bottom bun
+  - item: {fileID: 11400000, guid: fa70f398aa0054b4d9981d18e83af534, type: 2}
+    visual: {fileID: 3771101416851497701, guid: bd0fa9e273bda5d4f8c440ede02e7040, type: 3}
+    icon: {fileID: 21300000, guid: b70243d147ed2cc468948377a9eb6422, type: 3}
+    label: Cooked BurgerPatty
+  - item: {fileID: 11400000, guid: f3a9b1fb93fec2b44bdb2a888d3db4fb, type: 2}
+    visual: {fileID: 8231466735859029154, guid: ec6cf1ca8c6f5c24583585d8cfc016b2, type: 3}
+    icon: {fileID: 21300000, guid: 75552c844cda6294e91e0600518c5d90, type: 3}
+    label: Cheese
+  - item: {fileID: 11400000, guid: 9971ccd47beceb54db728151ab87f93a, type: 2}
+    visual: {fileID: 4491382593289637894, guid: 5c5f7c97e7c5c5b4cabf024956cae85e, type: 3}
+    icon: {fileID: 21300000, guid: 32df3e90e141fe04d810d49ce0de8d81, type: 3}
+    label: Top bun
+  kitchenCookingPrefab: {fileID: 4119421807949427466, guid: 1c228734b69723941b73dde2444843bb, type: 3}
+  kitchenServingPrefab: {fileID: 4813520557178050494, guid: 6a1a218f6a8be4a4a88112f0388c6ab0, type: 3}
+  kitchenPreviewPrefab: {fileID: 4813520557178050494, guid: 6a1a218f6a8be4a4a88112f0388c6ab0, type: 3}
+  kitchenIngredientIcon: {fileID: 0}
+  kitchenRawColorMultiplier: {r: 1.15, g: 0.65, b: 0.68, a: 1}
   sprite: {fileID: 21300000, guid: 3f2e72868d33b7a4cb309008d2f52b65, type: 3}
   servingPrefab: {fileID: 3188963900934612865, guid: b75e2255c99ad3a4793fee4e491bdc8b, type: 3}
   servingPositionOffset: {x: 0, y: 0, z: 0}

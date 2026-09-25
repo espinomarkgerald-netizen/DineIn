@@ -77,6 +77,7 @@ public sealed partial class ManagerComplaintSystem
         worldMarker?.SetWorldMarkerVisible(!value.open);
         if (localOpen && activeDefinition != null)
         {
+            ExitKitchenForLocalPresentation();
             if (changed || !wasOpen) { PopulateDialogue(); FocusCameraOnGroup(); }
             dialogueRoot?.SetActive(true);
             if (dialoguePanel != null) dialoguePanel.localScale = Vector3.one;

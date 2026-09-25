@@ -35,6 +35,9 @@ public sealed class HygieneState
     public string run;
     public int day, revision, decisionId;
     public float kitchenDirt, lobbyDirt;
+    public int kitchenDirtCyclesToday;
+    public bool kitchenCycleActive;
+    public bool KitchenDirtSuppressed => !kitchenCycleActive && kitchenDirtCyclesToday >= HygieneSettings.Current.maxKitchenDirtCyclesPerDay;
     public bool decisionOpen, kitchenWarned, lobbyWarned, deferredKitchen, forcedPending;
     public HygieneArea decisionArea;
     public KitchenCleaningMode cleaningMode;
@@ -93,7 +96,8 @@ public sealed class HygieneState
         : shine > 0f ? BoothCleanliness.SuperClean : BoothCleanliness.Clean;
     public bool AddSurfaceDirt(int id, HygieneArea area, float amount)
     {
-        if (id == 0 || amount <= 0f || area == HygieneArea.Lobby && LobbyDirtSuppressed) return false;
+        if (id == 0 || amount <= 0f || area == HygieneArea.Lobby && LobbyDirtSuppressed
+            || area == HygieneArea.Kitchen && KitchenDirtSuppressed) return false;
         foreach (var surface in surfaces)
             if (surface.id == id) { surface.shineRemaining = 0f; surface.dirt = Mathf.Clamp01(surface.dirt + amount); Recalculate(); return true; }
         if (surfaces.Count >= MaxSurfaces) return false;
@@ -117,6 +121,8 @@ public sealed class HygieneState
             else lobby = Mathf.Max(lobby, surface.dirt);
         foreach (var mark in floorMarks) lobby = Mathf.Max(lobby, mark.dirt);
         kitchenDirt = kitchen; lobbyDirt = lobby;
+        if (!kitchenCycleActive && kitchenDirt >= WarningLevel)
+        { kitchenCycleActive = true; kitchenDirtCyclesToday++; }
     }
     public bool AddFloorDirt(Vector3 position, float amount, float yaw = 0f, bool spill = false, byte color = 0)
     {
@@ -184,6 +190,7 @@ public sealed class HygieneState
         cleaningMode = KitchenCleaningMode.None;
         surfaces.RemoveAll(surface => surface.area == HygieneArea.Kitchen);
         kitchenDirt = 0f;
+        kitchenCycleActive = false;
         kitchenWarned = false;
         return true;
     }

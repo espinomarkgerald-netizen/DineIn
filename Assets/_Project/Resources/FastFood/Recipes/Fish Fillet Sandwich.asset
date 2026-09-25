@@ -19,8 +19,27 @@ MonoBehaviour:
   availableOnMenu: 1
   menuSortOrder: 5
   kitchenItemType: 21
-  cookingStation: 1
+  cookingStation: 2
   firstCookingIngredient: {fileID: 11400000, guid: 558e90cf7d4776e4e96721137b67770d, type: 2}
+  preparationStation: 1
+  kitchenAssemblySteps:
+  - item: {fileID: 11400000, guid: 9971ccd47beceb54db728151ab87f93a, type: 2}
+    visual: {fileID: 3877128459060625185, guid: 8267442bafe23f14dbac23e79d0b2278, type: 3}
+    icon: {fileID: 21300000, guid: 32df3e90e141fe04d810d49ce0de8d81, type: 3}
+    label: Bottom bun
+  - item: {fileID: 11400000, guid: 558e90cf7d4776e4e96721137b67770d, type: 2}
+    visual: {fileID: 4967651693268944330, guid: b5fad5b1ea94ed84bab7e9a29572e7c8, type: 3}
+    icon: {fileID: 21300000, guid: 931e012347e1ec14385310720417fdd3, type: 3}
+    label: Cooked FishFillet
+  - item: {fileID: 11400000, guid: 9971ccd47beceb54db728151ab87f93a, type: 2}
+    visual: {fileID: 3917792959095255, guid: 0c303a3e5a38c3c468de902d7fb17453, type: 3}
+    icon: {fileID: 21300000, guid: 32df3e90e141fe04d810d49ce0de8d81, type: 3}
+    label: Top bun
+  kitchenCookingPrefab: {fileID: 1920439243873053201, guid: 3a4c38e42d2bcc44792624edddf2dd30, type: 3}
+  kitchenServingPrefab: {fileID: 6035878798167267776, guid: 45d0dd5203cf3bd4481ff53546c71a58, type: 3}
+  kitchenPreviewPrefab: {fileID: 6035878798167267776, guid: 45d0dd5203cf3bd4481ff53546c71a58, type: 3}
+  kitchenIngredientIcon: {fileID: 0}
+  kitchenRawColorMultiplier: {r: 1.08, g: 1.04, b: 0.88, a: 1}
   sprite: {fileID: 21300000, guid: f047d62d1129efc489e7a71bdc6dc890, type: 3}
   servingPrefab: {fileID: 8488843834059582685, guid: c0a50309f7bb8b341aa9353709995c8c, type: 3}
   servingPositionOffset: {x: 0, y: 0, z: 0}

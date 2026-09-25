@@ -19,6 +19,54 @@ public class InventoryManager : MonoBehaviour
 
     public event Action<ItemType, int> OnStockChanged;
     public int DiscardedUnitsToday { get; private set; }
+    public IReadOnlyList<InventoryStockBatchSaveEntry> StockBatches => stockBatches;
+
+    // Count each partly used container separately and use its actual storage room.
+    public int GetStorageContainerCount(RestockStorageType storage, IReadOnlyList<ItemData> catalog)
+    {
+        int count = 0;
+        if (catalog == null) return count;
+        foreach (var batch in stockBatches)
+        {
+            if (batch == null || batch.unitsRemaining <= 0 || batch.currentStorage != storage) continue;
+            foreach (var item in catalog)
+                if (item != null && item.itemType == batch.itemType)
+                {
+                    count += Mathf.CeilToInt(batch.unitsRemaining / (float)Mathf.Max(1, item.unitsPerBox));
+                    break;
+                }
+        }
+        return count;
+    }
+
+    // Older saves can put several boxes into one batch. Preserve the original ID
+    // and expiry, splitting only the excess so each physical box has one identity.
+    public bool NormalizeContainerBatches(IReadOnlyList<ItemData> catalog)
+    {
+        if (MultiplayerRestockBridge.ObserveOnly || catalog == null) return false;
+        bool changed = false;
+        for (int i = stockBatches.Count - 1; i >= 0; i--)
+        {
+            var batch = stockBatches[i];
+            if (batch == null) continue;
+            foreach (var item in catalog)
+            {
+                if (item == null || item.itemType != batch.itemType) continue;
+                int size = Mathf.Max(1, item.unitsPerBox);
+                while (batch.unitsRemaining > size)
+                {
+                    var split = CloneBatch(batch);
+                    split.batchID = Guid.NewGuid().ToString("N");
+                    split.unitsRemaining = Mathf.Min(size, batch.unitsRemaining - size);
+                    batch.unitsRemaining -= split.unitsRemaining;
+                    stockBatches.Add(split);
+                    changed = true;
+                }
+                break;
+            }
+        }
+        return changed;
+    }
 
     private void Awake()
     {
