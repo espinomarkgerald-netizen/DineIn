@@ -9632,6 +9632,7 @@ MonoBehaviour:
   takeoutQueueManager: {fileID: 1323237028}
   takeoutEnabled: 1
   takeoutSpawnChance: 0.2
+  maxTakeoutGroupSize: 2
   autoSpawn: 0
   spawnInterval: 16
   minGroupSize: 1
@@ -13810,6 +13811,23 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_Padding: {x: 0, y: 0, z: 0, w: 0}
   m_Softness: {x: 0, y: 0}
+--- !u!114 &853098986
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 910000000000000005}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 84b04f9b5ff5cca44ad23ae300ececec, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  targets:
+  - rect: {fileID: 910000000000000015}
+    anchorMin: {x: 0, y: 0}
+    anchorMax: {x: 1, y: 1}
+  applyInEditor: 1
 --- !u!1 &855190142
 GameObject:
   m_ObjectHideFlags: 0
@@ -15180,6 +15198,7 @@ MonoBehaviour:
   - {fileID: 1007911048}
   - {fileID: 1632465217}
   waitAtPoint: 1.4
+  stationProducts: 
   avoidancePriority: 60
 --- !u!1 &887871098
 GameObject:
@@ -16293,6 +16312,8 @@ MonoBehaviour:
   - {fileID: 1451838212}
   - {fileID: 1474986902}
   foodTrayPrefab: {fileID: 8503857634238110082, guid: d31d808e8c170a64092e5200a4ff9757, type: 3}
+  centerTrayOnOutputSlot: 0
+  outputTrayScale: 1
   takeoutSpawnPoints:
   - {fileID: 441724097}
   takeoutBagPrefab: {fileID: 2990624723560410755, guid: 5d3df7f5b17dda14e90d069f6eec58d9, type: 3}
@@ -19374,6 +19395,7 @@ GameObject:
   - component: {fileID: 1113496782}
   - component: {fileID: 1113496781}
   - component: {fileID: 1113496786}
+  - component: {fileID: 1113496787}
   m_Layer: 5
   m_Name: CanvasMainHUD
   m_TagString: Untagged
@@ -19487,6 +19509,56 @@ CanvasGroup:
   m_Interactable: 1
   m_BlocksRaycasts: 1
   m_IgnoreParentGroups: 0
+--- !u!114 &1113496787
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1113496780}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 84b04f9b5ff5cca44ad23ae300ececec, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  targets:
+  - rect: {fileID: 2142882886}
+    anchorMin: {x: 0, y: 0}
+    anchorMax: {x: 1, y: 1}
+  - rect: {fileID: 655928738}
+    anchorMin: {x: 0, y: 0}
+    anchorMax: {x: 1, y: 1}
+  - rect: {fileID: 1587955221}
+    anchorMin: {x: 0.5, y: 0}
+    anchorMax: {x: 0.5, y: 0}
+  - rect: {fileID: 1517944430}
+    anchorMin: {x: 0.5, y: 0.5}
+    anchorMax: {x: 0.5, y: 0.5}
+  - rect: {fileID: 2042532466}
+    anchorMin: {x: 0.5, y: 1}
+    anchorMax: {x: 0.5, y: 1}
+  - rect: {fileID: 1056704186}
+    anchorMin: {x: 0.5, y: 0.5}
+    anchorMax: {x: 0.5, y: 0.5}
+  - rect: {fileID: 796935186}
+    anchorMin: {x: 0.5, y: 0.5}
+    anchorMax: {x: 0.5, y: 0.5}
+  - rect: {fileID: 501812630}
+    anchorMin: {x: 0.5, y: 0.5}
+    anchorMax: {x: 0.5, y: 0.5}
+  - rect: {fileID: 1801708152}
+    anchorMin: {x: 0, y: 0}
+    anchorMax: {x: 1, y: 1}
+  - rect: {fileID: 3787832}
+    anchorMin: {x: 0.5, y: 0}
+    anchorMax: {x: 0.5, y: 0}
+  - rect: {fileID: 1068858671}
+    anchorMin: {x: 0, y: 0}
+    anchorMax: {x: 1, y: 1}
+  - rect: {fileID: 779453280}
+    anchorMin: {x: 0.5, y: 0.5}
+    anchorMax: {x: 0.5, y: 0.5}
+  applyInEditor: 1
 --- !u!1 &1132346775
 GameObject:
   m_ObjectHideFlags: 0
@@ -20464,6 +20536,7 @@ GameObject:
   - component: {fileID: 1173228249}
   - component: {fileID: 1173228248}
   - component: {fileID: 1173228252}
+  - component: {fileID: 1173228253}
   m_Layer: 5
   m_Name: ManagementComputerCanvas
   m_TagString: Untagged
@@ -20596,6 +20669,23 @@ MonoBehaviour:
   mandatoryObjectiveIcon: {fileID: 21300000, guid: 1030174c15bb787488fc9e6badfcd81a, type: 3}
   secondaryObjectiveIcon: {fileID: 21300000, guid: c06915c328c3710429cdbea73baf345c, type: 3}
   bonusObjectiveIcon: {fileID: 21300000, guid: afbddaad0e7a22846b5cd70515b18224, type: 3}
+--- !u!114 &1173228253
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1173228247}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 84b04f9b5ff5cca44ad23ae300ececec, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  targets:
+  - rect: {fileID: 124717049}
+    anchorMin: {x: 0, y: 0}
+    anchorMax: {x: 1, y: 1}
+  applyInEditor: 1
 --- !u!1 &1193837347
 GameObject:
   m_ObjectHideFlags: 0
@@ -22867,12 +22957,14 @@ MonoBehaviour:
   - {fileID: 1330916955}
   orderPoint: {fileID: 1016303624}
   exitPoint: {fileID: 185131011}
+  overflowRoot: {fileID: 0}
   arrivalThreshold: 0.6
   memberSideSpacing: 1.1
   memberRowSpacing: 1
   overflowGroupSpacing: 2.25
   maxFrontTravelSeconds: 20
   maxFrontTravelRetries: 1
+  maxExitTravelSeconds: 20
 --- !u!114 &1323237029
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -27842,7 +27934,7 @@ MonoBehaviour:
   m_OverrideVoxelSize: 0
   m_VoxelSize: 0.26666668
   m_MinRegionArea: 2
-  m_NavMeshData: {fileID: 23800000, guid: a4ac8b90dfa28d9458000852c17d5a6b, type: 2}
+  m_NavMeshData: {fileID: 0}
   m_BuildHeightMesh: 0
 --- !u!64 &1636670760
 MeshCollider:
@@ -28330,6 +28422,7 @@ MonoBehaviour:
   - {fileID: 281998299}
   - {fileID: 67429966}
   waitAtPoint: 1.2
+  stationProducts: 
   avoidancePriority: 70
 --- !u!1 &1665833657
 GameObject:
@@ -34647,6 +34740,7 @@ GameObject:
   - component: {fileID: 1993190562}
   - component: {fileID: 1993190561}
   - component: {fileID: 1993190565}
+  - component: {fileID: 1993190566}
   m_Layer: 5
   m_Name: CanvasGameMenu
   m_TagString: Untagged
@@ -34760,6 +34854,38 @@ MonoBehaviour:
   scaleSpeed: 12
   bounceScale: 0.9
   bounceDuration: 0.12
+--- !u!114 &1993190566
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1993190560}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 84b04f9b5ff5cca44ad23ae300ececec, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  targets:
+  - rect: {fileID: 665817322}
+    anchorMin: {x: 0, y: 1}
+    anchorMax: {x: 0, y: 1}
+  - rect: {fileID: 1697956497}
+    anchorMin: {x: 0, y: 1}
+    anchorMax: {x: 0, y: 1}
+  - rect: {fileID: 1074314986}
+    anchorMin: {x: 0.5, y: 0.5}
+    anchorMax: {x: 0.5, y: 0.5}
+  - rect: {fileID: 229373949}
+    anchorMin: {x: 0, y: 0}
+    anchorMax: {x: 1, y: 1}
+  - rect: {fileID: 1825500787}
+    anchorMin: {x: 0.5, y: 0.5}
+    anchorMax: {x: 0.5, y: 0.5}
+  - rect: {fileID: 602655118}
+    anchorMin: {x: 0.5, y: 0.5}
+    anchorMax: {x: 0.5, y: 0.5}
+  applyInEditor: 1
 --- !u!1 &1999038544
 GameObject:
   m_ObjectHideFlags: 0
@@ -37934,6 +38060,8 @@ MonoBehaviour:
   kitchenUse: 0
   surfaceId: 0
   spotScale: 1
+  kitchenMarksMaterial: {fileID: 0}
+  kitchenOverlays: []
 --- !u!114 &9000000001
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -37953,6 +38081,8 @@ MonoBehaviour:
   kitchenUse: 1
   surfaceId: 0
   spotScale: 1
+  kitchenMarksMaterial: {fileID: 0}
+  kitchenOverlays: []
 --- !u!114 &9000000002
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -37972,6 +38102,8 @@ MonoBehaviour:
   kitchenUse: 0
   surfaceId: 0
   spotScale: 1
+  kitchenMarksMaterial: {fileID: 0}
+  kitchenOverlays: []
 --- !u!114 &9000000003
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -37991,6 +38123,8 @@ MonoBehaviour:
   kitchenUse: 0
   surfaceId: 0
   spotScale: 1
+  kitchenMarksMaterial: {fileID: 0}
+  kitchenOverlays: []
 --- !u!114 &9000000004
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -38010,6 +38144,8 @@ MonoBehaviour:
   kitchenUse: 0
   surfaceId: 0
   spotScale: 1
+  kitchenMarksMaterial: {fileID: 0}
+  kitchenOverlays: []
 --- !u!114 &9000000005
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -38029,6 +38165,8 @@ MonoBehaviour:
   kitchenUse: 0
   surfaceId: 0
   spotScale: 1
+  kitchenMarksMaterial: {fileID: 0}
+  kitchenOverlays: []
 --- !u!114 &9000000006
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -38048,6 +38186,8 @@ MonoBehaviour:
   kitchenUse: 1
   surfaceId: 0
   spotScale: 1
+  kitchenMarksMaterial: {fileID: 0}
+  kitchenOverlays: []
 --- !u!114 &9000000007
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -38067,6 +38207,8 @@ MonoBehaviour:
   kitchenUse: 0
   surfaceId: 0
   spotScale: 1
+  kitchenMarksMaterial: {fileID: 0}
+  kitchenOverlays: []
 --- !u!114 &9000000008
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -38086,6 +38228,8 @@ MonoBehaviour:
   kitchenUse: 1
   surfaceId: 0
   spotScale: 1
+  kitchenMarksMaterial: {fileID: 0}
+  kitchenOverlays: []
 --- !u!114 &9000000009
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -38105,6 +38249,8 @@ MonoBehaviour:
   kitchenUse: 1
   surfaceId: 0
   spotScale: 1
+  kitchenMarksMaterial: {fileID: 0}
+  kitchenOverlays: []
 --- !u!114 &9000000010
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -38124,6 +38270,8 @@ MonoBehaviour:
   kitchenUse: 0
   surfaceId: 0
   spotScale: 1
+  kitchenMarksMaterial: {fileID: 0}
+  kitchenOverlays: []
 --- !u!114 &9000000011
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -38143,6 +38291,8 @@ MonoBehaviour:
   kitchenUse: 0
   surfaceId: 0
   spotScale: 1
+  kitchenMarksMaterial: {fileID: 0}
+  kitchenOverlays: []
 --- !u!114 &9000000012
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -38162,6 +38312,8 @@ MonoBehaviour:
   kitchenUse: 1
   surfaceId: 0
   spotScale: 1
+  kitchenMarksMaterial: {fileID: 0}
+  kitchenOverlays: []
 --- !u!114 &9000000013
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -38181,6 +38333,8 @@ MonoBehaviour:
   kitchenUse: 0
   surfaceId: 0
   spotScale: 1
+  kitchenMarksMaterial: {fileID: 0}
+  kitchenOverlays: []
 --- !u!114 &9000000014
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -38200,6 +38354,8 @@ MonoBehaviour:
   kitchenUse: 1
   surfaceId: 0
   spotScale: 1
+  kitchenMarksMaterial: {fileID: 0}
+  kitchenOverlays: []
 --- !u!114 &9000000015
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -38219,6 +38375,8 @@ MonoBehaviour:
   kitchenUse: 0
   surfaceId: 0
   spotScale: 1
+  kitchenMarksMaterial: {fileID: 0}
+  kitchenOverlays: []
 --- !u!114 &9000000016
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -38238,6 +38396,8 @@ MonoBehaviour:
   kitchenUse: 0
   surfaceId: 0
   spotScale: 1
+  kitchenMarksMaterial: {fileID: 0}
+  kitchenOverlays: []
 --- !u!114 &9000000017
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -38257,6 +38417,8 @@ MonoBehaviour:
   kitchenUse: 0
   surfaceId: 0
   spotScale: 1
+  kitchenMarksMaterial: {fileID: 0}
+  kitchenOverlays: []
 --- !u!114 &9000000018
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -38276,6 +38438,8 @@ MonoBehaviour:
   kitchenUse: 0
   surfaceId: 0
   spotScale: 1
+  kitchenMarksMaterial: {fileID: 0}
+  kitchenOverlays: []
 --- !u!114 &9000000019
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -38295,6 +38459,8 @@ MonoBehaviour:
   kitchenUse: 0
   surfaceId: 0
   spotScale: 1
+  kitchenMarksMaterial: {fileID: 0}
+  kitchenOverlays: []
 --- !u!114 &9000000020
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -38314,6 +38480,8 @@ MonoBehaviour:
   kitchenUse: 0
   surfaceId: 0
   spotScale: 1
+  kitchenMarksMaterial: {fileID: 0}
+  kitchenOverlays: []
 --- !u!114 &9000000021
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -38333,6 +38501,8 @@ MonoBehaviour:
   kitchenUse: 0
   surfaceId: 0
   spotScale: 1
+  kitchenMarksMaterial: {fileID: 0}
+  kitchenOverlays: []
 --- !u!114 &9000000022
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -38352,6 +38522,8 @@ MonoBehaviour:
   kitchenUse: 0
   surfaceId: 0
   spotScale: 1
+  kitchenMarksMaterial: {fileID: 0}
+  kitchenOverlays: []
 --- !u!1001 &430326014308316977
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -38603,6 +38775,7 @@ GameObject:
   - component: {fileID: 910000000000000009}
   - component: {fileID: 910000000000000008}
   - component: {fileID: 910000000000000007}
+  - component: {fileID: 853098986}
   m_Layer: 5
   m_Name: DevSettingsCanvas
   m_TagString: Untagged

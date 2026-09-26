@@ -12,7 +12,7 @@ public sealed partial class FastFoodCookingView
     [SerializeField,Min(.1f)] private float prepLookSeconds=1.2f;
     private Coroutine stationTransition;
     private float fryerPrepUntil;
-    private string lastInstruction="",lastStaffCue="";
+    private string lastInstruction="";
     private MaterialPropertyBlock previewProperties;
     [SerializeField] private RectTransform discardBox;
     private Vector2 pointerPosition;
@@ -79,7 +79,7 @@ public sealed partial class FastFoodCookingView
     void ResetPolish()
     {
         batchProgressContext=null;
-        fryerPrepUntil=0;lastInstruction="";lastStaffCue="";
+        fryerPrepUntil=0;lastInstruction="";
         if(floatingCue!=null)floatingCue.Clear();
     }
 }

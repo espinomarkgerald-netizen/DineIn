@@ -44,6 +44,8 @@ public sealed class LevelOneUIAccessibility : MonoBehaviour
         GameObject root = new GameObject("Level 1 UI Accessibility");
         instance = root.AddComponent<LevelOneUIAccessibility>();
         DontDestroyOnLoad(root);
+        if (Debug.isDebugBuild)
+            Debug.Log($"[Presentation] {Application.platform} / {Application.unityVersion}; ReducedMotion={ReducedMotion}, LargeText={LargeText}, HighContrast={HighContrast}. Preferences are per installation.");
     }
 
     public void SetReducedMotion(bool enabled) =>

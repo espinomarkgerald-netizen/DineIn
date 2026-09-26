@@ -78,7 +78,7 @@ public sealed class LobbyHUDRoot : MonoBehaviour
             controls.UseCombinedAuthoredLayout();
             // Scale before binding so panel animations retain the mobile size.
             // Keep the actual tutorial target and all child text in the same rect.
-            if (Application.isMobilePlatform &&
+            if (MobileUISettings.UseMobileLayout &&
                 controls.transform.Find("SafeArea/TaskMessage") is RectTransform taskPanel)
                 taskPanel.localScale *= Mathf.Max(0.1f, mobileTaskPanelScale);
             PlayerTaskHUD.EnsureCombinedBinding(controls);
@@ -94,7 +94,7 @@ public sealed class LobbyHUDRoot : MonoBehaviour
     {
         EnsurePauseController();
         RefreshScenePresentation();
-        if (!Application.isMobilePlatform) return;
+        if (!MobileUISettings.UseMobileLayout) return;
 
         // Let each presenter finish binding in Awake, then enlarge through its
         // existing canvas coordinate system. Edge anchors and safe areas survive.

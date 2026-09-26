@@ -13,6 +13,7 @@ public sealed class MultiplayerSessionUI : MonoBehaviour
     private GameObject canvasRoot;
     private RectTransform safeArea;
     private TMP_Text title, detail, readyLabel;
+    private TMP_Text roster;
     private Button readyButton, cancelButton;
     private bool connectionWarning, endedWarning;
     private float nextRefresh;
@@ -28,6 +29,34 @@ public sealed class MultiplayerSessionUI : MonoBehaviour
 
     private void BuildPrompt()
     {
+        var prefab = Resources.Load<MultiplayerReadyView>("UI/MultiplayerReadyPrompt");
+        if (prefab == null)
+        {
+            Debug.LogError("Missing authored UI/MultiplayerReadyPrompt prefab.", this);
+            enabled = false;
+            return;
+        }
+        var view = Instantiate(prefab, transform, false);
+        canvasRoot = view.gameObject; safeArea = view.safeArea;
+        title = view.title; detail = view.detail; readyLabel = view.readyLabel; roster = view.roster;
+        readyButton = view.readyButton; cancelButton = view.cancelButton;
+        readyButton.onClick.AddListener(() => day.ToggleLocalReady());
+        cancelButton.onClick.AddListener(() => day.CancelReadyRequest());
+        view.pauseButton.onClick.AddListener(OpenPause);
+        canvasRoot.SetActive(false);
+    }
+
+    private void OpenPause()
+    {
+        if (pause == null) pause = FindFirstObjectByType<LobbyPauseMenu>();
+        pause?.OpenFromReadyPrompt();
+        if (pause != null && pause.IsOpen) HidePrompt();
+    }
+
+#if UNITY_EDITOR
+    public GameObject AuthorPrompt()
+    {
+        style = Resources.Load<MultiplayerReadyStyle>("UI/MultiplayerReadyStyle");
         canvasRoot = new GameObject("Multiplayer Day Ready", typeof(RectTransform), typeof(Canvas),
             typeof(CanvasScaler), typeof(GraphicRaycaster));
         var canvas = canvasRoot.GetComponent<Canvas>();
@@ -43,33 +72,41 @@ public sealed class MultiplayerSessionUI : MonoBehaviour
         shade.GetComponent<Image>().color = new Color(0.02f, 0.06f, 0.12f, 0.86f);
         safeArea = new GameObject("Safe Area", typeof(RectTransform)).GetComponent<RectTransform>();
         safeArea.SetParent(canvasRoot.transform, false);
+        Place(safeArea, Vector2.zero, Vector2.one);
         title = Text(safeArea, "Title", 80);
         Place(title.rectTransform, new Vector2(0.15f, 0.68f), new Vector2(0.85f, 0.88f));
         detail = Text(safeArea, "Status", 32);
         Place(detail.rectTransform, new Vector2(0.12f, 0.56f), new Vector2(0.88f, 0.68f));
         readyButton = MakeButton(safeArea, "Ready", 64, out readyLabel);
         Place(readyButton.GetComponent<RectTransform>(), new Vector2(0.30f, 0.32f), new Vector2(0.70f, 0.54f));
-        readyButton.onClick.AddListener(() => day.ToggleLocalReady());
         cancelButton = MakeButton(safeArea, "Cancel Start", 30, out var cancelLabel);
         cancelLabel.text = "CANCEL START";
         Place(cancelButton.GetComponent<RectTransform>(), new Vector2(0.38f, 0.16f), new Vector2(0.62f, 0.28f));
-        cancelButton.onClick.AddListener(() => day.CancelReadyRequest());
         var pauseButton = MakeButton(safeArea, "Pause", 28, out var pauseLabel);
         pauseLabel.text = "PAUSE";
         Place(pauseButton.GetComponent<RectTransform>(), new Vector2(0.84f, 0.84f), new Vector2(0.97f, 0.96f));
-        pauseButton.onClick.AddListener(() =>
-        {
-            if (pause == null) pause = FindFirstObjectByType<LobbyPauseMenu>();
-            pause?.OpenFromReadyPrompt();
-        });
+        roster = Text(safeArea, "Players", 42);
+        Place(roster.rectTransform, new Vector2(.18f,.31f), new Vector2(.82f,.55f));
+        Place(readyButton.GetComponent<RectTransform>(), new Vector2(.25f,.16f), new Vector2(.75f,.29f));
+        Place(cancelButton.GetComponent<RectTransform>(), new Vector2(.35f,.04f), new Vector2(.65f,.14f));
+        title.text = "READY FOR SERVICE?"; detail.text = "Gather your team before starting the day.";
+        roster.text = "1  HOST - READY\n2  PLAYER - PREPARING\n3  OPEN SEAT\n4  OPEN SEAT";
+        readyLabel.text = "I'M READY";
+        var view = canvasRoot.AddComponent<MultiplayerReadyView>();
+        view.safeArea = safeArea; view.title = title; view.detail = detail; view.roster = roster;
+        view.readyLabel = readyLabel; view.readyButton = readyButton; view.cancelButton = cancelButton; view.pauseButton = pauseButton;
         canvasRoot.SetActive(false);
+        return canvasRoot;
     }
+#endif
 
     private void Update()
     {
         if (session == null || day == null || canvasRoot == null) return;
         ShowConnectionChanges();
         var request = day.Readiness;
+        // The persistent HUD may finish Start after this scene-owned component.
+        if (pause == null) pause = FindFirstObjectByType<LobbyPauseMenu>();
         bool visible = request != null && !session.Ended && (pause == null || !pause.IsOpen);
         if (canvasRoot.activeSelf != visible)
         {
@@ -103,6 +140,21 @@ public sealed class MultiplayerSessionUI : MonoBehaviour
         readyButton.interactable = !host && session.CanAct && !day.VotePending;
         cancelButton.gameObject.SetActive(host);
         cancelButton.interactable = session.CanAct;
+        if (roster != null)
+        {
+            var players = session.ConnectedPlayers;
+            System.Array.Sort(players, (a,b) => a.ActorNumber.CompareTo(b.ActorNumber));
+            var lines = new System.Text.StringBuilder();
+            foreach (var player in players)
+            {
+                if (lines.Length > 0) lines.Append('\n');
+                string nickname = string.IsNullOrWhiteSpace(player.NickName) ? "Player" : player.NickName.Replace('\n',' ').Replace('\r',' ');
+                if (nickname.Length > 22) nickname = nickname.Substring(0,22);
+                lines.Append(nickname).Append(player.IsMasterClient ? " (HOST)" : "").Append(player.IsLocal ? " (YOU)" : "");
+                lines.Append(player.IsInactive ? " - RECONNECTING" : request.IsReady(player.ActorNumber) ? " - READY" : " - PREPARING");
+            }
+            roster.text = lines.ToString();
+        }
     }
 
     private void ShowConnectionChanges()
@@ -167,5 +219,13 @@ public sealed class MultiplayerSessionUI : MonoBehaviour
         if (canvasRoot == null) return;
         GameplayUIBlocker.Instance?.SetPanelBlocksGameplay(canvasRoot, false);
         Destroy(canvasRoot);
+    }
+
+    private void OnDisable() => HidePrompt();
+    private void HidePrompt()
+    {
+        if (canvasRoot == null) return;
+        canvasRoot.SetActive(false);
+        GameplayUIBlocker.Instance?.SetPanelBlocksGameplay(canvasRoot, false);
     }
 }

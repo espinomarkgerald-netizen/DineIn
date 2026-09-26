@@ -1744,6 +1744,7 @@ GameObject:
   - component: {fileID: 290115238}
   - component: {fileID: 290115237}
   - component: {fileID: 290115241}
+  - component: {fileID: 290115242}
   m_Layer: 5
   m_Name: IrisMask
   m_TagString: Untagged
@@ -1848,6 +1849,23 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   target: {fileID: 1918563289}
   duration: 0.45
+--- !u!114 &290115242
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 290115236}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 84b04f9b5ff5cca44ad23ae300ececec, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  targets:
+  - rect: {fileID: 1918563289}
+    anchorMin: {x: 0.5, y: 0.5}
+    anchorMax: {x: 0.5, y: 0.5}
+  applyInEditor: 1
 --- !u!1 &298979475
 GameObject:
   m_ObjectHideFlags: 0
@@ -6356,6 +6374,7 @@ GameObject:
   - component: {fileID: 958482750}
   - component: {fileID: 958482749}
   - component: {fileID: 958482748}
+  - component: {fileID: 958482751}
   m_Layer: 0
   m_Name: Whole Screen Canvas
   m_TagString: Untagged
@@ -6446,6 +6465,23 @@ Canvas:
   m_SortingLayerID: 0
   m_SortingOrder: 0
   m_TargetDisplay: 0
+--- !u!114 &958482751
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 958482746}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 84b04f9b5ff5cca44ad23ae300ececec, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  targets:
+  - rect: {fileID: 1241652184}
+    anchorMin: {x: 0.5, y: 0.5}
+    anchorMax: {x: 0.5, y: 0.5}
+  applyInEditor: 1
 --- !u!1 &962599192
 GameObject:
   m_ObjectHideFlags: 0
@@ -13235,6 +13271,7 @@ GameObject:
   - component: {fileID: 2200000002}
   - component: {fileID: 2200000003}
   - component: {fileID: 2200000004}
+  - component: {fileID: 2200000005}
   m_Layer: 5
   m_Name: Opening Screen UI
   m_TagString: Untagged
@@ -13321,6 +13358,26 @@ CanvasGroup:
   m_Interactable: 0
   m_BlocksRaycasts: 0
   m_IgnoreParentGroups: 0
+--- !u!114 &2200000005
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2200000000}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 84b04f9b5ff5cca44ad23ae300ececec, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  targets:
+  - rect: {fileID: 2200000011}
+    anchorMin: {x: 0.1, y: 0.78}
+    anchorMax: {x: 0.9, y: 0.94}
+  - rect: {fileID: 2200000021}
+    anchorMin: {x: 0.1, y: 0.07}
+    anchorMax: {x: 0.9, y: 0.16}
+  applyInEditor: 1
 --- !u!1 &2200000010
 GameObject:
   m_ObjectHideFlags: 0

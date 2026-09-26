@@ -237,6 +237,11 @@ namespace DineIn.Rendering
             if (source == null || source.shader == null || source.shader == toonShader)
                 return null;
 
+            // QuickOutline's actual shader names do not contain "QuickOutline".
+            // Never replace its stencil mask or white interaction highlight.
+            if (source.shader.name == "Custom/Outline Fill" || source.shader.name == "Custom/Outline Mask")
+                return null;
+
             if (ContainsAny(source.shader.name, settings.excludedShaderNameFragments))
                 return null;
 

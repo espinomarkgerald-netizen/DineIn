@@ -1115,6 +1115,7 @@ GameObject:
   - component: {fileID: 476908743}
   - component: {fileID: 476908742}
   - component: {fileID: 1999000001}
+  - component: {fileID: 1999000002}
   m_Layer: 5
   m_Name: UICanvas
   m_TagString: Untagged
@@ -7315,6 +7316,35 @@ MonoBehaviour:
   buttonReleaseScale: 1.025
   buttonPressDuration: 0.06
   buttonReleaseDuration: 0.14
+--- !u!114 &1999000002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 476908741}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 84b04f9b5ff5cca44ad23ae300ececec, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  targets:
+  - rect: {fileID: 321492046}
+    anchorMin: {x: 0.5, y: 0}
+    anchorMax: {x: 0.5, y: 0}
+  - rect: {fileID: 1884991979}
+    anchorMin: {x: 1, y: 0}
+    anchorMax: {x: 1, y: 0}
+  - rect: {fileID: 1576874438}
+    anchorMin: {x: 1, y: 1}
+    anchorMax: {x: 1, y: 1}
+  - rect: {fileID: 503623491}
+    anchorMin: {x: 0.5, y: 0}
+    anchorMax: {x: 0.5, y: 0}
+  - rect: {fileID: 1289452893}
+    anchorMin: {x: 0, y: 0.5}
+    anchorMax: {x: 0, y: 0.5}
+  applyInEditor: 1
 --- !u!1 &2013889140
 GameObject:
   m_ObjectHideFlags: 0

@@ -107,9 +107,11 @@ Shader "Dine In/Cozy Toon"
             #pragma vertex ToonVertex
             #pragma fragment ToonFragment
             #pragma multi_compile_instancing
-            #pragma shader_feature_local_fragment _ALPHATEST_ON
-            #pragma shader_feature_local _NORMALMAP
-            #pragma shader_feature_local_fragment _EMISSION
+            #pragma multi_compile_local_fragment _ _ALPHATEST_ON
+            // Materials are converted at runtime; no authored material may use these
+            // keywords during the build's material-based variant collection.
+            #pragma multi_compile_local _ _NORMALMAP
+            #pragma multi_compile_local_fragment _ _EMISSION
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
             #pragma multi_compile_fragment _ _SHADOWS_SOFT
             #pragma multi_compile _ _ADDITIONAL_LIGHTS_VERTEX _ADDITIONAL_LIGHTS
@@ -294,7 +296,7 @@ Shader "Dine In/Cozy Toon"
             #pragma vertex OutlineVertex
             #pragma fragment OutlineFragment
             #pragma multi_compile_instancing
-            #pragma shader_feature_local_fragment _ALPHATEST_ON
+            #pragma multi_compile_local_fragment _ _ALPHATEST_ON
 
             struct OutlineAttributes
             {
@@ -357,7 +359,7 @@ Shader "Dine In/Cozy Toon"
             #pragma fragment ShadowFragment
             #pragma multi_compile_instancing
             #pragma multi_compile_vertex _ _CASTING_PUNCTUAL_LIGHT_SHADOW
-            #pragma shader_feature_local_fragment _ALPHATEST_ON
+            #pragma multi_compile_local_fragment _ _ALPHATEST_ON
 
             float3 _LightDirection;
             float3 _LightPosition;
@@ -426,7 +428,7 @@ Shader "Dine In/Cozy Toon"
             #pragma vertex DepthVertex
             #pragma fragment DepthFragment
             #pragma multi_compile_instancing
-            #pragma shader_feature_local_fragment _ALPHATEST_ON
+            #pragma multi_compile_local_fragment _ _ALPHATEST_ON
 
             struct DepthAttributes
             {
@@ -473,7 +475,8 @@ Shader "Dine In/Cozy Toon"
             #pragma vertex DepthNormalsVertex
             #pragma fragment DepthNormalsFragment
             #pragma multi_compile_instancing
-            #pragma shader_feature_local_fragment _ALPHATEST_ON
+            #pragma multi_compile_fragment _ _GBUFFER_NORMALS_OCT
+            #pragma multi_compile_local_fragment _ _ALPHATEST_ON
 
             struct DepthNormalsAttributes
             {
@@ -506,7 +509,12 @@ Shader "Dine In/Cozy Toon"
             {
                 UNITY_SETUP_INSTANCE_ID(input);
                 ApplyAlphaClip(SampleBase(input.uv).a);
-                return half4(normalize(input.normalWS), 0.0h);
+                #if defined(_GBUFFER_NORMALS_OCT)
+                    float2 octNormal = PackNormalOctQuadEncode(normalize(input.normalWS));
+                    return half4(PackFloat2To888(saturate(octNormal * 0.5 + 0.5)), 0.0h);
+                #else
+                    return half4(normalize(input.normalWS), 0.0h);
+                #endif
             }
             ENDHLSL
         }

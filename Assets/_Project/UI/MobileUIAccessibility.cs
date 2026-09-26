@@ -30,7 +30,7 @@ public sealed class MobileUIAccessibility : MonoBehaviour
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void Install()
     {
-        if (!Application.isMobilePlatform || instance != null)
+        if (!MobileUISettings.UseMobileLayout || instance != null)
             return;
 
         GameObject root = new GameObject(RuntimeName);
@@ -72,7 +72,7 @@ public sealed class MobileUIAccessibility : MonoBehaviour
         for (int i = 0; i < scalers.Length; i++)
             ConfigureCanvasForMobile(scalers[i]);
 
-        Button[] buttons = FindObjectsByType<Button>(
+        Selectable[] buttons = FindObjectsByType<Selectable>(
             FindObjectsInactive.Include,
             FindObjectsSortMode.None);
         for (int i = 0; i < buttons.Length; i++)
@@ -81,8 +81,11 @@ public sealed class MobileUIAccessibility : MonoBehaviour
             // and a player build. Only persistent HUD controls opt into a larger
             // visible size; modal/workspace controls receive an invisible hit area
             // below without changing their RectTransforms or layout elements.
-            EnsurePersistentHudVisualSize(buttons[i]);
-            ApplyStorageButtonScale(buttons[i]);
+            if (buttons[i] is Button button)
+            {
+                EnsurePersistentHudVisualSize(button);
+                ApplyStorageButtonScale(button);
+            }
             EnsureTouchArea(buttons[i]);
         }
 
@@ -158,7 +161,7 @@ public sealed class MobileUIAccessibility : MonoBehaviour
         SetAuthoredScaleMultiplier(rect, new Vector3(scale, scale, 1f));
     }
 
-    private static void EnsureTouchArea(Button button)
+    private static void EnsureTouchArea(Selectable button)
     {
         if (button == null)
             return;
@@ -175,11 +178,13 @@ public sealed class MobileUIAccessibility : MonoBehaviour
         // Dividing by scaleFactor keeps the actual Android tap area consistent even
         // on a 1920 x 1080 HUD rendered onto a short 576-pixel-tall phone display.
         float canvasScale = canvas != null ? canvas.scaleFactor : 1f;
-        float minimumCanvasUnits = MinimumCanvasTouchSizeForScale(canvasScale);
+        Vector2 physical = canvas != null ? GetPhysicalSize(buttonRect, canvas) : buttonRect.rect.size;
+        float scaleX = buttonRect.rect.width > 0 ? physical.x / buttonRect.rect.width : canvasScale;
+        float scaleY = buttonRect.rect.height > 0 ? physical.y / buttonRect.rect.height : canvasScale;
 
         Rect rect = buttonRect.rect;
-        float extraX = Mathf.Max(0f, minimumCanvasUnits - rect.width) * 0.5f;
-        float extraY = Mathf.Max(0f, minimumCanvasUnits - rect.height) * 0.5f;
+        float extraX = Mathf.Max(0f, MinimumCanvasTouchSizeForScale(scaleX) - rect.width) * 0.5f;
+        float extraY = Mathf.Max(0f, MinimumCanvasTouchSizeForScale(scaleY) - rect.height) * 0.5f;
 
         Transform existing = button.transform.Find(TouchAreaName);
         if (extraX <= 0f && extraY <= 0f && existing == null)
@@ -219,7 +224,9 @@ public sealed class MobileUIAccessibility : MonoBehaviour
     {
         return NameMatches(canvasName, "PlayerTaskHUD") ||
                NameMatches(canvasName, "CasualDiningProgressHUD") ||
-               NameMatches(canvasName, "LobbyPauseMenu");
+               NameMatches(canvasName, "Lobby Controls HUD") ||
+               NameMatches(canvasName, "Progress Day Time HUD") ||
+               NameMatches(canvasName, "Task HUD");
     }
 
     private static bool NameMatches(string runtimeName, string authoredName)
@@ -230,7 +237,8 @@ public sealed class MobileUIAccessibility : MonoBehaviour
     /// <summary>Converts the mobile physical-pixel target into the active canvas units.</summary>
     public static float MinimumCanvasTouchSizeForScale(float canvasScale)
     {
-        return MinimumPhysicalTouchPixels / Mathf.Max(0.01f, canvasScale);
+        float minimum = MobileUISettings.Active != null ? MobileUISettings.Active.touchTargetPixels : MinimumPhysicalTouchPixels;
+        return minimum / Mathf.Max(0.01f, canvasScale);
     }
 
     private static void EnsurePersistentHudVisualSize(Button button)
@@ -244,9 +252,13 @@ public sealed class MobileUIAccessibility : MonoBehaviour
         if (canvas == null)
             return;
 
-        float minimumPixels = IsWidthScaledPersistentHud(canvas.name)
-            ? MinimumPersistentHudPixels
+        LobbyPauseMenuView pauseView = button.GetComponentInParent<LobbyPauseMenuView>();
+        bool isPauseButton = pauseView != null && pauseView.PauseButton == button;
+        float minimumPixels = (IsWidthScaledPersistentHud(canvas.name) || isPauseButton)
+            ? (MobileUISettings.Active != null ? MobileUISettings.Active.persistentHudPixels : MinimumPersistentHudPixels)
             : 0f;
+        if (button.GetComponentInParent<FastFoodCookingView>() != null)
+            minimumPixels = MobileUISettings.Active != null ? MobileUISettings.Active.workspaceControlPixels : MinimumWorkspaceControlPixels;
         if (minimumPixels <= 0f)
             return;
 

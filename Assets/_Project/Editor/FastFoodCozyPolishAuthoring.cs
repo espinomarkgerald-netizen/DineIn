@@ -85,7 +85,7 @@ public static partial class FastFoodCozyPolishAuthoring
         var label=root.GetComponent<TextMeshProUGUI>()??Undo.AddComponent<TextMeshProUGUI>(root.gameObject);
         label.font=goal.font;label.fontSize=22;label.enableAutoSizing=true;label.fontSizeMin=18;label.fontSizeMax=22;
         label.color=Color.white;label.alignment=TextAlignmentOptions.MidlineLeft;label.overflowMode=TextOverflowModes.Ellipsis;
-        label.text="Staff ready to help";label.raycastTarget=false;
+        label.text="";label.raycastTarget=false;root.gameObject.SetActive(false);
         data.FindProperty("staffActivity").objectReferenceValue=label;data.ApplyModifiedProperties();
     }
 

@@ -13,6 +13,9 @@ public class DevSettingsConsole : MonoBehaviour
 
     [Header("Panel")]
     [SerializeField] private GameObject panelRoot;
+    [SerializeField] private DeveloperSettingsView developerWindowPrefab;
+    private DeveloperSettingsView authoredWindow;
+    public static bool IsWindowOpen => activeConsole != null && activeConsole.panelRoot != null && activeConsole.panelRoot.activeInHierarchy;
 
     [Header("UI References")]
     [SerializeField] private TMP_InputField codeInputField;
@@ -89,6 +92,27 @@ public class DevSettingsConsole : MonoBehaviour
     {
         activeConsole = this;
 
+        // No player-facing developer entry or window on Android.
+        if (IsAndroidPlayer())
+        {
+            if (panelRoot != null) panelRoot.SetActive(false);
+            if (androidOpenButton != null) androidOpenButton.gameObject.SetActive(false);
+            enabled = false;
+            return;
+        }
+
+        if (developerWindowPrefab == null) developerWindowPrefab = Resources.Load<DeveloperSettingsView>("UI/DeveloperSettings");
+        if (developerWindowPrefab != null)
+        {
+            if (panelRoot != null) panelRoot.SetActive(false);
+            authoredWindow = Instantiate(developerWindowPrefab, transform, false);
+            panelRoot = authoredWindow.gameObject;
+            consoleText = authoredWindow.result;
+            codeInputField = null; runButton = null; closeButton = null;
+            focusInputWhenOpened = false;
+            authoredWindow.Bind(this);
+        }
+
         if (runButton != null)
         {
             runButton.onClick.RemoveListener(RunCurrentCode);
@@ -109,19 +133,14 @@ public class DevSettingsConsole : MonoBehaviour
         {
             // The console is a diagnostic overlay and must stay above gameplay HUDs.
             devCanvas.overrideSorting = true;
-            devCanvas.sortingOrder = 32000;
+            devCanvas.sortingOrder = 32767;
         }
 
-        if (IsAndroidPlayer())
-        {
-            if (androidOpenButton == null && createAndroidOpenButton)
-                CreateAndroidOpenButton();
-            BindAndroidOpenButton();
-        }
+        if (androidOpenButton != null) androidOpenButton.gameObject.SetActive(false);
 
         ApplyAuthorizationState();
 
-        SetConsoleMessage(defaultConsoleMessage, normalColor);
+        SetConsoleMessage(authoredWindow != null ? "Select a developer action." : defaultConsoleMessage, normalColor);
     }
 
     private void OnEnable()
@@ -138,6 +157,7 @@ public class DevSettingsConsole : MonoBehaviour
 
     private void OnDisable()
     {
+        ClosePanel();
         UnsubscribeFromAuthManager();
     }
 
@@ -178,7 +198,7 @@ public class DevSettingsConsole : MonoBehaviour
         if (panelRoot == null || !panelRoot.activeSelf)
             return;
 
-        if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+        if (authoredWindow == null && (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter)))
             RunCurrentCode();
     }
 
@@ -192,6 +212,7 @@ public class DevSettingsConsole : MonoBehaviour
 
         if (panelRoot != null)
             panelRoot.SetActive(true);
+        GameplayUIBlocker.Instance?.SetPanelBlocksGameplay(panelRoot, true);
 
         SetConsoleMessage(defaultConsoleMessage, normalColor);
 
@@ -204,6 +225,7 @@ public class DevSettingsConsole : MonoBehaviour
 
     public void ClosePanel()
     {
+        GameplayUIBlocker.Instance?.SetPanelBlocksGameplay(panelRoot, false);
         if (panelRoot != null)
             panelRoot.SetActive(false);
     }
@@ -858,7 +880,7 @@ public class DevSettingsConsole : MonoBehaviour
         bool canExecute = CanExecuteCommands();
 
         if (androidOpenButton != null)
-            androidOpenButton.gameObject.SetActive(IsAndroidPlayer() && canExecute);
+            androidOpenButton.gameObject.SetActive(false);
 
         if (!canExecute && panelRoot != null && panelRoot.activeSelf)
             panelRoot.SetActive(false);

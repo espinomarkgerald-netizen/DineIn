@@ -21,7 +21,7 @@ public sealed class FastFoodFryerBasket : MonoBehaviour, IPointerClickHandler, I
     {
         if (movingBasket == null) return;
         if (!initialized) { restRotation = movingBasket.localRotation; initialized = true; }
-        lift = immediate || LevelOneUIAccessibility.ReducedMotion ? (raised ? 1 : 0) :
+        lift = immediate ? (raised ? 1 : 0) :
             Mathf.SmoothDamp(lift, raised ? 1 : 0, ref velocity, liftSeconds * .35f, Mathf.Infinity, Time.deltaTime);
         movingBasket.localPosition = loweredLocalPosition + movingBasket.parent.InverseTransformVector(Vector3.up * liftHeight * lift);
         movingBasket.localRotation = restRotation * Quaternion.Euler(readyTiltDegrees * Mathf.Sin(lift * Mathf.PI), 0, 0);

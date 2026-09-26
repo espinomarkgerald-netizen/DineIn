@@ -72,35 +72,6 @@ public sealed partial class FastFoodCookingView
         else PulseProteinSlot(portion.recipe);
     }
 
-    void BindStoredProteinSlots()
-    {
-        proteinSlots.Clear();
-        foreach (var group in State.PlayerWork.Where(p => p.player && FastFoodCookingState.HasStoredProtein(p)).GroupBy(p => p.recipe))
-        {
-            var recipe = group.Key;
-            var protein = FastFoodCookingState.Steps(recipe).FirstOrDefault()?.item;
-            if (protein == null) continue;
-            var step = FastFoodCookingState.AssemblySteps(recipe).FirstOrDefault(s => s.item == protein);
-            // Reuse the draggable ingredient slot once the batch is in prep.
-            var slot = State.PrepReady ? hotbar.GetComponentsInChildren<FastFoodCookingDragHandle>()
-                .FirstOrDefault(s => s.item == protein && s.portion?.recipe == recipe) : null;
-            if (slot == null)
-            {
-                slot = Instantiate(ingredientTemplate, hotbar);
-                slot.gameObject.SetActive(true);
-                slot.view = this; slot.portion = group.First();
-                slot.item = null; slot.enabled = false;
-            }
-            slot.storedProtein = true;
-            slot.icon.sprite = step?.icon != null ? step.icon : protein.sprite;
-            slot.count.text = string.Format(storedProteinFormat, State.StoredProteinCount(recipe));
-            slot.count.color = new Color(.08f, .34f, .24f);
-            slot.count.fontSize = Mathf.Min(slot.count.fontSize, 23);
-            slot.gameObject.name = "Collected " + recipe.DisplayName + " protein";
-            proteinSlots[recipe] = slot;
-        }
-    }
-
     void PulseProteinSlot(Recipe recipe)
     {
         if (proteinSlots.TryGetValue(recipe, out var slot) && slot != null)

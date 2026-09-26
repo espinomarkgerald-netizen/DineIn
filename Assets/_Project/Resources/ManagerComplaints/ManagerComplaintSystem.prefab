@@ -151,6 +151,7 @@ GameObject:
   - component: {fileID: 8463914792539271587}
   - component: {fileID: 1058328419664570569}
   - component: {fileID: 9083102138733787150}
+  - component: {fileID: 689168293507199145}
   m_Layer: 5
   m_Name: ManagerComplaintCanvas
   m_TagString: Untagged
@@ -242,6 +243,26 @@ MonoBehaviour:
   m_BlockingMask:
     serializedVersion: 2
     m_Bits: 4294967295
+--- !u!114 &689168293507199145
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 143331015586368087}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 84b04f9b5ff5cca44ad23ae300ececec, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  targets:
+  - rect: {fileID: 7459000146929169643}
+    anchorMin: {x: 0, y: 0}
+    anchorMax: {x: 1, y: 1}
+  - rect: {fileID: 8845407772124763709}
+    anchorMin: {x: 0.5, y: 0.5}
+    anchorMax: {x: 0.5, y: 0.5}
+  applyInEditor: 1
 --- !u!1 &388233097681383747
 GameObject:
   m_ObjectHideFlags: 0

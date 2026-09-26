@@ -259,8 +259,13 @@ public class MultiplayerMenuController : MonoBehaviourPunCallbacks
         var players = PhotonNetwork.PlayerList;
         Array.Sort(players, (a, b) => a.ActorNumber.CompareTo(b.ActorNumber));
         foreach (var player in players)
-            roster.Append('\n').Append(string.IsNullOrWhiteSpace(player.NickName) ? "Player" : player.NickName)
-                .Append(Equals(player.CustomProperties[MultiplayerSessionManager.ReadyKey], true) ? " • Ready" : " • Not ready");
+        {
+            string nickname = string.IsNullOrWhiteSpace(player.NickName) ? "Player" : player.NickName.Replace('\n',' ').Replace('\r',' ');
+            if (nickname.Length > 22) nickname = nickname.Substring(0,22);
+            roster.Append('\n').Append(nickname).Append(player.IsMasterClient ? " (HOST)" : "")
+                .Append(player.IsLocal ? " (YOU)" : "")
+                .Append(player.IsInactive ? " • Reconnecting" : Equals(player.CustomProperties[MultiplayerSessionManager.ReadyKey], true) ? " • Ready" : " • Preparing");
+        }
         for (int i = players.Length; i < room.MaxPlayers; i++) roster.Append("\nOpen slot");
         foreach (var text in rosterTexts) text.text = roster.ToString();
         if (!Equals(room.CustomProperties[RestaurantKey], "CasualDining") ||

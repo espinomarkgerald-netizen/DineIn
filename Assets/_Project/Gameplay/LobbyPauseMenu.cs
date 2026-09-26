@@ -44,11 +44,32 @@ public sealed class LobbyPauseMenu : MonoBehaviour
     private LobbyPauseMenuView combinedHudView;
     private float previousTimeScale = 1f;
     private Coroutine openRoutine;
-    public bool IsOpen => paused;
+    private int contextScene = -1;
+    private static LobbyPauseMenu activeMenu;
+    private static int lastPauseInputFrame = -10;
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetPauseStatics() { activeMenu = null; lastPauseInputFrame = -10; }
+    public static bool IsAnyOpen => activeMenu != null && activeMenu.IsOpen;
+    public static bool BlocksTutorialInput
+    {
+        get
+        {
+            if (IsAnyOpen || DevSettingsConsole.IsWindowOpen || Time.frameCount <= lastPauseInputFrame + 1) return true;
+            if (activeMenu == null || activeMenu.pauseButton == null || !activeMenu.pauseButton.gameObject.activeInHierarchy) return false;
+            if (!Input.GetMouseButton(0) && Input.touchCount == 0) return false;
+            Vector2 point = Input.touchCount > 0 ? Input.GetTouch(0).position : (Vector2)Input.mousePosition;
+            return RectTransformUtility.RectangleContainsScreenPoint((RectTransform)activeMenu.pauseButton.transform, point);
+        }
+    }
+    public bool IsOpen => overlay != null && overlay.activeInHierarchy;
+    private static bool MultiplayerContext => MultiplayerSessionManager.Instance != null &&
+        MultiplayerSessionManager.Instance.IsMultiplayerSession;
     public void OpenFromReadyPrompt() { if (!paused) Pause(); }
 
     private void Awake()
     {
+        activeMenu = this;
+        ManagementComputerController.OpenStateChanged += RefreshPauseButtonVisibility;
         paused = false;
         previousTimeScale = 1f;
         BuildUI();
@@ -57,9 +78,14 @@ public sealed class LobbyPauseMenu : MonoBehaviour
 
     private void OnDestroy()
     {
+        ManagementComputerController.OpenStateChanged -= RefreshPauseButtonVisibility;
+        if (activeMenu == this) activeMenu = null;
         LevelOneUIAccessibility.SettingsChanged -= RefreshAccessibilityLabels;
         if (musicSlider != null) musicSlider.onValueChanged.RemoveListener(SetMusicVolume);
         if (sfxSlider != null) sfxSlider.onValueChanged.RemoveListener(SetSfxVolume);
+        if (largeTextButton != null) largeTextButton.onClick.RemoveListener(ToggleLargeText);
+        if (reducedMotionButton != null) reducedMotionButton.onClick.RemoveListener(ToggleReducedMotion);
+        if (highContrastButton != null) highContrastButton.onClick.RemoveListener(ToggleHighContrast);
         if (multiplayerPause)
         {
             pausedLocalPlayer?.SetExternalInputSuppressed(false);
@@ -68,11 +94,6 @@ public sealed class LobbyPauseMenu : MonoBehaviour
         else if (paused) Time.timeScale = 1f;
         if (usingCombinedHudView && combinedHudView != null)
         {
-            Transform generatedSettings = pauseWindow != null
-                ? pauseWindow.Find("SettingsContent")
-                : null;
-            if (generatedSettings != null)
-                Destroy(generatedSettings.gameObject);
             LobbyHUDRoot.Instance?.ReleasePauseMenuView(combinedHudView);
         }
     }
@@ -80,18 +101,33 @@ public sealed class LobbyPauseMenu : MonoBehaviour
     private void LateUpdate()
     {
         RefreshSceneContext();
-        if (paused || pauseButton == null) return;
+        if (IsOpen && !DevSettingsConsole.IsWindowOpen && Input.GetKeyDown(KeyCode.Escape)) Resume();
+        RefreshPauseButtonVisibility();
+    }
+
+    private void RefreshPauseButtonVisibility()
+    {
+        if (pauseButton == null) return;
         bool loading = SceneLoader.Instance != null && SceneLoader.Instance.IsLoading;
-        bool shouldShow = !loading && !GameplayUIBlocker.IsBlocked();
+        bool shouldShow = !paused && !loading && !ManagementComputerController.IsAnyOpen;
         if (pauseButton.gameObject.activeSelf != shouldShow)
             pauseButton.gameObject.SetActive(shouldShow);
     }
 
     public void RefreshSceneContext()
     {
+        int currentScene = SceneManager.GetActiveScene().handle;
+        // The HUD persists between restaurants. A local pause never belongs to
+        // the next scene (including a newly joined multiplayer room).
+        if (contextScene != currentScene)
+        {
+            Resume();
+            contextScene = currentScene;
+        }
         string scene = SceneManager.GetActiveScene().name;
-        bool lobby = scene == "Lobby1" || scene == "Lobby2" || MultiplayerHUDBridge.IsActive;
-        lobby &= !(RestockFlowCoordinator.Instance != null && RestockFlowCoordinator.Instance.IsRestockRoomOpen);
+        bool tutorial = TutorialSystem.Instance != null;
+        bool lobby = scene == "Lobby1" || scene == "Lobby2" || scene == "Lobby1Tutorial" || MultiplayerContext || tutorial;
+        lobby &= tutorial || !(RestockFlowCoordinator.Instance != null && RestockFlowCoordinator.Instance.IsRestockRoomOpen);
         if (!lobby && paused) Resume();
         if (combinedHudView != null && combinedHudView.gameObject.activeSelf != lobby)
             combinedHudView.gameObject.SetActive(lobby);
@@ -149,10 +185,16 @@ public sealed class LobbyPauseMenu : MonoBehaviour
         view.GameMenuButton.onClick.RemoveListener(ReturnToGameMenu);
         view.GameMenuButton.onClick.AddListener(ReturnToGameMenu);
 
-        StyleBaseVisuals(view);
-        BuildSettingsControls(view);
-        LoadAndApplyAudioSettings();
-        RouteUnassignedSoundEffects();
+        var tabs = pauseWindow.GetComponentInChildren<PauseSettingsPanel>(true);
+        if (tabs != null) tabs.Initialize();
+        else
+        {
+            if (pauseWindow.Find("SettingsContent") == null) StyleBaseVisuals(view);
+            BuildSettingsControls(view);
+            BindSettingsControls();
+            LoadAndApplyAudioSettings();
+            RouteUnassignedSoundEffects();
+        }
         overlay.SetActive(false);
     }
 
@@ -210,19 +252,67 @@ public sealed class LobbyPauseMenu : MonoBehaviour
         CreateSectionTitle(content.transform, "AccessibilityTitle", "ACCESSIBILITY", view.AccessibilityTitleY);
         largeTextButton = CreateAccessibilityButton(content.transform, "LargeTextButton", view.LargeTextRowY,
             view.SettingsRowSize,
-            () => LevelOneUIAccessibility.SetLargeTextEnabled(!LevelOneUIAccessibility.LargeText));
+            ToggleLargeText);
         reducedMotionButton = CreateAccessibilityButton(content.transform, "ReducedMotionButton", view.ReducedMotionRowY,
             view.SettingsRowSize,
-            () => LevelOneUIAccessibility.SetReducedMotionEnabled(!LevelOneUIAccessibility.ReducedMotion));
+            ToggleReducedMotion);
         highContrastButton = CreateAccessibilityButton(content.transform, "HighContrastButton", view.HighContrastRowY,
             view.SettingsRowSize,
-            () => LevelOneUIAccessibility.SetHighContrastEnabled(!LevelOneUIAccessibility.HighContrast));
+            ToggleHighContrast);
 
         LevelOneUIAccessibility.SettingsChanged -= RefreshAccessibilityLabels;
         LevelOneUIAccessibility.SettingsChanged += RefreshAccessibilityLabels;
         RefreshAccessibilityLabels();
         ApplyFont(window);
     }
+
+    private void ToggleLargeText() => LevelOneUIAccessibility.SetLargeTextEnabled(!LevelOneUIAccessibility.LargeText);
+    private void ToggleReducedMotion() => LevelOneUIAccessibility.SetReducedMotionEnabled(!LevelOneUIAccessibility.ReducedMotion);
+    private void ToggleHighContrast() => LevelOneUIAccessibility.SetHighContrastEnabled(!LevelOneUIAccessibility.HighContrast);
+
+    private void BindSettingsControls()
+    {
+        Transform content = pauseWindow.Find("SettingsContent");
+        if (content == null) return;
+        musicSlider = content.Find("MusicVolume/Slider")?.GetComponent<Slider>();
+        sfxSlider = content.Find("SfxVolume/Slider")?.GetComponent<Slider>();
+        musicValue = content.Find("MusicVolume/Value")?.GetComponent<TMP_Text>();
+        sfxValue = content.Find("SfxVolume/Value")?.GetComponent<TMP_Text>();
+        largeTextButton = content.Find("LargeTextButton")?.GetComponent<Button>();
+        reducedMotionButton = content.Find("ReducedMotionButton")?.GetComponent<Button>();
+        highContrastButton = content.Find("HighContrastButton")?.GetComponent<Button>();
+        if (musicSlider != null) { musicSlider.onValueChanged.RemoveListener(SetMusicVolume); musicSlider.onValueChanged.AddListener(SetMusicVolume); }
+        if (sfxSlider != null) { sfxSlider.onValueChanged.RemoveListener(SetSfxVolume); sfxSlider.onValueChanged.AddListener(SetSfxVolume); }
+        BindToggle(largeTextButton, ToggleLargeText);
+        BindToggle(reducedMotionButton, ToggleReducedMotion);
+        BindToggle(highContrastButton, ToggleHighContrast);
+        LevelOneUIAccessibility.SettingsChanged -= RefreshAccessibilityLabels;
+        LevelOneUIAccessibility.SettingsChanged += RefreshAccessibilityLabels;
+        RefreshAccessibilityLabels();
+    }
+
+    private static void BindToggle(Button button, UnityEngine.Events.UnityAction action)
+    {
+        if (button == null) return;
+        button.onClick.RemoveListener(action);
+        button.onClick.AddListener(action);
+    }
+
+#if UNITY_EDITOR
+    // Invoked on an inactive temporary component by the prefab authoring command.
+    public void AuthorSettings(LobbyPauseMenuView view)
+    {
+        pauseWindow = view.Overlay.transform.Find("PauseWindow") as RectTransform;
+        frameSprite = view.NineSlicedFrame; sliderHandleSprite = view.SliderHandle; uiFont = view.Font;
+        buttonColor = view.ButtonColor; toggleColor = view.ToggleColor; dangerColor = view.DangerColor;
+        trackColor = view.TrackColor; fillColor = view.FillColor;
+        StyleBaseVisuals(view);
+        BuildSettingsControls(view);
+        LevelOneUIAccessibility.SettingsChanged -= RefreshAccessibilityLabels;
+    }
+#endif
+
+    private void OnDisable() => Resume();
 
     private Slider CreateVolumeRow(Transform parent, string objectName, string label, float y,
         Vector2 rowSize, out TMP_Text valueText)
@@ -371,10 +461,11 @@ public sealed class LobbyPauseMenu : MonoBehaviour
 
     private void Pause()
     {
-        if (paused || Time.timeScale <= 0f) return;
+        if (IsOpen || overlay == null) return;
         paused = true;
-        previousTimeScale = Time.timeScale > 0f ? Time.timeScale : 1f;
-        multiplayerPause = MultiplayerHUDBridge.IsActive;
+        lastPauseInputFrame = Time.frameCount;
+        previousTimeScale = Time.timeScale;
+        multiplayerPause = MultiplayerContext;
         if (multiplayerPause)
         {
             pausedLocalPlayer = MultiplayerHUDBridge.LocalPlayer;
@@ -382,6 +473,7 @@ public sealed class LobbyPauseMenu : MonoBehaviour
             GameplayUIBlocker.Instance?.SetPanelBlocksGameplay(overlay, true);
         }
         else Time.timeScale = 0f;
+        GameplayUIBlocker.Instance?.SetPanelBlocksGameplay(overlay, true);
         overlay.SetActive(true);
         pauseButton.gameObject.SetActive(false);
         if (openRoutine != null) StopCoroutine(openRoutine);
@@ -415,7 +507,8 @@ public sealed class LobbyPauseMenu : MonoBehaviour
 
     private void Resume()
     {
-        if (!paused) return;
+        bool ownedPause = paused;
+        if (ownedPause) lastPauseInputFrame = Time.frameCount;
         paused = false;
         if (multiplayerPause)
         {
@@ -424,13 +517,17 @@ public sealed class LobbyPauseMenu : MonoBehaviour
             pausedLocalPlayer = null;
             multiplayerPause = false;
         }
-        else Time.timeScale = previousTimeScale > 0f ? previousTimeScale : 1f;
-        overlay.SetActive(false);
-        pauseButton.gameObject.SetActive(true);
+        else if (ownedPause) Time.timeScale = previousTimeScale;
+        GameplayUIBlocker.Instance?.SetPanelBlocksGameplay(overlay, false);
+        if (openRoutine != null) { StopCoroutine(openRoutine); openRoutine = null; }
+        if (pauseWindow != null) pauseWindow.localScale = Vector3.one;
+        if (overlay != null) overlay.SetActive(false);
+        RefreshPauseButtonVisibility();
     }
 
     private void ReturnToGameMenu()
     {
+        Resume();
         if (MultiplayerSessionManager.Instance != null)
         { MultiplayerSessionManager.Instance.LeaveToMenu(); return; }
         paused = false;
@@ -547,7 +644,7 @@ public sealed class LobbyPauseMenu : MonoBehaviour
         if (parent != null) canvasObject.transform.SetParent(parent, false);
         Canvas canvas = canvasObject.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = 900;
+        canvas.sortingOrder = 32760;
         CanvasScaler scaler = canvasObject.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920f, 1080f);

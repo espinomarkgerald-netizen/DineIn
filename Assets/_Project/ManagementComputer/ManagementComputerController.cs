@@ -24,6 +24,18 @@ public enum ManagementComputerApp
 /// </summary>
 public sealed class ManagementComputerController : MonoBehaviour, IPointerClickHandler
 {
+    private static readonly HashSet<ManagementComputerController> openComputers = new HashSet<ManagementComputerController>();
+    public static bool IsAnyOpen => openComputers.Count > 0;
+    public static event Action OpenStateChanged;
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetOpenState() { openComputers.Clear(); OpenStateChanged = null; }
+    private void PublishOpenState(bool open)
+    {
+        bool changed = open ? openComputers.Add(this) : openComputers.Remove(this);
+        if (changed) OpenStateChanged?.Invoke();
+    }
+    private void OnDisable() { PublishOpenState(false); }
+    private void OnEnable() { PublishOpenState(IsOpen); }
     private const string CatalogUIConfigResource = "ManagementComputerCatalogUIConfig";
 
     [Header("Desktop")]
@@ -158,6 +170,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
 
     private void OnDestroy()
     {
+        PublishOpenState(false);
         MultiplayerRestaurantBridge.StateChanged -= RefreshSharedApp;
         if (MoneyManager.Instance != null)
             MoneyManager.Instance.OnMoneyChanged -= OnMoneyChanged;
@@ -589,6 +602,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         }
 
         desktopRoot.SetActive(true);
+        PublishOpenState(true);
         GameplayUIBlocker.Instance?.SetPanelBlocksGameplay(desktopRoot, true);
         CasualDiningProgressHUD.Instance?.RefreshBlockingVisibility();
         ResetComputerInputState();
@@ -615,6 +629,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
 
         CloseApp();
         desktopRoot.SetActive(false);
+        PublishOpenState(false);
         CasualDiningProgressHUD.Instance?.RefreshBlockingVisibility();
         ResetFallbackInputState();
 

@@ -107,6 +107,34 @@ public sealed class PlayerTaskHUD : MonoBehaviour
     private Color authoredTaskIconColor = Color.white;
     private Color authoredPanelColor = Color.white;
     private bool authoredColorsCaptured;
+    [Header("Kitchen HUD dock (authored under the same SafeArea)")]
+    [SerializeField] private RectTransform kitchenButtonLayout, kitchenPanelLayout;
+    private bool kitchenLayoutActive;
+    private RectLayout normalKitchenButton,normalKitchenPanel;
+    private Vector2 normalSlideOffset;
+    private struct RectLayout
+    {
+        public Vector2 min,max,pivot,position,size;
+        public RectLayout(RectTransform r){min=r.anchorMin;max=r.anchorMax;pivot=r.pivot;position=r.anchoredPosition;size=r.sizeDelta;}
+        public void Apply(RectTransform r){r.anchorMin=min;r.anchorMax=max;r.pivot=pivot;r.sizeDelta=size;r.anchoredPosition=position;}
+    }
+    public void SetKitchenLayout(bool active)
+    {
+        if(kitchenLayoutActive==active || buttonRect==null || panelRect==null || kitchenButtonLayout==null || kitchenPanelLayout==null)return;
+        if(panelRoutine!=null){StopCoroutine(panelRoutine);panelRoutine=null;}
+        if(buttonRoutine!=null){StopCoroutine(buttonRoutine);buttonRoutine=null;}
+        buttonRect.localScale=authoredButtonScale;panelRect.localScale=authoredPanelScale;
+        if(active)
+        {
+            normalKitchenButton=new RectLayout(buttonRect);normalKitchenPanel=new RectLayout(panelRect);
+            normalKitchenPanel.position=panelShownPosition;normalSlideOffset=authoredPanelSlideOffset;
+            new RectLayout(kitchenButtonLayout).Apply(buttonRect);new RectLayout(kitchenPanelLayout).Apply(panelRect);
+            authoredPanelSlideOffset=new Vector2(0,-24);
+        }
+        else {normalKitchenButton.Apply(buttonRect);normalKitchenPanel.Apply(panelRect);authoredPanelSlideOffset=normalSlideOffset;}
+        kitchenLayoutActive=active;
+        CaptureAuthoredPresentation();ApplyPanelImmediate(panelOpen);
+    }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetStatics()

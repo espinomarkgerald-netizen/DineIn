@@ -19,6 +19,7 @@ public sealed class CameraController : MonoBehaviourPun
     [SerializeField] private float pcPanSpeed = 25f;
     [SerializeField] private float mobilePanSpeed = 15f;
     [SerializeField] private float dragThreshold = 10f;
+    [SerializeField, Min(1)] private float edgePanMargin = 20f;
 
     [Header("Zoom Settings")]
     [SerializeField] private float minZoom = 5f;
@@ -85,6 +86,7 @@ public sealed class CameraController : MonoBehaviourPun
 
     private void Update()
     {
+        if (LobbyPauseMenu.IsAnyOpen) { IsPanning = false; hasStartedDragging = false; return; }
         // NOTE: Don't worry about this blocking the UI click.
         // The Button's onClick is handled by Unity's UI system, not by this Update loop.
         if (IsPointerOverUI()) return;
@@ -118,6 +120,12 @@ public sealed class CameraController : MonoBehaviourPun
     // ---------------------- PC LOGIC ----------------------
     private void HandlePCInput()
     {
+        Vector2 edge = DineIn.NewMenu.SettingsManager.EdgePanDirection(edgePanMargin);
+        if (edge != Vector2.zero && !Input.GetMouseButton(0))
+        {
+            followPlayer = false;
+            focusPosition += new Vector3(edge.x, 0, edge.y) * pcPanSpeed * DineIn.NewMenu.SettingsManager.PanMultiplier * Time.deltaTime;
+        }
         float scroll = Input.GetAxis("Mouse ScrollWheel");
         if (scroll != 0)
         {
@@ -142,8 +150,8 @@ public sealed class CameraController : MonoBehaviourPun
 
             if (hasStartedDragging)
             {
-                float x = Input.GetAxis("Mouse X") * pcPanSpeed * Time.deltaTime;
-                float z = Input.GetAxis("Mouse Y") * pcPanSpeed * Time.deltaTime;
+                float x = Input.GetAxis("Mouse X") * pcPanSpeed * DineIn.NewMenu.SettingsManager.PanMultiplier * Time.deltaTime;
+                float z = Input.GetAxis("Mouse Y") * pcPanSpeed * DineIn.NewMenu.SettingsManager.PanMultiplier * Time.deltaTime;
                 focusPosition -= new Vector3(x, 0, z);
             }
         }
@@ -197,8 +205,8 @@ public sealed class CameraController : MonoBehaviourPun
 
                     if (hasStartedDragging)
                     {
-                        float x = touch.deltaPosition.x * mobilePanSpeed * Time.deltaTime;
-                        float z = touch.deltaPosition.y * mobilePanSpeed * Time.deltaTime;
+                        float x = touch.deltaPosition.x * mobilePanSpeed * DineIn.NewMenu.SettingsManager.PanMultiplier * Time.deltaTime;
+                        float z = touch.deltaPosition.y * mobilePanSpeed * DineIn.NewMenu.SettingsManager.PanMultiplier * Time.deltaTime;
                         focusPosition -= new Vector3(x, 0, z);
                     }
                     break;
@@ -216,7 +224,7 @@ public sealed class CameraController : MonoBehaviourPun
     {
         Vector3 currentDirection = followOffset.normalized;
         float currentDistance = followOffset.magnitude;
-        currentDistance -= increment;
+        currentDistance -= increment * DineIn.NewMenu.SettingsManager.ZoomMultiplier;
         currentDistance = Mathf.Clamp(currentDistance, minZoom, maxZoom);
         followOffset = currentDirection * currentDistance;
     }

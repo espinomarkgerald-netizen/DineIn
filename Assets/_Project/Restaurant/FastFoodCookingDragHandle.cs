@@ -18,6 +18,7 @@ public sealed class FastFoodCookingDragHandle : MonoBehaviour, IBeginDragHandler
     [TextArea] public string servingFormat = "x{1}";
     public string readyText = "Drag to tray", waitingText = "Staff cooking...";
     private Outline[] interactionOutlines;
+    private int? dragPointer;
     public void OnPointerEnter(PointerEventData e)
     {
         if (transform is RectTransform || !enabled) return;
@@ -25,12 +26,16 @@ public sealed class FastFoodCookingDragHandle : MonoBehaviour, IBeginDragHandler
         foreach (var outline in interactionOutlines) { outline.OutlineColor = Color.white; outline.enabled = true; }
     }
     public void OnPointerExit(PointerEventData e) => ClearHighlight();
-    void OnDisable() => ClearHighlight();
+    void OnDisable() { ClearHighlight();dragPointer=null; }
     void ClearHighlight()
     { if (interactionOutlines != null) foreach (var outline in interactionOutlines) if (outline != null) outline.enabled = false; }
-    public void OnBeginDrag(PointerEventData e) => view.BeginDrag(this,e.position);
-    public void OnDrag(PointerEventData e) => view.MoveDrag(e.position);
-    public void OnEndDrag(PointerEventData e) => view.EndDrag(e.position);
+    public void OnBeginDrag(PointerEventData e)
+    {
+        if(e.button!=PointerEventData.InputButton.Left || dragPointer.HasValue || view==null || view.HasActiveDrag)return;
+        dragPointer=e.pointerId;view.BeginDrag(this,e.position,Input.touchCount>0);
+    }
+    public void OnDrag(PointerEventData e) { if(dragPointer==e.pointerId && view.OwnsDrag(this))view.MoveDrag(e.position); }
+    public void OnEndDrag(PointerEventData e) { if(dragPointer==e.pointerId){dragPointer=null;if(view.OwnsDrag(this))view.EndDrag(e.position);} }
     public void OnPointerClick(PointerEventData e)
     {
         if (!(transform is RectTransform) && e.button == PointerEventData.InputButton.Left && !e.dragging)

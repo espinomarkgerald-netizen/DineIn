@@ -1662,6 +1662,7 @@ GameObject:
   - component: {fileID: 7219145870954061858}
   - component: {fileID: 2453627901837477515}
   - component: {fileID: 3765604360377994092}
+  - component: {fileID: 3787799422036566268}
   m_Layer: 0
   m_Name: RestockFlowHUD
   m_TagString: Untagged
@@ -1798,6 +1799,38 @@ MonoBehaviour:
   restockFirstButton: {fileID: 3834105586015664452}
   startAnywayButton: {fileID: 6507654639483511627}
   iris: {fileID: 8078511663932470909}
+--- !u!114 &3787799422036566268
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5375709416602471930}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 84b04f9b5ff5cca44ad23ae300ececec, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  targets:
+  - rect: {fileID: 3383397038239118967}
+    anchorMin: {x: 0.5, y: 1}
+    anchorMax: {x: 0.5, y: 1}
+  - rect: {fileID: 9197702405705717313}
+    anchorMin: {x: 0, y: 0}
+    anchorMax: {x: 1, y: 1}
+  - rect: {fileID: 122492691747211982}
+    anchorMin: {x: 0.5, y: 0}
+    anchorMax: {x: 0.5, y: 0}
+  - rect: {fileID: 746201935111220002}
+    anchorMin: {x: 0.5, y: 1}
+    anchorMax: {x: 0.5, y: 1}
+  - rect: {fileID: 2303320816733451958}
+    anchorMin: {x: 0, y: 0}
+    anchorMax: {x: 1, y: 1}
+  - rect: {fileID: 594701094782390899}
+    anchorMin: {x: 0, y: 0}
+    anchorMax: {x: 1, y: 1}
+  applyInEditor: 1
 --- !u!1 &5416097994129804206
 GameObject:
   m_ObjectHideFlags: 0

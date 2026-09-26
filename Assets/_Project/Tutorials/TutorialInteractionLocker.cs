@@ -244,6 +244,8 @@ public class TutorialInteractionLocker : MonoBehaviour
         if (button == null)
             return;
 
+        if (button.GetComponentInParent<LobbyPauseMenuView>(true) != null) return;
+
         button.interactable = value;
     }
 

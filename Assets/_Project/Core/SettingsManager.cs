@@ -26,7 +26,8 @@ public class SettingsManager : MonoBehaviour
 
     private void Start()
     {
-        ShowStaticUI();
+        // A saved-open legacy panel must never become a spawn-time input shield.
+        CloseSettings();
         WireSettingsButton();
     }
 
@@ -43,11 +44,10 @@ public class SettingsManager : MonoBehaviour
         if (settingsPanel == null)
             return;
 
-        // Hide main UI while settings panel is active
-        if (staticUI != null)
-            staticUI.SetActive(false);
-
-        settingsPanel.SetActive(!settingsPanel.activeSelf);
+        bool opening = !settingsPanel.activeSelf;
+        if (!opening) { CloseSettings(); return; }
+        if (staticUI != null) staticUI.SetActive(false);
+        settingsPanel.SetActive(true);
     }
 
     // Closes the settings panel and restores main UI

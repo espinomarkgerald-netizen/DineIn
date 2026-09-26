@@ -504,6 +504,7 @@ public sealed class TutorialSystem : MonoBehaviour
 
     public void AdvanceManualStep()
     {
+        if (LobbyPauseMenu.BlocksTutorialInput) return;
         TutorialStep step = CurrentStep;
         if (step == null || !waitingForNext || transitioning || recovering || travelling)
             return;
@@ -668,8 +669,10 @@ public sealed class TutorialSystem : MonoBehaviour
         AdvanceToNextStep();
     }
 
+    private bool advanceAfterPause;
     private void AdvanceToNextStep()
     {
+        if (LobbyPauseMenu.IsAnyOpen) { advanceAfterPause = true; return; }
         restockTargetPending = false;
         ClearGuidance(true);
         transitioning = false;
@@ -987,6 +990,8 @@ public sealed class TutorialSystem : MonoBehaviour
 
     private void Update()
     {
+        if (LobbyPauseMenu.BlocksTutorialInput) return;
+        if (advanceAfterPause) { advanceAfterPause = false; AdvanceToNextStep(); return; }
         if (gameObject.scene.name == "Lobby1Tutorial" && CurrentStep != null && !transitioning)
         {
             UpdateTravel();

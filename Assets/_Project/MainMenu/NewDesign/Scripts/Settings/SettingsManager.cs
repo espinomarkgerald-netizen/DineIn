@@ -6,7 +6,7 @@ using UnityEngine.SceneManagement;
 namespace DineIn.NewMenu
 {
     [Serializable]
-    public class UserSettings
+    public partial class UserSettings
     {
         public int graphicsQualityIndex;
         public float musicVolume = 1f;
@@ -18,7 +18,7 @@ namespace DineIn.NewMenu
     /// Owns local menu settings. Values are stored only in PlayerPrefs and
     /// never sent to PlayFab or another remote service.
     /// </summary>
-    public class SettingsManager : MonoBehaviour
+    public partial class SettingsManager : MonoBehaviour
     {
         [SerializeField] private AudioMixer menuMusicMixer;
         [SerializeField] private AudioMixer menuSfxMixer;
@@ -47,11 +47,14 @@ namespace DineIn.NewMenu
             Instance = this;
             DontDestroyOnLoad(gameObject);
             SceneManager.sceneLoaded += OnSceneLoaded;
+            LoadLocal();
         }
 
         private void Start()
         {
-            LoadLocal();
+            if (PlayerPrefs.GetInt(PrefQualityUserSet, 0) == 0) Current.graphicsQualityIndex = ClampQualityIndex(QualitySettings.GetQualityLevel());
+            ApplyAudio();
+            ApplyFrameTiming();
         }
 
         private void OnDestroy()
@@ -61,19 +64,23 @@ namespace DineIn.NewMenu
             Instance = null;
         }
 
-        private void OnSceneLoaded(Scene scene, LoadSceneMode mode) => ApplyAudio();
+        private void OnSceneLoaded(Scene scene, LoadSceneMode mode) { ApplyAudio(); ApplyFrameTiming(); nextAudioRouteScan = 0f; nextUIScan = 0f; }
+        private float nextAudioRouteScan;
 
         private void LateUpdate()
         {
+            ApplyGlobalUIScale();
             // Legacy effect sources have no mixer assignment, including dynamically
             // spawned UI/interaction one-shots. Preserve explicitly routed music/SFX.
-            if (defaultSfxGroup == null) return;
+            if (defaultSfxGroup == null || Time.unscaledTime < nextAudioRouteScan) return;
+            nextAudioRouteScan = Time.unscaledTime + 1f;
             foreach (AudioSource source in FindObjectsByType<AudioSource>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
                 if (source.outputAudioMixerGroup == null) source.outputAudioMixerGroup = defaultSfxGroup;
         }
 
         private void ApplyAudio()
         {
+            AudioListener.volume = Current.muteAll ? 0f : Current.masterVolume;
             SetMixer(menuMusicMixer, "MusicVolume", Current.musicVolume);
             SetMixer(menuSfxMixer, "SFXVolume", Current.sfxVolume);
             SetMixer(gameplayMixer, "MusicVol", Current.musicVolume);
@@ -96,6 +103,7 @@ namespace DineIn.NewMenu
         {
             Current.graphicsQualityIndex = ClampQualityIndex(qualityIndex);
             QualitySettings.SetQualityLevel(Current.graphicsQualityIndex, true);
+            ApplyFrameTiming();
             PlayerPrefs.SetInt(PrefQualityUserSet, 1);
             SaveLocal();
             OnSettingsLoaded?.Invoke(Current);
@@ -123,6 +131,7 @@ namespace DineIn.NewMenu
             PlayerPrefs.SetFloat(PrefMusicVolume, Current.musicVolume);
             PlayerPrefs.SetFloat(PrefSfxVolume, Current.sfxVolume);
             PlayerPrefs.SetInt(PrefShowFps, Current.showFps ? 1 : 0);
+            SaveAdditional();
             PlayerPrefs.Save();
         }
 
@@ -133,13 +142,16 @@ namespace DineIn.NewMenu
             Current.musicVolume = Mathf.Clamp01(PlayerPrefs.GetFloat(PrefMusicVolume, PlayerPrefs.GetFloat("Settings_Volume", 1f)));
             Current.sfxVolume = Mathf.Clamp01(PlayerPrefs.GetFloat(PrefSfxVolume, PlayerPrefs.GetFloat("Settings_Volume", DefaultSfxVolume)));
             Current.showFps = PlayerPrefs.GetInt(PrefShowFps, 0) == 1;
-            AudioListener.volume = 1f; // Legacy master slider migrated to the two channels.
+            LoadAdditional();
             ApplyAudio();
 
             if (PlayerPrefs.GetInt(PrefQualityUserSet, 0) == 1)
                 QualitySettings.SetQualityLevel(Current.graphicsQualityIndex, true);
             else
                 Current.graphicsQualityIndex = ClampQualityIndex(QualitySettings.GetQualityLevel());
+
+            ApplyFrameTiming();
+            ApplySavedDisplay();
 
             OnSettingsLoaded?.Invoke(Current);
         }

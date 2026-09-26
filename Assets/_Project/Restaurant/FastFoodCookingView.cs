@@ -12,6 +12,7 @@ public sealed partial class FastFoodCookingView : MonoBehaviour
     [SerializeField] private Canvas canvas;
     [SerializeField] private RectTransform selection, station, hotbar, tickets, notification, ticketContent;
     [SerializeField] private TMP_Text heading, progress, feedback, alerts, noticeButtonLabel;
+    [SerializeField] private TMP_Text restockHeading;
     [SerializeField] private UnityEngine.UI.Image progressFill;
     [SerializeField] private UnityEngine.UI.Button help, serve;
     [SerializeField] private FastFoodCookingDragHandle ingredientTemplate;
@@ -19,6 +20,10 @@ public sealed partial class FastFoodCookingView : MonoBehaviour
     [SerializeField] private FastFoodCookingStation[] stations = Array.Empty<FastFoodCookingStation>();
     [SerializeField] private RectTransform hotbarContainer;
     [SerializeField, Min(128)] private float hotbarMaximumWidth=760;
+    [SerializeField, Range(.3f,.8f)] private float hotbarScreenFraction=.46f;
+    [SerializeField] private Vector2 hotbarCellRange=new Vector2(96,128);
+    [SerializeField,Min(1)] private float hotbarScrollSensitivity=40;
+    private float hotbarParentWidth=-1;
     [Header("Hide while using a station (visuals only)")]
     [SerializeField] private Renderer[] staffRenderers = Array.Empty<Renderer>();
     [SerializeField] private Canvas[] staffNameplates = Array.Empty<Canvas>();
@@ -57,6 +62,8 @@ public sealed partial class FastFoodCookingView : MonoBehaviour
     private readonly List<(Renderer renderer,bool hidden)> hiddenStaff = new();
     private readonly List<(Canvas canvas,bool enabled)> hiddenNameplates = new();
     public bool IsOpen => opened;
+    public bool OwnsDrag(FastFoodCookingDragHandle handle)=>drag==handle;
+    public bool HasActiveDrag=>drag!=null;
     public bool CanOpen => owner != null && owner.Active && IsAuthored && !opened &&
         ManagerPlayer.Active != null && !GameplayUIBlocker.IsBlocked() && Time.timeScale > 0 &&
         RestockFlowCoordinator.Instance?.IsRestockRoomOpen != true;
@@ -72,9 +79,9 @@ public sealed partial class FastFoodCookingView : MonoBehaviour
         selection.gameObject.SetActive(false); station.gameObject.SetActive(false); help.gameObject.SetActive(false);
         foreach(var rig in stations) { rig.gameObject.SetActive(false); rig.labels.gameObject.SetActive(false); }
     }
-    public void EnterGrill() => Enter(FastFoodStationMode.Grill);
-    public void EnterFry() => Enter(FastFoodStationMode.Fry);
-    public void EnterAssembler() => Enter(FastFoodStationMode.Assembler);
+    public void EnterGrill() { Enter(FastFoodStationMode.Grill); }
+    public void EnterFry() { Enter(FastFoodStationMode.Fry); }
+    public void EnterAssembler() { Enter(FastFoodStationMode.Assembler); }
     public void ToggleNotices() => ShowNotice(!notification.gameObject.activeSelf || !noticeVisibility.blocksRaycasts);
     public void GoToRestock() { Exit(); RestockFlowCoordinator.EnsureInstance().EnterRestockRoom(alertStorage); }
     public void ServeOrder() { if(State.PlayerTicket!=null && State.Serve(State.PlayerTicket.number)) { PlayKitchenCue(finishedSound); Message(deliveredMessage,false); lastSignature=null; Refresh(); } }
@@ -82,8 +89,9 @@ public sealed partial class FastFoodCookingView : MonoBehaviour
     {
         if (!CanOpen) return;
         opened=true; previousCamera=Camera.main; previousCameraEnabled=previousCamera!=null && previousCamera.enabled;
+        State.PrepTransferred+=OnPrepTransferred;
         previousCursor=Cursor.lockState; previousCursorVisible=Cursor.visible;
-        ManagerPlayer.Active.SetExternalInputSuppressed(true); HideLobby(); EnableEquipmentOutlines(); Back();
+        ManagerPlayer.Active.SetExternalInputSuppressed(true); HideLobby(); PlayerTaskHUD.Instance?.SetKitchenLayout(true); EnableEquipmentOutlines(); Back();
     }
     public void Back()
     {
@@ -102,7 +110,8 @@ public sealed partial class FastFoodCookingView : MonoBehaviour
         HideStaffVisuals();
         if(previousCamera!=null)previousCamera.enabled=false;
         loadTarget=activeStation.cooking; prepTarget=activeStation.preparation; discardTarget=activeStation.discard;
-        foreach(var target in activeStation.Slots.Concat(activeStation.collectionSurfaces).Concat(new[]{prepTarget,discardTarget})) if(target!=null)target.view=this;
+        foreach(var target in activeStation.Slots.Concat(activeStation.PrepTargets).Concat(activeStation.collectionSurfaces).Concat(new[]{prepTarget,discardTarget})) if(target!=null)target.view=this;
+        if(mode==FastFoodStationMode.Grill)State.grillPrepSlots=activeStation.PrepTargets.Length;
         ResetProductionCamera();
         State.Enter(mode); PlayerTaskGuidance.SetKitchenFocus(true);
         selection.gameObject.SetActive(false); station.gameObject.SetActive(true); HideNoticeImmediate();
@@ -132,6 +141,7 @@ public sealed partial class FastFoodCookingView : MonoBehaviour
             rig.workload.text=n==0?idleWorkload:string.Format(workloadFormat,n);
         }
         if(activeStation==null)return;
+        RefreshCompletedPrep();
         var p=State.PlayerPortion; var t=State.PlayerTicket;
         heading.text=activeStation.stationTitle;
         var batch=p?.batch;
@@ -161,11 +171,12 @@ public sealed partial class FastFoodCookingView : MonoBehaviour
         alertStorage=low.Count>0?low[0].requiredStorage:RestockStorageType.Dry;
         alerts.text=low.Count>0?string.Join("\n",low.Select(i=>string.Format(stockNoticeFormat,i.displayName,InventoryManager.Instance.GetStock(i.itemType)))):PlayerTaskGuidance.RestockNotification.IsValid?PlayerTaskGuidance.RestockNotification.Action:supplyReady;
         noticeButtonLabel.text=low.Count>0?string.Format(noticeCountFormat,low.Count):noticeTitle;
+        if(restockHeading!=null)restockHeading.text=low.Count>0?"RESTOCK ("+low.Count+")":"RESTOCK";
         bool needsNotice=low.Count>0 || PlayerTaskGuidance.RestockNotification.IsValid;
         noticeButtonLabel.transform.parent.gameObject.SetActive(needsNotice);
         if(!needsNotice && notification.gameObject.activeSelf)HideNoticeImmediate();
         if(State.Mode!=FastFoodStationMode.Assembler) RefreshProductionHeader();
-        RefreshStaffActivity();
+        if(hotbarContainer!=null && Mathf.Abs(((RectTransform)hotbarContainer.parent).rect.width-hotbarParentWidth)>1)FitHotbar();
         UpdateKitchenAudio();
         string signature=ProductionSignature()+":"+State.Mode+":"+(p==null?"idle":p.recipe.ProductId+":"+p.stage+":"+p.ingredientStep)+":"+
             (State.Mode==FastFoodStationMode.Assembler && t!=null?t.number+":"+string.Join(",",t.portions.Select(y=>y.stage+"/"+y.placed)):"");
@@ -182,6 +193,11 @@ public sealed partial class FastFoodCookingView : MonoBehaviour
                 if(entry.view.count.text!=text) { entry.view.count.text=text; PulseUI(entry.view.icon.rectTransform); }
             }
         heading.transform.parent.gameObject.SetActive(State.Mode==FastFoodStationMode.Assembler?t!=null:State.PlayerWork.Any(x=>x.player)||State.ShowingCompletedBatch);
+        if(State.Mode!=FastFoodStationMode.Assembler)
+        {
+            if(drag==null)UpdateProductionHotbar();
+            return;
+        }
         foreach(var slot in hotbar.GetComponentsInChildren<FastFoodCookingDragHandle>())
             if(slot.storedProtein && slot.portion!=null)
                 slot.count.text=string.Format(storedProteinFormat,State.StoredProteinCount(slot.portion.recipe));
@@ -211,7 +227,8 @@ public sealed partial class FastFoodCookingView : MonoBehaviour
     {
         cookingVisuals.Clear();
         proteinSlots.Clear();
-        Clear(hotbar); RefreshTicket(State.Mode==FastFoodStationMode.Assembler?ticket:null);
+        if(State.Mode==FastFoodStationMode.Assembler)Clear(hotbar);
+        RefreshTicket(State.Mode==FastFoodStationMode.Assembler?ticket:null);
         if(hotbarContainer!=null)hotbarContainer.gameObject.SetActive(State.Mode!=FastFoodStationMode.Assembler || ticket!=null && ticket.portions.Any(x=>!x.placed));
         foreach(var go in transientVisuals) if(go!=null)Destroy(go); transientVisuals.Clear(); foodVisual=null;
         if(State.Mode==FastFoodStationMode.Assembler)
@@ -220,16 +237,15 @@ public sealed partial class FastFoodCookingView : MonoBehaviour
             {
                 foreach(var group in ticket.portions.Where(x=>!x.placed).GroupBy(x=>x.recipe))
                     AddSlot(group.Key.sprite,group.Key.DisplayName,null,group.First(),group.Count());
-                int index=0;
                 foreach(var portion in ticket.portions.Where(x=>x.placed))
                 {
-                    var anchor=activeStation.trayAnchors[index++%activeStation.trayAnchors.Length];
+                    var anchor=AssemblySurface;
                     var placed=SpawnVisual(portion.recipe.kitchenServingPrefab!=null?portion.recipe.kitchenServingPrefab:
                         portion.recipe.category==MenuProductCategory.Drink?activeStation.drinkTemplate:activeStation.servingTemplate,anchor);
-                    AnimateAccepted(placed,portion);
+                    AnimateAssemblyPlacement(placed,portion);
                 }
             }
-            FitHotbar(); acceptedPortion=null; return;
+            FitHotbar(); acceptedPortion=null; assemblyHasRelease=false; return;
         }
         RebuildProductionControls();
         acceptedPortion=null;
@@ -262,12 +278,57 @@ public sealed partial class FastFoodCookingView : MonoBehaviour
         int count=0; foreach(Transform child in hotbar)if(child.gameObject.activeSelf)count++;
         hotbarContainer.gameObject.SetActive(count>0);
         var scroll=hotbarContainer.GetComponent<UnityEngine.UI.ScrollRect>();
-        float scrollPosition=scroll!=null?scroll.horizontalNormalizedPosition:0;
         var grid=hotbar.GetComponent<UnityEngine.UI.GridLayoutGroup>();
-        if(grid!=null)hotbarContainer.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal,
-            Mathf.Min(hotbarMaximumWidth,grid.padding.horizontal+count*grid.cellSize.x+Mathf.Max(0,count-1)*grid.spacing.x));
+        var offset=hotbar.anchoredPosition;
+        hotbarParentWidth=((RectTransform)hotbarContainer.parent).rect.width;
+        bool production=State.Mode!=FastFoodStationMode.Assembler;
+        if(grid!=null && count>0)
+        {
+            const float inset=16;
+            float maximumWidth=Mathf.Max(inset+grid.padding.horizontal+1,Mathf.Min(hotbarMaximumWidth,hotbarParentWidth*hotbarScreenFraction));
+            float available=maximumWidth-inset-grid.padding.horizontal;
+            int columns=Mathf.Clamp(Mathf.FloorToInt((available+grid.spacing.x)/(hotbarCellRange.x+grid.spacing.x)),1,count);
+            float cell=Mathf.Min(hotbarCellRange.y,(available-(columns-1)*grid.spacing.x)/columns);
+            int rows=Mathf.CeilToInt((float)count/columns);
+            float width=inset+grid.padding.horizontal+columns*cell+(columns-1)*grid.spacing.x;
+            grid.startCorner=UnityEngine.UI.GridLayoutGroup.Corner.UpperLeft;
+            grid.childAlignment=TextAnchor.UpperLeft;
+            if(production)
+            {
+                if(productionCellSize<=0)
+                {
+                    productionCellSize=Mathf.Clamp((available-(count-1)*grid.spacing.x)/count,hotbarCellRange.x,hotbarCellRange.y);
+                    productionViewportWidth=Mathf.Min(maximumWidth,inset+grid.padding.horizontal+count*productionCellSize+(count-1)*grid.spacing.x);
+                }
+                // Freeze the visible frame and cell size for the batch. New cells extend to the
+                // right inside the existing scroll view without moving earlier drag targets.
+                cell=productionCellSize;width=Mathf.Min(maximumWidth,productionViewportWidth);rows=1;
+                grid.constraint=UnityEngine.UI.GridLayoutGroup.Constraint.FixedRowCount;grid.constraintCount=1;
+            }
+            else
+            {
+                grid.constraint=UnityEngine.UI.GridLayoutGroup.Constraint.FixedColumnCount;grid.constraintCount=columns;
+            }
+            grid.cellSize=new Vector2(cell,cell);
+            hotbarContainer.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal,width);
+            hotbarContainer.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical,inset+grid.padding.vertical+rows*cell+(rows-1)*grid.spacing.y);
+        }
+        if(scroll!=null)
+        {
+            scroll.horizontal=production;scroll.vertical=false;
+            if(production)scroll.scrollSensitivity=hotbarScrollSensitivity;
+        }
         UnityEngine.UI.LayoutRebuilder.ForceRebuildLayoutImmediate(hotbar);
-        if(scroll!=null)scroll.horizontalNormalizedPosition=scrollPosition;
+        if(resetHotbarScroll || !production)
+        {
+            if(scroll!=null){scroll.StopMovement();scroll.horizontalNormalizedPosition=0;scroll.verticalNormalizedPosition=1;}
+            hotbar.anchoredPosition=Vector2.zero;resetHotbarScroll=false;
+        }
+        else
+        {
+            float viewportWidth=scroll!=null && scroll.viewport!=null?scroll.viewport.rect.width:hotbarContainer.rect.width;
+            hotbar.anchoredPosition=new Vector2(Mathf.Clamp(offset.x,Mathf.Min(0,viewportWidth-hotbar.rect.width),0),0);
+        }
     }
     private void AddSlot(Sprite sprite,string title,ItemData item,FastFoodCookingState.Portion portion,int count)
     {
@@ -281,25 +342,37 @@ public sealed partial class FastFoodCookingView : MonoBehaviour
         previewProperties.Clear();previewProperties.SetColor("_BaseColor",color);previewProperties.SetColor("_Color",color);
         foreach(var renderer in go.GetComponentsInChildren<Renderer>())renderer.SetPropertyBlock(previewProperties);
     }
-    public void BeginDrag(FastFoodCookingDragHandle handle,Vector2 position)
+    public void BeginDrag(FastFoodCookingDragHandle handle,Vector2 position,bool touch=false)
     {
+        if(Time.timeScale<=0 || drag!=null || !handle.enabled)return;
         CancelDrag();
         if(handle.storedProtein && (!State.PrepReady || handle.item==null)) { Warn("Finish cooking this batch to start assembly"); return; }
         if(cameraMoving||stationTransition!=null)return;
         if(State.Mode!=FastFoodStationMode.Assembler && handle.item==null && handle.portion?.stage==FastFoodCookingStage.Ready) return;
         if(State.Mode!=FastFoodStationMode.Assembler && handle.item!=null)
-            handle.portion=State.PrepReady?State.PlayerPortion:State.NextLoad(handle.item);
+            handle.portion=State.PrepReady?Enumerable.Range(0,State.grillPrepSlots).Select(i=>State.PrepPortion(handle.item,i)).FirstOrDefault(p=>p!=null):State.NextLoad(handle.item);
         if(HygieneManager.KitchenPaused) { Warn(pausedMessage); return; }
         if(HygieneManager.HoldNewCooking && handle.portion?.stage==FastFoodCookingStage.Waiting) { Warn(closedMessage); return; }
         if(State.Mode!=FastFoodStationMode.Assembler && (handle.portion==null||!handle.portion.player||FastFoodCookingState.WorkStation(handle.portion)!=State.Mode)) { Warn(waitMessage); return; }
         if(State.Mode==FastFoodStationMode.Assembler&&!State.BeginServingDrag(handle.portion)) { Warn(waitingFood,handle.portion?.recipe.sprite); return; }
         var previewTemplate=handle.previewTemplate!=null?handle.previewTemplate:handle.item!=null && handle.item.kitchenPreviewPrefab!=null ? handle.item.kitchenPreviewPrefab :
             handle.item==null && handle.portion?.recipe.kitchenPreviewPrefab!=null ? handle.portion.recipe.kitchenPreviewPrefab : activeStation.dragPreviewTemplate;
+        if(IsAssembler && handle.portion!=null)
+            previewTemplate=handle.portion.recipe.kitchenServingPrefab!=null?handle.portion.recipe.kitchenServingPrefab:
+                handle.portion.recipe.category==MenuProductCategory.Drink?activeStation.drinkTemplate:activeStation.servingTemplate;
+        if(State.Mode==FastFoodStationMode.Grill && State.PrepReady)
+        {
+            var prepVisual=PrepIngredientVisual(handle.portion);
+            if(prepVisual!=null)previewTemplate=prepVisual;
+        }
+        prepDragTemplate=previewTemplate;
         drag=handle;
         // World pickups retain their actual geometry, scale and current food pose.
         if(!(handle.transform is RectTransform))previewTemplate=handle.gameObject;
         preview=CreateFoodGhost(previewTemplate,ghostMaterial,out ghostCenterOffset);
         preview.transform.SetParent(activeStation.transform,true);
+        if(State.Mode==FastFoodStationMode.Grill && State.PrepReady && activeStation.prepSlots.Length>0)
+            preview.transform.localScale=activeStation.prepSlots[0].foodAnchor.localScale;
         pointerPosition=position;
         var depthAnchor=State.Mode==FastFoodStationMode.Assembler||State.PrepReady?activeStation.prepFoodAnchor:
             activeStation.Slots.FirstOrDefault(s=>s!=null&&s.foodAnchor!=null)?.foodAnchor;
@@ -307,19 +380,24 @@ public sealed partial class FastFoodCookingView : MonoBehaviour
         dragDepth=surfaceDepth>stationCamera.nearClipPlane?surfaceDepth:activeStation.previewDistance;
         stagingDrag=State.Mode==FastFoodStationMode.Fry && handle.item==null && handle.portion.stage==FastFoodCookingStage.Ready;
         if(State.Mode==FastFoodStationMode.Fry)fryerPrepUntil=stagingDrag?float.PositiveInfinity:0;
-        CreateDropGhosts();
         previewPositionInitialized=false;
+        if(IsAssembler)BeginAssemblyMotion(position,touch);
+        CreateDropGhosts();
         MoveDrag(position);
     }
     public void MoveDrag(Vector2 position)
     {
-        if(drag==null||preview==null||stationCamera==null)return;
+        if(drag==null||preview==null||stationCamera==null||Time.timeScale<=0)return;
         pointerPosition=position;
+        if(IsAssembler){MoveAssemblyDrag(position);return;}
         discardHovered=discardBox!=null && discardBox.gameObject.activeInHierarchy && drag.item==null && drag.portion?.stage==FastFoodCookingStage.Burnt &&
             RectTransformUtility.RectangleContainsScreenPoint(discardBox,position,canvas.renderMode==RenderMode.ScreenSpaceOverlay?null:canvas.worldCamera);
         var ray=stationCamera.ScreenPointToRay(position); hovered=null;
         if(!discardHovered && !cameraMoving)hovered=ResolveDropTarget(position,ray);
+        MatchPrepPreview(hovered);
         var anchor=DropAnchor(hovered);
+        if(State.Mode==FastFoodStationMode.Grill && hovered!=null && hovered.kind==1 && anchor!=null)
+            preview.transform.localScale=anchor.localScale;
         float depth=anchor!=null?Vector3.Dot(anchor.position-stationCamera.transform.position,stationCamera.transform.forward):dragDepth;
         var plane=new Plane(stationCamera.transform.forward,stationCamera.transform.position+stationCamera.transform.forward*Mathf.Max(.2f,depth));
         bool valid=CanDrop(hovered);
@@ -337,14 +415,22 @@ public sealed partial class FastFoodCookingView : MonoBehaviour
     {
         if(target==null || !target.isActiveAndEnabled || target.view!=this || drag==null) return false;
         var p=drag.portion;
-        if(State.Mode==FastFoodStationMode.Assembler) return target.kind==1 && p!=null && p.dragging;
+        if(State.Mode==FastFoodStationMode.Assembler) return target.kind==1 && p!=null && p.dragging && !p.placed &&
+            State.PlayerTicket!=null && State.PlayerTicket.portions.Contains(p);
+        if(State.Mode==FastFoodStationMode.Grill && target.kind==1 && drag.item!=null)
+            return State.PrepPortion(drag.item,target.slotIndex)!=null;
         if(p==null || !p.player || FastFoodCookingState.WorkStation(p)!=State.Mode) return false;
         if(drag.item==null) return target.kind==1 && p.stage==FastFoodCookingStage.Ready || target.kind==2 && p.stage==FastFoodCookingStage.Burnt;
         return (target.kind==0 && p.stage==FastFoodCookingStage.Waiting || target.kind==1 && p.stage==FastFoodCookingStage.Preparing) && State.CanLoad(p,drag.item,target.slotIndex);
     }
     public void EndDrag(Vector2 position)
     {
+        if(drag==null)return;
+        if(Time.timeScale<=0){CancelDrag();return;}
         MoveDrag(position); bool success=false;
+        if(State.Mode==FastFoodStationMode.Grill && hovered!=null && hovered.kind==1 && drag.item!=null)
+            drag.portion=State.PrepPortion(drag.item,hovered.slotIndex);
+        if(IsAssembler && preview!=null){assemblyReleasePosition=preview.transform.position;assemblyHasRelease=true;}
         var attempted=drag!=null?drag.portion:null;
         bool discarding=discardHovered || hovered!=null&&hovered.kind==2;
         int previousStep=attempted!=null?attempted.ingredientStep:0;
@@ -360,11 +446,14 @@ public sealed partial class FastFoodCookingView : MonoBehaviour
         if(success) { acceptedPortion=attempted;acceptedStep=previousStep;PlayKitchenCue(attempted?.stage==FastFoodCookingStage.Complete?finishedSound:placementSound); }
         if(!success && preview!=null && drag!=null)
         {
-            Vector3 target=drag.item!=null?stationCamera.transform.TransformPoint(returnPreviewOffset):drag.transform.position;
-            var returning=preview; preview=null; StartCoroutine(ReturnPreview(returning,target));
+            Vector3 target=IsAssembler?assemblySourcePosition:drag.item!=null?stationCamera.transform.TransformPoint(returnPreviewOffset):drag.transform.position;
+            var returning=preview; preview=null;
+            if(IsAssembler)StartCoroutine(MoveAssemblyFood(returning,returning.transform.position,target,assemblyReturnDuration,true));
+            else StartCoroutine(ReturnPreview(returning,target));
         }
         if(State.Mode==FastFoodStationMode.Fry)fryerPrepUntil=stagingDrag?Time.unscaledTime+prepLookSeconds:0;
         CancelDrag(); lastSignature=null;
+        if(IsAssembler)Refresh();
     }
     private IEnumerator ReturnPreview(GameObject returning,Vector3 target)
     {
@@ -412,6 +501,9 @@ public sealed partial class FastFoodCookingView : MonoBehaviour
 
     private void DestroyWorld()
     {
+        ResetProductionHotbar();
+        ClearPrepVisuals();
+        ClearAssemblyMotion();
         HideNoticeImmediate();
         ClearCollections();
         if(owner?.State!=null)owner.State.FryerPrepPaused=false;
@@ -438,10 +530,11 @@ public sealed partial class FastFoodCookingView : MonoBehaviour
     public void Exit()
     {
         if(!opened)return;
+        State.PrepTransferred-=OnPrepTransferred;
         StopStationTransition(); CancelDrag(); owner.State.Enter(FastFoodStationMode.None); PlayerTaskGuidance.SetKitchenFocus(false); PlayerTaskGuidance.ClearTask("FastFoodCooking");
         DestroyWorld(); if(previousCamera!=null)previousCamera.enabled=previousCameraEnabled;
         foreach(var h in hidden) if(h.group!=null) { h.group.alpha=h.alpha; h.group.interactable=h.interactable; h.group.blocksRaycasts=h.blocks; if(h.added)Destroy(h.group); }
-        hidden.Clear(); RestoreEquipmentOutlines(); ManagerPlayer.Active?.SetExternalInputSuppressed(false);
+        hidden.Clear(); PlayerTaskHUD.Instance?.SetKitchenLayout(false); RestoreEquipmentOutlines(); ManagerPlayer.Active?.SetExternalInputSuppressed(false);
         Cursor.lockState=previousCursor; Cursor.visible=previousCursorVisible; opened=false;
         selection.gameObject.SetActive(false); station.gameObject.SetActive(false); help.gameObject.SetActive(false);
     }

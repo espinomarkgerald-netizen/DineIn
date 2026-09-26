@@ -201,7 +201,7 @@ public class UIFollowWorldPoint : MonoBehaviour
             sourceCanvas = UIRoot.GameplayCanvasOrNull();
 
         if (sourceCanvas != null)
-            sourceCanvasScaleFactor = Mathf.Max(0.01f, sourceCanvas.scaleFactor);
+            sourceCanvasScaleFactor = Mathf.Max(0.01f, DineIn.NewMenu.SettingsManager.UnscaledCanvasFactor(sourceCanvas));
 
         Scene targetScene = target != null ? target.gameObject.scene : gameObject.scene;
         if (rect.parent != null)
@@ -356,7 +356,7 @@ public class UIFollowWorldPoint : MonoBehaviour
 
     private float ResolveWorldScale(Vector3 anchorPosition)
     {
-        float platformScale = Application.isMobilePlatform ? mobileVisualScale : 1f;
+        float platformScale = (Application.isMobilePlatform ? mobileVisualScale : 1f) * DineIn.NewMenu.SettingsManager.UIScaleMultiplier;
         if (!preserveScreenSize)
             return worldUnitsPerUiUnit * visualScale * platformScale;
 

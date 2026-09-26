@@ -43,8 +43,9 @@ public sealed partial class FastFoodCookingView
         if(target==null)return null;
         if(target.kind==0)return target.foodAnchor!=null?target.foodAnchor:target.transform;
         if(target.kind!=1)return target.transform;
-        if(State.Mode==FastFoodStationMode.Assembler && activeStation.trayAnchors.Length>0)
-            return activeStation.trayAnchors[State.PlayerTicket.portions.Count(p=>p.placed)%activeStation.trayAnchors.Length];
+        if(State.Mode==FastFoodStationMode.Assembler)return AssemblySurface;
+        if(State.Mode==FastFoodStationMode.Grill && activeStation.prepSlots.Contains(target))
+            return target.foodAnchor!=null?target.foodAnchor:target.transform;
         if(State.Mode==FastFoodStationMode.Fry && drag?.item==null && drag?.portion!=null && activeStation.completedFoodAnchors.Length>0)
         {
             var staged=State.Portions.Where(p=>p==drag.portion || FastFoodCookingState.Station(p.recipe)==FastFoodStationMode.Fry && !p.placed &&
@@ -57,19 +58,15 @@ public sealed partial class FastFoodCookingView
     }
     Vector3 DropGhostPosition(FastFoodCookingDropTarget target)
     {
+        if(IsAssembler && drag!=null)return AssemblyLandingPosition();
         var anchor=DropAnchor(target);
         return anchor!=null?anchor.TransformPoint(ghostCenterOffset):preview.transform.position;
     }
     FastFoodCookingDropTarget ResolveDropTarget(Vector2 screen, Ray ray)
     {
         if(!stationCamera.pixelRect.Contains(screen))return null;
-        var uiCamera=canvas.renderMode==RenderMode.ScreenSpaceOverlay?null:canvas.worldCamera;
-        // UI controls consume the pointer; magnets must never drop through them.
-        foreach(var ui in new[]{hotbarContainer,notification,discardBox})
-            if(ui!=null&&ui.gameObject.activeInHierarchy&&RectTransformUtility.RectangleContainsScreenPoint(ui,screen,uiCamera))return null;
-        foreach(var button in dropBlockingButtons)
-            if(button!=null&&button.gameObject.activeInHierarchy&&RectTransformUtility.RectangleContainsScreenPoint(button,screen,uiCamera))return null;
-        float radius=magnetRadius*Mathf.Max(.01f,canvas.scaleFactor);
+        if(IsDropBlocked(screen))return null;
+        float radius=IsAssembler?AssemblyCaptureRadius():magnetRadius*Mathf.Max(.01f,canvas.scaleFactor);
         FastFoodCookingDropTarget best=null;
         float bestDistance=float.PositiveInfinity;
         foreach(var entry in dropGhosts)
@@ -80,10 +77,19 @@ public sealed partial class FastFoodCookingView
             if(projected.z<=stationCamera.nearClipPlane||!stationCamera.pixelRect.Contains(projected))continue;
             float distance=Vector2.Distance(screen,projected);
             var collider=target.GetComponent<Collider>();
-            bool direct=collider!=null&&collider.enabled&&collider.Raycast(ray,out _,activeStation.rayDistance);
+            bool direct=!IsAssembler&&collider!=null&&collider.enabled&&collider.Raycast(ray,out _,activeStation.rayDistance);
             if((direct||distance<=radius)&&distance<bestDistance){best=target;bestDistance=distance;}
         }
         return best;
+    }
+    private bool IsDropBlocked(Vector2 screen)
+    {
+        var uiCamera=canvas.renderMode==RenderMode.ScreenSpaceOverlay?null:canvas.worldCamera;
+        foreach(var ui in new[]{hotbarContainer,notification,discardBox})
+            if(ui!=null && ui.gameObject.activeInHierarchy && RectTransformUtility.RectangleContainsScreenPoint(ui,screen,uiCamera))return true;
+        foreach(var button in dropBlockingButtons)
+            if(button!=null && button.gameObject.activeInHierarchy && RectTransformUtility.RectangleContainsScreenPoint(button,screen,uiCamera))return true;
+        return IsAssembler && tickets!=null && tickets.gameObject.activeInHierarchy && RectTransformUtility.RectangleContainsScreenPoint(tickets,screen,uiCamera);
     }
 
     // Copy visual meshes only: no scripts, colliders, particles or outline material instances.
@@ -134,9 +140,11 @@ public sealed partial class FastFoodCookingView
         {
             var bounds=renderers[0].bounds;
             foreach(var renderer in renderers)bounds.Encapsulate(renderer.bounds);
-            dropOutlineMesh=CreateLandingOutline(bounds.size,dropOutlineWidth,dropOutlinePadding);
+            var size=bounds.size;
+            if(IsAssembler)size=Vector3.Scale(size,new Vector3(1/preview.transform.lossyScale.x,1/preview.transform.lossyScale.y,1/preview.transform.lossyScale.z));
+            dropOutlineMesh=CreateLandingOutline(size,dropOutlineWidth,dropOutlinePadding);
         }
-        foreach(var target in activeStation.Slots.Concat(new[]{prepTarget,discardTarget}).Where(t=>t!=null).Distinct())
+        foreach(var target in activeStation.Slots.Concat(activeStation.PrepTargets).Concat(new[]{prepTarget,discardTarget}).Where(t=>t!=null).Distinct())
         {
             var ghost=Instantiate(preview,activeStation.transform);
             ghost.name="Drop Preview "+target.name;
@@ -190,7 +198,8 @@ public sealed partial class FastFoodCookingView
                 visible=point.z>stationCamera.nearClipPlane&&stationCamera.pixelRect.Contains(point);
             }
             // The selected destination is represented by the green held ghost, without double drawing.
-            entry.ghost.SetActive(visible&&entry.target!=hovered);
+            entry.ghost.SetActive(visible&&(IsAssembler||entry.target!=hovered));
+            if(IsAssembler && visible)Tint(entry.ghost,entry.target==hovered?activeStation.validDropColor:new Color(.3f,.75f,1,.3f));
         }
     }
     void ClearDropGhosts()

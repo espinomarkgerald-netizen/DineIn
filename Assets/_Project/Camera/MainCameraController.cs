@@ -138,6 +138,9 @@ public class MainCameraController : MonoBehaviour
 
     private void HandlePanInput()
     {
+        if (LobbyPauseMenu.IsAnyOpen) { isDragging = false; return; }
+        if (!Input.GetMouseButton(0) && !Input.GetMouseButton(1))
+            PanByScreenDelta(-DineIn.NewMenu.SettingsManager.EdgePanDirection(edgePanMargin) * edgePanPixelsPerSecond * Time.deltaTime);
         if (Input.touchCount >= 2)
         {
             isDragging = false;
@@ -207,6 +210,10 @@ public class MainCameraController : MonoBehaviour
         panGestureReported = false;
     }
 
+    [Header("Desktop Edge Pan")]
+    [SerializeField, Min(1)] private float edgePanMargin = 20f;
+    [SerializeField, Min(1)] private float edgePanPixelsPerSecond = 450f;
+
     private void RecordPanGesture(Vector2 screenDelta)
     {
         if (!isDragging || panGestureReported)
@@ -227,7 +234,7 @@ public class MainCameraController : MonoBehaviour
     private void PanByScreenDelta(Vector2 screenDelta)
     {
         float zoomScale = Mathf.InverseLerp(minOrthoSize, maxOrthoSize, targetOrtho);
-        float scaledUnitsPerPixel = panUnitsPerPixel * Mathf.Lerp(0.7f, 2.0f, zoomScale);
+        float scaledUnitsPerPixel = panUnitsPerPixel * DineIn.NewMenu.SettingsManager.PanMultiplier * Mathf.Lerp(0.7f, 2.0f, zoomScale);
 
         Vector3 right = cam.transform.right;
         right.y = 0f;
@@ -247,6 +254,7 @@ public class MainCameraController : MonoBehaviour
 
     private void HandleZoomInput()
     {
+        if (LobbyPauseMenu.IsAnyOpen) return;
         if (Input.touchCount >= 2)
         {
             Touch a = Input.GetTouch(0);
@@ -266,7 +274,7 @@ public class MainCameraController : MonoBehaviour
             float currDist = Vector2.Distance(a.position, b.position);
             float delta = currDist - prevDist;
 
-            targetOrtho = Mathf.Clamp(targetOrtho - delta * zoomSpeedPinch, minOrthoSize, maxOrthoSize);
+            targetOrtho = Mathf.Clamp(targetOrtho - delta * zoomSpeedPinch * DineIn.NewMenu.SettingsManager.ZoomMultiplier, minOrthoSize, maxOrthoSize);
             return;
         }
 
@@ -277,7 +285,7 @@ public class MainCameraController : MonoBehaviour
                 return;
 
             targetOrtho = Mathf.Clamp(
-                targetOrtho - wheel * zoomSpeedMouseWheel * Time.deltaTime,
+                targetOrtho - wheel * zoomSpeedMouseWheel * DineIn.NewMenu.SettingsManager.ZoomMultiplier * Time.deltaTime,
                 minOrthoSize,
                 maxOrthoSize
             );

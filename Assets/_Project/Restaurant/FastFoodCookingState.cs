@@ -16,6 +16,7 @@ public sealed class FastFoodCookingState
         public FastFoodCookingStage stage;
         public bool player, placed, dragging;
         public int ingredientStep;
+        public int prepSlot = -1;
         public float elapsed, assignedFor;
         public Batch batch;
         public int slot = -1;
@@ -53,6 +54,21 @@ public sealed class FastFoodCookingState
     public float stationGraceSeconds = 5;
     public bool FryerPrepPaused { get; set; }
     public int playerBatchSize = 8, grillSlots = 8, frySlots = 8;
+    public int grillPrepSlots = 3;
+    public Portion PrepFocus { get; private set; }
+    public Portion AtPrepSlot(int slot) => Portions.Find(p=>p.prepSlot==slot && !p.placed);
+    public Portion PrepPortion(ItemData item,int slot)
+    {
+        if(Mode!=FastFoodStationMode.Grill || !PrepReady || slot<0 || slot>=grillPrepSlots)return null;
+        var occupant=AtPrepSlot(slot);
+        bool Matches(Portion p)
+        {
+            var steps=AssemblySteps(p.recipe);
+            return p.player && p.proteinReady && p.stage==FastFoodCookingStage.Preparing && p.ingredientStep<steps.Count && steps[p.ingredientStep].item==item;
+        }
+        return occupant!=null ? Matches(occupant)?occupant:null :
+            PlayerWork.Find(p=>p.prepSlot<0 && Matches(p));
+    }
     public int fryRackCapacity = 8;
     public static bool OnFryRack(Portion p) => Station(p.recipe) == FastFoodStationMode.Fry && !p.placed &&
         (p.stage == FastFoodCookingStage.Complete && PreparationStation(p.recipe) == FastFoodStationMode.Fry ||
@@ -90,6 +106,7 @@ public sealed class FastFoodCookingState
     private readonly Func<ItemType, int> stock;
     private readonly Func<Recipe, bool> consume;
     public event Action Changed;
+    public event Action<Portion,int> PrepTransferred;
 
     public FastFoodCookingState(Func<ItemType, int> stock, Func<Recipe, bool> consume)
     { this.stock = stock; this.consume = consume; }
@@ -173,10 +190,14 @@ public sealed class FastFoodCookingState
     public Portion AtSlot(FastFoodStationMode station, int slot) => Portions.Find(p => Station(p.recipe) == station && p.slot == slot && p.stage != FastFoodCookingStage.Complete);
     public int FreeSlot(FastFoodStationMode station, bool player = false)
     { for (int i = 0; i < Capacity(station); i++) if (CanUseSlot(station, i, player) && AtSlot(station, i) == null) return i; return -1; }
-    public bool PrepReady => Mode == FastFoodStationMode.Grill && PlayerWork.Any(p => p.player && p.stage == FastFoodCookingStage.Preparing) && PlayerWork.All(p => p.proteinReady || p.stage == FastFoodCookingStage.Complete);
-    public Portion PlayerPortion => PrepReady ? PlayerWork.Find(p => p.player && p.stage == FastFoodCookingStage.Preparing) :
-        PlayerWork.Find(p => p.player && p.stage == FastFoodCookingStage.Waiting && WorkStation(p) == Mode) ?? PlayerWork.Find(p => p.player && p.stage != FastFoodCookingStage.Complete);
-    public Portion NextLoad(ItemData item) => PlayerWork.Find(p => p.player && p.stage == FastFoodCookingStage.Waiting && WorkStation(p) == Mode && Steps(p.recipe)[0].item == item);
+    public bool HasPendingCooking => PlayerWork.Any(p => !p.proteinReady && p.stage != FastFoodCookingStage.Complete);
+    public bool PrepReady => Mode == FastFoodStationMode.Grill && !HasPendingCooking && PlayerWork.Any(p => p.player && p.stage == FastFoodCookingStage.Preparing);
+    public Portion PlayerPortion => PrepReady ? PrepFocus!=null && PlayerWork.Contains(PrepFocus) && PrepFocus.player && PrepFocus.stage==FastFoodCookingStage.Preparing ? PrepFocus : PlayerWork.Find(p => p.player && p.stage == FastFoodCookingStage.Preparing) :
+        PlayerWork.Find(p => p.player && p.stage == FastFoodCookingStage.Waiting && WorkStation(p) == Mode) ??
+        PlayerWork.Find(p => p.player && !p.proteinReady && p.stage != FastFoodCookingStage.Complete) ??
+        PlayerWork.Find(p => p.player && p.stage != FastFoodCookingStage.Complete);
+    public Portion NextLoad(ItemData item) =>
+        PlayerWork.Find(p => p.player && p.stage == FastFoodCookingStage.Waiting && WorkStation(p) == Mode && Steps(p.recipe)[0].item == item);
     private bool PlayerControls(Portion p) => p.player && playerStations.Contains(WorkStation(p));
     public Ticket PlayerTicket => Mode == FastFoodStationMode.Assembler ? Tickets.Find(t => t.player && t.active && !t.submitted) : null;
     public bool CanAccept(IReadOnlyList<Recipe> products)
@@ -238,6 +259,7 @@ public sealed class FastFoodCookingState
         if (t == null || t.active) return;
         t.active = true;
         t.player = playerStations.Contains(FastFoodStationMode.Assembler);
+        foreach(var portion in t.portions)TransferCompletedPrep(portion);
         Changed?.Invoke();
     }
     public void Enter(FastFoodStationMode mode)
@@ -298,6 +320,9 @@ public sealed class FastFoodCookingState
                 (p.stage == FastFoodCookingStage.Waiting && Station(p.recipe) == Mode ||
                  p.stage == FastFoodCookingStage.Preparing && PreparationStation(p.recipe) == Mode))
                 p.player = true;
+        if(Mode==FastFoodStationMode.Grill)
+            foreach(var p in Portions.Where(p=>CanWork(p) && p.player && p.stage==FastFoodCookingStage.Preparing && PreparationStation(p.recipe)==Mode))
+                if(!PlayerWork.Contains(p))PlayerWork.Add(p);
     }
     private void OfferWaitingPortion(bool onEntry)
     {
@@ -320,18 +345,25 @@ public sealed class FastFoodCookingState
         if (p.needsRestock && !Requirements(p.recipe).All(kv => Available(kv.Key) >= kv.Value)) return false;
         if (p.stage == FastFoodCookingStage.Waiting) return Steps(p.recipe)[0].item == item && CanUseSlot(Mode, slot, true) && AtSlot(Mode, slot) == null;
         var steps = AssemblySteps(p.recipe);
-        return PrepReady && p.stage == FastFoodCookingStage.Preparing && p.ingredientStep < steps.Count && steps[p.ingredientStep].item == item;
+        return PrepReady && p.proteinReady && p.stage == FastFoodCookingStage.Preparing && p.ingredientStep < steps.Count && steps[p.ingredientStep].item == item &&
+            slot>=0 && slot<grillPrepSlots && (p.prepSlot<0 || p.prepSlot==slot) && (AtPrepSlot(slot)==null || AtPrepSlot(slot)==p);
     }
     public bool Load(Portion p, ItemData item, int slot = -1)
     {
-        if (slot < 0) slot = FreeSlot(Mode, true);
+        if (slot < 0) slot = p!=null && p.stage==FastFoodCookingStage.Preparing ?
+            p.prepSlot>=0?p.prepSlot:Enumerable.Range(0,grillPrepSlots).Where(i=>AtPrepSlot(i)==null).DefaultIfEmpty(-1).First() : FreeSlot(Mode, true);
         if (!CanLoad(p, item, slot)) return false;
         if (p.stage == FastFoodCookingStage.Waiting)
         { p.needsRestock = false; p.slot = slot; p.stage = FastFoodCookingStage.Cooking; p.elapsed = 0; Changed?.Invoke(); return true; }
         var steps = AssemblySteps(p.recipe);
         if (p.stage == FastFoodCookingStage.Preparing)
         {
-            if (p.ingredientStep == steps.Count - 1) return Finish(p);
+            int previousSlot=p.prepSlot;p.prepSlot=slot;PrepFocus=p;
+            if (p.ingredientStep == steps.Count - 1)
+            {
+                if(Finish(p))return true;
+                p.prepSlot=previousSlot;return false;
+            }
             p.ingredientStep++;
             Changed?.Invoke(); return true;
         }
@@ -348,7 +380,8 @@ public sealed class FastFoodCookingState
         if (Station(p.recipe) == FastFoodStationMode.Fry && FryRackCount >= fryRackCapacity) return false;
         if (AssemblySteps(p.recipe).Count > 0)
         {
-            p.stage = FastFoodCookingStage.Preparing; p.proteinReady = true; p.slot = -1; p.elapsed = 0; p.ingredientStep = 0;
+            p.stage = FastFoodCookingStage.Preparing; p.proteinReady = true; p.slot = -1; p.elapsed = 0;
+            if(p.prepSlot<0)p.ingredientStep=0;
             if (PreparationStation(p.recipe) != Station(p.recipe))
             {
                 // Frying is finished. The next operation belongs to the prep station's owner.
@@ -363,7 +396,9 @@ public sealed class FastFoodCookingState
     {
         if (p == null || p.stage != FastFoodCookingStage.Burnt) return false;
         p.needsRestock = !Requirements(p.recipe).All(kv => Available(kv.Key) >= kv.Value);
-        p.stage = FastFoodCookingStage.Waiting; p.elapsed = 0; p.ingredientStep = 0; p.slot = -1; p.proteinReady = false;
+        p.stage = FastFoodCookingStage.Waiting; p.elapsed = 0;
+        if(p.prepSlot<0)p.ingredientStep=0;
+        p.slot = -1; p.proteinReady = false;
         Changed?.Invoke(); return true;
     }
     private bool Finish(Portion p)
@@ -379,7 +414,23 @@ public sealed class FastFoodCookingState
         staffFinishing.Remove(p);
         p.slot = -1;
         if (p.batch != null) p.batch.completed++;
+        TransferCompletedPrep(p);
         Changed?.Invoke(); return true;
+    }
+    private void TransferCompletedPrep(Portion p)
+    {
+        if(p.stage!=FastFoodCookingStage.Complete || p.prepSlot<0)return;
+        int slot=p.prepSlot;
+        // The work surface is released for every finished serving, including reserve stock.
+        // placed still means placement on a customer's order, not removal from the prep board.
+        p.prepSlot=-1;
+        var ticket=FindTicket(p.order);
+        if(!p.placed && ticket!=null && ticket.active && !ticket.submitted && ticket.portions.Contains(p))
+        {
+            p.placed=true;
+            ticket.assemblyStarted=true;
+        }
+        PrepTransferred?.Invoke(p,slot);
     }
     public bool BeginServingDrag(Portion p)
     {
@@ -395,7 +446,7 @@ public sealed class FastFoodCookingState
         p.dragging = false;
         if (p.recipe.category == MenuProductCategory.Drink && p.stage != FastFoodCookingStage.Complete && !Finish(p)) return false;
         if (p.stage != FastFoodCookingStage.Complete) return false;
-        p.placed = true; Changed?.Invoke(); return true;
+        p.placed = true;p.prepSlot=-1; Changed?.Invoke(); return true;
     }
     public bool Serve(int order)
     {
@@ -424,6 +475,11 @@ public sealed class FastFoodCookingState
     public void Tick(float delta, bool holdNew, bool paused)
     {
         if (paused || delta <= 0) return;
+        bool releasedPrep=false;
+        foreach(var ready in Portions)
+            if(ready.stage==FastFoodCookingStage.Complete && ready.prepSlot>=0)
+            { TransferCompletedPrep(ready);releasedPrep=true; }
+        if(releasedPrep)Changed?.Invoke();
         foreach (var station in stationAway.Keys.ToArray())
         {
             stationAway[station] += delta;
@@ -471,18 +527,22 @@ public sealed class FastFoodCookingState
                 { p.stage = FastFoodCookingStage.Burnt; Changed?.Invoke(); }
             }
             else if (p.stage == FastFoodCookingStage.Preparing && !PlayerControls(p))
-            { p.elapsed += delta * staffMultiplier; if (p.elapsed >= assemblySeconds) Finish(p); }
+            {
+                if(!p.proteinReady){p.stage=FastFoodCookingStage.Waiting;p.elapsed=0;}
+                else {p.elapsed += delta * staffMultiplier; if (p.elapsed >= assemblySeconds) Finish(p);}
+            }
         }
         foreach (var t in Tickets.Where(t => t.active && !t.player && !t.submitted))
         {
             if (t.Ready) { Serve(t.number); continue; }
-            var p = t.portions.Find(x => !x.placed && !x.dragging && (x.stage == FastFoodCookingStage.Complete || x.recipe.category == MenuProductCategory.Drink));
+            var p = t.portions.Find(x => !x.placed && !x.dragging &&
+                (x.stage == FastFoodCookingStage.Complete || x.recipe.category == MenuProductCategory.Drink));
             if (p == null) continue;
             t.assemblyStarted = true;
             t.assemblyElapsed += delta * staffMultiplier;
-            if (t.assemblyElapsed < assemblySeconds) continue;
+            if (p.prepSlot<0 && t.assemblyElapsed < assemblySeconds) continue;
             if (p.stage != FastFoodCookingStage.Complete && !Finish(p)) continue;
-            p.placed = true; t.assemblyElapsed = 0;
+            p.placed = true;p.prepSlot=-1; t.assemblyElapsed = 0;
             if (t.Ready) Serve(t.number);
         }
     }

@@ -27,7 +27,11 @@ public static class MobileUILayoutRegressionTest
             ValidateReferenceResolution(new Vector2(800f, 600f));
             ValidatePersistentHudScaling("PlayerTaskHUD(Clone)");
             ValidatePersistentHudScaling("CasualDiningProgressHUD(Clone)");
-            ValidatePersistentHudScaling("LobbyPauseMenu(Clone)");
+            ValidatePersistentHudScaling("Lobby Controls HUD");
+            ValidatePersistentHudScaling("Progress Day Time HUD");
+            ValidatePersistentHudScaling("Task HUD");
+            ValidatePauseModalScaling("LobbyPauseMenu(Clone)");
+            ValidatePauseModalScaling("Pause And Settings HUD");
             ValidateManagementComputerScaling();
             ValidateManagementComputerMobileAuthoring();
             ValidateRealme8SizingEnvelope();
@@ -313,6 +317,22 @@ public static class MobileUILayoutRegressionTest
                 $"{canvasName} did not use the persistent-HUD mobile policy.");
             Assert(Mathf.Approximately(scaler.matchWidthOrHeight, 0f),
                 $"{canvasName} was not width-scaled for mobile readability.");
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(root);
+        }
+    }
+
+    private static void ValidatePauseModalScaling(string canvasName)
+    {
+        GameObject root = CreateCanvas(canvasName, new Vector2(1920f, 1080f));
+        try
+        {
+            CanvasScaler scaler = root.GetComponent<CanvasScaler>();
+            MobileUIAccessibility.ConfigureCanvasForMobile(scaler);
+            Assert(scaler.screenMatchMode == CanvasScaler.ScreenMatchMode.Expand,
+                $"{canvasName} must fit the complete pause window on wide mobile screens.");
         }
         finally
         {

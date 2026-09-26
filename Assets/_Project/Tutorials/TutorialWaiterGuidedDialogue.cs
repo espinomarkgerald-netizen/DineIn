@@ -110,6 +110,7 @@ public class TutorialWaiterGuidedDialogue : MonoBehaviour
 
     private void Update()
     {
+        if (LobbyPauseMenu.BlocksTutorialInput) return;
         if (!IsGuidedWaiterActive())
         {
             ResetTracking();

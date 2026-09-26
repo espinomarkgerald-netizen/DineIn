@@ -235,6 +235,7 @@ public sealed class TutorialRestockFlowBridge : MonoBehaviour
 
     private void TrackUIRelease()
     {
+        if (LobbyPauseMenu.BlocksTutorialInput) return;
         if (tutorial == null || tutorial.CurrentPhase != TutorialSystem.TutorialPhase.PhysicalRestocking) return;
         bool down = Input.GetMouseButtonDown(0);
         bool held = Input.GetMouseButton(0);

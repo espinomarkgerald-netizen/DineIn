@@ -50,6 +50,7 @@ public class TutorialDialogueUI : MonoBehaviour
 
     private void Update()
     {
+        if (LobbyPauseMenu.BlocksTutorialInput) { pointerReleased = false; return; }
         // Lobby1Tutorial uses the existing task area during actions/travel.
         if (polishedLobby) { UpdateDialogueTap(); return; }
         TutorialSystem tutorial = TutorialSystem.Instance;
@@ -448,13 +449,18 @@ public class TutorialDialogueUI : MonoBehaviour
         }
         for (int i = 0; i < message.Length; i++)
         {
+            while (LobbyPauseMenu.IsAnyOpen) yield return null;
             if (bodyText != null) bodyText.maxVisibleCharacters = i + 1;
             if (polishedLobby && letterBounceAmount > 0f && !LevelOneUIAccessibility.ReducedMotion)
             {
                 letterRevealTimes[i] = lastLetterRevealTime = Time.unscaledTime;
                 letterBounceActive = true;
             }
-            if (typeSpeed > 0f) yield return new WaitForSecondsRealtime(typeSpeed);
+            for (float elapsed = 0; elapsed < typeSpeed / DineIn.NewMenu.SettingsManager.DialogueMultiplier;)
+            {
+                yield return null;
+                if (!LobbyPauseMenu.IsAnyOpen) elapsed += Time.unscaledDeltaTime;
+            }
         }
         isTyping = false;
         typingRoutine = null;
@@ -556,12 +562,17 @@ public class TutorialDialogueUI : MonoBehaviour
     private IEnumerator AutoHideRoutine(float duration)
     {
         while (isTyping) yield return null;
-        yield return new WaitForSecondsRealtime(duration);
+        for (float elapsed = 0; elapsed < duration;)
+        {
+            yield return null;
+            if (!LobbyPauseMenu.IsAnyOpen) elapsed += Time.unscaledDeltaTime;
+        }
         Hide();
     }
 
     private void OnNextPressed()
     {
+        if (LobbyPauseMenu.BlocksTutorialInput) return;
         if (polishedLobby)
         {
             if (!IsVisible || manualNextAction == null) return;

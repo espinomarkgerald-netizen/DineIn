@@ -41,7 +41,9 @@ public class SettingsController : MonoBehaviour
         float savedVolume = PlayerPrefs.GetFloat(PREF_VOLUME, 1f);
         int savedQuality = ClampQualityIndex(PlayerPrefs.GetInt(PREF_QUALITY, QualitySettings.GetQualityLevel()));
 
-        AudioListener.volume = savedVolume;
+        var shared = DineIn.NewMenu.SettingsManager.EnsureInstance();
+        if (shared != null) savedVolume = shared.Current.masterVolume;
+        else AudioListener.volume = savedVolume;
 
         // Only force-apply the saved quality if the player actually chose
         // it before. Otherwise leave whatever GameOptimizer already set in
@@ -63,7 +65,9 @@ public class SettingsController : MonoBehaviour
     public void SetVolume(float volume)
     {
         if (settings != null) { settings.SetMusicVolume(volume); return; }
-        AudioListener.volume = volume;
+        var shared = DineIn.NewMenu.SettingsManager.EnsureInstance();
+        if (shared != null) shared.SetMasterVolume(volume);
+        else AudioListener.volume = volume;
         PlayerPrefs.SetFloat(PREF_VOLUME, volume);
         PlayerPrefs.Save();
         Debug.Log("Volume: " + volume);
