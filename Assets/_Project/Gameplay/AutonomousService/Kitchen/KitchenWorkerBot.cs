@@ -77,7 +77,7 @@ public class KitchenWorkerBot : MonoBehaviour
         get
         {
             var cooking = FastFoodCookingController.Instance;
-            if (cooking == null || !cooking.Active || gameObject.scene.name != "Lobby2") return false;
+            if (cooking == null || !cooking.Active || !FastFoodScene.Contains(gameObject.scene)) return false;
             var mode = employeeRole == EmployeeRole.GrillStation ? FastFoodStationMode.Grill :
                 employeeRole == EmployeeRole.FryStation ? FastFoodStationMode.Fry : FastFoodStationMode.Assembler;
             if (mode == FastFoodStationMode.Assembler) return cooking.State.Tickets.Exists(t => t.active && !t.submitted && !t.player);
@@ -101,7 +101,7 @@ public class KitchenWorkerBot : MonoBehaviour
         kitchenManager.OrderFinished += HandleOrderFinished;
         kitchenManager.OrderForecastChanged += HandleForecastChanged;
         subscribed = true;
-        if (gameObject.scene.name == "Lobby2")
+        if (FastFoodScene.Contains(gameObject.scene))
         {
             var forecasts = new List<KitchenManager.OrderForecast>();
             kitchenManager.CopyActiveForecasts(forecasts);
@@ -124,7 +124,7 @@ public class KitchenWorkerBot : MonoBehaviour
 
     private void HandleOrderStarted(CustomerGroup group, int orderNumber)
     {
-        if (gameObject.scene.name == "Lobby2" && employeeRole != EmployeeRole.FastFoodAssembler)
+        if (FastFoodScene.Contains(gameObject.scene) && employeeRole != EmployeeRole.FastFoodAssembler)
         {
             if (group == null || group.currentOrder == null || stationProducts == null) return;
             bool matches = group.currentOrder.ResolveProducts().Exists(product => product != null &&
@@ -143,7 +143,7 @@ public class KitchenWorkerBot : MonoBehaviour
 
     private void HandleForecastChanged(KitchenManager.OrderForecast forecast)
     {
-        if (gameObject.scene.name != "Lobby2") return;
+        if (!FastFoodScene.Contains(gameObject.scene)) return;
         // Takeout orders can be accepted while paused, then released without a new OrderStarted event.
         if (forecast.State == KitchenManager.ForecastState.Cooking && !forecast.IsPaused && !forecast.AwaitingSpawn)
             HandleOrderStarted(forecast.Group, forecast.OrderNumber);
@@ -170,7 +170,7 @@ public class KitchenWorkerBot : MonoBehaviour
 
             Vector3 approach = target.position;
             Transform equipment = null;
-            bool registeredStation = gameObject.scene.name != "Lobby2" && HygieneManager.Instance != null && HygieneManager.Instance.TryGetWorkStation(
+            bool registeredStation = !FastFoodScene.Contains(gameObject.scene) && HygieneManager.Instance != null && HygieneManager.Instance.TryGetWorkStation(
                 employeeRole, ref hygieneStationIndex, transform.position, out equipment, out approach);
             if (registeredStation) yield return staffBot.MoveWithin(approach, .25f, .5f, 12f);
             else yield return staffBot.MoveTo(target);

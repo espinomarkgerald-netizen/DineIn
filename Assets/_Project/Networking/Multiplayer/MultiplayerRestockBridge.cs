@@ -236,11 +236,13 @@ public sealed class MultiplayerRestockBridge : MonoBehaviourPunCallbacks, IOnEve
             || !MoneyManager.Instance.HasEnough((int)total)) return false;
         foreach (RestockStorageType type in Enum.GetValues(typeof(RestockStorageType)))
         {
+            int added = 0;
+            foreach (RestockCartLine line in cart)
+                if (line.item.requiredStorage == type) added += line.quantity;
+            if (added <= 0) continue;
             int used = RestockOrderManager.Instance.GetReservedContainers(type, Items);
             used += InventoryManager.Instance.GetStorageContainerCount(type, Items);
-            foreach (RestockCartLine line in cart)
-                if (line.item.requiredStorage == type) used += line.quantity;
-            if (used > Storage.GetCapacity(type)) return false;
+            if (used + added > Storage.GetCapacity(type)) return false;
         }
         bool accepted = Computer != null && Computer.ConfirmRestockOrderOnAuthority(cart);
         if (accepted) message = "Order placed. The containers are reserved for delivery.";

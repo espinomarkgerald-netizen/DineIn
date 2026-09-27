@@ -35,7 +35,7 @@ public sealed class FastFoodTable : MonoBehaviour, IInteractable
     {
         if (GetComponent<BoothDeliverInteractable>()?.CanInteract() == true) return true;
         var mover = RoleManager.Instance?.GetActivePlayerMovement();
-        return gameObject.scene.name == "Lobby2" && StandPoint != null && HygieneManager.HandsEmpty(mover);
+        return FastFoodScene.Contains(gameObject.scene) && StandPoint != null && HygieneManager.HandsEmpty(mover);
     }
     public void Interact(PlayerMovement mover)
     {

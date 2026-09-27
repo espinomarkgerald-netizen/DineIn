@@ -191,6 +191,8 @@ public sealed class TutorialSceneBindings : MonoBehaviour
 
     public RectTransform ResolveUI(string key)
     {
+        if (FastFoodTutorialBridge.Active && key != null && key.StartsWith("FF."))
+            return FastFoodTutorialBridge.Instance.ResolveUI(key);
         if (string.IsNullOrEmpty(key))
             return null;
 
@@ -391,6 +393,8 @@ public sealed class TutorialSceneBindings : MonoBehaviour
 
     public Transform ResolveWorld(string key)
     {
+        if (FastFoodTutorialBridge.Active && key != null && key.StartsWith("FF."))
+            return FastFoodTutorialBridge.Instance.ResolveWorld(key);
         if (string.IsNullOrEmpty(key)) return null;
         Transform restock = FindFirstObjectByType<TutorialRestockFlowBridge>(
             FindObjectsInactive.Include)?.ResolveWorld(key);

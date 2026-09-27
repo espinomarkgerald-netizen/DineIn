@@ -14,6 +14,14 @@ public static class TutorialGameModeEntry
 
     public static string RouteCampaign(string careerScene)
     {
+        if (careerScene == "Lobby2")
+        {
+            CampaignSaveStore.SelectRestaurant(careerScene);
+            IsRevisitLaunch = false;
+            IsMenuLaunch = PlayerPrefs.GetInt(FastFoodTutorialBridge.CompletedKey, 0) == 0 &&
+                PlayerPrefs.GetInt(FastFoodTutorialBridge.SkippedKey, 0) == 0;
+            return IsMenuLaunch ? FastFoodScene.Tutorial : careerScene;
+        }
         IsMenuLaunch = careerScene == "Lobby1" && !HasCompletedTutorial;
         IsRevisitLaunch = false;
         return IsMenuLaunch ? "Lobby1Tutorial" : careerScene;
@@ -35,7 +43,7 @@ public static class TutorialGameModeEntry
         GameModePopupController controller = UnityEngine.Object.FindFirstObjectByType<GameModePopupController>(FindObjectsInactive.Include);
         if (controller == null) return;
         IsMenuLaunch = IsRevisitLaunch = false;
-        if (HasCompletedTutorial) AddRevisitButton(controller);
+        AddRevisitButton(controller);
     }
 
     private static void AddRevisitButton(GameModePopupController controller)
@@ -54,9 +62,8 @@ public static class TutorialGameModeEntry
         revisit.onClick = new Button.ButtonClickedEvent();
         revisit.onClick.AddListener(() =>
         {
-            if (!HasCompletedTutorial) return;
             IsMenuLaunch = IsRevisitLaunch = true;
-            Load("Lobby1Tutorial");
+            Load(controller.SelectedRestaurantIndex == 1 ? FastFoodScene.Tutorial : "Lobby1Tutorial");
         });
         TMP_Text text = revisit.GetComponentInChildren<TMP_Text>(true);
         if (text != null)

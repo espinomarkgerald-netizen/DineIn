@@ -101,7 +101,7 @@ public sealed class HygieneSurfaceRegistry : IDisposable
         var mesh = renderer.GetComponent<MeshFilter>();
         if (mesh == null || mesh.sharedMesh == null) return;
         var booth = renderer.GetComponentInParent<Booth>();
-        if (booth == null && owner.gameObject.scene.name == "Lobby2")
+        if (booth == null && FastFoodScene.Contains(owner.gameObject.scene))
             booth = FastFoodRestaurant.For(owner)?.DiningSurface(renderer);
         var station = renderer.GetComponentInParent<Counter>();
         var sink = renderer.GetComponentInParent<SinkInteractable>();

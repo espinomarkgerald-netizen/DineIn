@@ -118,7 +118,7 @@ public sealed class FastFoodRestaurant : MonoBehaviour
     private MoneyPickup currentCard;
     private FastFoodTable[] furniture;
     private float nextSeatCheck;
-    public bool Operational => isActiveAndEnabled && gameObject.scene.name == "Lobby2";
+    public bool Operational => isActiveAndEnabled && FastFoodScene.Contains(gameObject.scene);
     public Transform CustomerExit => customerExit;
     public Transform CashierApproach => cashierApproach;
     public Transform PickupApproach => customerPickupPoint;
@@ -215,7 +215,7 @@ public sealed class FastFoodRestaurant : MonoBehaviour
 
     public static FastFoodRestaurant For(Component component)
     {
-        if (component == null || component.gameObject.scene.name != "Lobby2") return null;
+        if (component == null || !FastFoodScene.Contains(component.gameObject.scene)) return null;
         // Lookup happens on spawn, not each frame. Scope to the spawning scene.
         foreach (var root in component.gameObject.scene.GetRootGameObjects())
             foreach (var restaurant in root.GetComponentsInChildren<FastFoodRestaurant>())

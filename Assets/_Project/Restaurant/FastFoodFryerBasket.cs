@@ -15,6 +15,14 @@ public sealed class FastFoodFryerBasket : MonoBehaviour, IPointerClickHandler, I
     private float lift, velocity;
     private Quaternion restRotation;
     private bool initialized;
+    private Collider hitTarget;
+
+    public void SetInputEnabled(bool value)
+    {
+        if (hitTarget == null) hitTarget = GetComponent<Collider>();
+        if (hitTarget != null) hitTarget.enabled = value;
+        if (!value) ClearHighlight();
+    }
 
     void Awake() { if (movingBasket != null) { restRotation = movingBasket.localRotation; initialized = true; } }
     public void Present(bool raised, bool immediate = false)

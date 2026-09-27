@@ -19,7 +19,13 @@ public sealed partial class FastFoodCookingView
     {
         foreach (var rig in stations)
             foreach (var basket in rig.baskets)
-                if (basket != null) { basket.view = this; basket.Present(State.BasketRaised(basket.firstSlot)); }
+                if (basket != null)
+                {
+                    basket.view = this;
+                    // Baskets belong to equipment, not the station UI hierarchy.
+                    basket.SetInputEnabled(opened && activeStation == rig && State.Mode == FastFoodStationMode.Fry);
+                    basket.Present(State.BasketRaised(basket.firstSlot));
+                }
     }
     public void CollectBasket(FastFoodFryerBasket basket)
     {

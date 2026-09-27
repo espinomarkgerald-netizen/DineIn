@@ -45,6 +45,7 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
     [SerializeField] private Button cameraButton;
     [SerializeField] private Button computerButton;
     [SerializeField] private UnityEngine.UI.Button kitchenButton;
+    public UnityEngine.UI.Button KitchenButton => kitchenButton;
     [SerializeField] private Sprite kitchenIcon;
     [SerializeField] private Vector2 kitchenButtonSize = new Vector2(96f, 96f);
     [SerializeField, Min(0f)] private float kitchenButtonGap = 16f;
@@ -234,7 +235,7 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
     public void RefreshVisibility()
     {
         string activeScene = SceneManager.GetActiveScene().name;
-        bool inLobby = activeScene == LobbySceneName || activeScene == "Lobby2" || MultiplayerHUDBridge.IsActive;
+        bool inLobby = activeScene == LobbySceneName || FastFoodScene.Contains(activeScene) || MultiplayerHUDBridge.IsActive;
         bool inRestock = activeScene == "RestockScene";
         bool localMultiplayerRestock = MultiplayerSessionManager.Instance != null
             && MultiplayerSessionManager.Instance.IsMultiplayerSession
@@ -265,7 +266,7 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
         if (kitchenButton != null)
         {
             var kitchen = FastFoodCookingController.Instance;
-            bool show = activeScene == "Lobby2" && inLobby && kitchen != null &&
+            bool show = FastFoodScene.Contains(activeScene) && inLobby && kitchen != null &&
                 kitchen.Active && !kitchen.IsHelpingKitchen;
             kitchenButton.gameObject.SetActive(show);
             kitchenButton.interactable = show && kitchen.CanEnterKitchen;

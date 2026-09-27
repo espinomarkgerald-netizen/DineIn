@@ -6,6 +6,9 @@ public static class TutorialWorldTargetGeometry
 {
     public static Camera ResolveCamera(Transform target, Camera fallback)
     {
+        if (FastFoodTutorialBridge.Active && target != null && target.gameObject.scene.name == FastFoodScene.Tutorial &&
+            FastFoodTutorialBridge.Instance.KitchenCamera != null)
+            return FastFoodTutorialBridge.Instance.KitchenCamera;
         if (target != null && target.gameObject.scene.name == "RestockScene")
             foreach (Camera camera in Camera.allCameras)
                 if (camera.isActiveAndEnabled && camera.gameObject.scene == target.gameObject.scene)
@@ -42,6 +45,8 @@ public static class TutorialWorldTargetGeometry
 
     private static bool TryGetBounds(Transform target, out Bounds bounds, out Transform space)
     {
+        if (FastFoodTutorialBridge.Active &&
+            FastFoodTutorialBridge.Instance.TryGetTargetBounds(target, out bounds, out space)) return true;
         // Prefer the object's own mesh; child food, speech bubbles and role UI
         // must not move the focus away from the booth itself.
         Renderer renderer = target.GetComponent<Renderer>();

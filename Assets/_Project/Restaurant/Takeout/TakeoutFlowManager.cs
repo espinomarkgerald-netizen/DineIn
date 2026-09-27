@@ -65,7 +65,7 @@ public class TakeoutFlowManager : MonoBehaviour
 
     public void ResetFastFoodDay()
     {
-        if (gameObject.scene.name == "Lobby2" && !MultiplayerDayBridge.IsActive) ClearRuntime();
+        if (FastFoodScene.Contains(gameObject.scene) && !MultiplayerDayBridge.IsActive) ClearRuntime();
     }
 
     public void SetAutomatedService(bool enabled)
@@ -75,7 +75,7 @@ public class TakeoutFlowManager : MonoBehaviour
 
     private void Awake()
     {
-        if (Instance != null && Instance != this && (gameObject.scene.name != "Lobby2" || MultiplayerDayBridge.IsActive))
+        if (Instance != null && Instance != this && (!FastFoodScene.Contains(gameObject.scene) || MultiplayerDayBridge.IsActive))
         {
             Destroy(gameObject);
             return;

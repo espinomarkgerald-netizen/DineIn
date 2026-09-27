@@ -46,7 +46,8 @@ public static class FastFoodBasketAuthoring
                     root.GetComponent<MeshFilter>().sharedMesh = mesh;
                     root.GetComponent<MeshRenderer>().sharedMaterials = new[] { materials[2 + side * 2], materials[3 + side * 2] };
                     var collider = root.GetComponent<BoxCollider>(); collider.center = mesh.bounds.center;
-                    collider.size = mesh.bounds.size + new Vector3(.05f, .1f, .05f); collider.isTrigger = true;
+                    var scale = root.transform.lossyScale;
+                    collider.size = mesh.bounds.size + new Vector3(.05f / Mathf.Max(.0001f, Mathf.Abs(scale.x)), .1f / Mathf.Max(.0001f, Mathf.Abs(scale.y)), .05f / Mathf.Max(.0001f, Mathf.Abs(scale.z))); collider.isTrigger = true;
                     var basket = root.AddComponent<FastFoodFryerBasket>();
                     basket.firstSlot = baskets.Count * 2; basket.movingBasket = root.transform;
                     basket.loweredLocalPosition = root.transform.localPosition;

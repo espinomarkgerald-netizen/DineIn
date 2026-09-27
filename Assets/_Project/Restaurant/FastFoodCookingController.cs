@@ -52,12 +52,12 @@ public sealed class FastFoodCookingController : MonoBehaviour
     private float reserveCheck;
     [SerializeField] private FastFoodCookingView view;
     [SerializeField, Min(.1f)] private float reserveRefreshSeconds = 2;
-    public bool Active => gameObject.scene.name == "Lobby2" && !MultiplayerDayBridge.IsActive;
+    public bool Active => FastFoodScene.Contains(gameObject.scene) && !MultiplayerDayBridge.IsActive;
     public static bool Handles(CustomerGroup group) => group != null && group.FastFood != null && ForScene() != null;
     public static FastFoodCookingController ForScene()
     {
         if (MultiplayerDayBridge.IsActive) return null;
-        var scene = SceneManager.GetSceneByName("Lobby2");
+        var scene = SceneManager.GetSceneByName(FastFoodTutorialBridge.Active ? FastFoodScene.Tutorial : "Lobby2");
         if (!scene.isLoaded) return null;
         if (Instance != null && Instance.Active) return Instance;
         return scene.GetRootGameObjects().SelectMany(r=>r.GetComponentsInChildren<FastFoodCookingController>(true)).FirstOrDefault();
@@ -146,7 +146,12 @@ public sealed class FastFoodCookingController : MonoBehaviour
         (group.state == CustomerGroup.GroupState.OrderTaken || group.FastFoodAwaitingSeat);
     private void Update()
     {
-        if (!Active || InventoryManager.Instance == null || GameSaveManager.Instance?.IsApplyingSave == true) return;
+        if (!Active || InventoryManager.Instance == null || GameSaveManager.Instance?.IsApplyingSave == true && !FastFoodTutorialBridge.Active) return;
+        if (FastFoodTutorialBridge.Active)
+        {
+            FastFoodTutorialBridge.Instance.TickKitchen(this);
+            return;
+        }
         State.cookSeconds = Mathf.Max(1, cookSeconds) * HygieneManager.CookMultiplier;
         foreach (var entry in groups.ToArray()) if (!Valid(entry.Value, entry.Key)) Release(entry.Key, false);
         State.Tick(Time.deltaTime, HygieneManager.HoldNewCooking, HygieneManager.KitchenPaused);

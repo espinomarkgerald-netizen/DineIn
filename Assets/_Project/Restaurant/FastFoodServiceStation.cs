@@ -30,7 +30,7 @@ public sealed class FastFoodServiceStation : MonoBehaviour, IInteractable
     public Transform StandPoint => queue != null ? queue.OrderPoint : transform;
     public bool AutoReturnHome => false;
     public float GetInteractRadius() => 1.5f;
-    public bool CanInteract() => IsKiosk && gameObject.scene.name == "Lobby2" &&
+    public bool CanInteract() => IsKiosk && FastFoodScene.Contains(gameObject.scene) &&
         HygieneManager.HandsEmpty(RoleManager.Instance?.GetActivePlayerMovement());
     public void Interact(PlayerMovement mover)
     {
@@ -41,7 +41,7 @@ public sealed class FastFoodServiceStation : MonoBehaviour, IInteractable
 
     private void Update()
     {
-        if (!IsKiosk || !IsUnlocked || gameObject.scene.name != "Lobby2" || MultiplayerDayBridge.IsActive) return;
+        if (!IsKiosk || !IsUnlocked || !FastFoodScene.Contains(gameObject.scene) || MultiplayerDayBridge.IsActive) return;
         var group = queue != null ? queue.CurrentFront : null;
         if (group != timedCustomer) { timedCustomer = group; elapsed = 0f; }
         if (group == null || group.FastFood == null || group.FastFoodPaid ||

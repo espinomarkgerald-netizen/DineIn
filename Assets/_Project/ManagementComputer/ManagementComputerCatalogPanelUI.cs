@@ -976,8 +976,11 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
 
         foreach (RestockStorageType storageType in Enum.GetValues(typeof(RestockStorageType)))
         {
+            int added = GetCartCount(storageType);
+            // Existing overcapacity must not block a cart for the other room.
+            if (added <= 0) continue;
             int capacity = storageConfig != null ? storageConfig.GetCapacity(storageType) : 0;
-            int afterOrder = GetUsedCapacityBeforeCart(storageType) + GetCartCount(storageType);
+            int afterOrder = GetUsedCapacityBeforeCart(storageType) + added;
             if (afterOrder > capacity)
             {
                 int room = Mathf.Max(0, capacity - GetUsedCapacityBeforeCart(storageType));

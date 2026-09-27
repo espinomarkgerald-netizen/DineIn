@@ -112,6 +112,7 @@ public sealed partial class HygieneManager : MonoBehaviourPunCallbacks, Photon.R
     private void Update()
     {
         if (!sceneReady) return;
+        if (FastFoodTutorialBridge.Active && !FastFoodTutorialBridge.Instance.HygieneLesson) return;
         ExpireCleaningRequests();
         if (State.run != Run || State.day != Day) ResetState();
         var session = MultiplayerSessionManager.Instance;
@@ -128,7 +129,7 @@ public sealed partial class HygieneManager : MonoBehaviourPunCallbacks, Photon.R
         {
             while (!State.decisionOpen && deferredActions.Count > 0) deferredActions.Dequeue().Invoke();
             var day = GameDayManager.Instance;
-            if (day != null && day.ServiceActive)
+            if (day != null && day.ServiceActive || FastFoodTutorialBridge.Active)
             {
                 if (State.AdvanceLobbyClock(day.CurrentGameHour)) Changed();
                 if (State.Tick(Time.deltaTime)) Changed();
@@ -209,6 +210,12 @@ public sealed partial class HygieneManager : MonoBehaviourPunCallbacks, Photon.R
         Changed(); Publish();
         if (MultiplayerDayBridge.IsActive)
             MultiplayerSessionManager.Instance.GetComponent<MultiplayerDayBridge>()?.PublishNow();
+    }
+    public void BeginTutorialKitchenCleaning()
+    {
+        if (!FastFoodTutorialBridge.Active || !Authority || State.Cleaning || State.decisionOpen) return;
+        State.kitchenDirt = HygieneState.WarningLevel;
+        OpenDecision(HygieneArea.Kitchen);
     }
     public void Choose(int decisionId, HygieneDecision choice)
     {

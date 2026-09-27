@@ -393,6 +393,7 @@ public sealed class TutorialUIFocusMask : MaskableGraphic
 
     public override bool Raycast(Vector2 screenPoint, Camera eventCamera)
     {
+        if (LobbyPauseMenu.BlocksTutorialInput) return false;
         if (gestureBlocked || dialogueInput || transitioning) return base.Raycast(screenPoint, eventCamera);
         RefreshFocus(); // Input and rendering use exactly the same live rectangle.
         if (!IsVisible || !raycastTarget || !base.Raycast(screenPoint, eventCamera)) return false;

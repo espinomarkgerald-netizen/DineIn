@@ -32,6 +32,8 @@ public sealed class TutorialDayContext : MonoBehaviour
     private bool careerSaveExisted;
     private bool runtimeIsolated;
     private bool restored;
+    public bool IsReady => runtimeIsolated && tutorialCatalog != null;
+    public MenuCatalog Catalog => tutorialCatalog;
 #if UNITY_EDITOR
     private bool editorExitingPlayMode;
 #endif
@@ -62,7 +64,7 @@ public sealed class TutorialDayContext : MonoBehaviour
         authoredCatalogSceneName = GetStaticField(typeof(MenuCatalog), "cachedSceneName");
         if (authoredCatalog == null)
         {
-            Debug.LogError("[Tutorial Day] Casual Dining catalog is unavailable.", this);
+            Debug.LogError("[Tutorial Day] Restaurant catalog is unavailable.", this);
             return;
         }
 
@@ -387,6 +389,16 @@ public sealed class TutorialDayContext : MonoBehaviour
                     });
                 }
             }
+            clone.firstCookingIngredient = recipe.firstCookingIngredient != null && items.TryGetValue(recipe.firstCookingIngredient, out var input)
+                ? input : recipe.firstCookingIngredient;
+            clone.kitchenAssemblySteps = new List<KitchenAssemblyStep>();
+            if (recipe.kitchenAssemblySteps != null)
+                foreach (var step in recipe.kitchenAssemblySteps)
+                    clone.kitchenAssemblySteps.Add(new KitchenAssemblyStep
+                    {
+                        item = step.item != null && items.TryGetValue(step.item, out var mapped) ? mapped : step.item,
+                        label = step.label, icon = step.icon, visual = step.visual
+                    });
             runtimeClones.Add(clone);
             recipes[recipe] = clone;
             clonedRecipes.Add(clone);

@@ -17,6 +17,8 @@ public sealed class HygieneDialogue : MonoBehaviour
     private View view;
     private int shownDecision = -1;
     private bool shownAuthority;
+    public RectTransform TutorialCleanControl => view != null && view.root.activeInHierarchy
+        ? view.buttons[0].transform as RectTransform : null;
     public bool Initialize()
     {
         bool ready = EnsureView();
@@ -66,7 +68,8 @@ public sealed class HygieneDialogue : MonoBehaviour
             var button = view.buttons[i];
             var decision = decisions[i];
             button.gameObject.SetActive(true);
-            button.interactable = authority;
+            button.interactable = authority && (!FastFoodTutorialBridge.Active ||
+                !FastFoodTutorialBridge.Instance.HygieneLesson || decision == HygieneDecision.CleanNow);
             button.onClick = new Button.ButtonClickedEvent();
             button.onClick.AddListener(() => choose(id, decision));
             view.labels[i].text = labels[i];

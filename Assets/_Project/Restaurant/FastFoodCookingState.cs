@@ -106,6 +106,9 @@ public sealed class FastFoodCookingState
     private readonly Func<ItemType, int> stock;
     private readonly Func<Recipe, bool> consume;
     public event Action Changed;
+    // Optional scene-owned training policy. Unset in normal gameplay and multiplayer.
+    public Func<string, Portion, ItemData, int, bool> InteractionFilter;
+    public bool HoldPlayerStations;
     public event Action<Portion,int> PrepTransferred;
 
     public FastFoodCookingState(Func<ItemType, int> stock, Func<Recipe, bool> consume)
@@ -350,6 +353,7 @@ public sealed class FastFoodCookingState
     }
     public bool Load(Portion p, ItemData item, int slot = -1)
     {
+        if (InteractionFilter != null && !InteractionFilter("Load", p, item, slot)) return false;
         if (slot < 0) slot = p!=null && p.stage==FastFoodCookingStage.Preparing ?
             p.prepSlot>=0?p.prepSlot:Enumerable.Range(0,grillPrepSlots).Where(i=>AtPrepSlot(i)==null).DefaultIfEmpty(-1).First() : FreeSlot(Mode, true);
         if (!CanLoad(p, item, slot)) return false;
@@ -371,6 +375,7 @@ public sealed class FastFoodCookingState
     }
     public bool Collect(Portion p)
     {
+        if (InteractionFilter != null && !InteractionFilter("Collect", p, null, p != null ? p.slot : -1)) return false;
         if (p == null || !Portions.Contains(p) || !PlayerControls(p) || WorkStation(p) != Mode || p.stage != FastFoodCookingStage.Ready) return false;
         if (Mode == FastFoodStationMode.Fry && !BasketRaised(p.slot / 2 * 2)) return false;
         return CollectCooked(p);
@@ -394,6 +399,7 @@ public sealed class FastFoodCookingState
     }
     public bool Discard(Portion p)
     {
+        if (InteractionFilter != null && !InteractionFilter("Discard", p, null, p != null ? p.slot : -1)) return false;
         if (p == null || p.stage != FastFoodCookingStage.Burnt) return false;
         p.needsRestock = !Requirements(p.recipe).All(kv => Available(kv.Key) >= kv.Value);
         p.stage = FastFoodCookingStage.Waiting; p.elapsed = 0;
@@ -434,6 +440,7 @@ public sealed class FastFoodCookingState
     }
     public bool BeginServingDrag(Portion p)
     {
+        if (InteractionFilter != null && !InteractionFilter("Drag", p, null, -1)) return false;
         var t = p == null ? null : FindTicket(p.order);
         if (t == null || t != PlayerTicket || t.submitted || p.placed || p.dragging) return false;
         if (p.recipe.category != MenuProductCategory.Drink && p.stage != FastFoodCookingStage.Complete) return false;
@@ -441,6 +448,7 @@ public sealed class FastFoodCookingState
     }
     public bool Place(Portion p)
     {
+        if (InteractionFilter != null && !InteractionFilter("Place", p, null, -1)) return false;
         var t = p == null ? null : FindTicket(p.order);
         if (t == null || t != PlayerTicket || t.submitted || p.placed || !p.dragging) return false;
         p.dragging = false;
@@ -450,6 +458,7 @@ public sealed class FastFoodCookingState
     }
     public bool Serve(int order)
     {
+        if (InteractionFilter != null && !InteractionFilter("Serve", null, null, order)) return false;
         var t = FindTicket(order);
         if (t == null || t.submitted || !t.Ready) return false;
         t.submitted = true; Changed?.Invoke(); return true;
@@ -482,6 +491,7 @@ public sealed class FastFoodCookingState
         if(releasedPrep)Changed?.Invoke();
         foreach (var station in stationAway.Keys.ToArray())
         {
+            if (HoldPlayerStations) continue;
             stationAway[station] += delta;
             if (stationAway[station] >= stationGraceSeconds) { HandOff(station); Changed?.Invoke(); }
         }

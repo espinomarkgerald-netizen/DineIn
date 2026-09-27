@@ -40,7 +40,7 @@ public class TakeoutQueueManager : MonoBehaviour
 
     private void Awake()
     {
-        if (Instance != null && Instance != this && (gameObject.scene.name != "Lobby2" || MultiplayerDayBridge.IsActive))
+        if (Instance != null && Instance != this && (!FastFoodScene.Contains(gameObject.scene) || MultiplayerDayBridge.IsActive))
         {
             Destroy(gameObject);
             return;
@@ -100,7 +100,7 @@ public class TakeoutQueueManager : MonoBehaviour
 
     public void ResetFastFoodDay()
     {
-        if (gameObject.scene.name != "Lobby2" || MultiplayerDayBridge.IsActive) return;
+        if (!FastFoodScene.Contains(gameObject.scene) || MultiplayerDayBridge.IsActive) return;
         foreach (var group in queue)
             if (group != null)
             {

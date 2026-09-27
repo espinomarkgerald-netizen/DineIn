@@ -103,6 +103,7 @@ public sealed partial class FastFoodCookingView : MonoBehaviour
     }
     private void Enter(FastFoodStationMode mode)
     {
+        if (FastFoodTutorialBridge.Active && !FastFoodTutorialBridge.Instance.AllowsStation(mode)) return;
         CancelDrag(); DestroyWorld(); ResetPolish();
         activeStation=stations.First(s=>s.mode==mode);
         activeStation.gameObject.SetActive(true); activeStation.labels.gameObject.SetActive(true);
@@ -344,6 +345,7 @@ public sealed partial class FastFoodCookingView : MonoBehaviour
     }
     public void BeginDrag(FastFoodCookingDragHandle handle,Vector2 position,bool touch=false)
     {
+        if (FastFoodTutorialBridge.Active && !FastFoodTutorialBridge.Instance.AllowsDrag(handle)) return;
         if(Time.timeScale<=0 || drag!=null || !handle.enabled)return;
         CancelDrag();
         if(handle.storedProtein && (!State.PrepReady || handle.item==null)) { Warn("Finish cooking this batch to start assembly"); return; }

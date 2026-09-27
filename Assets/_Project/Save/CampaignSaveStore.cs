@@ -10,7 +10,13 @@ public static class CampaignSaveStore
 {
     public static bool ProtectedSession => GameSaveManager.IsPersistenceSuspended ||
         MultiplayerRestockBridge.IsActive || SceneManager.GetSceneByName("Lobby1 Multiplayer").isLoaded ||
-        SceneManager.GetSceneByName("Lobby1Tutorial").isLoaded;
+        SceneManager.GetSceneByName("Lobby1Tutorial").isLoaded ||
+        SceneManager.GetSceneByName(FastFoodScene.Tutorial).isLoaded;
+    public static void SelectFastFoodTraining()
+    {
+        RestaurantScene = "Lobby2";
+        cachedStamp = null;
+    }
     // Keep the selected restaurant through additive RestockScene and menu transitions.
     public static string RestaurantScene { get; private set; } = "Lobby1";
     public static bool IsFastFood => RestaurantScene == "Lobby2";

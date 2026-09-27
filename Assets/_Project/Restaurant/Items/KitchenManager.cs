@@ -131,12 +131,12 @@ public class KitchenManager : MonoBehaviour
 
     public void ResetFastFoodDay()
     {
-        if (gameObject.scene.name == "Lobby2" && !MultiplayerDayBridge.IsActive) ClearServiceOrders();
+        if (FastFoodScene.Contains(gameObject.scene) && !MultiplayerDayBridge.IsActive) ClearServiceOrders();
     }
 
     private void ClearServiceOrders()
     {
-        if (gameObject.scene.name == "Lobby2") FastFoodCookingController.Instance?.ResetForDay();
+        if (FastFoodScene.Contains(gameObject.scene)) FastFoodCookingController.Instance?.ResetForDay();
         StopAllCoroutines();
         cookingOrders.Clear(); completedOrders.Clear(); activeOrderForecasts.Clear(); completedOrderForecasts.Clear();
         preparedResults.Clear(); preparedSlots.Clear(); spawningResults.Clear();

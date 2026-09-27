@@ -1244,6 +1244,22 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
             if (orders == null || config?.StorageConfig == null)
                 return false;
 
+            // Recheck current reservations before payment, using the same per-room
+            // rule as checkout. Do not reject unrelated existing overcapacity.
+            InventoryManager inventory = InventoryManager.Instance;
+            IReadOnlyList<ItemData> items = MenuCatalog.Default?.Ingredients;
+            if (inventory == null || items == null) return false;
+            foreach (RestockStorageType type in Enum.GetValues(typeof(RestockStorageType)))
+            {
+                int added = 0;
+                foreach (RestockCartLine line in sanitized)
+                    if (line.item.requiredStorage == type) added += line.quantity;
+                if (added <= 0) continue;
+                int used = inventory.GetStorageContainerCount(type, items) +
+                           orders.GetReservedContainers(type, items);
+                if (used + added > config.StorageConfig.GetCapacity(type)) return false;
+            }
+
             bool spent = DailyFinanceBridge.Instance != null
                 ? DailyFinanceBridge.Instance.SpendMoney(totalCost, "Restock delivery order")
                 : MoneyManager.Instance.Spend(totalCost, "Restock delivery order");

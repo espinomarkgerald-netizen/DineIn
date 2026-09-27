@@ -176,7 +176,7 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
 
     private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        if (scene.name == LobbySceneName || scene.name == "Lobby2" || (MultiplayerRestockBridge.IsActive
+        if (scene.name == LobbySceneName || FastFoodScene.Contains(scene) || (MultiplayerRestockBridge.IsActive
             && scene == MultiplayerSessionManager.Instance.gameObject.scene))
         {
             lobbyScene = scene;
@@ -716,7 +716,7 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
             EnsureTruckIndicator(truckInteractable);
         }
 
-        if (lobbyScene.name == "Lobby2")
+        if (FastFoodScene.Contains(lobbyScene))
         {
             FastFoodLobbyAuthoring bindings = null;
             foreach (var root in lobbyScene.GetRootGameObjects())
@@ -1217,6 +1217,10 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
                 T behaviour = behaviours[i];
                 if (behaviour == null)
                     continue;
+
+                // Tutorial instructions and recovery remain usable inside additive storage.
+                if (behaviour is Canvas canvas && FastFoodTutorialBridge.Active &&
+                    FastFoodTutorialBridge.Instance.OwnsCanvas(canvas)) continue;
 
                 lobbyBehaviourStates.Add(new BehaviourState
                 {

@@ -28,7 +28,7 @@ public sealed class FastFoodShelfPreview : MonoBehaviour
     private void StockChanged(ItemType item, int count) => dirty = true;
     private void Update()
     {
-        if (gameObject.scene.name != "Lobby2") return;
+        if (!FastFoodScene.Contains(gameObject.scene)) return;
         if (ledger != RestockOrderManager.Instance || inventory != InventoryManager.Instance)
         {
             if (ledger != null) ledger.StoredContainersChanged -= MarkDirty;

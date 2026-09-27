@@ -213,6 +213,11 @@ public sealed class TutorialHandIndicator : MonoBehaviour
     private void LateUpdate()
     {
         if (mode == HintMode.Hidden || !gameObject.activeSelf) return;
+        if (LobbyPauseMenu.IsAnyOpen)
+        {
+            if (hintRoot != null) hintRoot.GetComponent<CanvasGroup>().alpha = 0f;
+            return;
+        }
         bool needsTarget = mode == HintMode.Tap || mode == HintMode.Typing || mode == HintMode.Drag || mode == HintMode.Hold;
         if (needsTarget && (currentTarget == null || !currentTarget.gameObject.activeInHierarchy ||
             !TryGetTargetCanvasPosition(currentTarget, out _)))

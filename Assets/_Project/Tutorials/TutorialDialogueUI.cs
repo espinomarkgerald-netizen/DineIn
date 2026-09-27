@@ -23,10 +23,14 @@ public class TutorialDialogueUI : MonoBehaviour
     [SerializeField, Range(0.8f, 1f)] private float portraitBopStartScale = 0.94f;
     [SerializeField, Range(1f, 1.2f)] private float portraitBopPeakScale = 1.06f;
     [SerializeField, Min(0f)] private float portraitBopLift = 5f;
+    [SerializeField] private bool animatePortraitOnEveryLine;
     [Header("Lobby Tutorial Layout")]
     [Tooltip("Reuse the authored tutorial presentation in campaign guides without starting TutorialSystem.")]
     [SerializeField] private bool useTutorialPresentation;
     [SerializeField] private Vector2 dialogueOffset = Vector2.zero;
+    [Tooltip("Opt-in for Fast Food: move the authored dialogue above/below an overlapping focus.")]
+    [SerializeField] private bool avoidFocusOverlap;
+    [SerializeField, Min(0)] private float focusClearance = 16f;
     [SerializeField, Min(12f)] private float dialogueMinimumFontSize = 18f;
     [SerializeField, Min(12f)] private float dialogueMaximumFontSize = 30f;
     [Tooltip("Text insets in panel units: left, top (below the nameplate), right, bottom.")]
@@ -73,7 +77,7 @@ public class TutorialDialogueUI : MonoBehaviour
     }
 
     public bool IsChatterActive => chatterActive;
-    public bool SupportsNonBlockingChatter => gameObject.scene.name != "Lobby1Tutorial";
+    public bool SupportsNonBlockingChatter => !polishedLobby;
 
     public bool ShowNonBlockingChatter(string line, bool replaceChatter = false)
     {
@@ -148,6 +152,7 @@ public class TutorialDialogueUI : MonoBehaviour
     private Sprite continuePromptBackground;
     private bool pointerReleased;
     private RectTransform portraitPlacement;
+    private Vector2 dialogueHome;
     public Func<Vector2, bool> CanAdvanceAt { get; set; }
     public TMP_Text BodyText => bodyText;
 
@@ -167,6 +172,7 @@ public class TutorialDialogueUI : MonoBehaviour
 
     private void Awake()
     {
+        dialogueHome = ((RectTransform)transform).anchoredPosition;
         polishedLobby = useTutorialPresentation || gameObject.scene.name == "Lobby1Tutorial";
         if (bodyText != null) bodyText.OnPreRenderText += AnimateRevealedLetters;
         // The dialogue panel, nameplate, and text always stay at their authored pose.
@@ -284,6 +290,8 @@ public class TutorialDialogueUI : MonoBehaviour
         if (focus.width <= 0f && focusWorld != null)
             TutorialWorldTargetGeometry.TryGetScreenRect(focusWorld,
                 TutorialWorldTargetGeometry.ResolveCamera(focusWorld, Camera.main), out focus);
+        if (avoidFocusOverlap && gameObject.scene.name == FastFoodScene.Tutorial)
+            AvoidFocus(focus);
         if (portraitRect == null || Time.unscaledTime < nextSideCheck) return;
         nextSideCheck = Time.unscaledTime + portraitSideCheckInterval;
         // Test two authored poses, never mirror the panel or its text.
@@ -307,6 +315,32 @@ public class TutorialDialogueUI : MonoBehaviour
         portraitRight = right;
         portraitPlacement.anchoredPosition = new Vector2((right ? 1f : -1f) * Mathf.Abs(portraitHome.x), portraitHome.y) + (right ? portraitRightOffset : portraitLeftOffset);
         portraitPlacement.localScale = new Vector3(right ? -1f : 1f, 1f, 1f);
+    }
+
+    private void AvoidFocus(Rect focus)
+    {
+        var rect = (RectTransform)transform;
+        rect.anchoredPosition = dialogueHome;
+        if (panelRect == null || !(rect.parent is RectTransform parent) || focus.width <= 0) return;
+        Rect panel = ScreenRect(panelRect);
+        if (speakerText != null)
+        {
+            Rect speaker = ScreenRect(speakerText.rectTransform);
+            panel.yMax = Mathf.Max(panel.yMax, speaker.yMax);
+        }
+        if (continuePrompt != null && continuePrompt.gameObject.activeInHierarchy)
+            panel.yMax = Mathf.Max(panel.yMax, ScreenRect((RectTransform)continuePrompt.transform.parent).yMax);
+        if (!panel.Overlaps(focus)) return;
+        Rect safe = Screen.safeArea;
+        float up = focus.yMax + focusClearance - panel.yMin;
+        float down = focus.yMin - focusClearance - panel.yMax;
+        float shift = panel.yMax + up <= safe.yMax ? up : down;
+        shift = Mathf.Clamp(shift, safe.yMin - panel.yMin, safe.yMax - panel.yMax);
+        Canvas owner = rect.GetComponentInParent<Canvas>()?.rootCanvas;
+        Camera camera = owner == null || owner.renderMode == RenderMode.ScreenSpaceOverlay ? null : owner.worldCamera;
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(parent, panel.center, camera, out var from);
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(parent, panel.center + Vector2.up * shift, camera, out var to);
+        rect.anchoredPosition = dialogueHome + to - from;
     }
 
     private void ApplyPortraitPose()
@@ -379,7 +413,7 @@ public class TutorialDialogueUI : MonoBehaviour
 
     public void SetPortrait(Sprite portrait)
     {
-        if (portraitImage == null || portrait == null || portraitImage.sprite == portrait) return;
+        if (portraitImage == null || portrait == null || (portraitImage.sprite == portrait && !animatePortraitOnEveryLine)) return;
         if (portraitRoutine != null) StopCoroutine(portraitRoutine);
         ResetPortraitVisuals();
         portraitImage.sprite = portrait;
@@ -465,6 +499,21 @@ public class TutorialDialogueUI : MonoBehaviour
         isTyping = false;
         typingRoutine = null;
         pointerReleased = false;
+    }
+
+    // Explicit passive coaching: no continue gesture and no gameplay raycast surface.
+    public void ShowPassiveWait(string speaker, string message, Sprite portrait)
+    {
+        manualNextAction = null;
+        ShowInternal(speaker, message, portrait, false);
+        GameObject panel = root != null ? root : gameObject;
+        chatterInput = panel.GetComponent<CanvasGroup>();
+        if (chatterInput == null) chatterInput = panel.AddComponent<CanvasGroup>();
+        previousChatterRaycasts = chatterInput.blocksRaycasts;
+        previousChatterInteractable = chatterInput.interactable;
+        chatterInput.blocksRaycasts = false;
+        chatterInput.interactable = false;
+        chatterActive = true;
     }
 
     private void UpdateLetterBounce()

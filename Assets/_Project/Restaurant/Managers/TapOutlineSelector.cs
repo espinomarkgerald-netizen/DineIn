@@ -15,7 +15,7 @@ public class TapOutlineSelector : MonoBehaviour
     private Booth selectedCleaning;
     private Component selectedComponent;
     private static readonly List<TapOutlineSelector> selectors = new();
-    private bool UsesAcceptedTargets => gameObject.scene.name == "Lobby2";
+    private bool UsesAcceptedTargets => FastFoodScene.Contains(gameObject.scene);
 
     private void OnEnable() { if (!selectors.Contains(this)) selectors.Add(this); }
     private void OnDisable() { Clear(); selectors.Remove(this); }
@@ -24,7 +24,7 @@ public class TapOutlineSelector : MonoBehaviour
     // second raycast that can highlight a different object behind the chosen one.
     public static void PresentFor(PlayerMovement mover, IInteractable interaction)
     {
-        if (mover == null || mover.gameObject.scene.name != "Lobby2") return;
+        if (mover == null || !FastFoodScene.Contains(mover.gameObject.scene)) return;
         foreach (var selector in selectors)
             if (selector != null && selector.gameObject.scene == mover.gameObject.scene)
                 selector.Select(interaction as Component, interaction, null);
@@ -32,7 +32,7 @@ public class TapOutlineSelector : MonoBehaviour
 
     public static void PresentCleaning(PlayerMovement mover, Booth booth)
     {
-        if (mover == null || mover.gameObject.scene.name != "Lobby2") return;
+        if (mover == null || !FastFoodScene.Contains(mover.gameObject.scene)) return;
         foreach (var selector in selectors)
             if (selector != null && selector.gameObject.scene == mover.gameObject.scene)
                 selector.Select(booth, null, booth);
