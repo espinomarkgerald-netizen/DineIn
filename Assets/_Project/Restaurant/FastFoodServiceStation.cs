@@ -20,7 +20,7 @@ public sealed class FastFoodServiceStation : MonoBehaviour, IInteractable
     public float CashierOrderSeconds => cashierOrderSeconds;
     public float CashierPaymentSeconds => cashierPaymentSeconds;
     public Transform[] CompanionPoints => companionPoints;
-    public float ServiceProgress => timedCustomer != null ? Mathf.Clamp01(elapsed / kioskOrderSeconds) : 0f;
+    public float ServiceProgress => timedCustomer != null ? Mathf.Clamp01(elapsed / (kioskOrderSeconds * timedCustomer.OrderingDurationMultiplier)) : 0f;
     private CustomerGroup timedCustomer;
     private float elapsed;
     public bool IsKiosk => kind == StationKind.Kiosk;
@@ -49,7 +49,7 @@ public sealed class FastFoodServiceStation : MonoBehaviour, IInteractable
         if (group.state == CustomerGroup.GroupState.ReadyToOrder && !group.IsPlayerReviewingOrder)
         {
             elapsed += Time.deltaTime;
-            if (elapsed < kioskOrderSeconds) return;
+            if (elapsed < kioskOrderSeconds * group.OrderingDurationMultiplier) return;
             // The existing stock reservation and confirmed-order operation runs once.
             if (!group.TakeOrderFromWaiter(group.chosenFood, group.chosenDrink, null)) return;
         }

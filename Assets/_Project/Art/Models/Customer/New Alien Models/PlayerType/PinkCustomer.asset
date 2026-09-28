@@ -14,6 +14,22 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   displayName: VIP
   customerImage: {fileID: 21300000, guid: e4325db48a4061c479803d171413d4a1, type: 3}
+  customerType: 1
+  customerPrefab: {fileID: 0}
+  unlockDay: 1
+  spawnWeight: 0.2
+  introduction: Pink guests will be joining us today. They expect prompt service,
+    so give their requests attention and avoid keeping them waiting.
+  orderingDurationMultiplier: 1
+  walkingSpeedMultiplier: 1
+  overrideTakeawayChance: 0
+  takeawayChance: 0.7
+  assistedPriorityService: 0
+  family: 0
+  childVisualScale: 0.65
+  childPlayInterval: 10
+  childPlayRadius: 1.5
+  childPlayTravelSeconds: 5
   openingMessages:
   - Please be quick with us and I'll give you tip.
   - Don't keep us waiting and I'll give you tip.

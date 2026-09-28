@@ -950,8 +950,8 @@ public class GameDayManager : MonoBehaviour
         int currentDay = GameFlowManager.Instance != null ? GameFlowManager.Instance.CurrentDay : 1;
 
         var fastFood = FastFoodProgressionSettings.Current;
-        bool enablePink = currentDay >= (fastFood != null ? fastFood.pinkCustomerDay : pinkCustomerUnlockDay);
-        bool enableBlue = currentDay >= (fastFood != null ? fastFood.blueCustomerDay : blueCustomerUnlockDay);
+        bool enablePink = groupSpawner.NormalFastFood || currentDay >= (fastFood != null ? fastFood.pinkCustomerDay : pinkCustomerUnlockDay);
+        bool enableBlue = groupSpawner.NormalFastFood || currentDay >= (fastFood != null ? fastFood.blueCustomerDay : blueCustomerUnlockDay);
 
         groupSpawner.SetCustomerTypeAvailability(true, enablePink, enableBlue);
 

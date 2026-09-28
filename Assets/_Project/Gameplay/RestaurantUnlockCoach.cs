@@ -6,7 +6,7 @@ using UnityEngine.SceneManagement;
 /// <summary>Small, resumable campaign guides hosted by the existing Big Boss tips object.</summary>
 public sealed class RestaurantUnlockCoach : MonoBehaviour
 {
-    private enum Step { None, Introduction, Computer, App, Applicants, Hire, Summary, Equipment }
+    private enum Step { None, Introduction, Computer, App, Applicants, Hire, Summary, Equipment, Customer }
     private RestaurantBossTips owner;
     private RestaurantUnlockCoachUI view;
     private EmployeeManager employeeManager;
@@ -21,6 +21,7 @@ public sealed class RestaurantUnlockCoach : MonoBehaviour
     private bool focusedApplicants;
     private int equipmentIndex;
     private readonly HashSet<string> pendingEquipment = new();
+    private readonly List<string> pendingCustomers = new();
     private readonly List<Equipment> equipmentBatch = new();
     private float nextCheck;
     public bool IsActive => step != Step.None;
@@ -46,14 +47,21 @@ public sealed class RestaurantUnlockCoach : MonoBehaviour
         if (pendingEquipment.Add(item.itemID)) GameSaveManager.Instance?.RequestSave();
     }
 
-    public void FillSaveData(GameSaveData data) =>
+    public void FillSaveData(GameSaveData data)
+    {
         data.pendingEquipmentCoachIDs = new List<string>(pendingEquipment);
+        data.pendingCustomerEncounterIDs = new List<string>(pendingCustomers);
+    }
 
     public void ApplySaveData(GameSaveData data)
     {
         StopGuide(false);
         deferredSession = null;
         pendingEquipment.Clear();
+        pendingCustomers.Clear();
+        if (data?.pendingCustomerEncounterIDs != null)
+            foreach (string id in data.pendingCustomerEncounterIDs)
+                if (!string.IsNullOrWhiteSpace(id) && !pendingCustomers.Contains(id)) pendingCustomers.Add(id);
         if (data?.pendingEquipmentCoachIDs != null)
             foreach (string id in data.pendingEquipmentCoachIDs)
                 if (!string.IsNullOrWhiteSpace(id)) pendingEquipment.Add(id);
@@ -99,6 +107,7 @@ public sealed class RestaurantUnlockCoach : MonoBehaviour
                 EquipmentManager.Instance?.AllEquipment == null) return;
             // The authoring installer extracts this from Lobby1Tutorial; never fall back to a different-looking card.
             if (view == null && Resources.Load<GameObject>(RestaurantUnlockCoachUI.ResourcePath) == null) return;
+            if (TryCustomerIntroduction()) return;
             if (TryMilestone(EmployeeRole.Busser) || TryMilestone(EmployeeRole.Cashier)) return;
             equipmentBatch.Clear();
             foreach (var item in EquipmentManager.Instance.AllEquipment)
@@ -191,6 +200,56 @@ public sealed class RestaurantUnlockCoach : MonoBehaviour
         // Let the player compare and choose any candidate in this role's applicant rail.
         view.SetTarget(card != null ? card.transform.parent as RectTransform : null,
             card != null && card.PrimaryButton != null ? card.PrimaryButton.transform as RectTransform : null);
+    }
+
+    private static string CustomerID(CustomerGroup.CustomerType type) => CampaignSaveStore.RestaurantScene + ":customer:" + (int)type;
+
+    public bool TryGetEncounter(GroupSpawner spawner, float takeoutRoll, out CustomerGroup.CustomerType type)
+    {
+        type = CustomerGroup.CustomerType.Green;
+        if (!CampaignSaveStore.RuntimeCampaign || spawner == null) return false;
+        foreach (var profile in spawner.CampaignCustomers)
+            if (profile != null && pendingCustomers.Contains(CustomerID(profile.customerType)) &&
+                spawner.CanOfferCampaignEncounter(profile.customerType, takeoutRoll))
+            { type = profile.customerType; return true; }
+        return false;
+    }
+
+    public void EncounterSpawned(CustomerGroup.CustomerType type)
+    {
+        if (CampaignSaveStore.RuntimeCampaign && pendingCustomers.Remove(CustomerID(type)))
+            GameSaveManager.Instance?.RequestSave();
+    }
+
+    private bool TryCustomerIntroduction()
+    {
+        var spawner = GroupSpawner.Instance;
+        if (spawner == null || spawner.gameObject.scene.name != CampaignSaveStore.RestaurantScene ||
+            Input.GetMouseButton(0) || Input.touchCount > 0 || RestaurantTaskClaim.PlayerHasActiveTask ||
+            FastFoodCookingController.Instance?.IsHelpingKitchen == true ||
+            WarningSlideUI.Instance?.IsPresenting == true ||
+            !HygieneManager.HandsEmpty(RoleManager.Instance?.GetActivePlayerMovement())) return false;
+        foreach (var profile in spawner.CampaignCustomers)
+        {
+            if (profile == null || (spawner.NormalFastFood && (int)profile.customerType < 3) ||
+                !spawner.IsCustomerTypeEnabled(profile.customerType) || owner.HasSeenCoach(CustomerID(profile.customerType)) ||
+                string.IsNullOrWhiteSpace(profile.introduction)) continue;
+            if (!Begin()) return false;
+            step = Step.Customer;
+            equipmentGuide = false;
+            string id = CustomerID(profile.customerType);
+            string expectedSession = session;
+            view.ShowCustomer(profile, () =>
+            {
+                if (step != Step.Customer || session != expectedSession || !InPreparation()) return;
+                owner.MarkCoachSeen(id);
+                if (!pendingCustomers.Contains(id)) pendingCustomers.Add(id);
+                GameSaveManager.Instance?.RequestSave();
+                StopGuide(false);
+            });
+            return true;
+        }
+        return false;
     }
 
     private bool TryMilestone(EmployeeRole candidate)
@@ -350,6 +409,7 @@ public sealed class RestaurantUnlockCoach : MonoBehaviour
         if (defer) deferredSession = session;
         Unsubscribe();
         step = Step.None;
+        milestone = null;
         focusedPanel = null;
         if (view != null) view.Hide();
     }

@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 140633127913287428aff3eb3ff345e5, type: 3}
+  m_Name: OrangeCustomer
+  m_EditorClassIdentifier: 
+  displayName: Orange
+  customerImage: {fileID: 21300000, guid: fc22a250c54ebe94f9787fafa25c652d, type: 3}
+  customerType: 4
+  customerPrefab: {fileID: 7146268335517088485, guid: f0722ecef2a0c3b4cbb168dbd7c02f05, type: 3}
+  unlockDay: 5
+  spawnWeight: 0.2
+  introduction: Orange guests have busy schedules. Most take their meals to go, and
+    those who stay eat quickly. Keep their orders moving so they can be on their
+    way.
+  orderingDurationMultiplier: 0.75
+  walkingSpeedMultiplier: 1
+  overrideTakeawayChance: 1
+  takeawayChance: 0.7
+  assistedPriorityService: 0
+  family: 0
+  childVisualScale: 0.65
+  childPlayInterval: 10
+  childPlayRadius: 1.5
+  childPlayTravelSeconds: 5
+  openingMessages:
+  - Hello! We're looking forward to our meal.
+  orderPatienceMultiplier: 1
+  linePatienceMultiplier: 1
+  eatDurationMultiplier: 0.7
+  tipAmount: 0
+  isMessy: 0

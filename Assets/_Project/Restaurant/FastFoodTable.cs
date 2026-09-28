@@ -15,6 +15,34 @@ public sealed class FastFoodTable : MonoBehaviour, IInteractable
     [Tooltip("Optional shared booth divider. Shown when any booth in its section is available.")]
     [SerializeField] private GameObject sharedDivider;
     public GameObject SharedDivider => sharedDivider;
+    [Header("Optional family play: local dining-only safe area")]
+    [SerializeField] private bool familyPlayEnabled;
+    [SerializeField] private Bounds familyPlayBounds;
+
+    public bool TryGetFamilyPlayPoint(Vector3 home, float radius, UnityEngine.AI.NavMeshAgent agent, out Vector3 point)
+    {
+        point = home;
+        if (!familyPlayEnabled || agent == null || !familyPlayBounds.Contains(transform.InverseTransformPoint(home))) return false;
+        var filter = new UnityEngine.AI.NavMeshQueryFilter { agentTypeID = agent.agentTypeID, areaMask = agent.areaMask };
+        var path = new UnityEngine.AI.NavMeshPath();
+        for (int attempt = 0; attempt < 6; attempt++)
+        {
+            Vector2 offset = Random.insideUnitCircle * Mathf.Max(.5f, radius);
+            if (offset.sqrMagnitude < .25f) continue;
+            if (!UnityEngine.AI.NavMesh.SamplePosition(home + new Vector3(offset.x, 0f, offset.y), out var hit, .25f, filter) ||
+                !familyPlayBounds.Contains(transform.InverseTransformPoint(hit.position)) ||
+                !UnityEngine.AI.NavMesh.CalculatePath(home, hit.position, filter, path) ||
+                path.status != UnityEngine.AI.NavMeshPathStatus.PathComplete) continue;
+            bool safe = true;
+            foreach (var corner in path.corners)
+                if (!familyPlayBounds.Contains(transform.InverseTransformPoint(corner)) || (corner - home).sqrMagnitude > radius * radius * 4f)
+                { safe = false; break; }
+            if (!safe) continue;
+            point = hit.position;
+            return true;
+        }
+        return false;
+    }
     public string LayoutId => layoutId;
     public int LayoutPriority => layoutPriority;
     public int AvailableSeats

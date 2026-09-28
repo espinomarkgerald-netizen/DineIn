@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 140633127913287428aff3eb3ff345e5, type: 3}
+  m_Name: YellowCustomer
+  m_EditorClassIdentifier: 
+  displayName: Yellow
+  customerImage: {fileID: 21300000, guid: fd484a29a27f3f64e829b89d2cf5f762, type: 3}
+  customerType: 6
+  customerPrefab: {fileID: 4791941089144008092, guid: 990ef7d281555f445bed8379e14b0d8a, type: 3}
+  unlockDay: 15
+  spawnWeight: 0.15
+  introduction: Families are starting to visit! They come in groups of three or four,
+    and the little ones like to play. Give them room to enjoy their meals, and watch
+    for footprints on the floor.
+  orderingDurationMultiplier: 1
+  walkingSpeedMultiplier: 1
+  overrideTakeawayChance: 0
+  takeawayChance: 0.7
+  assistedPriorityService: 0
+  family: 1
+  childVisualScale: 0.65
+  childPlayInterval: 10
+  childPlayRadius: 1.5
+  childPlayTravelSeconds: 5
+  openingMessages:
+  - Hello! We're looking forward to our meal.
+  orderPatienceMultiplier: 1
+  linePatienceMultiplier: 1
+  eatDurationMultiplier: 1.5
+  tipAmount: 0
+  isMessy: 0

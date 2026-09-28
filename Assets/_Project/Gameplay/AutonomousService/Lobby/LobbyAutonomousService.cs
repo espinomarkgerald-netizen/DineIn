@@ -707,7 +707,9 @@ public class LobbyAutonomousService : MonoBehaviour
         yield return worker.MoveWithin(station.StaffApproach.position, counterServiceDistance, 1.5f, 20f);
         if (!worker.LastMoveSucceeded || group == null || station.Queue.CurrentFront != group) yield break;
         yield return worker.FaceTowards(station.Queue.OrderPoint.position);
-        yield return worker.WorkFor(station.CashierOrderSeconds);
+        group.BeginAssistedService(worker);
+        try { yield return worker.WorkFor(station.CashierOrderSeconds * group.OrderingDurationMultiplier); }
+        finally { if (group != null) group.EndAssistedService(worker); }
         if (group == null || station.Queue.CurrentFront != group || group.IsPlayerReviewingOrder) yield break;
         if (group.state == CustomerGroup.GroupState.ReadyToOrder &&
             !group.TakeOrderFromWaiter(group.chosenFood, group.chosenDrink, null)) yield break;

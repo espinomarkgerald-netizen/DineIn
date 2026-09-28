@@ -14,6 +14,22 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   displayName: Regular
   customerImage: {fileID: 21300000, guid: 47de1f5a57b288f4b86247c3204479a2, type: 3}
+  customerType: 0
+  customerPrefab: {fileID: 0}
+  unlockDay: 1
+  spawnWeight: 0.2
+  introduction: Our first guests are arriving! Green customers give us a little time,
+    so keep their orders moving and make them feel welcome.
+  orderingDurationMultiplier: 1
+  walkingSpeedMultiplier: 1
+  overrideTakeawayChance: 0
+  takeawayChance: 0.7
+  assistedPriorityService: 0
+  family: 0
+  childVisualScale: 0.65
+  childPlayInterval: 10
+  childPlayRadius: 1.5
+  childPlayTravelSeconds: 5
   openingMessages:
   - We're just here for a nice meal.
   - We're just looking forward to a good meal.

@@ -107,6 +107,38 @@ public class CustomerAgent : MonoBehaviour
     private int destinationIssuedFrame = -1;
     private Vector3 seatedNavMeshPosition;
     private bool navigationSuspendedForSeat;
+    public Vector3 SeatedApproachPosition => seatedNavMeshPosition;
+    private float campaignBaseSpeed;
+    private Vector3 campaignVisualScale;
+    private Vector3 campaignVisualPosition;
+    private bool campaignAppearanceCaptured;
+
+    internal void ConfigureCampaignAppearance(float speedMultiplier, float visualScale)
+    {
+        if (Agent == null) return;
+        if (!campaignAppearanceCaptured && Mathf.Approximately(speedMultiplier, 1f) && Mathf.Approximately(visualScale, 1f)) return;
+        if (!campaignAppearanceCaptured)
+        {
+            campaignBaseSpeed = Agent.speed;
+            if (animator != null) { campaignVisualScale = animator.transform.localScale; campaignVisualPosition = animator.transform.localPosition; }
+            campaignAppearanceCaptured = true;
+        }
+        Agent.speed = campaignBaseSpeed * Mathf.Max(.3f, speedMultiplier);
+        // Never resize the agent, collider, or navigation root. Keep the authored feet offset.
+        if (animator != null && animator.transform != transform)
+        {
+            animator.transform.localScale = campaignVisualScale;
+            animator.transform.localPosition = campaignVisualPosition;
+            var renderers = animator.GetComponentsInChildren<SkinnedMeshRenderer>();
+            float floor = float.PositiveInfinity;
+            foreach (var renderer in renderers) floor = Mathf.Min(floor, renderer.bounds.min.y);
+            animator.transform.localScale = campaignVisualScale * visualScale;
+            float resizedFloor = float.PositiveInfinity;
+            foreach (var renderer in renderers) resizedFloor = Mathf.Min(resizedFloor, renderer.bounds.min.y);
+            if (!float.IsInfinity(floor) && !float.IsInfinity(resizedFloor))
+                animator.transform.position += Vector3.up * (floor - resizedFloor);
+        }
+    }
     private Transform headAnchor;
     private AlienProceduralAnimation proceduralAnimation;
 

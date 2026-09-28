@@ -73,7 +73,14 @@ public class TakeoutQueueManager : MonoBehaviour
         if (queue.Contains(group) || leavingGroups.Contains(group))
             return;
 
-        queue.Add(group);
+        if (group.RequiresAssistedService)
+        {
+            // Never displace the guest already being served or reorder equal-priority arrivals.
+            int index = currentFront != null ? queue.IndexOf(currentFront) + 1 : 0;
+            while (index < queue.Count && queue[index] != null && queue[index].RequiresAssistedService) index++;
+            queue.Insert(index, group);
+        }
+        else queue.Add(group);
         RefreshQueue();
     }
 
@@ -138,7 +145,7 @@ public class TakeoutQueueManager : MonoBehaviour
 
                 if (!leavingGroups.Contains(released))
                     leavingGroups.Add(released);
-                departureDeadlines[released] = Time.time + maxExitTravelSeconds;
+                departureDeadlines[released] = Time.time + maxExitTravelSeconds * released.WalkingDurationMultiplier;
             }
             else
             {
@@ -177,7 +184,7 @@ public class TakeoutQueueManager : MonoBehaviour
 
             if (!leavingGroups.Contains(group))
                 leavingGroups.Add(group);
-            departureDeadlines[group] = Time.time + maxExitTravelSeconds;
+            departureDeadlines[group] = Time.time + maxExitTravelSeconds * group.WalkingDurationMultiplier;
         }
         else
         {
@@ -281,7 +288,7 @@ public class TakeoutQueueManager : MonoBehaviour
         }
 
         if (currentFrontMoveStartedAt >= 0f &&
-            Time.time - currentFrontMoveStartedAt >= maxFrontTravelSeconds)
+            Time.time - currentFrontMoveStartedAt >= maxFrontTravelSeconds * currentFront.WalkingDurationMultiplier)
         {
             if (currentFrontTravelRetries < maxFrontTravelRetries)
             {
@@ -346,7 +353,7 @@ public class TakeoutQueueManager : MonoBehaviour
             }
 
             if (!departureDeadlines.TryGetValue(group, out float deadline))
-                departureDeadlines[group] = deadline = Time.time + maxExitTravelSeconds;
+                departureDeadlines[group] = deadline = Time.time + maxExitTravelSeconds * group.WalkingDurationMultiplier;
             bool timedOut = Time.time >= deadline;
             if (exitPoint == null || HasGroupReachedTransform(group, exitPoint) || timedOut)
             {

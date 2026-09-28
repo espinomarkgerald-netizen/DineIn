@@ -60,6 +60,7 @@ public sealed class FastFoodRestaurant : MonoBehaviour
         return count;
     }
     public bool CanAdmitCustomer => acceptingCustomers && ChooseStation(false) != null;
+    public bool CanAdmitAssistedCustomer => acceptingCustomers && ChooseStation(true) != null;
     public int LargestAvailableTableCapacity
     {
         get
@@ -300,7 +301,7 @@ public sealed class FastFoodRestaurant : MonoBehaviour
             group.FailFastFoodService("Counter service is unavailable.");
             return true;
         }
-        var station = ChooseStation(false);
+        var station = ChooseStation(group.RequiresAssistedService);
         // The spawner checks capacity before creating a group; guard direct callers too.
         if (station == null) { Destroy(group.gameObject); return true; }
         stationOwners[group] = station;
@@ -343,7 +344,7 @@ public sealed class FastFoodRestaurant : MonoBehaviour
         StationFor(group)?.Queue.Remove(group); // Detach without sending this paid customer to the exit.
         StationFor(group)?.Flow.ForceRelease(group);
         paid.Add(group);
-        group.FastFoodSelfPickup = group.FastFoodDineIn &&
+        group.FastFoodSelfPickup = group.FastFoodDineIn && !group.RequiresAssistedService &&
             group.CurrentCustomerType != CustomerGroup.CustomerType.Pink && Random.value >=
             (FastFoodProgressionSettings.Current != null ? FastFoodProgressionSettings.Current.tableDeliveryChance : tableDeliveryChance);
         PlaceInWaitingArea(group);
@@ -414,6 +415,7 @@ public sealed class FastFoodRestaurant : MonoBehaviour
         foreach (var group in new List<CustomerGroup>(seatWait.Keys))
         {
             if (group == null || !paid.Contains(group) || !group.FastFoodAwaitingSeat) { seatWait.Remove(group); continue; }
+            if (group.RequiresAssistedService && group.state == CustomerGroup.GroupState.WalkingToBooth) continue;
             seatWait[group] += seatCheckInterval;
             if (seatWait[group] >= seatWaitSeconds)
             { seatWait.Remove(group); group.FailFastFoodService("A suitable table was not available in time."); }
@@ -421,8 +423,14 @@ public sealed class FastFoodRestaurant : MonoBehaviour
         // A prepaid remake reuses the kitchen and never creates a waiter ticket or second bill.
         foreach (var group in paid.ToArray())
             if (group != null && group.NeedsFastFoodRemake) group.TryConfirmFastFoodRemake();
-        // Oldest compatible paid group gets the next seat. Reserve synchronously.
-        foreach (CustomerGroup group in paid.ToArray())
+        // Assisted guests receive priority among waiting groups; existing reservations never move.
+        var seatingOrder = paid.ToArray();
+        System.Array.Sort(seatingOrder, (a, b) =>
+        {
+            int priority = b.RequiresAssistedService.CompareTo(a.RequiresAssistedService);
+            return priority != 0 ? priority : paid.IndexOf(a).CompareTo(paid.IndexOf(b));
+        });
+        foreach (CustomerGroup group in seatingOrder)
         {
             if (!group.CanChooseFastFoodSeat) continue;
             if (diningTables == null) continue;

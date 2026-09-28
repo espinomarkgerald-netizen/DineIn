@@ -1,0 +1,39 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 140633127913287428aff3eb3ff345e5, type: 3}
+  m_Name: PurpleCustomer
+  m_EditorClassIdentifier: 
+  displayName: Purple
+  customerImage: {fileID: 21300000, guid: 0dcba05a6ff31f648a8e12e493fecc8a, type: 3}
+  customerType: 3
+  customerPrefab: {fileID: 8263569837155767944, guid: a95c1bebb40fa774bae009fafe97f84f, type: 3}
+  unlockDay: 2
+  spawnWeight: 0.7
+  introduction: Word is spreading about our restaurant! Purple guests are starting
+    to stop by. Keep their orders moving and the restaurant welcoming.
+  orderingDurationMultiplier: 1
+  walkingSpeedMultiplier: 1
+  overrideTakeawayChance: 0
+  takeawayChance: 0.7
+  assistedPriorityService: 0
+  family: 0
+  childVisualScale: 0.65
+  childPlayInterval: 10
+  childPlayRadius: 1.5
+  childPlayTravelSeconds: 5
+  openingMessages:
+  - Hello! We're looking forward to our meal.
+  orderPatienceMultiplier: 1
+  linePatienceMultiplier: 1
+  eatDurationMultiplier: 1
+  tipAmount: 0
+  isMessy: 0

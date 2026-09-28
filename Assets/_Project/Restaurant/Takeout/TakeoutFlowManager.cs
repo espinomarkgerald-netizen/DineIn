@@ -317,6 +317,9 @@ public class TakeoutFlowManager : MonoBehaviour
             return;
         if (activeGroup.WaitingForStock && currentPhase == TakeoutPhase.WaitingForOrder)
         { phaseStartedAt += Time.deltaTime; return; }
+        if (activeGroup.RequiresAssistedService && (activeGroup.ReceivingAssistedService ||
+            activeGroup.state == CustomerGroup.GroupState.WaitingToOrder))
+        { phaseStartedAt += Time.deltaTime; return; }
         if (activeGroup.FastFood != null && (activeGroup.IsPlayerReviewingOrder ||
             CashierRegisterUI.Instance?.IsOpenFor(activeGroup) == true ||
             CardPaymentUI.Instance?.IsOpenFor(activeGroup) == true))

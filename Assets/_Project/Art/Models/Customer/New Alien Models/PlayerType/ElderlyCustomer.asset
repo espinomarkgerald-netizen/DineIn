@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 140633127913287428aff3eb3ff345e5, type: 3}
+  m_Name: ElderlyCustomer
+  m_EditorClassIdentifier: 
+  displayName: Elderly
+  customerImage: {fileID: 21300000, guid: 875a7b0a630f8134187071ec56f81329, type: 3}
+  customerType: 5
+  customerPrefab: {fileID: 777521767026231550, guid: f7208c53416cb90458a4eaee39b772bc, type: 3}
+  unlockDay: 10
+  spawnWeight: 0.15
+  introduction: We'll be welcoming some older guests today. They need more time to
+    walk and choose their meals, but don't like being kept waiting. Give them priority
+    at the counter, and bring dine-in meals to their table.
+  orderingDurationMultiplier: 1.4
+  walkingSpeedMultiplier: 0.7
+  overrideTakeawayChance: 0
+  takeawayChance: 0.7
+  assistedPriorityService: 1
+  family: 0
+  childVisualScale: 0.65
+  childPlayInterval: 10
+  childPlayRadius: 1.5
+  childPlayTravelSeconds: 5
+  openingMessages:
+  - Hello! We're looking forward to our meal.
+  orderPatienceMultiplier: 3
+  linePatienceMultiplier: 3
+  eatDurationMultiplier: 1
+  tipAmount: 0
+  isMessy: 0

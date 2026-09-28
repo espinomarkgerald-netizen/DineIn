@@ -60,9 +60,13 @@ public partial class CustomerGroup : MonoBehaviour
 
     public enum CustomerType
     {
-        Green,
-        Pink,
-        Blue
+        Green = 0,
+        Pink = 1,
+        Blue = 2,
+        Purple = 3,
+        Orange = 4,
+        Elderly = 5,
+        Yellow = 6
     }
 
     [Serializable]
@@ -347,6 +351,7 @@ public partial class CustomerGroup : MonoBehaviour
     {
         get
         {
+            if (visitProfile != null) return visitProfile;
             switch (customerType)
             {
                 case CustomerType.Pink:
@@ -835,6 +840,7 @@ public partial class CustomerGroup : MonoBehaviour
 
     public void SetCustomerType(CustomerType type)
     {
+        ConfigureCampaignVisit(null);
         customerType = type;
 
         if (Profile == null)
@@ -1246,7 +1252,7 @@ public partial class CustomerGroup : MonoBehaviour
 
         if (!resumed)
         {
-            float delay = UnityEngine.Random.Range(minOrderDelay, maxOrderDelay);
+            float delay = UnityEngine.Random.Range(minOrderDelay, maxOrderDelay) * OrderingDurationMultiplier;
             yield return new WaitForSeconds(delay);
         }
 
@@ -1298,7 +1304,7 @@ public partial class CustomerGroup : MonoBehaviour
         while (state == GroupState.ReadyToOrder)
         {
             if (HandleGlobalStockout()) yield break;
-            if (!isOrderPaused)
+            if (!isOrderPaused && !ReceivingAssistedService)
             {
                 float mult = Profile != null
                     ? Mathf.Max(0.01f, Profile.orderPatienceMultiplier)
@@ -2480,7 +2486,9 @@ public partial class CustomerGroup : MonoBehaviour
             // Keep Eating paused: NeedsBill also exposes bill gameplay to other systems.
             yield break;
         }
+        BeginFamilyPlay();
         yield return new WaitForSeconds(eat);
+        StopFamilyPlay();
 
         eatingRoutine = null;
         ClearEatingBubble();
@@ -2648,6 +2656,7 @@ public partial class CustomerGroup : MonoBehaviour
 
     private void StartLeaving(bool unused)
     {
+        StopFamilyPlay();
         if (!CanDecideCustomerOutcome) return;
         if (leavingRoutineStarted) return;
         WaitingForStock = false;
@@ -2731,10 +2740,15 @@ public partial class CustomerGroup : MonoBehaviour
                 var member = members[i];
                 if (member == null) continue;
 
-                member.Unseat();
+                if (member.IsSeated || visitProfile == null) member.Unseat();
 
-                if (member.Agent != null) member.Agent.Warp(departurePosition);
-                else member.transform.position = departurePosition;
+                // New visits leave from their real navigation position, including children already playing.
+                // Preserve the legacy departure staging for existing customers.
+                if (visitProfile == null)
+                {
+                    if (member.Agent != null) member.Agent.Warp(departurePosition);
+                    else member.transform.position = departurePosition;
+                }
             }
         }
 
@@ -2774,7 +2788,7 @@ public partial class CustomerGroup : MonoBehaviour
                 targets[i] = resolvedTarget;
         }
 
-        const float departureTimeout = 12f;
+        float departureTimeout = 12f * WalkingDurationMultiplier;
         float elapsed = 0f;
         float repathTimer = 0f;
 
@@ -3085,6 +3099,8 @@ public partial class CustomerGroup : MonoBehaviour
 
     private void CleanupOnLeave()
     {
+        StopFamilyPlay();
+        assistedServiceOwner = null;
         if (cleanupDone) return;
         cleanupDone = true;
 
@@ -3479,6 +3495,9 @@ public partial class CustomerGroup : MonoBehaviour
 
     private bool CanUseLinePatience()
     {
+        if (RequiresAssistedService && FastFood != null && !FastFoodPaid)
+            return !linePatienceExpired && !ReceivingAssistedService && !IsPlayerReviewingOrder &&
+                state == GroupState.Waiting && CurrentTakeoutQueueState == TakeoutQueueState.WaitingInQueue;
         if (IsTakeout) return false;
         if (linePatienceExpired) return false;
         if (hasBeenAssigned) return false;

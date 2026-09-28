@@ -48286,6 +48286,7 @@ MonoBehaviour:
   - {fileID: 1045950190}
   - {fileID: 1192554734}
   hotbarContainer: {fileID: 512015649}
+  cleaningProgressAnchor: {fileID: 0}
   hotbarMaximumWidth: 760
   hotbarScreenFraction: 0.46
   hotbarCellRange: {x: 96, y: 128}
@@ -70387,14 +70388,23 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: db930d8e3bdfe1a4ba6fedb064fd75a7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  campaignCustomers:
+  - {fileID: 11400000, guid: cb09512fd3d4b44468ed6de651a51d0c, type: 2}
+  - {fileID: 11400000, guid: ed016c5e53873bf45a16146d134b158b, type: 2}
+  - {fileID: 11400000, guid: 199b862f6e17a3e42810c9e44bc7cee3, type: 2}
+  - {fileID: 11400000, guid: 2b3335fab948dd748b33fe4dcc24233f, type: 2}
+  - {fileID: 11400000, guid: e5df3b04730d5d34c9c289cd7e350f8a, type: 2}
+  - {fileID: 11400000, guid: 424a71e46cfd0a0439b8d4b4e4c23057, type: 2}
+  - {fileID: 11400000, guid: f2fb682254cab994d8453ab13892f08e, type: 2}
   groupPrefab: {fileID: 5685048958830651254, guid: e648dd96d49dc8e47b7619a38d214a10, type: 3}
   maxZoomInBubbleOffsetPixels: 200
   maxZoomOutBubbleOffsetPixels: 40
   customerPrefabGreen: {fileID: 3449015583176590222, guid: 62cec5e897988a94ab61176ffdf07e3a, type: 3}
   customerPrefabPink: {fileID: 3449015583176590222, guid: dcecce53ddca08c4c9737b501aa9cc25, type: 3}
   customerPrefabBlue: {fileID: 3449015583176590222, guid: 2ac0d442e43602440a5783c4290b730b, type: 3}
-  greenEnabled: 0
-  pinkEnabled: 0
+  regularCustomerVisualVariants: []
+  greenEnabled: 1
+  pinkEnabled: 1
   blueEnabled: 1
   spawnPoint: {fileID: 890000000000000002}
   lobbyLine: {fileID: 519868826}
@@ -235739,6 +235749,26 @@ PrefabInstance:
       propertyPath: seatingUpgrade
       value: 
       objectReference: {fileID: 11400000, guid: e7e83e61760aeb24c89f393e469e2d8d, type: 2}
+    - target: {fileID: 870000000000000040, guid: f80437f06f5955898183769cf39a4757, type: 3}
+      propertyPath: familyPlayEnabled
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000040, guid: f80437f06f5955898183769cf39a4757, type: 3}
+      propertyPath: familyPlayBounds.m_Center.x
+      value: -4.199999
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000040, guid: f80437f06f5955898183769cf39a4757, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.x
+      value: 2.3999996
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000040, guid: f80437f06f5955898183769cf39a4757, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.y
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000040, guid: f80437f06f5955898183769cf39a4757, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.z
+      value: 2.4000015
+      objectReference: {fileID: 0}
     - target: {fileID: 2379262113271955542, guid: f80437f06f5955898183769cf39a4757, type: 3}
       propertyPath: m_Materials.Array.size
       value: 3
@@ -235836,6 +235866,26 @@ PrefabInstance:
       propertyPath: seatingUpgrade
       value: 
       objectReference: {fileID: 11400000, guid: 1ea51189f616a3342b991ef4160fda7a, type: 2}
+    - target: {fileID: 870000000000000040, guid: f80437f06f5955898183769cf39a4757, type: 3}
+      propertyPath: familyPlayEnabled
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000040, guid: f80437f06f5955898183769cf39a4757, type: 3}
+      propertyPath: familyPlayBounds.m_Center.x
+      value: -4.199999
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000040, guid: f80437f06f5955898183769cf39a4757, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.x
+      value: 2.3999996
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000040, guid: f80437f06f5955898183769cf39a4757, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.y
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000040, guid: f80437f06f5955898183769cf39a4757, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.z
+      value: 2.3999996
+      objectReference: {fileID: 0}
     - target: {fileID: 2379262113271955542, guid: f80437f06f5955898183769cf39a4757, type: 3}
       propertyPath: m_Materials.Array.size
       value: 3
@@ -235929,6 +235979,26 @@ PrefabInstance:
       propertyPath: seatingUpgrade
       value: 
       objectReference: {fileID: 11400000, guid: f0b381fe51589f243aa1c0db72d15fdb, type: 2}
+    - target: {fileID: 870000000000000040, guid: f80437f06f5955898183769cf39a4757, type: 3}
+      propertyPath: familyPlayEnabled
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000040, guid: f80437f06f5955898183769cf39a4757, type: 3}
+      propertyPath: familyPlayBounds.m_Center.x
+      value: -4.199999
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000040, guid: f80437f06f5955898183769cf39a4757, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.x
+      value: 2.3999996
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000040, guid: f80437f06f5955898183769cf39a4757, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.y
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000040, guid: f80437f06f5955898183769cf39a4757, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.z
+      value: 2.4
+      objectReference: {fileID: 0}
     - target: {fileID: 2379262113271955542, guid: f80437f06f5955898183769cf39a4757, type: 3}
       propertyPath: m_Materials.Array.size
       value: 3
@@ -236022,6 +236092,30 @@ PrefabInstance:
       propertyPath: seatingUpgrade
       value: 
       objectReference: {fileID: 11400000, guid: 18fd5467994425e4691a171a8cb05953, type: 2}
+    - target: {fileID: 870000000000000040, guid: f80437f06f5955898183769cf39a4757, type: 3}
+      propertyPath: familyPlayEnabled
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000040, guid: f80437f06f5955898183769cf39a4757, type: 3}
+      propertyPath: familyPlayBounds.m_Center.x
+      value: -4.199999
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000040, guid: f80437f06f5955898183769cf39a4757, type: 3}
+      propertyPath: familyPlayBounds.m_Center.z
+      value: -0.00000023841858
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000040, guid: f80437f06f5955898183769cf39a4757, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.x
+      value: 2.3999996
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000040, guid: f80437f06f5955898183769cf39a4757, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.y
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000040, guid: f80437f06f5955898183769cf39a4757, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.z
+      value: 2.4000003
+      objectReference: {fileID: 0}
     - target: {fileID: 2379262113271955542, guid: f80437f06f5955898183769cf39a4757, type: 3}
       propertyPath: m_Materials.Array.size
       value: 3
@@ -236119,6 +236213,30 @@ PrefabInstance:
       propertyPath: seatingUpgrade
       value: 
       objectReference: {fileID: 11400000, guid: 659f371ab1721cc41b551f684690c8c7, type: 2}
+    - target: {fileID: 870000000000000040, guid: f80437f06f5955898183769cf39a4757, type: 3}
+      propertyPath: familyPlayEnabled
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000040, guid: f80437f06f5955898183769cf39a4757, type: 3}
+      propertyPath: familyPlayBounds.m_Center.x
+      value: 4.200001
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000040, guid: f80437f06f5955898183769cf39a4757, type: 3}
+      propertyPath: familyPlayBounds.m_Center.z
+      value: -0.00000023841858
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000040, guid: f80437f06f5955898183769cf39a4757, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.x
+      value: 2.4000015
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000040, guid: f80437f06f5955898183769cf39a4757, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.y
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000040, guid: f80437f06f5955898183769cf39a4757, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.z
+      value: 2.4000003
+      objectReference: {fileID: 0}
     - target: {fileID: 2379262113271955542, guid: f80437f06f5955898183769cf39a4757, type: 3}
       propertyPath: m_Materials.Array.size
       value: 3
@@ -236216,6 +236334,26 @@ PrefabInstance:
       propertyPath: seatingUpgrade
       value: 
       objectReference: {fileID: 11400000, guid: de8e15b0100305648ab4e60c7d1c4120, type: 2}
+    - target: {fileID: 870000000000000040, guid: f80437f06f5955898183769cf39a4757, type: 3}
+      propertyPath: familyPlayEnabled
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000040, guid: f80437f06f5955898183769cf39a4757, type: 3}
+      propertyPath: familyPlayBounds.m_Center.x
+      value: 4.200001
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000040, guid: f80437f06f5955898183769cf39a4757, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.x
+      value: 2.4000015
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000040, guid: f80437f06f5955898183769cf39a4757, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.y
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000040, guid: f80437f06f5955898183769cf39a4757, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.z
+      value: 2.4
+      objectReference: {fileID: 0}
     - target: {fileID: 2379262113271955542, guid: f80437f06f5955898183769cf39a4757, type: 3}
       propertyPath: m_Materials.Array.size
       value: 3
@@ -236313,6 +236451,26 @@ PrefabInstance:
       propertyPath: seatingUpgrade
       value: 
       objectReference: {fileID: 11400000, guid: c7373f615e95aff4d9156be2e0900b48, type: 2}
+    - target: {fileID: 870000000000000040, guid: f80437f06f5955898183769cf39a4757, type: 3}
+      propertyPath: familyPlayEnabled
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000040, guid: f80437f06f5955898183769cf39a4757, type: 3}
+      propertyPath: familyPlayBounds.m_Center.x
+      value: 4.200001
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000040, guid: f80437f06f5955898183769cf39a4757, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.x
+      value: 2.4000015
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000040, guid: f80437f06f5955898183769cf39a4757, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.y
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000040, guid: f80437f06f5955898183769cf39a4757, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.z
+      value: 2.3999996
+      objectReference: {fileID: 0}
     - target: {fileID: 2379262113271955542, guid: f80437f06f5955898183769cf39a4757, type: 3}
       propertyPath: m_Materials.Array.size
       value: 3
@@ -236410,6 +236568,26 @@ PrefabInstance:
       propertyPath: seatingUpgrade
       value: 
       objectReference: {fileID: 11400000, guid: 1a7bbd734f6750f46b821ff902300a78, type: 2}
+    - target: {fileID: 870000000000000040, guid: f80437f06f5955898183769cf39a4757, type: 3}
+      propertyPath: familyPlayEnabled
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000040, guid: f80437f06f5955898183769cf39a4757, type: 3}
+      propertyPath: familyPlayBounds.m_Center.x
+      value: 4.200001
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000040, guid: f80437f06f5955898183769cf39a4757, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.x
+      value: 2.4000015
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000040, guid: f80437f06f5955898183769cf39a4757, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.y
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000040, guid: f80437f06f5955898183769cf39a4757, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.z
+      value: 2.4000015
+      objectReference: {fileID: 0}
     - target: {fileID: 2379262113271955542, guid: f80437f06f5955898183769cf39a4757, type: 3}
       propertyPath: m_Materials.Array.size
       value: 3
@@ -236499,6 +236677,26 @@ PrefabInstance:
       propertyPath: seatingUpgrade
       value: 
       objectReference: {fileID: 11400000, guid: ad60f4652f85eaa49a5f0c1317d926a7, type: 2}
+    - target: {fileID: 870000000000000188, guid: 3151432507ec58faabadcd732d8b0536, type: 3}
+      propertyPath: familyPlayEnabled
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000188, guid: 3151432507ec58faabadcd732d8b0536, type: 3}
+      propertyPath: familyPlayBounds.m_Center.z
+      value: 2.4999998
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000188, guid: 3151432507ec58faabadcd732d8b0536, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.x
+      value: 2.4000006
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000188, guid: 3151432507ec58faabadcd732d8b0536, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.y
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000188, guid: 3151432507ec58faabadcd732d8b0536, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.z
+      value: 2.4000003
+      objectReference: {fileID: 0}
     - target: {fileID: 4613601065873456851, guid: 3151432507ec58faabadcd732d8b0536, type: 3}
       propertyPath: m_Mesh
       value: 
@@ -236604,6 +236802,26 @@ PrefabInstance:
       propertyPath: seatingUpgrade
       value: 
       objectReference: {fileID: 11400000, guid: a1927afad9317f54aa52dc5a6a792d99, type: 2}
+    - target: {fileID: 870000000000000188, guid: 3151432507ec58faabadcd732d8b0536, type: 3}
+      propertyPath: familyPlayEnabled
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000188, guid: 3151432507ec58faabadcd732d8b0536, type: 3}
+      propertyPath: familyPlayBounds.m_Center.z
+      value: 2.4999998
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000188, guid: 3151432507ec58faabadcd732d8b0536, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.x
+      value: 2.4
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000188, guid: 3151432507ec58faabadcd732d8b0536, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.y
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000188, guid: 3151432507ec58faabadcd732d8b0536, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.z
+      value: 2.4000003
+      objectReference: {fileID: 0}
     - target: {fileID: 4613601065873456851, guid: 3151432507ec58faabadcd732d8b0536, type: 3}
       propertyPath: m_Mesh
       value: 
@@ -236705,6 +236923,26 @@ PrefabInstance:
       propertyPath: seatingUpgrade
       value: 
       objectReference: {fileID: 11400000, guid: d49e6b645c9aefa408dad0d56267eb9a, type: 2}
+    - target: {fileID: 870000000000000188, guid: 3151432507ec58faabadcd732d8b0536, type: 3}
+      propertyPath: familyPlayEnabled
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000188, guid: 3151432507ec58faabadcd732d8b0536, type: 3}
+      propertyPath: familyPlayBounds.m_Center.z
+      value: 2.4999998
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000188, guid: 3151432507ec58faabadcd732d8b0536, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.x
+      value: 2.4
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000188, guid: 3151432507ec58faabadcd732d8b0536, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.y
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000188, guid: 3151432507ec58faabadcd732d8b0536, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.z
+      value: 2.4000003
+      objectReference: {fileID: 0}
     - target: {fileID: 4613601065873456851, guid: 3151432507ec58faabadcd732d8b0536, type: 3}
       propertyPath: m_Mesh
       value: 
@@ -236806,6 +237044,26 @@ PrefabInstance:
       propertyPath: seatingUpgrade
       value: 
       objectReference: {fileID: 11400000, guid: eb2b11138b12386448621b47499363db, type: 2}
+    - target: {fileID: 870000000000000188, guid: 3151432507ec58faabadcd732d8b0536, type: 3}
+      propertyPath: familyPlayEnabled
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000188, guid: 3151432507ec58faabadcd732d8b0536, type: 3}
+      propertyPath: familyPlayBounds.m_Center.z
+      value: 2.4999998
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000188, guid: 3151432507ec58faabadcd732d8b0536, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.x
+      value: 2.4000006
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000188, guid: 3151432507ec58faabadcd732d8b0536, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.y
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000188, guid: 3151432507ec58faabadcd732d8b0536, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.z
+      value: 2.4000003
+      objectReference: {fileID: 0}
     - target: {fileID: 4613601065873456851, guid: 3151432507ec58faabadcd732d8b0536, type: 3}
       propertyPath: m_Mesh
       value: 
@@ -236907,6 +237165,26 @@ PrefabInstance:
       propertyPath: seatingUpgrade
       value: 
       objectReference: {fileID: 11400000, guid: 69c284f5c7d510b489a6f797cad91f61, type: 2}
+    - target: {fileID: 870000000000000188, guid: 3151432507ec58faabadcd732d8b0536, type: 3}
+      propertyPath: familyPlayEnabled
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000188, guid: 3151432507ec58faabadcd732d8b0536, type: 3}
+      propertyPath: familyPlayBounds.m_Center.z
+      value: 2.4999998
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000188, guid: 3151432507ec58faabadcd732d8b0536, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.x
+      value: 2.3999996
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000188, guid: 3151432507ec58faabadcd732d8b0536, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.y
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000188, guid: 3151432507ec58faabadcd732d8b0536, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.z
+      value: 2.4000003
+      objectReference: {fileID: 0}
     - target: {fileID: 4613601065873456851, guid: 3151432507ec58faabadcd732d8b0536, type: 3}
       propertyPath: m_Mesh
       value: 
@@ -237052,6 +237330,30 @@ PrefabInstance:
       propertyPath: seatingUpgrade
       value: 
       objectReference: {fileID: 11400000, guid: 80931ce04659f7a48abd883e66fa0b97, type: 2}
+    - target: {fileID: 870000000000000267, guid: 7abbb7fb86195f918476a8cd3e36434d, type: 3}
+      propertyPath: familyPlayEnabled
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000267, guid: 7abbb7fb86195f918476a8cd3e36434d, type: 3}
+      propertyPath: familyPlayBounds.m_Center.x
+      value: 4.2
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000267, guid: 7abbb7fb86195f918476a8cd3e36434d, type: 3}
+      propertyPath: familyPlayBounds.m_Center.z
+      value: 0.0000009536743
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000267, guid: 7abbb7fb86195f918476a8cd3e36434d, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.x
+      value: 2.3999996
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000267, guid: 7abbb7fb86195f918476a8cd3e36434d, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.y
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000267, guid: 7abbb7fb86195f918476a8cd3e36434d, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.z
+      value: 2.4000006
+      objectReference: {fileID: 0}
     - target: {fileID: 1603982332881726483, guid: 7abbb7fb86195f918476a8cd3e36434d, type: 3}
       propertyPath: m_LocalScale.x
       value: 300
@@ -237173,6 +237475,26 @@ PrefabInstance:
       propertyPath: seatingUpgrade
       value: 
       objectReference: {fileID: 11400000, guid: ab2fbaab7ce75b042b5d496dfecd2564, type: 2}
+    - target: {fileID: 870000000000000267, guid: 7abbb7fb86195f918476a8cd3e36434d, type: 3}
+      propertyPath: familyPlayEnabled
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000267, guid: 7abbb7fb86195f918476a8cd3e36434d, type: 3}
+      propertyPath: familyPlayBounds.m_Center.x
+      value: 4.2
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000267, guid: 7abbb7fb86195f918476a8cd3e36434d, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.x
+      value: 2.3999996
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000267, guid: 7abbb7fb86195f918476a8cd3e36434d, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.y
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 870000000000000267, guid: 7abbb7fb86195f918476a8cd3e36434d, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.z
+      value: 2.3999996
+      objectReference: {fileID: 0}
     - target: {fileID: 1603982332881726483, guid: 7abbb7fb86195f918476a8cd3e36434d, type: 3}
       propertyPath: m_LocalScale.x
       value: 300
@@ -242088,6 +242410,26 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 7501815432494379877, guid: b0871ffd0119cc147a2c47ccd9cbb040, type: 3}
+      propertyPath: familyPlayEnabled
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7501815432494379877, guid: b0871ffd0119cc147a2c47ccd9cbb040, type: 3}
+      propertyPath: familyPlayBounds.m_Center.x
+      value: -5.646122
+      objectReference: {fileID: 0}
+    - target: {fileID: 7501815432494379877, guid: b0871ffd0119cc147a2c47ccd9cbb040, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.x
+      value: 2.4000015
+      objectReference: {fileID: 0}
+    - target: {fileID: 7501815432494379877, guid: b0871ffd0119cc147a2c47ccd9cbb040, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.y
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7501815432494379877, guid: b0871ffd0119cc147a2c47ccd9cbb040, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.z
+      value: 2.4
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -243686,6 +244028,26 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 7163229701328506162, guid: 702c818a1754c5948a7a26203e7c1c97, type: 3}
+      propertyPath: familyPlayEnabled
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7163229701328506162, guid: 702c818a1754c5948a7a26203e7c1c97, type: 3}
+      propertyPath: familyPlayBounds.m_Center.x
+      value: -5.646122
+      objectReference: {fileID: 0}
+    - target: {fileID: 7163229701328506162, guid: 702c818a1754c5948a7a26203e7c1c97, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.x
+      value: 2.4000015
+      objectReference: {fileID: 0}
+    - target: {fileID: 7163229701328506162, guid: 702c818a1754c5948a7a26203e7c1c97, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.y
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7163229701328506162, guid: 702c818a1754c5948a7a26203e7c1c97, type: 3}
+      propertyPath: familyPlayBounds.m_Extent.z
+      value: 2.3999996
+      objectReference: {fileID: 0}
     - target: {fileID: 7595720312325852018, guid: 702c818a1754c5948a7a26203e7c1c97, type: 3}
       propertyPath: m_LocalPosition.x
       value: 49.546124

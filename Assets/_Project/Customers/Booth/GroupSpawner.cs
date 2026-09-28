@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public class GroupSpawner : MonoBehaviour
+public partial class GroupSpawner : MonoBehaviour
 {
     public System.Func<bool> SpawnPermission { get; set; }
     public event System.Action<CustomerGroup, bool> GroupCreated;
@@ -23,6 +23,8 @@ public class GroupSpawner : MonoBehaviour
     [SerializeField] private CustomerAgent customerPrefabGreen;
     [SerializeField] private CustomerAgent customerPrefabPink;
     [SerializeField] private CustomerAgent customerPrefabBlue;
+    [Tooltip("Optional regular-customer visual variants. The original green prefab remains in the selection. Empty keeps existing behavior.")]
+    [SerializeField] private CustomerAgent[] regularCustomerVisualVariants;
 
     [Header("Customer Type Availability")]
     [SerializeField] private bool greenEnabled = true;
@@ -144,6 +146,7 @@ public class GroupSpawner : MonoBehaviour
 
     public void SetCustomerTypeAvailability(bool green, bool pink, bool blue)
     {
+        if (NormalFastFood) green = pink = blue = true;
         greenEnabled = green;
         pinkEnabled = pink;
         blueEnabled = blue;
@@ -169,6 +172,8 @@ public class GroupSpawner : MonoBehaviour
 
     public bool IsCustomerTypeEnabled(CustomerGroup.CustomerType type)
     {
+        if ((int)type >= 3) return IsAdditionalTypeEligible(ProfileFor(type));
+        if (NormalFastFood) return true;
         switch (type)
         {
             case CustomerGroup.CustomerType.Pink:
@@ -184,10 +189,12 @@ public class GroupSpawner : MonoBehaviour
 
     private CustomerGroup.CustomerType PickCustomerType()
     {
-        float green = greenEnabled ? Mathf.Max(0f, weightGreen) : 0f;
-        float pink = pinkEnabled ? Mathf.Max(0f, weightPink) : 0f;
-        float blue = blueEnabled ? Mathf.Max(0f, weightBlue) : 0f;
+        float green = IsCustomerTypeEnabled(CustomerGroup.CustomerType.Green) ? Mathf.Max(0f, weightGreen) : 0f;
+        float pink = IsCustomerTypeEnabled(CustomerGroup.CustomerType.Pink) ? Mathf.Max(0f, weightPink) : 0f;
+        float blue = IsCustomerTypeEnabled(CustomerGroup.CustomerType.Blue) ? Mathf.Max(0f, weightBlue) : 0f;
         float total = green + pink + blue;
+        foreach (var profile in campaignCustomers)
+            if (IsAdditionalTypeEligible(profile)) total += Mathf.Max(0f, profile.spawnWeight);
 
         if (total <= 0f)
         {
@@ -205,11 +212,20 @@ public class GroupSpawner : MonoBehaviour
         if (roll < green + pink)
             return CustomerGroup.CustomerType.Pink;
 
-        return CustomerGroup.CustomerType.Blue;
+        if (roll < green + pink + blue) return CustomerGroup.CustomerType.Blue;
+        roll -= green + pink + blue;
+        foreach (var profile in campaignCustomers)
+        {
+            if (!IsAdditionalTypeEligible(profile)) continue;
+            roll -= Mathf.Max(0f, profile.spawnWeight);
+            if (roll < 0f) return profile.customerType;
+        }
+        return CustomerGroup.CustomerType.Green;
     }
 
     private CustomerAgent GetCustomerPrefabForType(CustomerGroup.CustomerType type)
     {
+        if ((int)type >= 3) return ProfileFor(type)?.customerPrefab;
         switch (type)
         {
             case CustomerGroup.CustomerType.Pink:
@@ -219,6 +235,12 @@ public class GroupSpawner : MonoBehaviour
                 return customerPrefabBlue != null ? customerPrefabBlue : customerPrefabGreen;
 
             default:
+                if (regularCustomerVisualVariants != null && regularCustomerVisualVariants.Length > 0)
+                {
+                    int visualIndex = Random.Range(0, regularCustomerVisualVariants.Length + 1);
+                    if (visualIndex > 0 && regularCustomerVisualVariants[visualIndex - 1] != null)
+                        return regularCustomerVisualVariants[visualIndex - 1];
+                }
                 return customerPrefabGreen;
         }
     }
@@ -248,6 +270,12 @@ public class GroupSpawner : MonoBehaviour
         }
 
         CustomerGroup.CustomerType type = PickCustomerType();
+        float takeoutRoll = Random.value;
+        var coach = RestaurantBossTips.Instance != null ? RestaurantBossTips.Instance.GetComponent<RestaurantUnlockCoach>() : null;
+        if (CampaignSaveStore.RuntimeCampaign && coach != null && coach.TryGetEncounter(this, takeoutRoll, out var introductionType))
+            type = introductionType;
+        var visit = NormalFastFood && (int)type >= 3 ? ProfileFor(type) : null;
+        if (visit != null && visit.assistedPriorityService && (admission == null || !admission.CanAdmitAssistedCustomer)) return null;
         CustomerAgent memberPrefab = GetCustomerPrefabForType(type);
 
         if (memberPrefab == null)
@@ -256,16 +284,22 @@ public class GroupSpawner : MonoBehaviour
             return null;
         }
 
-        float takeoutRoll = Random.value;
         bool spawnAsTakeout = admission != null
             ? admission.ShouldSpawnTakeout(takeoutRoll)
             : takeoutEnabled && takeoutQueueManager != null && takeoutRoll < takeoutSpawnChance;
+        if (visit != null && visit.overrideTakeawayChance)
+            spawnAsTakeout = takeoutRoll < visit.takeawayChance;
 
         if (takeoutEnabled && takeoutQueueManager == null)
             Debug.LogWarning("[GroupSpawner] Takeout is enabled but TakeoutQueueManager is missing. Falling back to dine-in.");
 
         int effectiveMaxGroupSize = Mathf.Max(1, maxGroupSize);
-        if (spawnAsTakeout)
+        if (visit != null && visit.family)
+        {
+            effectiveMaxGroupSize = 4;
+            if (!spawnAsTakeout) effectiveMaxGroupSize = Mathf.Min(4, admission.LargestAvailableTableCapacity);
+        }
+        else if (spawnAsTakeout)
             effectiveMaxGroupSize = Mathf.Clamp(maxTakeoutGroupSize, 1, 2);
         else if (admission != null)
         {
@@ -278,6 +312,11 @@ public class GroupSpawner : MonoBehaviour
             effectiveMaxGroupSize = Mathf.Min(effectiveMaxGroupSize, Mathf.Max(1, mobileMaxGroupSize));
 
         int effectiveMinGroupSize = spawnAsTakeout ? 1 : Mathf.Clamp(minGroupSize, 1, effectiveMaxGroupSize);
+        if (visit != null && visit.family)
+        {
+            if (effectiveMaxGroupSize < 3) return null;
+            effectiveMinGroupSize = 3;
+        }
         int size = Random.Range(effectiveMinGroupSize, effectiveMaxGroupSize + 1);
 
         Debug.Log(
@@ -292,6 +331,7 @@ public class GroupSpawner : MonoBehaviour
         group.SetBubbleLayoutSource(this);
 
         group.SetCustomerType(type);
+        group.ConfigureCampaignVisit(visit);
 
         for (int i = 0; i < size; i++)
         {
@@ -307,6 +347,7 @@ public class GroupSpawner : MonoBehaviour
             member.name = $"{type}_Customer_{i + 1}";
             group.members.Add(member);
         }
+        group.ConfigureCampaignMembers();
 
         groupsSpawnedThisShift++;
         var fastFood = FastFoodRestaurant.For(this);
@@ -318,8 +359,15 @@ public class GroupSpawner : MonoBehaviour
 
         if (fastFood != null && fastFood.Route(group, !spawnAsTakeout))
         {
+            if (group.FastFood != null) coach?.EncounterSpawned(type);
             GroupCreated?.Invoke(group, !group.FastFoodDineIn);
             return group;
+        }
+        if (visit != null)
+        {
+            groupsSpawnedThisShift--;
+            Destroy(group.gameObject);
+            return null;
         }
 
         if (spawnAsTakeout)
@@ -341,11 +389,13 @@ public class GroupSpawner : MonoBehaviour
             }
 
             takeoutQueueManager.Enqueue(group);
+            coach?.EncounterSpawned(type);
             return group;
         }
 
-        lobbyLine.TryJoinLine(group);
+        bool joinedLine = lobbyLine.TryJoinLine(group);
         group.state = CustomerGroup.GroupState.WalkingToLobby;
+        if (joinedLine) coach?.EncounterSpawned(type);
 
         return group;
     }

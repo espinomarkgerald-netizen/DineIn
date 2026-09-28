@@ -9618,12 +9618,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: db930d8e3bdfe1a4ba6fedb064fd75a7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  campaignCustomers:
+  - {fileID: 11400000, guid: cb09512fd3d4b44468ed6de651a51d0c, type: 2}
+  - {fileID: 11400000, guid: ed016c5e53873bf45a16146d134b158b, type: 2}
+  - {fileID: 11400000, guid: 199b862f6e17a3e42810c9e44bc7cee3, type: 2}
   groupPrefab: {fileID: 5685048958830651254, guid: e648dd96d49dc8e47b7619a38d214a10, type: 3}
   maxZoomInBubbleOffsetPixels: 200
   maxZoomOutBubbleOffsetPixels: 40
   customerPrefabGreen: {fileID: 3449015583176590222, guid: 62cec5e897988a94ab61176ffdf07e3a, type: 3}
   customerPrefabPink: {fileID: 3449015583176590222, guid: dcecce53ddca08c4c9737b501aa9cc25, type: 3}
   customerPrefabBlue: {fileID: 3449015583176590222, guid: 2ac0d442e43602440a5783c4290b730b, type: 3}
+  regularCustomerVisualVariants: []
   greenEnabled: 0
   pinkEnabled: 0
   blueEnabled: 1
@@ -28889,6 +28894,8 @@ MonoBehaviour:
   useBounds: 1
   minXz: {x: -60, y: -60}
   maxXz: {x: 60, y: 60}
+  edgePanMargin: 20
+  edgePanPixelsPerSecond: 450
 --- !u!1 &1684434790
 GameObject:
   m_ObjectHideFlags: 0
@@ -39343,6 +39350,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   panelRoot: {fileID: 910000000000000014}
+  developerWindowPrefab: {fileID: 0}
   codeInputField: {fileID: 910000000000000020}
   runButton: {fileID: 910000000000000048}
   closeButton: {fileID: 910000000000000053}

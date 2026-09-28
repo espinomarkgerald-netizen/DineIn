@@ -14,6 +14,10 @@ public sealed class RestaurantUnlockCoachUI : MonoBehaviour
     [SerializeField] private RectTransform safeArea, dialogueRoot, controlsRoot;
     [SerializeField] private TMP_Text caption, objective;
     [SerializeField] private UnityEngine.UI.Button laterButton, skipButton;
+    [Header("Informational customer showcase (no action target)")]
+    [SerializeField] private RectTransform customerShowcase;
+    [SerializeField] private UnityEngine.UI.Image[] customerPortraits;
+    public bool HasCustomerShowcase => customerShowcase != null && customerPortraits != null && customerPortraits.Length >= 4;
     [SerializeField, Min(0f)] private float safePadding = 24f;
     [SerializeField, Min(0f)] private float maskEntranceSeconds = .24f;
     [SerializeField] private Vector2 guideButtonSize = new Vector2(260f, 80f);
@@ -143,6 +147,8 @@ public sealed class RestaurantUnlockCoachUI : MonoBehaviour
 
     public void Show(string title, string message, string action, Action onAction, bool isModal, Sprite icon)
     {
+        if (customerShowcase != null) customerShowcase.gameObject.SetActive(false);
+        controlsRoot.gameObject.SetActive(true);
         generation++;
         StopAllCoroutines();
         scroller.Cancel();
@@ -174,6 +180,12 @@ public sealed class RestaurantUnlockCoachUI : MonoBehaviour
         Paginate(message);
         page = 0;
         PresentPage();
+    }
+
+    public void ShowCustomer(CustomerTypeProfile profile, Action acknowledged)
+    {
+        Show(profile.displayName, profile.introduction, null, acknowledged, true, null);
+        controlsRoot.gameObject.SetActive(false);
     }
 
     // Measure the actual authored body instead of shrinking long equipment explanations to unreadable text.
@@ -375,6 +387,11 @@ public sealed class RestaurantUnlockCoachUI : MonoBehaviour
         dialogueRoot.localScale = dialogueScale * scale;
         // Match the tutorial's authored bottom dialogue. Its portrait already switches sides around targets.
         dialogueRoot.anchoredPosition = dialogueHome * scale;
+        if (customerShowcase != null)
+        {
+            customerShowcase.localScale = Vector3.one * scale;
+            customerShowcase.anchoredPosition = new Vector2(0f, 560f * scale);
+        }
         choicesRoot.anchoredPosition = new Vector2(0f, 390f * scale + safePadding);
         float buttonScale = Mathf.Min(1f, (safe.width / canvas.scaleFactor - safePadding * 2f) /
             (guideButtonSize.x * 2f + guideButtonGap));

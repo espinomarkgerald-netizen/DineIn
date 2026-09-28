@@ -20,6 +20,7 @@ public class WarningSlideUI : MonoBehaviour
     [SerializeField] private float slideOutDuration = 0.2f;
 
     private Coroutine showRoutine;
+    public bool IsPresenting => isActiveAndEnabled && showRoutine != null;
 
     private void Awake()
     {
