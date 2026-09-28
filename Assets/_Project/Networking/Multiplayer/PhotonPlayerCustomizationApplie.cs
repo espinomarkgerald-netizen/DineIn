@@ -22,6 +22,8 @@ public class PhotonPlayerCustomizationApplier : MonoBehaviourPunCallbacks
 
     private void Apply()
     {
+        if (GetComponent<DineIn.Appearance.PlayerAppearanceBinding>() != null) return;
+        if (photonView == null || photonView.Owner == null) return;
         if (photonView.IsMine)
         {
             // Local player uses saved data
@@ -40,6 +42,7 @@ public class PhotonPlayerCustomizationApplier : MonoBehaviourPunCallbacks
 
     private void ApplyFromPhotonProps(Player p)
     {
+        if (GetComponent<DineIn.Appearance.PlayerAppearanceBinding>() != null) return;
         if (p == null) return;
 
         int head = GetInt(p.CustomProperties, "HeadI", 0);
@@ -48,17 +51,8 @@ public class PhotonPlayerCustomizationApplier : MonoBehaviourPunCallbacks
         int legs = GetInt(p.CustomProperties, "LegsI", 0);
         int hat  = GetInt(p.CustomProperties, "HatI", 0);
 
-        // ⚠️ If your customizers ONLY read from PlayerCustomizationData (static),
-        // this will overwrite for everyone. If you’re only testing solo it’s okay.
-        // If you have multiple players visible, tell me and I’ll switch this to per-player apply methods.
-        PlayerCustomizationData.HeadColorIndex = head;
-        PlayerCustomizationData.BodyColorIndex = body;
-        PlayerCustomizationData.ArmsColorIndex = arms;
-        PlayerCustomizationData.LegsColorIndex = legs;
-        PlayerCustomizationData.EquippedHatId  = hat;
-
-        colorCustomizer?.RefreshFromData();
-        hatCustomizer?.RefreshFromData();
+        colorCustomizer?.ApplyIndices(head, body, arms, legs);
+        hatCustomizer?.ApplyHat(hat);
     }
 
     private int GetInt(Hashtable props, string key, int fallback)

@@ -45,6 +45,7 @@ public class ApplyCustomizationOnSpawn : MonoBehaviourPunCallbacks
     [SerializeField] private bool debugPhotonValues = false;
 
     private GameObject currentHat;
+    private int appliedHat = -1;
 
     // Shader property IDs (supports URP + Standard)
     private static readonly int ColorProp = Shader.PropertyToID("_Color");
@@ -96,6 +97,21 @@ public class ApplyCustomizationOnSpawn : MonoBehaviourPunCallbacks
         }
 
         // ---------- Colors ----------
+        // The new binding is the sole visual owner; keep this component's existing name-tag role.
+        var appearanceBinding = GetComponent<DineIn.Appearance.PlayerAppearanceBinding>();
+        if (appearanceBinding != null)
+        {
+            appearanceBinding.Refresh();
+            var appearance = GetComponent<DineIn.Appearance.CharacterAppearance>();
+            if (nameTag != null && appearance.IsCustomized && appearance.Head != null) nameTag.SetFollowTarget(appearance.Head);
+            return;
+        }
+        ApplyLegacyAppearance(props);
+    }
+
+    // Called explicitly by the appearance owner for profiles that still use V1 cosmetics.
+    public void ApplyLegacyAppearance(Hashtable props)
+    {
         ApplyColor(props, "HeadI", head);
         ApplyColor(props, "BodyI", body);
         ApplyColor(props, "ArmsI", arms);
@@ -104,6 +120,12 @@ public class ApplyCustomizationOnSpawn : MonoBehaviourPunCallbacks
         // ---------- Hat ----------
         int hatIndex = GetInt(props, "HatI", 0);
         ApplyHat(hatIndex);
+    }
+
+    public void HideLegacyHat()
+    {
+        if (currentHat != null) { currentHat.SetActive(false); Destroy(currentHat); }
+        appliedHat = -1;
     }
 
     private void ApplyColor(Hashtable props, string key, TintTarget target)
@@ -171,6 +193,7 @@ public class ApplyCustomizationOnSpawn : MonoBehaviourPunCallbacks
 
     private void SetRendererColor(Renderer r, int materialIndex, Color c)
     {
+        mpb ??= new MaterialPropertyBlock();
         r.GetPropertyBlock(mpb, materialIndex);
         mpb.SetColor(BaseColorProp, c); // URP
         mpb.SetColor(ColorProp, c);     // Built-in/Standard
@@ -183,10 +206,10 @@ public class ApplyCustomizationOnSpawn : MonoBehaviourPunCallbacks
         if (hatPrefabs == null || hatPrefabs.Length == 0) return;
 
         hatIndex = Mathf.Clamp(hatIndex, 0, hatPrefabs.Length - 1);
+        if (hatIndex == appliedHat) return;
+        HideLegacyHat(); appliedHat = hatIndex;
         GameObject prefab = hatPrefabs[hatIndex];
         if (prefab == null) return;
-
-        if (currentHat != null) Destroy(currentHat);
 
         currentHat = Instantiate(prefab, hatAnchor);
         currentHat.transform.localPosition = Vector3.zero;
@@ -216,4 +239,3 @@ public class ApplyCustomizationOnSpawn : MonoBehaviourPunCallbacks
         ApplyFromPhoton();
     }
 }
-  

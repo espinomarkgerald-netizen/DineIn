@@ -63,6 +63,7 @@ public class EmployeeGenerator : MonoBehaviour
         employee.accuracy = Mathf.Clamp(employee.accuracy, 50, 100);
         employee.reliability = Mathf.Clamp(employee.reliability, 50, 100);
         employee.performanceMultiplier = Mathf.Lerp(0.9f, 1.15f, (stars - 1f) / 4f);
+        DineIn.Appearance.EmployeeAppearance.Ensure(employee);
         return employee;
     }
 

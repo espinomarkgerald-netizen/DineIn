@@ -1,0 +1,111 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 73597d5aa13d80b45b91445c61784cd3, type: 3}
+  m_Name: FastFoodEmployeeUniforms
+  m_EditorClassIdentifier: 
+  assignments:
+  - role: 0
+    bodyId: male
+    outfitId: male-fastfood-uniform
+    requiredHatId: none
+  - role: 0
+    bodyId: female
+    outfitId: female-fastfood-uniform
+    requiredHatId: none
+  - role: 1
+    bodyId: male
+    outfitId: male-fastfood-uniform
+    requiredHatId: none
+  - role: 1
+    bodyId: female
+    outfitId: female-fastfood-uniform
+    requiredHatId: none
+  - role: 2
+    bodyId: male
+    outfitId: male-fastfood-uniform
+    requiredHatId: none
+  - role: 2
+    bodyId: female
+    outfitId: female-fastfood-uniform
+    requiredHatId: none
+  - role: 3
+    bodyId: male
+    outfitId: male-fastfood-uniform
+    requiredHatId: none
+  - role: 3
+    bodyId: female
+    outfitId: female-fastfood-uniform
+    requiredHatId: none
+  - role: 4
+    bodyId: male
+    outfitId: male-fastfood-uniform
+    requiredHatId: chef-hat
+  - role: 4
+    bodyId: female
+    outfitId: female-fastfood-uniform
+    requiredHatId: chef-hat
+  - role: 5
+    bodyId: male
+    outfitId: male-fastfood-uniform
+    requiredHatId: chef-hat
+  - role: 5
+    bodyId: female
+    outfitId: female-fastfood-uniform
+    requiredHatId: chef-hat
+  - role: 6
+    bodyId: male
+    outfitId: male-fastfood-uniform
+    requiredHatId: chef-hat
+  - role: 6
+    bodyId: female
+    outfitId: female-fastfood-uniform
+    requiredHatId: chef-hat
+  - role: 7
+    bodyId: male
+    outfitId: male-fastfood-uniform
+    requiredHatId: chef-hat
+  - role: 7
+    bodyId: female
+    outfitId: female-fastfood-uniform
+    requiredHatId: chef-hat
+  - role: 8
+    bodyId: male
+    outfitId: male-fastfood-uniform
+    requiredHatId: none
+  - role: 8
+    bodyId: female
+    outfitId: female-fastfood-uniform
+    requiredHatId: none
+  - role: 9
+    bodyId: male
+    outfitId: male-fastfood-uniform
+    requiredHatId: chef-hat
+  - role: 9
+    bodyId: female
+    outfitId: female-fastfood-uniform
+    requiredHatId: chef-hat
+  - role: 10
+    bodyId: male
+    outfitId: male-fastfood-uniform
+    requiredHatId: chef-hat
+  - role: 10
+    bodyId: female
+    outfitId: female-fastfood-uniform
+    requiredHatId: chef-hat
+  - role: 11
+    bodyId: male
+    outfitId: male-fastfood-uniform
+    requiredHatId: chef-hat
+  - role: 11
+    bodyId: female
+    outfitId: female-fastfood-uniform
+    requiredHatId: chef-hat

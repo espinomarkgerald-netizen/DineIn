@@ -5,11 +5,12 @@ public static class PhotonCustomizationSync
 {
     public static void PushToPhoton()
     {
-        if (!PhotonNetwork.IsConnectedAndReady)
+        if (PhotonNetwork.LocalPlayer == null)
             return;
 
         var props = new Hashtable
         {
+            { DineIn.Appearance.PlayerAppearanceBinding.PropertyKey, PlayerCustomizationData.CommittedAppearance == null ? "" : UnityEngine.JsonUtility.ToJson(PlayerCustomizationData.CommittedAppearance) },
             { "Username", PhotonNetwork.NickName },
 
             // Color indices (match ApplyCustomizationOnSpawn)

@@ -10301,6 +10301,34 @@ NavMeshAgent:
   m_CorrespondingSourceObject: {fileID: 5929863021389573515, guid: e8870a052eba37b42a1e39a4328ac915, type: 3}
   m_PrefabInstance: {fileID: 860050556}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &25337828
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 25337819}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8f73e863927f9942a29c5e844067cf5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  catalog: {fileID: 11400000, guid: b21bcd0921d058245957f42f6b3ca1eb, type: 2}
+  animator: {fileID: 860050558}
+  originalRenderers:
+  - {fileID: 1711801021}
+  - {fileID: 670196602}
+  - {fileID: 2067661068}
+  - {fileID: 2099393658}
+  visualParent: {fileID: 860050557}
+  visualScale: {x: 1.90516, y: 1.90516, z: 1.90516}
+  normalizeAdultHeight: 1
+  attachmentPoints:
+  - point: {fileID: 860050560}
+    bone: 0
+  - point: {fileID: 860050559}
+    bone: 0
+  previewController: {fileID: 0}
 --- !u!1 &27894704
 GameObject:
   m_ObjectHideFlags: 0
@@ -44168,6 +44196,10 @@ PrefabInstance:
       propertyPath: m_LocalPosition.y
       value: 8.2
       objectReference: {fileID: 0}
+    - target: {fileID: 8978199326392250398, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
+      propertyPath: m_Enabled
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 9142628226517004380, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
@@ -44228,8 +44260,21 @@ PrefabInstance:
     - {fileID: 0}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 919144996699085120, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1470914840}
   m_SourcePrefab: {fileID: 100100000, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
+--- !u!4 &292817760 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 1746979960760418678, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
+  m_PrefabInstance: {fileID: 292817759}
+  m_PrefabAsset: {fileID: 0}
+--- !u!95 &292817761 stripped
+Animator:
+  m_CorrespondingSourceObject: {fileID: 5683166491472829196, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
+  m_PrefabInstance: {fileID: 292817759}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &294521650
 GameObject:
   m_ObjectHideFlags: 0
@@ -48286,6 +48331,7 @@ MonoBehaviour:
   - {fileID: 1045950190}
   - {fileID: 1192554734}
   hotbarContainer: {fileID: 512015649}
+  cleaningProgressAnchor: {fileID: 0}
   hotbarMaximumWidth: 760
   hotbarScreenFraction: 0.46
   hotbarCellRange: {x: 96, y: 128}
@@ -70089,6 +70135,10 @@ PrefabInstance:
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
       objectReference: {fileID: -6629797300637803691, guid: 04fac75123c57c84da9bac72861f85a4, type: 3}
+    - target: {fileID: 5749896472067895625, guid: 3bf3a3c7725d3924fa743579b9cacdfc, type: 3}
+      propertyPath: m_Enabled
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 6076136438124688469, guid: 3bf3a3c7725d3924fa743579b9cacdfc, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
@@ -70123,8 +70173,36 @@ PrefabInstance:
     - {fileID: 1660923829626623074, guid: 3bf3a3c7725d3924fa743579b9cacdfc, type: 3}
     - {fileID: 8449842197082850087, guid: 3bf3a3c7725d3924fa743579b9cacdfc, type: 3}
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 3368287939621431647, guid: 3bf3a3c7725d3924fa743579b9cacdfc, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2076497464}
   m_SourcePrefab: {fileID: 100100000, guid: 3bf3a3c7725d3924fa743579b9cacdfc, type: 3}
+--- !u!4 &594307758 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 8386406834931651328, guid: 3bf3a3c7725d3924fa743579b9cacdfc, type: 3}
+  m_PrefabInstance: {fileID: 594307757}
+  m_PrefabAsset: {fileID: 0}
+--- !u!95 &594307759 stripped
+Animator:
+  m_CorrespondingSourceObject: {fileID: 2486739343050246522, guid: 3bf3a3c7725d3924fa743579b9cacdfc, type: 3}
+  m_PrefabInstance: {fileID: 594307757}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &594307760 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 7838240859865194596, guid: 3bf3a3c7725d3924fa743579b9cacdfc, type: 3}
+  m_PrefabInstance: {fileID: 594307757}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &594307761 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 7976560511155695983, guid: 3bf3a3c7725d3924fa743579b9cacdfc, type: 3}
+  m_PrefabInstance: {fileID: 594307757}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &594307762 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 3865814960097702521, guid: 3bf3a3c7725d3924fa743579b9cacdfc, type: 3}
+  m_PrefabInstance: {fileID: 594307757}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &596954502
 GameObject:
   m_ObjectHideFlags: 0
@@ -70387,12 +70465,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: db930d8e3bdfe1a4ba6fedb064fd75a7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  campaignCustomers: []
   groupPrefab: {fileID: 5685048958830651254, guid: e648dd96d49dc8e47b7619a38d214a10, type: 3}
   maxZoomInBubbleOffsetPixels: 200
   maxZoomOutBubbleOffsetPixels: 40
   customerPrefabGreen: {fileID: 3449015583176590222, guid: 62cec5e897988a94ab61176ffdf07e3a, type: 3}
   customerPrefabPink: {fileID: 3449015583176590222, guid: dcecce53ddca08c4c9737b501aa9cc25, type: 3}
   customerPrefabBlue: {fileID: 3449015583176590222, guid: 2ac0d442e43602440a5783c4290b730b, type: 3}
+  regularCustomerVisualVariants: []
   greenEnabled: 0
   pinkEnabled: 0
   blueEnabled: 1
@@ -96281,6 +96361,10 @@ PrefabInstance:
       propertyPath: m_Speed
       value: 12
       objectReference: {fileID: 0}
+    - target: {fileID: 6215529155450379171, guid: e8870a052eba37b42a1e39a4328ac915, type: 3}
+      propertyPath: m_Enabled
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 6425135193135196850, guid: e8870a052eba37b42a1e39a4328ac915, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
@@ -96372,8 +96456,31 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 5123694006237456069, guid: e8870a052eba37b42a1e39a4328ac915, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 25337828}
   m_SourcePrefab: {fileID: 100100000, guid: e8870a052eba37b42a1e39a4328ac915, type: 3}
+--- !u!4 &860050557 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 3982670301922179580, guid: e8870a052eba37b42a1e39a4328ac915, type: 3}
+  m_PrefabInstance: {fileID: 860050556}
+  m_PrefabAsset: {fileID: 0}
+--- !u!95 &860050558 stripped
+Animator:
+  m_CorrespondingSourceObject: {fileID: 7036141444535182214, guid: e8870a052eba37b42a1e39a4328ac915, type: 3}
+  m_PrefabInstance: {fileID: 860050556}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &860050559 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 2004284768962755086, guid: e8870a052eba37b42a1e39a4328ac915, type: 3}
+  m_PrefabInstance: {fileID: 860050556}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &860050560 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 5976064102513859322, guid: e8870a052eba37b42a1e39a4328ac915, type: 3}
+  m_PrefabInstance: {fileID: 860050556}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &863227608
 GameObject:
   m_ObjectHideFlags: 0
@@ -97425,6 +97532,10 @@ PrefabInstance:
       propertyPath: m_LocalPosition.y
       value: 8.2
       objectReference: {fileID: 0}
+    - target: {fileID: 8978199326392250398, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
+      propertyPath: m_Enabled
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 9142628226517004380, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
@@ -97492,6 +97603,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919144996699085120, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
       insertIndex: -1
       addedObject: {fileID: 887037635}
+    - targetCorrespondingSourceObject: {fileID: 919144996699085120, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 887037638}
   m_SourcePrefab: {fileID: 100100000, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
 --- !u!4 &887037632 stripped
 Transform:
@@ -97527,6 +97641,41 @@ MonoBehaviour:
   waitAtPoint: 1.4
   stationProducts: 01000000
   avoidancePriority: 60
+--- !u!4 &887037636 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 1746979960760418678, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
+  m_PrefabInstance: {fileID: 887037631}
+  m_PrefabAsset: {fileID: 0}
+--- !u!95 &887037637 stripped
+Animator:
+  m_CorrespondingSourceObject: {fileID: 5683166491472829196, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
+  m_PrefabInstance: {fileID: 887037631}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &887037638
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 887037634}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8f73e863927f9942a29c5e844067cf5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  catalog: {fileID: 11400000, guid: b21bcd0921d058245957f42f6b3ca1eb, type: 2}
+  animator: {fileID: 887037637}
+  originalRenderers:
+  - {fileID: 83368704}
+  - {fileID: 1454863034}
+  - {fileID: 1417429697}
+  - {fileID: 929744133}
+  - {fileID: 2059398231}
+  visualParent: {fileID: 887037636}
+  visualScale: {x: 1.90516, y: 1.90516, z: 1.90516}
+  normalizeAdultHeight: 1
+  attachmentPoints: []
+  previewController: {fileID: 0}
 --- !u!1 &887871098
 GameObject:
   m_ObjectHideFlags: 0
@@ -122573,7 +122722,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: ''
+    control: 
   - id: ff_lobby_recap
     chapter: 0
     action: 0
@@ -122582,7 +122731,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: ''
+    control: 
   - id: ff_hud_pause
     chapter: 0
     action: 0
@@ -122591,7 +122740,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: 'Pause'
+    control: Pause
   - id: ff_hud_task
     chapter: 0
     action: 0
@@ -122600,7 +122749,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: 'Task'
+    control: Task
   - id: ff_enter
     chapter: 0
     action: 1
@@ -122609,7 +122758,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: 'Enter'
+    control: Enter
   - id: ff_kitchen_welcome
     chapter: 0
     action: 0
@@ -122618,7 +122767,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: 'Selection'
+    control: Selection
   - id: ff_Burger_station
     chapter: 1
     action: 2
@@ -122627,7 +122776,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: 'Enter Grill'
+    control: Enter Grill
   - id: ff_hud_header
     chapter: 1
     action: 0
@@ -122636,7 +122785,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: 'Header'
+    control: Header
   - id: ff_hotbar
     chapter: 1
     action: 0
@@ -122645,7 +122794,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: 'Hotbar'
+    control: Hotbar
   - id: ff_hotbar_counts
     chapter: 1
     action: 0
@@ -122654,7 +122803,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: 'Raw'
+    control: Raw
   - id: ff_hotbar_empty
     chapter: 1
     action: 0
@@ -122663,7 +122812,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: 'ProteinCell'
+    control: ProteinCell
   - id: ff_grill_area
     chapter: 1
     action: 0
@@ -122672,7 +122821,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: 'World:Cooking'
+    control: World:Cooking
   - id: ff_Burger_load_0
     chapter: 1
     action: 3
@@ -122681,7 +122830,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: ''
+    control: 
   - id: ff_Burger_wait_0
     chapter: 1
     action: 4
@@ -122690,7 +122839,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: 'World:Food'
+    control: World:Food
   - id: ff_Burger_collect_0
     chapter: 1
     action: 5
@@ -122699,7 +122848,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: ''
+    control: 
   - id: ff_prep_area
     chapter: 1
     action: 0
@@ -122708,7 +122857,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: 'World:Prep'
+    control: World:Prep
   - id: ff_ready_ingredient
     chapter: 1
     action: 0
@@ -122717,7 +122866,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: 'ProteinCell'
+    control: ProteinCell
   - id: ff_Burger_02_0_ingredient_0
     chapter: 1
     action: 6
@@ -122726,7 +122875,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: ''
+    control: 
   - id: ff_Burger_02_0_ingredient_1
     chapter: 1
     action: 6
@@ -122735,7 +122884,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 1
-    control: ''
+    control: 
   - id: ff_Burger_02_0_ingredient_2
     chapter: 1
     action: 6
@@ -122744,7 +122893,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 2
-    control: ''
+    control: 
   - id: ff_Burger_02_0_ingredient_3
     chapter: 1
     action: 6
@@ -122753,7 +122902,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 3
-    control: ''
+    control: 
   - id: ff_burger_done
     chapter: 1
     action: 0
@@ -122762,7 +122911,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: ''
+    control: 
   - id: ff_burn_intro
     chapter: 6
     action: 0
@@ -122771,7 +122920,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: 'World:Cooking'
+    control: World:Cooking
   - id: ff_Burn_load_0
     chapter: 6
     action: 3
@@ -122780,7 +122929,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: ''
+    control: 
   - id: ff_Burn_wait_0
     chapter: 6
     action: 10
@@ -122789,7 +122938,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: 'World:Food'
+    control: World:Food
   - id: ff_discard
     chapter: 6
     action: 11
@@ -122798,7 +122947,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: ''
+    control: 
   - id: ff_reload
     chapter: 6
     action: 3
@@ -122807,7 +122956,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: ''
+    control: 
   - id: ff_retry_wait
     chapter: 6
     action: 4
@@ -122816,7 +122965,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: ''
+    control: 
   - id: ff_retry_collect
     chapter: 6
     action: 5
@@ -122825,7 +122974,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: ''
+    control: 
   - id: ff_protein_ff-chicken-sandwich
     chapter: 5
     action: 7
@@ -122834,7 +122983,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: 'World:Prep'
+    control: World:Prep
   - id: ff_sandwich_ready_ff-chicken-sandwich
     chapter: 5
     action: 0
@@ -122843,7 +122992,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: 'ProteinCell'
+    control: ProteinCell
   - id: ff_Sandwiches_ff-chicken-sandwich_0_ingredient_0
     chapter: 5
     action: 6
@@ -122852,7 +123001,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: ''
+    control: 
   - id: ff_Sandwiches_ff-chicken-sandwich_0_ingredient_1
     chapter: 5
     action: 6
@@ -122861,7 +123010,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 1
-    control: ''
+    control: 
   - id: ff_Sandwiches_ff-chicken-sandwich_0_ingredient_2
     chapter: 5
     action: 6
@@ -122870,7 +123019,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 2
-    control: ''
+    control: 
   - id: ff_protein_ff-fish-fillet-sandwich
     chapter: 5
     action: 7
@@ -122879,7 +123028,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: 'World:Prep'
+    control: World:Prep
   - id: ff_sandwich_ready_ff-fish-fillet-sandwich
     chapter: 5
     action: 0
@@ -122888,7 +123037,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: 'ProteinCell'
+    control: ProteinCell
   - id: ff_Sandwiches_ff-fish-fillet-sandwich_0_ingredient_0
     chapter: 5
     action: 6
@@ -122897,7 +123046,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: ''
+    control: 
   - id: ff_Sandwiches_ff-fish-fillet-sandwich_0_ingredient_1
     chapter: 5
     action: 6
@@ -122906,7 +123055,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 1
-    control: ''
+    control: 
   - id: ff_Sandwiches_ff-fish-fillet-sandwich_0_ingredient_2
     chapter: 5
     action: 6
@@ -122915,7 +123064,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 2
-    control: ''
+    control: 
   - id: ff_sandwich_done
     chapter: 5
     action: 0
@@ -122924,7 +123073,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: ''
+    control: 
   - id: ff_hud_navigation
     chapter: 2
     action: 0
@@ -122933,7 +123082,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: 'StationArrow'
+    control: StationArrow
   - id: ff_Fries_station
     chapter: 2
     action: 2
@@ -122942,7 +123091,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: 'StationArrow'
+    control: StationArrow
   - id: ff_fryer_ui
     chapter: 2
     action: 0
@@ -122951,7 +123100,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: 'World:Basket'
+    control: World:Basket
   - id: ff_fryer_raw
     chapter: 2
     action: 0
@@ -122960,7 +123109,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: 'Raw'
+    control: Raw
   - id: ff_Fries_load_0
     chapter: 2
     action: 3
@@ -122969,7 +123118,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: ''
+    control: 
   - id: ff_Fries_wait_0
     chapter: 2
     action: 4
@@ -122978,7 +123127,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: 'World:Food'
+    control: World:Food
   - id: ff_Fries_collect_0
     chapter: 2
     action: 5
@@ -122987,7 +123136,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: ''
+    control: 
   - id: ff_fries_done
     chapter: 2
     action: 0
@@ -122996,7 +123145,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: 'World:Rack'
+    control: World:Rack
   - id: ff_Serving_station
     chapter: 3
     action: 2
@@ -123005,7 +123154,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: 'StationArrow'
+    control: StationArrow
   - id: ff_ticket
     chapter: 3
     action: 0
@@ -123014,7 +123163,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: 'Ticket'
+    control: Ticket
   - id: ff_tray_ui
     chapter: 3
     action: 0
@@ -123023,7 +123172,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: 'World:Tray'
+    control: World:Tray
   - id: ff_assembler_hotbar
     chapter: 3
     action: 0
@@ -123032,7 +123181,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: 'Hotbar'
+    control: Hotbar
   - id: ff_place_02
     chapter: 3
     action: 8
@@ -123041,7 +123190,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: ''
+    control: 
   - id: ff_place_03
     chapter: 3
     action: 8
@@ -123050,7 +123199,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: ''
+    control: 
   - id: ff_place_04
     chapter: 3
     action: 8
@@ -123059,7 +123208,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: ''
+    control: 
   - id: ff_serve
     chapter: 3
     action: 9
@@ -123068,7 +123217,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: 'Serve'
+    control: Serve
   - id: ff_served
     chapter: 3
     action: 0
@@ -123077,7 +123226,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: ''
+    control: 
   - id: ff_practice_intro
     chapter: 9
     action: 0
@@ -123086,7 +123235,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: ''
+    control: 
   - id: ff_practice_navigation
     chapter: 9
     action: 0
@@ -123095,7 +123244,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: 'Stations'
+    control: Stations
   - id: ff_practice_exit
     chapter: 9
     action: 0
@@ -123104,7 +123253,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: 'Exit Kitchen'
+    control: Exit Kitchen
   - id: ff_practice
     chapter: 9
     action: 16
@@ -123113,7 +123262,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: ''
+    control: 
   - id: ff_practice_done
     chapter: 9
     action: 0
@@ -123122,7 +123271,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: ''
+    control: 
   - id: ff_hygiene_intro
     chapter: 8
     action: 0
@@ -123131,7 +123280,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: 'Clean Now'
+    control: Clean Now
   - id: ff_hygiene_clean
     chapter: 8
     action: 15
@@ -123140,7 +123289,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: 'Clean Now'
+    control: Clean Now
   - id: ff_stock_intro
     chapter: 7
     action: 0
@@ -123149,7 +123298,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: 'Restock'
+    control: Restock
   - id: ff_stock_open
     chapter: 7
     action: 12
@@ -123158,7 +123307,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: 'Go to Restock'
+    control: Go to Restock
   - id: ff_stock_app
     chapter: 7
     action: 17
@@ -123167,7 +123316,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: 'Computer:Restock'
+    control: Computer:Restock
   - id: ff_stock_food
     chapter: 7
     action: 17
@@ -123176,7 +123325,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: 'Computer:Food'
+    control: Computer:Food
   - id: ff_stock_fries
     chapter: 7
     action: 0
@@ -123185,7 +123334,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: 'Computer:FriesCard'
+    control: Computer:FriesCard
   - id: ff_stock_add_fries
     chapter: 7
     action: 17
@@ -123194,7 +123343,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: 'Computer:Fries'
+    control: Computer:Fries
   - id: ff_stock_checkout
     chapter: 7
     action: 17
@@ -123203,7 +123352,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: 'Computer:Checkout'
+    control: Computer:Checkout
   - id: ff_stock_order
     chapter: 7
     action: 17
@@ -123212,7 +123361,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: 'Computer:Order'
+    control: Computer:Order
   - id: ff_stock_close_app
     chapter: 7
     action: 17
@@ -123221,7 +123370,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: 'Computer:CloseApp'
+    control: Computer:CloseApp
   - id: ff_stock_close_computer
     chapter: 7
     action: 17
@@ -123230,7 +123379,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: 'Computer:Exit'
+    control: Computer:Exit
   - id: ff_stock_delivery
     chapter: 7
     action: 18
@@ -123239,7 +123388,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: ''
+    control: 
   - id: ff_stock_truck
     chapter: 7
     action: 19
@@ -123248,7 +123397,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: 'World:Truck'
+    control: World:Truck
   - id: ff_stock_collect
     chapter: 7
     action: 20
@@ -123257,7 +123406,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: 'Get Orders'
+    control: Get Orders
   - id: ff_stock_freezer
     chapter: 7
     action: 21
@@ -123266,7 +123415,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: 'World:Freezer'
+    control: World:Freezer
   - id: ff_stock_store
     chapter: 7
     action: 13
@@ -123275,7 +123424,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: ''
+    control: 
   - id: ff_complete
     chapter: 10
     action: 0
@@ -123284,7 +123433,7 @@ MonoBehaviour:
     portion: 0
     slot: 0
     ingredient: 0
-    control: ''
+    control: 
   burger: {fileID: 11400000, guid: a6e7e96bc1502504eb53eb9e1ebb2863, type: 2}
   fries: {fileID: 11400000, guid: dbf95199eafdb55449eeca2f3431c97f, type: 2}
   chicken: {fileID: 11400000, guid: f953ffcb8366c9e42af437cc7126bde6, type: 2}
@@ -123320,8 +123469,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e1b85f59c9ea48389c7744c64e6717a2, type: 3}
-  m_Name:
-  m_EditorClassIdentifier:
+  m_Name: 
+  m_EditorClassIdentifier: 
   uiTargets: []
 --- !u!114 &1143629101
 MonoBehaviour:
@@ -123348,25 +123497,24 @@ MonoBehaviour:
   groupSpawner: {fileID: 597439887}
   suppressAutomaticSpawningDuringOpening: 1
   restoreAutomaticSpawningAfterOpening: 0
-  explainWithFocus: 1
   startAutomatically: 0
   steps:
   - id: ff_welcome
     phase: 8
     speaker: Big Boss
-    message: 'Welcome to Fast Food! Let''s learn how this kitchen works.'
+    message: Welcome to Fast Food! Let's learn how this kitchen works.
     portrait: {fileID: 21300000, guid: c6ec8f164086386409335a7aa7a53270, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey:
-    actionKey:
+    uiTargetKey: 
+    actionKey: 
     requiredContext: {fileID: 0}
-    objective: 'Welcome to Fast Food! Let''s learn how this kitchen works.'
+    objective: Welcome to Fast Food! Let's learn how this kitchen works.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -123374,19 +123522,21 @@ MonoBehaviour:
   - id: ff_lobby_recap
     phase: 8
     speaker: Big Boss
-    message: 'You know the restaurant basics. Here we''ll focus on cooking, preparing food, and serving complete kitchen orders.'
+    message: You know the restaurant basics. Here we'll focus on cooking, preparing
+      food, and serving complete kitchen orders.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey:
-    actionKey:
+    uiTargetKey: 
+    actionKey: 
     requiredContext: {fileID: 0}
-    objective: 'You know the restaurant basics. Here we''ll focus on cooking, preparing food, and serving complete kitchen orders.'
+    objective: You know the restaurant basics. Here we'll focus on cooking, preparing
+      food, and serving complete kitchen orders.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -123394,19 +123544,19 @@ MonoBehaviour:
   - id: ff_hud_pause
     phase: 8
     speaker: Big Boss
-    message: 'Use Pause whenever you need a break. Resume brings you back to work.'
+    message: Use Pause whenever you need a break. Resume brings you back to work.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: FF.Control
-    actionKey:
+    actionKey: 
     requiredContext: {fileID: 0}
-    objective: 'Use Pause whenever you need a break. Resume brings you back to work.'
+    objective: Use Pause whenever you need a break. Resume brings you back to work.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -123414,19 +123564,21 @@ MonoBehaviour:
   - id: ff_hud_task
     phase: 8
     speaker: Big Boss
-    message: 'TASK shows your next instruction: what to do, when to wait, and where to go next.'
+    message: 'TASK shows your next instruction: what to do, when to wait, and where
+      to go next.'
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: FF.Control
-    actionKey:
+    actionKey: 
     requiredContext: {fileID: 0}
-    objective: 'TASK shows your next instruction: what to do, when to wait, and where to go next.'
+    objective: 'TASK shows your next instruction: what to do, when to wait, and where
+      to go next.'
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -123434,19 +123586,19 @@ MonoBehaviour:
   - id: ff_enter
     phase: 8
     speaker: Big Boss
-    message: 'Kitchen is where you''ll help the team prepare orders. Let''s head in.'
+    message: Kitchen is where you'll help the team prepare orders. Let's head in.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
     hintMode: 2
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: FF.Enter
     actionKey: ff_enter
     requiredContext: {fileID: 0}
-    objective: 'Open Kitchen.'
+    objective: Open Kitchen.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -123454,19 +123606,21 @@ MonoBehaviour:
   - id: ff_kitchen_welcome
     phase: 8
     speaker: Big Boss
-    message: 'Welcome to your kitchen! This station list lets you choose where to help. We''ll start with Grill.'
+    message: Welcome to your kitchen! This station list lets you choose where to
+      help. We'll start with Grill.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: FF.Control
-    actionKey:
+    actionKey: 
     requiredContext: {fileID: 0}
-    objective: 'Welcome to your kitchen! This station list lets you choose where to help. We''ll start with Grill.'
+    objective: Welcome to your kitchen! This station list lets you choose where to
+      help. We'll start with Grill.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -123474,19 +123628,19 @@ MonoBehaviour:
   - id: ff_Burger_station
     phase: 9
     speaker: Big Boss
-    message: 'Choose Grill.'
+    message: Choose Grill.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
     hintMode: 2
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: FF.Control
     actionKey: ff_Burger_station
     requiredContext: {fileID: 0}
-    objective: 'Choose Grill.'
+    objective: Choose Grill.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -123494,19 +123648,21 @@ MonoBehaviour:
   - id: ff_hud_header
     phase: 9
     speaker: Big Boss
-    message: 'The blue panel names your station and current food. Its count and progress bar show your progress.'
+    message: The blue panel names your station and current food. Its count and progress
+      bar show your progress.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: FF.Control
-    actionKey:
+    actionKey: 
     requiredContext: {fileID: 0}
-    objective: 'The blue panel names your station and current food. Its count and progress bar show your progress.'
+    objective: The blue panel names your station and current food. Its count and
+      progress bar show your progress.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -123514,19 +123670,21 @@ MonoBehaviour:
   - id: ff_hotbar
     phase: 9
     speaker: Big Boss
-    message: 'Your ingredients are lined up here. Each keeps its place so you can find it quickly.'
+    message: Your ingredients are lined up here. Each keeps its place so you can
+      find it quickly.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: FF.Control
-    actionKey:
+    actionKey: 
     requiredContext: {fileID: 0}
-    objective: 'Your ingredients are lined up here. Each keeps its place so you can find it quickly.'
+    objective: Your ingredients are lined up here. Each keeps its place so you can
+      find it quickly.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -123534,19 +123692,19 @@ MonoBehaviour:
   - id: ff_hotbar_counts
     phase: 9
     speaker: Big Boss
-    message: 'This is a raw patty. The number shows how many you have available.'
+    message: This is a raw patty. The number shows how many you have available.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: FF.Control
-    actionKey:
+    actionKey: 
     requiredContext: {fileID: 0}
-    objective: 'This is a raw patty. The number shows how many you have available.'
+    objective: This is a raw patty. The number shows how many you have available.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -123554,19 +123712,21 @@ MonoBehaviour:
   - id: ff_hotbar_empty
     phase: 9
     speaker: Big Boss
-    message: 'Cooked ingredients have a separate READY cell. A dim cell with zero cannot be used yet.'
+    message: Cooked ingredients have a separate READY cell. A dim cell with zero
+      cannot be used yet.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: FF.Control
-    actionKey:
+    actionKey: 
     requiredContext: {fileID: 0}
-    objective: 'Cooked ingredients have a separate READY cell. A dim cell with zero cannot be used yet.'
+    objective: Cooked ingredients have a separate READY cell. A dim cell with zero
+      cannot be used yet.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -123574,7 +123734,8 @@ MonoBehaviour:
   - id: ff_grill_area
     phase: 9
     speaker: Big Boss
-    message: 'Each cooking spot can hold one patty. Let''s cook one first, then prepare its burger.'
+    message: Each cooking spot can hold one patty. Let's cook one first, then prepare
+      its burger.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
@@ -123583,10 +123744,11 @@ MonoBehaviour:
     worldTargetKey: FF.Subject
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey:
-    actionKey:
+    uiTargetKey: 
+    actionKey: 
     requiredContext: {fileID: 0}
-    objective: 'Each cooking spot can hold one patty. Let''s cook one first, then prepare its burger.'
+    objective: Each cooking spot can hold one patty. Let's cook one first, then prepare
+      its burger.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -123594,7 +123756,7 @@ MonoBehaviour:
   - id: ff_Burger_load_0
     phase: 9
     speaker: Big Boss
-    message: 'Let''s put a raw patty on the grill.'
+    message: Let's put a raw patty on the grill.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
@@ -123606,7 +123768,7 @@ MonoBehaviour:
     uiTargetKey: FF.Source
     actionKey: ff_Burger_load_0
     requiredContext: {fileID: 0}
-    objective: 'Load cooking spot 1 with the highlighted raw ingredient.'
+    objective: Load cooking spot 1 with the highlighted raw ingredient.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -123614,7 +123776,8 @@ MonoBehaviour:
   - id: ff_Burger_wait_0
     phase: 9
     speaker: Big Boss
-    message: 'The timer shows cooking progress. Wait until the patty is ready; then we''ll collect it.'
+    message: The timer shows cooking progress. Wait until the patty is ready; then
+      we'll collect it.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
@@ -123623,10 +123786,10 @@ MonoBehaviour:
     worldTargetKey: FF.Subject
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey:
+    uiTargetKey: 
     actionKey: ff_Burger_wait_0
     requiredContext: {fileID: 0}
-    objective: 'The patty is cooking…'
+    objective: "The patty is cooking\u2026"
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -123634,7 +123797,7 @@ MonoBehaviour:
   - id: ff_Burger_collect_0
     phase: 9
     speaker: Big Boss
-    message: 'That patty is ready. Collect it before it burns.'
+    message: That patty is ready. Collect it before it burns.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
@@ -123643,10 +123806,10 @@ MonoBehaviour:
     worldTargetKey: FF.Target
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey:
+    uiTargetKey: 
     actionKey: ff_Burger_collect_0
     requiredContext: {fileID: 0}
-    objective: 'Collect the ready patty.'
+    objective: Collect the ready patty.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -123654,7 +123817,7 @@ MonoBehaviour:
   - id: ff_prep_area
     phase: 9
     speaker: Big Boss
-    message: 'Here''s the prep table. Build the burger here in recipe order.'
+    message: Here's the prep table. Build the burger here in recipe order.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
@@ -123663,10 +123826,10 @@ MonoBehaviour:
     worldTargetKey: FF.Subject
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey:
-    actionKey:
+    uiTargetKey: 
+    actionKey: 
     requiredContext: {fileID: 0}
-    objective: 'Here''s the prep table. Build the burger here in recipe order.'
+    objective: Here's the prep table. Build the burger here in recipe order.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -123674,19 +123837,21 @@ MonoBehaviour:
   - id: ff_ready_ingredient
     phase: 9
     speaker: Big Boss
-    message: 'Your collected patty is now available in the READY cell. Use it after the bottom bun.'
+    message: Your collected patty is now available in the READY cell. Use it after
+      the bottom bun.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: FF.Control
-    actionKey:
+    actionKey: 
     requiredContext: {fileID: 0}
-    objective: 'Your collected patty is now available in the READY cell. Use it after the bottom bun.'
+    objective: Your collected patty is now available in the READY cell. Use it after
+      the bottom bun.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -123694,7 +123859,7 @@ MonoBehaviour:
   - id: ff_Burger_02_0_ingredient_0
     phase: 9
     speaker: Big Boss
-    message: 'Add Bottom bun to the highlighted prep position.'
+    message: Add Bottom bun to the highlighted prep position.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
@@ -123706,7 +123871,7 @@ MonoBehaviour:
     uiTargetKey: FF.Source
     actionKey: ff_Burger_02_0_ingredient_0
     requiredContext: {fileID: 0}
-    objective: 'Add Bottom bun (1/4).'
+    objective: Add Bottom bun (1/4).
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -123714,7 +123879,7 @@ MonoBehaviour:
   - id: ff_Burger_02_0_ingredient_1
     phase: 9
     speaker: Big Boss
-    message: 'Add Cooked BurgerPatty to the highlighted prep position.'
+    message: Add Cooked BurgerPatty to the highlighted prep position.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
@@ -123726,7 +123891,7 @@ MonoBehaviour:
     uiTargetKey: FF.Source
     actionKey: ff_Burger_02_0_ingredient_1
     requiredContext: {fileID: 0}
-    objective: 'Add Cooked BurgerPatty (2/4).'
+    objective: Add Cooked BurgerPatty (2/4).
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -123734,7 +123899,7 @@ MonoBehaviour:
   - id: ff_Burger_02_0_ingredient_2
     phase: 9
     speaker: Big Boss
-    message: 'Add Cheese to the highlighted prep position.'
+    message: Add Cheese to the highlighted prep position.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
@@ -123746,7 +123911,7 @@ MonoBehaviour:
     uiTargetKey: FF.Source
     actionKey: ff_Burger_02_0_ingredient_2
     requiredContext: {fileID: 0}
-    objective: 'Add Cheese (3/4).'
+    objective: Add Cheese (3/4).
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -123754,7 +123919,7 @@ MonoBehaviour:
   - id: ff_Burger_02_0_ingredient_3
     phase: 9
     speaker: Big Boss
-    message: 'Add Top bun to the highlighted prep position.'
+    message: Add Top bun to the highlighted prep position.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
@@ -123766,7 +123931,7 @@ MonoBehaviour:
     uiTargetKey: FF.Source
     actionKey: ff_Burger_02_0_ingredient_3
     requiredContext: {fileID: 0}
-    objective: 'Add Top bun (4/4).'
+    objective: Add Top bun (4/4).
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -123774,19 +123939,21 @@ MonoBehaviour:
   - id: ff_burger_done
     phase: 9
     speaker: Big Boss
-    message: 'Good! The burger is assembled. Its pickup transfers it to ready supply so the prep position can be used again.'
+    message: Good! The burger is assembled. Its pickup transfers it to ready supply
+      so the prep position can be used again.
     portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey:
-    actionKey:
+    uiTargetKey: 
+    actionKey: 
     requiredContext: {fileID: 0}
-    objective: 'Good! The burger is assembled. Its pickup transfers it to ready supply so the prep position can be used again.'
+    objective: Good! The burger is assembled. Its pickup transfers it to ready supply
+      so the prep position can be used again.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -123794,7 +123961,8 @@ MonoBehaviour:
   - id: ff_burn_intro
     phase: 14
     speaker: Big Boss
-    message: 'Now let''s learn to recover burnt food. Load another patty; we''ll deliberately leave this one too long.'
+    message: Now let's learn to recover burnt food. Load another patty; we'll deliberately
+      leave this one too long.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
@@ -123803,10 +123971,11 @@ MonoBehaviour:
     worldTargetKey: FF.Subject
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey:
-    actionKey:
+    uiTargetKey: 
+    actionKey: 
     requiredContext: {fileID: 0}
-    objective: 'Now let''s learn to recover burnt food. Load another patty; we''ll deliberately leave this one too long.'
+    objective: Now let's learn to recover burnt food. Load another patty; we'll deliberately
+      leave this one too long.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -123814,7 +123983,7 @@ MonoBehaviour:
   - id: ff_Burn_load_0
     phase: 14
     speaker: Big Boss
-    message: ''
+    message: 
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
@@ -123826,7 +123995,7 @@ MonoBehaviour:
     uiTargetKey: FF.Source
     actionKey: ff_Burn_load_0
     requiredContext: {fileID: 0}
-    objective: 'Load cooking spot 1 with the highlighted raw ingredient.'
+    objective: Load cooking spot 1 with the highlighted raw ingredient.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -123834,7 +124003,8 @@ MonoBehaviour:
   - id: ff_Burn_wait_0
     phase: 14
     speaker: Big Boss
-    message: 'We''ll deliberately leave this patty on the heat too long, so you can recognize burnt food.'
+    message: We'll deliberately leave this patty on the heat too long, so you can
+      recognize burnt food.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
@@ -123843,10 +124013,10 @@ MonoBehaviour:
     worldTargetKey: FF.Subject
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey:
+    uiTargetKey: 
     actionKey: ff_Burn_wait_0
     requiredContext: {fileID: 0}
-    objective: 'Watch what happens if we leave it on the heat.'
+    objective: Watch what happens if we leave it on the heat.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -123854,7 +124024,7 @@ MonoBehaviour:
   - id: ff_discard
     phase: 14
     speaker: Big Boss
-    message: 'Burnt food can''t be served. This patty belongs in the discard area.'
+    message: Burnt food can't be served. This patty belongs in the discard area.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
@@ -123866,7 +124036,7 @@ MonoBehaviour:
     uiTargetKey: FF.Discard
     actionKey: ff_discard
     requiredContext: {fileID: 0}
-    objective: 'Discard the burnt patty.'
+    objective: Discard the burnt patty.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -123874,7 +124044,7 @@ MonoBehaviour:
   - id: ff_reload
     phase: 14
     speaker: Big Boss
-    message: ''
+    message: 
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
@@ -123886,7 +124056,7 @@ MonoBehaviour:
     uiTargetKey: FF.Source
     actionKey: ff_reload
     requiredContext: {fileID: 0}
-    objective: 'Load a fresh patty onto the highlighted cooking spot.'
+    objective: Load a fresh patty onto the highlighted cooking spot.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -123894,19 +124064,19 @@ MonoBehaviour:
   - id: ff_retry_wait
     phase: 14
     speaker: Big Boss
-    message: ''
+    message: 
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey:
+    uiTargetKey: 
     actionKey: ff_retry_wait
     requiredContext: {fileID: 0}
-    objective: 'The replacement patty is cooking…'
+    objective: "The replacement patty is cooking\u2026"
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -123914,7 +124084,7 @@ MonoBehaviour:
   - id: ff_retry_collect
     phase: 14
     speaker: Big Boss
-    message: ''
+    message: 
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
@@ -123923,10 +124093,10 @@ MonoBehaviour:
     worldTargetKey: FF.Target
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey:
+    uiTargetKey: 
     actionKey: ff_retry_collect
     requiredContext: {fileID: 0}
-    objective: 'Collect the replacement patty.'
+    objective: Collect the replacement patty.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -123934,7 +124104,8 @@ MonoBehaviour:
   - id: ff_protein_ff-chicken-sandwich
     phase: 13
     speaker: Big Boss
-    message: 'Stay at the prep table. Fryer staff cook the chicken for you; we''ll assemble it when the READY ingredient arrives.'
+    message: Stay at the prep table. Fryer staff cook the chicken for you; we'll
+      assemble it when the READY ingredient arrives.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
@@ -123943,10 +124114,10 @@ MonoBehaviour:
     worldTargetKey: FF.Subject
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey:
+    uiTargetKey: 
     actionKey: ff_protein_ff-chicken-sandwich
     requiredContext: {fileID: 0}
-    objective: 'The fryer team is preparing the chicken…'
+    objective: "The fryer team is preparing the chicken\u2026"
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -123954,19 +124125,21 @@ MonoBehaviour:
   - id: ff_sandwich_ready_ff-chicken-sandwich
     phase: 13
     speaker: Big Boss
-    message: 'The cooked chicken is ready. Add bottom bun, cooked chicken, then top bun.'
+    message: The cooked chicken is ready. Add bottom bun, cooked chicken, then top
+      bun.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: FF.Control
-    actionKey:
+    actionKey: 
     requiredContext: {fileID: 0}
-    objective: 'The cooked chicken is ready. Add bottom bun, cooked chicken, then top bun.'
+    objective: The cooked chicken is ready. Add bottom bun, cooked chicken, then
+      top bun.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -123974,7 +124147,7 @@ MonoBehaviour:
   - id: ff_Sandwiches_ff-chicken-sandwich_0_ingredient_0
     phase: 13
     speaker: Big Boss
-    message: ''
+    message: 
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
@@ -123986,7 +124159,7 @@ MonoBehaviour:
     uiTargetKey: FF.Source
     actionKey: ff_Sandwiches_ff-chicken-sandwich_0_ingredient_0
     requiredContext: {fileID: 0}
-    objective: 'Add Bottom bun (1/3).'
+    objective: Add Bottom bun (1/3).
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -123994,7 +124167,7 @@ MonoBehaviour:
   - id: ff_Sandwiches_ff-chicken-sandwich_0_ingredient_1
     phase: 13
     speaker: Big Boss
-    message: ''
+    message: 
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
@@ -124006,7 +124179,7 @@ MonoBehaviour:
     uiTargetKey: FF.Source
     actionKey: ff_Sandwiches_ff-chicken-sandwich_0_ingredient_1
     requiredContext: {fileID: 0}
-    objective: 'Add Cooked Chicken (2/3).'
+    objective: Add Cooked Chicken (2/3).
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -124014,7 +124187,7 @@ MonoBehaviour:
   - id: ff_Sandwiches_ff-chicken-sandwich_0_ingredient_2
     phase: 13
     speaker: Big Boss
-    message: ''
+    message: 
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
@@ -124026,7 +124199,7 @@ MonoBehaviour:
     uiTargetKey: FF.Source
     actionKey: ff_Sandwiches_ff-chicken-sandwich_0_ingredient_2
     requiredContext: {fileID: 0}
-    objective: 'Add Top bun (3/3).'
+    objective: Add Top bun (3/3).
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -124034,7 +124207,8 @@ MonoBehaviour:
   - id: ff_protein_ff-fish-fillet-sandwich
     phase: 13
     speaker: Big Boss
-    message: 'Next is the Fish Fillet Sandwich. Staff are cooking the fish; wait here at the prep table.'
+    message: Next is the Fish Fillet Sandwich. Staff are cooking the fish; wait here
+      at the prep table.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
@@ -124043,10 +124217,10 @@ MonoBehaviour:
     worldTargetKey: FF.Subject
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey:
+    uiTargetKey: 
     actionKey: ff_protein_ff-fish-fillet-sandwich
     requiredContext: {fileID: 0}
-    objective: 'The fryer team is preparing the fish…'
+    objective: "The fryer team is preparing the fish\u2026"
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -124054,19 +124228,19 @@ MonoBehaviour:
   - id: ff_sandwich_ready_ff-fish-fillet-sandwich
     phase: 13
     speaker: Big Boss
-    message: 'The cooked fish is ready. Add bottom bun, cooked fish, then top bun.'
+    message: The cooked fish is ready. Add bottom bun, cooked fish, then top bun.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: FF.Control
-    actionKey:
+    actionKey: 
     requiredContext: {fileID: 0}
-    objective: 'The cooked fish is ready. Add bottom bun, cooked fish, then top bun.'
+    objective: The cooked fish is ready. Add bottom bun, cooked fish, then top bun.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -124074,7 +124248,7 @@ MonoBehaviour:
   - id: ff_Sandwiches_ff-fish-fillet-sandwich_0_ingredient_0
     phase: 13
     speaker: Big Boss
-    message: ''
+    message: 
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
@@ -124086,7 +124260,7 @@ MonoBehaviour:
     uiTargetKey: FF.Source
     actionKey: ff_Sandwiches_ff-fish-fillet-sandwich_0_ingredient_0
     requiredContext: {fileID: 0}
-    objective: 'Add Bottom bun (1/3).'
+    objective: Add Bottom bun (1/3).
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -124094,7 +124268,7 @@ MonoBehaviour:
   - id: ff_Sandwiches_ff-fish-fillet-sandwich_0_ingredient_1
     phase: 13
     speaker: Big Boss
-    message: ''
+    message: 
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
@@ -124106,7 +124280,7 @@ MonoBehaviour:
     uiTargetKey: FF.Source
     actionKey: ff_Sandwiches_ff-fish-fillet-sandwich_0_ingredient_1
     requiredContext: {fileID: 0}
-    objective: 'Add Cooked FishFillet (2/3).'
+    objective: Add Cooked FishFillet (2/3).
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -124114,7 +124288,7 @@ MonoBehaviour:
   - id: ff_Sandwiches_ff-fish-fillet-sandwich_0_ingredient_2
     phase: 13
     speaker: Big Boss
-    message: ''
+    message: 
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
@@ -124126,7 +124300,7 @@ MonoBehaviour:
     uiTargetKey: FF.Source
     actionKey: ff_Sandwiches_ff-fish-fillet-sandwich_0_ingredient_2
     requiredContext: {fileID: 0}
-    objective: 'Add Top bun (3/3).'
+    objective: Add Top bun (3/3).
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -124140,13 +124314,14 @@ MonoBehaviour:
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey:
-    actionKey:
+    uiTargetKey: 
+    actionKey: 
     requiredContext: {fileID: 0}
-    objective: 'That''s it: staff fry the protein, and you assemble the sandwich here.'
+    objective: 'That''s it: staff fry the protein, and you assemble the sandwich
+      here.'
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -124154,19 +124329,21 @@ MonoBehaviour:
   - id: ff_hud_navigation
     phase: 10
     speaker: Big Boss
-    message: 'These SWITCH STATION arrows move directly between workstations. Use the highlighted arrow next to go to Fryer.'
+    message: These SWITCH STATION arrows move directly between workstations. Use
+      the highlighted arrow next to go to Fryer.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: FF.Control
-    actionKey:
+    actionKey: 
     requiredContext: {fileID: 0}
-    objective: 'These SWITCH STATION arrows move directly between workstations. Use the highlighted arrow next to go to Fryer.'
+    objective: These SWITCH STATION arrows move directly between workstations. Use
+      the highlighted arrow next to go to Fryer.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -124174,19 +124351,19 @@ MonoBehaviour:
   - id: ff_Fries_station
     phase: 10
     speaker: Big Boss
-    message: 'Use the highlighted station arrow to go to Fryer.'
+    message: Use the highlighted station arrow to go to Fryer.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
     hintMode: 2
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: FF.Control
     actionKey: ff_Fries_station
     requiredContext: {fileID: 0}
-    objective: 'Use the highlighted station arrow to go to Fryer.'
+    objective: Use the highlighted station arrow to go to Fryer.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -124194,7 +124371,8 @@ MonoBehaviour:
   - id: ff_fryer_ui
     phase: 10
     speaker: Big Boss
-    message: 'Each basket holds food while it cooks. A ready basket rises out of the oil for collection.'
+    message: Each basket holds food while it cooks. A ready basket rises out of the
+      oil for collection.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
@@ -124203,10 +124381,11 @@ MonoBehaviour:
     worldTargetKey: FF.Subject
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey:
-    actionKey:
+    uiTargetKey: 
+    actionKey: 
     requiredContext: {fileID: 0}
-    objective: 'Each basket holds food while it cooks. A ready basket rises out of the oil for collection.'
+    objective: Each basket holds food while it cooks. A ready basket rises out of
+      the oil for collection.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -124214,19 +124393,19 @@ MonoBehaviour:
   - id: ff_fryer_raw
     phase: 10
     speaker: Big Boss
-    message: 'Use these raw fries to load a basket.'
+    message: Use these raw fries to load a basket.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: FF.Control
-    actionKey:
+    actionKey: 
     requiredContext: {fileID: 0}
-    objective: 'Use these raw fries to load a basket.'
+    objective: Use these raw fries to load a basket.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -124234,7 +124413,7 @@ MonoBehaviour:
   - id: ff_Fries_load_0
     phase: 10
     speaker: Big Boss
-    message: ''
+    message: 
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
@@ -124246,7 +124425,7 @@ MonoBehaviour:
     uiTargetKey: FF.Source
     actionKey: ff_Fries_load_0
     requiredContext: {fileID: 0}
-    objective: 'Load cooking spot 1 with the highlighted raw ingredient.'
+    objective: Load cooking spot 1 with the highlighted raw ingredient.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -124254,7 +124433,7 @@ MonoBehaviour:
   - id: ff_Fries_wait_0
     phase: 10
     speaker: Big Boss
-    message: ''
+    message: 
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
@@ -124263,10 +124442,10 @@ MonoBehaviour:
     worldTargetKey: FF.Subject
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey:
+    uiTargetKey: 
     actionKey: ff_Fries_wait_0
     requiredContext: {fileID: 0}
-    objective: 'The fries are cooking…'
+    objective: "The fries are cooking\u2026"
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -124274,7 +124453,7 @@ MonoBehaviour:
   - id: ff_Fries_collect_0
     phase: 10
     speaker: Big Boss
-    message: 'The raised basket is ready. Collect the fries for service.'
+    message: The raised basket is ready. Collect the fries for service.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
@@ -124283,10 +124462,10 @@ MonoBehaviour:
     worldTargetKey: FF.Target
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey:
+    uiTargetKey: 
     actionKey: ff_Fries_collect_0
     requiredContext: {fileID: 0}
-    objective: 'Collect the ready fries.'
+    objective: Collect the ready fries.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -124294,7 +124473,8 @@ MonoBehaviour:
   - id: ff_fries_done
     phase: 10
     speaker: Big Boss
-    message: 'Collected fries go onto this drying rack and become ready supply for the Assembler.'
+    message: Collected fries go onto this drying rack and become ready supply for
+      the Assembler.
     portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
     stepType: 0
     requiredAction: 0
@@ -124303,10 +124483,11 @@ MonoBehaviour:
     worldTargetKey: FF.Subject
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey:
-    actionKey:
+    uiTargetKey: 
+    actionKey: 
     requiredContext: {fileID: 0}
-    objective: 'Collected fries go onto this drying rack and become ready supply for the Assembler.'
+    objective: Collected fries go onto this drying rack and become ready supply for
+      the Assembler.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -124314,19 +124495,19 @@ MonoBehaviour:
   - id: ff_Serving_station
     phase: 11
     speaker: Big Boss
-    message: 'Use the highlighted station arrow to go to Assembler.'
+    message: Use the highlighted station arrow to go to Assembler.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
     hintMode: 2
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 0
     uiFocusTarget: {fileID: 0}
     uiTargetKey: FF.Control
     actionKey: ff_Serving_station
     requiredContext: {fileID: 0}
-    objective: 'Use the highlighted station arrow to go to Assembler.'
+    objective: Use the highlighted station arrow to go to Assembler.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -124334,19 +124515,21 @@ MonoBehaviour:
   - id: ff_ticket
     phase: 11
     speaker: Big Boss
-    message: 'This active order needs 1 Burger, 1 Fries, and 1 Coke. Each quantity shows how much is already on the tray.'
+    message: This active order needs 1 Burger, 1 Fries, and 1 Coke. Each quantity
+      shows how much is already on the tray.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: FF.Control
-    actionKey:
+    actionKey: 
     requiredContext: {fileID: 0}
-    objective: 'This active order needs 1 Burger, 1 Fries, and 1 Coke. Each quantity shows how much is already on the tray.'
+    objective: This active order needs 1 Burger, 1 Fries, and 1 Coke. Each quantity
+      shows how much is already on the tray.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -124354,7 +124537,8 @@ MonoBehaviour:
   - id: ff_tray_ui
     phase: 11
     speaker: Big Boss
-    message: 'This tray holds the order. Completing food, putting it on this tray, and serving are separate actions.'
+    message: This tray holds the order. Completing food, putting it on this tray,
+      and serving are separate actions.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
@@ -124363,10 +124547,11 @@ MonoBehaviour:
     worldTargetKey: FF.Subject
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey:
-    actionKey:
+    uiTargetKey: 
+    actionKey: 
     requiredContext: {fileID: 0}
-    objective: 'This tray holds the order. Completing food, putting it on this tray, and serving are separate actions.'
+    objective: This tray holds the order. Completing food, putting it on this tray,
+      and serving are separate actions.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -124374,19 +124559,21 @@ MonoBehaviour:
   - id: ff_assembler_hotbar
     phase: 11
     speaker: Big Boss
-    message: 'These ready foods and drinks are available for the order. Each belongs on the tray.'
+    message: These ready foods and drinks are available for the order. Each belongs
+      on the tray.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: FF.Control
-    actionKey:
+    actionKey: 
     requiredContext: {fileID: 0}
-    objective: 'These ready foods and drinks are available for the order. Each belongs on the tray.'
+    objective: These ready foods and drinks are available for the order. Each belongs
+      on the tray.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -124394,7 +124581,7 @@ MonoBehaviour:
   - id: ff_place_02
     phase: 11
     speaker: Big Boss
-    message: 'Add Burger to the tray.'
+    message: Add Burger to the tray.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
@@ -124406,7 +124593,7 @@ MonoBehaviour:
     uiTargetKey: FF.Source
     actionKey: ff_place_02
     requiredContext: {fileID: 0}
-    objective: 'Add Burger to the tray.'
+    objective: Add Burger to the tray.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -124414,7 +124601,7 @@ MonoBehaviour:
   - id: ff_place_03
     phase: 11
     speaker: Big Boss
-    message: 'Add Fries to the tray.'
+    message: Add Fries to the tray.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
@@ -124426,7 +124613,7 @@ MonoBehaviour:
     uiTargetKey: FF.Source
     actionKey: ff_place_03
     requiredContext: {fileID: 0}
-    objective: 'Add Fries to the tray.'
+    objective: Add Fries to the tray.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -124434,7 +124621,7 @@ MonoBehaviour:
   - id: ff_place_04
     phase: 11
     speaker: Big Boss
-    message: 'Add Coke to the tray.'
+    message: Add Coke to the tray.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
@@ -124446,7 +124633,7 @@ MonoBehaviour:
     uiTargetKey: FF.Source
     actionKey: ff_place_04
     requiredContext: {fileID: 0}
-    objective: 'Add Coke to the tray.'
+    objective: Add Coke to the tray.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -124454,19 +124641,20 @@ MonoBehaviour:
   - id: ff_serve
     phase: 11
     speaker: Big Boss
-    message: 'Everything is on the tray. Serve sends the complete order out to the customer.'
+    message: Everything is on the tray. Serve sends the complete order out to the
+      customer.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
     hintMode: 2
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: FF.Control
     actionKey: ff_serve
     requiredContext: {fileID: 0}
-    objective: 'Serve the complete order.'
+    objective: Serve the complete order.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -124474,19 +124662,19 @@ MonoBehaviour:
   - id: ff_served
     phase: 11
     speaker: Big Boss
-    message: 'Nice work. That order is ready for the customer.'
+    message: Nice work. That order is ready for the customer.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey:
-    actionKey:
+    uiTargetKey: 
+    actionKey: 
     requiredContext: {fileID: 0}
-    objective: 'Nice work. That order is ready for the customer.'
+    objective: Nice work. That order is ready for the customer.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -124494,19 +124682,23 @@ MonoBehaviour:
   - id: ff_practice_intro
     phase: 15
     speaker: Big Boss
-    message: 'Let''s put that into practice. Prepare and serve 2 Burgers, 1 Fries, and 1 Coke, then the chicken and fish sandwich order. Follow TASK; there''s no deadline.'
+    message: Let's put that into practice. Prepare and serve 2 Burgers, 1 Fries,
+      and 1 Coke, then the chicken and fish sandwich order. Follow TASK; there's
+      no deadline.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey:
-    actionKey:
+    uiTargetKey: 
+    actionKey: 
     requiredContext: {fileID: 0}
-    objective: 'Let''s put that into practice. Prepare and serve 2 Burgers, 1 Fries, and 1 Coke, then the chicken and fish sandwich order. Follow TASK; there''s no deadline.'
+    objective: Let's put that into practice. Prepare and serve 2 Burgers, 1 Fries,
+      and 1 Coke, then the chicken and fish sandwich order. Follow TASK; there's
+      no deadline.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -124514,19 +124706,21 @@ MonoBehaviour:
   - id: ff_practice_navigation
     phase: 15
     speaker: Big Boss
-    message: 'Use the arrows to switch directly, or open Stations to choose your next workstation.'
+    message: Use the arrows to switch directly, or open Stations to choose your next
+      workstation.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: FF.Control
-    actionKey:
+    actionKey: 
     requiredContext: {fileID: 0}
-    objective: 'Use the arrows to switch directly, or open Stations to choose your next workstation.'
+    objective: Use the arrows to switch directly, or open Stations to choose your
+      next workstation.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -124534,19 +124728,21 @@ MonoBehaviour:
   - id: ff_practice_exit
     phase: 15
     speaker: Big Boss
-    message: 'Exit Kitchen returns to the restaurant. You can reopen Kitchen to continue your practice.'
+    message: Exit Kitchen returns to the restaurant. You can reopen Kitchen to continue
+      your practice.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: FF.Control
-    actionKey:
+    actionKey: 
     requiredContext: {fileID: 0}
-    objective: 'Exit Kitchen returns to the restaurant. You can reopen Kitchen to continue your practice.'
+    objective: Exit Kitchen returns to the restaurant. You can reopen Kitchen to
+      continue your practice.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -124554,19 +124750,19 @@ MonoBehaviour:
   - id: ff_practice
     phase: 15
     speaker: Big Boss
-    message: ''
+    message: 
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 0
     uiFocusTarget: {fileID: 0}
-    uiTargetKey:
+    uiTargetKey: 
     actionKey: ff_practice
     requiredContext: {fileID: 0}
-    objective: 'Let''s finish this order. Go to Grill and prepare 2 burgers. 0/2 ready.'
+    objective: Let's finish this order. Go to Grill and prepare 2 burgers. 0/2 ready.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -124574,19 +124770,21 @@ MonoBehaviour:
   - id: ff_practice_done
     phase: 15
     speaker: Big Boss
-    message: 'Well done! You cooked, prepared food, and served both complete tickets. Let''s finish with kitchen maintenance.'
+    message: Well done! You cooked, prepared food, and served both complete tickets.
+      Let's finish with kitchen maintenance.
     portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey:
-    actionKey:
+    uiTargetKey: 
+    actionKey: 
     requiredContext: {fileID: 0}
-    objective: 'Well done! You cooked, prepared food, and served both complete tickets. Let''s finish with kitchen maintenance.'
+    objective: Well done! You cooked, prepared food, and served both complete tickets.
+      Let's finish with kitchen maintenance.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -124594,19 +124792,21 @@ MonoBehaviour:
   - id: ff_hygiene_intro
     phase: 14
     speaker: Big Boss
-    message: 'The kitchen needs cleaning. Clean Now gives the team time to make it safe for food again.'
+    message: The kitchen needs cleaning. Clean Now gives the team time to make it
+      safe for food again.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: FF.Control
-    actionKey:
+    actionKey: 
     requiredContext: {fileID: 0}
-    objective: 'The kitchen needs cleaning. Clean Now gives the team time to make it safe for food again.'
+    objective: The kitchen needs cleaning. Clean Now gives the team time to make
+      it safe for food again.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -124614,19 +124814,19 @@ MonoBehaviour:
   - id: ff_hygiene_clean
     phase: 14
     speaker: Big Boss
-    message: 'Choose Clean Now, then wait for cleaning to finish.'
+    message: Choose Clean Now, then wait for cleaning to finish.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
     hintMode: 2
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: FF.Control
     actionKey: ff_hygiene_clean
     requiredContext: {fileID: 0}
-    objective: 'Choose Clean Now, then wait for cleaning to finish.'
+    objective: Choose Clean Now, then wait for cleaning to finish.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -124634,19 +124834,19 @@ MonoBehaviour:
   - id: ff_stock_intro
     phase: 3
     speaker: Big Boss
-    message: 'We''re low on fries. Let''s order a box at the computer.'
+    message: We're low on fries. Let's order a box at the computer.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: FF.Control
-    actionKey:
+    actionKey: 
     requiredContext: {fileID: 0}
-    objective: 'We''re low on fries. Let''s order a box at the computer.'
+    objective: We're low on fries. Let's order a box at the computer.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -124654,19 +124854,19 @@ MonoBehaviour:
   - id: ff_stock_open
     phase: 3
     speaker: Big Boss
-    message: 'Go to Restock will take us to the computer to arrange the delivery.'
+    message: Go to Restock will take us to the computer to arrange the delivery.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
     hintMode: 2
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: FF.Control
     actionKey: ff_stock_open
     requiredContext: {fileID: 0}
-    objective: 'Go to the computer.'
+    objective: Go to the computer.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -124674,19 +124874,19 @@ MonoBehaviour:
   - id: ff_stock_app
     phase: 3
     speaker: Big Boss
-    message: 'Choose Restock on the computer.'
+    message: Choose Restock on the computer.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
     hintMode: 2
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: FF.Control
     actionKey: ff_stock_app
     requiredContext: {fileID: 0}
-    objective: 'Open Restock.'
+    objective: Open Restock.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -124694,19 +124894,20 @@ MonoBehaviour:
   - id: ff_stock_food
     phase: 3
     speaker: Big Boss
-    message: 'The Food tab lists ingredients for the kitchen. We''ll find French Fries there.'
+    message: The Food tab lists ingredients for the kitchen. We'll find French Fries
+      there.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
     hintMode: 2
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: FF.Control
     actionKey: ff_stock_food
     requiredContext: {fileID: 0}
-    objective: 'Choose Food.'
+    objective: Choose Food.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -124714,19 +124915,21 @@ MonoBehaviour:
   - id: ff_stock_fries
     phase: 3
     speaker: Big Boss
-    message: 'Order one box of French Fries. The card shows the price and how much comes in a box.'
+    message: Order one box of French Fries. The card shows the price and how much
+      comes in a box.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: FF.Control
-    actionKey:
+    actionKey: 
     requiredContext: {fileID: 0}
-    objective: 'Order one box of French Fries. The card shows the price and how much comes in a box.'
+    objective: Order one box of French Fries. The card shows the price and how much
+      comes in a box.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -124734,19 +124937,19 @@ MonoBehaviour:
   - id: ff_stock_add_fries
     phase: 3
     speaker: Big Boss
-    message: ''
+    message: 
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
     hintMode: 2
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: FF.Control
     actionKey: ff_stock_add_fries
     requiredContext: {fileID: 0}
-    objective: 'Order 1 box of fries.'
+    objective: Order 1 box of fries.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -124754,19 +124957,19 @@ MonoBehaviour:
   - id: ff_stock_checkout
     phase: 3
     speaker: Big Boss
-    message: 'Checkout lets us review the quantities and total before paying.'
+    message: Checkout lets us review the quantities and total before paying.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
     hintMode: 2
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: FF.Control
     actionKey: ff_stock_checkout
     requiredContext: {fileID: 0}
-    objective: 'Review the order at Checkout.'
+    objective: Review the order at Checkout.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -124774,19 +124977,20 @@ MonoBehaviour:
   - id: ff_stock_order
     phase: 3
     speaker: Big Boss
-    message: 'One box of fries is all we need. Order Now confirms the purchase and pays the supplier.'
+    message: One box of fries is all we need. Order Now confirms the purchase and
+      pays the supplier.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
     hintMode: 2
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: FF.Control
     actionKey: ff_stock_order
     requiredContext: {fileID: 0}
-    objective: 'Confirm the purchase with Order Now.'
+    objective: Confirm the purchase with Order Now.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -124794,19 +124998,19 @@ MonoBehaviour:
   - id: ff_stock_close_app
     phase: 3
     speaker: Big Boss
-    message: 'The delivery is on its way. Close Restock and we''ll collect it outside.'
+    message: The delivery is on its way. Close Restock and we'll collect it outside.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
     hintMode: 2
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: FF.Control
     actionKey: ff_stock_close_app
     requiredContext: {fileID: 0}
-    objective: 'Close Restock.'
+    objective: Close Restock.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -124814,19 +125018,19 @@ MonoBehaviour:
   - id: ff_stock_close_computer
     phase: 3
     speaker: Big Boss
-    message: 'We''re finished at the computer. Exit returns us to the restaurant.'
+    message: We're finished at the computer. Exit returns us to the restaurant.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
     hintMode: 2
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: FF.Control
     actionKey: ff_stock_close_computer
     requiredContext: {fileID: 0}
-    objective: 'Leave the computer.'
+    objective: Leave the computer.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -124834,19 +125038,19 @@ MonoBehaviour:
   - id: ff_stock_delivery
     phase: 3
     speaker: Big Boss
-    message: ''
+    message: 
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey:
+    uiTargetKey: 
     actionKey: ff_stock_delivery
     requiredContext: {fileID: 0}
-    objective: 'Waiting for the delivery…'
+    objective: "Waiting for the delivery\u2026"
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -124854,7 +125058,7 @@ MonoBehaviour:
   - id: ff_stock_truck
     phase: 3
     speaker: Big Boss
-    message: 'Our delivery has arrived. Meet the truck to collect it.'
+    message: Our delivery has arrived. Meet the truck to collect it.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
@@ -124863,10 +125067,10 @@ MonoBehaviour:
     worldTargetKey: FF.Subject
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey:
+    uiTargetKey: 
     actionKey: ff_stock_truck
     requiredContext: {fileID: 0}
-    objective: 'Meet the delivery truck.'
+    objective: Meet the delivery truck.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -124874,19 +125078,19 @@ MonoBehaviour:
   - id: ff_stock_collect
     phase: 3
     speaker: Big Boss
-    message: 'HOLD TO COLLECT brings the boxes off the truck. Let''s collect our delivery.'
+    message: HOLD TO COLLECT brings the boxes off the truck. Let's collect our delivery.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
     hintMode: 6
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
     uiTargetKey: FF.Control
     actionKey: ff_stock_collect
     requiredContext: {fileID: 0}
-    objective: 'Collect the delivery.'
+    objective: Collect the delivery.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -124894,7 +125098,7 @@ MonoBehaviour:
   - id: ff_stock_freezer
     phase: 3
     speaker: Big Boss
-    message: 'Fries belong in frozen storage. Take this box to the freezer.'
+    message: Fries belong in frozen storage. Take this box to the freezer.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
@@ -124903,10 +125107,10 @@ MonoBehaviour:
     worldTargetKey: FF.Subject
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey:
+    uiTargetKey: 
     actionKey: ff_stock_freezer
     requiredContext: {fileID: 0}
-    objective: 'Take the fries to the freezer.'
+    objective: Take the fries to the freezer.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -124914,7 +125118,7 @@ MonoBehaviour:
   - id: ff_stock_store
     phase: 3
     speaker: Big Boss
-    message: 'Put this box of fries on the empty freezer shelf.'
+    message: Put this box of fries on the empty freezer shelf.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
@@ -124926,7 +125130,7 @@ MonoBehaviour:
     uiTargetKey: FF.Source
     actionKey: ff_stock_store
     requiredContext: {fileID: 0}
-    objective: 'Drag the fries box onto the empty freezer shelf.'
+    objective: Drag the fries box onto the empty freezer shelf.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -124934,19 +125138,19 @@ MonoBehaviour:
   - id: ff_complete
     phase: 7
     speaker: Big Boss
-    message: 'Good work. The fries are stored. Good luck with your shift!'
+    message: Good work. The fries are stored. Good luck with your shift!
     portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
     stepType: 0
     requiredAction: 0
     hintMode: 0
     highlightTarget: {fileID: 0}
-    worldTargetKey:
+    worldTargetKey: 
     restrictUnrelatedInteractions: 1
     uiFocusTarget: {fileID: 0}
-    uiTargetKey:
-    actionKey:
+    uiTargetKey: 
+    actionKey: 
     requiredContext: {fileID: 0}
-    objective: 'Good work. The fries are stored. Good luck with your shift!'
+    objective: Good work. The fries are stored. Good luck with your shift!
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -124962,6 +125166,7 @@ MonoBehaviour:
   debugFocusPadding: 8
   debugBigBossBopScale: 1.06
   debugBigBossBopDuration: 0.22
+  explainWithFocus: 1
   currentStepId: 
   currentPhase: 0
   currentStepIndex: -1
@@ -125020,41 +125225,6 @@ Transform:
   - {fileID: 88090000002}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &88090000001
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 88090000002}
-  m_Layer: 5
-  m_Name: Kitchen tutorial world focus
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!224 &88090000002
-RectTransform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 88090000001}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1143629104}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 0.5}
-  m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 1, y: 1}
-  m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &1143808175
 GameObject:
   m_ObjectHideFlags: 0
@@ -134378,6 +134548,10 @@ PrefabInstance:
       propertyPath: 'm_Materials.Array.data[3]'
       value: 
       objectReference: {fileID: -6922793697723135513, guid: aea834bd57b2fae488515adeeca931ee, type: 3}
+    - target: {fileID: 5849408357348792023, guid: 4197fbd1f0695d84baa432f964adbbca, type: 3}
+      propertyPath: m_Enabled
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 6430052116615850230, guid: 4197fbd1f0695d84baa432f964adbbca, type: 3}
       propertyPath: m_text
       value: Cahier
@@ -134425,8 +134599,21 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 2190761554666364859, guid: 4197fbd1f0695d84baa432f964adbbca, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1946223723}
   m_SourcePrefab: {fileID: 100100000, guid: 4197fbd1f0695d84baa432f964adbbca, type: 3}
+--- !u!4 &1273948365 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 3223270877693406560, guid: 4197fbd1f0695d84baa432f964adbbca, type: 3}
+  m_PrefabInstance: {fileID: 1273948364}
+  m_PrefabAsset: {fileID: 0}
+--- !u!95 &1273948366 stripped
+Animator:
+  m_CorrespondingSourceObject: {fileID: 8816771664541595418, guid: 4197fbd1f0695d84baa432f964adbbca, type: 3}
+  m_PrefabInstance: {fileID: 1273948364}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &1276933693
 GameObject:
   m_ObjectHideFlags: 0
@@ -166515,6 +166702,30 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 9216089232059409214, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
   m_PrefabInstance: {fileID: 292817759}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &1470914840
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1470914838}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8f73e863927f9942a29c5e844067cf5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  catalog: {fileID: 11400000, guid: b21bcd0921d058245957f42f6b3ca1eb, type: 2}
+  animator: {fileID: 292817761}
+  originalRenderers:
+  - {fileID: 86261001}
+  - {fileID: 680780786}
+  - {fileID: 525102371}
+  - {fileID: 2117200063}
+  visualParent: {fileID: 292817760}
+  visualScale: {x: 1.9051597, y: 1.9051597, z: 1.9051597}
+  normalizeAdultHeight: 1
+  attachmentPoints: []
+  previewController: {fileID: 0}
 --- !u!1 &1472144383
 GameObject:
   m_ObjectHideFlags: 0
@@ -182768,6 +182979,10 @@ PrefabInstance:
       propertyPath: m_LocalPosition.y
       value: 8.2
       objectReference: {fileID: 0}
+    - target: {fileID: 8978199326392250398, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
+      propertyPath: m_Enabled
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 9142628226517004380, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
@@ -182835,6 +183050,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919144996699085120, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1652031124}
+    - targetCorrespondingSourceObject: {fileID: 919144996699085120, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1652031127}
   m_SourcePrefab: {fileID: 100100000, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
 --- !u!4 &1652031121 stripped
 Transform:
@@ -182871,6 +183089,41 @@ MonoBehaviour:
   waitAtPoint: 1.2
   stationProducts: 
   avoidancePriority: 70
+--- !u!4 &1652031125 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 1746979960760418678, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
+  m_PrefabInstance: {fileID: 1652031120}
+  m_PrefabAsset: {fileID: 0}
+--- !u!95 &1652031126 stripped
+Animator:
+  m_CorrespondingSourceObject: {fileID: 5683166491472829196, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
+  m_PrefabInstance: {fileID: 1652031120}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1652031127
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1652031123}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8f73e863927f9942a29c5e844067cf5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  catalog: {fileID: 11400000, guid: b21bcd0921d058245957f42f6b3ca1eb, type: 2}
+  animator: {fileID: 1652031126}
+  originalRenderers:
+  - {fileID: 1955316136}
+  - {fileID: 2128588354}
+  - {fileID: 2031831494}
+  - {fileID: 639430610}
+  - {fileID: 1405231644}
+  visualParent: {fileID: 1652031125}
+  visualScale: {x: 1.90516, y: 1.90516, z: 1.90516}
+  normalizeAdultHeight: 1
+  attachmentPoints: []
+  previewController: {fileID: 0}
 --- !u!1 &1652100651
 GameObject:
   m_ObjectHideFlags: 0
@@ -184780,6 +185033,7 @@ GameObject:
   - component: {fileID: 1689560714}
   - component: {fileID: 1689560713}
   - component: {fileID: 1689560712}
+  - component: {fileID: 1689560721}
   m_Layer: 0
   m_Name: Second Cashier
   m_TagString: Player
@@ -184861,7 +185115,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1689560710}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1b497824e97cb1245a048f5552ea9774, type: 3}
   m_Name: 
@@ -185013,6 +185267,30 @@ MonoBehaviour:
   sceneViewId: 17
   InstantiationId: 0
   isRuntimeInstantiated: 0
+--- !u!114 &1689560721
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1689560710}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8f73e863927f9942a29c5e844067cf5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  catalog: {fileID: 11400000, guid: b21bcd0921d058245957f42f6b3ca1eb, type: 2}
+  animator: {fileID: 62229584}
+  originalRenderers:
+  - {fileID: 1057836672}
+  - {fileID: 2014602241}
+  - {fileID: 2051594645}
+  - {fileID: 740865833}
+  visualParent: {fileID: 62229582}
+  visualScale: {x: 1.9051597, y: 1.9051597, z: 1.9051597}
+  normalizeAdultHeight: 1
+  attachmentPoints: []
+  previewController: {fileID: 0}
 --- !u!1 &1691195987
 GameObject:
   m_ObjectHideFlags: 0
@@ -185153,6 +185431,7 @@ GameObject:
   - component: {fileID: 1692914069}
   - component: {fileID: 1692914068}
   - component: {fileID: 1692914067}
+  - component: {fileID: 1692914078}
   m_Layer: 0
   m_Name: Fry Station
   m_TagString: Player
@@ -185279,7 +185558,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1692914065}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1b497824e97cb1245a048f5552ea9774, type: 3}
   m_Name: 
@@ -185431,6 +185710,31 @@ MonoBehaviour:
   sceneViewId: 15
   InstantiationId: 0
   isRuntimeInstantiated: 0
+--- !u!114 &1692914078
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1692914065}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8f73e863927f9942a29c5e844067cf5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  catalog: {fileID: 11400000, guid: b21bcd0921d058245957f42f6b3ca1eb, type: 2}
+  animator: {fileID: 802090113}
+  originalRenderers:
+  - {fileID: 465724718}
+  - {fileID: 2126975754}
+  - {fileID: 2007523850}
+  - {fileID: 2088198663}
+  - {fileID: 1176460914}
+  visualParent: {fileID: 802090111}
+  visualScale: {x: 1.90516, y: 1.90516, z: 1.90516}
+  normalizeAdultHeight: 1
+  attachmentPoints: []
+  previewController: {fileID: 0}
 --- !u!1 &1694926576
 GameObject:
   m_ObjectHideFlags: 0
@@ -209151,6 +209455,30 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 618000577963988248, guid: 4197fbd1f0695d84baa432f964adbbca, type: 3}
   m_PrefabInstance: {fileID: 1273948364}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &1946223723
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1946223721}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8f73e863927f9942a29c5e844067cf5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  catalog: {fileID: 11400000, guid: b21bcd0921d058245957f42f6b3ca1eb, type: 2}
+  animator: {fileID: 1273948366}
+  originalRenderers:
+  - {fileID: 1426811331}
+  - {fileID: 620646017}
+  - {fileID: 2094717658}
+  - {fileID: 1297591055}
+  visualParent: {fileID: 1273948365}
+  visualScale: {x: 1.90516, y: 1.90516, z: 1.90516}
+  normalizeAdultHeight: 1
+  attachmentPoints: []
+  previewController: {fileID: 0}
 --- !u!1 &1947226549
 GameObject:
   m_ObjectHideFlags: 0
@@ -224765,6 +225093,36 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c8dd110b70eb29b45a4d2a9d432fb756, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!114 &2076497464
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2076497461}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8f73e863927f9942a29c5e844067cf5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  catalog: {fileID: 11400000, guid: b21bcd0921d058245957f42f6b3ca1eb, type: 2}
+  animator: {fileID: 594307759}
+  originalRenderers:
+  - {fileID: 295285903}
+  - {fileID: 1551400293}
+  - {fileID: 665337876}
+  - {fileID: 219678369}
+  visualParent: {fileID: 594307758}
+  visualScale: {x: 1.9051597, y: 1.9051597, z: 1.9051597}
+  normalizeAdultHeight: 1
+  attachmentPoints:
+  - point: {fileID: 594307762}
+    bone: 0
+  - point: {fileID: 594307761}
+    bone: 0
+  - point: {fileID: 594307760}
+    bone: 0
+  previewController: {fileID: 0}
 --- !u!1 &2077356553
 GameObject:
   m_ObjectHideFlags: 0
@@ -233357,6 +233715,41 @@ MonoBehaviour:
   kitchenMarksMaterial: {fileID: 2100000, guid: ca3b42a972f4a8a4e84927198084dcdd, type: 2}
   kitchenOverlays:
   - {fileID: 516808726}
+--- !u!1 &88090000001
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 88090000002}
+  m_Layer: 5
+  m_Name: Kitchen tutorial world focus
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &88090000002
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 88090000001}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1143629104}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 1, y: 1}
+  m_Pivot: {x: 0.5, y: 0.5}
 --- !u!33 &19156296637350611
 MeshFilter:
   m_ObjectHideFlags: 0

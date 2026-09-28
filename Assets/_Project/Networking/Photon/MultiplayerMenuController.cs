@@ -176,6 +176,7 @@ public class MultiplayerMenuController : MonoBehaviourPunCallbacks
         PhotonNetwork.NickName = account != null && account.IsLoggedIn &&
             !string.IsNullOrWhiteSpace(account.DisplayName) ? account.DisplayName.Trim() : "Player";
         SetStatus(pendingCreate ? "Creating..." : "Joining...");
+        PhotonCustomizationSync.PushToPhoton();
         bool sent = pendingCreate
             ? PhotonNetwork.CreateRoom(code, new RoomOptions
             {

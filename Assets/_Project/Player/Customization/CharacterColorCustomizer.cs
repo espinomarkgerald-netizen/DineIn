@@ -19,10 +19,13 @@ public class CharacterColorCustomizer : MonoBehaviourPun
 
     public void RefreshFromData()
     {
-        ApplyIndex(head, PlayerCustomizationData.HeadColorIndex);
-        ApplyIndex(body, PlayerCustomizationData.BodyColorIndex);
-        ApplyIndex(arms, PlayerCustomizationData.ArmsColorIndex);
-        ApplyIndex(legs, PlayerCustomizationData.LegsColorIndex);
+        ApplyIndices(PlayerCustomizationData.HeadColorIndex, PlayerCustomizationData.BodyColorIndex,
+            PlayerCustomizationData.ArmsColorIndex, PlayerCustomizationData.LegsColorIndex);
+    }
+    public void ApplyIndices(int headIndex, int bodyIndex, int armsIndex, int legsIndex)
+    {
+        if (GetComponentInParent<DineIn.Appearance.PlayerAppearanceBinding>() != null) return;
+        ApplyIndex(head, headIndex); ApplyIndex(body, bodyIndex); ApplyIndex(arms, armsIndex); ApplyIndex(legs, legsIndex);
     }
 
     public void ChangeHead(int dir) => Change(ref PlayerCustomizationData.HeadColorIndex, dir, head);
@@ -43,7 +46,7 @@ public class CharacterColorCustomizer : MonoBehaviourPun
 
     void ApplyIndex(Renderer r, int idx)
     {
-        if (r == null) return;
-        r.material.color = colorOptions[idx];
+        if (r == null || colorOptions == null || colorOptions.Length == 0) return;
+        r.material.color = colorOptions[Mathf.Clamp(idx, 0, colorOptions.Length - 1)];
     }
 }

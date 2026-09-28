@@ -7,6 +7,7 @@ public class EmployeeData
     public string employeeName;
     public int stars; // 1–5
     public EmployeeRole role;
+    public DineIn.Appearance.AppearanceRecipe appearance;
 
     [Header("Employment")]
     public bool hired;

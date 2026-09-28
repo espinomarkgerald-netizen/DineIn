@@ -332,6 +332,20 @@ public class LobbyAutonomousService : MonoBehaviour
                 SetRoleObjectActive(worker.gameObject, IsAssigned(worker.EmployeeRole));
         }
 
+        // Visual binding also runs on observers, using the existing host-provided roster.
+        // It never enables a bot/agent or changes staff authority.
+        bool appearanceFastFood = fastFoodRestaurant != null;
+        DineIn.Appearance.EmployeeAppearance.Bind(hostObject, employeeManager?.GetAssignedEmployee(EmployeeRole.Host), EmployeeRole.Host, appearanceFastFood);
+        DineIn.Appearance.EmployeeAppearance.Bind(waiterObject, DeliveryEmployee, appearanceFastFood ? EmployeeRole.Busser : EmployeeRole.Waiter, appearanceFastFood);
+        DineIn.Appearance.EmployeeAppearance.Bind(busserObject, employeeManager?.GetAssignedEmployee(EmployeeRole.Busser), EmployeeRole.Busser, appearanceFastFood);
+        DineIn.Appearance.EmployeeAppearance.Bind(cashierObject, employeeManager?.GetAssignedEmployee(EmployeeRole.Cashier), EmployeeRole.Cashier, appearanceFastFood);
+        if (appearanceFastFood)
+            DineIn.Appearance.EmployeeAppearance.Bind(fastFoodRestaurant.GetComponent<FastFoodLobbyAuthoring>()?.SecondCashier,
+                employeeManager?.GetAssignedEmployee(EmployeeRole.Cashier, 1), EmployeeRole.Cashier, true);
+        foreach (var worker in kitchenWorkers)
+            if (worker != null) DineIn.Appearance.EmployeeAppearance.Bind(worker.gameObject,
+                employeeManager?.GetAssignedEmployee(worker.EmployeeRole), worker.EmployeeRole, appearanceFastFood);
+
         if (MultiplayerServiceStaffBridge.CanSimulate)
         {
             if (fastFoodRestaurant != null && fastFoodRestaurant.ServiceStations != null)

@@ -79,6 +79,8 @@ GameObject:
   - component: {fileID: 2706430922710820492}
   - component: {fileID: 4363430057896832564}
   - component: {fileID: 4997873851020199762}
+  - component: {fileID: 6955323944879881193}
+  - component: {fileID: 7477929637323386421}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -291,6 +293,42 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 90fde2e1e91e8d647ad3a55e9305e710, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!114 &6955323944879881193
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2414741634280321651}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8f73e863927f9942a29c5e844067cf5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  catalog: {fileID: 11400000, guid: b21bcd0921d058245957f42f6b3ca1eb, type: 2}
+  animator: {fileID: 9013626781662790241}
+  originalRenderers:
+  - {fileID: 8937448472610792038}
+  - {fileID: 4241826833605272226}
+  - {fileID: 1161666180324778355}
+  - {fileID: 7964542679578638783}
+  visualParent: {fileID: 3167993276884621339}
+  visualScale: {x: 1.9051596, y: 1.9051596, z: 1.9051596}
+  normalizeAdultHeight: 1
+  attachmentPoints: []
+  previewController: {fileID: 0}
+--- !u!114 &7477929637323386421
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2414741634280321651}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a94c46e7eaf1562478e9f55cdeaba98d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
 --- !u!1 &2961981234836986697

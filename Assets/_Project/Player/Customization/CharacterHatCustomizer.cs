@@ -36,11 +36,14 @@ public class CharacterHatCustomizer : MonoBehaviourPun
         ApplyHat(PlayerCustomizationData.EquippedHatId);
     }
 
-    void ApplyHat(int index)
+    public void ApplyHat(int index)
     {
-        if (hatAnchor == null || hatPrefabs[index] == null) return;
+        if (GetComponentInParent<DineIn.Appearance.PlayerAppearanceBinding>() != null) return;
+        if (hatAnchor == null || hatPrefabs == null || hatPrefabs.Length == 0) return;
+        index = Mathf.Clamp(index, 0, hatPrefabs.Length - 1);
 
         if (currentHat != null) Destroy(currentHat);
+        if (hatPrefabs[index] == null) return;
 
         currentHat = Instantiate(hatPrefabs[index], hatAnchor);
         currentHat.transform.localPosition = Vector3.zero;

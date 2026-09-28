@@ -15,6 +15,17 @@ public static class LocalSaveManager
         public List<string> ownedItemIds = new List<string>();
 
         public List<RoleEntry> roles = new List<RoleEntry>();
+        // Profile-wide cosmetics intentionally live outside restaurant/day-start career saves.
+        public List<AppearanceRecord> appearances = new List<AppearanceRecord>();
+    }
+
+    [Serializable]
+    public sealed class AppearanceRecord
+    {
+        public string accountId;
+        public string json;
+        public long revision;
+        public bool pendingUpload;
     }
 
     [Serializable]
@@ -77,14 +88,21 @@ public static class LocalSaveManager
 
     public static void Save()
     {
+        TrySave();
+    }
+
+    public static bool TrySave()
+    {
         try
         {
             var json = JsonUtility.ToJson(Data, true);
             File.WriteAllText(FilePath, json);
+            return true;
         }
         catch (Exception e)
         {
             Debug.LogError($"[LocalSaveManager] Save failed: {e}");
+            return false;
         }
     }
 

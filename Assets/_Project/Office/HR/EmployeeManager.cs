@@ -339,8 +339,10 @@ public class EmployeeManager : MonoBehaviour
             if (employee == null)
                 continue;
 
+            DineIn.Appearance.EmployeeAppearance.Ensure(employee);
             data.employees.Add(new EmployeeSaveEntry
             {
+                appearance = employee.appearance?.Copy(),
                 employeeID = employee.EmployeeID,
                 employeeName = employee.employeeName,
                 stars = employee.stars,
@@ -413,6 +415,8 @@ public class EmployeeManager : MonoBehaviour
                 lastPromotionDay = Mathf.Max(0, entry.lastPromotionDay)
             };
             employee.RestoreIdentity(entry.employeeID);
+            employee.appearance = entry.appearance?.Copy();
+            DineIn.Appearance.EmployeeAppearance.Ensure(employee);
             allEmployees.Add(employee);
         }
 

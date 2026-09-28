@@ -12616,6 +12616,7 @@ GameObject:
   - component: {fileID: 2059724315}
   - component: {fileID: 2059724314}
   - component: {fileID: 2059724317}
+  - component: {fileID: 2059724318}
   m_Layer: 5
   m_Name: 'Account Canvas '
   m_TagString: Untagged
@@ -12761,6 +12762,19 @@ MonoBehaviour:
   mainMenuSceneName: NewMainMenu
   authCanvas: {fileID: 2059724316}
   verboseLogging: 1
+--- !u!114 &2059724318
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2059724312}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f0016af5392f9ac4ba59c9bcdbd362c2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  retrySeconds: 30
 --- !u!1 &2061101274
 GameObject:
   m_ObjectHideFlags: 0

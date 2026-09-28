@@ -364,9 +364,11 @@ public class PlayfabManager : MonoBehaviourPunCallbacks
     // ================= LOAD CUSTOMIZATION =================
     void LoadCustomizationFromPlayFab()
     {
+        if (PlayFabAuthManager.Instance != null) return; // Active account flow owns cosmetic sync.
         PlayFabClientAPI.GetUserData(new GetUserDataRequest(),
             r =>
             {
+                if (PlayFabAuthManager.Instance != null) return;
                 if (r.Data != null && r.Data.TryGetValue(CUSTOMIZATION_KEY, out var record))
                     PlayerCustomizationData.LoadFromJson(record.Value);
                 else
@@ -384,6 +386,7 @@ public class PlayfabManager : MonoBehaviourPunCallbacks
     // ================= SAVE CUSTOMIZATION =================
     public void SaveCustomizationToPlayFab()
     {
+        if (PlayFabAuthManager.Instance != null) return;
         if (!IsLoggedIn)
         {
             if (messageText != null) messageText.text = "Please log in first.";
@@ -410,21 +413,7 @@ public class PlayfabManager : MonoBehaviourPunCallbacks
     // ================= PUSH TO PHOTON =================
     public void PushCustomizationToPhoton()
     {
-        if (!PhotonNetwork.IsConnected || PhotonNetwork.LocalPlayer == null)
-        {
-            Debug.LogWarning("PushCustomizationToPhoton skipped: Photon not connected yet.");
-            return;
-        }
-
-        PhotonNetwork.LocalPlayer.SetCustomProperties(new Hashtable
-        {
-            { "Username", PhotonNetwork.NickName },
-            { "HeadI", PlayerCustomizationData.HeadColorIndex },
-            { "BodyI", PlayerCustomizationData.BodyColorIndex },
-            { "ArmsI", PlayerCustomizationData.ArmsColorIndex },
-            { "LegsI", PlayerCustomizationData.LegsColorIndex },
-            { "HatI",  PlayerCustomizationData.EquippedHatId }
-        });
+        PhotonCustomizationSync.PushToPhoton();
     }
 
     // ================= SIGN OUT =================

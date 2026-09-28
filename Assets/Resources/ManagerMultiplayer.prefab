@@ -5427,7 +5427,18 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: a9fd8d0b6d5981e4f9873ed602baafa1, type: 3}
       insertIndex: -1
       addedObject: {fileID: 2421495609939441118}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: a9fd8d0b6d5981e4f9873ed602baafa1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1787652430252679914}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: a9fd8d0b6d5981e4f9873ed602baafa1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1269303885129739034}
   m_SourcePrefab: {fileID: 100100000, guid: a9fd8d0b6d5981e4f9873ed602baafa1, type: 3}
+--- !u!137 &2281774142486940252 stripped
+SkinnedMeshRenderer:
+  m_CorrespondingSourceObject: {fileID: -3767228753083774399, guid: a9fd8d0b6d5981e4f9873ed602baafa1, type: 3}
+  m_PrefabInstance: {fileID: 6058010100203175965}
+  m_PrefabAsset: {fileID: 0}
 --- !u!4 &3365463944460442637 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 8838006089873480720, guid: a9fd8d0b6d5981e4f9873ed602baafa1, type: 3}
@@ -5707,3 +5718,38 @@ MonoBehaviour:
   holdingTray: {fileID: 0}
   trayHoldPoint: {fileID: 800841557069274528}
   trolleyGripPoint: {fileID: 0}
+--- !u!114 &1787652430252679914
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6400470245732777292}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8f73e863927f9942a29c5e844067cf5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  catalog: {fileID: 11400000, guid: b21bcd0921d058245957f42f6b3ca1eb, type: 2}
+  animator: {fileID: 117314185784668463}
+  originalRenderers:
+  - {fileID: 2281774142486940252}
+  visualParent: {fileID: 6023803557791901686}
+  visualScale: {x: 1.3459282, y: 1.3459282, z: 1.3459282}
+  normalizeAdultHeight: 1
+  attachmentPoints:
+  - point: {fileID: 5402276926943079388}
+    bone: 15
+  previewController: {fileID: 0}
+--- !u!114 &1269303885129739034
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6400470245732777292}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a94c46e7eaf1562478e9f55cdeaba98d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 

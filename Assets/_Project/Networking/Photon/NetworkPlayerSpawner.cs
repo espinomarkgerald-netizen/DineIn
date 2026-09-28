@@ -65,6 +65,7 @@ public class NetworkPlayerSpawner : MonoBehaviourPunCallbacks
             rotation = spawnPoint.rotation;
         }
 
+        PhotonCustomizationSync.PushToPhoton();
         GameObject player = PhotonNetwork.Instantiate(playerPrefabName, position, rotation);
 
         if (player == null)

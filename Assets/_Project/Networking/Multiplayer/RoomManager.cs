@@ -94,6 +94,7 @@ public class RoomManager : MonoBehaviourPunCallbacks
         }
 
         // Push appearance customization before spawning so remote clients see it immediately.
+        PhotonCustomizationSync.PushToPhoton();
         var pfm = FindFirstObjectByType<PlayfabManager>();
         if (pfm != null)
         {

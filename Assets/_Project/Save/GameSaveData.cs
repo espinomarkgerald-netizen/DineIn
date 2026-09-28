@@ -40,6 +40,7 @@ public class MoneyTransactionSaveEntry
 [Serializable]
 public class EmployeeSaveEntry
 {
+    public DineIn.Appearance.AppearanceRecipe appearance;
     public string employeeID;
     public string employeeName;
     public int stars;
