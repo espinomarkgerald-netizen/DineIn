@@ -166,6 +166,15 @@ public sealed class TutorialSystem : MonoBehaviour
     [SerializeField] private bool explainWithFocus;
     private bool FocusedFastFood => IsFastFood && explainWithFocus;
     private bool externalTargetPending, focusTransitionPending;
+    private bool fastFoodDragFocused;
+    public bool IsGuidedTravelActive => travelling;
+    public void ReleaseFastFoodPresentation()
+    {
+        if (!FocusedFastFood) return;
+        ClearGuidance();
+        waitingForNext = waitingForPlayerAction = false;
+        InteractionRestrictionChanged?.Invoke(false);
+    }
     private bool externalGuidanceSuppressed, externalPassiveWait;
     private TutorialStep passiveWaitStep;
     public void SetExternalGuidanceSuppressed(bool suppressed, bool passiveWait = false)
@@ -178,7 +187,7 @@ public sealed class TutorialSystem : MonoBehaviour
         externalGuidanceSuppressed = suppressed;
         externalPassiveWait = passiveWait;
         if (!suppressed) { passiveWaitStep = null; return; }
-        uiFocusMask?.Hide(); targetIndicator?.Hide(); handIndicator?.HideHint();
+        uiFocusMask?.Hide(FocusedFastFood); targetIndicator?.Hide(); handIndicator?.HideHint();
         if (passiveWait && waitingForPlayerAction && !IsPresentationBusy && passiveWaitStep != CurrentStep)
         {
             passiveWaitStep = CurrentStep;
@@ -187,18 +196,27 @@ public sealed class TutorialSystem : MonoBehaviour
     }
     public void RefreshExternalGuidance(RectTransform ui, Transform world, bool sourceChanged = false)
     {
-        if (!IsFastFood || !waitingForPlayerAction || transitioning || LobbyPauseMenu.BlocksTutorialInput) return;
+        if (!IsFastFood || (!waitingForPlayerAction && !(FocusedFastFood && waitingForNext)) ||
+            externalTargetPending || transitioning || LobbyPauseMenu.BlocksTutorialInput) return;
         if (externalGuidanceSuppressed) return;
         if (ui == currentUIFocus && world == currentWorldFocus && !sourceChanged) return;
         currentUIFocus = ui;
         currentWorldFocus = world;
-        ShowFocus(true);
+        ShowFocus(waitingForPlayerAction);
         if (FocusedFastFood) return; // Reveal the hint after the focus transition.
         if (CurrentStep.HintMode == TutorialHintMode.Drag) handIndicator?.ShowDragHint(ui != null ? ui : FastFoodTutorialBridge.Instance?.GuidanceSource, world);
         else if (ui != null || world != null) handIndicator?.ShowTapHint(ui != null ? ui : world);
         else handIndicator?.HideHint();
     }
     public event Action<TutorialStep> PreparingStep;
+    public void ReacquireExternalPresentation()
+    {
+        if (!FocusedFastFood || !waitingForNext || externalTargetPending || CurrentStep == null) return;
+        var step = CurrentStep;
+        ClearGuidance(true);
+        waitingForNext = waitingForPlayerAction = false;
+        framingRoutine = StartCoroutine(PrepareExternalPresentation(step, presentationRevision));
+    }
     public void StartAtStep(int index)
     {
         if (!lobbyNavigationReady || index < 0 || index >= StepCount) return;
@@ -593,6 +611,12 @@ public sealed class TutorialSystem : MonoBehaviour
         }
         handoffRoutine = null;
         transitioning = false;
+        if (FocusedFastFood && step.Phase == TutorialPhase.Completed)
+        {
+            ClearGuidance();
+            MarkTutorialCompleted();
+            yield break;
+        }
         if (step.StepType == TutorialStepType.WaitForGameplayAction)
         {
             if (FocusedFastFood) uiFocusMask?.Hold();
@@ -794,7 +818,7 @@ public sealed class TutorialSystem : MonoBehaviour
             RecoverTarget(false);
             return;
         }
-        if (step.Phase == TutorialPhase.Completed)
+        if (step.Phase == TutorialPhase.Completed && !FocusedFastFood)
         {
             MarkTutorialCompleted();
             return;
@@ -848,11 +872,22 @@ public sealed class TutorialSystem : MonoBehaviour
         float waited = 0;
         RectTransform preparedTarget = null;
         bool scrollReady = true;
+        bool framedWorld = false;
         // Let the view process the new state/camera intent before trusting "settled".
         yield return null;
         while (CurrentStep == step && revision == presentationRevision && bridge != null)
         {
+            uiFocusMask?.PrepareGroup(bridge.FocusGroup);
             var candidate = bridge.ResolveUI(step.UITargetKey);
+            var worldCandidate = bridge.ResolveWorld(step.WorldTargetKey);
+            if (worldCandidate != null && bridge.TravelKey != null && cameraController != null &&
+                cameraController.isActiveAndEnabled && cameraController.Cam != null && !TargetVisible(worldCandidate, 0f) && !framedWorld)
+            {
+                framedWorld = true;
+                // Reuse the existing world framing before the real walking interaction.
+                yield return FrameWorldTarget(worldCandidate, revision, null);
+                if (revision != presentationRevision) yield break;
+            }
             if (candidate != null && candidate != preparedTarget && uiAutoScroller != null)
             {
                 preparedTarget = candidate;
@@ -860,7 +895,9 @@ public sealed class TutorialSystem : MonoBehaviour
                 uiAutoScroller.Prepare(candidate, () => scrollReady = true);
             }
             if (scrollReady && bridge.PresentationReady(step)) break;
-            uiFocusMask?.Hide(); targetIndicator?.Hide();
+            // Keep a valid same-group opening through layout/scroll readiness.
+            if (uiFocusMask != null && !uiFocusMask.IsVisible) uiFocusMask.Hide(true);
+            targetIndicator?.Hide();
             if (!LobbyPauseMenu.IsAnyOpen) waited += Time.unscaledDeltaTime;
             if (waited > bridge.TargetAllowance)
             {
@@ -1108,6 +1145,14 @@ public sealed class TutorialSystem : MonoBehaviour
         if (advanceAfterPause) { advanceAfterPause = false; AdvanceToNextStep(); return; }
         if (FocusedFastFood)
         {
+            UpdateTravel();
+            bool dragging = waitingForPlayerAction && CurrentStep?.HintMode == TutorialHintMode.Drag &&
+                FastFoodTutorialBridge.Instance != null && FastFoodTutorialBridge.Instance.Dragging;
+            if (dragging != fastFoodDragFocused && !externalTargetPending)
+            {
+                fastFoodDragFocused = dragging;
+                if (waitingForPlayerAction && !externalGuidanceSuppressed) ShowFastFoodFocus(true);
+            }
             FastFoodTutorialBridge.Instance?.RefreshGuidance();
             return; // Kitchen/storage cameras own their views.
         }
@@ -1175,37 +1220,34 @@ public sealed class TutorialSystem : MonoBehaviour
         dialogueUI?.SetFocusTarget(currentUIFocus);
         dialogueUI?.SetWorldFocusTarget(currentWorldFocus);
         handIndicator?.HideHint(); targetIndicator?.Hide();
-        if (action && bridge.FreeNavigation)
-        {
-            // Practice and already-taught navigation must never acquire a blocking mask.
-            uiFocusMask?.Hide(); focusTransitionPending = false;
-            Transform navigation = currentUIFocus != null ? currentUIFocus : currentWorldFocus;
-            if (navigation != null) targetIndicator?.Show(navigation);
-            handIndicator?.ShowTapHint(navigation);
-            return;
-        }
+        if (uiFocusMask != null) uiFocusMask.GesturePassThrough = false;
         bool drag = action && CurrentStep.HintMode == TutorialHintMode.Drag;
-        if (drag)
-        {
-            // No fullscreen raycast surface may intercept a kitchen/storage drag.
-            uiFocusMask?.Hide(); focusTransitionPending = false;
-            if (currentWorldFocus != null) targetIndicator?.Show(currentWorldFocus);
-            handIndicator?.ShowDragHint(bridge.GuidanceSource, currentWorldFocus);
-            return;
-        }
-        RectTransform focus = currentUIFocus != null ? currentUIFocus :
+        bool dragging = drag && bridge.Dragging;
+        Transform dragSubject = dragging ? currentWorldFocus : bridge.GuidanceSource;
+        RectTransform focus = drag ? (dragSubject as RectTransform ?? bridge.WorldFocusProxy) : currentUIFocus != null ? currentUIFocus :
             currentWorldFocus != null ? bridge.WorldFocusProxy : null;
-        uiFocusMask?.SetWorldProjection(currentWorldFocus != null && currentUIFocus == null ? focus : null, currentWorldFocus);
-        if (focus == null) { uiFocusMask?.Hide(); focusTransitionPending = false; return; }
+        uiFocusMask?.SetWorldProjection(focus == bridge.WorldFocusProxy ? focus : null, drag ? dragSubject : currentWorldFocus);
+        if (focus == null) { uiFocusMask?.Hide(true); focusTransitionPending = false; return; }
+        if (dragging || action && bridge.FreeNavigation)
+        {
+            // Keep navigation emphatic without restricting practice to this hole.
+            uiFocusMask.GesturePassThrough = true;
+        }
         int revision = presentationRevision;
-        focusTransitionPending = true;
+        focusTransitionPending = !dragging && !(action && bridge.FreeNavigation);
         uiFocusMask.TransitionTo(focus, action, () =>
         {
             if (revision != presentationRevision) return;
             focusTransitionPending = false;
             if (!action || !waitingForPlayerAction) return;
-            handIndicator?.ShowTapHint(currentUIFocus != null ? currentUIFocus : currentWorldFocus);
-        });
+            if (drag)
+            {
+                handIndicator?.ShowDragHint(bridge.GuidanceSource, currentWorldFocus);
+            }
+            else if (bridge.CurrentLesson.action == FastFoodTutorialBridge.ActionKind.CollectDelivery)
+                handIndicator?.ShowHoldHint(currentUIFocus);
+            else handIndicator?.ShowTapHint(currentUIFocus != null ? currentUIFocus : currentWorldFocus);
+        }, bridge.FocusGroup, dragging);
     }
 
     private string ActionInstruction(TutorialStep step)
@@ -1350,7 +1392,7 @@ public sealed class TutorialSystem : MonoBehaviour
 
     private void UpdateTravel()
     {
-        string key = CurrentStep?.ActionKey;
+        string key = FocusedFastFood ? FastFoodTutorialBridge.Instance?.TravelKey : CurrentStep?.ActionKey;
         bool journey = key == "Computer.Open" || key == "Restock.TruckOpened" ||
             key == "Restock.EnterAny" || key == "Restock.EnterDry" || key == "Restock.ExitRoom" ||
             CurrentStep?.RequiredAction == TutorialAction.TableInteracted ||
@@ -1397,7 +1439,7 @@ public sealed class TutorialSystem : MonoBehaviour
             travelOffset = plane.Raycast(ray, out float distance)
                 ? cameraController.transform.position - ray.GetPoint(distance) : Vector3.zero;
             travelFollowTarget = cameraController.transform.position;
-            handIndicator?.HideHint(); targetIndicator?.Hide(); uiFocusMask?.Hide(); dialogueUI?.Hide();
+            handIndicator?.HideHint(); targetIndicator?.Hide(); uiFocusMask?.Hide(FocusedFastFood); dialogueUI?.Hide();
             SetObjective(key == "Computer.Open" ? "Heading to the management computer…" :
                 key == "Restock.TruckOpened" ? "Heading to the delivery truck…" :
                 CurrentStep.RequiredAction == TutorialAction.TableInteracted ? "Walking to the booth…" :
@@ -1427,6 +1469,7 @@ public sealed class TutorialSystem : MonoBehaviour
     private void ClearGuidance(bool preserveMask = false)
     {
         presentationRevision++;
+        fastFoodDragFocused = false;
         externalTargetPending = focusTransitionPending = false;
         // Cancel only the task issued by this tutorial lesson, never another job.
         IInteractable obsoleteTask = boothTask;

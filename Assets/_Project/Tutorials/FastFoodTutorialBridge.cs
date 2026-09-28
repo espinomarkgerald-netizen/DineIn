@@ -16,7 +16,7 @@ public sealed class FastFoodTutorialBridge : MonoBehaviour
     public const string SkippedKey = "DineIn_FastFoodTutorial_Skipped";
     public const string ChapterKey = "DineIn_FastFoodTutorial_Chapter_v1";
     public enum Chapter { Briefing, Burger, Fries, Serving, Parallel, Sandwiches, Burn, Restock, Hygiene, Practice, Complete }
-    public enum ActionKind { Explain, Open, Station, Load, Ready, Collect, Assemble, Protein, Place, Serve, Burn, Discard, RestockOpen, Store, RestockExit, Clean, Practice }
+    public enum ActionKind { Explain, Open, Station, Load, Ready, Collect, Assemble, Protein, Place, Serve, Burn, Discard, RestockOpen, Store, RestockExit, Clean, Practice, Purchase, Delivery, Truck, CollectDelivery, Freezer }
     [Serializable] public sealed class Lesson
     {
         public string id;
@@ -43,6 +43,11 @@ public sealed class FastFoodTutorialBridge : MonoBehaviour
     [SerializeField] private GameObject confirmation;
     [SerializeField] private Button confirmSkip, cancelSkip;
     [SerializeField] private TMP_Text status;
+    [Header("Waiting status — reuse an authored kitchen timer")]
+    [SerializeField] private FastFoodCookingTimer waitingTimerTemplate;
+    [SerializeField, Min(24)] private float waitingCircleSize = 48;
+    [SerializeField, Min(0)] private float waitingCircleGap = 12;
+    [SerializeField, Min(0)] private float waitingActivitySpeed = 180;
     [Header("Training")]
     [SerializeField, Min(12)] private int stockPerIngredient = 80;
     [SerializeField, Min(5)] private float dependencyAllowance = 12;
@@ -53,9 +58,17 @@ public sealed class FastFoodTutorialBridge : MonoBehaviour
     public bool FreeNavigation => current != null && (current.action == ActionKind.Practice ||
         current.action == ActionKind.Station && current.id != "ff_Fries_station" && current.control == "StationArrow");
     public static FastFoodTutorialBridge Instance { get; private set; }
-    public static bool Active => Instance != null && Instance.isActiveAndEnabled;
+    public static bool Active => Instance != null && Instance.isActiveAndEnabled &&
+        !Instance.leaving && Instance.gameObject.scene.name == FastFoodScene.Tutorial;
     public Camera KitchenCamera => view != null ? view.TutorialCamera : null;
     public bool HygieneLesson => current != null && current.chapter == Chapter.Hygiene;
+    public bool HoldSandwichPrepView => Active && current != null && current.chapter == Chapter.Sandwiches;
+    public MenuCatalog TrainingCatalog => day != null && day.IsReady ? day.Catalog : null;
+    public bool Dragging => current?.action == ActionKind.Store
+        ? restockHUD != null && restockHUD.HasActiveDrag : view != null && view.HasActiveDrag;
+    public string TravelKey => current?.action == ActionKind.RestockOpen ? "Computer.Open" :
+        current?.action == ActionKind.Truck ? "Restock.TruckOpened" :
+        current?.action == ActionKind.Freezer ? "Restock.EnterAny" : null;
     public bool Initialized { get; private set; }
     public Lesson CurrentLesson => current;
     public Transform GuidanceSource => Source();
@@ -84,8 +97,51 @@ public sealed class FastFoodTutorialBridge : MonoBehaviour
     private int restockColumn, restockRow;
     private Button restockExit;
     private HygieneDialogue hygieneDialogue;
+    private TutorialSceneBindings bindings;
+    private ManagementComputerCatalogPanelUI cartPanel;
+    private RestockTruckInteractable deliveryTruck;
+    private RestockStockRoomEntrance freezerEntrance;
+    private RestockFlowHUD restockHUD;
+    private RestockOrderSaveData purchasedOrder;
+    private ManagementComputerStation computerTask;
+    private bool computerTravelRequested;
+    private FastFoodCookingTimer waitingTimer;
+    private Vector2 statusOffsetMin;
+    private float waitingActivityAngle;
+    private bool waitingStatusVisible;
+    private ManagementComputerController Computer
+    {
+        get
+        {
+            if (bindings == null) bindings = GetComponent<TutorialSceneBindings>();
+            var computer = bindings?.Computer;
+            return computer != null && computer.gameObject.scene == gameObject.scene ? computer : null;
+        }
+    }
+    private ManagementComputerCatalogPanelUI CartPanel
+    {
+        get
+        {
+            if (cartPanel == null || !cartPanel.gameObject.activeInHierarchy)
+                cartPanel = Computer?.AppWindow?.GetComponentInChildren<ManagementComputerCatalogPanelUI>();
+            return cartPanel != null && cartPanel.IsRestock ? cartPanel : null;
+        }
+    }
+    private RestockTruckInteractable Truck => deliveryTruck != null ? deliveryTruck :
+        deliveryTruck = FindObjectsByType<RestockTruckInteractable>(FindObjectsSortMode.None)
+            .FirstOrDefault(t => t.gameObject.scene == gameObject.scene);
+    private RectTransform CollectionControl
+    {
+        get
+        {
+            if (restockHUD == null) restockHUD = FindFirstObjectByType<RestockFlowHUD>();
+            return restockHUD?.CollectionControl;
+        }
+    }
     private bool PassiveWait => current != null && (current.action == ActionKind.Ready ||
         current.action == ActionKind.Protein || current.action == ActionKind.Burn ||
+        current.action == ActionKind.Delivery || current.action == ActionKind.RestockOpen && computerTravelRequested ||
+        current.action == ActionKind.Freezer && RestockFlowCoordinator.Instance?.IsTransitioning == true ||
         current.action == ActionKind.Clean && cleaningStarted);
 
     public bool OwnsCanvas(Canvas value) => controlsCanvas != null && value != null &&
@@ -95,6 +151,7 @@ public sealed class FastFoodTutorialBridge : MonoBehaviour
     {
         if (gameObject.scene.name != FastFoodScene.Tutorial) { enabled = false; return; }
         Instance = this;
+        if (status != null) statusOffsetMin = status.rectTransform.offsetMin;
         CampaignSaveStore.SelectFastFoodTraining();
     }
     private IEnumerator Start()
@@ -103,8 +160,8 @@ public sealed class FastFoodTutorialBridge : MonoBehaviour
         tutorial.PreparingStep += PrepareStep;
         tutorial.TutorialCompletedChanged += Completed;
         restart.onClick.AddListener(RestartChapter);
-        skip.onClick.AddListener(() => confirmation.SetActive(true));
-        cancelSkip.onClick.AddListener(() => confirmation.SetActive(false));
+        skip.onClick.AddListener(ShowSkipConfirmation);
+        cancelSkip.onClick.AddListener(HideSkipConfirmation);
         confirmSkip.onClick.AddListener(SkipTutorial);
         finish.onClick.AddListener(FinishTutorial);
         restart.gameObject.SetActive(false);
@@ -128,6 +185,10 @@ public sealed class FastFoodTutorialBridge : MonoBehaviour
         Initialized = true;
         yield return null; // TutorialSystem completes navigation preflight first.
         int saved = replay ? 0 : PlayerPrefs.GetInt(ChapterKey, 0);
+        // Keep old enum/save values stable; the removed multi-slot chapter resumes at Grill basics.
+        if (saved == (int)Chapter.Parallel) saved = (int)Chapter.Burger;
+        // A farewell is not a saved storage transaction. Resume its chapter from purchase.
+        if (saved == (int)Chapter.Complete) saved = (int)Chapter.Restock;
         int index = Array.FindIndex(lessons, l => (int)l.chapter == saved);
         tutorial.StartAtStep(Mathf.Max(0, index));
     }
@@ -137,6 +198,7 @@ public sealed class FastFoodTutorialBridge : MonoBehaviour
         int index = tutorial.CurrentStepIndex;
         if (index < 0 || index >= lessons.Length) { Fail("The lesson definition is missing."); return; }
         current = lessons[index];
+        ClearWaitingStatus();
         waitingSeconds = 0;
         lastGuidanceSource = null;
         lastGuidanceTarget = null;
@@ -147,6 +209,7 @@ public sealed class FastFoodTutorialBridge : MonoBehaviour
         restart.gameObject.SetActive(false); skip.gameObject.SetActive(false);
         confirmation.SetActive(false);
         if (chapter != current.chapter) SetupChapter(current.chapter);
+        if (failure != null) return;
         if (current.chapter == Chapter.Sandwiches && current.action == ActionKind.Protein)
             EnsureWork(Runtime(current.recipe), 1);
         if (current.chapter == Chapter.Restock && (current.action == ActionKind.RestockOpen || current.control == "Restock"))
@@ -171,7 +234,7 @@ public sealed class FastFoodTutorialBridge : MonoBehaviour
         work.Clear(); ticket = null;
         cleaningStarted = cleanPrompted = false;
         if (!replay && !tutorial.IsDebugSession)
-        { PlayerPrefs.SetInt(ChapterKey, (int)value); PlayerPrefs.Save(); }
+        { PlayerPrefs.SetInt(ChapterKey, (int)(value == Chapter.Complete ? Chapter.Restock : value)); PlayerPrefs.Save(); }
         // Only a checkpoint/retry reconstructs state. Ordinary chapter boundaries
         // keep the open station, prepared supplies and real pickup presentation.
         if (reconstruct) kitchen.ResetState();
@@ -191,7 +254,12 @@ public sealed class FastFoodTutorialBridge : MonoBehaviour
                 InventoryManager.Instance.AddStock(item.itemType, stockPerIngredient);
         }
         if (value == Chapter.Burger || value == Chapter.Burn) EnsureWork(Runtime(burger), 1);
-        if (value == Chapter.Parallel) EnsureWork(Runtime(burger), 3);
+        if (value == Chapter.Sandwiches && !reconstruct)
+        {
+            // Hand the replacement burger to staff through normal ownership, so
+            // it cannot steal the sandwich's first bun candidate on the prep table.
+            State.Enter(FastFoodStationMode.None); State.Enter(FastFoodStationMode.Grill);
+        }
         if (value == Chapter.Serving || reconstruct && value == Chapter.Fries)
         {
             foreach (var r in new[] { Runtime(burger), Runtime(fries) })
@@ -266,8 +334,10 @@ public sealed class FastFoodTutorialBridge : MonoBehaviour
     }
     public void TickKitchen(FastFoodCookingController controller)
     {
+        bool readingWait = tutorial.IsWaitingForNext && current != null &&
+            (current.action == ActionKind.Ready || current.action == ActionKind.Protein);
         if (!Initialized || controller != kitchen || current == null || leaving || failure != null ||
-            tutorial.IsPresentationBusy && !tutorial.IsAwaitingExternalTarget || LobbyPauseMenu.IsAnyOpen || confirmation.activeSelf || Time.timeScale <= 0) return;
+            tutorial.IsPresentationBusy && !tutorial.IsAwaitingExternalTarget && !readingWait || LobbyPauseMenu.IsAnyOpen || confirmation.activeSelf || Time.timeScale <= 0) return;
         // Waiting for a navigation target must not let staff start the player's
         // provisioned exercise before Enter() claims it. View/layout transitions
         // update independently of the cooking ledger.
@@ -301,8 +371,23 @@ public sealed class FastFoodTutorialBridge : MonoBehaviour
         if (current.action == ActionKind.Clean && !cleanPrompted)
         { cleanPrompted = true; HygieneManager.Instance?.BeginTutorialKitchenCleaning(); }
         bool done = Satisfied();
-        if (done) { tutorial.NotifyAction(current.id); return; }
+        if (done) { ClearWaitingStatus(); tutorial.NotifyAction(current.id); return; }
+        if (current.action == ActionKind.RestockOpen && computerTravelRequested &&
+            ManagerPlayer.Active?.Movement.CurrentTarget != computerTask && Computer?.IsOpen != true)
+        { Fail("The trip to the computer was interrupted. Retry this chapter."); return; }
+        if (current.action == ActionKind.Delivery && purchasedOrder != null && DateTime.UtcNow.Ticks >= purchasedOrder.deliveryReadyUtcTicks)
+        {
+            // Count only time actually spent awaiting the parked truck, not time reading or paused.
+            waitingSeconds += Time.deltaTime;
+            if (waitingSeconds > dependencyAllowance) { Fail("The delivery truck could not arrive. Retry this chapter."); return; }
+        }
+        if (current.action == ActionKind.Freezer && RestockFlowCoordinator.Instance?.IsTransitioning == true)
+        {
+            waitingSeconds += Time.unscaledDeltaTime;
+            if (waitingSeconds > dependencyAllowance) { Fail("The freezer could not open. Retry this chapter."); return; }
+        }
         tutorial.SetExternalGuidanceSuppressed(PassiveWait, PassiveWait);
+        PresentWaitingStatus();
         if (current.action == ActionKind.Practice) UpdatePractice();
         if (current.action == ActionKind.Ready || current.action == ActionKind.Protein || current.action == ActionKind.Burn || current.action == ActionKind.Clean)
         {
@@ -333,9 +418,19 @@ public sealed class FastFoodTutorialBridge : MonoBehaviour
             case ActionKind.Serve: return ticket != null && ticket.submitted;
             case ActionKind.Burn: return p != null && p.stage == FastFoodCookingStage.Burnt;
             case ActionKind.Discard: return p != null && p.stage == FastFoodCookingStage.Waiting && p.slot < 0;
-            case ActionKind.RestockOpen: return RestockFlowCoordinator.Instance?.IsRestockRoomOpen == true;
-            case ActionKind.Store: return restockItem != null && InventoryManager.Instance.GetStock(restockItem.itemType) > 0 &&
-                RestockOrderManager.Instance.HotbarContainerCount == 0;
+            case ActionKind.RestockOpen: return computerTravelRequested && Computer != null && Computer.IsOpen;
+            case ActionKind.Purchase: return PurchaseSatisfied();
+            case ActionKind.Delivery: return purchasedOrder != null && purchasedOrder.state == RestockOrderState.Delivered && Truck != null && Truck.IsParked;
+            case ActionKind.Truck: return CollectionControl != null;
+            case ActionKind.CollectDelivery: return purchasedOrder != null && purchasedOrder.state == RestockOrderState.Collected &&
+                RestockOrderManager.Instance.GetHotbarContainerCount(restockItem.requiredStorage) == 1;
+            case ActionKind.Freezer: return RestockFlowCoordinator.Instance?.IsRestockRoomOpen == true &&
+                !RestockFlowCoordinator.Instance.IsTransitioning && RestockFlowCoordinator.Instance.ActiveStorageRoom == restockItem.requiredStorage &&
+                purchasedOrder != null && purchasedOrder.state == RestockOrderState.Collected && SourceForDelivery() != null;
+            case ActionKind.Store: return restockItem != null && purchasedOrder?.state == RestockOrderState.Stored &&
+                purchasedOrder.lines.Any(l => l.itemID == restockItem.StableItemId && l.orderedContainers == 1 && l.storedContainers == 1) &&
+                RestockOrderManager.Instance.StoredContainers.Any(box => box.itemID == restockItem.StableItemId &&
+                    box.storageType == restockItem.requiredStorage && !box.wrongStorage && !string.IsNullOrEmpty(box.shelfID));
             case ActionKind.RestockExit: return RestockFlowCoordinator.Instance != null &&
                 !RestockFlowCoordinator.Instance.IsRestockRoomOpen && !RestockFlowCoordinator.Instance.IsTransitioning;
             case ActionKind.Clean:
@@ -346,6 +441,84 @@ public sealed class FastFoodTutorialBridge : MonoBehaviour
             default: return false;
         }
     }
+    private void ClearWaitingStatus()
+    {
+        if (waitingTimer != null) waitingTimer.gameObject.SetActive(false);
+        if (status != null)
+        {
+            if (waitingStatusVisible) status.rectTransform.offsetMin = statusOffsetMin;
+            if (status.text.Length > 0) status.text = "";
+        }
+        waitingStatusVisible = false;
+        waitingActivityAngle = 0;
+    }
+
+    private void PresentWaitingStatus()
+    {
+        if (!PassiveWait) { ClearWaitingStatus(); return; }
+        var portion = Expected(); // Same recipe/portion identity that Satisfied() observes.
+        string message = TutorialInputTerminology.Resolve(tutorial.CurrentStep.Objective);
+        if (current.action == ActionKind.Burn)
+            message = portion?.stage == FastFoodCookingStage.Cooking ? "The patty is cooking…" :
+                "Watch what happens if we leave it on the heat.";
+        else if (current.action == ActionKind.RestockOpen) message = "Heading to the computer…";
+        else if (current.action == ActionKind.Freezer) message = "Opening the freezer…";
+        else if (current.action == ActionKind.Clean) message = "The kitchen is being cleaned…";
+        if (status == null) return;
+        bool changed = status.text != message;
+        if (changed) status.text = message;
+        // Hygiene already presents its real progress bar; never duplicate it here.
+        if (current.action == ActionKind.Clean) return;
+        if (waitingTimer == null)
+        {
+            if (waitingTimerTemplate == null)
+            { Fail("The waiting indicator is missing. Retry this chapter."); return; }
+            waitingTimer = Instantiate(waitingTimerTemplate, status.transform.parent);
+            waitingTimer.name = "Tutorial waiting progress";
+            waitingTimer.gameObject.SetActive(false);
+            waitingTimer.transform.localScale = Vector3.one;
+            waitingTimer.seconds.gameObject.SetActive(false);
+            waitingTimer.caption.gameObject.SetActive(false);
+            foreach (var graphic in waitingTimer.GetComponentsInChildren<UnityEngine.UI.Graphic>(true)) graphic.raycastTarget = false;
+        }
+        var rect = (RectTransform)waitingTimer.transform;
+        if (!waitingStatusVisible || changed)
+        {
+            rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(.5f, .5f);
+            rect.sizeDelta = Vector2.one * waitingCircleSize;
+            float reserve = waitingCircleSize + waitingCircleGap;
+            status.rectTransform.offsetMin = statusOffsetMin + new Vector2(reserve, 0);
+            float textWidth = Mathf.Min(status.preferredWidth, status.rectTransform.rect.width);
+            rect.anchoredPosition = new Vector2(reserve * .5f - textWidth * .5f - waitingCircleGap - waitingCircleSize * .5f, 0);
+            waitingTimer.gameObject.SetActive(true);
+            waitingStatusVisible = true;
+        }
+        bool measurable = portion != null && (current.action == ActionKind.Ready || current.action == ActionKind.Burn ||
+            current.action == ActionKind.Protein) && portion.stage == FastFoodCookingStage.Cooking;
+        bool overcooking = current.action == ActionKind.Burn && portion?.stage == FastFoodCookingStage.Ready;
+        if (measurable || overcooking)
+        {
+            waitingTimer.ring.SetAngle(0);
+            waitingTimer.Present(portion, State.cookSeconds, State.overcookSeconds, 1, false, Time.timeScale <= 0 || HygieneManager.KitchenPaused);
+            if (overcooking)
+            {
+                // This lesson watches progress TOWARD burning, not time left to collect.
+                waitingTimer.ring.SetAmount(portion.elapsed / Mathf.Max(.01f, State.overcookSeconds));
+                waitingTimer.ring.color = waitingTimer.warningColor;
+            }
+        }
+        else
+        {
+            // No invented countdown for delivery, travel, queueing or camera readiness.
+            if ((Time.timeScale > 0 || current.action == ActionKind.Freezer) && !LevelOneUIAccessibility.ReducedMotion)
+                waitingActivityAngle = (waitingActivityAngle + waitingActivitySpeed * Time.unscaledDeltaTime) % 360;
+            waitingTimer.transform.localScale = Vector3.one;
+            waitingTimer.ring.color = waitingTimer.cookingColor;
+            waitingTimer.ring.SetAmount(.25f);
+            waitingTimer.ring.SetAngle(waitingActivityAngle);
+        }
+    }
+
     private void CreateTicket(Recipe[] products)
     {
         if (!State.Accept(ticketNumber++, products)) { Fail("The training order could not be prepared. Retry the chapter."); return; }
@@ -388,9 +561,10 @@ public sealed class FastFoodTutorialBridge : MonoBehaviour
         string task = practiceStage == 0 ? "Prepare 2 burgers. "+ready+"/2 ready." :
             practiceStage == 1 ? "Cook and collect 1 portion of fries. "+ready+"/1 ready." :
             practiceStage == 3 ? "Assemble the chicken and fish sandwiches. "+ready+"/2 ready." :
-            "Complete the order and press Serve.";
+            "Complete and serve the order.";
         if (State.Mode != destination)
             task = "Go to "+(destination == FastFoodStationMode.Fry ? "Fryer" : destination.ToString())+". "+task;
+        task = "Let's finish this order. " + task;
         if (task != lastPracticeObjective) { lastPracticeObjective = task; tutorial.SetObjective(task); }
     }
     private FastFoodStationMode PracticeDestination() => practiceStage == 0 || practiceStage == 3
@@ -424,6 +598,8 @@ public sealed class FastFoodTutorialBridge : MonoBehaviour
         if (key == "FF.Control")
         {
             string control = current?.control;
+            if (control != null && control.StartsWith("Computer:", StringComparison.Ordinal)) return ComputerControl(control);
+            if (control == "Get Orders") return CollectionControl;
             if (control == "Pause")
             {
                 // Pause is a sibling HUD branch, not a child of LobbyHUDRedesign.
@@ -465,11 +641,9 @@ public sealed class FastFoodTutorialBridge : MonoBehaviour
         if (current.action == ActionKind.Store)
         {
             if (restockItem == null) return null;
-            if (restockSource == null || !restockSource.gameObject.activeInHierarchy)
-                restockSource = FindObjectsByType<RestockHotbarSlotUI>(FindObjectsSortMode.None)
-                    .FirstOrDefault(s => s.Item != null && s.Item.itemType == restockItem.itemType &&
-                        s.GetComponentInParent<RestockFlowHUD>() != null);
-            return restockSource != null ? restockSource.transform : null;
+            var source = SourceForDelivery();
+            if (source != null) restockHUD = source.GetComponentInParent<RestockFlowHUD>();
+            return source != null ? source.transform : null;
         }
         var p = current.action == ActionKind.Place ? PlacementPortion() : Expected();
         return view.TutorialSource(ExpectedItem(), p, current.action == ActionKind.Load);
@@ -478,19 +652,28 @@ public sealed class FastFoodTutorialBridge : MonoBehaviour
     {
         if (current == null) return null;
         if (key == "FF.Subject")
+        {
+            if (current.control == "World:Truck") return Truck != null ? Truck.transform : null;
+            if (current.control == "World:Freezer")
+            {
+                if (freezerEntrance == null) freezerEntrance = FindObjectsByType<RestockStockRoomEntrance>(FindObjectsSortMode.None)
+                    .FirstOrDefault(e => e.isActiveAndEnabled && e.gameObject.scene == gameObject.scene && e.StorageType == restockItem.requiredStorage);
+                return freezerEntrance != null ? freezerEntrance.transform : null;
+            }
             return current.control == "World:Food" ? Source() :
                 view.TutorialSubject(current.control.Substring("World:".Length), current.slot);
+        }
         if (key == "FF.SourceWorld") return Source();
         if (key != "FF.Target") return null;
         if (current.action == ActionKind.Store)
         {
             if (restockItem == null) return null;
             if (restockShelf == null || !restockShelf.gameObject.activeInHierarchy ||
-                !restockShelf.GetComponent<ShelfGrid>().IsCellFree(restockColumn, restockRow))
+                !restockShelf.GetComponent<ShelfGrid>().IsCellFree(restockColumn, restockRow) || !Visible(restockShelf))
             {
                 restockShelf = null;
                 foreach (var grid in FindObjectsByType<ShelfGrid>(FindObjectsSortMode.None))
-                    if (grid.StorageType == restockItem.requiredStorage && grid.gameObject.scene.name == "RestockScene" &&
+                    if (grid.isActiveAndEnabled && grid.StorageType == restockItem.requiredStorage && grid.gameObject.scene.name == "RestockScene" &&
                         ChooseVisibleCell(grid)) { restockShelf = grid.transform; break; }
             }
             return restockShelf;
@@ -586,7 +769,8 @@ public sealed class FastFoodTutorialBridge : MonoBehaviour
         // A cancelled lookup must not report against a later lesson or a chapter retry.
         if (failure != null || resetPending || leaving || step == null || tutorial == null ||
             step != tutorial.CurrentStep || current == null || current.id != step.Id) return;
-        string activeView = view == null ? "uninitialized" : !view.IsOpen ? "restaurant" :
+        string activeView = RestockFlowCoordinator.Instance?.IsRestockRoomOpen == true ? "storage/" + RestockFlowCoordinator.Instance.ActiveStorageRoom :
+            Computer != null && Computer.IsOpen ? "computer" : view == null ? "uninitialized" : !view.IsOpen ? "restaurant" :
             State.Mode == FastFoodStationMode.None ? "station selection" :
             State.Mode + (view.TutorialPreparing ? "/prep" : "/cooking") +
             (view.TutorialCameraSettled ? " (settled)" : " (transitioning)");
@@ -603,14 +787,27 @@ public sealed class FastFoodTutorialBridge : MonoBehaviour
     }
     public void RefreshGuidance()
     {
-        if (current == null || failure != null || !tutorial.IsWaitingForGameplayAction || tutorial.IsPresentationBusy) return;
+        if (current == null || failure != null || leaving || resetPending || LobbyPauseMenu.IsAnyOpen ||
+            (!tutorial.IsWaitingForGameplayAction && !tutorial.IsWaitingForNext) ||
+            (tutorial.IsPresentationBusy && !tutorial.IsWaitingForNext)) return;
+        if (tutorial.IsWaitingForNext)
+        {
+            var explaining = tutorial.CurrentStep;
+            if (!PresentationReady(explaining))
+            {
+                tutorial.ReacquireExternalPresentation();
+                return;
+            }
+            tutorial.RefreshExternalGuidance(ResolveUI(explaining.UITargetKey), ResolveWorld(explaining.WorldTargetKey));
+            return;
+        }
         if (current.action == ActionKind.Practice)
         {
             var arrow = State.Mode == PracticeDestination() ? null : NavigationTarget(PracticeDestination());
             tutorial.RefreshExternalGuidance(arrow, null);
             return;
         }
-        if (PassiveWait || view.HasActiveDrag) return;
+        if (PassiveWait || Dragging || tutorial.IsGuidedTravelActive) return;
         bool ready = PresentationReady(tutorial.CurrentStep);
         if (!ready)
         {
@@ -642,28 +839,123 @@ public sealed class FastFoodTutorialBridge : MonoBehaviour
     }
     private void PrepareRestock()
     {
+        // This runs only after TutorialDayContext has captured the career and
+        // installed disposable runtime data. Kitchen practice stock (80 units
+        // per ingredient) is not a shelf-capacity fixture for this chapter.
+        if (!Active || day == null || !day.IsReady)
+        { Fail("Training storage is not isolated. Retry this chapter."); return; }
         restockItem = FastFoodCookingState.Steps(Runtime(fries))[0].item;
-        InventoryManager.Instance.UseStock(restockItem.itemType, InventoryManager.Instance.GetStock(restockItem.itemType));
-        RestockOrderManager.EnsureInstance().ApplySaveData(new GameSaveData
+        Computer?.CloseComputer(); // Only the disposable tutorial's scene-local cart.
+        cartPanel = null; purchasedOrder = null; computerTravelRequested = false;
+        InventoryManager.Instance.ResetStock();
+        RestockOrderManager.EnsureInstance().ApplySaveData(new GameSaveData());
+        var purchasing = new GameSaveData { currentDay = 1, currentPhase = 0,
+            money = Mathf.Max(5000, CasualDiningPolishManager.GetCurrentBoxCostOrBase(restockItem)) };
+        GameFlowManager.Instance?.ApplySaveData(purchasing);
+        MoneyManager.Instance?.ApplySaveData(purchasing);
+        DailyFinanceBridge.Instance?.ResetDay();
+        DailyRevenueTracker.Instance?.ResetForNewDay();
+    }
+
+    public bool RouteRestockToComputer()
+    {
+        if (!Active || current?.action != ActionKind.RestockOpen) return false;
+        if (!tutorial.IsWaitingForGameplayAction || tutorial.IsPresentationBusy) return true;
+        computerTask = FindObjectsByType<ManagementComputerStation>(FindObjectsSortMode.None)
+            .FirstOrDefault(c => c.gameObject.scene == gameObject.scene);
+        if (computerTask == null || ManagerPlayer.Active?.Movement == null)
+        { Fail("The computer cannot be reached. Retry this chapter."); return true; }
+        view.Exit();
+        computerTravelRequested = true;
+        ManagerPlayer.Active.Movement.UI_MoveTo(computerTask);
+        return true;
+    }
+
+    private RectTransform ComputerControl(string control)
+    {
+        var computer = Computer;
+        if (computer == null || !computer.IsOpen) return null;
+        if (control == "Computer:Restock") return bindings.ResolveUI("RestockButton");
+        if (control == "Computer:Exit") return bindings.ResolveUI("ManagementExit");
+        if (control == "Computer:CloseApp") return computer.AppWindow?.CloseButton?.transform as RectTransform;
+        var panel = CartPanel;
+        if (panel == null) return null;
+        if (control == "Computer:FriesCard") return panel.AddControlFor(restockItem)?.GetComponentInParent<ManagementComputerCatalogCardUI>()?.transform as RectTransform;
+        return (control == "Computer:Food" ? panel.FoodTab : control == "Computer:Fries" ? panel.AddControlFor(restockItem) :
+            control == "Computer:Checkout" || control == "Computer:Order" ? panel.CartButton : null)?.transform as RectTransform;
+    }
+
+    private bool PurchaseSatisfied()
+    {
+        switch (current.control)
         {
-            restockOrders = new List<RestockOrderSaveData> { new RestockOrderSaveData
-            {
-                orderID = "fastfood-training-supply", restaurantID = "Lobby2", state = RestockOrderState.Collected,
-                createdUtcTicks = DateTime.UtcNow.Ticks,
-                lines = new List<RestockOrderLineSaveData> { new RestockOrderLineSaveData
-                    { itemID = restockItem.StableItemId, itemType = restockItem.itemType, orderedContainers = 1 } }
-            } }
-        });
+            case "Computer:Restock": return CartPanel != null;
+            case "Computer:Food": return CartPanel != null && CartPanel.ActiveCategory == MenuProductCategory.Food;
+            case "Computer:Fries": return CartPanel != null && CartPanel.CartBoxes == 1 && CartPanel.QuantityFor(restockItem) == 1;
+            case "Computer:Checkout": return CartPanel != null && CartPanel.IsReview;
+            case "Computer:Order":
+                purchasedOrder = RestockOrderManager.Instance.Orders.FirstOrDefault(o => o.lines.Count == 1 &&
+                    o.lines[0].itemID == restockItem.StableItemId && o.lines[0].orderedContainers == 1 && o.totalCost > 0 &&
+                    (o.state == RestockOrderState.InDelivery || o.state == RestockOrderState.Ordered || o.state == RestockOrderState.Delivered));
+                return purchasedOrder != null;
+            case "Computer:CloseApp": return Computer != null && Computer.IsOpen && !Computer.AppWindow.gameObject.activeInHierarchy;
+            case "Computer:Exit": return Computer != null && !Computer.IsOpen;
+            default: return false;
+        }
+    }
+
+    private RestockHotbarSlotUI SourceForDelivery()
+    {
+        if (restockSource == null || !restockSource.gameObject.activeInHierarchy)
+            restockSource = FindObjectsByType<RestockHotbarSlotUI>(FindObjectsSortMode.None)
+                .FirstOrDefault(s => s.Item != null && s.Item.StableItemId == restockItem.StableItemId && s.GetComponentInParent<RestockFlowHUD>() != null);
+        return restockSource;
+    }
+
+    public string FocusGroup
+    {
+        get
+        {
+            string owner = RestockFlowCoordinator.Instance?.IsRestockRoomOpen == true ? "Storage" :
+                Computer != null && Computer.IsOpen ? "Computer" : !view.IsOpen ? "Restaurant" :
+                State.Mode == FastFoodStationMode.None ? "Selection" : State.Mode + (view.TutorialPreparing ? "/Prep" : "/Cooking");
+            return gameObject.scene.handle + ":" + owner;
+        }
+    }
+
+    private void CancelOwnedTravel()
+    {
+        if (restockHUD != null)
+        {
+            restockHUD.CollectionControl?.GetComponent<RestockHoldButton>()?.Begin(null);
+            restockHUD.HideHold();
+            restockHUD.CancelPickupAnimation();
+        }
+        var movement = ManagerPlayer.Active?.Movement;
+        if (movement != null && movement.CurrentTarget != null &&
+            (movement.CurrentTarget == computerTask || movement.CurrentTarget == deliveryTruck || movement.CurrentTarget == freezerEntrance))
+            movement.CancelLockedTask();
+        computerTravelRequested = false;
     }
     public void RestartChapter() { if (!resetPending) StartCoroutine(RestartRoutine()); }
     private IEnumerator RestartRoutine()
     {
         resetPending = true;
+        ClearWaitingStatus();
+        CancelOwnedTravel();
+        tutorial.ReleaseFastFoodPresentation();
         if (!Initialized)
         {
             yield return Initialize();
             resetPending = false;
             yield break;
+        }
+        if (RestockFlowCoordinator.Instance?.IsTransitioning == true)
+        {
+            float until = Time.realtimeSinceStartup + dependencyAllowance;
+            while (RestockFlowCoordinator.Instance.IsTransitioning && Time.realtimeSinceStartup < until) yield return null;
+            if (RestockFlowCoordinator.Instance.IsTransitioning)
+            { resetPending = false; Fail("Wait for storage to finish opening before retrying."); yield break; }
         }
         if (RestockFlowCoordinator.Instance?.IsRestockRoomOpen == true)
         {
@@ -674,6 +966,7 @@ public sealed class FastFoodTutorialBridge : MonoBehaviour
         }
         if (HygieneManager.Instance != null) HygieneManager.Instance.ResetForShift();
         var saved = chapter ?? Chapter.Briefing;
+        if (saved == Chapter.Complete) saved = Chapter.Restock;
         chapter = null; failure = null;
         int index = Array.FindIndex(lessons, l => l.chapter == saved);
         tutorial.StartAtStep(Mathf.Max(0, index));
@@ -681,6 +974,7 @@ public sealed class FastFoodTutorialBridge : MonoBehaviour
     }
     private void Fail(string message)
     {
+        ClearWaitingStatus();
         failure = message;
         if (status != null) status.text = message;
         tutorial?.SetExternalGuidanceSuppressed(true);
@@ -694,11 +988,10 @@ public sealed class FastFoodTutorialBridge : MonoBehaviour
             PlayerPrefs.DeleteKey(SkippedKey);
             PlayerPrefs.Save();
         }
-        status.text = "Kitchen training complete.";
-        finish.GetComponentInChildren<TMP_Text>().text = day.CareerSaveExisted || replay ? "RETURN TO GAME MODE" : "START DAY 1";
-        finish.gameObject.SetActive(true);
+        status.text = "";
+        finish.gameObject.SetActive(false);
         skip.gameObject.SetActive(false); restart.gameObject.SetActive(false);
-        tutorial.enabled = false;
+        FinishTutorial(); // The final Big Boss line has been dismissed with its gesture consumed.
     }
     private void SkipTutorial()
     {
@@ -707,17 +1000,61 @@ public sealed class FastFoodTutorialBridge : MonoBehaviour
     }
     private void FinishTutorial()
     {
-        if (leaving) return;
-        leaving = true;
-        string destination = day.CareerSaveExisted || replay ? "NewGameMenu" : "Lobby2";
-        if (SceneLoader.Instance != null) SceneLoader.Instance.LoadScene(destination);
-        else SceneManager.LoadSceneAsync(destination);
+        if (leaving || resetPending) return;
+        StartCoroutine(FinishRoutine());
     }
-    private void OnDestroy()
+    private IEnumerator FinishRoutine()
     {
+        resetPending = true;
+        ClearWaitingStatus();
+        CancelOwnedTravel();
+        tutorial.ReleaseFastFoodPresentation();
+        // Restore the normal camera/input owners before discarding the isolated payload.
+        if (RestockFlowCoordinator.Instance?.IsTransitioning == true)
+        {
+            float until = Time.realtimeSinceStartup + dependencyAllowance;
+            while (RestockFlowCoordinator.Instance.IsTransitioning && Time.realtimeSinceStartup < until) yield return null;
+            if (RestockFlowCoordinator.Instance.IsTransitioning)
+            { resetPending = false; Fail("Wait for storage to finish opening before leaving."); yield break; }
+        }
+        if (RestockFlowCoordinator.Instance?.IsRestockRoomOpen == true)
+        {
+            RestockFlowCoordinator.Instance.ExitRestockRoom();
+            float until = Time.realtimeSinceStartup + dependencyAllowance;
+            while (RestockFlowCoordinator.Instance.IsTransitioning && Time.realtimeSinceStartup < until) yield return null;
+            if (RestockFlowCoordinator.Instance.IsRestockRoomOpen)
+            { resetPending = false; Fail("Storage could not close. Retry this chapter."); yield break; }
+        }
+        leaving = true;
+        Computer?.CloseComputer();
+        view.Exit();
+        kitchen.enabled = false; // The disposable ledger must not tick after runtime restoration.
+        day.ReleaseFastFoodSession();
+        if (SceneLoader.Instance != null) SceneLoader.Instance.LoadScene("Lobby2");
+        else SceneManager.LoadSceneAsync("Lobby2");
+    }
+    private void ShowSkipConfirmation() => confirmation.SetActive(true);
+    private void HideSkipConfirmation() => confirmation.SetActive(false);
+    private void OnDisable()
+    {
+        ClearWaitingStatus();
+        if (waitingTimer != null) Destroy(waitingTimer.gameObject);
+        CancelOwnedTravel();
+        StopAllCoroutines();
+        Initialized = false;
         if (tutorial != null) { tutorial.PreparingStep -= PrepareStep; tutorial.TutorialCompletedChanged -= Completed; }
-        if (State != null) { State.InteractionFilter = null; State.HoldPlayerStations = false; }
+        if (State != null && State.InteractionFilter == Permit)
+        { State.InteractionFilter = null; State.HoldPlayerStations = false; }
+        if (restart != null) restart.onClick.RemoveListener(RestartChapter);
+        if (skip != null) skip.onClick.RemoveListener(ShowSkipConfirmation);
+        if (cancelSkip != null) cancelSkip.onClick.RemoveListener(HideSkipConfirmation);
+        if (confirmSkip != null) confirmSkip.onClick.RemoveListener(SkipTutorial);
+        if (finish != null) finish.onClick.RemoveListener(FinishTutorial);
         foreach (var pair in navigationStates) if (pair.Key != null) pair.Key.interactable = pair.Value;
+        navigationStates.Clear();
+        restockSource = null; restockShelf = null; restockExit = null;
+        lastGuidanceSource = lastGuidanceTarget = null;
+        targetMissingSeconds = 0;
         PlayerTaskGuidance.ClearTask(FastFoodScene.Tutorial);
         if (Instance == this) Instance = null;
     }

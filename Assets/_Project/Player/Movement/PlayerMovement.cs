@@ -912,9 +912,9 @@ public class PlayerMovement : MonoBehaviour
 
         if (agent != null)
         {
-            agent.isStopped = true;
-            agent.ResetPath();
-            agent.velocity = Vector3.zero;
+            // Kitchen/tutorial transitions can suppress control before an agent
+            // is attached. Stop only a valid agent; still cancel the task below.
+            ForceStopAgent();
             agent.stoppingDistance = defaultStoppingDistance;
         }
 
@@ -931,7 +931,7 @@ public class PlayerMovement : MonoBehaviour
     {
         if (agent == null) agent = GetComponent<NavMeshAgent>();
 
-        if (agent != null)
+        if (agent != null && agent.isActiveAndEnabled && agent.isOnNavMesh)
             agent.isStopped = false;
     }
 

@@ -43,6 +43,10 @@ public sealed class TutorialUIFocusMask : MaskableGraphic
     private Coroutine transitionRoutine;
     private bool gestureBlocked;
     private bool dialogueInput;
+    // Opt-in continuity for the Fast Food lesson owner. Legacy callers keep their defaults.
+    private string focusGroup;
+    private Rect retainedRect;
+    private bool retainedFocus;
 
     public void SetDialogueInput(bool enabled)
     {
@@ -57,6 +61,10 @@ public sealed class TutorialUIFocusMask : MaskableGraphic
     public RectTransform CurrentTarget => target;
     public Rect FocusRect => focusRect;
     public bool IsVisible => isActiveAndEnabled && hasFocus;
+    public void PrepareGroup(string group)
+    {
+        if (focusGroup != null && group != focusGroup) Hide();
+    }
 
     public bool TryGetFocusPoint(RectTransform source, out Vector2 screen)
     {
@@ -146,7 +154,7 @@ public sealed class TutorialUIFocusMask : MaskableGraphic
         StopTransition();
         gestureBlocked = false;
         allowTargetInput = false;
-        if (target == null) { Hide(); return; }
+        if (target == null) { Hide(focusGroup != null); return; }
         // Step bindings can temporarily restore/reveal HUD ancestors in this
         // same frame. Validate at render time and TransitionTo, after rebinding,
         // rather than discarding the source during that synchronous cleanup.
@@ -166,7 +174,8 @@ public sealed class TutorialUIFocusMask : MaskableGraphic
         SetVerticesDirty();
     }
 
-    public void TransitionTo(RectTransform focusTarget, bool targetMayBeClicked, Action onReady)
+    public void TransitionTo(RectTransform focusTarget, bool targetMayBeClicked, Action onReady,
+        string group = null, bool activeDrag = false)
     {
         gestureBlocked = false;
         StopTransition();
@@ -174,6 +183,15 @@ public sealed class TutorialUIFocusMask : MaskableGraphic
         CanvasGroup[] sourceGroups = targetGroups;
         RectTransform[] sourceClips = clipParents;
         bool sourceValid = hasFocus && sourceTarget != null && TryCalculateRect(sourceTarget, out _);
+        bool continuous = group != null;
+        bool sameGroup = continuous && group == focusGroup && retainedFocus;
+        if (continuous)
+        {
+            focusRect = sameGroup ? retainedRect : rectTransform.rect;
+            sourceValid = true; // First/new group opens from the viewport, not an old scene target.
+            sourceTarget = null;
+            focusGroup = group;
+        }
         CacheClipping(focusTarget);
         if (focusTarget == null)
         {
@@ -200,6 +218,7 @@ public sealed class TutorialUIFocusMask : MaskableGraphic
         {
             focusRect = destination;
             hasFocus = true;
+            retainedRect = focusRect; retainedFocus = continuous;
             target = focusTarget;
             allowTargetInput = targetMayBeClicked;
             raycastTarget = true;
@@ -209,15 +228,20 @@ public sealed class TutorialUIFocusMask : MaskableGraphic
         }
 
         target = null;
+        hasFocus = true;
         allowTargetInput = false;
         transitioning = true;
         raycastTarget = true;
         transitionRoutine = StartCoroutine(TransitionRoutine(
-            focusRect, destination, sourceTarget, sourceGroups, sourceClips, focusTarget, targetMayBeClicked, onReady));
+            focusRect, destination, sourceTarget, sourceGroups, sourceClips, focusTarget, targetMayBeClicked, onReady, activeDrag));
     }
 
-    public void Hide()
+    public void Hide(bool preserveGeometry = false)
     {
+        if (preserveGeometry && hasFocus && focusGroup != null)
+        { retainedRect = focusRect; retainedFocus = true; }
+        else if (!preserveGeometry) { focusGroup = null; retainedFocus = false; }
+        GesturePassThrough = false;
         dialogueInput = false;
         gestureBlocked = false;
         StopTransition();
@@ -237,7 +261,7 @@ public sealed class TutorialUIFocusMask : MaskableGraphic
         RectTransform[] sourceClips,
         RectTransform nextTarget,
         bool targetMayBeClicked,
-        Action onReady)
+        Action onReady, bool activeDrag)
     {
         for (float elapsed = 0f; elapsed < transitionDuration; elapsed += Time.unscaledDeltaTime)
         {
@@ -248,16 +272,17 @@ public sealed class TutorialUIFocusMask : MaskableGraphic
                 hasFocus = false;
                 break;
             }
-            if (!TryCalculateRect(sourceTarget, out _, sourceGroups, sourceClips)) break;
+            if (sourceTarget != null && !TryCalculateRect(sourceTarget, out _, sourceGroups, sourceClips)) break;
             float t = Mathf.SmoothStep(0f, 1f, elapsed / Mathf.Max(.01f, transitionDuration));
             focusRect = LerpRect(start, destination, t);
+            if (focusGroup != null) { retainedRect = focusRect; retainedFocus = true; }
             SetVerticesDirty();
             yield return null;
         }
         // A press begun on the moving mask must finish on the blocker, even if
         // the following presentation enables a real action immediately.
-        if (Input.GetMouseButton(0) || Input.GetMouseButton(1) || Input.GetMouseButtonUp(0) ||
-            Input.GetMouseButtonUp(1) || Input.touchCount > 0)
+        if (!activeDrag && (Input.GetMouseButton(0) || Input.GetMouseButton(1) || Input.GetMouseButtonUp(0) ||
+            Input.GetMouseButtonUp(1) || Input.touchCount > 0))
         {
             while (Input.GetMouseButton(0) || Input.GetMouseButton(1) || Input.touchCount > 0)
             {
@@ -317,6 +342,7 @@ public sealed class TutorialUIFocusMask : MaskableGraphic
             hasFocus = true;
             SetVerticesDirty();
         }
+        if (focusGroup != null) { retainedRect = focusRect; retainedFocus = true; }
         raycastTarget = dialogueInput || !GesturePassThrough;
         if (!LevelOneUIAccessibility.ReducedMotion) SetVerticesDirty();
     }
@@ -394,6 +420,7 @@ public sealed class TutorialUIFocusMask : MaskableGraphic
     public override bool Raycast(Vector2 screenPoint, Camera eventCamera)
     {
         if (LobbyPauseMenu.BlocksTutorialInput) return false;
+        if (GesturePassThrough && !gestureBlocked && !dialogueInput) return false;
         if (gestureBlocked || dialogueInput || transitioning) return base.Raycast(screenPoint, eventCamera);
         RefreshFocus(); // Input and rendering use exactly the same live rectangle.
         if (!IsVisible || !raycastTarget || !base.Raycast(screenPoint, eventCamera)) return false;

@@ -113,6 +113,7 @@ public static class FastFoodTutorialAuthoring
         if (hud != null) hud.ConfigureKitchenButtonForEditor(AssetDatabase.LoadAssetAtPath<Sprite>("Assets/_Project/Art/Icons/GameIcons/HUD/Spatula.png"));
         var tso = new SerializedObject(tutorial); var bso = new SerializedObject(bridge);
         Set(bso,"lobbyHUD",hud);
+        Set(bso,"waitingTimerTemplate",Find<FastFoodCookingTimer>(scene));
         LoadRecipes();
         welcome=AssetDatabase.LoadAssetAtPath<Sprite>("Assets/_Project/UI/Assets/Tutorial Images/Welcome  Greeting Pose.png");
         explaining=AssetDatabase.LoadAssetAtPath<Sprite>("Assets/_Project/UI/Assets/Tutorial Images/Tutorial  Explaining Pose.png");
@@ -202,6 +203,7 @@ public static class FastFoodTutorialAuthoring
             Set(bso,"kitchen",cooking); Set(bso,"view",view); Set(bso,"tutorial",tutorial); Set(bso,"day",day);
             Set(bso,"controlsCanvas",controlCanvas); Set(bso,"restart",retry); Set(bso,"skip",skip); Set(bso,"lobbyHUD",Find<LobbyHUDRedesign>(scene)); Set(bso,"finish",finish);
             Set(bso,"confirmation",confirm.gameObject); Set(bso,"confirmSkip",yes); Set(bso,"cancelSkip",no); Set(bso,"status",text);
+            Set(bso,"waitingTimerTemplate",Find<FastFoodCookingTimer>(scene));
             LoadRecipes();
             Set(bso,"burger",burger); Set(bso,"fries",fries); Set(bso,"chicken",chicken); Set(bso,"fish",fish); Set(bso,"drink",drink);
             welcome = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/_Project/UI/Assets/Tutorial Images/Welcome  Greeting Pose.png");
@@ -244,14 +246,14 @@ public static class FastFoodTutorialAuthoring
         FastFoodTutorialBridge.ActionKind.Station,station:mode,control:arrow?"StationArrow":"Enter "+mode);
     private static void Cook(Recipe recipe,int n,bool burn=false)
     {
-        for(int i=0;i<n;i++) Add("ff_"+chapter+"_load_"+i,i==0?"Drag the raw ingredient from the hotbar onto the highlighted cooking spot.":"",
+        for(int i=0;i<n;i++) Add("ff_"+chapter+"_load_"+i,i==0&&chapter==FastFoodTutorialBridge.Chapter.Burger?"Let's put a raw patty on the grill.":"",
             FastFoodTutorialBridge.ActionKind.Load,recipe,i,i,objective:"Load cooking spot "+(i+1)+" with the highlighted raw ingredient.");
         for(int i=0;i<n;i++)
         {
-            Add("ff_"+chapter+"_wait_"+i,burn?"This first burn is intentional. Leave this training patty on the heat to see what happens.":i==0&&chapter!=FastFoodTutorialBridge.Chapter.Parallel?"The timer shows the cooking progress. Wait until the food is ready.":"",
-                burn?FastFoodTutorialBridge.ActionKind.Burn:FastFoodTutorialBridge.ActionKind.Ready,recipe,i,i,control:"World:Food",objective:burn?"Wait for this training patty to burn.":"Wait for cooking spot "+(i+1)+" to finish.");
-            if(!burn) Add("ff_"+chapter+"_collect_"+i,i==0?"{INTERACT} the ready "+(FastFoodCookingState.Station(recipe)==FastFoodStationMode.Fry?"raised basket to collect the fries.":"patty to collect it."):"",
-                FastFoodTutorialBridge.ActionKind.Collect,recipe,i,i,objective:"{INTERACT} the highlighted ready "+(FastFoodCookingState.Station(recipe)==FastFoodStationMode.Fry?"basket.":"patty."));
+            Add("ff_"+chapter+"_wait_"+i,burn?"We'll deliberately leave this patty on the heat too long, so you can recognize burnt food.":i==0&&chapter==FastFoodTutorialBridge.Chapter.Burger?"The timer shows cooking progress. Wait until the patty is ready; then we'll collect it.":"",
+                burn?FastFoodTutorialBridge.ActionKind.Burn:FastFoodTutorialBridge.ActionKind.Ready,recipe,i,i,control:"World:Food",objective:burn?"Watch what happens if we leave it on the heat.":recipe==fries?"The fries are cooking…":"The patty is cooking…");
+            if(!burn) Add("ff_"+chapter+"_collect_"+i,i==0?(FastFoodCookingState.Station(recipe)==FastFoodStationMode.Fry?"The raised basket is ready. Collect the fries for service.":"That patty is ready. Collect it before it burns."):"",
+                FastFoodTutorialBridge.ActionKind.Collect,recipe,i,i,objective:FastFoodCookingState.Station(recipe)==FastFoodStationMode.Fry?"Collect the ready fries.":"Collect the ready patty.");
         }
     }
     private static void Assemble(Recipe recipe,int portion,int slot,int start=0)
@@ -260,7 +262,7 @@ public static class FastFoodTutorialAuthoring
         for(int i=start;i<steps.Count;i++) Add("ff_"+chapter+"_"+recipe.ProductId+"_"+portion+"_ingredient_"+i,
             chapter==FastFoodTutorialBridge.Chapter.Burger?"Add "+steps[i].label+" to the highlighted prep position.":"",
             FastFoodTutorialBridge.ActionKind.Assemble,recipe,portion,slot,i,
-            objective:"Prep position "+(slot+1)+": add "+steps[i].label+" ("+(i+1)+"/"+steps.Count+").");
+            objective:"Add "+steps[i].label+" ("+(i+1)+"/"+steps.Count+").");
     }
     private static void BuildLessons()
     {
@@ -268,43 +270,36 @@ public static class FastFoodTutorialAuthoring
         chapter=FastFoodTutorialBridge.Chapter.Briefing;
         Add("ff_welcome","Welcome to Fast Food! Let's learn how this kitchen works.");
         Add("ff_lobby_recap","You know the restaurant basics. Here we'll focus on cooking, preparing food, and serving complete kitchen orders.");
-        Add("ff_hud_pause","Use Pause whenever you need a break. Resume returns to the same lesson.",control:"Pause");
-        Add("ff_hud_task","The TASK clipboard holds your current objective. Check it whenever you're unsure what comes next.",control:"Task");
-        Add("ff_enter","The Kitchen button on your HUD opens the kitchen. Select it now.",FastFoodTutorialBridge.ActionKind.Open,control:"Enter");
+        Add("ff_hud_pause","Use Pause whenever you need a break. Resume brings you back to work.",control:"Pause");
+        Add("ff_hud_task","TASK shows your next instruction: what to do, when to wait, and where to go next.",control:"Task");
+        Add("ff_enter","Kitchen is where you'll help the team prepare orders. Let's head in.",FastFoodTutorialBridge.ActionKind.Open,control:"Enter",objective:"Open Kitchen.");
         Add("ff_kitchen_welcome","Welcome to your kitchen! This station list lets you choose where to help. We'll start with Grill.",control:"Selection");
         chapter=FastFoodTutorialBridge.Chapter.Burger;Station(FastFoodStationMode.Grill);
         Add("ff_hud_header","The blue panel names your station and current food. Its count and progress bar show your progress.",control:"Header");
-        Add("ff_hotbar","This hotbar holds your ingredients. Cells keep their positions so you can find the same ingredient quickly.",control:"Hotbar");
+        Add("ff_hotbar","Your ingredients are lined up here. Each keeps its place so you can find it quickly.",control:"Hotbar");
         Add("ff_hotbar_counts","This is a raw patty. The number shows how many you have available.",recipe:burger,control:"Raw");
         Add("ff_hotbar_empty","Cooked ingredients have a separate READY cell. A dim cell with zero cannot be used yet.",recipe:burger,control:"ProteinCell");
         Add("ff_grill_area","Each cooking spot can hold one patty. Let's cook one first, then prepare its burger.",control:"World:Cooking");
         Cook(burger,1);
-        Add("ff_prep_area","The view now follows your food to the prep table. Build the burger here in recipe order.",control:"World:Prep");
+        Add("ff_prep_area","Here's the prep table. Build the burger here in recipe order.",control:"World:Prep");
         Add("ff_ready_ingredient","Your collected patty is now available in the READY cell. Use it after the bottom bun.",recipe:burger,control:"ProteinCell");
         Assemble(burger,0,0);
         Add("ff_burger_done","Good! The burger is assembled. Its pickup transfers it to ready supply so the prep position can be used again.");
-        chapter=FastFoodTutorialBridge.Chapter.Parallel;
-        Add("ff_parallel_intro","Load three cooking spots before collecting. Each patty cooks independently.",control:"World:Cooking");
-        Cook(burger,3);
-        Add("ff_three_slots","There are three independent prep positions. Start each with a bottom bun, then follow the pointer to finish each burger.",control:"World:Prep");
-        for(int i=0;i<3;i++) Add("ff_parallel_bun_"+i,"",FastFoodTutorialBridge.ActionKind.Assemble,burger,i,i,0,objective:"Start a burger in prep position "+(i+1)+": bottom bun.");
-        for(int i=0;i<3;i++)Assemble(burger,i,i,1);
-        Add("ff_parallel_done","Each position keeps its own recipe progress. Completed food transfers to ready supply.");
+        chapter=FastFoodTutorialBridge.Chapter.Burn;
+        Add("ff_burn_intro","Now let's learn to recover burnt food. Load another patty; we'll deliberately leave this one too long.",control:"World:Cooking");
+        Cook(burger,1,true);
+        Add("ff_discard","Burnt food can't be served. This patty belongs in the discard area.",FastFoodTutorialBridge.ActionKind.Discard,burger,objective:"Discard the burnt patty.");
+        Add("ff_reload","",FastFoodTutorialBridge.ActionKind.Load,burger,objective:"Load a fresh patty onto the highlighted cooking spot.");
+        Add("ff_retry_wait","",FastFoodTutorialBridge.ActionKind.Ready,burger,objective:"The replacement patty is cooking…");
+        Add("ff_retry_collect","",FastFoodTutorialBridge.ActionKind.Collect,burger,objective:"Collect the replacement patty.");
         chapter=FastFoodTutorialBridge.Chapter.Sandwiches;
         foreach(var r in new[]{chicken,fish})
         {
-            Add("ff_protein_"+r.ProductId,"Stay at Grill. Staff prepare the protein for "+r.DisplayName+". Wait here until it is ready.",FastFoodTutorialBridge.ActionKind.Protein,r,objective:"Wait here for the cooked sandwich ingredient.");
-            Add("ff_sandwich_ready_"+r.ProductId,"The cooked protein is here. Follow the pointer: bottom bun, cooked protein, then top bun.",recipe:r,control:"ProteinCell");
-            Assemble(r,0,r==chicken?0:1);
+            Add("ff_protein_"+r.ProductId,r==chicken?"Stay at the prep table. Fryer staff cook the chicken for you; we'll assemble it when the READY ingredient arrives.":"Next is the Fish Fillet Sandwich. Staff are cooking the fish; wait here at the prep table.",FastFoodTutorialBridge.ActionKind.Protein,r,control:"World:Prep",objective:r==chicken?"The fryer team is preparing the chicken…":"The fryer team is preparing the fish…");
+            Add("ff_sandwich_ready_"+r.ProductId,r==chicken?"The cooked chicken is ready. Add bottom bun, cooked chicken, then top bun.":"The cooked fish is ready. Add bottom bun, cooked fish, then top bun.",recipe:r,control:"ProteinCell");
+            Assemble(r,0,0);
         }
-        Add("ff_sandwich_done","That's the sandwich sequence: staff fry the protein, and you assemble it here.");
-        chapter=FastFoodTutorialBridge.Chapter.Burn;Cook(burger,1,true);
-        Add("ff_discard","Drag the burnt patty to the discard area.",FastFoodTutorialBridge.ActionKind.Discard,burger);
-        Add("ff_reload","The cooking spot is free. Load a fresh patty.",FastFoodTutorialBridge.ActionKind.Load,burger);
-        Add("ff_retry_wait","",FastFoodTutorialBridge.ActionKind.Ready,burger,objective:"Wait for the replacement patty to finish cooking.");
-        Add("ff_retry_collect","{INTERACT} the ready patty. During guided training, it stays ready while you read.",FastFoodTutorialBridge.ActionKind.Collect,burger);
-        Add("ff_recovery_prep","Finish the replacement burger: bottom bun, cooked patty, cheese, then top bun.",control:"World:Prep");
-        Assemble(burger,0,0);
+        Add("ff_sandwich_done","That's it: staff fry the protein, and you assemble the sandwich here.");
         chapter=FastFoodTutorialBridge.Chapter.Fries;
         Add("ff_hud_navigation","These SWITCH STATION arrows move directly between workstations. Use the highlighted arrow next to go to Fryer.",station:FastFoodStationMode.Fry,control:"StationArrow");
         Station(FastFoodStationMode.Fry,true);
@@ -315,26 +310,37 @@ public static class FastFoodTutorialAuthoring
         chapter=FastFoodTutorialBridge.Chapter.Serving;Station(FastFoodStationMode.Assembler,true);
         Add("ff_ticket","This active order needs 1 Burger, 1 Fries, and 1 Coke. Each quantity shows how much is already on the tray.",control:"Ticket");
         Add("ff_tray_ui","This tray holds the order. Completing food, putting it on this tray, and serving are separate actions.",control:"World:Tray");
-        Add("ff_assembler_hotbar","Use these ready-food and drink items to fill the order. Follow the pointer to the accepted tray position.",control:"Hotbar");
-        foreach(var r in new[]{burger,fries,drink})Add("ff_place_"+r.ProductId,"Drag "+r.DisplayName+" onto the highlighted tray area.",FastFoodTutorialBridge.ActionKind.Place,r);
-        Add("ff_serve","Everything is on the tray. This Serve button submits the complete order. {INTERACT} it now.",FastFoodTutorialBridge.ActionKind.Serve,control:"Serve");
-        Add("ff_served","Nice work. The real Serve action submitted the ticket.");
+        Add("ff_assembler_hotbar","These ready foods and drinks are available for the order. Each belongs on the tray.",control:"Hotbar");
+        foreach(var r in new[]{burger,fries,drink})Add("ff_place_"+r.ProductId,"Add "+r.DisplayName+" to the tray.",FastFoodTutorialBridge.ActionKind.Place,r);
+        Add("ff_serve","Everything is on the tray. Serve sends the complete order out to the customer.",FastFoodTutorialBridge.ActionKind.Serve,control:"Serve",objective:"Serve the complete order.");
+        Add("ff_served","Nice work. That order is ready for the customer.");
         chapter=FastFoodTutorialBridge.Chapter.Practice;
-        Add("ff_practice_intro","Your turn: first prepare and serve 2 Burgers, 1 Fries, and 1 Coke. Then serve the chicken and fish sandwich ticket. Follow TASK; there is no order deadline.");
+        Add("ff_practice_intro","Let's put that into practice. Prepare and serve 2 Burgers, 1 Fries, and 1 Coke, then the chicken and fish sandwich order. Follow TASK; there's no deadline.");
         Add("ff_practice_navigation","Use the arrows to switch directly, or open Stations to choose your next workstation.",control:"Stations");
         Add("ff_practice_exit","Exit Kitchen returns to the restaurant. You can reopen Kitchen to continue your practice.",control:"Exit Kitchen");
-        Add("ff_practice","",FastFoodTutorialBridge.ActionKind.Practice,objective:"Go to Grill and prepare 2 burgers. 0/2 ready.");
+        Add("ff_practice","",FastFoodTutorialBridge.ActionKind.Practice,objective:"Let's finish this order. Go to Grill and prepare 2 burgers. 0/2 ready.");
         Add("ff_practice_done","Well done! You cooked, prepared food, and served both complete tickets. Let's finish with kitchen maintenance.");
         chapter=FastFoodTutorialBridge.Chapter.Hygiene;
-        Add("ff_hygiene_intro","This cleaning decision explains how cooking will be affected. We will use Clean Now for this exercise.",control:"Clean Now");
+        Add("ff_hygiene_intro","The kitchen needs cleaning. Clean Now gives the team time to make it safe for food again.",control:"Clean Now");
         Add("ff_hygiene_clean","Choose Clean Now, then wait for cleaning to finish.",FastFoodTutorialBridge.ActionKind.Clean,control:"Clean Now");
         chapter=FastFoodTutorialBridge.Chapter.Restock;
-        Add("ff_stock_intro","This Restock notice shows the missing ingredient. A training supply box is ready for you in storage.",control:"Restock");
-        Add("ff_stock_open","Choose Go to Restock to enter storage.",FastFoodTutorialBridge.ActionKind.RestockOpen,control:"Go to Restock");
-        Add("ff_stock_store","Store the supplied box on an open shelf, just as you learned before.",FastFoodTutorialBridge.ActionKind.Store);
-        Add("ff_stock_exit","The ingredient is available again. Exit storage to return to the restaurant.",FastFoodTutorialBridge.ActionKind.RestockExit,control:"Exit Storage");
+        Add("ff_stock_intro","We're low on fries. Let's order a box at the computer.",control:"Restock");
+        Add("ff_stock_open","Go to Restock will take us to the computer to arrange the delivery.",FastFoodTutorialBridge.ActionKind.RestockOpen,control:"Go to Restock",objective:"Go to the computer.");
+        Add("ff_stock_app","Choose Restock on the computer.",FastFoodTutorialBridge.ActionKind.Purchase,control:"Computer:Restock",objective:"Open Restock.");
+        Add("ff_stock_food","The Food tab lists ingredients for the kitchen. We'll find French Fries there.",FastFoodTutorialBridge.ActionKind.Purchase,control:"Computer:Food",objective:"Choose Food.");
+        Add("ff_stock_fries","Order one box of French Fries. The card shows the price and how much comes in a box.",control:"Computer:FriesCard");
+        Add("ff_stock_add_fries","",FastFoodTutorialBridge.ActionKind.Purchase,control:"Computer:Fries",objective:"Order 1 box of fries.");
+        Add("ff_stock_checkout","Checkout lets us review the quantities and total before paying.",FastFoodTutorialBridge.ActionKind.Purchase,control:"Computer:Checkout",objective:"Review the order at Checkout.");
+        Add("ff_stock_order","One box of fries is all we need. Order Now confirms the purchase and pays the supplier.",FastFoodTutorialBridge.ActionKind.Purchase,control:"Computer:Order",objective:"Confirm the purchase with Order Now.");
+        Add("ff_stock_close_app","The delivery is on its way. Close Restock and we'll collect it outside.",FastFoodTutorialBridge.ActionKind.Purchase,control:"Computer:CloseApp",objective:"Close Restock.");
+        Add("ff_stock_close_computer","We're finished at the computer. Exit returns us to the restaurant.",FastFoodTutorialBridge.ActionKind.Purchase,control:"Computer:Exit",objective:"Leave the computer.");
+        Add("ff_stock_delivery","",FastFoodTutorialBridge.ActionKind.Delivery,objective:"Waiting for the delivery…");
+        Add("ff_stock_truck","Our delivery has arrived. Meet the truck to collect it.",FastFoodTutorialBridge.ActionKind.Truck,control:"World:Truck",objective:"Meet the delivery truck.");
+        Add("ff_stock_collect","HOLD TO COLLECT brings the boxes off the truck. Let's collect our delivery.",FastFoodTutorialBridge.ActionKind.CollectDelivery,control:"Get Orders",objective:"Collect the delivery.");
+        Add("ff_stock_freezer","Fries belong in frozen storage. Take this box to the freezer.",FastFoodTutorialBridge.ActionKind.Freezer,control:"World:Freezer",objective:"Take the fries to the freezer.");
+        Add("ff_stock_store","Put this box of fries on the empty freezer shelf.",FastFoodTutorialBridge.ActionKind.Store,objective:"Drag the fries box onto the empty freezer shelf.");
         chapter=FastFoodTutorialBridge.Chapter.Complete;
-        Add("ff_complete","Kitchen training complete.");
+        Add("ff_complete","Good work. The fries are stored. Good luck with your shift!");
     }
     private static void WriteLessons(SerializedObject tso,SerializedObject bso)
     {
@@ -359,7 +365,7 @@ public static class FastFoodTutorialAuthoring
             d.FindPropertyRelative("portion").intValue=l.portion;d.FindPropertyRelative("slot").intValue=l.slot;d.FindPropertyRelative("ingredient").intValue=l.ingredient;
             s.FindPropertyRelative("id").stringValue=l.id;s.FindPropertyRelative("speaker").stringValue="Big Boss";
             s.FindPropertyRelative("message").stringValue=messages[i];s.FindPropertyRelative("objective").stringValue=objectives[i];
-            s.FindPropertyRelative("portrait").objectReferenceValue=i==0?welcome:l.id.EndsWith("done")?success:explaining;
+            s.FindPropertyRelative("portrait").objectReferenceValue=i==0?welcome:l.id.EndsWith("done")||l.id=="ff_complete"?success:explaining;
             s.FindPropertyRelative("phase").enumValueIndex=(int)PhaseFor(l.chapter);
             bool action=l.action!=FastFoodTutorialBridge.ActionKind.Explain;
             bool drag=l.action==FastFoodTutorialBridge.ActionKind.Load||l.action==FastFoodTutorialBridge.ActionKind.Assemble||l.action==FastFoodTutorialBridge.ActionKind.Place||l.action==FastFoodTutorialBridge.ActionKind.Discard||l.action==FastFoodTutorialBridge.ActionKind.Store;
@@ -368,8 +374,8 @@ public static class FastFoodTutorialAuthoring
             s.FindPropertyRelative("restrictUnrelatedInteractions").boolValue=l.action!=FastFoodTutorialBridge.ActionKind.Practice &&
                 !(l.action==FastFoodTutorialBridge.ActionKind.Station && l.control=="StationArrow" && l.id!="ff_Fries_station");
             s.FindPropertyRelative("explainsAction").boolValue=true;
-            bool passive=l.action==FastFoodTutorialBridge.ActionKind.Ready||l.action==FastFoodTutorialBridge.ActionKind.Protein||l.action==FastFoodTutorialBridge.ActionKind.Burn||l.action==FastFoodTutorialBridge.ActionKind.Practice;
-            s.FindPropertyRelative("hintMode").enumValueIndex=drag?(int)TutorialSystem.TutorialHintMode.Drag:action&&!passive?(int)TutorialSystem.TutorialHintMode.Tap:0;
+            bool passive=l.action==FastFoodTutorialBridge.ActionKind.Ready||l.action==FastFoodTutorialBridge.ActionKind.Protein||l.action==FastFoodTutorialBridge.ActionKind.Burn||l.action==FastFoodTutorialBridge.ActionKind.Practice||l.action==FastFoodTutorialBridge.ActionKind.Delivery;
+            s.FindPropertyRelative("hintMode").enumValueIndex=drag?(int)TutorialSystem.TutorialHintMode.Drag:l.action==FastFoodTutorialBridge.ActionKind.CollectDelivery?(int)TutorialSystem.TutorialHintMode.Hold:action&&!passive?(int)TutorialSystem.TutorialHintMode.Tap:0;
             bool worldControl=l.control.StartsWith("World:",StringComparison.Ordinal);
             string ui=l.action==FastFoodTutorialBridge.ActionKind.Open?"FF.Enter":
                 l.action==FastFoodTutorialBridge.ActionKind.Discard?"FF.Discard":worldControl?"":l.control.Length>0?"FF.Control":
@@ -418,7 +424,7 @@ public static class FastFoodTutorialAuthoring
             if (step.FindPropertyRelative("portrait").objectReferenceValue == null) throw new Exception("Missing Big Boss portrait: " + id);
             if (step.FindPropertyRelative("phase").enumValueIndex != (int)PhaseFor((FastFoodTutorialBridge.Chapter)lesson.FindPropertyRelative("chapter").enumValueIndex)) throw new Exception("Chapter phase mismatch: " + id);
         }
-        foreach (string key in new[]{"kitchen","view","tutorial","day","controlsCanvas","restart","skip","finish","confirmation","confirmSkip","cancelSkip","status","burger","fries","chicken","fish","drink"})
+        foreach (string key in new[]{"kitchen","view","tutorial","day","controlsCanvas","restart","skip","finish","confirmation","confirmSkip","cancelSkip","status","waitingTimerTemplate","burger","fries","chicken","fish","drink"})
             if (bs.FindProperty(key).objectReferenceValue == null) throw new Exception("Missing reference: " + key);
         foreach (string key in new[]{"dialogueUI","handIndicator","targetIndicator","uiFocusMask","sceneBindings","cameraController","groupSpawner"})
             if (ts.FindProperty(key).objectReferenceValue == null) throw new Exception("Missing presentation reference: " + key);

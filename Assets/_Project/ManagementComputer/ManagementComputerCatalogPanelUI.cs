@@ -104,6 +104,16 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
     private float lastCatalogViewportWidth;
     private InventoryManager subscribedInventory;
     private MenuProductCategory activeCategory = MenuProductCategory.Food;
+    // Read-only lesson bindings to the live cart; no duplicate checkout state.
+    public bool IsRestock => !showingMenu;
+    public bool IsReview => reviewMode;
+    public MenuProductCategory ActiveCategory => activeCategory;
+    public Button FoodTab => foodTabButton;
+    public Button CartButton => primaryCartButton;
+    public int CartBoxes => GetTotalBoxes();
+    public int QuantityFor(ItemData item) => GetCartQuantity(item);
+    public Button AddControlFor(ItemData item) => item != null && restockCards.TryGetValue(item, out var card)
+        ? card.PlusButton : null;
     private RectTransform categoryTabsRoot;
     private Button foodTabButton;
     private Button drinksTabButton;

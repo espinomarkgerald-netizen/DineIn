@@ -211,6 +211,10 @@ public sealed class RestockFlowHUD : MonoBehaviour
             notificationRoot.SetActive(false);
     }
 
+    public RectTransform CollectionControl => holdRoot != null && holdRoot.activeInHierarchy && holdButton != null
+        ? holdButton.transform as RectTransform : null;
+    public bool HasActiveDrag => inRestockRoom && draggedSlot != null;
+
     public void ShowHold(Action completed)
     {
         if (holdRoot != null)

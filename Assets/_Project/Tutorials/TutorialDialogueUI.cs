@@ -153,6 +153,8 @@ public class TutorialDialogueUI : MonoBehaviour
     private bool pointerReleased;
     private RectTransform portraitPlacement;
     private Vector2 dialogueHome;
+    private bool fastFoodPoseChosen;
+    private bool StableFastFoodPlacement => avoidFocusOverlap && gameObject.scene.name == FastFoodScene.Tutorial;
     public Func<Vector2, bool> CanAdvanceAt { get; set; }
     public TMP_Text BodyText => bodyText;
 
@@ -192,7 +194,10 @@ public class TutorialDialogueUI : MonoBehaviour
                 portraitPlacement.anchorMin = portraitRect.anchorMin;
                 portraitPlacement.anchorMax = portraitRect.anchorMax;
                 portraitPlacement.pivot = portraitRect.pivot;
-                portraitPlacement.sizeDelta = portraitRect.sizeDelta;
+                // Include the static artwork scale in the collision footprint,
+                // without measuring the animated child or resizing the artwork.
+                portraitPlacement.sizeDelta = Vector2.Scale(portraitRect.sizeDelta,
+                    StableFastFoodPlacement ? (Vector2)portraitHomeScale : Vector2.one);
                 portraitPlacement.anchoredPosition = portraitHome;
                 portraitRect.SetParent(portraitPlacement, false);
                 portraitRect.anchorMin = portraitRect.anchorMax = new Vector2(.5f, .5f);
@@ -290,8 +295,34 @@ public class TutorialDialogueUI : MonoBehaviour
         if (focus.width <= 0f && focusWorld != null)
             TutorialWorldTargetGeometry.TryGetScreenRect(focusWorld,
                 TutorialWorldTargetGeometry.ResolveCamera(focusWorld, Camera.main), out focus);
-        if (avoidFocusOverlap && gameObject.scene.name == FastFoodScene.Tutorial)
+        if (StableFastFoodPlacement)
+        {
             AvoidFocus(focus);
+            // Measure the placement wrapper, not the animated portrait. Bop/flip
+            // animation and the continue prompt must not make the pose oscillate.
+            if (!fastFoodPoseChosen)
+            {
+                portraitPlacement.anchoredPosition = new Vector2(-Mathf.Abs(portraitHome.x), portraitHome.y) + portraitLeftOffset;
+                portraitPlacement.localScale = Vector3.one;
+                GroundFastFoodPortrait();
+                Rect leftPose = ScreenRect(portraitPlacement);
+                bool conflict = focus.width > 0 && leftPose.Overlaps(focus);
+                if (conflict)
+                {
+                    portraitPlacement.anchoredPosition = new Vector2(Mathf.Abs(portraitHome.x), portraitHome.y) + portraitRightOffset;
+                    GroundFastFoodPortrait();
+                    conflict = !ScreenRect(portraitPlacement).Overlaps(focus);
+                }
+                portraitRight = conflict;
+                fastFoodPoseChosen = true;
+            }
+            portraitPlacement.anchoredPosition = new Vector2((portraitRight ? 1f : -1f) * Mathf.Abs(portraitHome.x), portraitHome.y) +
+                (portraitRight ? portraitRightOffset : portraitLeftOffset);
+            portraitPlacement.localScale = new Vector3(portraitRight ? -1f : 1f, 1f, 1f);
+            GroundFastFoodPortrait();
+            portraitImage.enabled = true;
+            return;
+        }
         if (portraitRect == null || Time.unscaledTime < nextSideCheck) return;
         nextSideCheck = Time.unscaledTime + portraitSideCheckInterval;
         // Test two authored poses, never mirror the panel or its text.
@@ -320,7 +351,6 @@ public class TutorialDialogueUI : MonoBehaviour
     private void AvoidFocus(Rect focus)
     {
         var rect = (RectTransform)transform;
-        rect.anchoredPosition = dialogueHome;
         if (panelRect == null || !(rect.parent is RectTransform parent) || focus.width <= 0) return;
         Rect panel = ScreenRect(panelRect);
         if (speakerText != null)
@@ -328,19 +358,35 @@ public class TutorialDialogueUI : MonoBehaviour
             Rect speaker = ScreenRect(speakerText.rectTransform);
             panel.yMax = Mathf.Max(panel.yMax, speaker.yMax);
         }
-        if (continuePrompt != null && continuePrompt.gameObject.activeInHierarchy)
+        if (continuePrompt != null)
             panel.yMax = Mathf.Max(panel.yMax, ScreenRect((RectTransform)continuePrompt.transform.parent).yMax);
         if (!panel.Overlaps(focus)) return;
         Rect safe = Screen.safeArea;
         float up = focus.yMax + focusClearance - panel.yMin;
         float down = focus.yMin - focusClearance - panel.yMax;
-        float shift = panel.yMax + up <= safe.yMax ? up : down;
-        shift = Mathf.Clamp(shift, safe.yMin - panel.yMin, safe.yMax - panel.yMax);
+        Rect portrait = StableFastFoodPlacement ? panel : ScreenRect(portraitPlacement);
+        float top = Mathf.Max(panel.yMax, portrait.yMax), bottom = Mathf.Min(panel.yMin, portrait.yMin);
+        // A world-only explanation (for example the tray) can cover the hotbar.
+        // Prefer the space below its subject instead of lifting the whole panel
+        // above the work area. Ingredient/hotbar explanations still move up.
+        bool preferLower = StableFastFoodPlacement && focusTarget == null && focusWorld != null;
+        float shift = preferLower && bottom + down >= safe.yMin ? down : top + up <= safe.yMax ? up : down;
+        if (top - bottom <= safe.height)
+            shift = Mathf.Clamp(shift, safe.yMin - bottom, safe.yMax - top);
         Canvas owner = rect.GetComponentInParent<Canvas>()?.rootCanvas;
         Camera camera = owner == null || owner.renderMode == RenderMode.ScreenSpaceOverlay ? null : owner.worldCamera;
         RectTransformUtility.ScreenPointToLocalPointInRectangle(parent, panel.center, camera, out var from);
         RectTransformUtility.ScreenPointToLocalPointInRectangle(parent, panel.center + Vector2.up * shift, camera, out var to);
-        rect.anchoredPosition = dialogueHome + to - from;
+        rect.anchoredPosition += to - from;
+    }
+
+    private void GroundFastFoodPortrait()
+    {
+        // Cancel only the layout displacement, in parent units. The child keeps
+        // its authored scale, side and bop animation at the bottom of the screen.
+        var rect = (RectTransform)transform;
+        if (rect.parent != null)
+            portraitPlacement.position -= rect.parent.TransformVector((Vector3)(rect.anchoredPosition - dialogueHome));
     }
 
     private void ApplyPortraitPose()
@@ -451,6 +497,17 @@ public class TutorialDialogueUI : MonoBehaviour
 
     private void ShowInternal(string speaker, string message, Sprite portrait, bool manualMode)
     {
+        if (StableFastFoodPlacement)
+        {
+            ((RectTransform)transform).anchoredPosition = dialogueHome;
+            fastFoodPoseChosen = false;
+            portraitRight = false;
+            if (portraitPlacement != null)
+            {
+                portraitPlacement.localScale = Vector3.one;
+                portraitPlacement.anchoredPosition = new Vector2(-Mathf.Abs(portraitHome.x), portraitHome.y) + portraitLeftOffset;
+            }
+        }
         StopLetterBounce();
         RestoreChatterInput();
         if (typingRoutine != null) StopCoroutine(typingRoutine);

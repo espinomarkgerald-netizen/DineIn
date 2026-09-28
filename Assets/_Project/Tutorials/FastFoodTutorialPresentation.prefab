@@ -1701,7 +1701,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 0, g: 0, b: 0, a: 0.68}
+  m_Color: {r: 0, g: 0, b: 0, a: 0.76}
   m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -1710,11 +1710,11 @@ MonoBehaviour:
       m_Calls: []
   padding: {x: 8, y: 8}
   focusColor: {r: 1, g: 0.8, b: 0.15, a: 1}
-  borderWidth: 3
+  borderWidth: 5
   transitionDuration: 0.24
   pulseAmount: 0.22
   pulseSpeed: 2.4
-  pulseExpansion: 0.03
+  pulseExpansion: 0.015
 --- !u!1 &6351987753467170538
 GameObject:
   m_ObjectHideFlags: 0

@@ -46,6 +46,7 @@ public sealed class ManagementComputerWindow : MonoBehaviour
 
     public RectTransform Content => content;
     public Button FooterButton => footerButton;
+    public Button CloseButton => closeButton;
     public float VerticalNormalizedPosition =>
         scrollRect == null
             ? 1f

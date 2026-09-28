@@ -19,6 +19,8 @@ public sealed partial class FastFoodCookingView : MonoBehaviour
     [SerializeField] private FastFoodCookingTicketView ticketTemplate;
     [SerializeField] private FastFoodCookingStation[] stations = Array.Empty<FastFoodCookingStation>();
     [SerializeField] private RectTransform hotbarContainer;
+    [Tooltip("Cleaning progress appears below this station-navigation label. Uses the existing HUD bar.")]
+    [SerializeField] private RectTransform cleaningProgressAnchor;
     [SerializeField, Min(128)] private float hotbarMaximumWidth=760;
     [SerializeField, Range(.3f,.8f)] private float hotbarScreenFraction=.46f;
     [SerializeField] private Vector2 hotbarCellRange=new Vector2(96,128);
@@ -75,6 +77,7 @@ public sealed partial class FastFoodCookingView : MonoBehaviour
         if(owner==null || !owner.Active) { if(canvas!=null)canvas.gameObject.SetActive(false); enabled=false; return; }
         if (!IsAuthored) { Debug.LogError("Kitchen presentation is missing. Run Dine In > Fast Food > Create Editable Kitchen in Lobby2.",this); enabled=false; return; }
         canvas.gameObject.SetActive(true);
+        if(cleaningProgressAnchor==null)cleaningProgressAnchor=station.Find("Station Navigation Label") as RectTransform;
         InitializeUIFeedback();
         selection.gameObject.SetActive(false); station.gameObject.SetActive(false); help.gameObject.SetActive(false);
         foreach(var rig in stations) { rig.gameObject.SetActive(false); rig.labels.gameObject.SetActive(false); }
@@ -83,7 +86,11 @@ public sealed partial class FastFoodCookingView : MonoBehaviour
     public void EnterFry() { Enter(FastFoodStationMode.Fry); }
     public void EnterAssembler() { Enter(FastFoodStationMode.Assembler); }
     public void ToggleNotices() => ShowNotice(!notification.gameObject.activeSelf || !noticeVisibility.blocksRaycasts);
-    public void GoToRestock() { Exit(); RestockFlowCoordinator.EnsureInstance().EnterRestockRoom(alertStorage); }
+    public void GoToRestock()
+    {
+        if (FastFoodTutorialBridge.Active && FastFoodTutorialBridge.Instance.RouteRestockToComputer()) return;
+        Exit(); RestockFlowCoordinator.EnsureInstance().EnterRestockRoom(alertStorage);
+    }
     public void ServeOrder() { if(State.PlayerTicket!=null && State.Serve(State.PlayerTicket.number)) { PlayKitchenCue(finishedSound); Message(deliveredMessage,false); lastSignature=null; Refresh(); } }
     public void Open()
     {
@@ -95,6 +102,7 @@ public sealed partial class FastFoodCookingView : MonoBehaviour
     }
     public void Back()
     {
+        CasualDiningProgressHUD.Instance?.ClearKitchenCleaningAnchor(cleaningProgressAnchor);
         StopStationTransition(); CancelDrag(); State.SelectStations(); PlayerTaskGuidance.SetKitchenFocus(true);
         DestroyWorld(); selection.gameObject.SetActive(true); station.gameObject.SetActive(false); help.gameObject.SetActive(false);
         PulseUI(selection);
@@ -122,6 +130,8 @@ public sealed partial class FastFoodCookingView : MonoBehaviour
     private void Update()
     {
         if(owner==null || !IsAuthored)return;
+        if(opened && activeStation!=null)
+            CasualDiningProgressHUD.Instance?.SetKitchenCleaningAnchor(cleaningProgressAnchor);
         UpdateBaskets();
         if(opened && Time.timeScale>0) { Cursor.lockState=CursorLockMode.None; Cursor.visible=true; }
         if(Time.unscaledTime>=refreshAt) { refreshAt=Time.unscaledTime+refreshSeconds; Refresh(); }
@@ -531,6 +541,7 @@ public sealed partial class FastFoodCookingView : MonoBehaviour
     }
     public void Exit()
     {
+        CasualDiningProgressHUD.Instance?.ClearKitchenCleaningAnchor(cleaningProgressAnchor);
         if(!opened)return;
         State.PrepTransferred-=OnPrepTransferred;
         StopStationTransition(); CancelDrag(); owner.State.Enter(FastFoodStationMode.None); PlayerTaskGuidance.SetKitchenFocus(false); PlayerTaskGuidance.ClearTask("FastFoodCooking");

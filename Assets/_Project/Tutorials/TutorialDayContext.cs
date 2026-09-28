@@ -22,6 +22,7 @@ public sealed class TutorialDayContext : MonoBehaviour
     private List<Equipment> authoredEquipment;
     private GameSaveData originalRuntimeState;
     private ObjectiveSnapshot originalObjectives;
+    private int[] originalFastFoodFinance, originalFastFoodRevenue;
     private GameSaveManager saveManager;
     private bool originalAutoLoad;
     private bool originalAutoSaveOnPause;
@@ -32,7 +33,7 @@ public sealed class TutorialDayContext : MonoBehaviour
     private bool careerSaveExisted;
     private bool runtimeIsolated;
     private bool restored;
-    public bool IsReady => runtimeIsolated && tutorialCatalog != null;
+    public bool IsReady => !restored && runtimeIsolated && tutorialCatalog != null;
     public MenuCatalog Catalog => tutorialCatalog;
 #if UNITY_EDITOR
     private bool editorExitingPlayMode;
@@ -121,6 +122,12 @@ public sealed class TutorialDayContext : MonoBehaviour
     {
         PrepareSaveIsolation();
         originalRuntimeState = CaptureRuntimeState();
+        if (gameObject.scene.name == FastFoodScene.Tutorial)
+        {
+            originalFastFoodFinance = DailyFinanceBridge.Instance?.CaptureNetworkState();
+            var revenue = DailyRevenueTracker.Instance;
+            if (revenue != null) originalFastFoodRevenue = new[] { revenue.OrdersCompleted, revenue.OrdersFailed, revenue.IngredientCost };
+        }
         originalObjectives = CaptureObjectives();
 
         if (InventoryManager.Instance != null && tutorialCatalog != null)
@@ -150,6 +157,8 @@ public sealed class TutorialDayContext : MonoBehaviour
         }
 
         ApplyRuntimeState(BuildFreshTutorialState());
+        if (gameObject.scene.name == FastFoodScene.Tutorial)
+        { DailyFinanceBridge.Instance?.ResetDay(); DailyRevenueTracker.Instance?.ResetForNewDay(); }
         DailyObjectiveManager.Instance?.ResetForNewRun();
         runtimeIsolated = true;
         Debug.Log("[Tutorial Day] Fresh isolated session applied: Day 1, P5000, 50% approval, empty stock/orders, fresh staff and menu state.", this);
@@ -229,6 +238,26 @@ public sealed class TutorialDayContext : MonoBehaviour
 
     public bool CareerSaveExisted => careerSaveExisted;
 
+    /// <summary>Release the disposable Fast Food session before normal scene initialization.</summary>
+    public void ReleaseFastFoodSession()
+    {
+        if (gameObject.scene.name != FastFoodScene.Tutorial || restored) return;
+        restored = true;
+        RestoreAuthoredRuntimeAssets();
+        if (runtimeIsolated)
+        {
+            ApplyRuntimeState(originalRuntimeState);
+            RestoreObjectives(originalObjectives);
+            RestoreFastFoodAccounting();
+        }
+        runtimeIsolated = false;
+        RestoreSaveManager(false);
+        // The normal Lobby2 entry path loads the existing career (or fresh defaults).
+        // Never serialize this disposable exercise as a career.
+        CampaignSaveStore.NeedsReload = true;
+        DestroyRuntimeClones();
+    }
+
     /// <summary>Commits only the clean post-tutorial Day 2 start for a brand-new career.</summary>
     public void CommitFirstCareerDayTwo()
     {
@@ -274,6 +303,17 @@ public sealed class TutorialDayContext : MonoBehaviour
         SetInstanceField(saveManager, "autoLoadOnStart", originalAutoLoad);
         SetInstanceField(saveManager, "autoSaveOnPause", originalAutoSaveOnPause);
         SetInstanceField(saveManager, "autoSaveOnQuit", originalAutoSaveOnQuit);
+    }
+
+    private void RestoreFastFoodAccounting()
+    {
+        if (gameObject.scene.name != FastFoodScene.Tutorial) return;
+        DailyFinanceBridge.Instance?.ApplyRestaurantSave(originalFastFoodFinance);
+        var revenue = DailyRevenueTracker.Instance;
+        if (revenue == null || originalFastFoodRevenue == null) return;
+        SetInstanceField(revenue, "<OrdersCompleted>k__BackingField", originalFastFoodRevenue[0]);
+        SetInstanceField(revenue, "<OrdersFailed>k__BackingField", originalFastFoodRevenue[1]);
+        SetInstanceField(revenue, "<IngredientCost>k__BackingField", originalFastFoodRevenue[2]);
     }
 
     private static GameSaveData CaptureRuntimeState()
@@ -471,6 +511,7 @@ public sealed class TutorialDayContext : MonoBehaviour
         {
             ApplyRuntimeState(originalRuntimeState);
             RestoreObjectives(originalObjectives);
+            RestoreFastFoodAccounting();
         }
 
         RestoreSaveManager(restoreLiveRuntime);

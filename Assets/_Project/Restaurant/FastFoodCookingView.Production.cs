@@ -37,6 +37,9 @@ public sealed partial class FastFoodCookingView
         bool wantsPrep=(State.PrepReady||finishedPrep||State.Mode==FastFoodStationMode.Fry&&Time.unscaledTime<fryerPrepUntil) && activeStation.preparationViewAnchor!=null;
         // Retained food on the prep table must not pull the camera away from an unfinished cooking batch.
         if(State.Mode==FastFoodStationMode.Grill && State.HasPendingCooking)wantsPrep=false;
+        // Presentation only: staff still cook the protein through the normal ledger.
+        if(State.Mode==FastFoodStationMode.Grill && FastFoodTutorialBridge.Active &&
+            FastFoodTutorialBridge.Instance.HoldSandwichPrepView && activeStation.preparationViewAnchor!=null)wantsPrep=true;
         if(wantsPrep!=prepView && drag==null && Time.timeScale>0)
         {
             prepView=wantsPrep;cameraBlend=0;cameraMoving=true;
