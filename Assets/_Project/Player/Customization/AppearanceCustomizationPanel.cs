@@ -23,7 +23,7 @@ namespace DineIn.Appearance
         [SerializeField] private CameraFollow cameraFollow;
         [SerializeField] private RestaurantSelector restaurantSelector;
         [SerializeField, Range(.3f, .8f)] private float previewScreenHeight = .65f;
-        [SerializeField] private Vector2 optionCardSize = new(126, 138);
+        [SerializeField] private Vector2 optionCardSize = new(112, 122);
         [SerializeField] private Vector2 colorSwatchSize = new(58, 64);
         [SerializeField] private Sprite selectedTabSprite;
         private readonly List<GameObject> cells = new();
@@ -144,6 +144,7 @@ namespace DineIn.Appearance
             gridWidth = width;
             Vector2 size = category == 1 || category == 4 ? colorSwatchSize : optionCardSize;
             int columns = Mathf.Max(1, Mathf.FloorToInt((width - grid.padding.horizontal + grid.spacing.x) / (size.x + grid.spacing.x)));
+            if (category != 1 && category != 4) columns = Mathf.Min(3, columns);
             grid.constraintCount = columns;
             grid.cellSize = new Vector2(Mathf.Min(size.x, Mathf.Max(1, width - grid.padding.horizontal)), size.y);
             if (editing && cameraCaptured) FramePreview();
@@ -162,7 +163,8 @@ namespace DineIn.Appearance
             {
                 categories[i].interactable = true;
                 categories[i].GetComponent<Image>().sprite = i == category && selectedTabSprite != null ? selectedTabSprite : categorySprites[i];
-                categories[i].GetComponentInChildren<TMP_Text>().color = i == category ? Color.white : new Color(.04f, .24f, .31f);
+                // Both depth-border sprites have light centers; keep their labels readable.
+                categories[i].GetComponentInChildren<TMP_Text>().color = new Color(.04f, .24f, .31f);
             }
             gridWidth = -1; ResizeGrid();
             RebuildOptions();

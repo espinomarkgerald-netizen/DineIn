@@ -472,8 +472,14 @@ MonoBehaviour:
   attachmentPoints:
   - point: {fileID: 1596263156}
     bone: 0
+    hasCalibratedPose: 1
+    customizedBonePosition: {x: -0.64370584, y: 0.19717896, z: -1.4773475}
+    customizedBoneRotation: {x: -0.023055254, y: -0.68091595, z: -0.7319381, w: -0.009426954}
   - point: {fileID: 1596263155}
     bone: 0
+    hasCalibratedPose: 1
+    customizedBonePosition: {x: -0.025051475, y: 0.16918278, z: -1.490301}
+    customizedBoneRotation: {x: -0.02296839, y: -0.99903864, z: -0.03607809, w: 0.009636657}
   previewController: {fileID: 0}
 --- !u!1 &40561687
 GameObject:
@@ -28256,7 +28262,7 @@ MonoBehaviour:
   m_OverrideVoxelSize: 0
   m_VoxelSize: 0.26666668
   m_MinRegionArea: 2
-  m_NavMeshData: {fileID: 0}
+  m_NavMeshData: {fileID: 23800000, guid: a4ac8b90dfa28d9458000852c17d5a6b, type: 2}
   m_BuildHeightMesh: 0
 --- !u!64 &1636670760
 MeshCollider:
@@ -37066,10 +37072,19 @@ MonoBehaviour:
   attachmentPoints:
   - point: {fileID: 130597831}
     bone: 0
+    hasCalibratedPose: 1
+    customizedBonePosition: {x: -0.64370584, y: 0.19717896, z: -1.4773475}
+    customizedBoneRotation: {x: -0.023055254, y: -0.68091595, z: -0.7319381, w: -0.009426954}
   - point: {fileID: 130597830}
     bone: 0
+    hasCalibratedPose: 1
+    customizedBonePosition: {x: -0.7973493, y: 0.29186887, z: 0.016706213}
+    customizedBoneRotation: {x: -0.02296839, y: -0.99903864, z: -0.03607809, w: 0.009636657}
   - point: {fileID: 130597829}
     bone: 0
+    hasCalibratedPose: 1
+    customizedBonePosition: {x: -0.025051475, y: 0.16918278, z: -1.490301}
+    customizedBoneRotation: {x: -0.02296839, y: -0.99903864, z: -0.03607809, w: 0.009636657}
   previewController: {fileID: 0}
 --- !u!1 &2077531504
 GameObject:

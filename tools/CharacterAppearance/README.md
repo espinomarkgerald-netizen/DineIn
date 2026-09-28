@@ -16,7 +16,7 @@ Implemented 2026-09-28. This is a visual layer over the existing gameplay, saves
 
 `CharacterAppearance` accepts an explicit recipe and changes only visual presentation. It retains the existing Animator component/controller and gameplay roots, colliders, agents, and task scripts. Both derived body meshes use the same verified bone order and bind poses. Imported hair transforms are retained when attaching to the head.
 
-Existing skeleton-attached task anchor objects retain their identity and references. Their authored mappings move them onto corresponding bones of the new visual, then restore the exact original parent/local transform for a legacy appearance. Root-level task anchors stay untouched. Normal task completion and movement code are unchanged.
+Existing skeleton-attached task anchor objects retain their identity and references. They stay under the gameplay root while customized, following calibrated new-rig bone poses before trolley presentation in LateUpdate. Calibration samples the same existing CarryIdle clip on both avatars; unrelated bind-pose axes must not be reused. Restoring a legacy appearance restores the exact original parent/local transform. Root-level task anchors stay untouched. Normal task completion and movement code are unchanged. See `REGRESSION_NOTES.md` for the follow-up fixes and verification limits.
 
 `PlayerAppearanceBinding` applies local committed data or the owning remote player's compact `AppearanceV2` Photon property. Old profiles keep their original model until customization is applied. The existing legacy visual helper is called explicitly for V1 colors/headwear; remote appearance no longer writes into shared local customization data.
 

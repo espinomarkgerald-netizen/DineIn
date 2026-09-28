@@ -5320,6 +5320,9 @@ MonoBehaviour:
   attachmentPoints:
   - point: {fileID: 5402276926943079388}
     bone: 15
+    hasCalibratedPose: 1
+    customizedBonePosition: {x: -0.01307711, y: 0.3602814, z: -0.22996011}
+    customizedBoneRotation: {x: 0.7074258, y: -0.7057943, z: -0.00048028678, w: 0.037469473}
   previewController: {fileID: 0}
 --- !u!114 &4266835233323161073
 MonoBehaviour:

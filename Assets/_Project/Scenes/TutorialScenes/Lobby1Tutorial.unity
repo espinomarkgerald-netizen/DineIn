@@ -472,8 +472,14 @@ MonoBehaviour:
   attachmentPoints:
   - point: {fileID: 1752051889}
     bone: 0
+    hasCalibratedPose: 1
+    customizedBonePosition: {x: -0.64370584, y: 0.19717896, z: -1.4773475}
+    customizedBoneRotation: {x: -0.023055254, y: -0.68091595, z: -0.7319381, w: -0.009426954}
   - point: {fileID: 1752051888}
     bone: 0
+    hasCalibratedPose: 1
+    customizedBonePosition: {x: -0.025051475, y: 0.16918278, z: -1.490301}
+    customizedBoneRotation: {x: -0.02296839, y: -0.99903864, z: -0.03607809, w: 0.009636657}
   previewController: {fileID: 0}
 --- !u!1 &40561687
 GameObject:
@@ -42320,10 +42326,19 @@ MonoBehaviour:
   attachmentPoints:
   - point: {fileID: 1618914352}
     bone: 0
+    hasCalibratedPose: 1
+    customizedBonePosition: {x: -0.64370584, y: 0.19717896, z: -1.4773475}
+    customizedBoneRotation: {x: -0.023055254, y: -0.68091595, z: -0.7319381, w: -0.009426954}
   - point: {fileID: 1618914351}
     bone: 0
+    hasCalibratedPose: 1
+    customizedBonePosition: {x: -0.7973493, y: 0.29186887, z: 0.016706213}
+    customizedBoneRotation: {x: -0.02296839, y: -0.99903864, z: -0.03607809, w: 0.009636657}
   - point: {fileID: 1618914350}
     bone: 0
+    hasCalibratedPose: 1
+    customizedBonePosition: {x: -0.025051475, y: 0.16918278, z: -1.490301}
+    customizedBoneRotation: {x: -0.02296839, y: -0.99903864, z: -0.03607809, w: 0.009636657}
   previewController: {fileID: 0}
 --- !u!1 &2077531504
 GameObject:

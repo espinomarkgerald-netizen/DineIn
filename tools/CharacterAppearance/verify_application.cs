@@ -27,7 +27,7 @@ try
                 if(animator.runtimeAnimatorController!=controller||animator.applyRootMotion!=rootMotion||root.transform.localScale!=scale||root.transform.localRotation!=rotation||preserved.Any(c=>c==null))throw new System.Exception("Changed gameplay structure: "+source.name);
                 var visual=animator.transform.Find("Customized Visual");var head=animator.GetBoneTransform(HumanBodyBones.Head);
                 if(visual==null||head==null||!head.IsChildOf(visual))throw new System.Exception("Avatar failed to bind derived skeleton");
-                foreach(var anchor in anchors)if(!anchor.point.IsChildOf(visual))throw new System.Exception("Task anchor left under old skeleton");
+                foreach(var anchor in anchors)if(anchor.point.parent!=root.transform)throw new System.Exception("Task anchor is not owned by the stable gameplay root");
                 foreach(var pose in new[]{"Idle","Walking","Running","WalkingCarry","CarryIdle"})
                 {
                     var graph=UnityEngine.Playables.PlayableGraph.Create("AppearanceCompatibility");

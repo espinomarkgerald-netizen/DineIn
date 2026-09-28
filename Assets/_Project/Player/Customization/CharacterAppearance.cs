@@ -6,6 +6,7 @@ namespace DineIn.Appearance
 {
     /// <summary>Instance-owned visuals only. Never reads another player's/global recipe.</summary>
     [DisallowMultipleComponent]
+    [DefaultExecutionOrder(-10)] // Update stable sockets before trolley presentation's LateUpdate.
     public sealed class CharacterAppearance : MonoBehaviour
     {
         [SerializeField] private AppearanceCatalog catalog;
@@ -19,9 +20,14 @@ namespace DineIn.Appearance
         {
             public Transform point;
             public HumanBodyBones bone;
+            [Tooltip("Calibrated against the same carry pose on both avatars, not their unrelated bind-pose axes.")]
+            public bool hasCalibratedPose;
+            public Vector3 customizedBonePosition;
+            public Quaternion customizedBoneRotation = Quaternion.identity;
             [System.NonSerialized] public Transform originalParent;
-            [System.NonSerialized] public Vector3 position, scale, boneOffset;
-            [System.NonSerialized] public Quaternion rotation, boneRotation;
+            [System.NonSerialized] public Transform followingBone;
+            [System.NonSerialized] public Vector3 position, scale;
+            [System.NonSerialized] public Quaternion rotation;
         }
         [Tooltip("Existing task anchors under the legacy skeleton. References are retained and restored with the legacy visual.")]
         [SerializeField] private AttachmentPoint[] attachmentPoints = System.Array.Empty<AttachmentPoint>();
@@ -64,11 +70,8 @@ namespace DineIn.Appearance
             foreach (var attachment in attachmentPoints)
             {
                 if (attachment.point == null) continue;
-                var bone = animator.GetBoneTransform(attachment.bone);
                 attachment.originalParent = attachment.point.parent;
                 attachment.position = attachment.point.localPosition; attachment.rotation = attachment.point.localRotation; attachment.scale = attachment.point.localScale;
-                attachment.boneOffset = Quaternion.Inverse(bone.rotation) * (attachment.point.position - bone.position);
-                attachment.boneRotation = Quaternion.Inverse(bone.rotation) * attachment.point.rotation;
             }
             if (originalRenderers == null || originalRenderers.Length == 0)
                 originalRenderers = animator.GetComponentsInChildren<Renderer>(true).Where(r => r is SkinnedMeshRenderer || r is MeshRenderer).ToArray();
@@ -179,9 +182,25 @@ namespace DineIn.Appearance
             foreach (var attachment in attachmentPoints)
             {
                 if (attachment.point == null) continue;
-                var bone = animator.GetBoneTransform(attachment.bone);
-                attachment.point.SetParent(bone, true);
-                attachment.point.SetPositionAndRotation(bone.position + bone.rotation * attachment.boneOffset, bone.rotation * attachment.boneRotation);
+                // These are the real gameplay sockets, not disposable cosmetic children.
+                // Keep their references and world scale, including any currently held props.
+                attachment.point.SetParent(transform, true);
+                attachment.followingBone = attachment.hasCalibratedPose ? animator.GetBoneTransform(attachment.bone) : null;
+            }
+            UpdateAttachmentPoints();
+        }
+        private void LateUpdate()
+        {
+            if (applied != null) UpdateAttachmentPoints();
+        }
+        private void UpdateAttachmentPoints()
+        {
+            foreach (var attachment in attachmentPoints)
+            {
+                if (attachment.point == null || attachment.followingBone == null) continue;
+                attachment.point.SetPositionAndRotation(
+                    attachment.followingBone.TransformPoint(attachment.customizedBonePosition),
+                    attachment.followingBone.rotation * attachment.customizedBoneRotation);
             }
         }
         private void RebindPreservingAnimation(Avatar avatar)
@@ -210,6 +229,7 @@ namespace DineIn.Appearance
             foreach (var attachment in attachmentPoints)
             {
                 if (attachment.point == null) continue;
+                attachment.followingBone = null;
                 attachment.point.SetParent(attachment.originalParent, false);
                 attachment.point.localPosition = attachment.position; attachment.point.localRotation = attachment.rotation; attachment.point.localScale = attachment.scale;
             }

@@ -1119,8 +1119,9 @@ public static class MobileUILayoutRegressionTest
             Assert(playCenterY - play.rect.height * 0.5f >= 0f &&
                    playCenterY + play.rect.height * 0.5f <= realmeLogicalHeight,
                 "NewGameMenu Play button falls outside the Realme 8 viewport.");
-            Assert(money != null && Mathf.Approximately(money.anchoredPosition.y, -75f),
-                "Global mobile scaling moved the authored wallet controls.");
+            Assert(money != null && money.anchorMin == Vector2.one && money.anchorMax == Vector2.one &&
+                   money.pivot == Vector2.one && money.anchoredPosition.x < shop.anchoredPosition.x - shop.rect.width,
+                "NewGameMenu wallet must stay top-right anchored, beside rather than over the Shop button.");
             Assert(back != null && back.rect.size == new Vector2(50f, 50f) &&
                    shop != null && shop.rect.size == new Vector2(50f, 50f),
                 "Global mobile scaling changed the authored NewGameMenu corner controls.");
