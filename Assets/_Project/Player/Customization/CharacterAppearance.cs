@@ -46,6 +46,18 @@ namespace DineIn.Appearance
         public AppearanceCatalog Catalog => catalog != null ? catalog : catalog = AppearanceCatalog.Load();
         public Transform Head => head;
         public bool IsCustomized => applied != null;
+        public bool TryGetBodyBounds(out Bounds bounds)
+        {
+            bounds = default;
+            if (meshes == null || meshes.Length == 0) return TryGetVisualBounds(out bounds);
+            bool found = false;
+            foreach (var mesh in meshes)
+            {
+                if (mesh == null || !mesh.enabled) continue;
+                if (!found) { bounds = mesh.bounds; found = true; } else bounds.Encapsulate(mesh.bounds);
+            }
+            return found;
+        }
         public bool TryGetVisualBounds(out Bounds bounds)
         {
             bounds = default;
@@ -117,11 +129,12 @@ namespace DineIn.Appearance
             foreach (var r in originalRenderers) if (r != null) r.enabled = false;
             if (creating || applied == null || applied.bodyId != next.bodyId)
             {
-                var source = AppearanceCatalog.Find(Catalog.bodies, next.bodyId).model.GetComponentsInChildren<SkinnedMeshRenderer>(true);
+                var body = AppearanceCatalog.Find(Catalog.bodies, next.bodyId);
+                var source = body.model.GetComponentsInChildren<SkinnedMeshRenderer>(true);
                 foreach (var target in meshes)
                 {
                     var match = source.First(r => r.name == target.name);
-                    target.sharedMesh = match.sharedMesh;
+                    target.sharedMesh = target.name == "Hands" && body.sleeveSkinMesh != null ? body.sleeveSkinMesh : match.sharedMesh;
                     target.localBounds = match.localBounds;
                 }
             }
@@ -148,6 +161,19 @@ namespace DineIn.Appearance
             if (hair != null)
             {
                 hair.SetActive(!hatOption.HidesHair(next.hairId));
+                if (creating || applied == null || applied.hatId != next.hatId || applied.hairId != next.hairId)
+                {
+                    var hairOption = AppearanceCatalog.Find(Catalog.hairs, next.hairId);
+                    // Always start from the authored pose, never accumulate offsets across selections.
+                    SetAttachmentPose(hair, hairOption);
+                    var fit = hatOption.hairFits?.FirstOrDefault(f => f != null && f.hairId == next.hairId);
+                    if (fit != null)
+                    {
+                        hair.transform.localPosition += attachmentRotation * fit.position;
+                        hair.transform.localRotation = attachmentRotation * Quaternion.Euler(hairOption.eulerAngles + fit.eulerAngles) * hairOption.prefab.transform.localRotation;
+                        hair.transform.localScale = Vector3.Scale(hair.transform.localScale, fit.scale);
+                    }
+                }
                 if (creating || applied == null || applied.hairId != next.hairId || applied.hairColorId != next.hairColorId)
                     foreach (var r in hairRenderers) Tint(r, AppearanceCatalog.Find(Catalog.hairColors, next.hairColorId).color);
             }
@@ -162,15 +188,19 @@ namespace DineIn.Appearance
             }
             current = option.prefab == null ? null : Instantiate(option.prefab, head, false);
             if (current == null) return;
-            // Preserve the asset's imported basis; catalog offsets are relative to that basis.
-            current.transform.localPosition = attachmentRotation * (option.position + option.prefab.transform.localPosition);
-            current.transform.localRotation = attachmentRotation * Quaternion.Euler(option.eulerAngles) * option.prefab.transform.localRotation;
-            current.transform.localScale = Vector3.Scale(option.scale, option.prefab.transform.localScale);
+            SetAttachmentPose(current, option);
             if (isHair)
             {
                 hairRenderers = current.GetComponentsInChildren<Renderer>(true);
                 foreach (var r in hairRenderers) r.sharedMaterial = Catalog.hairMaterial;
             }
+        }
+        private void SetAttachmentPose(GameObject current, AppearanceCatalog.Attachment option)
+        {
+            // Preserve imported basis; offsets do not touch the head bone or gameplay root.
+            current.transform.localPosition = attachmentRotation * (option.position + option.prefab.transform.localPosition);
+            current.transform.localRotation = attachmentRotation * Quaternion.Euler(option.eulerAngles) * option.prefab.transform.localRotation;
+            current.transform.localScale = Vector3.Scale(option.scale, option.prefab.transform.localScale);
         }
         private void Tint(Renderer renderer, Color color)
         {

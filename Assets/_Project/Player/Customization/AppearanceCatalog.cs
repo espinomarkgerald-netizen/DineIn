@@ -14,7 +14,18 @@ namespace DineIn.Appearance
             [Tooltip("Empty means compatible with every body.")] public string[] bodies = Array.Empty<string>();
             public bool Fits(string body) => bodies == null || bodies.Length == 0 || Array.IndexOf(bodies, body) >= 0;
         }
-        [Serializable] public sealed class Body : Option { public GameObject model; public AppearanceRecipe defaults; }
+        [Serializable] public sealed class Body : Option
+        {
+            public GameObject model;
+            public AppearanceRecipe defaults;
+            [Tooltip("Optional derived skin mesh with sleeve-compatible weights. Same geometry, UVs and bind poses as Hands.")]
+            public Mesh sleeveSkinMesh;
+        }
+        [Serializable] public sealed class HairFit
+        {
+            public string hairId;
+            public Vector3 position, eulerAngles, scale = Vector3.one;
+        }
         [Serializable] public sealed class Palette : Option { public Color color = Color.white; }
         [Serializable] public sealed class Surface : Option { public Material material; }
         [Serializable] public sealed class Attachment : Option
@@ -26,6 +37,10 @@ namespace DineIn.Appearance
             public string[] incompatibleHairIds = Array.Empty<string>();
             [Tooltip("Headwear fit offset when bald or using the full-hide fallback.")]
             public Vector3 bareHeadPositionOffset;
+            [Tooltip("Additional menu framing height relative to body height; zero for no hat.")]
+            [Range(0, .5f)] public float previewHeadroom;
+            [Tooltip("Visual-only hairstyle fit while this hat is worn. Removing it restores the authored hair transform.")]
+            public HairFit[] hairFits = Array.Empty<HairFit>();
             public bool HidesHair(string hairId) => hidesHair || Array.IndexOf(incompatibleHairIds ?? Array.Empty<string>(), hairId) >= 0;
         }
 

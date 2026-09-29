@@ -19,9 +19,9 @@ foreach(var hat in catalog.hats.Where(h=>h.prefab!=null))
                 var head=root.GetComponentsInChildren<SkinnedMeshRenderer>().First(r=>r.name=="BodyHead");
                 var center=head.bounds.center+Vector3.up*.22f;
                 preview.camera.orthographic=true;preview.camera.orthographicSize=.8f;
-                preview.camera.transform.position=center+new Vector3(.6f,.25f,5);preview.camera.transform.LookAt(center);
+                preview.camera.transform.position=center+new Vector3(2,.25f,-4);preview.camera.transform.LookAt(center);
                 preview.camera.nearClipPlane=.1f;preview.camera.farClipPlane=20;preview.camera.clearFlags=CameraClearFlags.SolidColor;preview.camera.backgroundColor=new Color(.84f,.87f,.91f);
-                preview.lights[0].intensity=1.2f;preview.lights[0].transform.rotation=Quaternion.Euler(35,155,0);preview.lights[1].intensity=.7f;
+                preview.lights[0].intensity=1.2f;preview.lights[0].transform.rotation=preview.camera.transform.rotation*Quaternion.Euler(25,-25,0);preview.lights[1].intensity=.7f;
                 preview.BeginStaticPreview(new Rect(0,0,192,192));preview.Render(true,false);var tex=preview.EndStaticPreview();
                 sheet.SetPixels((index%4)*192,(3-index/4)*192,192,192,tex.GetPixels());UnityEngine.Object.DestroyImmediate(tex);index++;
             }

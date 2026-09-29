@@ -27,6 +27,7 @@ MonoBehaviour:
       hairColorId: brown
       outfitId: male-casual-chef
       hatId: none
+    sleeveSkinMesh: {fileID: 4300000, guid: 05896de733a8de24fab6ccf5ac19d032, type: 2}
   - id: female
     label: Female
     thumbnail: {fileID: 21300000, guid: f3db47c2a1eca184b87f128009e178e3, type: 3}
@@ -41,6 +42,7 @@ MonoBehaviour:
       hairColorId: brown
       outfitId: female-casual-chef
       hatId: none
+    sleeveSkinMesh: {fileID: 4300000, guid: 1afa830586568594db65b78e85a60d16, type: 2}
   skins:
   - id: light
     label: Light
@@ -62,6 +64,21 @@ MonoBehaviour:
     thumbnail: {fileID: 0}
     bodies: []
     color: {r: 0.31, g: 0.15, b: 0.075, a: 1}
+  - id: fair
+    label: Fair
+    thumbnail: {fileID: 0}
+    bodies: []
+    color: {r: 0.972549, g: 0.8392157, b: 0.7372549, a: 1}
+  - id: medium
+    label: Medium
+    thumbnail: {fileID: 0}
+    bodies: []
+    color: {r: 0.6784314, g: 0.4745098, b: 0.34117648, a: 1}
+  - id: rich
+    label: Rich
+    thumbnail: {fileID: 0}
+    bodies: []
+    color: {r: 0.41960785, g: 0.25882354, b: 0.17254902, a: 1}
   hairColors:
   - id: brown
     label: Brown
@@ -88,6 +105,31 @@ MonoBehaviour:
     thumbnail: {fileID: 0}
     bodies: []
     color: {r: 0.6, g: 0.6, b: 0.6, a: 1}
+  - id: dark-brown
+    label: Dark Brown
+    thumbnail: {fileID: 0}
+    bodies: []
+    color: {r: 0.16078432, g: 0.101960786, b: 0.07058824, a: 1}
+  - id: light-brown
+    label: Light Brown
+    thumbnail: {fileID: 0}
+    bodies: []
+    color: {r: 0.54901963, g: 0.3764706, b: 0.24313726, a: 1}
+  - id: dark-blonde
+    label: Dark Blonde
+    thumbnail: {fileID: 0}
+    bodies: []
+    color: {r: 0.5882353, g: 0.44705883, b: 0.2509804, a: 1}
+  - id: red
+    label: Red
+    thumbnail: {fileID: 0}
+    bodies: []
+    color: {r: 0.6901961, g: 0.30980393, b: 0.16078432, a: 1}
+  - id: white
+    label: White
+    thumbnail: {fileID: 0}
+    bodies: []
+    color: {r: 0.8901961, g: 0.8745098, b: 0.8352941, a: 1}
   faces:
   - id: face-01
     label: Face 1
@@ -101,97 +143,129 @@ MonoBehaviour:
     material: {fileID: 2100000, guid: bcebba206a774bc43887c25db3cff1a8, type: 2}
   outfits:
   - id: female-casual-chef
-    label: Casual Dining chef
+    label: 'Casual Dining
+
+      Chef'
     thumbnail: {fileID: 21300000, guid: 9cd7f1f75a1454d4d8671650bd0418cc, type: 3}
     bodies:
     - female
     material: {fileID: 2100000, guid: 542831cdfc7b1044f88309c6bfcdd06f, type: 2}
   - id: female-casual-receptionist
-    label: Casual Dining receptionist
+    label: 'Casual Dining
+
+      Receptionist'
     thumbnail: {fileID: 21300000, guid: 400e6aa645b47d24a897b83676bd00d6, type: 3}
     bodies:
     - female
     material: {fileID: 2100000, guid: ea815bb173b56114d87b3e1e3f274a08, type: 2}
   - id: female-casual-waiter
-    label: Casual Dining waiter
+    label: 'Casual Dining
+
+      Waitress'
     thumbnail: {fileID: 21300000, guid: 7cd18a6eb7406a4448d86fbb258addd9, type: 3}
     bodies:
     - female
     material: {fileID: 2100000, guid: c0c490e97dce37a428649cbf49295101, type: 2}
   - id: female-fine-chef
-    label: Fine Dining chef
+    label: 'Fine Dining
+
+      Chef'
     thumbnail: {fileID: 21300000, guid: ec26cfea95434ab47b46c0b828d1f8ff, type: 3}
     bodies:
     - female
     material: {fileID: 2100000, guid: 29fac661166fbd540baf39a41492afeb, type: 2}
   - id: female-fine-maitre-d
-    label: Fine Dining maitre d
+    label: 'Fine Dining
+
+      Maitre d'
     thumbnail: {fileID: 21300000, guid: a16277c608c065341945d8101abfd261, type: 3}
     bodies:
     - female
     material: {fileID: 2100000, guid: 0acf6a9fa191fee4c91c3d533079347e, type: 2}
   - id: female-fine-receptionist
-    label: Fine Dining receptionist
+    label: 'Fine Dining
+
+      Receptionist'
     thumbnail: {fileID: 21300000, guid: 68e75a671a8e24f44b97a176eb62753e, type: 3}
     bodies:
     - female
     material: {fileID: 2100000, guid: 2f8cef68d7686784ea5c9f43dc3f0233, type: 2}
   - id: female-fine-waiter
-    label: Fine Dining waiter
+    label: 'Fine Dining
+
+      Waitress'
     thumbnail: {fileID: 21300000, guid: 6fe55dfdee5ee2042bce1a8ebe1e9b43, type: 3}
     bodies:
     - female
     material: {fileID: 2100000, guid: 0162192ed2cf3c54685d6b428d420141, type: 2}
   - id: male-casual-chef
-    label: Casual Dining chef
+    label: 'Casual Dining
+
+      Chef'
     thumbnail: {fileID: 21300000, guid: c94a9f5fa82aa6948b7c44f23c19b9fa, type: 3}
     bodies:
     - male
     material: {fileID: 2100000, guid: 6cd4c8ad23ecaa642bd228789e08fdd6, type: 2}
   - id: male-casual-receptionist
-    label: Casual Dining receptionist
+    label: 'Casual Dining
+
+      Receptionist'
     thumbnail: {fileID: 21300000, guid: ef82b0534a65e7d47b58fafa9a8f700b, type: 3}
     bodies:
     - male
     material: {fileID: 2100000, guid: cd17cdd52bf57264984c7663d24bcdf3, type: 2}
   - id: male-casual-waiter
-    label: Casual Dining waiter
+    label: 'Casual Dining
+
+      Waiter'
     thumbnail: {fileID: 21300000, guid: 1ddea4d065eb5f944affd47334bd0219, type: 3}
     bodies:
     - male
     material: {fileID: 2100000, guid: 2111c36c79689e74ca3b04744fc980ce, type: 2}
   - id: male-fine-chef
-    label: Fine Dining chef
+    label: 'Fine Dining
+
+      Chef'
     thumbnail: {fileID: 21300000, guid: 030b24aa9ebc9364aa5dfd00c8ac9912, type: 3}
     bodies:
     - male
     material: {fileID: 2100000, guid: 1a67e8e0c7c0a1d4d8eb534a43fa7e89, type: 2}
   - id: male-fine-maitre-d
-    label: Fine Dining maitre d
+    label: 'Fine Dining
+
+      Maitre d'
     thumbnail: {fileID: 21300000, guid: 0e480a6ef363ce5449f9ce282d7bd8a6, type: 3}
     bodies:
     - male
     material: {fileID: 2100000, guid: 5df76d5e0f7e1c7458d78255f2205973, type: 2}
   - id: male-fine-receptionist
-    label: Fine Dining receptionist
+    label: 'Fine Dining
+
+      Receptionist'
     thumbnail: {fileID: 21300000, guid: b1c1c9528a9131c49a51aace89c26ae6, type: 3}
     bodies:
     - male
     material: {fileID: 2100000, guid: c4e509de37afa3344a1384f2aeb04092, type: 2}
   - id: male-fine-waiter
-    label: Fine Dining waiter
+    label: 'Fine Dining
+
+      Waiter'
     thumbnail: {fileID: 21300000, guid: 2205bc7da5766de4db2fb9cdab23a370, type: 3}
     bodies:
     - male
     material: {fileID: 2100000, guid: d11287cd7e4cde84da5c26fe6fda26b5, type: 2}
   - id: male-fastfood-uniform
-    label: Fast Food Uniform
+    label: 'Fast Food
+
+      Uniform'
     thumbnail: {fileID: 21300000, guid: 300ae9a1cc59d594299785c50bd77fdf, type: 3}
     bodies:
     - male
     material: {fileID: 2100000, guid: 2bb014d9a053c2041a2f1e3a20753342, type: 2}
   - id: female-fastfood-uniform
-    label: Fast Food Uniform
+    label: 'Fast Food
+
+      Uniform'
     thumbnail: {fileID: 21300000, guid: 6d518951d5327184185c7303a27d6b3e, type: 3}
     bodies:
     - female
@@ -208,6 +282,8 @@ MonoBehaviour:
     hidesHair: 0
     incompatibleHairIds: []
     bareHeadPositionOffset: {x: 0, y: 0, z: 0}
+    previewHeadroom: 0
+    hairFits: []
   - id: male-hair-01
     label: Style 1
     thumbnail: {fileID: 21300000, guid: 99c78b7cd3365d448b8d039b2d871b64, type: 3}
@@ -220,6 +296,8 @@ MonoBehaviour:
     hidesHair: 0
     incompatibleHairIds: []
     bareHeadPositionOffset: {x: 0, y: 0, z: 0}
+    previewHeadroom: 0
+    hairFits: []
   - id: male-hair-02
     label: Style 2
     thumbnail: {fileID: 21300000, guid: 5e86d6472f453fd478d105d365de054a, type: 3}
@@ -232,6 +310,8 @@ MonoBehaviour:
     hidesHair: 0
     incompatibleHairIds: []
     bareHeadPositionOffset: {x: 0, y: 0, z: 0}
+    previewHeadroom: 0
+    hairFits: []
   - id: male-hair-03
     label: Style 3
     thumbnail: {fileID: 21300000, guid: 895400d36c7e39e4bb25da279f386695, type: 3}
@@ -244,6 +324,8 @@ MonoBehaviour:
     hidesHair: 0
     incompatibleHairIds: []
     bareHeadPositionOffset: {x: 0, y: 0, z: 0}
+    previewHeadroom: 0
+    hairFits: []
   - id: male-hair-04
     label: Style 4
     thumbnail: {fileID: 21300000, guid: 5e6d13d4f4183044e8f73ffeda4147d4, type: 3}
@@ -256,6 +338,8 @@ MonoBehaviour:
     hidesHair: 0
     incompatibleHairIds: []
     bareHeadPositionOffset: {x: 0, y: 0, z: 0}
+    previewHeadroom: 0
+    hairFits: []
   - id: male-hair-05
     label: Style 5
     thumbnail: {fileID: 21300000, guid: f4cb2e2ef1a5989498d917c3eae04b4a, type: 3}
@@ -268,6 +352,8 @@ MonoBehaviour:
     hidesHair: 0
     incompatibleHairIds: []
     bareHeadPositionOffset: {x: 0, y: 0, z: 0}
+    previewHeadroom: 0
+    hairFits: []
   - id: female-hair-01
     label: Style 1
     thumbnail: {fileID: 21300000, guid: 4142ac8e8dbbafa459d247a606b57411, type: 3}
@@ -280,6 +366,8 @@ MonoBehaviour:
     hidesHair: 0
     incompatibleHairIds: []
     bareHeadPositionOffset: {x: 0, y: 0, z: 0}
+    previewHeadroom: 0
+    hairFits: []
   - id: female-hair-02
     label: Style 2
     thumbnail: {fileID: 21300000, guid: b4dba25bca37fb644854db1a5d1b7ec5, type: 3}
@@ -292,6 +380,8 @@ MonoBehaviour:
     hidesHair: 0
     incompatibleHairIds: []
     bareHeadPositionOffset: {x: 0, y: 0, z: 0}
+    previewHeadroom: 0
+    hairFits: []
   - id: female-hair-03
     label: Style 3
     thumbnail: {fileID: 21300000, guid: a7ca0e792cd504f4fa579c7c2126a00d, type: 3}
@@ -304,6 +394,8 @@ MonoBehaviour:
     hidesHair: 0
     incompatibleHairIds: []
     bareHeadPositionOffset: {x: 0, y: 0, z: 0}
+    previewHeadroom: 0
+    hairFits: []
   - id: female-hair-04
     label: Style 4
     thumbnail: {fileID: 21300000, guid: 59242eb5c1f410146bd0e81f32855505, type: 3}
@@ -316,6 +408,8 @@ MonoBehaviour:
     hidesHair: 0
     incompatibleHairIds: []
     bareHeadPositionOffset: {x: 0, y: 0, z: 0}
+    previewHeadroom: 0
+    hairFits: []
   - id: female-hair-05
     label: Style 5
     thumbnail: {fileID: 21300000, guid: 18812a510d7b8714fbc2a6de62551ed4, type: 3}
@@ -328,6 +422,8 @@ MonoBehaviour:
     hidesHair: 0
     incompatibleHairIds: []
     bareHeadPositionOffset: {x: 0, y: 0, z: 0}
+    previewHeadroom: 0
+    hairFits: []
   - id: female-hair-06
     label: Style 6
     thumbnail: {fileID: 21300000, guid: 09666da289b008740af8b0b4fd0bca87, type: 3}
@@ -340,6 +436,8 @@ MonoBehaviour:
     hidesHair: 0
     incompatibleHairIds: []
     bareHeadPositionOffset: {x: 0, y: 0, z: 0}
+    previewHeadroom: 0
+    hairFits: []
   - id: female-hair-07
     label: Style 7
     thumbnail: {fileID: 21300000, guid: 19b29124704f81a4287c8da43f95d989, type: 3}
@@ -352,6 +450,8 @@ MonoBehaviour:
     hidesHair: 0
     incompatibleHairIds: []
     bareHeadPositionOffset: {x: 0, y: 0, z: 0}
+    previewHeadroom: 0
+    hairFits: []
   - id: female-hair-08
     label: Style 8
     thumbnail: {fileID: 21300000, guid: 4759083498286e848ab2317225d84651, type: 3}
@@ -364,6 +464,8 @@ MonoBehaviour:
     hidesHair: 0
     incompatibleHairIds: []
     bareHeadPositionOffset: {x: 0, y: 0, z: 0}
+    previewHeadroom: 0
+    hairFits: []
   hats:
   - id: none
     label: No hat
@@ -376,6 +478,8 @@ MonoBehaviour:
     hidesHair: 0
     incompatibleHairIds: []
     bareHeadPositionOffset: {x: 0, y: -0.2, z: 0}
+    previewHeadroom: 0
+    hairFits: []
   - id: chef-hat
     label: Chef Hat
     thumbnail: {fileID: 21300000, guid: 6c4c28601d4ad8844b1a5f961498fad0, type: 3}
@@ -388,6 +492,8 @@ MonoBehaviour:
     incompatibleHairIds:
     - female-hair-03
     bareHeadPositionOffset: {x: 0, y: -0.2, z: 0}
+    previewHeadroom: 0.16
+    hairFits: []
   - id: cowboy-hat
     label: Cowboy Hat
     thumbnail: {fileID: 21300000, guid: 3e091d45d2744174aa3f3985df52fa9c, type: 3}
@@ -400,6 +506,8 @@ MonoBehaviour:
     incompatibleHairIds:
     - female-hair-03
     bareHeadPositionOffset: {x: 0, y: -0.2, z: 0}
+    previewHeadroom: 0.1
+    hairFits: []
   - id: witch-hat
     label: Witch Hat
     thumbnail: {fileID: 21300000, guid: f27f35ba00bf70e4d9171940c7106a31, type: 3}
@@ -412,6 +520,20 @@ MonoBehaviour:
     incompatibleHairIds:
     - female-hair-03
     bareHeadPositionOffset: {x: 0, y: -0.2, z: 0}
+    previewHeadroom: 0.24
+    hairFits:
+    - hairId: male-hair-05
+      position: {x: 0, y: 0, z: 0}
+      eulerAngles: {x: 0, y: 0, z: 0}
+      scale: {x: 1, y: 1, z: 0.9}
+    - hairId: female-hair-02
+      position: {x: 0, y: 0, z: 0}
+      eulerAngles: {x: 0, y: 0, z: 0}
+      scale: {x: 1, y: 1, z: 0.9}
+    - hairId: female-hair-05
+      position: {x: 0, y: 0, z: 0}
+      eulerAngles: {x: 0, y: 0, z: 0}
+      scale: {x: 1, y: 1, z: 0.9}
   skinMaterial: {fileID: 2100000, guid: 1b665dea9d92aea4e82253e20c71320e, type: 2}
   hairMaterial: {fileID: 2100000, guid: c8e49e330eadecd42a6e84cf1707dd40, type: 2}
   adultHeight: 3.81

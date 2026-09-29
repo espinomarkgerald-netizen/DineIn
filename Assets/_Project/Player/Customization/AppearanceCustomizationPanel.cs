@@ -23,9 +23,23 @@ namespace DineIn.Appearance
         [SerializeField] private CameraFollow cameraFollow;
         [SerializeField] private RestaurantSelector restaurantSelector;
         [SerializeField, Range(.3f, .8f)] private float previewScreenHeight = .65f;
-        [SerializeField] private Vector2 optionCardSize = new(112, 122);
-        [SerializeField] private Vector2 colorSwatchSize = new(58, 64);
+        [SerializeField] private RectTransform previewRegion;
         [SerializeField] private Sprite selectedTabSprite;
+        public enum FramingMode { FullBody, ColorSwatch, Head, HeadThreeQuarter, TorsoThreeQuarter, IsolatedHeadwear }
+        [System.Serializable] public sealed class CategoryPresentation
+        {
+            public FramingMode thumbnailMode;
+            public Vector3 thumbnailEuler = new(0, 180, 0);
+            [Min(.1f)] public float thumbnailMargin = 1.12f;
+            public Color thumbnailBackground = new(.84f, .87f, .91f, 1);
+            [Range(0, 1)] public float previewCenter = .5f;
+            [Range(.25f, 1.5f)] public float previewHeight = 1f;
+        }
+        [Header("Category presentation (Body, Skin, Face, Hair, Hair Color, Outfit, Hats)")]
+        [SerializeField] private CategoryPresentation[] categoryPresentation = System.Array.Empty<CategoryPresentation>();
+        [SerializeField, Min(.05f)] private float framingSeconds = .4f;
+        [SerializeField] private Vector2 previewViewportCenter = new(.225f, .53f);
+        public CategoryPresentation Presentation(int index) => categoryPresentation != null && index >= 0 && index < categoryPresentation.Length ? categoryPresentation[index] : null;
         private readonly List<GameObject> cells = new();
         private AppearanceRecipe draft;
         private string draftAccount;
@@ -37,9 +51,16 @@ namespace DineIn.Appearance
         private int category;
         private Vector3 cameraPosition;
         private Vector3 lastPreviewPosition;
-        private UnityEngine.UI.GridLayoutGroup grid;
+        private CosmeticOptionLayout grid;
         private float gridWidth = -1;
+        private float gridHeight = -1;
+        private readonly Vector3[] regionCorners = new Vector3[4];
         private float cameraSize, cameraFov;
+        private Bounds framingBounds;
+        private bool framingReady, transitioning;
+        private int framingCategory;
+        private Vector3 frameFrom, frameTo;
+        private float lensFrom, lensTo, frameElapsed;
 
         private void Awake()
         {
@@ -50,7 +71,7 @@ namespace DineIn.Appearance
             { int index = i; categories[i].onClick.AddListener(() => SelectCategory(index)); }
             categorySprites = categories.Select(c => c.GetComponent<Image>().sprite).ToArray();
             panel.SetActive(false); optionTemplate.gameObject.SetActive(false);
-            grid = options.GetComponent<UnityEngine.UI.GridLayoutGroup>();
+            grid = options.GetComponent<CosmeticOptionLayout>();
         }
         private void OnEnable() => PlayerCustomizationData.ProfileChanged += Cancel;
         private void OnDisable() { PlayerCustomizationData.ProfileChanged -= Cancel; Cancel(); }
@@ -69,8 +90,11 @@ namespace DineIn.Appearance
         {
             if (!editing || previewCamera == null || preview == null) return;
             // Camera stays attached to the same preview. Travel is suspended by the selector.
-            previewCamera.transform.position += preview.transform.position - lastPreviewPosition;
+            var delta = preview.transform.position - lastPreviewPosition;
+            previewCamera.transform.position += delta;
+            frameFrom += delta; frameTo += delta; framingBounds.center += delta;
             lastPreviewPosition = preview.transform.position;
+            AdvanceFraming(Time.unscaledDeltaTime);
         }
         public void Open()
         {
@@ -86,8 +110,10 @@ namespace DineIn.Appearance
             foreach (var control in menuControls) if (control != null) { control.interactable = false; control.gameObject.SetActive(false); }
             panel.SetActive(true); panel.transform.SetAsLastSibling();
             Canvas.ForceUpdateCanvases(); ResizeGrid();
-            status.text = "Changes are saved only when you Apply.";
+            status.text = "Changes save when you Apply.";
             preview.Apply(draft);
+            framingReady = preview.TryGetBodyBounds(out framingBounds);
+            framingCategory = 0;
             if (previewCamera != null)
             {
                 cameraPosition = previewCamera.transform.position;
@@ -97,8 +123,8 @@ namespace DineIn.Appearance
                 if (cameraFollow != null) cameraFollow.enabled = false;
                 FramePreview();
             }
-            if (restaurantSelector != null) restaurantSelector.BeginCustomization();
             SelectCategory(0);
+            if (restaurantSelector != null) restaurantSelector.BeginCustomization();
         }
         public void Apply()
         {
@@ -111,7 +137,7 @@ namespace DineIn.Appearance
         public void Cancel() { if (editing) Close(); }
         private void Close(bool applied = false)
         {
-            editing = false; draft = null;
+            editing = false; draft = null; transitioning = framingReady = false;
             if (binding != null) { binding.Previewing = false; binding.Refresh(); }
             for (int i = 0; i < menuPresentation.Length; i++) if (menuPresentation[i] != null) menuPresentation[i].SetActive(presentationVisible[i]);
             for (int i = 0; i < menuControls.Length; i++) if (menuControls[i] != null)
@@ -125,28 +151,73 @@ namespace DineIn.Appearance
         }
         private void FramePreview()
         {
-            if (previewCamera == null || !preview.TryGetVisualBounds(out var bounds)) return;
-            // Stable full-body framing, including current headwear, independent of screen resolution.
+            if (previewCamera == null || preview == null) return;
+            if (!framingReady) framingReady = preview.TryGetBodyBounds(out framingBounds);
+            if (!framingReady) return;
+            // Cache the opening silhouette: breathing, rotation and similar hairstyles must not pump the camera.
+            var bounds = framingBounds;
+            var presentation = Presentation(framingCategory);
+            if (presentation != null)
+            {
+                bounds.center = framingBounds.center + Vector3.up * framingBounds.size.y * (presentation.previewCenter - .5f);
+                float height = framingBounds.size.y * presentation.previewHeight;
+                if (framingCategory == 6 && draft != null)
+                {
+                    var hat = AppearanceCatalog.Find(preview.Catalog.hats, draft.hatId);
+                    float extra = hat != null ? hat.previewHeadroom * framingBounds.size.y : 0;
+                    height += extra; bounds.center += Vector3.up * extra * .5f;
+                }
+                bounds.size = new Vector3(Mathf.Min(framingBounds.size.x, height), height, Mathf.Min(framingBounds.size.z, height));
+            }
             var extents = bounds.extents;
             float Project(Vector3 axis) => Mathf.Abs(axis.x) * extents.x + Mathf.Abs(axis.y) * extents.y + Mathf.Abs(axis.z) * extents.z;
+            Vector2 center = previewViewportCenter;
+            float regionWidth = .39f;
+            if (previewRegion != null)
+            {
+                previewRegion.GetWorldCorners(regionCorners);
+                var canvas = previewRegion.GetComponentInParent<Canvas>();
+                Vector3 ToViewport(Vector3 p) => canvas.renderMode == RenderMode.ScreenSpaceOverlay
+                    ? previewCamera.ScreenToViewportPoint(RectTransformUtility.WorldToScreenPoint(null, p))
+                    : previewCamera.WorldToViewportPoint(p);
+                var min = ToViewport(regionCorners[0]); var max = ToViewport(regionCorners[2]);
+                center = (min + max) * .5f;
+                regionWidth = Mathf.Max(.1f, (max.x - min.x) * .88f);
+            }
             float halfHeight = Mathf.Max(Project(previewCamera.transform.up) / previewScreenHeight,
-                Project(previewCamera.transform.right) / (Mathf.Max(.1f, previewCamera.aspect) * .39f));
-            float depth = previewCamera.WorldToViewportPoint(bounds.center).z;
-            if (previewCamera.orthographic) previewCamera.orthographicSize = halfHeight * 1.08f;
-            else previewCamera.fieldOfView = Mathf.Clamp(2 * Mathf.Atan(halfHeight * 1.08f / Mathf.Max(1, depth)) * Mathf.Rad2Deg, 15, 65);
-            previewCamera.transform.position += bounds.center - previewCamera.ViewportToWorldPoint(new Vector3(.225f, .53f, depth));
+                Project(previewCamera.transform.right) / (Mathf.Max(.1f, previewCamera.aspect) * regionWidth));
+            float depth = Mathf.Max(1, Vector3.Dot(framingBounds.center - cameraPosition, previewCamera.transform.forward));
+            halfHeight *= 1.08f;
+            float desiredLens = previewCamera.orthographic ? halfHeight : Mathf.Clamp(2 * Mathf.Atan(halfHeight / depth) * Mathf.Rad2Deg, 15, 65);
+            if (!previewCamera.orthographic) halfHeight = Mathf.Tan(desiredLens * Mathf.Deg2Rad * .5f) * depth;
+            var desiredPosition = bounds.center - previewCamera.transform.forward * depth
+                - previewCamera.transform.right * ((center.x - .5f) * 2 * halfHeight * previewCamera.aspect)
+                - previewCamera.transform.up * ((center.y - .5f) * 2 * halfHeight);
+            if (transitioning && Vector3.SqrMagnitude(desiredPosition - frameTo) < .0001f && Mathf.Abs(desiredLens - lensTo) < .001f) return;
+            frameFrom = previewCamera.transform.position; frameTo = desiredPosition;
+            lensFrom = previewCamera.orthographic ? previewCamera.orthographicSize : previewCamera.fieldOfView;
+            lensTo = desiredLens; frameElapsed = 0; transitioning = true;
+        }
+        private void AdvanceFraming(float deltaTime)
+        {
+            if (!transitioning || previewCamera == null) return;
+            frameElapsed += Mathf.Max(0, deltaTime);
+            float t = Mathf.Clamp01(frameElapsed / Mathf.Max(.05f, framingSeconds));
+            float eased = t * t * (3 - 2 * t);
+            previewCamera.transform.position = Vector3.Lerp(frameFrom, frameTo, eased);
+            float lens = Mathf.Lerp(lensFrom, lensTo, eased);
+            if (previewCamera.orthographic) previewCamera.orthographicSize = lens; else previewCamera.fieldOfView = lens;
+            transitioning = t < 1;
         }
         private void ResizeGrid()
         {
             if (grid == null || scroll.viewport == null) return;
             float width = scroll.viewport.rect.width;
-            if (Mathf.Abs(width - gridWidth) < .5f) return;
-            gridWidth = width;
-            Vector2 size = category == 1 || category == 4 ? colorSwatchSize : optionCardSize;
-            int columns = Mathf.Max(1, Mathf.FloorToInt((width - grid.padding.horizontal + grid.spacing.x) / (size.x + grid.spacing.x)));
-            if (category != 1 && category != 4) columns = Mathf.Min(3, columns);
-            grid.constraintCount = columns;
-            grid.cellSize = new Vector2(Mathf.Min(size.x, Mathf.Max(1, width - grid.padding.horizontal)), size.y);
+            float height = scroll.viewport.rect.height;
+            if (Mathf.Abs(width - gridWidth) < .5f && Mathf.Abs(height - gridHeight) < .5f) return;
+            gridWidth = width; gridHeight = height;
+            grid.SetPalette(category == 1 || category == 4); grid.Refresh();
+            LayoutRebuilder.ForceRebuildLayoutImmediate(options);
             if (editing && cameraCaptured) FramePreview();
         }
         public void BeginPreviewDrag() { if (editing && restaurantSelector != null) restaurantSelector.InterruptPreviewPose(); }
@@ -158,7 +229,9 @@ namespace DineIn.Appearance
         { 0 => draft.bodyId, 1 => draft.skinId, 2 => draft.faceId, 3 => draft.hairId, 4 => draft.hairColorId, 5 => draft.outfitId, _ => draft.hatId };
         private void SelectCategory(int index)
         {
+            if (restaurantSelector != null) restaurantSelector.InterruptPreviewPose();
             category = index;
+            if (index != 1 && index != 4) framingCategory = index;
             for (int i = 0; i < categories.Length; i++)
             {
                 categories[i].interactable = true;
@@ -168,6 +241,7 @@ namespace DineIn.Appearance
             }
             gridWidth = -1; ResizeGrid();
             RebuildOptions();
+            if (cameraCaptured) FramePreview();
         }
         private void RebuildOptions()
         {
@@ -186,16 +260,34 @@ namespace DineIn.Appearance
                 button.name = option.id;
                 var label = button.transform.Find("Label").GetComponent<TMP_Text>(); label.text = option.label;
                 label.gameObject.SetActive(option is not AppearanceCatalog.Palette);
+                var nameBand = button.transform.Find("Name Band");
+                if (nameBand != null) nameBand.gameObject.SetActive(option is not AppearanceCatalog.Palette);
                 var icon = button.transform.Find("Icon").GetComponent<Image>();
                 icon.sprite = option.thumbnail;
+                icon.type = Image.Type.Simple;
+                icon.preserveAspect = option is not AppearanceCatalog.Palette;
                 icon.color = option is AppearanceCatalog.Palette palette ? palette.color : Color.white;
                 icon.enabled = icon.sprite != null || option is AppearanceCatalog.Palette;
+                if (option is not AppearanceCatalog.Palette)
+                {
+                    // Single-line choices give more of the card to the image; outfits keep two readable lines.
+                    float nameHeight = option.label != null && option.label.Contains("\n") ? 35 : 22;
+                    label.rectTransform.offsetMax = new Vector2(label.rectTransform.offsetMax.x, 9 + nameHeight);
+                    if (nameBand != null) ((RectTransform)nameBand).offsetMax = new Vector2(-6, 10 + nameHeight);
+                    icon.rectTransform.offsetMin = new Vector2(6, 11 + nameHeight);
+                    ((RectTransform)button.transform.Find("Selected")).anchoredPosition = new Vector2(-15, 18 + nameHeight);
+                }
                 if (option is AppearanceCatalog.Palette)
                 {
                     icon.rectTransform.anchorMin = new Vector2(.16f, .18f); icon.rectTransform.anchorMax = new Vector2(.84f, .86f);
                     icon.rectTransform.offsetMin = icon.rectTransform.offsetMax = Vector2.zero;
+                    var check = (RectTransform)button.transform.Find("Selected");
+                    check.anchorMin = check.anchorMax = new Vector2(.8f, .24f);
+                    check.anchoredPosition = Vector2.zero; check.sizeDelta = new Vector2(16, 16);
                 }
                 button.transform.Find("Selected").gameObject.SetActive(option.id == SelectedId());
+                var border = button.transform.Find("Selection Border");
+                if (border != null) border.gameObject.SetActive(option.id == SelectedId());
                 string id = option.id; button.onClick.AddListener(() => Choose(id));
             }
             LayoutRebuilder.ForceRebuildLayoutImmediate(options); scroll.verticalNormalizedPosition = 1;
@@ -203,6 +295,7 @@ namespace DineIn.Appearance
         private void Choose(string id)
         {
             if (!editing) return;
+            if (SelectedId() == id) return;
             switch (category)
             {
                 case 0: draft.bodyId = id; break; case 1: draft.skinId = id; break;
@@ -213,7 +306,7 @@ namespace DineIn.Appearance
             float scrollPosition = scroll.verticalNormalizedPosition;
             draft = preview.Catalog.Validate(draft); preview.Apply(draft); RebuildOptions();
             scroll.verticalNormalizedPosition = scrollPosition;
-            FramePreview();
+            if (category == 0 || category == 6) FramePreview();
             if (restaurantSelector != null) restaurantSelector.ReactToSelection(category);
         }
     }

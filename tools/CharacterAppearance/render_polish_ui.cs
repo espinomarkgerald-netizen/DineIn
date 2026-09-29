@@ -12,6 +12,7 @@ try
     var flags=System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic;
     void Set(string field,object value)=>controller.GetType().GetField(field,flags).SetValue(controller,value);
     void Call(string method,params object[] args)=>controller.GetType().GetMethod(method,flags).Invoke(controller,args);
+    Set("cameraPosition",camera.transform.position);
     Call("Awake");panel.SetActive(true);
     var controls=data.FindProperty("menuControls");for(int i=0;i<controls.arraySize;i++){var c=controls.GetArrayElementAtIndex(i).objectReferenceValue as UnityEngine.UI.Selectable;if(c!=null)c.gameObject.SetActive(false);}
     var presentation=data.FindProperty("menuPresentation");for(int i=0;i<presentation.arraySize;i++){var g=presentation.GetArrayElementAtIndex(i).objectReferenceValue as GameObject;if(g!=null)g.SetActive(false);}
@@ -27,14 +28,14 @@ try
         var direction=-camera.transform.forward;direction.y=0;look.transform.rotation=Quaternion.LookRotation(direction);
         camera.scene=scene;camera.enabled=false;
         var canvas=controller.GetComponent<Canvas>();canvas.renderMode=RenderMode.ScreenSpaceCamera;canvas.worldCamera=camera;canvas.planeDistance=1;
-        foreach(var size in new[]{new Vector2Int(1280,720),new Vector2Int(1024,768)})
+        foreach(var size in new[]{new Vector2Int(3840,2160),new Vector2Int(1920,1080),new Vector2Int(1280,720),new Vector2Int(1024,768)})
         {
             var rt=new RenderTexture(size.x,size.y,24);rt.Create();camera.targetTexture=rt;camera.aspect=(float)size.x/size.y;
             try
             {
-                foreach(int category in new[]{0,4,5})
+                foreach(int category in new[]{0,1,2,3,4,5,6})
                 {
-                    Call("SelectCategory",category);Canvas.ForceUpdateCanvases();Call("ResizeGrid");graph.Evaluate(.01f);Call("FramePreview");Canvas.ForceUpdateCanvases();camera.Render();
+                    Call("SelectCategory",category);Canvas.ForceUpdateCanvases();Call("ResizeGrid");graph.Evaluate(.01f);Call("FramePreview");Call("AdvanceFraming",1f);Canvas.ForceUpdateCanvases();camera.Render();
                     var previous=RenderTexture.active;RenderTexture.active=rt;var texture=new Texture2D(size.x,size.y,TextureFormat.RGB24,false);
                     try{texture.ReadPixels(new Rect(0,0,size.x,size.y),0,0);texture.Apply();var path="Temp/CharacterAppearance/menu-"+size.x+"-"+category+".png";System.IO.File.WriteAllBytes(path,texture.EncodeToPNG());output.Add(new{path});}
                     finally{RenderTexture.active=previous;UnityEngine.Object.DestroyImmediate(texture);}

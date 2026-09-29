@@ -687,7 +687,10 @@ public class KitchenManager : MonoBehaviour
 
             if (isTakeout)
             {
-                GameObject bag = Instantiate(takeoutBagPrefab, freeSlot.position, freeSlot.rotation, freeSlot);
+                // Pickup slots may inherit counter/register scale. Author bag size in
+                // the prefab, then retain that world scale while occupying the slot.
+                GameObject bag = Instantiate(takeoutBagPrefab, freeSlot.position, freeSlot.rotation);
+                bag.transform.SetParent(freeSlot, true);
 
                 TakeoutBagInteractable requiredInteractable = bag.GetComponent<TakeoutBagInteractable>();
                 if (requiredInteractable == null)

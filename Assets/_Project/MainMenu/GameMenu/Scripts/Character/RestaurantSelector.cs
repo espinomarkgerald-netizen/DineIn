@@ -29,6 +29,16 @@ public class RestaurantSelector : MonoBehaviour
     [SerializeField] private AnimationClip idleClip, runClip, waveClip;
     [Tooltip("Optional existing humanoid clips. Empty slots keep idle; they never invent a gesture.")]
     [SerializeField] private AnimationClip bodyReaction, headReaction, faceReaction, applyReaction;
+    [Tooltip("Optional compatible variations. Legacy single clips remain the fallback. Latest selection replaces the current reaction.")]
+    [SerializeField] private AnimationClip[] bodyReactions = Array.Empty<AnimationClip>(), headReactions = Array.Empty<AnimationClip>(), faceReactions = Array.Empty<AnimationClip>();
+    private AnimationClip lastReaction;
+    [Header("Customization reaction pacing")]
+    [SerializeField, Min(.1f)] private float selectionSettleSeconds = .9f;
+    [SerializeField, Min(0)] private float inspectionCooldownSeconds = 9f;
+    [Tooltip("Optional genuinely subtle clip for swatches. Null keeps the breathing idle.")]
+    [SerializeField] private AnimationClip colorReaction;
+    private int pendingCategory = -1;
+    private float settleRemaining, reactionCooldown;
     private bool customizing;
     private PlayableGraph presentationGraph;
     private AnimationMixerPlayable poseMixer;
@@ -66,11 +76,14 @@ public class RestaurantSelector : MonoBehaviour
         {
             character.position = travelPoints[currentIndex].position;
         }
+        if (animatePresentation && menuCamera != null)
+            menuCamera.GetComponent<CameraFollow>()?.SnapToAuthoredComposition();
         if (animatePresentation && character != null) moveCoroutine = StartCoroutine(FaceCamera());
     }
 
     private void Update()
     {
+        AdvanceSelectionReaction(Time.unscaledDeltaTime);
         if (!presentationGraph.IsValid()) return;
         if (!continuousAction) actionRemaining = Mathf.Max(0, actionRemaining - Time.unscaledDeltaTime);
         float target = continuousAction || actionRemaining > 0 ? 1 : 0;
@@ -114,18 +127,58 @@ public class RestaurantSelector : MonoBehaviour
     public void BeginCustomization()
     {
         customizing = true; CancelPresentation();
+        pendingCategory = -1; reactionCooldown = 0;
         if (animatePresentation) moveCoroutine = StartCoroutine(FaceCamera());
     }
-    public void InterruptPreviewPose() { if (customizing) CancelPresentation(); }
+    public void InterruptPreviewPose() { if (customizing) { pendingCategory = -1; CancelPresentation(); } }
     public void ReactToSelection(int category)
     {
         if (!customizing) return;
+        // Cosmetics apply immediately. Browsing only replaces one pending choice, never queues poses.
+        pendingCategory = category; settleRemaining = selectionSettleSeconds;
+        Pose(null);
+    }
+    private void AdvanceSelectionReaction(float deltaTime)
+    {
+        if (!customizing) return;
+        reactionCooldown = Mathf.Max(0, reactionCooldown - deltaTime);
+        if (pendingCategory < 0) return;
+        settleRemaining -= deltaTime;
+        if (settleRemaining > 0) return;
+        int category = pendingCategory; pendingCategory = -1;
+        // Do not defer suppressed reactions: an old choice must never react later.
+        if (reactionCooldown > 0) return;
+        PlaySelectionReaction(category);
+    }
+    private void PlaySelectionReaction(int category)
+    {
+        if (category == 1 || category == 4)
+        {
+            if (colorReaction != null) { Pose(colorReaction); reactionCooldown = inspectionCooldownSeconds; }
+            return;
+        }
         // Rotation is deliberately untouched: only opening or an explicit drag owns it.
-        Pose(category == 2 ? faceReaction : category == 3 || category == 4 || category == 6 ? headReaction : bodyReaction);
+        bool head = category == 3 || category == 4 || category == 6;
+        var pool = category == 2 ? faceReactions : head ? headReactions : bodyReactions;
+        var chosen = category == 2 ? faceReaction : head ? headReaction : bodyReaction;
+        if (pool != null)
+        {
+            // Small deterministic cycle; no gameplay RNG and no reaction queue.
+            int previous = Array.IndexOf(pool, lastReaction);
+            for (int i = 1; i <= pool.Length; i++)
+            {
+                var candidate = pool[(previous + i + pool.Length) % pool.Length];
+                if (candidate == null) continue;
+                chosen = candidate;
+                if (candidate != lastReaction) break;
+            }
+        }
+        lastReaction = chosen;
+        if (chosen != null) { Pose(chosen); reactionCooldown = inspectionCooldownSeconds; }
     }
     public void EndCustomization(bool applied)
     {
-        customizing = false; CancelPresentation();
+        customizing = false; pendingCategory = -1; CancelPresentation();
         if (character == null) return;
         if (travelPoints.Length > currentIndex && travelPoints[currentIndex] != null && Vector3.Distance(character.position, travelPoints[currentIndex].position) > .01f)
             MoveToCurrentPoint();
@@ -154,7 +207,7 @@ public class RestaurantSelector : MonoBehaviour
     private void OnDisable()
     {
         if (moveCoroutine != null) StopCoroutine(moveCoroutine);
-        moveCoroutine = null; customizing = false;
+        moveCoroutine = null; customizing = false; pendingCategory = -1;
         if (presentationGraph.IsValid()) presentationGraph.Destroy();
         activeClip = null; actionWeight = actionRemaining = 0; continuousAction = false;
     }
