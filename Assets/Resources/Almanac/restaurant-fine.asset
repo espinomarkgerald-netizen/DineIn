@@ -13,12 +13,14 @@ MonoBehaviour:
   m_Name: restaurant-fine
   m_EditorClassIdentifier: 
   entryName: Fine Dining
-  subTitle: "Coming soon \xB7 restaurant preview"
+  subTitle: "Coming soon \xB7 district map preview"
   entryId: restaurant-fine
   category: 2
-  description: A look at the Fine Dining restaurant shown on the district map. Its
-    exterior and Fine Dining clothing are available to preview while its campaign
-    is still to come.
+  listSection: 
+  sectionOrder: 0
+  searchAliases: coming soon district map preview
+  description: This is the building currently assigned to Fine Dining on the district
+    map. It is a preview of an upcoming restaurant, not an available campaign.
   gameplayNotes: This restaurant does not have a playable campaign yet.
   bossNote: 
   relatedIds:
@@ -26,11 +28,18 @@ MonoBehaviour:
   - restaurant-fast-food
   icon: {fileID: 21300000, guid: c72a118ae67c093409028773b7faf99c, type: 3}
   previewKind: 0
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 7299733588408132885, guid: 8d7227566ef30de43ba1bb9438868e60, type: 3}
-  previewEuler: {x: 0, y: 145, z: 0}
+  previewEuler: {x: 0, y: 45, z: 0}
   idleClip: {fileID: 0}
   introductionClip: {fileID: 0}
   variants: []
   sourceNotes: 'MainMenu/GameMenu/Scripts/UI/GameModePopupController.cs: campaignRestaurantScenes
-    contains Lobby1 and Lobby2 only; Save/CampaignSaveStore.cs; EditorBuildSettings;
-    NewGameMenu restaurant exterior references.'
+    contains Lobby1 and Lobby2 only; Save/CampaignSaveStore.cs; ProjectSettings/EditorBuildSettings.asset;
+    NewGameMenu Restaurants/diner (2).
+
+    Assets/_Project/Scenes/NewMenu/NewGameMenu.unity/Restaurants/diner
+    (2); source model: Assets/_Project/MainMenu/NewDesign/Restaurant/Models/3D Models/Objects/Diner/diner.fbx;
+    renderer materials: diner (2) = Meshy_AI_Mid_Century_Diner_0713023116_texture
+    [Assets/_Project/MainMenu/NewDesign/Restaurant/Models/3D Models/Objects/Diner/Diner/Materials/Meshy_AI_Mid_Century_Diner_0713023116_texture.mat]'

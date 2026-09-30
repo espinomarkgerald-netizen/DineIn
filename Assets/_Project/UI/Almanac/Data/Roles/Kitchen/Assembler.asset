@@ -13,24 +13,29 @@ MonoBehaviour:
   m_Name: Assembler
   m_EditorClassIdentifier: 
   entryName: Assembler
-  subTitle: "Fast Food \xB7 complete the ticket"
+  subTitle: "Fast Food \xB7 kitchen role \xB7 order assembly"
   entryId: staff-fast-food-assembler
   category: 1
+  listSection: Fast Food
+  sectionOrder: 2
+  searchAliases: assembly kitchen staff tickets
   description: Brings prepared portions together for Fast Food orders. The assembler
     handles the final order tickets after the grill and fry stations do their work.
-  gameplayNotes: 'Fast Food kitchen role.
+  gameplayNotes: 'A separate role in Fast Food staff hiring.
 
-    Works across the order menu.
+    Works across the
+    order menu.
 
-    Uniform:
-    Fast Food outfit and chef hat.'
+    Uniform: Fast Food outfit and chef hat.'
   bossNote: 
   relatedIds:
   - staff-grill
   - staff-fry
   - staff-cashier
-  icon: {fileID: 21300000, guid: 300ae9a1cc59d594299785c50bd77fdf, type: 3}
+  icon: {fileID: 21300000, guid: 66c8345cb791e824f9e487033a31112f, type: 3}
   previewKind: 1
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 1713438276194088164, guid: d7984c715da3f2f45a438590d92442e9, type: 3}
   previewEuler: {x: 0, y: 160, z: 0}
   idleClip: {fileID: 7400000, guid: 68b0a9eb38471694cbba952db7d69009, type: 2}

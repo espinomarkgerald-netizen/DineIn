@@ -16,6 +16,9 @@ MonoBehaviour:
   subTitle: "Table service \xB7 campaign restaurant"
   entryId: restaurant-casual-dining
   category: 2
+  listSection: 
+  sectionOrder: 0
+  searchAliases: restaurant campaign Casual Dining
   description: Welcome guests, seat their party, take their orders and bring meals
     to the table. Hosts, waiters, cashiers, bussers and kitchen staff work together
     through the full visit.
@@ -32,11 +35,19 @@ MonoBehaviour:
   - customer-regular
   icon: {fileID: 21300000, guid: 9392d4ccb76b6114a8321182ac33ecbf, type: 3}
   previewKind: 0
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 4299161682620487371, guid: b7f2b99354693e0459b15b31c4996ec0, type: 3}
-  previewEuler: {x: 0, y: 145, z: 0}
+  previewEuler: {x: 0, y: 45, z: 0}
   idleClip: {fileID: 0}
   introductionClip: {fileID: 0}
   variants: []
   sourceNotes: 'MainMenu/GameMenu/Scripts/UI/GameModePopupController.cs: campaignRestaurantScenes
-    contains Lobby1 and Lobby2 only; Save/CampaignSaveStore.cs; EditorBuildSettings;
-    NewGameMenu restaurant exterior references.'
+    contains Lobby1 and Lobby2 only; Save/CampaignSaveStore.cs; ProjectSettings/EditorBuildSettings.asset;
+    NewGameMenu Restaurants/CasualDiningExterior (1).
+
+    Assets/_Project/Scenes/NewMenu/NewGameMenu.unity/Restaurants/CasualDiningExterior
+    (1); source model: Assets/_Project/Art/Models/3D Models/CasualDiningExterior/CasualDiningExterior
+    (1).fbx; renderer materials: CasualDiningExterior (1) = CasualDiningExterior
+    (1) [Assets/_Project/Art/Models/3D Models/CasualDiningExterior/Materials/CasualDiningExterior
+    (1).mat]'

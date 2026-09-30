@@ -16,6 +16,9 @@ MonoBehaviour:
   subTitle: Payment upgrade
   entryId: equipment-card-payment
   category: 4
+  listSection: 
+  sectionOrder: 0
+  searchAliases: 
   description: Card payment offers an alternative to cash when customers settle their
     bill.
   gameplayNotes: 'After purchase, some customers choose card payment.
@@ -33,6 +36,8 @@ MonoBehaviour:
   - management-computer
   icon: {fileID: 21300000, guid: bb35b4103fc3e7f44a1e813eeb53d179, type: 3}
   previewKind: 0
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 0}
   previewEuler: {x: 0, y: 155, z: 0}
   idleClip: {fileID: 0}

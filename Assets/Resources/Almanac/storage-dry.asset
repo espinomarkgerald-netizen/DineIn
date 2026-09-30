@@ -16,6 +16,9 @@ MonoBehaviour:
   subTitle: Ingredient shelves
   entryId: storage-dry
   category: 7
+  listSection: 
+  sectionOrder: 0
+  searchAliases: 
   description: Dry storage keeps ingredients that the restaurant catalog assigns
     to a dry environment.
   gameplayNotes: 'Place delivered boxes on a dry shelf to add their contents to usable
@@ -32,6 +35,8 @@ MonoBehaviour:
   - storage-containers
   icon: {fileID: 21300000, guid: de7669dbfe4d3d34c9ea26caaf551671, type: 3}
   previewKind: 2
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 4026696155008832121, guid: 06b295ebd7b4edf41b7d78bea52deae9, type: 3}
   previewEuler: {x: 0, y: 155, z: 0}
   idleClip: {fileID: 0}

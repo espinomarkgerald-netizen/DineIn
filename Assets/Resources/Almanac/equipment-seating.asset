@@ -16,6 +16,9 @@ MonoBehaviour:
   subTitle: Dining capacity
   entryId: equipment-seating
   category: 4
+  listSection: 
+  sectionOrder: 0
+  searchAliases: 
   description: Tables and booths give dine-in customers somewhere to sit and enjoy
     their meal.
   gameplayNotes: 'Each table has a fixed set of seats and service points.
@@ -35,6 +38,8 @@ MonoBehaviour:
   - management-progression
   icon: {fileID: 21300000, guid: f7634157d19c56d49961c6dfa3cb46d0, type: 3}
   previewKind: 2
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 870000000000000250, guid: 7abbb7fb86195f918476a8cd3e36434d, type: 3}
   previewEuler: {x: 0, y: 155, z: 0}
   idleClip: {fileID: 0}

@@ -16,6 +16,9 @@ MonoBehaviour:
   subTitle: "Casual Dining & Fast Food \xB7 payment"
   entryId: staff-cashier
   category: 1
+  listSection: Shared roles
+  sectionOrder: 0
+  searchAliases: counter payment register
   description: Processes payments in Casual Dining. In Fast Food, the cashier takes
     orders and payment at the counter before the kitchen completes the meal.
   gameplayNotes: 'Assign a cashier before service.
@@ -23,13 +26,15 @@ MonoBehaviour:
     Fast Food can unlock a second
     cashier station.
 
-    Use the preview buttons to compare restaurant uniforms.'
+    Compare restaurant uniforms beside the portrait.'
   bossNote: 
   relatedIds:
   - staff-waiter
   - restaurant-fast-food
-  icon: {fileID: 21300000, guid: ef82b0534a65e7d47b58fafa9a8f700b, type: 3}
+  icon: {fileID: 21300000, guid: 1b96b17cb473bdf4bb20bfb0760a6fca, type: 3}
   previewKind: 1
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 2948523762233287228, guid: 68a3e95dbd4bc9f4484e53f439bde7fa, type: 3}
   previewEuler: {x: 0, y: 160, z: 0}
   idleClip: {fileID: 7400000, guid: 68b0a9eb38471694cbba952db7d69009, type: 2}

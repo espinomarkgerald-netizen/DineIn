@@ -13,19 +13,19 @@ MonoBehaviour:
   m_Name: ingredient-casual-pork-chop
   m_EditorClassIdentifier: 
   entryName: Pork Chop
-  subTitle: Casual Dining / Ingredient
+  subTitle: "Casual Dining \xB7 INGREDIENT"
   entryId: ingredient-casual-pork-chop
   category: 5
-  description: Pork Chop is stocked for the Casual Dining kitchen.
-  gameplayNotes: 'Store in frozen storage. A box supplies 12 units.
+  listSection: Ingredients
+  sectionOrder: 1
+  searchAliases: Casual Dining Pork Chop Pork Chop ingredient stock
+  description: Pork Chop is a stock ingredient for Casual Dining.
+  gameplayNotes: 'Stored in: Frozen storage
 
-    Available
-    from Day 6.
+    Used for: Pork Chop
 
-    Used in: Pork Chop.
-
-    Check the box''s expiry label; the
-    wrong storage environment makes stock spoil faster.'
+    Box quantity:
+    12 units'
   bossNote: 
   relatedIds:
   - food-pork-chop
@@ -33,6 +33,8 @@ MonoBehaviour:
   - storage-delivery
   icon: {fileID: 21300000, guid: ea5ff873d99f19d4693a3bb75fdefc46, type: 3}
   previewKind: 0
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 0}
   previewEuler: {x: 0, y: 155, z: 0}
   idleClip: {fileID: 0}
@@ -43,5 +45,7 @@ MonoBehaviour:
     Assets/_Project/Resources/CasualDiningMenuCatalog.asset
 
     Assets/_Project/Office/Inventory/ItemData.cs
+
+    Assets/_Project/Restaurant/FastFoodCookingState.cs
 
     Assets/_Project/Restaurant/RestockRoom/RestockOrderManager.cs'

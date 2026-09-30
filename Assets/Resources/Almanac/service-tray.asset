@@ -16,6 +16,9 @@ MonoBehaviour:
   subTitle: Order delivery
   entryId: service-tray
   category: 6
+  listSection: 
+  sectionOrder: 0
+  searchAliases: 
   description: A tray keeps a customer's food and drink together for service.
   gameplayNotes: 'Prepared trays carry an order number and their food contents.
 
@@ -31,6 +34,8 @@ MonoBehaviour:
   - storage-sink
   icon: {fileID: 21300000, guid: 1414bd00330d9ce40bd0c49603a95056, type: 3}
   previewKind: 2
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 1602902817731835949, guid: d31d808e8c170a64092e5200a4ff9757, type: 3}
   previewEuler: {x: 0, y: 155, z: 0}
   idleClip: {fileID: 0}

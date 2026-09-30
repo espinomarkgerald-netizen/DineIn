@@ -16,6 +16,9 @@ MonoBehaviour:
   subTitle: Takeaway orders
   entryId: service-takeout-bag
   category: 6
+  listSection: 
+  sectionOrder: 0
+  searchAliases: 
   description: A takeaway bag packages a prepared order for a customer leaving the
     restaurant.
   gameplayNotes: 'Each bag belongs to a particular customer order.
@@ -32,6 +35,8 @@ MonoBehaviour:
   - service-kiosk
   icon: {fileID: 21300000, guid: e6954ef1eb858b141ac15e6ea42c782c, type: 3}
   previewKind: 2
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 2990624723560410755, guid: 5d3df7f5b17dda14e90d069f6eec58d9, type: 3}
   previewEuler: {x: 0, y: 155, z: 0}
   idleClip: {fileID: 0}

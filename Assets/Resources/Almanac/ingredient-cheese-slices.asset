@@ -13,19 +13,21 @@ MonoBehaviour:
   m_Name: ingredient-cheese-slices
   m_EditorClassIdentifier: 
   entryName: Cheese Slices
-  subTitle: Fast Food / Ingredient
+  subTitle: "Fast Food \xB7 INGREDIENT"
   entryId: ingredient-cheese-slices
   category: 5
-  description: Cheese Slices is stocked for the Fast Food kitchen.
-  gameplayNotes: 'Store in frozen storage. A box supplies 20 units.
+  listSection: Ingredients
+  sectionOrder: 1
+  searchAliases: "Fast Food Cheese Slice Cheese Slices \xD720 ingredient stock"
+  description: Cheese Slices is a stock ingredient for Fast Food.
+  gameplayNotes: 'Stored in: Frozen storage
 
-    Available
-    from Day 1.
+    Used for: Burger
 
-    Used in: Burger.
+    Prepared at:
+    Grill preparation board
 
-    Check the box''s expiry label; the wrong
-    storage environment makes stock spoil faster.'
+    Box quantity: 20 units'
   bossNote: 
   relatedIds:
   - food-burger
@@ -33,6 +35,8 @@ MonoBehaviour:
   - storage-delivery
   icon: {fileID: 21300000, guid: 75552c844cda6294e91e0600518c5d90, type: 3}
   previewKind: 0
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 0}
   previewEuler: {x: 0, y: 155, z: 0}
   idleClip: {fileID: 0}
@@ -43,5 +47,7 @@ MonoBehaviour:
     Assets/_Project/Resources/MenuCatalog.asset
 
     Assets/_Project/Office/Inventory/ItemData.cs
+
+    Assets/_Project/Restaurant/FastFoodCookingState.cs
 
     Assets/_Project/Restaurant/RestockRoom/RestockOrderManager.cs'

@@ -16,6 +16,9 @@ MonoBehaviour:
   subTitle: "Counter service \xB7 campaign restaurant"
   entryId: restaurant-fast-food
   category: 2
+  listSection: 
+  sectionOrder: 0
+  searchAliases: restaurant campaign Fast Food
   description: Take orders and payment at the counter, prepare food at the grill
     and fry stations, then complete the ticket at assembly. Guests can take their
     meal away or dine in.
@@ -32,11 +35,22 @@ MonoBehaviour:
   - staff-fast-food-assembler
   icon: {fileID: 21300000, guid: 01544b406bf28bf458b335cc1ad05bea, type: 3}
   previewKind: 0
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 4475009008627999956, guid: e1ec1d5deaafe99418e3de66f0327247, type: 3}
-  previewEuler: {x: 0, y: 145, z: 0}
+  previewEuler: {x: 0, y: 45, z: 0}
   idleClip: {fileID: 0}
   introductionClip: {fileID: 0}
   variants: []
   sourceNotes: 'MainMenu/GameMenu/Scripts/UI/GameModePopupController.cs: campaignRestaurantScenes
-    contains Lobby1 and Lobby2 only; Save/CampaignSaveStore.cs; EditorBuildSettings;
-    NewGameMenu restaurant exterior references.'
+    contains Lobby1 and Lobby2 only; Save/CampaignSaveStore.cs; ProjectSettings/EditorBuildSettings.asset;
+    NewGameMenu Restaurants/FastFoodRestaurant_Exterior.
+
+    Assets/_Project/Scenes/NewMenu/NewGameMenu.unity/Restaurants/FastFoodRestaurant_Exterior;
+    source model: Assets/_Project/Art/Models/3D Models/FastFoodRestaurant_Exterior.fbx;
+    renderer materials: FastFoodRestaurant_Exterior = FastFoodRestaurant_Exterior_Facade
+    [Assets/_Project/Art/Models/3D Models/FastFoodRestaurant_Exterior.fbx]; FastFoodRestaurant_Exterior
+    = FastFoodRestaurant_Window_BlueGrey [Assets/_Project/Art/Models/3D Models/FastFoodRestaurant_Exterior.fbx];
+    FastFoodRestaurant_Exterior = FastFoodRestaurant_Frame_Charcoal [Assets/_Project/Art/Models/3D
+    Models/FastFoodRestaurant_Exterior.fbx]; FastFoodRestaurant_Exterior = FastFoodRestaurant_Handle
+    [Assets/_Project/Art/Models/3D Models/FastFoodRestaurant_Exterior.fbx]'

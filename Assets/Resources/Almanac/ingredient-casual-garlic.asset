@@ -13,19 +13,19 @@ MonoBehaviour:
   m_Name: ingredient-casual-garlic
   m_EditorClassIdentifier: 
   entryName: Garlic
-  subTitle: Casual Dining / Ingredient
+  subTitle: "Casual Dining \xB7 INGREDIENT"
   entryId: ingredient-casual-garlic
   category: 5
-  description: Garlic is stocked for the Casual Dining kitchen.
-  gameplayNotes: 'Store in dry storage. A box supplies 40 units.
+  listSection: Ingredients
+  sectionOrder: 1
+  searchAliases: Casual Dining Garlic Garlic ingredient stock
+  description: Garlic is a stock ingredient for Casual Dining.
+  gameplayNotes: 'Stored in: Dry storage
 
-    Available from
-    Day 6.
+    Used for: Roasted Chicken, Pork Chop,
+    Garlic Butter Shrimp
 
-    Used in: Roasted Chicken, Pork Chop, Garlic Butter Shrimp.
-
-    Check
-    the box''s expiry label; the wrong storage environment makes stock spoil faster.'
+    Box quantity: 40 units'
   bossNote: 
   relatedIds:
   - food-roasted-chicken
@@ -35,6 +35,8 @@ MonoBehaviour:
   - storage-delivery
   icon: {fileID: 21300000, guid: 04b1f46a6b9761242a14193b0991d7b4, type: 3}
   previewKind: 0
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 0}
   previewEuler: {x: 0, y: 155, z: 0}
   idleClip: {fileID: 0}
@@ -45,5 +47,7 @@ MonoBehaviour:
     Assets/_Project/Resources/CasualDiningMenuCatalog.asset
 
     Assets/_Project/Office/Inventory/ItemData.cs
+
+    Assets/_Project/Restaurant/FastFoodCookingState.cs
 
     Assets/_Project/Restaurant/RestockRoom/RestockOrderManager.cs'

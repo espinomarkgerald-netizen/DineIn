@@ -13,19 +13,21 @@ MonoBehaviour:
   m_Name: ingredient-ff-frozen-fish-fillet
   m_EditorClassIdentifier: 
   entryName: Frozen Fish Fillet
-  subTitle: Fast Food / Ingredient
+  subTitle: "Fast Food \xB7 INGREDIENT"
   entryId: ingredient-ff-frozen-fish-fillet
   category: 5
-  description: Frozen Fish Fillet is stocked for the Fast Food kitchen.
-  gameplayNotes: 'Store in frozen storage. A box supplies 20 units.
+  listSection: Ingredients
+  sectionOrder: 1
+  searchAliases: Fast Food Frozen Fish Fillet Frozen Fish Fillet x20 ingredient stock
+  description: Frozen Fish Fillet is a stock ingredient for Fast Food.
+  gameplayNotes: 'Stored in: Frozen storage
 
-    Available
-    from Day 10.
+    Used for: Fish Fillet Sandwich
 
-    Used in: Fish Fillet Sandwich.
+    Prepared
+    at: Fryer, Grill preparation board
 
-    Check the box''s expiry
-    label; the wrong storage environment makes stock spoil faster.'
+    Box quantity: 20 units'
   bossNote: 
   relatedIds:
   - food-fish-fillet-sandwich
@@ -33,6 +35,8 @@ MonoBehaviour:
   - storage-delivery
   icon: {fileID: 21300000, guid: 931e012347e1ec14385310720417fdd3, type: 3}
   previewKind: 0
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 0}
   previewEuler: {x: 0, y: 155, z: 0}
   idleClip: {fileID: 0}
@@ -43,5 +47,7 @@ MonoBehaviour:
     Assets/_Project/Resources/MenuCatalog.asset
 
     Assets/_Project/Office/Inventory/ItemData.cs
+
+    Assets/_Project/Restaurant/FastFoodCookingState.cs
 
     Assets/_Project/Restaurant/RestockRoom/RestockOrderManager.cs'

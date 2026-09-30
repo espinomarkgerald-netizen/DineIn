@@ -16,6 +16,9 @@ MonoBehaviour:
   subTitle: Growing the restaurant
   entryId: management-progression
   category: 8
+  listSection: 
+  sectionOrder: 0
+  searchAliases: 
   description: As service days progress, new menu items and equipment become available.
   gameplayNotes: 'Recipe and equipment availability is tied to the restaurant''s
     progression day.
@@ -35,6 +38,8 @@ MonoBehaviour:
   - management-computer
   icon: {fileID: 21300000, guid: bf59c2fd769dadc43a1098bbf7ae30aa, type: 3}
   previewKind: 0
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 0}
   previewEuler: {x: 0, y: 155, z: 0}
   idleClip: {fileID: 0}

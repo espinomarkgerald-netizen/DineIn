@@ -16,6 +16,9 @@ MonoBehaviour:
   subTitle: Cleanup upgrade
   entryId: equipment-busser-trolley
   category: 4
+  listSection: 
+  sectionOrder: 0
+  searchAliases: 
   description: A trolley carries several used trays in one trip, reducing journeys
     back to the sink.
   gameplayNotes: 'The Busser Trolley in Casual Dining and Lobby Trolley in Fast Food
@@ -32,6 +35,8 @@ MonoBehaviour:
   - equipment-seating
   icon: {fileID: 21300000, guid: 5ad6f17cd98050e4193e24379bfdd2fc, type: 3}
   previewKind: 2
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 1817872048445417107, guid: 88c82fa60793cb247afe9b758ad8e212, type: 3}
   previewEuler: {x: 0, y: 155, z: 0}
   idleClip: {fileID: 0}

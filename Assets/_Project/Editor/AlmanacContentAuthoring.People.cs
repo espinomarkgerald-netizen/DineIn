@@ -53,7 +53,7 @@ public static partial class AlmanacContentAuthoring
             "Watch order, food and bill requests.\nUniform: waiter outfit.", false, true, new[] { "staff-chef", "staff-barista", "staff-cashier" });
         PeopleStaff("staff-cashier", "Cashier", EmployeeRole.Cashier, "Casual Dining & Fast Food · payment",
             "Processes payments in Casual Dining. In Fast Food, the cashier takes orders and payment at the counter before the kitchen completes the meal.",
-            "Assign a cashier before service.\nFast Food can unlock a second cashier station.\nUse the preview buttons to compare restaurant uniforms.", false, false, new[] { "staff-waiter", "restaurant-fast-food" });
+            "Assign a cashier before service.\nFast Food can unlock a second cashier station.\nCompare restaurant uniforms beside the portrait.", false, false, new[] { "staff-waiter", "restaurant-fast-food" });
         PeopleStaff("staff-busser", "Busser", EmployeeRole.Busser, "Casual Dining · clean tables, ready seats",
             "Clears dirty tables and carries used trays away, helping the next group find a clean place to sit. A busy dining room needs someone keeping its tables ready.",
             "Clear tables after customers leave.\nUniform: waiter outfit.\nIn Fast Food this role is called Lobby Person.", false, true, new[] { "customer-messy", "staff-lobby-person" });
@@ -66,15 +66,15 @@ public static partial class AlmanacContentAuthoring
         PeopleStaff("staff-barista", "Barista", EmployeeRole.Barista, "Casual Dining · drinks",
             "Handles the drinks side of the Casual Dining kitchen. Coordinate food and drinks so the service team can complete customers' orders.",
             "Assign kitchen staff through staff management.\nUniform: waiter outfit, without a chef hat.", false, true, new[] { "staff-chef", "staff-waiter" });
-        PeopleStaff("staff-grill", "Grill Station", EmployeeRole.GrillStation, "Fast Food · hot preparation",
-            "Works the grill station for burgers, chicken sandwiches and fish fillet sandwiches. Prepared portions move on to assembly so each ticket can be completed.",
-            "Fast Food kitchen role.\nUniform: Fast Food outfit and chef hat.", true, true, new[] { "staff-fry", "staff-fast-food-assembler" });
-        PeopleStaff("staff-fry", "Fry Station", EmployeeRole.FryStation, "Fast Food · fried portions",
-            "Works the fryer for chicken, fries and chicken nuggets. Keep the station moving so finished portions are ready for the assembler's tickets.",
-            "Fast Food kitchen role.\nUniform: Fast Food outfit and chef hat.", true, true, new[] { "staff-grill", "staff-fast-food-assembler" });
-        PeopleStaff("staff-fast-food-assembler", "Assembler", EmployeeRole.FastFoodAssembler, "Fast Food · complete the ticket",
+        PeopleStaff("staff-grill", "Grill Station", EmployeeRole.GrillStation, "Fast Food · kitchen role · grill and preparation",
+            "The Grill Station employee cooks burger patties and works the preparation board. Chicken and fish sandwich proteins arrive from the fryer before the sandwiches are prepared here and sent to assembly.",
+            "A separate role in Fast Food staff hiring.\nUniform: Fast Food outfit and chef hat.", true, true, new[] { "staff-fry", "staff-fast-food-assembler" });
+        PeopleStaff("staff-fry", "Fry Station", EmployeeRole.FryStation, "Fast Food · kitchen role · fryer",
+            "Works the fryer for chicken, fries and chicken nuggets, as well as chicken and fish sandwich proteins. Sandwich proteins then move to the grill preparation board; finished fried portions are ready for assembly.",
+            "A separate role in Fast Food staff hiring.\nUniform: Fast Food outfit and chef hat.", true, true, new[] { "staff-grill", "staff-fast-food-assembler" });
+        PeopleStaff("staff-fast-food-assembler", "Assembler", EmployeeRole.FastFoodAssembler, "Fast Food · kitchen role · order assembly",
             "Brings prepared portions together for Fast Food orders. The assembler handles the final order tickets after the grill and fry stations do their work.",
-            "Fast Food kitchen role.\nWorks across the order menu.\nUniform: Fast Food outfit and chef hat.", true, true, new[] { "staff-grill", "staff-fry", "staff-cashier" });
+            "A separate role in Fast Food staff hiring.\nWorks across the order menu.\nUniform: Fast Food outfit and chef hat.", true, true, new[] { "staff-grill", "staff-fry", "staff-cashier" });
 
         PeopleRestaurant("restaurant-casual-dining", "Casual Dining", "Table service · campaign restaurant",
             "Welcome guests, seat their party, take their orders and bring meals to the table. Hosts, waiters, cashiers, bussers and kitchen staff work together through the full visit.",
@@ -84,8 +84,8 @@ public static partial class AlmanacContentAuthoring
             "Take orders and payment at the counter, prepare food at the grill and fry stations, then complete the ticket at assembly. Guests can take their meal away or dine in.",
             "Regular, VIP and messy guests are present from Day 1. Purple, orange, elderly and family visitors arrive as the campaign progresses.\nCashiers and lobby staff support the dining room.",
             "Assets/_Project/Art/Models/3D Models/FastFoodRestaurant_Exterior.fbx", new[] { "staff-cashier", "staff-grill", "staff-fry", "staff-fast-food-assembler" });
-        PeopleRestaurant("restaurant-fine", "Fine Dining", "Coming soon · restaurant preview",
-            "A look at the Fine Dining restaurant shown on the district map. Its exterior and Fine Dining clothing are available to preview while its campaign is still to come.",
+        PeopleRestaurant("restaurant-fine", "Fine Dining", "Coming soon · district map preview",
+            "This is the building currently assigned to Fine Dining on the district map. It is a preview of an upcoming restaurant, not an available campaign.",
             "This restaurant does not have a playable campaign yet.",
             "Assets/_Project/MainMenu/NewDesign/Restaurant/Models/3D Models/Objects/Diner/diner.fbx", new[] { "restaurant-casual-dining", "restaurant-fast-food" });
     }
@@ -99,7 +99,6 @@ public static partial class AlmanacContentAuthoring
             kind: AlmanacPreviewKind.Character, related: related);
         entry.icon = profile.customerImage;
         entry.previewPrefab = PeopleVisualPrefab(prefab, id);
-        if (entry.icon != null) entry.previewKind = AlmanacPreviewKind.Image;
         entry.idleClip = AssetDatabase.LoadAssetAtPath<AnimationClip>(PeopleIdle);
         entry.previewEuler = new Vector3(0, 160, 0);
         EditorUtility.SetDirty(entry);
@@ -109,7 +108,7 @@ public static partial class AlmanacContentAuthoring
         bool fastFood, bool singleRestaurant, string[] related)
     {
         var entry = Entry(id, AlmanacCategory.Staff, name, subtitle, description, notes,
-            "Office/HR/EmployeeRoleCatalog.cs; Gameplay/AutonomousService/Lobby/LobbyAutonomousService.cs; Gameplay/AutonomousService/Kitchen/KitchenWorkerBot.cs; Editor/FastFoodStaffAuthoring.cs; Resources/CasualEmployeeUniforms.asset; Resources/FastFoodEmployeeUniforms.asset.",
+            "Office/HR/EmployeeRoleCatalog.cs; Office/HR/EmployeeManager.cs:IsRoleUsedInCurrentRestaurant; ManagementComputer/ManagementComputerHRPanel.cs; Gameplay/AutonomousService/Lobby/LobbyAutonomousService.cs; Gameplay/AutonomousService/Kitchen/KitchenWorkerBot.cs; Restaurant/FastFoodCookingState.cs:Station/PreparationStation; Resources/CasualEmployeeUniforms.asset; Resources/FastFoodEmployeeUniforms.asset.",
             kind: AlmanacPreviewKind.Character, related: related);
         entry.idleClip = AssetDatabase.LoadAssetAtPath<AnimationClip>(PeopleIdle);
         entry.previewEuler = new Vector3(0, 160, 0);
@@ -122,10 +121,24 @@ public static partial class AlmanacContentAuthoring
         {
             first, second, PeopleStaffVariant(role, !fastFood, "male"), PeopleStaffVariant(role, !fastFood, "female")
         };
-        var catalog = AssetDatabase.LoadAssetAtPath<AppearanceCatalog>("Assets/Resources/AppearanceCatalog.asset");
-        var uniform = AssetDatabase.LoadAssetAtPath<EmployeeUniforms>(fastFood ? "Assets/Resources/FastFoodEmployeeUniforms.asset" : "Assets/Resources/CasualEmployeeUniforms.asset");
-        var recipe = uniform.Apply(AppearanceCatalog.Find(catalog.bodies, "male").defaults, role, catalog);
-        entry.icon = AppearanceCatalog.Find(catalog.outfits, recipe.outfitId)?.thumbnail;
+        // Role portraits are rendered from this entry's actual uniform preview, not an outfit-only swatch.
+        entry.icon = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/_Project/UI/Almanac/Thumbnails/" + id + ".png");
+        entry.listSection = !singleRestaurant ? "Shared roles" : fastFood ? "Fast Food" : "Casual Dining";
+        entry.sectionOrder = !singleRestaurant ? 0 : fastFood ? 2 : 1;
+        entry.searchAliases = role switch
+        {
+            EmployeeRole.Host => "receptionist greeter front of house",
+            EmployeeRole.Waiter => "server table service front of house",
+            EmployeeRole.Cashier => "counter payment register",
+            EmployeeRole.Busser when fastFood => "lobby staff attendant busser cleaning table delivery",
+            EmployeeRole.Busser => "table clearing cleaning",
+            EmployeeRole.Chef => "cook kitchen food preparation",
+            EmployeeRole.Barista => "drinks beverage kitchen",
+            EmployeeRole.GrillStation => "grill cook kitchen staff burger sandwich preparation",
+            EmployeeRole.FryStation => "fryer cook kitchen staff fried food protein",
+            EmployeeRole.FastFoodAssembler => "assembly kitchen staff tickets",
+            _ => ""
+        };
         EditorUtility.SetDirty(entry);
     }
 
@@ -207,15 +220,65 @@ public static partial class AlmanacContentAuthoring
 
     private static void PeopleRestaurant(string id, string name, string subtitle, string description, string notes, string prefab, string[] related)
     {
+        string sceneObject = id switch
+        {
+            "restaurant-casual-dining" => "CasualDiningExterior (1)",
+            "restaurant-fast-food" => "FastFoodRestaurant_Exterior",
+            "restaurant-fine" => "diner (2)",
+            _ => throw new InvalidOperationException("No authored restaurant presentation for " + id)
+        };
         var entry = Entry(id, AlmanacCategory.Restaurants, name, subtitle, description, notes,
-            "MainMenu/GameMenu/Scripts/UI/GameModePopupController.cs: campaignRestaurantScenes contains Lobby1 and Lobby2 only; Save/CampaignSaveStore.cs; EditorBuildSettings; NewGameMenu restaurant exterior references.",
+            "MainMenu/GameMenu/Scripts/UI/GameModePopupController.cs: campaignRestaurantScenes contains Lobby1 and Lobby2 only; Save/CampaignSaveStore.cs; ProjectSettings/EditorBuildSettings.asset; NewGameMenu Restaurants/" + sceneObject + ".",
             kind: AlmanacPreviewKind.Model, related: related);
-        entry.previewPrefab = PeopleVisualPrefab(prefab, id);
+        // Copy the actual district instance, including its material overrides and imported basis.
+        // A raw FBX here loses Casual Dining's scene-authored textured material.
+        entry.previewPrefab = PeopleRestaurantVisual(sceneObject, prefab, id, out var presentationEvidence);
+        entry.sourceNotes += "\n" + presentationEvidence;
         if (entry.icon != null) entry.previewKind = AlmanacPreviewKind.Image;
-        entry.previewEuler = new Vector3(0, 145, 0);
+        entry.previewEuler = new Vector3(0, 45, 0);
+        entry.searchAliases = id == "restaurant-fine" ? "coming soon district map preview" : "restaurant campaign " + name;
         EditorUtility.SetDirty(entry);
     }
 
+    private static GameObject PeopleRestaurantVisual(string sceneObject, string expectedPrefab, string key, out string evidence)
+    {
+        if (EditorApplication.isPlayingOrWillChangePlaymode)
+            throw new InvalidOperationException("Restaurant visual authoring requires Edit Mode.");
+        const string scenePath = "Assets/_Project/Scenes/NewMenu/NewGameMenu.unity";
+        var sourceScene = SceneManager.GetSceneByPath(scenePath);
+        bool ownsSourceScene = !sourceScene.IsValid() || !sourceScene.isLoaded;
+        if (ownsSourceScene) sourceScene = EditorSceneManager.OpenPreviewScene(scenePath);
+        var copyScene = EditorSceneManager.NewPreviewScene();
+        GameObject copy = null;
+        try
+        {
+            var restaurants = sourceScene.GetRootGameObjects().SingleOrDefault(root => root.name == "Restaurants");
+            var source = restaurants != null ? restaurants.transform.Find(sceneObject)?.gameObject : null;
+            if (source == null) throw new InvalidOperationException("Missing authored restaurant: " + scenePath + "/Restaurants/" + sceneObject);
+            if (PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(source) != expectedPrefab)
+                throw new InvalidOperationException("Restaurant model changed: inspect " + sceneObject + " before regenerating its preview.");
+            var renderers = source.GetComponentsInChildren<Renderer>(true);
+            if (!renderers.Any(renderer => renderer.enabled && renderer.sharedMaterials.Any(material => material != null)))
+                throw new InvalidOperationException("Restaurant has no authored visible material: " + sceneObject);
+            evidence = scenePath + "/Restaurants/" + sceneObject + "; source model: " + expectedPrefab + "; renderer materials: " +
+                string.Join("; ", renderers.SelectMany(renderer => renderer.sharedMaterials.Where(material => material != null)
+                    .Select(material => renderer.name + " = " + material.name + " [" + AssetDatabase.GetAssetPath(material) + "]")));
+            copy = AlmanacPreviewStage.CreateVisualCopy(source, null);
+            SceneManager.MoveGameObjectToScene(copy, copyScene);
+            copy.name = key;
+            copy.SetActive(true);
+            // Always refresh this derived asset: old previews came from unconfigured model imports.
+            var asset = PrefabUtility.SaveAsPrefabAsset(copy, PeoplePreviews + key + ".prefab");
+            if (asset == null) throw new InvalidOperationException("Could not save restaurant preview: " + key);
+            return asset;
+        }
+        finally
+        {
+            if (copy != null) UnityEngine.Object.DestroyImmediate(copy);
+            EditorSceneManager.ClosePreviewScene(copyScene);
+            if (ownsSourceScene) EditorSceneManager.ClosePreviewScene(sourceScene);
+        }
+    }
     private static GameObject PeopleVisualPrefab(string sourcePath, string key)
     {
         string path = PeoplePreviews + key + ".prefab";
@@ -248,5 +311,3 @@ public static partial class AlmanacContentAuthoring
         AssetDatabase.CreateFolder(path.Substring(0, slash), path.Substring(slash + 1));
     }
 }
-
-

@@ -13,19 +13,20 @@ MonoBehaviour:
   m_Name: ingredient-casual-orange-juice-powder
   m_EditorClassIdentifier: 
   entryName: Orange Juice Powder
-  subTitle: Casual Dining / Ingredient
+  subTitle: "Casual Dining \xB7 INGREDIENT"
   entryId: ingredient-casual-orange-juice-powder
   category: 5
-  description: Orange Juice Powder is stocked for the Casual Dining kitchen.
-  gameplayNotes: 'Store in dry storage. A box supplies 20 units.
+  listSection: Ingredients
+  sectionOrder: 1
+  searchAliases: Casual Dining Orange Juice Powder Orange Juice Powder ingredient
+    stock
+  description: Orange Juice Powder is a stock ingredient for Casual Dining.
+  gameplayNotes: 'Stored in: Dry storage
 
-    Available from
-    Day 2.
+    Used for: Orange Juice Pitcher
 
-    Used in: Orange Juice Pitcher.
-
-    Check the box''s expiry label;
-    the wrong storage environment makes stock spoil faster.'
+    Box
+    quantity: 20 units'
   bossNote: 
   relatedIds:
   - food-orange-juice-pitcher
@@ -33,6 +34,8 @@ MonoBehaviour:
   - storage-delivery
   icon: {fileID: 21300000, guid: 03af2ff8ed240804bb5e28cd61126ee8, type: 3}
   previewKind: 0
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 0}
   previewEuler: {x: 0, y: 155, z: 0}
   idleClip: {fileID: 0}
@@ -43,5 +46,7 @@ MonoBehaviour:
     Assets/_Project/Resources/CasualDiningMenuCatalog.asset
 
     Assets/_Project/Office/Inventory/ItemData.cs
+
+    Assets/_Project/Restaurant/FastFoodCookingState.cs
 
     Assets/_Project/Restaurant/RestockRoom/RestockOrderManager.cs'

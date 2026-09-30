@@ -16,6 +16,9 @@ MonoBehaviour:
   subTitle: Restocking
   entryId: storage-delivery
   category: 7
+  listSection: 
+  sectionOrder: 0
+  searchAliases: 
   description: The delivery truck brings the ingredients purchased from the restaurant
     computer.
   gameplayNotes: 'Order boxes from Computer > Restock and collect them when the truck
@@ -36,6 +39,8 @@ MonoBehaviour:
   - storage-frozen
   icon: {fileID: 21300000, guid: bb4d0ee86f90c2c45aeed70eaa616d1e, type: 3}
   previewKind: 2
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 5436503162179209539, guid: 91ce7353f85d9f348b67eaf5aeaf0f9a, type: 3}
   previewEuler: {x: 0, y: 155, z: 0}
   idleClip: {fileID: 0}

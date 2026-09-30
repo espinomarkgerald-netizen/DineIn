@@ -82,7 +82,7 @@ public static partial class AlmanacContentAuthoring
     }
     public static string GenerateThumbnails(int maxCount=12,int start=0,bool replace=false)
     {
-        var catalog=AssetDatabase.LoadAssetAtPath<AlmanacCatalog>(Root+"/AlmanacCatalog.asset");var pending=catalog.LoadEntries().Where(e=>e.previewPrefab!=null && (e.icon==null || (replace && AssetDatabase.GetAssetPath(e.icon).StartsWith(Root+"/Thumbnails/")))).Skip(start).Take(maxCount).ToArray();
+        var catalog=AssetDatabase.LoadAssetAtPath<AlmanacCatalog>(Root+"/AlmanacCatalog.asset");var pending=catalog.LoadEntries().Where(e=>e.previewPrefab!=null && (e.icon==null || (replace && (e.category==AlmanacCategory.Staff || AssetDatabase.GetAssetPath(e.icon).StartsWith(Root+"/Thumbnails/"))))).Skip(start).Take(maxCount).ToArray();
         var go=new GameObject("Almanac thumbnail authoring");var stage=go.AddComponent<AlmanacPreviewStage>();var active=RenderTexture.active;
         try{foreach(var entry in pending)
         {
@@ -90,7 +90,7 @@ public static partial class AlmanacContentAuthoring
             var camera=Resources.FindObjectsOfTypeAll<Camera>().First(c=>c.name=="Preview Camera" && c.targetTexture==stage.Texture);camera.Render();RenderTexture.active=(RenderTexture)stage.Texture;
             var texture=new Texture2D(stage.Texture.width,stage.Texture.height,TextureFormat.RGBA32,false);texture.ReadPixels(new Rect(0,0,texture.width,texture.height),0,0);texture.Apply();
             string path=Root+"/Thumbnails/"+entry.entryId+".png";File.WriteAllBytes(path,texture.EncodeToPNG());UnityEngine.Object.DestroyImmediate(texture);AssetDatabase.ImportAsset(path);
-            var importer=(TextureImporter)AssetImporter.GetAtPath(path);importer.textureType=TextureImporterType.Sprite;importer.spriteImportMode=SpriteImportMode.Single;importer.alphaIsTransparency=true;importer.mipmapEnabled=false;importer.maxTextureSize=512;importer.SaveAndReimport();
+            var importer=(TextureImporter)AssetImporter.GetAtPath(path);importer.textureType=TextureImporterType.Sprite;importer.spriteImportMode=SpriteImportMode.Single;importer.alphaIsTransparency=true;importer.mipmapEnabled=false;importer.maxTextureSize=1024;importer.textureCompression=TextureImporterCompression.Uncompressed;importer.filterMode=FilterMode.Bilinear;importer.SaveAndReimport();
             entry.icon=AssetDatabase.LoadAssetAtPath<Sprite>(path);if(entry.category==AlmanacCategory.Restaurants)entry.previewKind=AlmanacPreviewKind.Image;EditorUtility.SetDirty(entry);
         }}finally{RenderTexture.active=active;stage.Release();UnityEngine.Object.DestroyImmediate(go);}AssetDatabase.SaveAssets();return "Rendered "+pending.Length+" thumbnails";
     }

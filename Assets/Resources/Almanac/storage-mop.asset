@@ -16,6 +16,9 @@ MonoBehaviour:
   subTitle: Restaurant hygiene
   entryId: storage-mop
   category: 7
+  listSection: 
+  sectionOrder: 0
+  searchAliases: 
   description: A mop helps staff clean the dining floor and keep the restaurant welcoming.
   gameplayNotes: 'Walking and restaurant service can create dirt and spills.
 
@@ -34,6 +37,8 @@ MonoBehaviour:
   - management-computer
   icon: {fileID: 21300000, guid: f4bdfdbe1684aae40a3912fe038ab76c, type: 3}
   previewKind: 2
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 919132149155446097, guid: 61bbc820df1ea3b45a605ba50ce96531, type: 3}
   previewEuler: {x: 0, y: 155, z: 0}
   idleClip: {fileID: 0}

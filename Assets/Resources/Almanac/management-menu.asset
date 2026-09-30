@@ -16,6 +16,9 @@ MonoBehaviour:
   subTitle: Recipes & prices
   entryId: management-menu
   category: 8
+  listSection: 
+  sectionOrder: 0
+  searchAliases: 
   description: The menu controls which dishes and drinks the restaurant offers its
     customers.
   gameplayNotes: 'Choose from the current restaurant''s unlocked recipes.
@@ -36,6 +39,8 @@ MonoBehaviour:
   - management-computer
   icon: {fileID: 21300000, guid: 85f53d217814d9a4098e5f177fd99c2d, type: 3}
   previewKind: 0
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 0}
   previewEuler: {x: 0, y: 155, z: 0}
   idleClip: {fileID: 0}

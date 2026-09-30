@@ -16,6 +16,9 @@ MonoBehaviour:
   subTitle: "Casual Dining \xB7 drinks"
   entryId: staff-barista
   category: 1
+  listSection: Casual Dining
+  sectionOrder: 1
+  searchAliases: drinks beverage kitchen
   description: Handles the drinks side of the Casual Dining kitchen. Coordinate food
     and drinks so the service team can complete customers' orders.
   gameplayNotes: 'Assign kitchen staff through staff management.
@@ -26,8 +29,10 @@ MonoBehaviour:
   relatedIds:
   - staff-chef
   - staff-waiter
-  icon: {fileID: 21300000, guid: 1ddea4d065eb5f944affd47334bd0219, type: 3}
+  icon: {fileID: 21300000, guid: fd47f72eeab41124cae36794ddb31ce9, type: 3}
   previewKind: 1
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 5582405565256690139, guid: d0e618ab24ec3fd4eb393033cf1052ff, type: 3}
   previewEuler: {x: 0, y: 160, z: 0}
   idleClip: {fileID: 7400000, guid: 68b0a9eb38471694cbba952db7d69009, type: 2}

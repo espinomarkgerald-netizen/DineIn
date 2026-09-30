@@ -13,19 +13,19 @@ MonoBehaviour:
   m_Name: ingredient-casual-cooking-oil
   m_EditorClassIdentifier: 
   entryName: Oil
-  subTitle: Casual Dining / Ingredient
+  subTitle: "Casual Dining \xB7 INGREDIENT"
   entryId: ingredient-casual-cooking-oil
   category: 5
-  description: Oil is stocked for the Casual Dining kitchen.
-  gameplayNotes: 'Store in dry storage. A box supplies 30 units.
+  listSection: Ingredients
+  sectionOrder: 1
+  searchAliases: Casual Dining Oil Oil ingredient stock
+  description: Oil is a stock ingredient for Casual Dining.
+  gameplayNotes: 'Stored in: Dry storage
 
-    Available from
-    Day 6.
+    Used for: Roasted Chicken, Pork Chop,
+    Fried Salmon
 
-    Used in: Roasted Chicken, Pork Chop, Fried Salmon.
-
-    Check the
-    box''s expiry label; the wrong storage environment makes stock spoil faster.'
+    Box quantity: 30 units'
   bossNote: 
   relatedIds:
   - food-roasted-chicken
@@ -35,6 +35,8 @@ MonoBehaviour:
   - storage-delivery
   icon: {fileID: 21300000, guid: a0771ef391706f647ac8b261a939207e, type: 3}
   previewKind: 0
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 0}
   previewEuler: {x: 0, y: 155, z: 0}
   idleClip: {fileID: 0}
@@ -45,5 +47,7 @@ MonoBehaviour:
     Assets/_Project/Resources/CasualDiningMenuCatalog.asset
 
     Assets/_Project/Office/Inventory/ItemData.cs
+
+    Assets/_Project/Restaurant/FastFoodCookingState.cs
 
     Assets/_Project/Restaurant/RestockRoom/RestockOrderManager.cs'

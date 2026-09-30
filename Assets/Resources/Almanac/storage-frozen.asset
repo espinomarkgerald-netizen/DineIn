@@ -16,6 +16,9 @@ MonoBehaviour:
   subTitle: Cold ingredient shelves
   entryId: storage-frozen
   category: 7
+  listSection: 
+  sectionOrder: 0
+  searchAliases: 
   description: Frozen storage is the stock-room area for ingredients marked for frozen
     storage in Dine In.
   gameplayNotes: 'Use the ingredient''s storage label when placing delivered boxes.
@@ -32,6 +35,8 @@ MonoBehaviour:
   - storage-containers
   icon: {fileID: 21300000, guid: a63dc7f35381fad439a0d323aed786dc, type: 3}
   previewKind: 2
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 5002084983000684895, guid: 87371c5ba8986a24faf2f1f84b31a83b, type: 3}
   previewEuler: {x: 0, y: 155, z: 0}
   idleClip: {fileID: 0}

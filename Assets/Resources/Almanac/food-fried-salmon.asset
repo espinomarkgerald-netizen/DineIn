@@ -13,17 +13,16 @@ MonoBehaviour:
   m_Name: food-fried-salmon
   m_EditorClassIdentifier: 
   entryName: Fried Salmon
-  subTitle: Casual Dining / Dish
+  subTitle: "Casual Dining \xB7 DISH"
   entryId: food-fried-salmon
   category: 5
+  listSection: Dishes
+  sectionOrder: 0
+  searchAliases: Casual Dining Fried Salmon dish food
   description: Fried salmon fillet finished with lemon and seasoning.
-  gameplayNotes: 'Available from Day 10.
-
-    Ingredients per serving: Salmon Fillet
-    x1, Oil x1, Lemon x1, Seasoning x1.
-
-    Enable it in the restaurant menu and
-    keep its ingredients stocked for customer orders.'
+  gameplayNotes: "Ingredients per serving\n\u2022 Salmon Fillet \xD71\n\u2022 Oil
+    \xD71\n\u2022 Lemon \xD71\n\u2022 Seasoning \xD71\n\nKeep these ingredients stocked
+    and enable this dish for customer orders.\n\nAvailable from Day 10."
   bossNote: 
   relatedIds:
   - restaurant-casual-dining
@@ -34,6 +33,8 @@ MonoBehaviour:
   - ingredient-casual-seasoning
   icon: {fileID: 21300000, guid: 8c50bf2aa44f6dd4aa0f9fa426d7c475, type: 3}
   previewKind: 0
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 0}
   previewEuler: {x: 0, y: 155, z: 0}
   idleClip: {fileID: 0}

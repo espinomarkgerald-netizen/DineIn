@@ -82,3 +82,45 @@ Existing almanac Office entries: Head Chef, HR Officer, Inventory Manager, Equip
 
 Confirmed data and references by scripts, serialized assets and scene references only. No instantiation/render/animation playback was performed, so animation compatibility and material appearance must be checked by the implementing agent in an isolated preview.
 
+
+## Content and visual polish audit — 2026-09-30
+
+### Staff taxonomy and names
+
+Rechecked `EmployeeRoleCatalog`, `EmployeeManager.IsRoleUsedInCurrentRestaurant`, `ManagementComputerHRPanel`, `ManagementHRRoleSectionUI` and `ManagementEmployeeCardUI`. The current management UI uses the catalog's names directly: **Lobby Person**, **Grill Station**, **Fry Station**, **Assembler**. These are intentional player-facing labels. The latter three are separate EmployeeRole enum values and independent Fast Food hiring/scheduling roles, not optional assignments on one generic Chef employee. No Manager employee was invented.
+
+Almanac sections now reflect actual campaign use:
+
+- Shared roles (order 0): Cashier, with Casual Dining and Fast Food uniform previews.
+- Casual Dining (order 1): Host, Waiter, Busser, Chef, Barista.
+- Fast Food (order 2): Lobby Person, Grill Station, Fry Station, Assembler.
+
+`EmployeeManager.IsRoleUsedInCurrentRestaurant` excludes Host/Waiter from normal Fast Food and excludes Chef/Barista when the Fast Food station roles are in use. Busser's Fast Food display name and responsibilities justify its separate Lobby Person presentation; the underlying role is still Busser. Uniform variant labels remain restaurant + Male/Female and are shown beside the preview by the reader. Search aliases include familiar terms such as server, receptionist, fryer, cook and lobby staff without renaming the actual UI roles.
+
+Staff list thumbnails must be rendered from the same baked, uniformed preview used in the detail view. `PeopleStaff` now references `Assets/_Project/UI/Almanac/Thumbnails/<entryId>.png` for these ten IDs: `staff-host`, `staff-waiter`, `staff-cashier`, `staff-busser`, `staff-lobby-person`, `staff-chef`, `staff-barista`, `staff-grill`, `staff-fry`, `staff-fast-food-assembler`. Existing outfit-only thumbnails are no longer assigned as role portraits.
+
+### Progression recheck
+
+The claims still match normal campaign code/configuration. `GroupSpawner.NormalFastFood` is Lobby2 outside protected sessions; both `SetCustomerTypeAvailability` and `IsCustomerTypeEnabled` explicitly enable Green/Pink/Blue from Day 1 in that mode. `GameDayManager` uses the same override, even though legacy FastFoodProgressionSettings pink/blue day fields remain 5/10. Casual Lobby1's serialized unlocks remain Day 5/10. Additional profile unlocks remain Purple 2, Orange 5, Elderly 10, Yellow 15. Orange retains a 70% takeaway override; other additional guests defer to the restaurant probability instead of assuming the profile's unused default is active.
+
+`StaffHiringProgression.asset` allows the second Lobby Person hire from Day 10 and the second Cashier hire from Day 15. A working second Fast Food cashier also requires the purchased `ff_second_cashier` station (`FastFoodProgressionSettings.HasSecondCashier`). The entry states that a second cashier station can be unlocked and does not imply day progression alone creates it.
+
+Cooking descriptions now distinguish the current recipe-controlled stages: sandwich proteins are fried, then prepared at the grill board; burger patties are grilled. Runtime `FastFoodCookingState.Station` / `PreparationStation` and recipe settings take priority over the older authoring `stationProducts` lists.
+
+### Actual restaurant presentation
+
+The source is `Assets/_Project/Scenes/NewMenu/NewGameMenu.unity`, root `Restaurants`:
+
+| Entry | Exact child | Source model | Actual material presentation |
+|---|---|---|---|
+| Casual Dining | `CasualDiningExterior (1)` | `Assets/_Project/Art/Models/3D Models/CasualDiningExterior/CasualDiningExterior (1).fbx` | Scene override on renderer source fileID -7511558181221131132: `Assets/_Project/Art/Models/3D Models/CasualDiningExterior/Materials/CasualDiningExterior (1).mat`, guid 663d8b75e83a03c4684d62c3b70a0676. |
+| Fast Food | `FastFoodRestaurant_Exterior` | `Assets/_Project/Art/Models/3D Models/FastFoodRestaurant_Exterior.fbx` | Actual imported renderer material; this scene instance has no material override. Preserve its renderer references as authored. |
+| Fine Dining | `diner (2)` | `Assets/_Project/MainMenu/NewDesign/Restaurant/Models/3D Models/Objects/Diner/diner.fbx` | Scene override on renderer source fileID -7511558181221131132: `Assets/_Project/MainMenu/NewDesign/Restaurant/Models/3D Models/Objects/Diner/Diner/Materials/Meshy_AI_Mid_Century_Diner_0713023116_texture.mat`, guid 03978b89d36447946bec29779124ad4e. |
+
+The Restaurants children are explicitly ordered Casual / Fast Food / diner (2), matching the three selector names Casual Dining / Fast Food / Fine Dining and the three travel points. Fine Dining is therefore a configured **district map preview** only: `campaignRestaurantScenes` still contains just Lobby1/Lobby2. Its article now says coming soon and describes only the building currently assigned to that map location.
+
+`PeopleRestaurantVisual` copies the actual authored scene instance through `AlmanacPreviewStage.CreateVisualCopy`, retaining its model orientation, scale and material assignments. It reads the already loaded source scene, or opens the saved scene as an Editor preview scene, and closes only scenes it owns. It does not mutate or save the source scene and does not fall back to an unconfigured FBX. The derived `Previews/restaurant-*.prefab` assets are refreshed when authoring is explicitly invoked; generated wide static thumbnails are handled by the shared authoring pass. Each entry's sourceNotes records actual renderer/material paths at generation time.
+
+The customer authoring accidentally switched entries to Image whenever their existing profile icon was available. That switch was removed: profile images remain list thumbnails, while all seven customer detail previews remain live Character entries.
+
+This polish audit and authoring-code update did not invoke Unity, regenerate assets or run Play Mode. The root implementation task owns compilation, asset generation and visual validation.

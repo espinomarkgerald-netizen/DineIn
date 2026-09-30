@@ -13,19 +13,19 @@ MonoBehaviour:
   m_Name: ingredient-casual-iced-tea-powder
   m_EditorClassIdentifier: 
   entryName: Iced Tea Powder
-  subTitle: Casual Dining / Ingredient
+  subTitle: "Casual Dining \xB7 INGREDIENT"
   entryId: ingredient-casual-iced-tea-powder
   category: 5
-  description: Iced Tea Powder is stocked for the Casual Dining kitchen.
-  gameplayNotes: 'Store in dry storage. A box supplies 20 units.
+  listSection: Ingredients
+  sectionOrder: 1
+  searchAliases: Casual Dining Iced Tea Powder Iced Tea Powder ingredient stock
+  description: Iced Tea Powder is a stock ingredient for Casual Dining.
+  gameplayNotes: 'Stored in: Dry storage
 
-    Available from
-    Day 1.
+    Used for: Iced Tea Pitcher
 
-    Used in: Iced Tea Pitcher.
-
-    Check the box''s expiry label; the
-    wrong storage environment makes stock spoil faster.'
+    Box
+    quantity: 20 units'
   bossNote: 
   relatedIds:
   - food-iced-tea-pitcher
@@ -33,6 +33,8 @@ MonoBehaviour:
   - storage-delivery
   icon: {fileID: 21300000, guid: bd5ff3864e3f72d48a05a1ac72be0984, type: 3}
   previewKind: 0
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 0}
   previewEuler: {x: 0, y: 155, z: 0}
   idleClip: {fileID: 0}
@@ -43,5 +45,7 @@ MonoBehaviour:
     Assets/_Project/Resources/CasualDiningMenuCatalog.asset
 
     Assets/_Project/Office/Inventory/ItemData.cs
+
+    Assets/_Project/Restaurant/FastFoodCookingState.cs
 
     Assets/_Project/Restaurant/RestockRoom/RestockOrderManager.cs'

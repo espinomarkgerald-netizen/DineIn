@@ -16,6 +16,9 @@ MonoBehaviour:
   subTitle: "Blue guest \xB7 take time to tidy"
   entryId: customer-messy
   category: 0
+  listSection: 
+  sectionOrder: 0
+  searchAliases: 
   description: Blue guests take their time over a meal and tend to leave a mess.
     Keep a table available for the next party by sending the busser after they finish.
   gameplayNotes: "Meals take 2\xD7 as long.\nNormal line and order patience.\nCasual
@@ -26,6 +29,8 @@ MonoBehaviour:
   - staff-lobby-person
   icon: {fileID: 21300000, guid: 00a9d60325584aa40bf0699682e6e0d9, type: 3}
   previewKind: 1
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 4777565470553943374, guid: 5519e1d484edc8943999749adf75b1dc, type: 3}
   previewEuler: {x: 0, y: 160, z: 0}
   idleClip: {fileID: 7400000, guid: 68b0a9eb38471694cbba952db7d69009, type: 2}

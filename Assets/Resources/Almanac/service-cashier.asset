@@ -16,6 +16,9 @@ MonoBehaviour:
   subTitle: Orders & payment
   entryId: service-cashier
   category: 6
+  listSection: 
+  sectionOrder: 0
+  searchAliases: 
   description: A cashier counter is the service point for taking orders and settling
     payments.
   gameplayNotes: 'Fast Food counters have their own ordering queues.
@@ -35,6 +38,8 @@ MonoBehaviour:
   - management-computer
   icon: {fileID: 21300000, guid: b9e8ba7316f36b049b579fd134659bbb, type: 3}
   previewKind: 2
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 870000000000000270, guid: 8af51e0549ec5fde8ac20090eaf9598d, type: 3}
   previewEuler: {x: 0, y: 155, z: 0}
   idleClip: {fileID: 0}

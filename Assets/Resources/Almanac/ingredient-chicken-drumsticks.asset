@@ -13,19 +13,21 @@ MonoBehaviour:
   m_Name: ingredient-chicken-drumsticks
   m_EditorClassIdentifier: 
   entryName: Chicken Drumsticks
-  subTitle: Fast Food / Ingredient
+  subTitle: "Fast Food \xB7 INGREDIENT"
   entryId: ingredient-chicken-drumsticks
   category: 5
-  description: Chicken Drumsticks is stocked for the Fast Food kitchen.
-  gameplayNotes: 'Store in frozen storage. A box supplies 12 units.
+  listSection: Ingredients
+  sectionOrder: 1
+  searchAliases: "Fast Food Drumstick Chicken Drumsticks \xD712 ingredient stock"
+  description: Chicken Drumsticks is a stock ingredient for Fast Food.
+  gameplayNotes: 'Stored in: Frozen storage
 
-    Available
-    from Day 7.
+    Used for: Fried Chicken
 
-    Used in: Fried Chicken.
+    Prepared
+    at: Fryer
 
-    Check the box''s expiry label;
-    the wrong storage environment makes stock spoil faster.'
+    Box quantity: 12 units'
   bossNote: 
   relatedIds:
   - food-fried-chicken
@@ -33,6 +35,8 @@ MonoBehaviour:
   - storage-delivery
   icon: {fileID: 21300000, guid: 4ce51458c6041b24eac60debe97af05b, type: 3}
   previewKind: 0
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 0}
   previewEuler: {x: 0, y: 155, z: 0}
   idleClip: {fileID: 0}
@@ -43,5 +47,7 @@ MonoBehaviour:
     Assets/_Project/Resources/MenuCatalog.asset
 
     Assets/_Project/Office/Inventory/ItemData.cs
+
+    Assets/_Project/Restaurant/FastFoodCookingState.cs
 
     Assets/_Project/Restaurant/RestockRoom/RestockOrderManager.cs'

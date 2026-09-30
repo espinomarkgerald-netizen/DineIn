@@ -43,59 +43,93 @@ public static partial class AlmanacContentAuthoring
     private static void PopulateObjectRecipe(MenuCatalog catalog, Recipe recipe)
     {
         string restaurant = ObjectRestaurantName(catalog.RestaurantType);
-        string ingredients = string.Join(", ", recipe.ingredients.Where(i => i != null && i.item != null && i.amount > 0)
-            .Select(i => ObjectIngredientName(i.item) + " x" + i.amount));
+        var ingredients = (recipe.ingredients ?? new List<RecipeIngredient>())
+            .Where(i => i != null && i.item != null && i.amount > 0).ToArray();
+        bool drink = recipe.category == MenuProductCategory.Drink;
         string introduction = string.IsNullOrWhiteSpace(recipe.descriptionText)
-            ? recipe.DisplayName + " is a drink on the " + restaurant + " menu."
+            ? recipe.DisplayName + " is a " + (drink ? "drink" : "dish") + " on the " + restaurant + " menu."
             : recipe.descriptionText;
-        var notes = new List<string>
-        {
-            "Available from Day " + Mathf.Max(1, recipe.dayToUnlock) + ".",
-            "Ingredients per serving: " + ingredients + "."
-        };
+        var notes = new List<string>();
+        if (ingredients.Length > 0)
+            notes.Add("Ingredients per serving\n" + string.Join("\n", ingredients
+                .Select(i => "\u2022 " + ObjectIngredientName(i.item) + " \u00d7" + i.amount)));
         var links = new List<string> { ObjectRestaurantId(catalog.RestaurantType), "management-menu" };
         if (catalog.RestaurantType == RestaurantType.FastFood)
         {
             var station = FastFoodCookingState.Station(recipe);
             if (station == FastFoodStationMode.Assembler)
             {
-                notes.Add("Add the drink at the assembly counter when completing its order.");
+                notes.Add("Preparation\nAdd the drink at the assembly counter when completing its order.");
                 links.Add("kitchen-assembler");
             }
             else
             {
                 bool fry = station == FastFoodStationMode.Fry;
-                notes.Add("Cook at the " + (fry ? "fryer" : "grill") + ". Collect the food before it burns.");
+                string preparation = fry
+                    ? "Cook at the fryer, then collect the raised basket onto the holding rack."
+                    : "Cook at the grill. Collect it before it burns.";
+                if (FastFoodCookingState.AssemblySteps(recipe).Count > 0 &&
+                    FastFoodCookingState.PreparationStation(recipe) == FastFoodStationMode.Grill)
+                    preparation += " Then assemble it at the grill preparation board in the shown order.";
+                notes.Add("Preparation\n" + preparation);
                 links.Add(fry ? "kitchen-fryer" : "kitchen-grill");
-                if (recipe.preparationStation == FastFoodStationMode.Grill)
-                    notes.Add("Finish the sandwich at the grill preparation board, following its ingredient sequence.");
             }
         }
-        else notes.Add("Enable it in the restaurant menu and keep its ingredients stocked for customer orders.");
-        links.AddRange(recipe.ingredients.Where(i => i != null && i.item != null).Select(i => ObjectIngredientId(i.item)));
-        Entry(ObjectFoodId(recipe), AlmanacCategory.Food, recipe.DisplayName,
-            restaurant + (recipe.category == MenuProductCategory.Drink ? " / Drink" : " / Dish"), introduction,
-            string.Join("\n", notes), AssetDatabase.GetAssetPath(recipe) + "\n" + AssetDatabase.GetAssetPath(catalog) +
+        else notes.Add("Keep these ingredients stocked and enable this " + (drink ? "drink" : "dish") + " for customer orders.");
+        notes.Add("Available from Day " + Mathf.Max(1, recipe.dayToUnlock) + ".");
+        links.AddRange(ingredients.Select(i => ObjectIngredientId(i.item)));
+        var entry = Entry(ObjectFoodId(recipe), AlmanacCategory.Food, recipe.DisplayName,
+            restaurant + " \u00b7 DISH", introduction, string.Join("\n\n", notes),
+            AssetDatabase.GetAssetPath(recipe) + "\n" + AssetDatabase.GetAssetPath(catalog) +
             "\nAssets/_Project/Office/Inventory/Recipe.cs\nAssets/_Project/Restaurant/FastFoodCookingState.cs",
             iconPath: AssetDatabase.GetAssetPath(recipe.sprite), related: links.Distinct().ToArray());
+        entry.listSection = "Dishes";
+        entry.sectionOrder = 0;
+        entry.searchAliases = restaurant + " " + recipe.name + (drink ? " drink beverage" : " dish food");
     }
 
     private static void PopulateObjectIngredient(MenuCatalog catalog, ItemData item)
     {
         var recipes = catalog.Products.Where(r => r != null && r.availableOnMenu && r.ingredients != null &&
-            r.ingredients.Any(i => i != null && i.item == item)).ToArray();
+            r.ingredients.Any(i => i != null && i.item == item && i.amount > 0)).ToArray();
         bool frozen = item.requiredStorage == RestockStorageType.Frozen;
-        string description = ObjectIngredientName(item) + " is stocked for the " + ObjectRestaurantName(catalog.RestaurantType) + " kitchen.";
-        string notes = "Store in " + (frozen ? "frozen" : "dry") + " storage. A box supplies " + item.unitsPerBox + " units.\n" +
-            "Available from Day " + Mathf.Max(1, item.dayToUnlock) + ".\n" +
-            "Used in: " + string.Join(", ", recipes.Select(r => r.DisplayName)) + ".\n" +
-            "Check the box's expiry label; the wrong storage environment makes stock spoil faster.";
+        string restaurant = ObjectRestaurantName(catalog.RestaurantType);
+        string description = ObjectIngredientName(item) + " is a stock ingredient for " + restaurant + ".";
+        var notes = new List<string>
+        {
+            "Stored in: " + (frozen ? "Frozen storage" : "Dry storage"),
+            "Used for: " + string.Join(", ", recipes.Select(r => r.DisplayName))
+        };
+        if (catalog.RestaurantType == RestaurantType.FastFood)
+        {
+            var stations = new List<string>();
+            foreach (var recipe in recipes)
+            {
+                if (recipe.category == MenuProductCategory.Drink) stations.Add("Assembly counter");
+                else
+                {
+                    // Only the first cooking ingredient goes on the hot appliance.
+                    // Bun/cheese and cooked proteins instead participate in the prep sequence.
+                    if (FastFoodCookingState.Steps(recipe).FirstOrDefault()?.item == item)
+                        stations.Add(FastFoodCookingState.Station(recipe) == FastFoodStationMode.Fry ? "Fryer" : "Grill");
+                    if (FastFoodCookingState.AssemblySteps(recipe).Any(step => step != null && step.item == item) &&
+                        FastFoodCookingState.PreparationStation(recipe) == FastFoodStationMode.Grill)
+                        stations.Add("Grill preparation board");
+                }
+            }
+            if (stations.Count > 0) notes.Add("Prepared at: " + string.Join(", ", stations.Distinct()));
+        }
+        notes.Add("Box quantity: " + item.unitsPerBox + " units");
         var links = recipes.Select(ObjectFoodId).Concat(new[] { frozen ? "storage-frozen" : "storage-dry", "storage-delivery" }).ToArray();
-        Entry(ObjectIngredientId(item), AlmanacCategory.Food, ObjectIngredientName(item),
-            ObjectRestaurantName(catalog.RestaurantType) + " / Ingredient", description, notes,
+        var entry = Entry(ObjectIngredientId(item), AlmanacCategory.Food, ObjectIngredientName(item),
+            restaurant + " \u00b7 INGREDIENT", description, string.Join("\n", notes),
             AssetDatabase.GetAssetPath(item) + "\n" + AssetDatabase.GetAssetPath(catalog) +
-            "\nAssets/_Project/Office/Inventory/ItemData.cs\nAssets/_Project/Restaurant/RestockRoom/RestockOrderManager.cs",
+            "\nAssets/_Project/Office/Inventory/ItemData.cs\nAssets/_Project/Restaurant/FastFoodCookingState.cs" +
+            "\nAssets/_Project/Restaurant/RestockRoom/RestockOrderManager.cs",
             iconPath: AssetDatabase.GetAssetPath(item.sprite), related: links);
+        entry.listSection = "Ingredients";
+        entry.sectionOrder = 1;
+        entry.searchAliases = restaurant + " " + item.name + " " + item.displayName + " ingredient stock";
     }
 
     private static void PopulateKitchenObjects()
@@ -108,7 +142,7 @@ public static partial class AlmanacContentAuthoring
             related: new[] { "food-burger", "food-chicken-sandwich", "food-fish-fillet-sandwich", "kitchen-fryer" });
         Entry("kitchen-fryer", AlmanacCategory.Kitchen, "Fryer", "Fast Food / Cooking station",
             "A fryer cooks food in hot oil. Keep an eye on each basket as the food cooks.",
-            "Prepare fries, fried chicken, nuggets, and the proteins for chicken and fish sandwiches.\nCollect ready baskets and use the holding rack.\nChicken and fish sandwiches finish at the grill preparation board.\nFood left cooking too long burns.",
+            "Prepare fries, fried chicken, nuggets, and the proteins for chicken and fish sandwiches.\nCollect ready baskets and use the holding rack.\nChicken and fish sandwiches finish at the grill preparation board.\nReady fryer food stops heating. Collect raised baskets when the holding rack has space.",
             "Assets/_Project/Restaurant/FastFoodCookingState.cs: Station, BasketRaised, CollectBasket\nAssets/_Project/Office/Manager/Recipe\nAssets/_Project/Resources/FastFood/Recipes",
             prefabPath: "Assets/_Project/Scenes/RoleBased/Kitchen/Prefabs/Fryer.prefab", kind: AlmanacPreviewKind.Model,
             related: new[] { "food-fries", "food-fried-chicken", "food-chicken-nuggets", "kitchen-grill" });
@@ -146,12 +180,19 @@ public static partial class AlmanacContentAuthoring
             "Assets/_Project/Restaurant/FastFoodServiceStation.cs\nAssets/_Project/Resources/FastFood/Equipment/ff_kiosk_1.asset\nAssets/_Project/Resources/FastFood/Equipment/ff_kiosk_2.asset",
             prefabPath: "Assets/_Project/Restaurant/Prefabs/FastFood/Fast Food Kiosk.prefab", kind: AlmanacPreviewKind.Model,
             related: new[] { "restaurant-fast-food", "service-cashier", "management-progression" });
-        Entry("service-order-pad", AlmanacCategory.Service, "Order Notepad", "Reviewing orders",
-            "The order notepad helps you review what a customer wants before sending the order to the kitchen.",
-            "Read the customer's requested food and drink.\nChoose the corresponding items from the restaurant's available menu.\nKeep track of the order when collecting and delivering its food.",
-            "Assets/_Project/Restaurant/Items/OrderChecklistUI.cs\nAssets/_Project/Restaurant/Items/ReviewedOrderSubmission.cs\nAssets/_Project/Restaurant/Items/NotepadMenuEntryUI.cs",
-            iconPath: "Assets/_Project/Restaurant/Assets/Level1/UI/NotePad.png",
+        const string orderCapture = "Assets/_Project/UI/Almanac/Thumbnails/service-order-ui.png";
+        var orderEntry = Entry("service-order-pad", AlmanacCategory.Service, "Order Check", "Customer orders / Food, drinks & quantities",
+            "Use the customer's requested items and quantities to collect and check their order.",
+            "Choose the requested items and quantities in Food and Drinks.\nSelect CHECK ORDER to compare your selection with the customer's request.\nIf anything is missing, extra or incorrect, use FIX ORDER and correct it.\nWhen ORDER MATCHES appears, select CONFIRM ORDER. The accepted order then continues to kitchen and payment service.",
+            "Assets/_Project/Restaurant/Items/OrderChecklistUI.cs: Open, BindStaticButtons, CheckOrder, ShowReviewPanel, Confirm\n" +
+            "Assets/_Project/Restaurant/Items/ReviewedOrderSubmission.cs: TryBuild, TrySubmit\n" +
+            "Assets/_Project/Restaurant/FastFoodCounter.cs: Interact\n" +
+            "Assets/_Project/Scenes/RoleBased/Lobby1.unity: ORDER CHECK\nAssets/_Project/Scenes/RoleBased/Lobby2.unity: ORDER CHECK\n" +
+            "Illustrative UI-only example: Tomato Soup x1 and Iced Tea Pitcher x1, with sample displayed stock of 12. Captured from the actual Lobby1 OrderChecklistUI and Notepad Menu Item prefab; no customer, campaign, order, inventory or save state was changed.",
+            iconPath: AssetDatabase.LoadAssetAtPath<Sprite>(orderCapture) != null ? orderCapture : null,
             related: new[] { "management-menu", "service-tray", "kitchen-assembler" });
+        orderEntry.searchAliases = "order notepad order review customer order order panel order collection";
+        orderEntry.widePreview = true;
         Entry("equipment-seating", AlmanacCategory.Equipment, "Tables & Booths", "Dining capacity",
             "Tables and booths give dine-in customers somewhere to sit and enjoy their meal.",
             "Each table has a fixed set of seats and service points.\nSeating upgrades make additional seats available.\nFast Food includes booths, round tables, window tables and back-stool tables.\nClear used trays and clean dirty tables for the next guests.",

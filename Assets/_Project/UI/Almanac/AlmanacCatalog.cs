@@ -14,6 +14,6 @@ public sealed class AlmanacCatalog : ScriptableObject
         return entries.Concat(Resources.LoadAll<AlmanacEntryData>("Almanac"))
             .Where(e => e != null && !string.IsNullOrWhiteSpace(e.entryId))
             .GroupBy(e => e.entryId).Select(g => g.First())
-            .OrderBy(e => e.category).ThenBy(e => e.entryName).ToList();
+            .OrderBy(e => e.category).ThenBy(e => e.sectionOrder).ThenBy(e => e.listSection).ThenBy(e => e.entryName).ToList();
     }
 }

@@ -13,19 +13,21 @@ MonoBehaviour:
   m_Name: ingredient-coke-mix
   m_EditorClassIdentifier: 
   entryName: Coke Mix
-  subTitle: Fast Food / Ingredient
+  subTitle: "Fast Food \xB7 INGREDIENT"
   entryId: ingredient-coke-mix
   category: 5
-  description: Coke Mix is stocked for the Fast Food kitchen.
-  gameplayNotes: 'Store in dry storage. A box supplies 20 units.
+  listSection: Ingredients
+  sectionOrder: 1
+  searchAliases: "Fast Food Coke Coke Mix \u2013 20 Servings ingredient stock"
+  description: Coke Mix is a stock ingredient for Fast Food.
+  gameplayNotes: 'Stored in: Dry storage
 
-    Available from
-    Day 1.
+    Used for: Coke
 
-    Used in: Coke.
+    Prepared at: Assembly
+    counter
 
-    Check the box''s expiry label; the wrong storage
-    environment makes stock spoil faster.'
+    Box quantity: 20 units'
   bossNote: 
   relatedIds:
   - food-coke
@@ -33,6 +35,8 @@ MonoBehaviour:
   - storage-delivery
   icon: {fileID: 21300000, guid: 85cf06d21ea9d7b4d9eb81f3472adce4, type: 3}
   previewKind: 0
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 0}
   previewEuler: {x: 0, y: 155, z: 0}
   idleClip: {fileID: 0}
@@ -43,5 +47,7 @@ MonoBehaviour:
     Assets/_Project/Resources/MenuCatalog.asset
 
     Assets/_Project/Office/Inventory/ItemData.cs
+
+    Assets/_Project/Restaurant/FastFoodCookingState.cs
 
     Assets/_Project/Restaurant/RestockRoom/RestockOrderManager.cs'

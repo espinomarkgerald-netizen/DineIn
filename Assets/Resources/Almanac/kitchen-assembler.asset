@@ -16,6 +16,9 @@ MonoBehaviour:
   subTitle: Fast Food / Order assembly
   entryId: kitchen-assembler
   category: 3
+  listSection: 
+  sectionOrder: 0
+  searchAliases: 
   description: The assembly counter brings finished food and drinks together into
     a customer's order.
   gameplayNotes: 'Use the order ticket to choose the required portions.
@@ -36,6 +39,8 @@ MonoBehaviour:
   - kitchen-fryer
   icon: {fileID: 21300000, guid: 5549d60382c4c904fa187ed8fbf0a49e, type: 3}
   previewKind: 2
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 3060417901569154181, guid: f11083ceea6caa64794c5fc61282d003, type: 3}
   previewEuler: {x: 0, y: 155, z: 0}
   idleClip: {fileID: 0}

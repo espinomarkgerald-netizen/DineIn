@@ -13,19 +13,19 @@ MonoBehaviour:
   m_Name: ingredient-casual-lemon
   m_EditorClassIdentifier: 
   entryName: Lemon
-  subTitle: Casual Dining / Ingredient
+  subTitle: "Casual Dining \xB7 INGREDIENT"
   entryId: ingredient-casual-lemon
   category: 5
-  description: Lemon is stocked for the Casual Dining kitchen.
-  gameplayNotes: 'Store in frozen storage. A box supplies 30 units.
+  listSection: Ingredients
+  sectionOrder: 1
+  searchAliases: Casual Dining Lemon Lemon ingredient stock
+  description: Lemon is a stock ingredient for Casual Dining.
+  gameplayNotes: 'Stored in: Frozen storage
 
-    Available
-    from Day 3.
+    Used for: Garlic Butter Shrimp,
+    Fried Salmon, Caesar Salad
 
-    Used in: Garlic Butter Shrimp, Fried Salmon, Caesar Salad.
-
-    Check
-    the box''s expiry label; the wrong storage environment makes stock spoil faster.'
+    Box quantity: 30 units'
   bossNote: 
   relatedIds:
   - food-garlic-butter-shrimp
@@ -35,6 +35,8 @@ MonoBehaviour:
   - storage-delivery
   icon: {fileID: 21300000, guid: a9efa72c4561f804b8dba7f28dde17c2, type: 3}
   previewKind: 0
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 0}
   previewEuler: {x: 0, y: 155, z: 0}
   idleClip: {fileID: 0}
@@ -45,5 +47,7 @@ MonoBehaviour:
     Assets/_Project/Resources/CasualDiningMenuCatalog.asset
 
     Assets/_Project/Office/Inventory/ItemData.cs
+
+    Assets/_Project/Restaurant/FastFoodCookingState.cs
 
     Assets/_Project/Restaurant/RestockRoom/RestockOrderManager.cs'

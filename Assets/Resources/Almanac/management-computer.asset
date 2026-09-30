@@ -16,6 +16,9 @@ MonoBehaviour:
   subTitle: Restaurant planning
   entryId: management-computer
   category: 8
+  listSection: 
+  sectionOrder: 0
+  searchAliases: 
   description: The restaurant computer brings everyday management into one place.
   gameplayNotes: 'Review the dashboard, staff, menu, restock, equipment, finances
     and objectives.
@@ -34,6 +37,8 @@ MonoBehaviour:
   - management-progression
   icon: {fileID: 21300000, guid: f84e165ead64df54daa8aad978ee2969, type: 3}
   previewKind: 2
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 3601039799819797629, guid: 20e2222974490594f90ac44805765fbc, type: 3}
   previewEuler: {x: 0, y: 155, z: 0}
   idleClip: {fileID: 0}

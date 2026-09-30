@@ -2,6 +2,42 @@
 
 Read-only audit of `DineIn/Assets/_Project`; no Editor control or scene edits.
 
+## Content and visual polish follow-up
+
+The content authoring file was re-audited against the current project. This documentation, `Assets/_Project/Editor/AlmanacContentAuthoring.Objects.cs` and the isolated capture helper `AlmanacContentAuthoring.OrderPreview.cs` were edited for the bounded content subtask. No scene, recipe, ingredient, material, or generated entry asset was changed here.
+
+### Food organization and writing
+
+- All 21 `MenuCatalog.Products` remain customer-orderable **Dishes**, including drinks; `listSection = Dishes`, `sectionOrder = 0`.
+- All 30 `MenuCatalog.Ingredients` remain **Ingredients**; `listSection = Ingredients`, `sectionOrder = 1`.
+- Restaurant context comes from the owning catalog and is displayed as `Fast Food · DISH`, `Casual Dining · INGREDIENT`, etc.
+- No prepared-component subgroup was added. Cooked proteins are stages of `FastFoodCookingState.Portion`; they are not separate customer products or independent stock entries in these catalogs.
+- Dish ingredient quantities are read from `Recipe.ingredients`. Preparation uses `FastFoodCookingState.Station`, `PreparationStation` and `AssemblySteps`; prose does not duplicate the recipe lists.
+- Compact ingredient notes report required storage, dishes using the ingredient, applicable Fast Food station and box quantity. Casual Dining recipes do not explicitly assign these Fast Food stations, so their ingredient entries omit a station claim.
+- Ingredient station attribution distinguishes cooking from preparation: burger buns and cheese use the grill preparation board; beef patties use the grill and board; chicken/fish proteins use the fryer and then the grill preparation board. This is derived from first-cooking ingredient and assembly steps.
+- Existing IDs are unchanged. `food-ice-tea` (Fast Food drink), `ingredient-iced-tea-mix` (Fast Food stock), `food-iced-tea-pitcher` and `ingredient-casual-iced-tea-powder` (Casual Dining) represent different catalog items, not duplicate records. Search aliases include existing asset names, so “Iced Tea” can find the configured “Ice Tea” product.
+
+### Verified Order Check presentation
+
+- **Order Check** is an existing player-facing title, serialized as `ORDER CHECK` in `Assets/_Project/Scenes/RoleBased/Lobby1.unity:40826` and `Lobby2.unity:234886`.
+- `OrderChecklistUI.Open` loads the customer's requested items and opens Food. The guidance reads “Match every meal, drink, and quantity below.”
+- `BindStaticButtons` labels the action **CHECK ORDER**. `EvaluateOrderSelection` checks missing items, extra items, wrong selections and quantities. `ShowReviewPanel` uses **ORDER MATCHES** / **ORDER NEEDS FIXING**, **CONFIRM ORDER**, **FIX ORDER**, and disables submission while mismatched.
+- `ReviewedOrderSubmission.TryBuild/TrySubmit` validate the selected IDs and quantities, availability and stock before committing. `FastFoodCounter.Interact` opens this same current review UI; confirmed Fast Food counter orders can then request payment.
+- The existing stable entry ID is `service-order-pad`, not `service-order-notepad`. It is preserved while the display name becomes **Order Check**. “Order notepad” remains a search alias only.
+- The authoring reference for the new actual UI capture is `Assets/_Project/UI/Almanac/Thumbnails/service-order-ui.png`, `widePreview = true`. Root captures/imports the current screen and invokes content authoring; this subtask does not fabricate a UI image or launch the gameplay panel.
+
+### Accuracy corrections and preview evidence
+
+- **Corrected fryer advice:** `FastFoodCookingState` lines 531–537 stops heating finished fryer food, raises ready baskets, and excludes Fry from the overcook branch. Only grill food can enter Burnt while awaiting player collection. Fryer and fryer-recipe entries now teach collecting raised baskets to the holding rack instead of warning that ready fryer portions burn.
+- **Wrong storage really shortens freshness:** `RestockOrderManager.TryStoreOneContainer` calls `InventoryManager.UpdateBatchStorage`. `InventoryManager.cs:377–400` divides remaining days by the configured wrong-storage multiplier on entry into the wrong environment and reduces `expiresDay`. It does not merely reject a wrong shelf or display a warning. That verified advice remains on the storage/box pages; repetitive spoilage prose was removed from individual ingredient pages.
+- Existing Grill/Fryer preview prefabs use the shared restaurant FBX GUID `6bd9d4a31ab70374f874acc0066b2937`, mesh IDs `-2242496367799463545` / `1080083821071182086`. Both meshes **and their exact embedded material arrays** also exist in Lobby2 (Grill GameObject fileID `2029274539`; Fryer `1999038544`). They are authentic appliance art.
+- They are not exact captures of the newer full interactive station arrangement: Lobby2's `FastFoodCookingStation` grill `workSurface` refers to `Cube.028` (GameObject `5813186243137750202`), and its fry work surface is unset because the station uses authored basket targets. This is recorded so a representative appliance preview is not mistaken for a complete current kitchen-station screenshot.
+
+### Verification and generation
+
+- Performed read-only script/config/scene-reference inspection and stable-ID/path checks; no Play Mode or visual UI verification in this subtask.
+- After the shared data fields and new order UI image are ready, run `AlmanacContentAuthoring.Populate()` (menu **Dine In > Almanac > Populate Audited Content**). `PopulateObjects()` authors the same 72 object/food records and updates their group/alias metadata; it does not change gameplay catalogs or scene layout. Run the root catalog and presentation checks after generation.
+
 ## Authoritative catalogs
 - `Resources/MenuCatalog.asset`: Fast Food / Lobby2, nine products and eleven ingredients, three food bundles.
 - `Resources/CasualDiningMenuCatalog.asset`: Casual Dining / Lobby1, twelve products and nineteen ingredients, no bundles.
@@ -93,3 +129,11 @@ Read-only audit of `DineIn/Assets/_Project`; no Editor control or scene edits.
 | Chicken Patty x20 | Frozen | Assets/_Project/Resources/FastFood/Ingredients/Chicken Patty.asset | Assets/_Project/UI/Assets/FoodIcons/Fast Food/Ingredients/Chicken Patty.png |
 | Frozen Fish Fillet x20 | Frozen | Assets/_Project/Resources/FastFood/Ingredients/Frozen Fish Fillet.asset | Assets/_Project/UI/Assets/FoodIcons/Fast Food/Ingredients/Frozen Fish Fillet.png |
 | Frozen Nuggets x20 | Frozen | Assets/_Project/Resources/FastFood/Ingredients/Frozen Nuggets.asset | Assets/_Project/UI/Assets/FoodIcons/Fast Food/Ingredients/Frozen Nuggets.png |
+
+### Current Order Check image generation
+
+- `AlmanacContentAuthoring.RenderOrderPreview()` is an Editor-only helper (menu: **Dine In > Almanac > Render Current Order Preview**). The root task runs it outside Play Mode; the code subtask did not execute it.
+- It opens Lobby1 as a preview scene, copies its inactive `OrderChecklistUI` hierarchy into a separate preview scene, retains actual UI images/materials/fonts and binds the current `Notepad Menu Item` prefab to real Casual Dining catalog products.
+- The illustration selects Tomato Soup x1 and Iced Tea Pitcher x1 with sample displayed stock of 12. Source notes explicitly identify this example. The helper never calls `Open`, `Confirm`, customer/task logic, inventory mutation or save/progression services. Actual card price formatting from `Bind` is preserved.
+- The temporary camera fits the bounds of active UI graphics with 3.5% padding and excludes parts hidden by parent Mask/RectMask2D. The actual UI layout is not rearranged.
+- Capture is 1600 x 900, imported as an uncompressed full-rect sprite, no mipmaps, maximum size 2048. Temporary scenes, RenderTexture and readback texture are disposed in `finally`. The open gameplay/menu scene is not replaced.

@@ -16,6 +16,9 @@ MonoBehaviour:
   subTitle: "Casual Dining \xB7 clean tables, ready seats"
   entryId: staff-busser
   category: 1
+  listSection: Casual Dining
+  sectionOrder: 1
+  searchAliases: table clearing cleaning
   description: Clears dirty tables and carries used trays away, helping the next
     group find a clean place to sit. A busy dining room needs someone keeping its
     tables ready.
@@ -29,8 +32,10 @@ MonoBehaviour:
   relatedIds:
   - customer-messy
   - staff-lobby-person
-  icon: {fileID: 21300000, guid: 1ddea4d065eb5f944affd47334bd0219, type: 3}
+  icon: {fileID: 21300000, guid: 95b41f8fe682c654098ca9e633e7939f, type: 3}
   previewKind: 1
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 7338516764369221228, guid: cbd2dd99b7c65d243961419b5d113079, type: 3}
   previewEuler: {x: 0, y: 160, z: 0}
   idleClip: {fileID: 7400000, guid: 68b0a9eb38471694cbba952db7d69009, type: 2}

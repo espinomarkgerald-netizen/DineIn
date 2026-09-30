@@ -16,6 +16,9 @@ MonoBehaviour:
   subTitle: The familiar green guest
   entryId: customer-regular
   category: 0
+  listSection: 
+  sectionOrder: 0
+  searchAliases: 
   description: A regular guest gives you a little time to get the meal right. Keep
     orders moving, serve the right dishes, and make their visit comfortable.
   gameplayNotes: 'Normal patience and eating speed.
@@ -30,6 +33,8 @@ MonoBehaviour:
   - staff-waiter
   icon: {fileID: 21300000, guid: 47de1f5a57b288f4b86247c3204479a2, type: 3}
   previewKind: 1
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 4181365881559645944, guid: 3ec91cbd2e91953479f885048d4a413c, type: 3}
   previewEuler: {x: 0, y: 160, z: 0}
   idleClip: {fileID: 7400000, guid: 68b0a9eb38471694cbba952db7d69009, type: 2}

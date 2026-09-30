@@ -16,6 +16,9 @@ MonoBehaviour:
   subTitle: "Fast Food \xB7 a new face in the queue"
   entryId: customer-purple
   category: 0
+  listSection: 
+  sectionOrder: 0
+  searchAliases: 
   description: Purple guests begin dropping by as the Fast Food restaurant gets established.
     Their normal patience, ordering pace and eating speed make them a straightforward
     visit to handle well.
@@ -29,6 +32,8 @@ MonoBehaviour:
   - staff-cashier
   icon: {fileID: 21300000, guid: 0dcba05a6ff31f648a8e12e493fecc8a, type: 3}
   previewKind: 1
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 7624134395249347092, guid: a56e23561fe436f448eaed2fde0269f4, type: 3}
   previewEuler: {x: 0, y: 160, z: 0}
   idleClip: {fileID: 7400000, guid: 68b0a9eb38471694cbba952db7d69009, type: 2}

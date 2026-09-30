@@ -13,16 +13,16 @@ MonoBehaviour:
   m_Name: food-ice-tea
   m_EditorClassIdentifier: 
   entryName: Ice Tea
-  subTitle: Fast Food / Drink
+  subTitle: "Fast Food \xB7 DISH"
   entryId: food-ice-tea
   category: 5
+  listSection: Dishes
+  sectionOrder: 0
+  searchAliases: Fast Food Iced Tea drink beverage
   description: Ice Tea is a drink on the Fast Food menu.
-  gameplayNotes: 'Available from Day 1.
-
-    Ingredients per serving: Iced Tea Mix
-    x1.
-
-    Add the drink at the assembly counter when completing its order.'
+  gameplayNotes: "Ingredients per serving\n\u2022 Iced Tea Mix \xD71\n\nPreparation\nAdd
+    the drink at the assembly counter when completing its order.\n\nAvailable from
+    Day 1."
   bossNote: 
   relatedIds:
   - restaurant-fast-food
@@ -31,6 +31,8 @@ MonoBehaviour:
   - ingredient-iced-tea-mix
   icon: {fileID: 21300000, guid: 9746789dafebbb841a6edd396858d4b4, type: 3}
   previewKind: 0
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 0}
   previewEuler: {x: 0, y: 155, z: 0}
   idleClip: {fileID: 0}

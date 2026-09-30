@@ -12,33 +12,54 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b7c441fc5b04604458af20f08da8df09, type: 3}
   m_Name: service-order-pad
   m_EditorClassIdentifier: 
-  entryName: Order Notepad
-  subTitle: Reviewing orders
+  entryName: Order Check
+  subTitle: Customer orders / Food, drinks & quantities
   entryId: service-order-pad
   category: 6
-  description: The order notepad helps you review what a customer wants before sending
-    the order to the kitchen.
-  gameplayNotes: 'Read the customer''s requested food and drink.
+  listSection: 
+  sectionOrder: 0
+  searchAliases: order notepad order review customer order order panel order collection
+  description: Use the customer's requested items and quantities to collect and check
+    their order.
+  gameplayNotes: 'Choose the requested items and quantities in Food and Drinks.
 
-    Choose the
-    corresponding items from the restaurant''s available menu.
+    Select
+    CHECK ORDER to compare your selection with the customer''s request.
 
-    Keep track of
-    the order when collecting and delivering its food.'
+    If anything
+    is missing, extra or incorrect, use FIX ORDER and correct it.
+
+    When ORDER
+    MATCHES appears, select CONFIRM ORDER. The accepted order then continues to kitchen
+    and payment service.'
   bossNote: 
   relatedIds:
   - management-menu
   - service-tray
   - kitchen-assembler
-  icon: {fileID: 21300000, guid: f71c200efb3234446927bdbeb28cb211, type: 3}
+  icon: {fileID: 21300000, guid: 5a13b337ed8dddc49b53c171b4d51cb3, type: 3}
   previewKind: 0
+  previewFraming: 0
+  widePreview: 1
   previewPrefab: {fileID: 0}
   previewEuler: {x: 0, y: 155, z: 0}
   idleClip: {fileID: 0}
   introductionClip: {fileID: 0}
   variants: []
-  sourceNotes: 'Assets/_Project/Restaurant/Items/OrderChecklistUI.cs
+  sourceNotes: 'Assets/_Project/Restaurant/Items/OrderChecklistUI.cs: Open, BindStaticButtons,
+    CheckOrder, ShowReviewPanel, Confirm
 
-    Assets/_Project/Restaurant/Items/ReviewedOrderSubmission.cs
+    Assets/_Project/Restaurant/Items/ReviewedOrderSubmission.cs:
+    TryBuild, TrySubmit
 
-    Assets/_Project/Restaurant/Items/NotepadMenuEntryUI.cs'
+    Assets/_Project/Restaurant/FastFoodCounter.cs: Interact
+
+    Assets/_Project/Scenes/RoleBased/Lobby1.unity:
+    ORDER CHECK
+
+    Assets/_Project/Scenes/RoleBased/Lobby2.unity: ORDER CHECK
+
+    Illustrative
+    UI-only example: Tomato Soup x1 and Iced Tea Pitcher x1, with sample displayed
+    stock of 12. Captured from the actual Lobby1 OrderChecklistUI and Notepad Menu
+    Item prefab; no customer, campaign, order, inventory or save state was changed.'

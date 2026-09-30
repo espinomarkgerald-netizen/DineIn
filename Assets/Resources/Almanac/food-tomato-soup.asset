@@ -13,17 +13,16 @@ MonoBehaviour:
   m_Name: food-tomato-soup
   m_EditorClassIdentifier: 
   entryName: Tomato Soup
-  subTitle: Casual Dining / Dish
+  subTitle: "Casual Dining \xB7 DISH"
   entryId: food-tomato-soup
   category: 5
+  listSection: Dishes
+  sectionOrder: 0
+  searchAliases: Casual Dining Tomato Soup dish food
   description: A warm tomato soup with bouillon and house seasoning.
-  gameplayNotes: 'Available from Day 1.
-
-    Ingredients per serving: Canned Tomato
-    x2, Bouillon Cube x1, Seasoning x1.
-
-    Enable it in the restaurant menu and
-    keep its ingredients stocked for customer orders.'
+  gameplayNotes: "Ingredients per serving\n\u2022 Canned Tomato \xD72\n\u2022 Bouillon
+    Cube \xD71\n\u2022 Seasoning \xD71\n\nKeep these ingredients stocked and enable
+    this dish for customer orders.\n\nAvailable from Day 1."
   bossNote: 
   relatedIds:
   - restaurant-casual-dining
@@ -33,6 +32,8 @@ MonoBehaviour:
   - ingredient-casual-seasoning
   icon: {fileID: 21300000, guid: fac16f917d5e91f4088875970df742c3, type: 3}
   previewKind: 0
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 0}
   previewEuler: {x: 0, y: 155, z: 0}
   idleClip: {fileID: 0}

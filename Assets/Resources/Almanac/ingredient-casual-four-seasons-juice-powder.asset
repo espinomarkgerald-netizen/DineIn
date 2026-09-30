@@ -13,19 +13,20 @@ MonoBehaviour:
   m_Name: ingredient-casual-four-seasons-juice-powder
   m_EditorClassIdentifier: 
   entryName: Four Seasons Juice Powder
-  subTitle: Casual Dining / Ingredient
+  subTitle: "Casual Dining \xB7 INGREDIENT"
   entryId: ingredient-casual-four-seasons-juice-powder
   category: 5
-  description: Four Seasons Juice Powder is stocked for the Casual Dining kitchen.
-  gameplayNotes: 'Store in dry storage. A box supplies 20 units.
+  listSection: Ingredients
+  sectionOrder: 1
+  searchAliases: Casual Dining Four Seasons Juice Powder Four Seasons Juice Powder
+    ingredient stock
+  description: Four Seasons Juice Powder is a stock ingredient for Casual Dining.
+  gameplayNotes: 'Stored in: Dry storage
 
-    Available from
-    Day 18.
+    Used for: Four Seasons Juice Pitcher
 
-    Used in: Four Seasons Juice Pitcher.
-
-    Check the box''s expiry
-    label; the wrong storage environment makes stock spoil faster.'
+    Box
+    quantity: 20 units'
   bossNote: 
   relatedIds:
   - food-four-seasons-juice-pitcher
@@ -33,6 +34,8 @@ MonoBehaviour:
   - storage-delivery
   icon: {fileID: 21300000, guid: 0191233ba37d7d7409b70534bb9e58ff, type: 3}
   previewKind: 0
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 0}
   previewEuler: {x: 0, y: 155, z: 0}
   idleClip: {fileID: 0}
@@ -44,5 +47,7 @@ MonoBehaviour:
     Assets/_Project/Resources/CasualDiningMenuCatalog.asset
 
     Assets/_Project/Office/Inventory/ItemData.cs
+
+    Assets/_Project/Restaurant/FastFoodCookingState.cs
 
     Assets/_Project/Restaurant/RestockRoom/RestockOrderManager.cs'

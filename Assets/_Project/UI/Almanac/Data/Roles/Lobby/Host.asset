@@ -16,6 +16,9 @@ MonoBehaviour:
   subTitle: "Casual Dining \xB7 front of house"
   entryId: staff-host
   category: 1
+  listSection: Casual Dining
+  sectionOrder: 1
+  searchAliases: receptionist greeter front of house
   description: Welcomes guests in the queue and helps the party get seated. A ready
     host keeps the arrival area moving while the rest of the team handles service.
   gameplayNotes: 'Keep tables ready and watch waiting guests.
@@ -26,8 +29,10 @@ MonoBehaviour:
   relatedIds:
   - customer-vip
   - staff-waiter
-  icon: {fileID: 21300000, guid: ef82b0534a65e7d47b58fafa9a8f700b, type: 3}
+  icon: {fileID: 21300000, guid: 8e6fdc76600708a499fa0bc8fffac3e3, type: 3}
   previewKind: 1
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 1243741528260467819, guid: ae0f7412eeed90c4d935cdf83c9215b7, type: 3}
   previewEuler: {x: 0, y: 160, z: 0}
   idleClip: {fileID: 7400000, guid: 68b0a9eb38471694cbba952db7d69009, type: 2}

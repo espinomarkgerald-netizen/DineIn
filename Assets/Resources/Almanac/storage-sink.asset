@@ -16,6 +16,9 @@ MonoBehaviour:
   subTitle: Tray cleanup
   entryId: storage-sink
   category: 7
+  listSection: 
+  sectionOrder: 0
+  searchAliases: 
   description: A sink provides a washing point for used service ware.
   gameplayNotes: 'Bring carried dirty trays to the sink to finish the cleanup trip.
 
@@ -27,6 +30,8 @@ MonoBehaviour:
   - equipment-busser-trolley
   icon: {fileID: 21300000, guid: c201f03f9ef5f2345a2b9b8a52071433, type: 3}
   previewKind: 2
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 890000000000000009, guid: 5f9a915d2d1e5c378377c2dfeab824b4, type: 3}
   previewEuler: {x: 0, y: 155, z: 0}
   idleClip: {fileID: 0}

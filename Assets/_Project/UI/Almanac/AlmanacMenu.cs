@@ -27,9 +27,9 @@ public sealed class AlmanacMenu : MonoBehaviour
     [SerializeField] private CanvasGroup paperGroup, detailGroup;
     [SerializeField] private UnityEngine.UI.Button closeButton, backButton, previousButton, nextButton;
     [SerializeField] private TMP_InputField search;
-    [SerializeField] private RectTransform categoryContent, indexContent, relatedContent, variantContent;
-    [SerializeField] private ScrollRect indexScroll, bodyScroll;
-    [SerializeField] private TMP_Text title, subtitle, article, pageLabel, categoryLabel, emptyLabel, inspectLabel;
+    [SerializeField] private RectTransform categoryContent, indexContent, variantContent, photoFrame;
+    [SerializeField] private ScrollRect indexScroll, bodyScroll, variantScroll;
+    [SerializeField] private TMP_Text title, subtitle, article, pageLabel, categoryLabel, emptyLabel, inspectLabel, variantLabel;
     [SerializeField] private RawImage liveImage;
     [SerializeField] private UnityEngine.UI.Image stillImage;
     private readonly List<AlmanacEntryData> visible = new List<AlmanacEntryData>();
@@ -184,9 +184,18 @@ public sealed class AlmanacMenu : MonoBehaviour
         if(entries==null)return;
         Clear(indexContent);cards.Clear();visible.Clear();
         string query=search.text.Trim();
-        visible.AddRange(entries.Where(e=>e.category==category && (query.Length==0 || (e.entryName+" "+e.subTitle+" "+e.description).IndexOf(query,StringComparison.OrdinalIgnoreCase)>=0)));
+        visible.AddRange(entries.Where(e=>e.category==category && (query.Length==0 || (e.entryName+" "+e.searchAliases).IndexOf(query,StringComparison.OrdinalIgnoreCase)>=0)));
+        string lastSection = null;
         foreach(var entry in visible)
         {
+            if (!string.IsNullOrWhiteSpace(entry.listSection) && entry.listSection != lastSection)
+            {
+                var heading = Text("Section heading", indexContent, entry.listSection.ToUpperInvariant(), 19, true);
+                heading.color = Teal;
+                var sizing = heading.gameObject.AddComponent<LayoutElement>();
+                sizing.minHeight = sizing.preferredHeight = 30;
+                lastSection = entry.listSection;
+            }
             var card=MakeButton(entry.entryName,indexContent,string.Empty,21,Paper,0,76);
             var image=Graphic("Photo",card.transform,new Color(.88f,.86f,.77f));
             Place(image.rectTransform,new Vector2(0,0),new Vector2(0,1),new Vector2(6,7),new Vector2(70,-7));
@@ -230,17 +239,36 @@ public sealed class AlmanacMenu : MonoBehaviour
         if(!live && previewStage!=null)previewStage.Hide();
         liveImage.gameObject.SetActive(live);liveImage.texture=live?previewStage.Texture:null;
         stillImage.gameObject.SetActive(!live);stillImage.sprite=entry.icon;stillImage.enabled=entry.icon!=null;
-        inspectLabel.text=live?"DRAG TO TURN":"FROM THE RESTAURANT ARCHIVE";
+
         Clear(variantContent);
         if(live && entry.variants!=null && entry.variants.Length>1)
             for(int i=0;i<entry.variants.Length;i++){int pick=i;var b=MakeButton(entry.variants[i].label,variantContent,entry.variants[i].label,18,i==variant?new Color(.77f,.89f,.85f):Paper,152,38);b.onClick.AddListener(()=>SelectVariant(entry,pick));}
-        Clear(relatedContent);
-        foreach(string id in entry.relatedIds ?? Array.Empty<string>())
+        ConfigureDetailLayout(entry, live && entry.variants != null && entry.variants.Length > 1);
+        if (variantScroll.gameObject.activeSelf)
         {
-            var related=entries.Find(e=>e.entryId==id);if(related==null)continue;
-            var b=MakeButton(related.entryName,relatedContent,related.entryName,18,new Color(.88f,.88f,.78f),152,40);b.onClick.AddListener(()=>Navigate(related,true));
+            LayoutRebuilder.ForceRebuildLayoutImmediate(variantContent);
+            variantScroll.horizontalNormalizedPosition = variant / (float)(entry.variants.Length - 1);
         }
         bodyScroll.verticalNormalizedPosition=1;detailGroup.alpha=1;detailGroup.transform.localScale=Vector3.one;detailGroup.interactable=true;detailGroup.blocksRaycasts=true;RefreshNavigation();
+    }
+    private void ConfigureDetailLayout(AlmanacEntryData entry, bool hasVariants)
+    {
+        bool wide = entry.category == AlmanacCategory.Restaurants || entry.widePreview;
+        variantScroll.gameObject.SetActive(hasVariants);
+        variantLabel.gameObject.SetActive(hasVariants);
+        variantLabel.text = entry.category == AlmanacCategory.Staff ? "UNIFORM / RESTAURANT" : "PREVIEW VARIANT";
+        if (wide)
+        {
+            Place(photoFrame, new Vector2(0,.23f), Vector2.one, new Vector2(0,10), new Vector2(0,-75));
+            Place(bodyScroll.GetComponent<RectTransform>(), Vector2.zero, new Vector2(1,.23f), Vector2.zero, new Vector2(0,-4));
+        }
+        else
+        {
+            Place(photoFrame, Vector2.zero, new Vector2(.46f,1), new Vector2(0,hasVariants?80:0), new Vector2(0,-75));
+            Place(bodyScroll.GetComponent<RectTransform>(), new Vector2(.50f,0), Vector2.one, Vector2.zero, new Vector2(0,-75));
+        }
+        ConfigureInspectionHint(liveImage.gameObject.activeSelf);
+        if (!liveImage.gameObject.activeSelf) inspectLabel.text = wide ? "FROM THE GAME ARCHIVE" : "";
     }
     private void SelectVariant(AlmanacEntryData entry,int variant)
     {
@@ -250,15 +278,37 @@ public sealed class AlmanacMenu : MonoBehaviour
         if(Application.isPlaying)pageRoutine=StartCoroutine(ChangePage(entry,variant));else Populate(entry,variant);
         PlaySound();
     }
+    private void ConfigureInspectionHint(bool live)
+    {
+        // The hint follows the aspect-fitted viewport, not the screen or the menu's character.
+        inspectLabel.rectTransform.SetParent(live ? liveImage.transform : photoFrame, false);
+        inspectLabel.text = live ? "DRAG TO ROTATE" : "FROM THE RESTAURANT ARCHIVE";
+        inspectLabel.color = Ink;
+        inspectLabel.raycastTarget = false;
+        inspectLabel.alignment = live ? TextAlignmentOptions.Center : TextAlignmentOptions.BottomRight;
+        if (live)
+            Place(inspectLabel.rectTransform, new Vector2(.03f,.01f), new Vector2(.97f,.09f), Vector2.zero, Vector2.zero);
+        else
+            Place(inspectLabel.rectTransform, Vector2.zero, Vector2.right, new Vector2(10,4), new Vector2(-10,24));
+        inspectLabel.enableAutoSizing = true; inspectLabel.fontSizeMin = 10; inspectLabel.fontSizeMax = 14;
+        inspectLabel.textWrappingMode = TextWrappingModes.NoWrap;
+    }
+
     private void RefreshNavigation()
     {
         int i=selected!=null?visible.IndexOf(selected):-1;
-        previousButton.interactable=i>0;nextButton.interactable=i>=0&&i<visible.Count-1;backButton.interactable=history.Count>0;
+        previousButton.interactable=i>0;nextButton.interactable=i>=0&&i<visible.Count-1;backButton.interactable=history.Count>0;backButton.gameObject.SetActive(history.Count>0);
         pageLabel.text=selected!=null?"FIELD GUIDE  /  "+(entries.IndexOf(selected)+1).ToString("00")+" OF "+entries.Count.ToString("00"):"FIELD GUIDE";
         for(int n=0;n<cards.Count;n++)cards[n].GetComponent<UnityEngine.UI.Image>().color=visible[n]==selected?new Color(.77f,.89f,.85f):Paper;
     }
     private void Step(int direction){int i=visible.IndexOf(selected)+direction;if(i>=0&&i<visible.Count)Navigate(visible[i],true);}
-    private void GoBack(){if(history.Count==0)return;string id=history[history.Count-1];history.RemoveAt(history.Count-1);Navigate(entries.Find(e=>e.entryId==id),false);}
+    private void GoBack()
+    {
+        if (history.Count == 0) return;
+        string id = history[history.Count - 1]; history.RemoveAt(history.Count - 1);
+        search.SetTextWithoutNotify(""); RebuildIndex();
+        Navigate(entries.Find(e => e.entryId == id), false);
+    }
     private void PlaySound(){if(audioSource==null||pageSound==null||Time.unscaledTime-lastSound<.12f)return;lastSound=Time.unscaledTime;audioSource.PlayOneShot(pageSound);}
     public void RotatePreview(float pixels){if(opened&&previewStage!=null)previewStage.Rotate(pixels);}
     private static string CategoryName(AlmanacCategory c)=>c==AlmanacCategory.CleaningStorage?"Storage & Cleaning":c.ToString();
@@ -293,15 +343,15 @@ public sealed class AlmanacMenu : MonoBehaviour
         var right=new GameObject("Feature page",typeof(RectTransform),typeof(CanvasGroup)).GetComponent<RectTransform>();right.SetParent(content,false);Place(right,new Vector2(.37f,0),Vector2.one,Vector2.zero,Vector2.zero);detailGroup=right.GetComponent<CanvasGroup>();
         title=Text("Entry headline",right,"",30,true);Place(title.rectTransform,new Vector2(0,1),Vector2.one,new Vector2(0,-40),Vector2.zero);title.enableAutoSizing=true;title.fontSizeMin=22;title.fontSizeMax=30;
         subtitle=Text("Entry subtitle",right,"",17,false);Place(subtitle.rectTransform,new Vector2(0,1),Vector2.one,new Vector2(0,-65),new Vector2(0,-39));
-        var photo=Graphic("Animated photograph",right,new Color(.81f,.86f,.81f));Place(photo.rectTransform,new Vector2(0,.13f),new Vector2(.43f,1),new Vector2(0,0),new Vector2(0,-75));
+        var photo=Graphic("Animated photograph",right,new Color(.76f,.84f,.81f));photoFrame=photo.rectTransform;Place(photoFrame,Vector2.zero,new Vector2(.46f,1),Vector2.zero,new Vector2(0,-75));
         var raw=new GameObject("Live preview",typeof(RectTransform),typeof(RawImage));raw.transform.SetParent(photo.transform,false);liveImage=raw.GetComponent<RawImage>();Stretch(liveImage.rectTransform,5,5);liveImage.raycastTarget=true;var aspect=raw.AddComponent<AspectRatioFitter>();aspect.aspectMode=AspectRatioFitter.AspectMode.FitInParent;aspect.aspectRatio=1;
         var drag=raw.AddComponent<AlmanacPreviewDrag>();drag.Stage=previewStage;
         stillImage=Graphic("Archive photograph",photo.transform,Color.white);Stretch(stillImage.rectTransform,8,8);stillImage.preserveAspect=true;
-        inspectLabel=Text("Inspection hint",photo.transform,"DRAG TO TURN",14,true);Place(inspectLabel.rectTransform,new Vector2(0,0),new Vector2(1,0),new Vector2(10,4),new Vector2(-10,24));inspectLabel.alignment=TextAlignmentOptions.BottomRight;
-        var variants=Scroll("Uniform editions",right,true,out variantContent);Place(variants.GetComponent<RectTransform>(),new Vector2(0,0),new Vector2(.43f,.12f),new Vector2(0,2),new Vector2(0,-2));
-        bodyScroll=Scroll("Article",right,false,out var bodyContent);Place(bodyScroll.GetComponent<RectTransform>(),new Vector2(.47f,.12f),Vector2.one,new Vector2(0,4),new Vector2(0,-75));
+        inspectLabel=Text("Inspection hint",liveImage.transform,"DRAG TO ROTATE",14,true);ConfigureInspectionHint(true);
+        variantLabel=Text("Variant caption",right,"UNIFORM / RESTAURANT",15,true);Place(variantLabel.rectTransform,Vector2.zero,new Vector2(.46f,0),new Vector2(0,52),new Vector2(0,74));
+        variantScroll=Scroll("Uniform editions",right,true,out variantContent);Place(variantScroll.GetComponent<RectTransform>(),Vector2.zero,new Vector2(.46f,0),Vector2.zero,new Vector2(0,48));
+        bodyScroll=Scroll("Article",right,false,out var bodyContent);Place(bodyScroll.GetComponent<RectTransform>(),new Vector2(.50f,0),Vector2.one,Vector2.zero,new Vector2(0,-75));
         article=Text("Article text",bodyContent,"",21,false);article.richText=true;article.textWrappingMode=TextWrappingModes.Normal;article.gameObject.AddComponent<LayoutElement>().flexibleWidth=1;
-        var related=Scroll("Related stories",right,true,out relatedContent);Place(related.GetComponent<RectTransform>(),new Vector2(.47f,0),new Vector2(1,.10f),Vector2.zero,Vector2.zero);
         var footer=Graphic("Footer rule",paper,Ink);Place(footer.rectTransform,Vector2.zero,Vector2.right,new Vector2(24,57),new Vector2(-24,59));
         backButton=MakeButton("History",paper,"BACK",20,new Color(.88f,.88f,.78f),105,44);Place((RectTransform)backButton.transform,Vector2.zero,Vector2.zero,new Vector2(24,10),new Vector2(129,54));
         pageLabel=Text("Page number",paper,"FIELD GUIDE",16,true);Place(pageLabel.rectTransform,Vector2.zero,new Vector2(.65f,0),new Vector2(143,10),new Vector2(0,54));pageLabel.alignment=TextAlignmentOptions.MidlineLeft;

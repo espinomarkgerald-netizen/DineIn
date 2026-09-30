@@ -13,21 +13,27 @@ MonoBehaviour:
   m_Name: staff-fry
   m_EditorClassIdentifier: 
   entryName: Fry Station
-  subTitle: "Fast Food \xB7 fried portions"
+  subTitle: "Fast Food \xB7 kitchen role \xB7 fryer"
   entryId: staff-fry
   category: 1
-  description: Works the fryer for chicken, fries and chicken nuggets. Keep the station
-    moving so finished portions are ready for the assembler's tickets.
-  gameplayNotes: 'Fast Food kitchen role.
+  listSection: Fast Food
+  sectionOrder: 2
+  searchAliases: fryer cook kitchen staff fried food protein
+  description: Works the fryer for chicken, fries and chicken nuggets, as well as
+    chicken and fish sandwich proteins. Sandwich proteins then move to the grill
+    preparation board; finished fried portions are ready for assembly.
+  gameplayNotes: 'A separate role in Fast Food staff hiring.
 
-    Uniform: Fast Food outfit and chef
-    hat.'
+    Uniform: Fast Food
+    outfit and chef hat.'
   bossNote: 
   relatedIds:
   - staff-grill
   - staff-fast-food-assembler
-  icon: {fileID: 21300000, guid: 300ae9a1cc59d594299785c50bd77fdf, type: 3}
+  icon: {fileID: 21300000, guid: 14325a46814c5084caa5cd3bc4eea6c6, type: 3}
   previewKind: 1
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 6484059564190790301, guid: 49d290cfb7d0a2a46b297f7a91a2e2ae, type: 3}
   previewEuler: {x: 0, y: 160, z: 0}
   idleClip: {fileID: 7400000, guid: 68b0a9eb38471694cbba952db7d69009, type: 2}

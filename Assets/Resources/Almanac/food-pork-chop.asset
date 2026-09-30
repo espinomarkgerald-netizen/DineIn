@@ -13,17 +13,16 @@ MonoBehaviour:
   m_Name: food-pork-chop
   m_EditorClassIdentifier: 
   entryName: Pork Chop
-  subTitle: Casual Dining / Dish
+  subTitle: "Casual Dining \xB7 DISH"
   entryId: food-pork-chop
   category: 5
+  listSection: Dishes
+  sectionOrder: 0
+  searchAliases: Casual Dining Pork Chop dish food
   description: Savory pork chop cooked with garlic and house seasoning.
-  gameplayNotes: 'Available from Day 6.
-
-    Ingredients per serving: Pork Chop x1,
-    Garlic x1, Seasoning x1, Oil x1.
-
-    Enable it in the restaurant menu and keep
-    its ingredients stocked for customer orders.'
+  gameplayNotes: "Ingredients per serving\n\u2022 Pork Chop \xD71\n\u2022 Garlic
+    \xD71\n\u2022 Seasoning \xD71\n\u2022 Oil \xD71\n\nKeep these ingredients stocked
+    and enable this dish for customer orders.\n\nAvailable from Day 6."
   bossNote: 
   relatedIds:
   - restaurant-casual-dining
@@ -34,6 +33,8 @@ MonoBehaviour:
   - ingredient-casual-cooking-oil
   icon: {fileID: 21300000, guid: 1604546f6d6d4f54294281bdcebc151a, type: 3}
   previewKind: 0
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 0}
   previewEuler: {x: 0, y: 155, z: 0}
   idleClip: {fileID: 0}

@@ -16,6 +16,9 @@ MonoBehaviour:
   subTitle: "Fast Food \xB7 a quick meal on the go"
   entryId: customer-orange
   category: 0
+  listSection: 
+  sectionOrder: 0
+  searchAliases: 
   description: Orange guests have busy schedules. Most take their food away, and
     those who sit down finish quickly. Keep their order moving so they can be on
     their way.
@@ -32,6 +35,8 @@ MonoBehaviour:
   - staff-fast-food-assembler
   icon: {fileID: 21300000, guid: fc22a250c54ebe94f9787fafa25c652d, type: 3}
   previewKind: 1
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 582358616086092716, guid: e4afcf0dc1625eb438bafa9c6d73b2cc, type: 3}
   previewEuler: {x: 0, y: 160, z: 0}
   idleClip: {fileID: 7400000, guid: 68b0a9eb38471694cbba952db7d69009, type: 2}

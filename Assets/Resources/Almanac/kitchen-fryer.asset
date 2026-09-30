@@ -16,6 +16,9 @@ MonoBehaviour:
   subTitle: Fast Food / Cooking station
   entryId: kitchen-fryer
   category: 3
+  listSection: 
+  sectionOrder: 0
+  searchAliases: 
   description: A fryer cooks food in hot oil. Keep an eye on each basket as the food
     cooks.
   gameplayNotes: 'Prepare fries, fried chicken, nuggets, and the proteins for chicken
@@ -26,8 +29,8 @@ MonoBehaviour:
     Chicken
     and fish sandwiches finish at the grill preparation board.
 
-    Food left cooking
-    too long burns.'
+    Ready fryer food
+    stops heating. Collect raised baskets when the holding rack has space.'
   bossNote: 
   relatedIds:
   - food-fries
@@ -36,6 +39,8 @@ MonoBehaviour:
   - kitchen-grill
   icon: {fileID: 21300000, guid: 873059643e1193943b110a339812dc70, type: 3}
   previewKind: 2
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 8746048516294481698, guid: e7209e2720960814a817006e35256e59, type: 3}
   previewEuler: {x: 0, y: 155, z: 0}
   idleClip: {fileID: 0}

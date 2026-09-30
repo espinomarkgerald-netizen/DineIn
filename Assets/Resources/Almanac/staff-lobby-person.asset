@@ -16,6 +16,9 @@ MonoBehaviour:
   subTitle: "Fast Food \xB7 dining room support"
   entryId: staff-lobby-person
   category: 1
+  listSection: Fast Food
+  sectionOrder: 2
+  searchAliases: lobby staff attendant busser cleaning table delivery
   description: Keeps the Fast Food dining room ready by clearing tables and trays.
     Assigned lobby staff also support meal delivery, including guests who need assisted
     table service.
@@ -30,8 +33,10 @@ MonoBehaviour:
   - customer-elderly
   - customer-family
   - staff-busser
-  icon: {fileID: 21300000, guid: 300ae9a1cc59d594299785c50bd77fdf, type: 3}
+  icon: {fileID: 21300000, guid: 778cb3e0e66c04f449584754365399e6, type: 3}
   previewKind: 1
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 3618069371377038793, guid: f498ecbefdc0d9e4d8cab087f6d8a7cc, type: 3}
   previewEuler: {x: 0, y: 160, z: 0}
   idleClip: {fileID: 7400000, guid: 68b0a9eb38471694cbba952db7d69009, type: 2}

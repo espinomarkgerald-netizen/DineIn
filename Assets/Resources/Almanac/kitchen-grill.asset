@@ -16,6 +16,9 @@ MonoBehaviour:
   subTitle: Fast Food / Cooking station
   entryId: kitchen-grill
   category: 3
+  listSection: 
+  sectionOrder: 0
+  searchAliases: 
   description: A grill cooks food on a hot surface. Its preparation board is where
     sandwiches come together.
   gameplayNotes: 'Cook burger patties at the grill.
@@ -36,6 +39,8 @@ MonoBehaviour:
   - kitchen-fryer
   icon: {fileID: 21300000, guid: bce8338c4286b6946ab86be291184122, type: 3}
   previewKind: 2
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 3718879664627720815, guid: df4526265aa6c454891a79e76f120395, type: 3}
   previewEuler: {x: 0, y: 155, z: 0}
   idleClip: {fileID: 0}

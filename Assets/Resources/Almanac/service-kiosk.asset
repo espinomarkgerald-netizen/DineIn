@@ -16,6 +16,9 @@ MonoBehaviour:
   subTitle: Fast Food / Ordering
   entryId: service-kiosk
   category: 6
+  listSection: 
+  sectionOrder: 0
+  searchAliases: 
   description: A self-service kiosk lets customers place and pay for their own order.
   gameplayNotes: 'Customers order and pay automatically at an unlocked kiosk.
 
@@ -31,6 +34,8 @@ MonoBehaviour:
   - management-progression
   icon: {fileID: 21300000, guid: 0afed3d8c53bf944ca32acbc6004ee5a, type: 3}
   previewKind: 2
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 970000000000000001, guid: 2fc2f991fbec48a7a7cdf9e558321597, type: 3}
   previewEuler: {x: 0, y: 155, z: 0}
   idleClip: {fileID: 0}

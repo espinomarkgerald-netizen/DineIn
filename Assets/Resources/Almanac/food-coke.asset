@@ -13,16 +13,16 @@ MonoBehaviour:
   m_Name: food-coke
   m_EditorClassIdentifier: 
   entryName: Coke
-  subTitle: Fast Food / Drink
+  subTitle: "Fast Food \xB7 DISH"
   entryId: food-coke
   category: 5
+  listSection: Dishes
+  sectionOrder: 0
+  searchAliases: Fast Food Coke drink beverage
   description: Coke is a drink on the Fast Food menu.
-  gameplayNotes: 'Available from Day 1.
-
-    Ingredients per serving: Coke Mix x1.
-
-    Add
-    the drink at the assembly counter when completing its order.'
+  gameplayNotes: "Ingredients per serving\n\u2022 Coke Mix \xD71\n\nPreparation\nAdd
+    the drink at the assembly counter when completing its order.\n\nAvailable from
+    Day 1."
   bossNote: 
   relatedIds:
   - restaurant-fast-food
@@ -31,6 +31,8 @@ MonoBehaviour:
   - ingredient-coke-mix
   icon: {fileID: 21300000, guid: 85cf06d21ea9d7b4d9eb81f3472adce4, type: 3}
   previewKind: 0
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 0}
   previewEuler: {x: 0, y: 155, z: 0}
   idleClip: {fileID: 0}

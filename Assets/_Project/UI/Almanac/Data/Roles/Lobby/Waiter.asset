@@ -16,6 +16,9 @@ MonoBehaviour:
   subTitle: "Casual Dining \xB7 table service"
   entryId: staff-waiter
   category: 1
+  listSection: Casual Dining
+  sectionOrder: 1
+  searchAliases: server table service front of house
   description: Takes orders, delivers food and bills, and brings customer payments
     to the cashier. The waiter connects the dining room with the kitchen and payment
     station.
@@ -27,8 +30,10 @@ MonoBehaviour:
   - staff-chef
   - staff-barista
   - staff-cashier
-  icon: {fileID: 21300000, guid: 1ddea4d065eb5f944affd47334bd0219, type: 3}
+  icon: {fileID: 21300000, guid: 1312364fb961ea34e82830f4d70a772f, type: 3}
   previewKind: 1
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 7665387106341400399, guid: eef3b060370ccb44b9c6148d4e1643d0, type: 3}
   previewEuler: {x: 0, y: 160, z: 0}
   idleClip: {fileID: 7400000, guid: 68b0a9eb38471694cbba952db7d69009, type: 2}

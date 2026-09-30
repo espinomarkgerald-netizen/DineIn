@@ -13,20 +13,17 @@ MonoBehaviour:
   m_Name: food-burger
   m_EditorClassIdentifier: 
   entryName: Burger
-  subTitle: Fast Food / Dish
+  subTitle: "Fast Food \xB7 DISH"
   entryId: food-burger
   category: 5
+  listSection: Dishes
+  sectionOrder: 0
+  searchAliases: Fast Food Cheese Burger dish food
   description: Burger prepared fresh for Fast Food service.
-  gameplayNotes: 'Available from Day 1.
-
-    Ingredients per serving: Burger Buns
-    x1, Beef Patties x1, Cheese Slices x1.
-
-    Cook at the grill. Collect the food
-    before it burns.
-
-    Finish the sandwich at the grill preparation board, following
-    its ingredient sequence.'
+  gameplayNotes: "Ingredients per serving\n\u2022 Burger Buns \xD71\n\u2022 Beef
+    Patties \xD71\n\u2022 Cheese Slices \xD71\n\nPreparation\nCook at the grill.
+    Collect it before it burns. Then assemble it at the grill preparation board in
+    the shown order.\n\nAvailable from Day 1."
   bossNote: 
   relatedIds:
   - restaurant-fast-food
@@ -37,6 +34,8 @@ MonoBehaviour:
   - ingredient-cheese-slices
   icon: {fileID: 21300000, guid: 3f2e72868d33b7a4cb309008d2f52b65, type: 3}
   previewKind: 0
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 0}
   previewEuler: {x: 0, y: 155, z: 0}
   idleClip: {fileID: 0}

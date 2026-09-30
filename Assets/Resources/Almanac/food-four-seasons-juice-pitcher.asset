@@ -13,17 +13,16 @@ MonoBehaviour:
   m_Name: food-four-seasons-juice-pitcher
   m_EditorClassIdentifier: 
   entryName: Four Seasons Juice Pitcher
-  subTitle: Casual Dining / Drink
+  subTitle: "Casual Dining \xB7 DISH"
   entryId: food-four-seasons-juice-pitcher
   category: 5
+  listSection: Dishes
+  sectionOrder: 0
+  searchAliases: Casual Dining Four Seasons Juice Pitcher drink beverage
   description: A mixed-fruit Four Seasons juice pitcher prepared from drink powder.
-  gameplayNotes: 'Available from Day 18.
-
-    Ingredients per serving: Four Seasons
-    Juice Powder x1.
-
-    Enable it in the restaurant menu and keep its ingredients
-    stocked for customer orders.'
+  gameplayNotes: "Ingredients per serving\n\u2022 Four Seasons Juice Powder \xD71\n\nKeep
+    these ingredients stocked and enable this drink for customer orders.\n\nAvailable
+    from Day 18."
   bossNote: 
   relatedIds:
   - restaurant-casual-dining
@@ -31,6 +30,8 @@ MonoBehaviour:
   - ingredient-casual-four-seasons-juice-powder
   icon: {fileID: 21300000, guid: 305ac0f974f283840948cbf286314bf4, type: 3}
   previewKind: 0
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 0}
   previewEuler: {x: 0, y: 155, z: 0}
   idleClip: {fileID: 0}

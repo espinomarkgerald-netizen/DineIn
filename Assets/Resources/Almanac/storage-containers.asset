@@ -16,6 +16,9 @@ MonoBehaviour:
   subTitle: Stock & freshness
   entryId: storage-containers
   category: 7
+  listSection: 
+  sectionOrder: 0
+  searchAliases: 
   description: Labeled ingredient boxes connect deliveries to the restaurant's usable
     inventory.
   gameplayNotes: 'A box''s label shows its ingredient and remaining quantity.
@@ -35,6 +38,8 @@ MonoBehaviour:
   - storage-frozen
   icon: {fileID: 21300000, guid: a96d33de4a88c0e4d9c0fe21316ba451, type: 3}
   previewKind: 2
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 7163686026178324243, guid: 29f19047587c15147b51a21bd3a31c76, type: 3}
   previewEuler: {x: 0, y: 155, z: 0}
   idleClip: {fileID: 0}

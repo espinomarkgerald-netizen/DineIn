@@ -16,6 +16,9 @@ MonoBehaviour:
   subTitle: "Pink guest \xB7 prompt service matters"
   entryId: customer-vip
   category: 0
+  listSection: 
+  sectionOrder: 0
+  searchAliases: 
   description: These pink guests expect prompt attention. A happy visit earns an
     extra tip, but their patience drains faster while waiting in line or for an order.
   gameplayNotes: "Line and order patience drain 3\xD7 as fast.\nHappy payment adds
@@ -27,6 +30,8 @@ MonoBehaviour:
   - staff-cashier
   icon: {fileID: 21300000, guid: e4325db48a4061c479803d171413d4a1, type: 3}
   previewKind: 1
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 8967213546406780146, guid: 65c1c58cd40b38f45b5b0cf3df08d349, type: 3}
   previewEuler: {x: 0, y: 160, z: 0}
   idleClip: {fileID: 7400000, guid: 68b0a9eb38471694cbba952db7d69009, type: 2}

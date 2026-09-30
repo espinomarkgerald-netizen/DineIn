@@ -13,17 +13,16 @@ MonoBehaviour:
   m_Name: food-cucumber-lemonade-pitcher
   m_EditorClassIdentifier: 
   entryName: Cucumber Lemonade Pitcher
-  subTitle: Casual Dining / Drink
+  subTitle: "Casual Dining \xB7 DISH"
   entryId: food-cucumber-lemonade-pitcher
   category: 5
+  listSection: Dishes
+  sectionOrder: 0
+  searchAliases: Casual Dining Cucumber Lemonade Pitcher drink beverage
   description: A cool cucumber lemonade pitcher prepared from drink powder.
-  gameplayNotes: 'Available from Day 7.
-
-    Ingredients per serving: Cucumber Lemonade
-    Powder x1.
-
-    Enable it in the restaurant menu and keep its ingredients stocked
-    for customer orders.'
+  gameplayNotes: "Ingredients per serving\n\u2022 Cucumber Lemonade Powder \xD71\n\nKeep
+    these ingredients stocked and enable this drink for customer orders.\n\nAvailable
+    from Day 7."
   bossNote: 
   relatedIds:
   - restaurant-casual-dining
@@ -31,6 +30,8 @@ MonoBehaviour:
   - ingredient-casual-cucumber-lemonade-powder
   icon: {fileID: 21300000, guid: 405623cd95241de428efb608c1be9b7e, type: 3}
   previewKind: 0
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 0}
   previewEuler: {x: 0, y: 155, z: 0}
   idleClip: {fileID: 0}

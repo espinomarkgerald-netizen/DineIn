@@ -13,16 +13,16 @@ MonoBehaviour:
   m_Name: food-chicken-nuggets
   m_EditorClassIdentifier: 
   entryName: Chicken Nuggets
-  subTitle: Fast Food / Dish
+  subTitle: "Fast Food \xB7 DISH"
   entryId: food-chicken-nuggets
   category: 5
+  listSection: Dishes
+  sectionOrder: 0
+  searchAliases: Fast Food Chicken Nuggets dish food
   description: Chicken Nuggets prepared fresh for Fast Food service.
-  gameplayNotes: 'Available from Day 3.
-
-    Ingredients per serving: Frozen Nuggets
-    x1.
-
-    Cook at the fryer. Collect the food before it burns.'
+  gameplayNotes: "Ingredients per serving\n\u2022 Frozen Nuggets \xD71\n\nPreparation\nCook
+    at the fryer, then collect the raised basket onto the holding rack.\n\nAvailable
+    from Day 3."
   bossNote: 
   relatedIds:
   - restaurant-fast-food
@@ -31,6 +31,8 @@ MonoBehaviour:
   - ingredient-ff-frozen-nuggets
   icon: {fileID: 21300000, guid: 090cee5a8e4645a46bf16ecf5fd77e23, type: 3}
   previewKind: 0
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 0}
   previewEuler: {x: 0, y: 155, z: 0}
   idleClip: {fileID: 0}

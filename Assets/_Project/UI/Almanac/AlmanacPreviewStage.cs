@@ -9,7 +9,16 @@ using UnityEngine.Rendering.Universal;
 public sealed class AlmanacPreviewStage : MonoBehaviour
 {
     [SerializeField, Range(0, 31)] private int previewLayer = 30;
-    [SerializeField, Range(128, 1024)] private int textureSize = 512;
+    [Header("Preview quality")]
+    [SerializeField, Range(512, 1536)] private int textureSize = 1024;
+    [SerializeField, Range(512, 1024)] private int mobileTextureSize = 768;
+    [Header("Framing")]
+    [SerializeField, Range(0.65f, 0.95f)] private float characterFrameFill = 0.80f;
+    [SerializeField, Range(0.65f, 0.95f)] private float equipmentFrameFill = 0.84f;
+    [SerializeField, Range(0.65f, 0.95f)] private float smallObjectFrameFill = 0.90f;
+    [Header("Local lighting")]
+    [SerializeField, Range(0, 8)] private float keyLightIntensity = 3;
+    [SerializeField, Range(0, 8)] private float fillLightIntensity = 2;
     [SerializeField] private Vector3 stagePosition = new Vector3(10000, -10000, 10000);
     [SerializeField, Range(0.1f, 1f)] private float degreesPerPixel = 0.35f;
     [SerializeField, Range(0.05f, 0.5f)] private float introductionBlendSeconds = 0.2f;
@@ -19,6 +28,7 @@ public sealed class AlmanacPreviewStage : MonoBehaviour
     private GameObject modelOffset;
     private Camera previewCamera;
     private RenderTexture texture;
+    private Light keyLight, fillLight;
     private PlayableGraph animationGraph;
     private AnimationMixerPlayable animationMixer;
     private AnimationClipPlayable idlePlayable;
@@ -26,8 +36,11 @@ public sealed class AlmanacPreviewStage : MonoBehaviour
     private float idleLength;
     private float introductionLength;
     private float animationTime;
+    private readonly HashSet<int> warnedEntries = new HashSet<int>();
 
     public Texture Texture => texture;
+    public int EffectiveTextureSize => Mathf.Min(SystemInfo.maxTextureSize,
+        Mathf.Clamp(Application.isMobilePlatform ? mobileTextureSize : textureSize, 512, 1536));
 
     /// <summary>Variant zero is the first configured variant, or the entry's base prefab.</summary>
     public bool Show(AlmanacEntryData entry, int variant = 0)
@@ -45,6 +58,7 @@ public sealed class AlmanacPreviewStage : MonoBehaviour
             source = entry.variants[variant].prefab;
         if (source == null)
         {
+            WarnPreview(entry, "no preview prefab is assigned");
             Hide();
             return false;
         }
@@ -57,22 +71,37 @@ public sealed class AlmanacPreviewStage : MonoBehaviour
         modelOffset.layer = previewLayer;
         var visual = CreateVisualCopy(source, modelOffset.transform, previewLayer);
         visual.SetActive(true);
+        if (entry.previewIgnoredRendererPaths != null)
+            foreach (var path in entry.previewIgnoredRendererPaths)
+            {
+                if (string.IsNullOrWhiteSpace(path)) continue;
+                var ignored = visual.transform.Find(path);
+                if (ignored != null)
+                    foreach (var renderer in ignored.GetComponents<Renderer>()) renderer.enabled = false;
+            }
 
         if (entry.previewKind == AlmanacPreviewKind.Character)
             StartAnimation(visual, entry.idleClip, entry.introductionClip);
 
-        if (!TryGetBounds(visual, out var bounds))
+        if (!TryGetFramingBounds(visual, out var bounds, out float horizontalRadius))
         {
+            WarnPreview(entry, "the assigned prefab has no valid visible mesh bounds");
             Hide();
             return false;
         }
 
-        // Center above the Animator root, so root animation cannot undo the framing.
-        // A bounding sphere also keeps wide models in frame while the player rotates them.
-        modelOffset.transform.position += turntable.position - bounds.center;
-        turntable.localScale = Vector3.one * (1.18f / Mathf.Max(0.001f, bounds.extents.magnitude));
+        var framing = entry.previewFraming == AlmanacFraming.Automatic
+            ? (entry.previewKind == AlmanacPreviewKind.Character ? AlmanacFraming.Character : AlmanacFraming.Equipment)
+            : entry.previewFraming;
+        FrameVisual(bounds, horizontalRadius, framing, entry.previewFrameFill);
         previewCamera.enabled = true;
         return true;
+    }
+
+    private void WarnPreview(AlmanacEntryData entry, string reason)
+    {
+        if (warnedEntries.Add(entry.GetInstanceID()))
+            Debug.LogWarning($"[Almanac] Cannot show '{entry.entryId}' ({entry.previewPrefab}): {reason}. Using its archive artwork.", this);
     }
 
     public void Rotate(float pixels)
@@ -121,6 +150,7 @@ public sealed class AlmanacPreviewStage : MonoBehaviour
             previewCamera.enabled = false;
             previewCamera.orthographic = true;
             previewCamera.orthographicSize = 1.4f;
+            previewCamera.aspect = 1;
             previewCamera.nearClipPlane = 0.1f;
             previewCamera.farClipPlane = 8;
             previewCamera.cullingMask = 1 << previewLayer;
@@ -134,18 +164,36 @@ public sealed class AlmanacPreviewStage : MonoBehaviour
             cameraData.requiresColorTexture = false;
             cameraData.requiresDepthTexture = false;
 
-            // Local lights cannot replace the menu's directional main light in URP.
-            AddLight("Preview key", new Vector3(-2, 2, -2), new Color(1, 0.92f, 0.8f), 7);
-            AddLight("Preview fill", new Vector3(2, 0.5f, -1), new Color(0.78f, 0.88f, 1), 4);
+            // Both URP/Lit and Cozy Toon accept local additional pixel lights.
+            // These modest lights lift faces without replacing the menu's sun or recoloring materials.
+            keyLight = AddLight("Preview key", new Vector3(-1.5f, 1.8f, -3), new Color(1, 0.97f, 0.91f));
+            fillLight = AddLight("Preview fill", new Vector3(1.8f, 0.7f, -2.8f), new Color(0.91f, 0.96f, 1));
         }
         stage.SetActive(true);
+        keyLight.intensity = keyLightIntensity;
+        fillLight.intensity = fillLightIntensity;
+        int size = EffectiveTextureSize;
+        var descriptor = new RenderTextureDescriptor(size, size, RenderTextureFormat.ARGB32, 24)
+        {
+            msaaSamples = 4,
+            sRGB = QualitySettings.activeColorSpace == ColorSpace.Linear,
+            useMipMap = false,
+            autoGenerateMips = false
+        };
+        descriptor.msaaSamples = Mathf.Max(1, SystemInfo.GetRenderTextureSupportedMSAASampleCount(descriptor));
+        if (texture != null && (texture.width != size || texture.antiAliasing != descriptor.msaaSamples))
+        {
+            previewCamera.targetTexture = null;
+            texture.Release();
+            Dispose(texture);
+            texture = null;
+        }
         if (texture == null)
         {
-            texture = new RenderTexture(textureSize, textureSize, 24, RenderTextureFormat.ARGB32)
+            texture = new RenderTexture(descriptor)
             {
                 name = "Almanac Preview",
                 hideFlags = HideFlags.HideAndDontSave,
-                antiAliasing = 2,
                 filterMode = FilterMode.Bilinear,
                 wrapMode = TextureWrapMode.Clamp
             };
@@ -154,7 +202,7 @@ public sealed class AlmanacPreviewStage : MonoBehaviour
         previewCamera.targetTexture = texture;
     }
 
-    private void AddLight(string lightName, Vector3 position, Color color, float intensity)
+    private Light AddLight(string lightName, Vector3 position, Color color)
     {
         var lightObject = new GameObject(lightName);
         lightObject.transform.SetParent(stage.transform, false);
@@ -164,9 +212,9 @@ public sealed class AlmanacPreviewStage : MonoBehaviour
         light.type = LightType.Point;
         light.cullingMask = 1 << previewLayer;
         light.color = color;
-        light.intensity = intensity;
         light.range = 7;
         light.shadows = LightShadows.None;
+        return light;
     }
 
     private void StartAnimation(GameObject visual, AnimationClip idle, AnimationClip introduction)
@@ -261,6 +309,7 @@ public sealed class AlmanacPreviewStage : MonoBehaviour
         stage = null;
         turntable = null;
         previewCamera = null;
+        keyLight = fillLight = null;
     }
 
     private void OnDestroy() => Release();
@@ -271,17 +320,104 @@ public sealed class AlmanacPreviewStage : MonoBehaviour
         else DestroyImmediate(value);
     }
 
-    private static bool TryGetBounds(GameObject root, out Bounds bounds)
+    private void FrameVisual(Bounds bounds, float horizontalRadius, AlmanacFraming framing, float fillOverride)
     {
-        bounds = default;
-        bool found = false;
-        foreach (var renderer in root.GetComponentsInChildren<Renderer>())
+        // Keep centering outside the Animator hierarchy so animation cannot undo it.
+        modelOffset.transform.position -= stage.transform.TransformVector(bounds.center);
+        float halfHeight = Mathf.Max(0.001f, bounds.extents.y);
+        float scale = 1 / Mathf.Max(halfHeight, horizontalRadius);
+        turntable.localScale = Vector3.one * scale;
+        float elevation = framing == AlmanacFraming.Character ? 3 : framing == AlmanacFraming.SmallObject ? 18 : 12;
+        float radians = elevation * Mathf.Deg2Rad;
+        previewCamera.transform.localPosition = new Vector3(0, Mathf.Sin(radians), -Mathf.Cos(radians)) * 4;
+        previewCamera.transform.localRotation = Quaternion.LookRotation(-previewCamera.transform.localPosition);
+        float verticalExtent = halfHeight * Mathf.Cos(radians) + horizontalRadius * Mathf.Sin(radians);
+        float fill = framing == AlmanacFraming.Character ? characterFrameFill
+            : framing == AlmanacFraming.SmallObject ? smallObjectFrameFill : equipmentFrameFill;
+        if (fillOverride > 0) fill = fillOverride;
+        // A cylinder, rather than a sphere, preserves useful portrait height and still fits every yaw.
+        previewCamera.orthographicSize = Mathf.Max(verticalExtent, horizontalRadius) * scale / Mathf.Clamp(fill, 0.65f, 0.95f);
+    }
+
+    private bool TryGetFramingBounds(GameObject root, out Bounds bounds, out float horizontalRadius)
+    {
+        var renderers = root.GetComponentsInChildren<Renderer>();
+        var points = new List<Vector3>(renderers.Length * 24);
+        var bakedMesh = new Mesh { name = "Almanac framing sample", hideFlags = HideFlags.HideAndDontSave };
+        try
         {
-            if (!renderer.enabled) continue;
-            if (!found) { bounds = renderer.bounds; found = true; }
-            else bounds.Encapsulate(renderer.bounds);
+            CaptureBounds(renderers, bakedMesh, points);
+            if (animationGraph.IsValid())
+            {
+                // Imported skin bounds can contain a wide T-pose or unrelated animation.
+                // Measure only the selected model and its preview clips, once per selection.
+                if (idlePlayable.IsValid())
+                {
+                    idlePlayable.SetTime(idleLength * 0.5f);
+                    animationMixer.SetInputWeight(0, 1);
+                    animationMixer.SetInputWeight(1, 0);
+                    animationGraph.Evaluate(0);
+                    CaptureBounds(renderers, bakedMesh, points);
+                }
+                if (introductionPlayable.IsValid())
+                {
+                    introductionPlayable.SetTime(introductionLength * 0.5f);
+                    animationMixer.SetInputWeight(0, 0);
+                    animationMixer.SetInputWeight(1, 1);
+                    animationGraph.Evaluate(0);
+                    CaptureBounds(renderers, bakedMesh, points);
+                }
+            }
         }
-        return found;
+        finally
+        {
+            if (animationGraph.IsValid()) EvaluateAnimation(0);
+            Dispose(bakedMesh);
+        }
+        bounds = default;
+        horizontalRadius = 0;
+        if (points.Count == 0) return false;
+        bounds = new Bounds(points[0], Vector3.zero);
+        for (int i = 1; i < points.Count; i++) bounds.Encapsulate(points[i]);
+        foreach (var point in points)
+        {
+            var offset = point - bounds.center;
+            horizontalRadius = Mathf.Max(horizontalRadius, new Vector2(offset.x, offset.z).magnitude);
+        }
+        horizontalRadius = Mathf.Max(0.001f, horizontalRadius);
+        return bounds.size.sqrMagnitude > 0.00000001f;
+    }
+
+    private void CaptureBounds(Renderer[] renderers, Mesh bakedMesh, List<Vector3> points)
+    {
+        foreach (var renderer in renderers)
+        {
+            if (!renderer.enabled || renderer.forceRenderingOff || !renderer.gameObject.activeInHierarchy ||
+                renderer.GetComponentInParent<Canvas>() != null) continue;
+            Bounds localBounds;
+            if (renderer is SkinnedMeshRenderer skin && skin.sharedMesh != null)
+            {
+                bakedMesh.Clear();
+                // Imported skins can have a 100x renderer transform. The scale-aware bake
+                // provides mesh-local vertices for localToWorldMatrix; the default bake
+                // counted that scale twice, making customers tiny or effectively invisible.
+                skin.BakeMesh(bakedMesh, true);
+                bakedMesh.RecalculateBounds();
+                localBounds = bakedMesh.bounds;
+            }
+            else if (renderer.TryGetComponent<MeshFilter>(out var filter) && filter.sharedMesh != null)
+                localBounds = filter.sharedMesh.bounds;
+            else continue;
+            if (!IsFinite(localBounds.center) || !IsFinite(localBounds.extents)) continue;
+            var matrix = stage.transform.worldToLocalMatrix * renderer.localToWorldMatrix;
+            if (!IsFinite(matrix.MultiplyPoint3x4(localBounds.center)) ||
+                !IsFinite(matrix.MultiplyVector(localBounds.extents))) continue;
+            for (int corner = 0; corner < 8; corner++)
+            {
+                var sign = new Vector3((corner & 1) == 0 ? -1 : 1, (corner & 2) == 0 ? -1 : 1, (corner & 4) == 0 ? -1 : 1);
+                points.Add(matrix.MultiplyPoint3x4(localBounds.center + Vector3.Scale(localBounds.extents, sign)));
+            }
+        }
     }
 
     /// <summary>
@@ -310,6 +446,8 @@ public sealed class AlmanacPreviewStage : MonoBehaviour
         {
             var original = pair.Key;
             var copy = pair.Value.gameObject;
+            // Nameplates and other world-space UI are not part of the model portrait.
+            if (original.GetComponentInParent<Canvas>() != null) continue;
             if (original.TryGetComponent<MeshFilter>(out var filter))
                 copy.AddComponent<MeshFilter>().sharedMesh = filter.sharedMesh;
             if (original.TryGetComponent<MeshRenderer>(out var meshRenderer) && !lowerLodRenderers.Contains(meshRenderer))
@@ -345,6 +483,11 @@ public sealed class AlmanacPreviewStage : MonoBehaviour
         return root.gameObject;
     }
 
+    private static bool IsFinite(Vector3 value) =>
+        !float.IsNaN(value.x) && !float.IsInfinity(value.x) &&
+        !float.IsNaN(value.y) && !float.IsInfinity(value.y) &&
+        !float.IsNaN(value.z) && !float.IsInfinity(value.z);
+
     private static Transform CopyTransforms(Transform source, Transform parent, int layer, Dictionary<Transform, Transform> map)
     {
         var result = new GameObject(source.name).transform;
@@ -364,6 +507,7 @@ public sealed class AlmanacPreviewStage : MonoBehaviour
     {
         target.sharedMaterials = source.sharedMaterials;
         target.enabled = source.enabled;
+        target.forceRenderingOff = source.forceRenderingOff;
         target.shadowCastingMode = ShadowCastingMode.Off;
         target.receiveShadows = false;
         target.lightProbeUsage = LightProbeUsage.Off;

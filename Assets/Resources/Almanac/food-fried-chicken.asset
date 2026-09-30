@@ -13,16 +13,16 @@ MonoBehaviour:
   m_Name: food-fried-chicken
   m_EditorClassIdentifier: 
   entryName: Fried Chicken
-  subTitle: Fast Food / Dish
+  subTitle: "Fast Food \xB7 DISH"
   entryId: food-fried-chicken
   category: 5
+  listSection: Dishes
+  sectionOrder: 0
+  searchAliases: Fast Food Chicken Bucket dish food
   description: Fried Chicken prepared fresh for Fast Food service.
-  gameplayNotes: 'Available from Day 7.
-
-    Ingredients per serving: Chicken Drumsticks
-    x1.
-
-    Cook at the fryer. Collect the food before it burns.'
+  gameplayNotes: "Ingredients per serving\n\u2022 Chicken Drumsticks \xD71\n\nPreparation\nCook
+    at the fryer, then collect the raised basket onto the holding rack.\n\nAvailable
+    from Day 7."
   bossNote: 
   relatedIds:
   - restaurant-fast-food
@@ -31,6 +31,8 @@ MonoBehaviour:
   - ingredient-chicken-drumsticks
   icon: {fileID: 21300000, guid: 00988c0f0a4cc484bb82da61025041ed, type: 3}
   previewKind: 0
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 0}
   previewEuler: {x: 0, y: 155, z: 0}
   idleClip: {fileID: 0}

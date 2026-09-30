@@ -16,6 +16,9 @@ MonoBehaviour:
   subTitle: Service upgrade
   entryId: equipment-waiter-trolley
   category: 4
+  listSection: 
+  sectionOrder: 0
+  searchAliases: 
   description: A delivery trolley carries several prepared orders on one trip to
     the dining area.
   gameplayNotes: 'The Waiter Trolley carries up to four prepared orders.
@@ -32,6 +35,8 @@ MonoBehaviour:
   - management-computer
   icon: {fileID: 21300000, guid: 6d3387bf48e7b2740886110f93cb5f3a, type: 3}
   previewKind: 2
+  previewFraming: 0
+  widePreview: 0
   previewPrefab: {fileID: 3012628052816148525, guid: bc99751169fc1c04a95ab182d8e3a423, type: 3}
   previewEuler: {x: 0, y: 155, z: 0}
   idleClip: {fileID: 0}
