@@ -16,7 +16,7 @@ MonoBehaviour:
     AppIdRealtime: 9fecd6bf-81d9-4fc8-9669-48dd957219f7
     AppIdFusion: 
     AppIdChat: 
-    AppIdVoice: 
+    AppIdVoice: 629eb87f-87e7-4d52-872f-c08c147b618f
     AppVersion: 
     UseNameServer: 1
     FixedRegion: 
@@ -44,5 +44,5 @@ MonoBehaviour:
   - ReceiveServiceState
   - RespawnSpaceship
   DisableAutoOpenWizard: 1
-  ShowSettings: 0
+  ShowSettings: 1
   DevRegionSetOnce: 0

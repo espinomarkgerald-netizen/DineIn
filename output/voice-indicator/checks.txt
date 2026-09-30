@@ -1,0 +1,5 @@
+PASS: initial hidden, fade-in, grace period, fade-out, interrupted fade, immediate invalidation, reduced motion, object reuse.
+output/voice-indicator/preview-3840x2160.png ortho=8
+output/voice-indicator/preview-1920x1080.png ortho=8
+output/voice-indicator/preview-1280x720.png ortho=8
+output/voice-indicator/preview-1600x720.png ortho=20

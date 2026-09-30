@@ -22,18 +22,24 @@ internal sealed class DineInPhotonVoiceAdapter : IDisposable
         public AudioSource output;
         public Recorder recorder;
         public VoiceLogger ownedLogger;
+        public PlayerVoiceSpeakingIndicator indicator;
     }
 
     private readonly MultiplayerSessionManager session;
     private readonly DineInSettings settings;
     private readonly float detectionThreshold;
+    private readonly string gameplayRoomName, voiceRoomName;
     private readonly Dictionary<int, Binding> bindings = new();
     private readonly List<int> expired = new();
     private GameObject clientRoot;
     private PunVoiceClient client;
     private Recorder localRecorder;
-    public bool Connected => client != null && client.Client != null && client.Client.InRoom;
-    public bool LocalSpeaking => localRecorder != null && localRecorder.IsCurrentlyTransmitting;
+    private readonly UnityEngine.Audio.AudioMixerGroup voiceOutput;
+    public bool Connected => client != null && client.Client != null && client.Client.InRoom
+        && client.Client.CurrentRoom.Name == voiceRoomName && PhotonNetwork.CurrentRoom?.Name == gameplayRoomName;
+    public string ConnectionDiagnostic => client?.Client == null ? "client=missing"
+        : "state=" + client.Client.State + " inRoom=" + client.Client.InRoom + " cause=" + client.Client.DisconnectedCause;
+    public bool LocalSpeaking => IsSpeaking(session.LocalActorNumber);
     public bool HasRecorder => localRecorder != null;
     public bool CaptureReady => localRecorder != null && localRecorder.RecordingEnabled && localRecorder.LevelMeter != null && !(localRecorder.LevelMeter is Photon.Voice.AudioUtil.LevelMeterDummy);
 
@@ -42,6 +48,10 @@ internal sealed class DineInPhotonVoiceAdapter : IDisposable
         this.session = session;
         this.settings = settings;
         detectionThreshold = threshold;
+        gameplayRoomName = PhotonNetwork.CurrentRoom?.Name;
+        voiceRoomName = gameplayRoomName + PunVoiceClient.VoiceRoomNameSuffix;
+        voiceOutput = settings != null ? settings.VoiceOutputGroup : null;
+        if (voiceOutput == null) throw new InvalidOperationException("Voice mixer group is not assigned.");
         if (UnityEngine.Object.FindFirstObjectByType<PunVoiceClient>() != null)
             throw new InvalidOperationException("A voice client already belongs to this session.");
         clientRoot = new GameObject("Multiplayer Voice");
@@ -59,12 +69,20 @@ internal sealed class DineInPhotonVoiceAdapter : IDisposable
             client.Settings.FixedRegion = PhotonNetwork.CloudRegion;
             // A Realtime PlayFab token is scoped to the Realtime app. Never forward it
             // to the separate Voice app. Default Voice auth uses the same stable UserId.
+            MultiplayerVoiceController.Diagnostic("Initializing PUN Voice: voiceIdConfigured="
+                + Guid.TryParse(client.Settings.AppIdVoice, out _)
+                + " region=" + client.Settings.FixedRegion + " appVersion=" + client.Settings.AppVersion
+                + " gameplayRoom=" + PhotonNetwork.CurrentRoom?.Name
+                + " voiceRoom=" + PhotonNetwork.CurrentRoom?.Name + PunVoiceClient.VoiceRoomNameSuffix);
             client.UsePunAuthValues = false;
             client.AutoConnectAndJoin = true;
             clientRoot.SetActive(true);
             client.Client.AuthValues = new AuthenticationValues(PhotonNetwork.LocalPlayer.UserId);
             client.Client.ServerPortOverrides = PhotonNetwork.ServerPortOverrides;
             client.Client.SerializationProtocol = PhotonNetwork.NetworkingClient.SerializationProtocol;
+            client.Client.StateChanged += OnVoiceStateChanged;
+            client.RemoteVoiceAdded += OnRemoteVoiceAdded;
+            client.SpeakerLinked += OnSpeakerLinked;
         }
         catch
         {
@@ -98,6 +116,8 @@ internal sealed class DineInPhotonVoiceAdapter : IDisposable
             if (binding.recorder != null)
             {
                 bool record = captureAllowed && Connected;
+                if (binding.recorder.TransmitEnabled != record)
+                    MultiplayerVoiceController.Diagnostic(record ? "Local Recorder transmission enabled (VAD)." : "Local Recorder transmission disabled.");
                 binding.recorder.TransmitEnabled = record;
                 binding.recorder.RecordingEnabled = record;
             }
@@ -112,7 +132,7 @@ internal sealed class DineInPhotonVoiceAdapter : IDisposable
         if (manager.GetComponent<PhotonVoiceView>() != null)
             throw new InvalidOperationException("Player already has a voice binding.");
 
-        var binding = new Binding { networkView = networkView };
+        var binding = new Binding { networkView = networkView, indicator = manager.GetComponentInChildren<PlayerVoiceSpeakingIndicator>(true) };
         try
         {
             // PhotonVoiceView is on the manager; its logger must be on that
@@ -129,6 +149,7 @@ internal sealed class DineInPhotonVoiceAdapter : IDisposable
             binding.output = binding.root.AddComponent<AudioSource>();
             binding.output.playOnAwake = false;
             binding.output.spatialBlend = 0f;
+            binding.output.outputAudioMixerGroup = voiceOutput;
             binding.output.volume = 0f;
             binding.root.AddComponent<Speaker>();
             if (networkView.OwnerActorNr == session.LocalActorNumber && networkView.IsMine)
@@ -142,6 +163,9 @@ internal sealed class DineInPhotonVoiceAdapter : IDisposable
                 binding.recorder.VoiceDetectionThreshold = detectionThreshold;
                 binding.recorder.VoiceDetectionDelayMs = 500;
                 binding.recorder.SourceType = Recorder.InputSourceType.Microphone;
+                binding.recorder.SamplingRate = POpusCodec.Enums.SamplingRate.Sampling24000;
+                binding.recorder.FrameDuration = Photon.Voice.OpusCodec.FrameDuration.Frame40ms;
+                binding.recorder.Bitrate = 30000;
                 binding.recorder.MicrophoneType = Recorder.MicType.Photon;
                 binding.recorder.UseMicrophoneTypeFallback = true;
                 binding.recorder.SetAndroidNativeMicrophoneSettings(true, true, true);
@@ -156,6 +180,7 @@ internal sealed class DineInPhotonVoiceAdapter : IDisposable
             // PhotonVoiceView.Start then discovers the active child components.
             binding.root.SetActive(true);
             binding.voiceView = manager.AddComponent<PhotonVoiceView>();
+            MultiplayerVoiceController.Diagnostic("Player audio bound actor=" + networkView.OwnerActorNr + (binding.recorder != null ? " (local Recorder, default microphone)" : " (remote Speaker only)"));
             return binding;
         }
         catch
@@ -167,8 +192,33 @@ internal sealed class DineInPhotonVoiceAdapter : IDisposable
 
     public bool IsSpeaking(int actor)
     {
-        return bindings.TryGetValue(actor, out var binding) && binding.voiceView != null
-            && binding.output != null && binding.output.volume > 0f && binding.voiceView.IsSpeaking;
+        if (!CanPresentActivity() || !bindings.TryGetValue(actor, out var binding) || !HasActiveOwner(binding)) return false;
+        // Listening gain/mute is deliberately independent from received speech activity.
+        if (binding.recorder != null)
+            return (settings == null || !settings.Current.microphoneMuted) && binding.recorder.IsCurrentlyTransmitting;
+        return binding.voiceView != null && binding.voiceView.IsSpeaking;
+    }
+
+    private static bool HasActiveOwner(Binding binding) => binding.networkView != null
+        && binding.networkView.Owner != null && !binding.networkView.Owner.IsInactive;
+
+    private bool CanPresentActivity() => Connected && session != null && session.IsConnected && !session.Ended
+        && (settings == null || settings.Current.voiceEnabled);
+
+    // Called independently of the slower connection/roster refresh so short speech is responsive.
+    public void UpdateSpeakingIndicators()
+    {
+        bool available = CanPresentActivity();
+        foreach (var entry in bindings)
+        {
+            var binding = entry.Value;
+            if (binding.indicator == null) continue;
+            if (!available || !HasActiveOwner(binding)
+                || (binding.recorder != null && settings != null && settings.Current.microphoneMuted))
+                binding.indicator.HideImmediately();
+            else
+                binding.indicator.SetSpeaking(IsSpeaking(entry.Key));
+        }
     }
 
     private void RemoveBinding(int actor)
@@ -176,10 +226,12 @@ internal sealed class DineInPhotonVoiceAdapter : IDisposable
         if (!bindings.TryGetValue(actor, out var binding)) return;
         DestroyBinding(binding);
         bindings.Remove(actor);
+        MultiplayerVoiceController.Diagnostic("Released player audio actor=" + actor);
     }
 
     private void DestroyBinding(Binding binding)
     {
+        if (binding.indicator != null) binding.indicator.HideImmediately();
         if (binding.recorder != null)
         {
             binding.recorder.TransmitEnabled = false;
@@ -197,6 +249,23 @@ internal sealed class DineInPhotonVoiceAdapter : IDisposable
         if (binding.ownedLogger != null) UnityEngine.Object.Destroy(binding.ownedLogger);
     }
 
+    private void OnVoiceStateChanged(ClientState previous, ClientState current)
+    {
+        MultiplayerVoiceController.Diagnostic("Photon Voice " + previous + " -> " + current
+            + (current == ClientState.Disconnected && client != null ? " reason=" + client.Client.DisconnectedCause : ""));
+    }
+    private void OnRemoteVoiceAdded(RemoteVoiceLink voice)
+    {
+        var view = voice.VoiceInfo.UserData is int viewId ? PhotonView.Find(viewId) : null;
+        MultiplayerVoiceController.Diagnostic("Remote voice stream received actor="
+            + (view != null ? view.OwnerActorNr : 0) + " identityResolved=" + (view != null));
+    }
+    private void OnSpeakerLinked(Speaker speaker)
+    {
+        var view = speaker != null ? speaker.GetComponentInParent<PhotonView>() : null;
+        MultiplayerVoiceController.Diagnostic("Remote Speaker linked actor=" + (view != null ? view.OwnerActorNr : 0));
+    }
+
     public void Dispose()
     {
         foreach (var binding in bindings.Values) DestroyBinding(binding);
@@ -204,6 +273,9 @@ internal sealed class DineInPhotonVoiceAdapter : IDisposable
         if (client != null)
         {
             client.AutoConnectAndJoin = false;
+            client.RemoteVoiceAdded -= OnRemoteVoiceAdded;
+            client.SpeakerLinked -= OnSpeakerLinked;
+            if (client.Client != null) client.Client.StateChanged -= OnVoiceStateChanged;
             if (client.Client != null && client.Client.IsConnected) client.Disconnect();
         }
         if (clientRoot != null)

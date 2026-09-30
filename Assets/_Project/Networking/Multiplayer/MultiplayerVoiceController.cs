@@ -17,7 +17,25 @@ public sealed class MultiplayerVoiceController : MonoBehaviour
     private DineInSettings settings;
     private readonly UserSettings defaults = new();
     private bool stopped, failed, lastVoiceEnabled;
-    private float nextRefresh;
+    [SerializeField, Range(0, 3)] private int reconnectAttempts = 2;
+    [SerializeField, Range(1f, 10f)] private float reconnectDelay = 3f;
+    private float nextRefresh, retryAt;
+    private int retries;
+    private bool wasConnected;
+    private string lastReportedStatus, lastReportedMicrophone;
+    private const string UnavailableMessage = "Voice chat is unavailable right now.";
+    public string MicrophoneMessage { get; private set; }
+    public bool Connected
+    {
+        get
+        {
+#if DINEIN_PHOTON_VOICE
+            return adapter != null && adapter.Connected;
+#else
+            return false;
+#endif
+        }
+    }
 #if DINEIN_PHOTON_VOICE
     private DineInPhotonVoiceAdapter adapter;
     private float connectDeadline;
@@ -34,13 +52,13 @@ public sealed class MultiplayerVoiceController : MonoBehaviour
         {
 #if DINEIN_PHOTON_VOICE
             return !failed && PhotonNetwork.PhotonServerSettings != null
-                && !string.IsNullOrWhiteSpace(PhotonNetwork.PhotonServerSettings.AppSettings.AppIdVoice);
+                && Guid.TryParse(PhotonNetwork.PhotonServerSettings.AppSettings.AppIdVoice, out _);
 #else
             return false;
 #endif
         }
     }
-    public string Status { get; private set; } = "Voice unavailable — Photon Voice setup required";
+    public string Status { get; private set; } = UnavailableMessage;
     public string MicrophoneStatus { get; private set; } = "VOICE UNAVAILABLE";
     public bool LocalSpeaking
     {
@@ -61,12 +79,23 @@ public sealed class MultiplayerVoiceController : MonoBehaviour
         settings = DineInSettings.EnsureInstance();
         if (settings != null) settings.OnSettingsLoaded += PreferencesChanged;
         lastVoiceEnabled = Preferences.voiceEnabled;
+#if DINEIN_PHOTON_VOICE
+        var appSettings = PhotonNetwork.PhotonServerSettings?.AppSettings;
+        bool voiceConfigured = appSettings != null && Guid.TryParse(appSettings.AppIdVoice, out _);
+        Diagnostic((voiceConfigured ? "Configuration ready" : "FAILED stage=Configuration")
+            + " source=PhotonNetwork.PhotonServerSettings adapterCompiled=true"
+            + " voiceIdConfigured=" + voiceConfigured
+            + " voiceIdEmpty=" + string.IsNullOrWhiteSpace(appSettings?.AppIdVoice)
+            + " realtimeIdConfigured=" + (appSettings != null && Guid.TryParse(appSettings.AppIdRealtime, out _)));
+#else
+        Diagnostic("FAILED stage=Configuration adapterCompiled=false (DINEIN_PHOTON_VOICE is disabled).");
+#endif
     }
 
     private void PreferencesChanged(UserSettings value)
     {
         // Only toggling voice retries a failed connection; other sliders never retry it.
-        if (failed && value.voiceEnabled != lastVoiceEnabled) { failed = false; DisposeTransport(); }
+        if (value.voiceEnabled != lastVoiceEnabled) { failed = false; retries = 0; retryAt = 0; DisposeTransport(); }
         lastVoiceEnabled = value.voiceEnabled;
         nextRefresh = 0;
     }
@@ -75,60 +104,84 @@ public sealed class MultiplayerVoiceController : MonoBehaviour
     {
         if (Time.unscaledTime < nextRefresh) return;
         nextRefresh = Time.unscaledTime + .25f;
+        TickVoice();
+        if (!string.IsNullOrEmpty(MicrophoneMessage) && Preferences.voiceEnabled && Available)
+            Status += "\n" + MicrophoneMessage;
+        if (Status != lastReportedStatus || MicrophoneStatus != lastReportedMicrophone)
+        {
+            Diagnostic(Status + " Microphone=" + MicrophoneStatus);
+            lastReportedStatus = Status; lastReportedMicrophone = MicrophoneStatus;
+        }
+    }
+
+    private void LateUpdate()
+    {
+#if DINEIN_PHOTON_VOICE
+        adapter?.UpdateSpeakingIndicators();
+#endif
+    }
+
+    private void TickVoice()
+    {
+        MicrophoneMessage = null;
         if (stopped || session == null || session.Ended || string.IsNullOrEmpty(session.RunId) || !session.IsConnected || PhotonNetwork.OfflineMode)
         {
             DisposeTransport();
-            Status = "Voice disconnected";
+            if (session != null && !session.IsConnected)
+            { failed = false; retries = 0; retryAt = 0; wasConnected = false; }
+            Status = session != null && session.IsRecovering
+                ? "Voice chat disconnected. Trying to reconnect…" : "Voice chat disconnected.";
             MicrophoneStatus = "MIC OFF";
             return;
         }
         if (!Preferences.voiceEnabled)
         {
             DisposeTransport();
-            Status = "Voice disabled";
+            Status = "Voice chat is off.";
             MicrophoneStatus = "MIC OFF";
             return;
         }
         if (!Available)
         {
-            Status = failed ? "Voice unavailable" : "Voice unavailable — Photon Voice setup required";
+            Status = UnavailableMessage;
             MicrophoneStatus = "VOICE UNAVAILABLE";
             return;
         }
 #if DINEIN_PHOTON_VOICE
         try
         {
+            if (Time.unscaledTime < retryAt)
+            { Status = "Voice chat disconnected. Trying to reconnect…"; MicrophoneStatus = "CONNECTING…"; return; }
             if (adapter == null)
             {
+                Diagnostic(wasConnected ? "Reconnecting Photon Voice." : "Connecting Photon Voice for the current gameplay room.");
                 adapter = new DineInPhotonVoiceAdapter(transform, session, settings, voiceDetectionThreshold);
                 connectDeadline = Time.unscaledTime + connectionTimeout;
             }
-            bool capture = CanUseMicrophone();
+            bool capture = adapter.Connected && CanUseMicrophone();
             adapter.Refresh(capture);
             if (adapter.Connected)
             {
                 connectDeadline = Time.unscaledTime + connectionTimeout;
-                Status = "Voice connected";
-                if (capture && adapter.HasRecorder && !adapter.CaptureReady)
-                    MicrophoneStatus = "NO MICROPHONE";
+                wasConnected = true; retries = 0;
+                Status = "Voice chat connected.";
+                if (capture && !adapter.HasRecorder)
+                { MicrophoneStatus = "MIC STARTING"; MicrophoneMessage = "Microphone is starting…"; }
+                else if (capture && !adapter.CaptureReady)
+                { MicrophoneStatus = "MIC UNAVAILABLE"; MicrophoneMessage = "Microphone could not start. You can still hear other players."; }
             }
             else if (Time.unscaledTime >= connectDeadline)
+                RetryVoice("FAILED stage=ConnectOrJoin timeout " + adapter.ConnectionDiagnostic);
+            else
             {
-                failed = true;
-                DisposeTransport();
-                Status = "Voice unavailable — toggle Voice to retry";
-                MicrophoneStatus = "VOICE UNAVAILABLE";
+                Status = wasConnected ? "Voice chat disconnected. Trying to reconnect…" : "Connecting voice chat…";
+                MicrophoneStatus = "CONNECTING…";
             }
-            else Status = "Connecting voice…";
         }
-        catch (Exception)
+        catch (Exception error)
         {
-            // Voice failure is local and optional. Never leave the gameplay room.
-            // Avoid emitting authentication settings or third-party exception payloads.
-            failed = true;
-            DisposeTransport();
-            Status = "Voice unavailable";
-            MicrophoneStatus = "VOICE UNAVAILABLE";
+            // Log only the exception type: SDK exception messages may contain connection settings.
+            RetryVoice("Photon Voice initialization failed: " + error.GetType().Name);
         }
 #endif
     }
@@ -136,11 +189,12 @@ public sealed class MultiplayerVoiceController : MonoBehaviour
 #if DINEIN_PHOTON_VOICE
     private bool CanUseMicrophone()
     {
-        if (Preferences.microphoneMuted) { MicrophoneStatus = "MIC MUTED"; return false; }
+        if (Preferences.microphoneMuted) { MicrophoneStatus = "MIC MUTED"; MicrophoneMessage = "Microphone muted."; return false; }
 #if UNITY_ANDROID && !UNITY_EDITOR
         if (!Permission.HasUserAuthorizedPermission(Permission.Microphone))
         {
-            MicrophoneStatus = "PERMISSION REQUIRED";
+            MicrophoneStatus = "MIC PERMISSION REQUIRED";
+            MicrophoneMessage = "Microphone permission is required to use voice chat.";
             if (!permissionPending && PlayerPrefs.GetInt(PermissionAskedKey, 0) == 0)
             {
                 PlayerPrefs.SetInt(PermissionAskedKey, 1);
@@ -157,9 +211,9 @@ public sealed class MultiplayerVoiceController : MonoBehaviour
 #endif
         try
         {
-            if (Microphone.devices.Length == 0) { MicrophoneStatus = "NO MICROPHONE"; return false; }
+            if (Microphone.devices.Length == 0) { MicrophoneStatus = "NO MICROPHONE"; MicrophoneMessage = "No microphone detected."; return false; }
         }
-        catch (Exception) { MicrophoneStatus = "NO MICROPHONE"; return false; }
+        catch (Exception) { MicrophoneStatus = "NO MICROPHONE"; MicrophoneMessage = "No microphone detected."; return false; }
         MicrophoneStatus = "MIC ON";
         return true;
     }
@@ -195,9 +249,25 @@ public sealed class MultiplayerVoiceController : MonoBehaviour
     {
         stopped = true;
         DisposeTransport();
-        Status = "Voice disconnected";
+        Status = "Voice chat disconnected.";
         MicrophoneStatus = "MIC OFF";
     }
+
+#if DINEIN_PHOTON_VOICE
+    private void RetryVoice(string reason)
+    {
+        Diagnostic(reason);
+        DisposeTransport();
+        retries++;
+        failed = retries > reconnectAttempts;
+        retryAt = Time.unscaledTime + reconnectDelay;
+        Status = failed ? UnavailableMessage : "Voice chat disconnected. Trying to reconnect…";
+        MicrophoneStatus = failed ? "VOICE UNAVAILABLE" : "CONNECTING…";
+    }
+#endif
+
+    [System.Diagnostics.Conditional("UNITY_EDITOR"), System.Diagnostics.Conditional("DEVELOPMENT_BUILD")]
+    internal static void Diagnostic(string message) => Debug.Log("[Voice] " + message);
 
     private void DisposeTransport()
     {

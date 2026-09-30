@@ -1,0 +1,87 @@
+var scene = UnityEditor.SceneManagement.EditorSceneManager.NewPreviewScene();
+var avatar = UnityEngine.Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<UnityEngine.GameObject>("Assets/Resources/ManagerMultiplayer.prefab"));
+UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(avatar, scene);
+avatar.transform.position=UnityEngine.Vector3.zero; avatar.transform.rotation=UnityEngine.Quaternion.identity;
+var cameraObject = new UnityEngine.GameObject("Voice Preview Camera");
+UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(cameraObject, scene);
+var camera = cameraObject.AddComponent<UnityEngine.Camera>();
+camera.scene = scene;
+camera.clearFlags = UnityEngine.CameraClearFlags.SolidColor;
+camera.backgroundColor = new UnityEngine.Color(.11f,.18f,.22f);
+camera.orthographic = true;
+camera.nearClipPlane = .1f; camera.farClipPlane = 100f;
+camera.transform.rotation = UnityEngine.Quaternion.Euler(35, 45, 0);
+camera.transform.position = UnityEngine.Vector3.up * 3f - camera.transform.forward * 25f;
+var lightObject = new UnityEngine.GameObject("Preview Light");
+UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(lightObject, scene);
+var light = lightObject.AddComponent<UnityEngine.Light>();
+light.type = UnityEngine.LightType.Directional; light.intensity = 1.3f;
+light.transform.rotation = UnityEngine.Quaternion.Euler(45,-25,0);
+var tag = avatar.GetComponentInChildren<NameTagBillboard>(true);
+tag.transform.position = UnityEngine.Vector3.up * 4.2f;
+tag.transform.rotation = UnityEngine.Quaternion.LookRotation(tag.transform.position-camera.transform.position);
+tag.SetCamera(camera);
+var nameText = tag.GetComponentInChildren<TMPro.TMP_Text>(true);
+nameText.text = "Player One";
+var canvas = tag.GetComponentInChildren<UnityEngine.Canvas>(true);
+canvas.worldCamera = camera;
+var indicator = avatar.GetComponentInChildren<PlayerVoiceSpeakingIndicator>(true);
+var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+var type = typeof(PlayerVoiceSpeakingIndicator);
+type.GetMethod("Awake",flags).Invoke(indicator,null);
+var animate = type.GetMethod("Animate",flags);
+var update = type.GetMethod("Update",flags);
+var group = indicator.GetComponentInChildren<UnityEngine.CanvasGroup>(true);
+System.Action<bool,string> check = (value, message) => { if (!value) throw new System.Exception(message); };
+float now = UnityEngine.Time.unscaledTime;
+var originalCount = indicator.GetComponentsInChildren<UnityEngine.Transform>(true).Length;
+string report = "";
+try
+{
+    check(group.alpha==0 && !group.gameObject.activeSelf,"Initial state must be hidden");
+    indicator.SetSpeaking(true); animate.Invoke(indicator,new object[]{.15f,now,false});
+    check(group.alpha>.99f && group.gameObject.activeSelf,"Speech must appear promptly");
+    indicator.SetSpeaking(false); animate.Invoke(indicator,new object[]{.1f,now+.20f,false});
+    check(group.alpha>.99f,"Short speech gap must not flicker");
+    animate.Invoke(indicator,new object[]{.1f,now+.36f,false});
+    check(group.alpha>0 && group.alpha<1,"Silence should smoothly fade");
+    indicator.SetSpeaking(true); animate.Invoke(indicator,new object[]{.15f,now+.38f,false});
+    check(group.alpha>.99f,"Resuming speech cancels the fade");
+    indicator.HideImmediately();
+    check(group.alpha==0 && !group.gameObject.activeSelf,"Invalidation must clear immediately");
+    indicator.SetSpeaking(true); animate.Invoke(indicator,new object[]{.15f,now,true});
+    check(group.transform.localScale==UnityEngine.Vector3.one,"Reduced motion must not pulse");
+    indicator.SetSpeaking(false); animate.Invoke(indicator,new object[]{.21f,now+1f,false});
+    check(group.alpha==0 && !group.gameObject.activeSelf,"Sustained silence must disable the visual");
+    check(indicator.GetComponentsInChildren<UnityEngine.Transform>(true).Length==originalCount,"Animation must reuse its objects");
+    report = "PASS: initial hidden, fade-in, grace period, fade-out, interrupted fade, immediate invalidation, reduced motion, object reuse.\n";
+    int[] widths = {3840,1920,1280,1600};
+    int[] heights = {2160,1080,720,720};
+    for(int i=0;i<widths.Length;i++)
+    {
+        camera.orthographicSize = i==3 ? 20f : 8f;
+        indicator.SetSpeaking(true); update.Invoke(indicator,null);
+        animate.Invoke(indicator,new object[]{.15f,now,true});
+        UnityEngine.Canvas.ForceUpdateCanvases();
+        var target = new UnityEngine.RenderTexture(widths[i],heights[i],24);
+        var oldActive = UnityEngine.RenderTexture.active;
+        var texture = new UnityEngine.Texture2D(widths[i],heights[i],UnityEngine.TextureFormat.RGB24,false);
+        try
+        {
+            camera.targetTexture=target; camera.Render();
+            UnityEngine.RenderTexture.active=target;
+            texture.ReadPixels(new UnityEngine.Rect(0,0,widths[i],heights[i]),0,0);texture.Apply();
+            string path="output/voice-indicator/preview-"+widths[i]+"x"+heights[i]+".png";
+            System.IO.File.WriteAllBytes(path,texture.EncodeToPNG());
+            report += path+" ortho="+camera.orthographicSize+"\n";
+        }
+        finally
+        {
+            camera.targetTexture=null; UnityEngine.RenderTexture.active=oldActive;
+            UnityEngine.Object.DestroyImmediate(texture);target.Release();UnityEngine.Object.DestroyImmediate(target);
+        }
+    }
+}
+finally { UnityEditor.SceneManagement.EditorSceneManager.ClosePreviewScene(scene); }
+System.IO.File.WriteAllText("output/voice-indicator/checks.txt",report);
+return report;

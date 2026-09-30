@@ -74,9 +74,9 @@ public sealed class PausePlayersPanel : MonoBehaviour
         var voice=session!=null?session.GetComponent<MultiplayerVoiceController>():null;
         bool active=session!=null && session.IsMultiplayerSession;
         var prefs=settings.Current;
-        voiceToggleLabel.text=prefs.voiceEnabled?"VOICE ON":"VOICE OFF";
+        voiceToggleLabel.text=prefs.voiceEnabled?"VOICE CHAT: ON":"VOICE CHAT: OFF";
         microphoneLabel.text=voice!=null?voice.MicrophoneStatus:"VOICE UNAVAILABLE";
-        voiceStatus.text=!active?"Voice is available during multiplayer runs.":voice!=null?voice.Status:"Voice unavailable";
+        voiceStatus.text=!active?"Voice is available during multiplayer runs.":voice!=null?voice.Status:"Voice chat is unavailable right now.";
         masterVolume.SetValueWithoutNotify(prefs.masterVoiceVolume);
         masterValue.text=Mathf.RoundToInt(prefs.masterVoiceVolume*100)+"%";
         microphoneToggle.interactable=prefs.voiceEnabled;
@@ -93,11 +93,11 @@ public sealed class PausePlayersPanel : MonoBehaviour
             row.name.text=nickname.Length>28?nickname.Substring(0,28):nickname;
             float volume=settings.GetPlayerVoiceVolume(row.userId);
             bool muted=settings.GetPlayerVoiceMuted(row.userId);
-            bool speaking=!player.IsInactive && prefs.voiceEnabled && !muted && volume>0 && prefs.masterVoiceVolume>0 &&
+            bool speaking=!player.IsInactive && prefs.voiceEnabled &&
                 voice!=null && voice.IsSpeaking(row.actorNumber);
             row.speaking.color=speaking?speakingColor:quietColor;
-            row.status.text=player.IsInactive?"Reconnecting":muted?"Muted for you":!prefs.voiceEnabled?"Voice off":
-                voice==null || !voice.Available?"Voice unavailable":speaking?"Speaking":"Connected";
+            row.status.text=player.IsInactive?"Reconnecting":muted?(speaking?"Speaking (muted)":"Muted for you"):!prefs.voiceEnabled?"Voice off":
+                voice==null || !voice.Available?"Voice unavailable":!voice.Connected?"Connecting":speaking?"Speaking":"Not speaking";
             row.volume.SetValueWithoutNotify(volume);
             row.volumeValue.text=Mathf.RoundToInt(volume*100)+"%";
             row.muteLabel.text=muted?"UNMUTE":"MUTE";

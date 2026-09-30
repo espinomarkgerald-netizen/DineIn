@@ -1,4 +1,4 @@
-﻿using TMPro;
+using TMPro;
 using UnityEngine;
 
 /// <summary>
@@ -28,6 +28,7 @@ public class NameTagBillboard : MonoBehaviour
     [SerializeField] private bool faceCamera = true;
 
     private Camera activeCam;
+    public Camera ViewCamera => activeCam;
 
     private const float CameraRetryInterval = 0.5f;
     private float cameraRetryTimer;
@@ -50,7 +51,7 @@ public class NameTagBillboard : MonoBehaviour
     private void LateUpdate()
     {
         // Retry camera resolution periodically when the reference is missing.
-        if (activeCam == null)
+        if (activeCam == null || !activeCam.isActiveAndEnabled)
         {
             cameraRetryTimer -= Time.deltaTime;
             if (cameraRetryTimer <= 0f)

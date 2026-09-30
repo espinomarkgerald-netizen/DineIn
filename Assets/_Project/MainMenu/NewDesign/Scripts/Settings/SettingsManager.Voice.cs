@@ -15,6 +15,18 @@ namespace DineIn.NewMenu
 
     public partial class SettingsManager
     {
+        private UnityEngine.Audio.AudioMixerGroup voiceOutputGroup;
+        public UnityEngine.Audio.AudioMixerGroup VoiceOutputGroup
+        {
+            get
+            {
+                if (voiceOutputGroup == null && gameplayMixer != null)
+                    foreach (var group in gameplayMixer.FindMatchingGroups("Voice"))
+                        if (group.name == "Voice") { voiceOutputGroup = group; break; }
+                return voiceOutputGroup;
+            }
+        }
+
         private readonly Dictionary<string, float> playerVoiceVolumes = new();
         private readonly Dictionary<string, bool> playerVoiceMutes = new();
 
