@@ -75,7 +75,8 @@ namespace DineIn.NewMenu
             if (defaultSfxGroup == null || Time.unscaledTime < nextAudioRouteScan) return;
             nextAudioRouteScan = Time.unscaledTime + 1f;
             foreach (AudioSource source in FindObjectsByType<AudioSource>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
-                if (source.outputAudioMixerGroup == null) source.outputAudioMixerGroup = defaultSfxGroup;
+                if (source.outputAudioMixerGroup == null && source.GetComponent<DineInVoiceAudioSource>() == null)
+                    source.outputAudioMixerGroup = defaultSfxGroup;
         }
 
         private void ApplyAudio()
@@ -132,6 +133,7 @@ namespace DineIn.NewMenu
             PlayerPrefs.SetFloat(PrefSfxVolume, Current.sfxVolume);
             PlayerPrefs.SetInt(PrefShowFps, Current.showFps ? 1 : 0);
             SaveAdditional();
+            SaveVoice();
             PlayerPrefs.Save();
         }
 
@@ -143,6 +145,7 @@ namespace DineIn.NewMenu
             Current.sfxVolume = Mathf.Clamp01(PlayerPrefs.GetFloat(PrefSfxVolume, PlayerPrefs.GetFloat("Settings_Volume", DefaultSfxVolume)));
             Current.showFps = PlayerPrefs.GetInt(PrefShowFps, 0) == 1;
             LoadAdditional();
+            LoadVoice();
             ApplyAudio();
 
             if (PlayerPrefs.GetInt(PrefQualityUserSet, 0) == 1)

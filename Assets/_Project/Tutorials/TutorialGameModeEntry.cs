@@ -12,19 +12,33 @@ public static class TutorialGameModeEntry
     public static bool IsMenuLaunch { get; private set; }
     public static bool IsRevisitLaunch { get; private set; }
 
-    public static string RouteCampaign(string careerScene)
+    public static string ResolveCampaignDestination(string careerScene, out bool isMenuLaunch)
     {
         if (careerScene == "Lobby2")
         {
-            CampaignSaveStore.SelectRestaurant(careerScene);
-            IsRevisitLaunch = false;
-            IsMenuLaunch = PlayerPrefs.GetInt(FastFoodTutorialBridge.CompletedKey, 0) == 0 &&
+            isMenuLaunch = PlayerPrefs.GetInt(FastFoodTutorialBridge.CompletedKey, 0) == 0 &&
                 PlayerPrefs.GetInt(FastFoodTutorialBridge.SkippedKey, 0) == 0;
-            return IsMenuLaunch ? FastFoodScene.Tutorial : careerScene;
+            return isMenuLaunch ? FastFoodScene.Tutorial : careerScene;
         }
-        IsMenuLaunch = careerScene == "Lobby1" && !HasCompletedTutorial;
+
+        isMenuLaunch = careerScene == "Lobby1" && !HasCompletedTutorial;
+        return isMenuLaunch ? "Lobby1Tutorial" : careerScene;
+    }
+
+    public static void BeginCampaignRoute(string careerScene, bool isMenuLaunch)
+    {
+        if (careerScene == "Lobby2")
+            CampaignSaveStore.SelectRestaurant(careerScene);
+
+        IsMenuLaunch = isMenuLaunch;
         IsRevisitLaunch = false;
-        return IsMenuLaunch ? "Lobby1Tutorial" : careerScene;
+    }
+
+    public static string RouteCampaign(string careerScene)
+    {
+        string destination = ResolveCampaignDestination(careerScene, out bool isMenuLaunch);
+        BeginCampaignRoute(careerScene, isMenuLaunch);
+        return destination;
     }
 
     private const BindingFlags PrivateInstance = BindingFlags.Instance | BindingFlags.NonPublic;

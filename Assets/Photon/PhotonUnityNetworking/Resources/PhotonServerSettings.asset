@@ -34,24 +34,15 @@ MonoBehaviour:
   RunInBackground: 1
   StartInOfflineMode: 0
   RpcList:
+  - CantHearYou
+  - ChangeColour
   - ClickRpc
   - DestroyRpc
+  - HeresWhy
   - DestroySpaceship
   - Fire
-  - RespawnSpaceship
-  - RPC_SetDestination
-  - RPC_SetColor
-  - RPC_SetHat
-  - ReceiveQueue
-  - ReceiveAssignment
-  - ReceiveCarrier
-  - ReceiveGeneratedOrder
-  - ReceiveKitchenEntry
-  - ReceivePreparedResult
-  - ReceiveServed
-  - ReceiveEating
-  - ReceiveBillState
   - ReceiveServiceState
+  - RespawnSpaceship
   DisableAutoOpenWizard: 1
   ShowSettings: 0
-  DevRegionSetOnce: 1
+  DevRegionSetOnce: 0

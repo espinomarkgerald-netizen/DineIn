@@ -15,7 +15,7 @@ public sealed class MultiplayerSessionUI : MonoBehaviour
     private TMP_Text title, detail, readyLabel;
     private TMP_Text roster;
     private Button readyButton, cancelButton;
-    private bool connectionWarning, endedWarning;
+    private bool connectionWarning, endedWarning, showingRecovery;
     private float nextRefresh;
 
     private void Start()
@@ -107,7 +107,13 @@ public sealed class MultiplayerSessionUI : MonoBehaviour
         var request = day.Readiness;
         // The persistent HUD may finish Start after this scene-owned component.
         if (pause == null) pause = FindFirstObjectByType<LobbyPauseMenu>();
-        bool visible = request != null && !session.Ended && (pause == null || !pause.IsOpen);
+        bool recovering = session.IsRecovering && !session.Ended;
+        bool visible = (recovering || request != null) && !session.Ended && (pause == null || !pause.IsOpen);
+        if (showingRecovery != recovering)
+        {
+            showingRecovery = recovering;
+            nextRefresh = 0f;
+        }
         if (canvasRoot.activeSelf != visible)
         {
             canvasRoot.SetActive(visible);
@@ -120,6 +126,19 @@ public sealed class MultiplayerSessionUI : MonoBehaviour
         safeArea.anchorMin = new Vector2(safe.xMin / Screen.width, safe.yMin / Screen.height);
         safeArea.anchorMax = new Vector2(safe.xMax / Screen.width, safe.yMax / Screen.height);
         safeArea.offsetMin = safeArea.offsetMax = Vector2.zero;
+        readyButton.gameObject.SetActive(!recovering);
+        if (recovering)
+        {
+            title.text = session.IsConnected ? "SYNCHRONIZING RESTAURANT" : "CONNECTION LOST";
+            detail.text = session.Status;
+            readyButton.interactable = false;
+            cancelButton.interactable = false;
+            cancelButton.gameObject.SetActive(false);
+            if (roster != null) roster.text = string.Empty;
+            // The authored input shield remains active; its Pause button can
+            // open the existing menu while gameplay stays blocked.
+            return;
+        }
         bool host = session.IsHostConnection;
         string count = request.Count + "/" + request.actors.Length;
         if (request.CountingDown)

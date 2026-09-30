@@ -16,12 +16,39 @@ public class MultiplayerManagerRegistration : MonoBehaviourPunCallbacks, IOnPhot
 
     public override void OnJoinedRoom() => RegisterManager();
 
+    // Rejoining actors keep their avatar on surviving peers; Start does not run
+    // again there. Session callbacks can restore that registration without spawning.
+    public static bool TryRebindActor(MultiplayerSessionManager targetSession, int actor, out GameObject manager)
+    {
+        manager = null;
+        if (targetSession == null || !targetSession.IsConnected || actor <= 0) return false;
+        MultiplayerManagerRegistration match = null;
+        foreach (var candidate in FindObjectsByType<MultiplayerManagerRegistration>(FindObjectsSortMode.None))
+        {
+            var view = candidate.photonView;
+            if (candidate.gameObject.scene != targetSession.gameObject.scene || view == null
+                || view.OwnerActorNr != actor || view.Owner == null || view.Owner.IsInactive
+                || actor == targetSession.LocalActorNumber && !view.IsMine) continue;
+            // A duplicate is a restoration failure, never an arbitrary avatar choice.
+            if (match != null) return false;
+            match = candidate;
+        }
+        if (match == null) return false;
+        match.RegisterManager();
+        manager = match.gameObject;
+        return true;
+    }
+
     private void RegisterManager()
     {
         // PUN has assigned the owner by Start, for both local and remote instances.
         session = MultiplayerSessionManager.Instance;
         actorNumber = photonView.OwnerActorNr;
-        if (session != null) session.Register(this);
+        if (session != null)
+        {
+            session.Register(this);
+            GetComponent<DineIn.Appearance.PlayerAppearanceBinding>()?.Refresh();
+        }
     }
 
     private void OnDestroy()

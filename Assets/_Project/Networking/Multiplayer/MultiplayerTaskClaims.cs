@@ -115,7 +115,11 @@ public class MultiplayerTaskClaims : MonoBehaviourPunCallbacks, IOnEventCallback
     private bool SendRequest(string taskId, bool acquire)
     {
         if (!Active || string.IsNullOrWhiteSpace(taskId)) return false;
-        var request = new PendingRequest { generation = ++nextGeneration, acquire = acquire, sentAt = HygieneManager.ServiceTime };
+        var participant = session.Run?.participants.Find(p => p.actor == session.LocalActorNumber);
+        if (participant == null) return false;
+        long generation = ScopeGeneration(participant.loadEpoch, ++nextGeneration);
+        if (generation == 0) return false;
+        var request = new PendingRequest { generation = generation, acquire = acquire, sentAt = HygieneManager.ServiceTime };
         pendingRequests[taskId] = request;
         bool sent = Send(taskId, request);
         if (!sent && pendingRequests.TryGetValue(taskId, out var current) && current == request)
@@ -137,11 +141,23 @@ public class MultiplayerTaskClaims : MonoBehaviourPunCallbacks, IOnEventCallback
             new RaiseEventOptions { Receivers = ReceiverGroup.MasterClient }, SendOptions.SendReliable);
     }
 
+    // The high bits distinguish the same Photon actor's successive connections.
+    // A relaunched client may restart its local sequence, and a deferred request
+    // from the previous connection must never be replayed after the actor returns.
+    private static long ScopeGeneration(int loadEpoch, long sequence) =>
+        loadEpoch >= 0 && sequence > 0 && sequence <= uint.MaxValue
+            ? ((long)loadEpoch << 32) | sequence : 0;
+
+    private static bool GenerationMatchesEpoch(long generation, int loadEpoch) =>
+        generation > 0 && loadEpoch >= 0 && (generation >> 32) == loadEpoch && (uint)generation != 0;
+
     private void HandleRequest(string taskId, int actor, bool acquire, long generation)
     {
         if (HygieneManager.Defer(() => { if (this != null) HandleRequest(taskId, actor, acquire, generation); })) return;
         if (!session.IsAuthority || !session.ValidActor(actor) || !PhotonNetwork.CurrentRoom.Players.TryGetValue(actor, out var player)
             || player.IsInactive || string.IsNullOrWhiteSpace(taskId) || generation <= 0) return;
+        var participant = session.Run.participants.Find(p => p.actor == actor);
+        if (participant == null || !GenerationMatchesEpoch(generation, participant.loadEpoch)) return;
         var key = (actor, taskId);
         if (answeredRequests.TryGetValue(key, out var previousAnswer) && generation <= previousAnswer.generation)
         {
@@ -571,6 +587,9 @@ public class MultiplayerTaskClaims : MonoBehaviourPunCallbacks, IOnEventCallback
         foreach (var claim in claims)
             if (claim.Value == otherPlayer.ActorNumber) released.Add(claim.Key);
         foreach (string id in released) Publish(id, 0, 0, true);
+        latestHumanIntent.Remove(otherPlayer.ActorNumber);
+        foreach (var key in new List<(int actor, string task)>(answeredRequests.Keys))
+            if (key.actor == otherPlayer.ActorNumber) answeredRequests.Remove(key);
     }
 
     // Master change ends the scored run; clear transient claims without transferring authority.

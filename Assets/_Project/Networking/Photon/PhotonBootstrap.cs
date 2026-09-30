@@ -20,7 +20,7 @@ public class PhotonBootstrap : MonoBehaviourPunCallbacks
     private int attempt;
     private float connectionDeadline;
     private bool reconnectAfterDisconnect;
-    private static string ConnectionVersion => Application.version + "." + MultiplayerSessionManager.Protocol;
+    public static string ConnectionVersion => Application.version + "." + MultiplayerSessionManager.Protocol;
     // A short room code has no region information. Best-region matchmaking can
     // send friends to different room lists; use the authored region or one shared default.
     public static string RoomRegion => string.IsNullOrWhiteSpace(PhotonNetwork.PhotonServerSettings?.AppSettings.FixedRegion)

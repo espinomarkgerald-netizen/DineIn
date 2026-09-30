@@ -31,18 +31,30 @@ public class NetworkPlayerSpawner : MonoBehaviourPunCallbacks
     public override void OnJoinedRoom()
     {
         // Safety net: in case the scene was already active before joining.
-        if (!spawned)
-            SpawnLocalPlayer();
+        SpawnLocalPlayer();
     }
 
     /// <summary>Instantiates the local player over the network from the Resources folder.</summary>
     private void SpawnLocalPlayer()
     {
-        if (spawned || !PhotonNetwork.InRoom) return;
+        if (!PhotonNetwork.InRoom) return;
         bool managerScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "Lobby1 Multiplayer";
         if (managerScene && (gameObject.scene.name != "Lobby1 Multiplayer" ||
             playerPrefabName != "ManagerMultiplayer")) return;
-        if (PhotonNetwork.LocalPlayer.TagObject is GameObject existing && existing != null)
+        if (PhotonNetwork.LocalPlayer.HasRejoined)
+        {
+            // PUN replays the inactive actor's cached instantiation. Creating a
+            // replacement here would leave two avatars when that replay arrives.
+            spawned = true;
+            PhotonCustomizationSync.PushToPhoton();
+            MultiplayerManagerRegistration.TryRebindActor(MultiplayerSessionManager.Instance,
+                PhotonNetwork.LocalPlayer.ActorNumber, out _);
+            return;
+        }
+        if (spawned) return;
+        if (PhotonNetwork.LocalPlayer.TagObject is GameObject existing && existing != null
+            && existing.scene == gameObject.scene && existing.TryGetComponent<PhotonView>(out var existingView)
+            && existingView.IsMine && existingView.OwnerActorNr == PhotonNetwork.LocalPlayer.ActorNumber)
         {
             spawned = true;
             return;

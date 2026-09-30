@@ -67,7 +67,7 @@ public class AnimatedPanel : MonoBehaviour
         originalAnchoredPos = rectTransform.anchoredPosition;
         originalScale = rectTransform.localScale;
 
-        if (startClosed)
+        if (startClosed && !IsOpen)
         {
             IsOpen = false;
             gameObject.SetActive(false);
@@ -87,9 +87,11 @@ public class AnimatedPanel : MonoBehaviour
         // Without this, the base Back/Shop HUD can remain visible and clickable over
         // the shop or game-mode surface on Android.
         transform.SetAsLastSibling();
+        // An initially inactive panel runs Awake during SetActive. Preserve this
+        // explicit open request so startClosed cannot deactivate it mid-open.
+        IsOpen = true;
         gameObject.SetActive(true);
         ResetTransform();
-        IsOpen = true;
 
         activeAnimation = StartCoroutine(PlayAnimation(openPreset, openDuration, openEase, true));
     }

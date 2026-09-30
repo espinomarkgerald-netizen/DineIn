@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
@@ -156,11 +157,13 @@ public sealed class RestockFlowHUD : MonoBehaviour
 
     private void OnEnable()
     {
+        SceneManager.activeSceneChanged += HandleActiveSceneChanged;
         StartCoroutine(SubscribeAndRefresh());
     }
 
     private void OnDisable()
     {
+        SceneManager.activeSceneChanged -= HandleActiveSceneChanged;
         if (RestockOrderManager.Instance != null)
             RestockOrderManager.Instance.OrdersChanged -= HandleOrdersChanged;
 
@@ -175,6 +178,8 @@ public sealed class RestockFlowHUD : MonoBehaviour
             roomMessageRoutine = null;
         }
     }
+
+    private void HandleActiveSceneChanged(Scene previous, Scene current) => RebuildHotbar();
 
     private IEnumerator SubscribeAndRefresh()
     {
@@ -313,11 +318,14 @@ public sealed class RestockFlowHUD : MonoBehaviour
         RestockOrderManager manager = RestockOrderManager.Instance;
         bool hasBoxes = manager != null && manager.HotbarContainerCount > 0
             && MultiplayerRestockBridge.CanUsePayload;
+        string activeScene = SceneManager.GetActiveScene().name;
+        bool menuScene = activeScene == "NewMainMenu" || activeScene == "NewGameMenu";
+        bool showHotbar = hasBoxes && !menuScene;
         RectTransform hotbarRect = HotbarRect;
         float previousWidth = hotbarRect != null ? hotbarRect.rect.width : 0f;
         if (hotbarRoot != null)
-            hotbarRoot.SetActive(hasBoxes);
-        if (!hasBoxes)
+            hotbarRoot.SetActive(showHotbar);
+        if (!showHotbar)
         {
             if (hotbarResizeRoutine != null)
             {

@@ -41,6 +41,8 @@ public sealed partial class MultiplayerDayBridge : MonoBehaviourPunCallbacks, IO
     private string notice;
     private float retryVoteAt;
     private float nextSnapshotRead, nextBaselineRequest;
+    public bool HasRestoredState => snapshot != null && snapshot.run == session.RunId
+        && appliedRevision >= snapshot.revision && snapshot.day == CurrentDay;
     public MultiplayerDayReadiness Readiness => readiness;
     public static bool PreparationLocked => IsActive && !MultiplayerSessionManager.Instance.Ended
         && MultiplayerSessionManager.Instance.GetComponent<MultiplayerDayBridge>()?.readiness != null;

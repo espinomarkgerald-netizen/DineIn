@@ -10,7 +10,7 @@ using Settings = DineIn.NewMenu.SettingsManager;
 using Key = PauseSettingsPanel.Setting;
 
 /// <summary>Explicit prefab migration. No runtime generation, no scene saves, no external art.</summary>
-public static class PauseSettingsAuthoring
+public static partial class PauseSettingsAuthoring
 {
     private static readonly Color Navy=new Color(.12f,.23f,.33f), Paper=new Color(.91f,.96f,.99f), Blue=new Color(.15f,.59f,.77f), Red=new Color(.73f,.21f,.27f), Green=new Color(.20f,.55f,.35f);
     private static TMP_FontAsset Font => AssetDatabase.LoadAssetAtPath<TMP_FontAsset>("Assets/_Project/UI/Assets/Fonts/Atkinson_Hyperlegible/AtkinsonHyperlegible-Regular SDF.asset");
@@ -96,9 +96,9 @@ public static class PauseSettingsAuthoring
         var arrow=rect.Find("Arrow");if(arrow!=null){Remove(arrow,"Chevron");var image=arrow.GetComponent<Image>();image.enabled=true;image.sprite=Art("Blue","arrow_basic_s");image.preserveAspect=true;((RectTransform)arrow).sizeDelta=new Vector2(32,32);}
         return dropdown;
     }
-    private static PauseSettingsPanel.Row Row(Transform parent,Key key,string title,string help,int kind,float min=0,float max=1)
+    private static PauseSettingsPanel.Row Row(Transform parent,Key key,string title,string help,int kind,float min=0,float max=1,string objectName=null)
     {
-        var rect=Node(parent,key.ToString());Paint(rect,Color.white);
+        var rect=Node(parent,objectName??key.ToString());Paint(rect,Color.white);
         var layout=Component<LayoutElement>(rect);layout.preferredHeight=124;layout.minHeight=110;
         var titleText=Text(rect,"Label",title,36,Navy);Stretch(titleText.rectTransform,new Vector2(.015f,.1f),new Vector2(.50f,.9f));
         Remove(rect,"Hint");Remove(rect,"Divider");
@@ -190,6 +190,7 @@ public static class PauseSettingsAuthoring
             view.GameMenuButton.transform.SetParent(footer,false);Button(footer,view.GameMenuButton.name,"RETURN TO MENU",Red);Stretch((RectTransform)view.GameMenuButton.transform,new Vector2(.03f,.16f),new Vector2(.40f,.84f));
             view.ResumeButton.transform.SetParent(footer,false);Button(footer,view.ResumeButton.name,"RESUME",Green);Stretch((RectTransform)view.ResumeButton.transform,new Vector2(.70f,.16f),new Vector2(.97f,.84f));
             for(int i=0;i<4;i++) panel.pages[i].SetActive(i==0);
+            AuthorPlayers(panel);
             PolishSettingsLayout(panel);
             view.Overlay.SetActive(false);PrefabUtility.SaveAsPrefabAsset(root,path);
         }

@@ -25,7 +25,7 @@ public static class PauseSettingsRegression
             Require(panel.rows.Select(r=>r.setting).Distinct().Count()==18,"Duplicate row binding.");
             var view=root.GetComponentInChildren<LobbyPauseMenuView>(true);
             Require(!view.Overlay.activeSelf && view.GetComponent<Canvas>().sortingOrder>32761,"Tutorial pause layer or initial state invalid.");
-            Require(panel.tabs.Length==4 && panel.pages.Length==4,"Missing tabs.");
+            Require(panel.tabs.Length==5 && panel.pages.Length==5 && panel.playersTabIndex==4,"Missing tabs.");
             foreach(var action in new[]{panel.applyDisplay,panel.revertDisplay,panel.resetControls,panel.resetAccessibility})
             {
                 Require(action.transform.parent.GetComponent<UnityEngine.UI.HorizontalLayoutGroup>()!=null,"Action is still stretched across the settings list.");
@@ -50,10 +50,64 @@ public static class PauseSettingsRegression
         string[] commands={"day","approval","money","addmoney","startday","endday","gameover","timescale","wrongorder","burntfood","cardpayment","fillstocks","zerostocks","setcoin","addcoin","resetrun","recover","upgrade","unlockpopup","save","status","help"};
         Require(commands.All(c=>developerView.options.Any(o=>o.command==c)),"Missing debug command mapping.");
         Require(developerView.options.Count(o=>o.command=="upgrade")==3 && developerView.options.Count(o=>o.command=="unlockpopup")==3,"Missing equipment controls.");
+        CheckPlayersTab();
         CheckCallbacksAndPersistence();
-        CheckLandscapeLayout();
         Debug.Log("[Pause settings] PASS: prefab references, tabs, callbacks, preferences, resets, non-compounding global scale, computer/pause visibility, tutorial time restoration, developer categories and landscape layout bounds. Device display/F10 input and live multiplayer remain manual checks.");
     }
+    [MenuItem("Dine In/Validation/Validate Multiplayer Players Pause Tab")]
+    public static void CheckPlayersTab()
+    {
+        if(EditorApplication.isPlaying) throw new InvalidOperationException("Use Edit Mode for this isolated check.");
+        foreach(string path in new[]{PausePath,"Assets/_Project/Resources/UI/LobbyHUD.prefab"})
+        {
+            var root=PrefabUtility.LoadPrefabContents(path);
+            try
+            {
+                var panel=root.GetComponentInChildren<PauseSettingsPanel>(true);
+                var view=root.GetComponentInChildren<LobbyPauseMenuView>(true);
+                Require(panel!=null && panel.rows.Length==18,"Existing settings rows were changed.");
+                Require(!view.Overlay.activeSelf,"Pause overlay must remain closed.");
+                Require(panel.tabs.Length==5 && panel.pages.Length==5 && panel.playersTabIndex==4,"Players tab is not bound.");
+                var players=panel.pages[panel.playersTabIndex].GetComponent<PausePlayersPanel>();
+                Require(players!=null && players.masterVolume!=null && players.masterValue!=null &&
+                    players.voiceToggle!=null && players.voiceToggleLabel!=null && players.microphoneToggle!=null &&
+                    players.microphoneLabel!=null && players.voiceStatus!=null && players.emptyRoster!=null,"Local voice controls are incomplete.");
+                Require(players.remoteRows!=null && players.remoteRows.Length==3,"Expected three reusable remote player rows.");
+                Require(players.remoteRows.Select(r=>r.root).Distinct().Count()==3,"Remote player rows are duplicated.");
+                var scroll=players.GetComponent<UnityEngine.UI.ScrollRect>();
+                Require(scroll!=null && scroll.content!=null && scroll.viewport!=null && scroll.vertical && !scroll.horizontal,
+                    "Players page must scroll vertically.");
+                Require(scroll.viewport.GetComponent<UnityEngine.UI.RectMask2D>()!=null &&
+                    scroll.content.GetComponent<UnityEngine.UI.ContentSizeFitter>().verticalFit==ContentSizeFitter.FitMode.PreferredSize,
+                    "Players content is not clipped/sized for scrolling.");
+                foreach(var row in players.remoteRows)
+                {
+                    Require(row.root!=null && row.root.transform.parent==scroll.content && row.name!=null && row.status!=null &&
+                        row.speaking!=null && row.volume!=null && row.volumeValue!=null && row.mute!=null && row.muteLabel!=null,
+                        "Remote player controls are incomplete.");
+                    Require(!row.name.richText,"Player names must not accept rich text.");
+                    Require(row.volume.minValue==0 && row.volume.maxValue==1 && row.volume.fillRect!=null &&
+                        row.volume.handleRect!=null,"Remote volume slider is incomplete.");
+                }
+                panel.SetMultiplayerTabsVisible(true);panel.SelectTab(panel.playersTabIndex);
+                Require(panel.tabs.All(t=>t.gameObject.activeSelf) && panel.pages.Count(p=>p.activeSelf)==1 &&
+                    panel.pages[panel.playersTabIndex].activeSelf,"Multiplayer Players tab cannot open exclusively.");
+                for(int i=0;i<panel.tabs.Length;i++)
+                    Require(Mathf.Approximately(((RectTransform)panel.tabs[i].transform).anchorMax.x,(i+1)/5f),"Multiplayer tabs do not reflow.");
+                panel.SetMultiplayerTabsVisible(false);
+                Require(!panel.tabs[panel.playersTabIndex].gameObject.activeSelf && !panel.pages[panel.playersTabIndex].activeSelf &&
+                    panel.pages[0].activeSelf,"Players tab remains open outside multiplayer.");
+                panel.SelectTab(panel.playersTabIndex);
+                Require(!panel.pages[panel.playersTabIndex].activeSelf,"Hidden Players tab can still be selected.");
+                for(int i=0;i<4;i++)
+                    Require(Mathf.Approximately(((RectTransform)panel.tabs[i].transform).anchorMax.x,(i+1)/4f),"Single-player tabs did not recover full width.");
+            }
+            finally {PrefabUtility.UnloadPrefabContents(root);}
+        }
+        CheckLandscapeLayout();
+        Debug.Log("[Pause players] PASS: both prefab bindings, three unique roster rows, scroll clipping, multiplayer/SP tab visibility and landscape bounds.");
+    }
+
     private static void Require(bool pass,string message){if(!pass)throw new InvalidOperationException(message);}
     [MenuItem("Dine In/Validation/Validate Settings Slider Polish")]
     public static void CheckSliderPolish()
@@ -93,8 +147,8 @@ public static class PauseSettingsRegression
     }
     private static void CheckCallbacksAndPersistence()
     {
-        string[] floats={"Settings_MusicVolume","Settings_SfxVolume","Settings_MasterVolume","Settings_PanSpeed","Settings_ZoomSpeed","Settings_UIScale","Settings_DialogueSpeed"};
-        string[] ints={"Settings_Quality","Settings_QualityUserSet","Settings_ShowFPS","Settings_MuteAll","Settings_InvertZoom","Settings_EdgePan","Settings_VSync","Settings_FPSLimit","Settings_DisplayWidth","Settings_DisplayHeight","Settings_WindowMode","DineIn.LargeText","DineIn.HighContrast","DineIn.ReducedMotion"};
+        string[] floats={"Settings_MusicVolume","Settings_SfxVolume","Settings_MasterVolume","Settings_PanSpeed","Settings_ZoomSpeed","Settings_UIScale","Settings_DialogueSpeed","Settings_VoiceVolume"};
+        string[] ints={"Settings_Quality","Settings_QualityUserSet","Settings_ShowFPS","Settings_MuteAll","Settings_InvertZoom","Settings_EdgePan","Settings_VSync","Settings_FPSLimit","Settings_DisplayWidth","Settings_DisplayHeight","Settings_WindowMode","DineIn.LargeText","DineIn.HighContrast","DineIn.ReducedMotion","Settings_VoiceEnabled","Settings_MicrophoneMuted"};
         var existing=new HashSet<string>(floats.Concat(ints).Where(PlayerPrefs.HasKey));
         var floatValues=floats.ToDictionary(k=>k,k=>PlayerPrefs.GetFloat(k));var intValues=ints.ToDictionary(k=>k,k=>PlayerPrefs.GetInt(k));
         int quality=QualitySettings.GetQualityLevel(),vsync=QualitySettings.vSyncCount,fps=Application.targetFrameRate;
@@ -122,7 +176,8 @@ public static class PauseSettingsRegression
             instance.SetValue(null,settings);settings.LoadLocal();
             CheckGlobalScale(settings,helper);
             var panel=root.GetComponentInChildren<PauseSettingsPanel>(true);panel.Initialize();
-            for(int i=0;i<4;i++){panel.tabs[i].onClick.Invoke();Require(panel.pages.Where(p=>p.activeSelf).Count()==1&&panel.pages[i].activeSelf,"Tab did not switch exclusively.");}
+            panel.SetMultiplayerTabsVisible(true);
+            for(int i=0;i<panel.tabs.Length;i++){panel.tabs[i].onClick.Invoke();Require(panel.pages.Where(p=>p.activeSelf).Count()==1&&panel.pages[i].activeSelf,"Tab did not switch exclusively.");}
             foreach(var row in panel.rows)
             {
                 if(row.slider!=null)row.slider.value=row.slider.minValue+(row.slider.maxValue-row.slider.minValue)*.6f;
@@ -216,6 +271,7 @@ public static class PauseSettingsRegression
             view.GetComponent<CanvasScaler>().enabled=false;canvas.renderMode=RenderMode.WorldSpace;
             var canvasRect=(RectTransform)canvas.transform;view.Overlay.SetActive(true);
             var panel=view.GetComponentInChildren<PauseSettingsPanel>(true);
+            panel.SetMultiplayerTabsVisible(true);
             foreach(Vector2 pixels in new[]{new Vector2(1280,720),new Vector2(2340,1080),new Vector2(1920,1440)})
             foreach(float scale in new[]{.85f,1f,1.15f})
             {

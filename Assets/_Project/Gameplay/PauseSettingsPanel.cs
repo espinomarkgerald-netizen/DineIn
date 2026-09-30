@@ -21,6 +21,8 @@ public sealed class PauseSettingsPanel : MonoBehaviour
     }
     public Button[] tabs;
     public GameObject[] pages;
+    [Tooltip("Multiplayer-only page; -1 for a legacy prefab without Players controls.")]
+    public int playersTabIndex = -1;
     public Row[] rows;
     public Button resetControls, resetAccessibility, applyDisplay, revertDisplay;
     public TMP_Text displayStatus;
@@ -37,12 +39,13 @@ public sealed class PauseSettingsPanel : MonoBehaviour
     private float previewDeadline;
     private readonly Dictionary<TMP_Text,float> textSizes = new Dictionary<TMP_Text,float>();
     private int activeTab;
+    private bool? multiplayerTabsVisible;
     private static readonly int[] FrameCaps = {30,60,120,-1};
 
     private void OnEnable()
     {
         if (!Application.isPlaying) return;
-        Initialize(); Refresh();
+        Initialize(); RefreshMultiplayerContext(); Refresh();
     }
     public void Initialize()
     {
@@ -77,7 +80,7 @@ public sealed class PauseSettingsPanel : MonoBehaviour
                 row.root.gameObject.SetActive(Settings.SupportsDesktopDisplay);
         applyDisplay.gameObject.SetActive(Settings.SupportsDesktopDisplay);
         revertDisplay.gameObject.SetActive(false);
-        SyncDisplay(); SelectTab(0); Refresh();
+        SyncDisplay(); RefreshMultiplayerContext(); SelectTab(0); Refresh();
     }
     private void SettingsChanged(DineIn.NewMenu.UserSettings _) => Refresh();
     private void OnDestroy()
@@ -89,12 +92,37 @@ public sealed class PauseSettingsPanel : MonoBehaviour
     public void SelectTab(int index)
     {
         activeTab=Mathf.Clamp(index,0,pages.Length-1);
+        if(activeTab==playersTabIndex && !tabs[activeTab].gameObject.activeSelf) activeTab=0;
         for(int i=0;i<pages.Length;i++)
         {
             pages[i].SetActive(i==activeTab);
             var image=tabs[i].GetComponent<Image>();
             image.sprite=i==activeTab?selectedTabSprite:idleTabSprite;
             image.color=Color.white;
+        }
+    }
+    private void RefreshMultiplayerContext()
+    {
+        bool multiplayer=MultiplayerSessionManager.Instance!=null && MultiplayerSessionManager.Instance.IsMultiplayerSession;
+        if(multiplayerTabsVisible!=multiplayer) SetMultiplayerTabsVisible(multiplayer);
+    }
+    // Also used by isolated layout validation; runtime context comes from the existing session.
+    public void SetMultiplayerTabsVisible(bool multiplayer)
+    {
+        multiplayerTabsVisible=multiplayer;
+        if(playersTabIndex<0 || playersTabIndex>=tabs.Length || playersTabIndex>=pages.Length) return;
+        tabs[playersTabIndex].gameObject.SetActive(multiplayer);
+        if(!multiplayer && activeTab==playersTabIndex) SelectTab(0);
+        if(!multiplayer) pages[playersTabIndex].SetActive(false);
+        int count=tabs.Length-(multiplayer?0:1),slot=0;
+        for(int i=0;i<tabs.Length;i++)
+        {
+            if(i==playersTabIndex && !multiplayer) continue;
+            var rect=(RectTransform)tabs[i].transform;
+            rect.anchorMin=new Vector2(slot/(float)count,0);
+            rect.anchorMax=new Vector2((slot+1)/(float)count,1);
+            rect.offsetMin=new Vector2(6,0);rect.offsetMax=new Vector2(-6,0);
+            slot++;
         }
     }
     private Row Find(Setting key) => Array.Find(rows,r=>r.setting==key);
@@ -212,6 +240,7 @@ public sealed class PauseSettingsPanel : MonoBehaviour
     }
     private void Update()
     {
+        RefreshMultiplayerContext();
         if(!previewing) return;
         float remaining=previewDeadline-Time.unscaledTime;
         if(remaining<=0) {RevertDisplay();return;}

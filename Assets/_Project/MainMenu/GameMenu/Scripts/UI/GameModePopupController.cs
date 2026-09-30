@@ -9,6 +9,7 @@ using UnityEngine.SceneManagement;
 public class GameModePopupController : MonoBehaviour
 {
     private const string SelectedGameModeKey = "GameMenu_SelectedGameMode";
+    private string lastUnavailableCampaignRoute;
 
     public enum GameModeChoice
     {
@@ -77,11 +78,30 @@ public class GameModePopupController : MonoBehaviour
     /// <summary>Wire this to CampaignButton.</summary>
     public void ChooseCampaign()
     {
-        if (!TryGetSelectedCampaignScene(out string sceneName))
+        if (!TryGetSelectedCampaignScene(out string careerScene))
             return;
 
+        string destination = TutorialGameModeEntry.ResolveCampaignDestination(careerScene, out bool isMenuLaunch);
+        if (!Application.CanStreamedLevelBeLoaded(destination))
+        {
+            string routeKey = $"{careerScene}->{destination}";
+            if (lastUnavailableCampaignRoute != routeKey)
+            {
+                lastUnavailableCampaignRoute = routeKey;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                Debug.LogError($"[GameModePopupController] Campaign route unavailable (requestedMode={GameModeChoice.Campaign}, requestedCareerScene='{careerScene}', resolvedDestination='{destination}', available=false).");
+#endif
+                NotificationPopupController.Instance?.Show(
+                    $"The {destination} scene is not included in this build. Choose another restaurant.",
+                    NotificationPopupController.PopupType.Error);
+            }
+            return;
+        }
+
+        lastUnavailableCampaignRoute = null;
         ChooseMode(GameModeChoice.Campaign);
-        LoadScene(TutorialGameModeEntry.RouteCampaign(sceneName));
+        TutorialGameModeEntry.BeginCampaignRoute(careerScene, isMenuLaunch);
+        LoadScene(destination);
     }
 
     /// <summary>Wire this to MultiplayerButton.</summary>
@@ -116,12 +136,6 @@ public class GameModePopupController : MonoBehaviour
         }
 
         sceneName = campaignRestaurantScenes[restaurantIndex].Trim();
-        if (!Application.CanStreamedLevelBeLoaded(sceneName))
-        {
-            Debug.LogError($"[GameModePopupController] Campaign scene '{sceneName}' is not enabled in the active Build Profile.");
-            return false;
-        }
-
         return true;
     }
 

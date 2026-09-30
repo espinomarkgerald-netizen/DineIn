@@ -12,14 +12,22 @@ using Hashtable = ExitGames.Client.Photon.Hashtable;
 public class MultiplayerSessionManager : MonoBehaviourPunCallbacks
 {
     public const string SceneName = "Lobby1 Multiplayer", RunKey = "restaurant.run.v2";
-    public const string ProtocolKey = "restaurant.protocol", Protocol = "casual-session-15";
+    public const string ProtocolKey = "restaurant.protocol", Protocol = "casual-session-16";
     public const string ResultRulesVersion = "casual-session-2";
     public const string ReadyKey = "restaurant.ready", LoadedKey = "restaurant.loaded";
     public const int RejoinSeconds = 90;
     public static MultiplayerSessionManager Instance { get; private set; }
     private readonly Dictionary<int, MultiplayerManagerRegistration> managers = new();
     private MultiplayerRunRecord run;
-    private bool leaving, reconnecting, restoringConnection;
+    [Header("Connection recovery")]
+    [SerializeField, Range(10f, 60f)] private float automaticReconnectSeconds = 30f;
+    [SerializeField, Range(10f, 60f)] private float restorationTimeoutSeconds = 25f;
+    private bool leaving, reconnecting, restoringConnection, managementRestored;
+    private float restoreUntil, nextRebind, nextRemember;
+    private bool leaveInactive;
+    public bool IsRecovering => reconnecting || restoringConnection;
+    private int ReturnWindowSeconds => PhotonNetwork.CurrentRoom != null
+        ? Mathf.Clamp(PhotonNetwork.CurrentRoom.PlayerTtl / 1000, 1, 300) : RejoinSeconds;
     private float reconnectUntil, nextReconnect;
     private int localActor;
     private int previousSerializationRate;
@@ -49,6 +57,7 @@ public class MultiplayerSessionManager : MonoBehaviourPunCallbacks
     {
         if (Instance != null && Instance != this) { enabled = false; return; }
         Instance = this;
+        PhotonNetwork.AutomaticallySyncScene = true;
         previousSerializationRate = PhotonNetwork.SerializationRate;
         PhotonNetwork.SerializationRate = 10;
         localActor = PhotonNetwork.LocalPlayer?.ActorNumber ?? 0;
@@ -63,7 +72,14 @@ public class MultiplayerSessionManager : MonoBehaviourPunCallbacks
         if (GetComponent<MultiplayerServiceActions>() == null) gameObject.AddComponent<MultiplayerServiceActions>();
         if (GetComponent<MultiplayerObjectBridge>() == null) gameObject.AddComponent<MultiplayerObjectBridge>();
         if (Debug.isDebugBuild && GetComponent<MultiplayerDiagnostics>() == null) gameObject.AddComponent<MultiplayerDiagnostics>();
+        if (GetComponent<MultiplayerVoiceController>() == null) gameObject.AddComponent<MultiplayerVoiceController>();
         if (run != null && PhotonNetwork.MasterClient?.ActorNumber != run.hostActor) EndLocal("HostDisconnected");
+        if (run != null && !Ended)
+        {
+            MultiplayerLastRun.Remember(run, localActor);
+            nextRemember = Time.realtimeSinceStartup + 30f;
+            if (PhotonNetwork.LocalPlayer?.HasRejoined == true) BeginRestoration();
+        }
     }
 
     private void Update()
@@ -75,12 +91,27 @@ public class MultiplayerSessionManager : MonoBehaviourPunCallbacks
         { LeaveToMenu(); return; }
         if (reconnecting)
         {
-            if (Time.realtimeSinceStartup >= reconnectUntil) { EndLocal("Disconnected"); return; }
-            Status = "Reconnecting… " + Mathf.CeilToInt(reconnectUntil - Time.realtimeSinceStartup) + "s";
-            if (Time.realtimeSinceStartup >= nextReconnect && !PhotonNetwork.IsConnected)
+            if (Time.realtimeSinceStartup >= reconnectUntil) { ReturnAfterRecoveryFailure("Could not reconnect. Try Reconnect to Last Run while the host is still playing.", false); return; }
+            Status = "Connection lost. Reconnecting… " + Mathf.CeilToInt(reconnectUntil - Time.realtimeSinceStartup) + "s";
+            if (Time.realtimeSinceStartup >= nextReconnect && PhotonNetwork.NetworkClientState == ClientState.Disconnected)
             { nextReconnect = Time.realtimeSinceStartup + 3f; PhotonNetwork.ReconnectAndRejoin(); }
             return;
         }
+        if (restoringConnection)
+        {
+            if (Time.realtimeSinceStartup >= restoreUntil)
+            { ReturnAfterRecoveryFailure("Could not restore the run safely. You can try reconnecting again.", false); return; }
+            if (Time.realtimeSinceStartup >= nextRebind)
+            {
+                nextRebind = Time.realtimeSinceStartup + 0.25f;
+                bool hasAvatar = MultiplayerManagerRegistration.TryRebindActor(this, localActor, out _);
+                if (hasAvatar && managementRestored && MultiplayerProgressionContext.Ready
+                    && GetComponent<MultiplayerDayBridge>()?.HasRestoredState == true)
+                { restoringConnection = false; PhotonCustomizationSync.PushToPhoton(); }
+            }
+        }
+        if (!Ended && IsConnected && Time.realtimeSinceStartup >= nextRemember)
+        { MultiplayerLastRun.Remember(run, localActor); nextRemember = Time.realtimeSinceStartup + 30f; }
         string loadedToken = participant != null ? RunId + ":" + participant.loadEpoch : string.Empty;
         if (!Ended && !restoringConnection && MultiplayerProgressionContext.Ready && IsConnected
             && TryGetManager(localActor, out _) && !Equals(PhotonNetwork.LocalPlayer.CustomProperties[LoadedKey], loadedToken))
@@ -164,7 +195,7 @@ public class MultiplayerSessionManager : MonoBehaviourPunCallbacks
         if (Ended && string.IsNullOrEmpty(run.endedUtc)) run.endedUtc = DateTime.UtcNow.ToString("o");
         PhotonNetwork.CurrentRoom.SetCustomProperties(new Hashtable { [RunKey] = JsonUtility.ToJson(run) });
         MultiplayerRunRecords.Record(run, localActor, IsHostConnection);
-        if (Ended) StopSimulation();
+        if (Ended) { ForgetLastRun(); StopSimulation(); }
     }
     private void ReadRun()
     {
@@ -172,7 +203,7 @@ public class MultiplayerSessionManager : MonoBehaviourPunCallbacks
         try
         {
             var incoming = JsonUtility.FromJson<MultiplayerRunRecord>(json);
-            if (!MultiplayerRunRecords.Valid(incoming) || (run != null &&
+            if (!MultiplayerRunRecords.Valid(incoming) || incoming.gameVersion != Application.version || (run != null &&
                 (incoming.runId != run.runId || incoming.revision < run.revision || incoming.hostActor != run.hostActor
                     || incoming.hostAccountId != run.hostAccountId || incoming.startedUtc != run.startedUtc
                     || incoming.partySize != run.partySize || incoming.gameVersion != run.gameVersion
@@ -180,7 +211,7 @@ public class MultiplayerSessionManager : MonoBehaviourPunCallbacks
                     || incoming.participants.Exists(p => !run.participants.Exists(old => old.actor == p.actor && old.accountId == p.accountId))))) return;
             run = incoming;
             MultiplayerRunRecords.Record(run, localActor, IsHostConnection);
-            if (Ended) StopSimulation();
+            if (Ended) { ForgetLastRun(); StopSimulation(); }
         }
         catch (ArgumentException) { Status = "Invalid run record."; }
     }
@@ -195,12 +226,13 @@ public class MultiplayerSessionManager : MonoBehaviourPunCallbacks
         if (!IsAuthority) return;
         var p = run.participants.Find(value => value.actor == player.ActorNumber);
         if (p == null || p.departed) return;
-        if (player.IsInactive) { p.loadEpoch++; p.disconnectDeadline = PhotonNetwork.Time + RejoinSeconds; }
+        if (player.IsInactive) { p.loadEpoch++; p.disconnectDeadline = PhotonNetwork.Time + ReturnWindowSeconds; }
         else { p.departed = true; p.provisionalDay = 0; p.provisionalHighestDay = 0; p.disconnectDeadline = 0; }
         PublishRun();
     }
     public override void OnPlayerEnteredRoom(Player player)
     {
+        MultiplayerManagerRegistration.TryRebindActor(this, player.ActorNumber, out _);
         if (!IsAuthority) return;
         var p = run.participants.Find(value => value.actor == player.ActorNumber && value.accountId == player.UserId);
         if (p == null || p.departed || p.disconnectDeadline > 0 && PhotonNetwork.Time > p.disconnectDeadline)
@@ -223,31 +255,67 @@ public class MultiplayerSessionManager : MonoBehaviourPunCallbacks
         StopSimulation();
         if (localActor == run.hostActor) { EndLocal("HostDisconnected"); return; }
         GameDayManager.Instance?.PrepareNextMultiplayerDay(); // Discard replicas whose PUN groups are being destroyed.
-        if (!reconnecting) reconnectUntil = Time.realtimeSinceStartup + RejoinSeconds;
+        restoringConnection = false;
+        if (!reconnecting) reconnectUntil = Time.realtimeSinceStartup + Mathf.Min(automaticReconnectSeconds, ReturnWindowSeconds);
         reconnecting = true;
         nextReconnect = Time.realtimeSinceStartup + 1f;
     }
     public override void OnJoinedRoom()
     {
         if (!reconnecting || run == null) return;
-        if (PhotonNetwork.CurrentRoom.CustomProperties[RunKey] is not string json || !json.Contains(run.runId))
-        { EndLocal("RunUnavailable"); return; }
+        var pointer = MultiplayerLastRun.Load(run.participants.Find(p => p.actor == localActor)?.accountId, out _);
+        if (!MultiplayerLastRun.TryValidateJoinedRun(pointer, out var returned, out var reason)
+            || returned.runId != run.runId || returned.hostActor != run.hostActor
+            || returned.hostAccountId != run.hostAccountId || returned.revision < run.revision)
+        { ReturnAfterRecoveryFailure(reason ?? "The run has changed and cannot be resumed.", true); return; }
         reconnecting = false;
-        restoringConnection = true;
         ReadRun();
-        var participant = run.participants.Find(p => p.actor == localActor);
-        if (participant == null || participant.departed) { EndLocal("RejoinExpired"); return; }
         if (Ended) return;
+        BeginRestoration();
+    }
+    private void BeginRestoration()
+    {
+        restoringConnection = true;
+        managementRestored = false;
+        restoreUntil = Time.realtimeSinceStartup + restorationTimeoutSeconds;
+        nextRebind = 0f;
         GetComponent<MultiplayerRestaurantBridge>()?.RequestSnapshot();
         GetComponent<MultiplayerDayBridge>()?.RefreshAfterRejoin();
-        foreach (var registration in FindObjectsByType<MultiplayerManagerRegistration>(FindObjectsSortMode.None)) Register(registration);
+        MultiplayerManagerRegistration.TryRebindActor(this, localActor, out _);
     }
-    public void SnapshotRestored() { restoringConnection = false; }
-    public override void OnJoinRoomFailed(short code, string message) => EndLocal("RunUnavailable");
+    public void SnapshotRestored() { managementRestored = true; }
+    public override void OnJoinRoomFailed(short code, string message)
+    {
+        bool unavailable = code == ErrorCode.GameDoesNotExist || code == ErrorCode.JoinFailedWithRejoinerNotFound
+            || code == ErrorCode.GameClosed;
+        ReturnAfterRecoveryFailure(unavailable ? "That run or your reserved place is no longer available."
+            : "Reconnection failed. Try Reconnect to Last Run from the menu.", unavailable);
+    }
+    private void ReturnAfterRecoveryFailure(string message, bool definitive)
+    {
+        if (leaving) return;
+        if (definitive) ForgetLastRun();
+        MultiplayerLastRun.MenuNotice = message;
+        leaving = true;
+        leaveInactive = !definitive;
+        reconnecting = restoringConnection = false;
+        GetComponent<MultiplayerVoiceController>()?.StopVoice();
+        StopSimulation();
+        StartCoroutine(LeaveRoutine());
+    }
+    private void ForgetLastRun()
+    {
+        if (run == null) return;
+        MultiplayerLastRun.Forget(run.participants.Find(p => p.actor == localActor)?.accountId, run.runId);
+    }
     public override void OnLeftRoom() { managers.Clear(); if (!leaving && !Ended) EndLocal("LeftRoom"); }
     private void EndLocal(string reason)
     {
-        reconnecting = false;
+        reconnecting = restoringConnection = false;
+        ForgetLastRun();
+        GetComponent<MultiplayerVoiceController>()?.StopVoice();
+        if (PhotonNetwork.InRoom && PhotonNetwork.IsMasterClient)
+        { PhotonNetwork.CurrentRoom.IsOpen = false; PhotonNetwork.CurrentRoom.IsVisible = false; }
         if (run != null && !Ended) { run.endReason = reason; run.endedUtc = DateTime.UtcNow.ToString("o"); }
         if (run != null) { run.revision++; MultiplayerRunRecords.Record(run, localActor, localActor == run.hostActor, true); }
         StopSimulation();
@@ -271,19 +339,31 @@ public class MultiplayerSessionManager : MonoBehaviourPunCallbacks
     public void LeaveToMenu()
     {
         if (leaving) return;
+        leaveInactive = run != null && !Ended && localActor != run.hostActor;
+        if (leaveInactive && IsConnected) MultiplayerLastRun.Remember(run, localActor);
         if (IsHostConnection && !Ended) { run.endReason = "HostLeft"; PublishRun(); }
-        else if (run != null) MultiplayerRunRecords.Record(run, localActor, false, true);
+        else if (run != null) MultiplayerRunRecords.Record(run, localActor, false, Ended);
         leaving = true;
-        reconnecting = false;
+        reconnecting = restoringConnection = false;
+        GetComponent<MultiplayerVoiceController>()?.StopVoice();
         StopSimulation();
         StartCoroutine(LeaveRoutine());
     }
     private IEnumerator LeaveRoutine()
     {
-        if (PhotonNetwork.InRoom) PhotonNetwork.LeaveRoom(false);
+        PhotonNetwork.AutomaticallySyncScene = false;
+        if (PhotonNetwork.InRoom) PhotonNetwork.LeaveRoom(leaveInactive);
+        else if (PhotonNetwork.NetworkClientState != ClientState.Disconnected) PhotonNetwork.Disconnect();
         float deadline = Time.realtimeSinceStartup + 5f;
-        while (PhotonNetwork.InRoom && Time.realtimeSinceStartup < deadline) yield return null;
-        if (PhotonNetwork.InRoom) PhotonNetwork.Disconnect();
+        // PUN clears InRoom as soon as leave starts, before room cleanup finishes.
+        while (PhotonNetwork.CurrentRoom != null && Time.realtimeSinceStartup < deadline) yield return null;
+        if (PhotonNetwork.CurrentRoom != null)
+        {
+            PhotonNetwork.Disconnect();
+            deadline = Time.realtimeSinceStartup + 5f;
+            while (PhotonNetwork.NetworkClientState != ClientState.Disconnected
+                && Time.realtimeSinceStartup < deadline) yield return null;
+        }
         Time.timeScale = 1f;
         SceneManager.LoadScene("NewGameMenu");
     }
@@ -291,8 +371,12 @@ public class MultiplayerSessionManager : MonoBehaviourPunCallbacks
     {
         if (run == null) return;
         if (localActor == run.hostActor && !Ended) { run.endReason = "HostLeft"; run.endedUtc = DateTime.UtcNow.ToString("o"); run.revision++; }
-        MultiplayerRunRecords.Record(run, localActor, localActor == run.hostActor, true);
+        if (localActor == run.hostActor || Ended) ForgetLastRun();
+        else if (IsConnected) MultiplayerLastRun.Remember(run, localActor);
+        MultiplayerRunRecords.Record(run, localActor, localActor == run.hostActor, Ended);
     }
+    private void OnApplicationPause(bool paused)
+    { if (paused && run != null && !Ended && IsConnected) MultiplayerLastRun.Remember(run, localActor); }
     private void OnDestroy()
     {
         managers.Clear();
