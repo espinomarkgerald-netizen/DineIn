@@ -1,0 +1,42 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7c441fc5b04604458af20f08da8df09, type: 3}
+  m_Name: restaurant-fast-food
+  m_EditorClassIdentifier: 
+  entryName: Fast Food
+  subTitle: "Counter service \xB7 campaign restaurant"
+  entryId: restaurant-fast-food
+  category: 2
+  description: Take orders and payment at the counter, prepare food at the grill
+    and fry stations, then complete the ticket at assembly. Guests can take their
+    meal away or dine in.
+  gameplayNotes: 'Regular, VIP and messy guests are present from Day 1. Purple, orange,
+    elderly and family visitors arrive as the campaign progresses.
+
+    Cashiers
+    and lobby staff support the dining room.'
+  bossNote: 
+  relatedIds:
+  - staff-cashier
+  - staff-grill
+  - staff-fry
+  - staff-fast-food-assembler
+  icon: {fileID: 21300000, guid: 01544b406bf28bf458b335cc1ad05bea, type: 3}
+  previewKind: 0
+  previewPrefab: {fileID: 4475009008627999956, guid: e1ec1d5deaafe99418e3de66f0327247, type: 3}
+  previewEuler: {x: 0, y: 145, z: 0}
+  idleClip: {fileID: 0}
+  introductionClip: {fileID: 0}
+  variants: []
+  sourceNotes: 'MainMenu/GameMenu/Scripts/UI/GameModePopupController.cs: campaignRestaurantScenes
+    contains Lobby1 and Lobby2 only; Save/CampaignSaveStore.cs; EditorBuildSettings;
+    NewGameMenu restaurant exterior references.'

@@ -1,0 +1,47 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7c441fc5b04604458af20f08da8df09, type: 3}
+  m_Name: storage-delivery
+  m_EditorClassIdentifier: 
+  entryName: Delivery Truck
+  subTitle: Restocking
+  entryId: storage-delivery
+  category: 7
+  description: The delivery truck brings the ingredients purchased from the restaurant
+    computer.
+  gameplayNotes: 'Order boxes from Computer > Restock and collect them when the truck
+    arrives.
+
+    Collected deliveries wait in the delivery hotbar.
+
+    Place a
+    box on a stock-room shelf before its contents become usable kitchen stock.
+
+    Check
+    available storage space before ordering.'
+  bossNote: 
+  relatedIds:
+  - management-computer
+  - storage-containers
+  - storage-dry
+  - storage-frozen
+  icon: {fileID: 21300000, guid: bb4d0ee86f90c2c45aeed70eaa616d1e, type: 3}
+  previewKind: 2
+  previewPrefab: {fileID: 5436503162179209539, guid: 91ce7353f85d9f348b67eaf5aeaf0f9a, type: 3}
+  previewEuler: {x: 0, y: 155, z: 0}
+  idleClip: {fileID: 0}
+  introductionClip: {fileID: 0}
+  variants: []
+  sourceNotes: 'Assets/_Project/Restaurant/RestockRoom/RestockOrderManager.cs: CollectDeliveredOrders,
+    TryStoreOneContainer
+
+    Assets/_Project/Restaurant/RestockRoom/RestockTruckInteractable.cs'

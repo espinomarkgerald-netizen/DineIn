@@ -1,0 +1,49 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7c441fc5b04604458af20f08da8df09, type: 3}
+  m_Name: equipment-seating
+  m_EditorClassIdentifier: 
+  entryName: Tables & Booths
+  subTitle: Dining capacity
+  entryId: equipment-seating
+  category: 4
+  description: Tables and booths give dine-in customers somewhere to sit and enjoy
+    their meal.
+  gameplayNotes: 'Each table has a fixed set of seats and service points.
+
+    Seating
+    upgrades make additional seats available.
+
+    Fast Food includes booths, round
+    tables, window tables and back-stool tables.
+
+    Clear used trays and clean
+    dirty tables for the next guests.'
+  bossNote: 
+  relatedIds:
+  - equipment-busser-trolley
+  - storage-mop
+  - management-progression
+  icon: {fileID: 21300000, guid: f7634157d19c56d49961c6dfa3cb46d0, type: 3}
+  previewKind: 2
+  previewPrefab: {fileID: 870000000000000250, guid: 7abbb7fb86195f918476a8cd3e36434d, type: 3}
+  previewEuler: {x: 0, y: 155, z: 0}
+  idleClip: {fileID: 0}
+  introductionClip: {fileID: 0}
+  variants: []
+  sourceNotes: 'Assets/_Project/Restaurant/FastFoodTable.cs
+
+    Assets/_Project/Customers/Booth/Booth.cs
+
+    Assets/_Project/Office/Manager/Equipment
+
+    Assets/_Project/Resources/FastFood/Equipment'

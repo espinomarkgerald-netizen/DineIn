@@ -13,6 +13,33 @@ MonoBehaviour:
   m_Name: Assembler
   m_EditorClassIdentifier: 
   entryName: Assembler
-  subTitle: Back of House/Kitchen
-  description: Puts finished food orders togethe and checks if orders are complete.
-  icon: {fileID: 21300000, guid: c8275adae520f2c48b26ecd49a69aaf5, type: 3}
+  subTitle: "Fast Food \xB7 complete the ticket"
+  entryId: staff-fast-food-assembler
+  category: 1
+  description: Brings prepared portions together for Fast Food orders. The assembler
+    handles the final order tickets after the grill and fry stations do their work.
+  gameplayNotes: 'Fast Food kitchen role.
+
+    Works across the order menu.
+
+    Uniform:
+    Fast Food outfit and chef hat.'
+  bossNote: 
+  relatedIds:
+  - staff-grill
+  - staff-fry
+  - staff-cashier
+  icon: {fileID: 21300000, guid: 300ae9a1cc59d594299785c50bd77fdf, type: 3}
+  previewKind: 1
+  previewPrefab: {fileID: 1713438276194088164, guid: d7984c715da3f2f45a438590d92442e9, type: 3}
+  previewEuler: {x: 0, y: 160, z: 0}
+  idleClip: {fileID: 7400000, guid: 68b0a9eb38471694cbba952db7d69009, type: 2}
+  introductionClip: {fileID: -203655887218126122, guid: d94b5977e97cf904a80062282db30404, type: 3}
+  variants:
+  - label: "Fast Food \xB7 Male"
+    prefab: {fileID: 1713438276194088164, guid: d7984c715da3f2f45a438590d92442e9, type: 3}
+  - label: "Fast Food \xB7 Female"
+    prefab: {fileID: 38022816318458183, guid: 97c3da5ad8147e443b8ee0c7fbcb995f, type: 3}
+  sourceNotes: Office/HR/EmployeeRoleCatalog.cs; Gameplay/AutonomousService/Lobby/LobbyAutonomousService.cs;
+    Gameplay/AutonomousService/Kitchen/KitchenWorkerBot.cs; Editor/FastFoodStaffAuthoring.cs;
+    Resources/CasualEmployeeUniforms.asset; Resources/FastFoodEmployeeUniforms.asset.

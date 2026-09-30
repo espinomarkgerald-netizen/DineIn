@@ -13,6 +13,30 @@ MonoBehaviour:
   m_Name: Host
   m_EditorClassIdentifier: 
   entryName: Host
-  subTitle: Front of House/Lobby
-  description: Greets incoming customers and assigns them to available tables.
-  icon: {fileID: 21300000, guid: cb1024f3e72f30b4a801ec58141e1161, type: 3}
+  subTitle: "Casual Dining \xB7 front of house"
+  entryId: staff-host
+  category: 1
+  description: Welcomes guests in the queue and helps the party get seated. A ready
+    host keeps the arrival area moving while the rest of the team handles service.
+  gameplayNotes: 'Keep tables ready and watch waiting guests.
+
+    Uniform: receptionist
+    outfit.'
+  bossNote: 
+  relatedIds:
+  - customer-vip
+  - staff-waiter
+  icon: {fileID: 21300000, guid: ef82b0534a65e7d47b58fafa9a8f700b, type: 3}
+  previewKind: 1
+  previewPrefab: {fileID: 1243741528260467819, guid: ae0f7412eeed90c4d935cdf83c9215b7, type: 3}
+  previewEuler: {x: 0, y: 160, z: 0}
+  idleClip: {fileID: 7400000, guid: 68b0a9eb38471694cbba952db7d69009, type: 2}
+  introductionClip: {fileID: -203655887218126122, guid: d94b5977e97cf904a80062282db30404, type: 3}
+  variants:
+  - label: "Casual Dining \xB7 Male"
+    prefab: {fileID: 1243741528260467819, guid: ae0f7412eeed90c4d935cdf83c9215b7, type: 3}
+  - label: "Casual Dining \xB7 Female"
+    prefab: {fileID: 5042877460075989780, guid: 95b2207a004f55844afc213d562526ac, type: 3}
+  sourceNotes: Office/HR/EmployeeRoleCatalog.cs; Gameplay/AutonomousService/Lobby/LobbyAutonomousService.cs;
+    Gameplay/AutonomousService/Kitchen/KitchenWorkerBot.cs; Editor/FastFoodStaffAuthoring.cs;
+    Resources/CasualEmployeeUniforms.asset; Resources/FastFoodEmployeeUniforms.asset.

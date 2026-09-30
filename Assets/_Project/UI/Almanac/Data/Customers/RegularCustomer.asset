@@ -13,7 +13,28 @@ MonoBehaviour:
   m_Name: RegularCustomer
   m_EditorClassIdentifier: 
   entryName: Regular Customer
-  subTitle: Green Alien
-  description: The standard customer type with normal patience and normal dining
-    behavior. They follow the usual service flow and are the easiest to handle.
-  icon: {fileID: 21300000, guid: e8c745e215bd2824fb7ff3ffbaedb235, type: 3}
+  subTitle: The familiar green guest
+  entryId: customer-regular
+  category: 0
+  description: A regular guest gives you a little time to get the meal right. Keep
+    orders moving, serve the right dishes, and make their visit comfortable.
+  gameplayNotes: 'Normal patience and eating speed.
+
+    Casual Dining: arrives from
+    Day 1.
+
+    Fast Food: arrives from Day 1.'
+  bossNote: 
+  relatedIds:
+  - restaurant-casual-dining
+  - staff-waiter
+  icon: {fileID: 21300000, guid: 47de1f5a57b288f4b86247c3204479a2, type: 3}
+  previewKind: 1
+  previewPrefab: {fileID: 4181365881559645944, guid: 3ec91cbd2e91953479f885048d4a413c, type: 3}
+  previewEuler: {x: 0, y: 160, z: 0}
+  idleClip: {fileID: 7400000, guid: 68b0a9eb38471694cbba952db7d69009, type: 2}
+  introductionClip: {fileID: 0}
+  variants: []
+  sourceNotes: Assets/_Project/Art/Models/Customer/New Alien Models/PlayerType/GreenCustomer.asset;
+    Customers/Booth/GroupSpawner.CampaignCustomers.cs; Customers/Customer/CustomerGroup.CampaignVisit.cs;
+    Lobby1/Lobby2 scene spawner references.

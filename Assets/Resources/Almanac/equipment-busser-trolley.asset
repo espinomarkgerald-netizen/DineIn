@@ -1,0 +1,45 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7c441fc5b04604458af20f08da8df09, type: 3}
+  m_Name: equipment-busser-trolley
+  m_EditorClassIdentifier: 
+  entryName: Busser / Lobby Trolley
+  subTitle: Cleanup upgrade
+  entryId: equipment-busser-trolley
+  category: 4
+  description: A trolley carries several used trays in one trip, reducing journeys
+    back to the sink.
+  gameplayNotes: 'The Busser Trolley in Casual Dining and Lobby Trolley in Fast Food
+    each hold up to four dirty trays.
+
+    Purchase the upgrade from Computer > Equipment.
+
+    Upgrade
+    availability and cost depend on the restaurant.'
+  bossNote: 
+  relatedIds:
+  - service-tray
+  - storage-sink
+  - equipment-seating
+  icon: {fileID: 21300000, guid: 5ad6f17cd98050e4193e24379bfdd2fc, type: 3}
+  previewKind: 2
+  previewPrefab: {fileID: 1817872048445417107, guid: 88c82fa60793cb247afe9b758ad8e212, type: 3}
+  previewEuler: {x: 0, y: 155, z: 0}
+  idleClip: {fileID: 0}
+  introductionClip: {fileID: 0}
+  variants: []
+  sourceNotes: 'Assets/_Project/Office/Manager/Equipment/Upgrades/Busser Trolley.asset
+
+    Assets/_Project/Resources/FastFood/Equipment/Busser
+    Trolley.asset
+
+    Assets/_Project/Gameplay/AutonomousService/Lobby/BotTrolleyCarrier.cs'

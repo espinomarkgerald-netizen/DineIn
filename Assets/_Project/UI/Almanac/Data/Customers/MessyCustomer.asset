@@ -13,7 +13,24 @@ MonoBehaviour:
   m_Name: MessyCustomer
   m_EditorClassIdentifier: 
   entryName: Messy Customer
-  subTitle: Blue Alien
-  description: A high-maintenance customer who may take longer to finish eating and
-    leave a mess behind. Their table must be cleaned before it can be used again.
-  icon: {fileID: 21300000, guid: 472d28449dd3caa4a926177395fdb513, type: 3}
+  subTitle: "Blue guest \xB7 take time to tidy"
+  entryId: customer-messy
+  category: 0
+  description: Blue guests take their time over a meal and tend to leave a mess.
+    Keep a table available for the next party by sending the busser after they finish.
+  gameplayNotes: "Meals take 2\xD7 as long.\nNormal line and order patience.\nCasual
+    Dining: Day 10. Fast Food: Day 1."
+  bossNote: 
+  relatedIds:
+  - staff-busser
+  - staff-lobby-person
+  icon: {fileID: 21300000, guid: 00a9d60325584aa40bf0699682e6e0d9, type: 3}
+  previewKind: 1
+  previewPrefab: {fileID: 4777565470553943374, guid: 5519e1d484edc8943999749adf75b1dc, type: 3}
+  previewEuler: {x: 0, y: 160, z: 0}
+  idleClip: {fileID: 7400000, guid: 68b0a9eb38471694cbba952db7d69009, type: 2}
+  introductionClip: {fileID: 0}
+  variants: []
+  sourceNotes: Assets/_Project/Art/Models/Customer/New Alien Models/PlayerType/BlueCustomer.asset;
+    Customers/Booth/GroupSpawner.CampaignCustomers.cs; Customers/Customer/CustomerGroup.CampaignVisit.cs;
+    Lobby1/Lobby2 scene spawner references.

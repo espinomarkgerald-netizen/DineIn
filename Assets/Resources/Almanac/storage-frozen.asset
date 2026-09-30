@@ -1,0 +1,45 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7c441fc5b04604458af20f08da8df09, type: 3}
+  m_Name: storage-frozen
+  m_EditorClassIdentifier: 
+  entryName: Frozen Storage
+  subTitle: Cold ingredient shelves
+  entryId: storage-frozen
+  category: 7
+  description: Frozen storage is the stock-room area for ingredients marked for frozen
+    storage in Dine In.
+  gameplayNotes: 'Use the ingredient''s storage label when placing delivered boxes.
+
+    Frozen
+    and dry storage have separate capacity limits.
+
+    Keeping a frozen ingredient
+    in the wrong environment makes it spoil faster.'
+  bossNote: 
+  relatedIds:
+  - storage-dry
+  - storage-delivery
+  - storage-containers
+  icon: {fileID: 21300000, guid: a63dc7f35381fad439a0d323aed786dc, type: 3}
+  previewKind: 2
+  previewPrefab: {fileID: 5002084983000684895, guid: 87371c5ba8986a24faf2f1f84b31a83b, type: 3}
+  previewEuler: {x: 0, y: 155, z: 0}
+  idleClip: {fileID: 0}
+  introductionClip: {fileID: 0}
+  variants: []
+  sourceNotes: 'Assets/_Project/Office/Inventory/ItemData.cs
+
+    Assets/_Project/Restaurant/RestockRoom/RestockOrderManager.cs:
+    TryStoreOneContainer
+
+    Assets/_Project/Resources/CasualDiningStorageConfig.asset'

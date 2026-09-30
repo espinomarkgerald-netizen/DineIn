@@ -1,0 +1,51 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7c441fc5b04604458af20f08da8df09, type: 3}
+  m_Name: food-burger
+  m_EditorClassIdentifier: 
+  entryName: Burger
+  subTitle: Fast Food / Dish
+  entryId: food-burger
+  category: 5
+  description: Burger prepared fresh for Fast Food service.
+  gameplayNotes: 'Available from Day 1.
+
+    Ingredients per serving: Burger Buns
+    x1, Beef Patties x1, Cheese Slices x1.
+
+    Cook at the grill. Collect the food
+    before it burns.
+
+    Finish the sandwich at the grill preparation board, following
+    its ingredient sequence.'
+  bossNote: 
+  relatedIds:
+  - restaurant-fast-food
+  - management-menu
+  - kitchen-grill
+  - ingredient-buns
+  - ingredient-beef-patties
+  - ingredient-cheese-slices
+  icon: {fileID: 21300000, guid: 3f2e72868d33b7a4cb309008d2f52b65, type: 3}
+  previewKind: 0
+  previewPrefab: {fileID: 0}
+  previewEuler: {x: 0, y: 155, z: 0}
+  idleClip: {fileID: 0}
+  introductionClip: {fileID: 0}
+  variants: []
+  sourceNotes: 'Assets/_Project/Office/Manager/Recipe/Cheese Burger.asset
+
+    Assets/_Project/Resources/MenuCatalog.asset
+
+    Assets/_Project/Office/Inventory/Recipe.cs
+
+    Assets/_Project/Restaurant/FastFoodCookingState.cs'

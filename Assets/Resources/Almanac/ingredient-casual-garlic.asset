@@ -1,0 +1,49 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7c441fc5b04604458af20f08da8df09, type: 3}
+  m_Name: ingredient-casual-garlic
+  m_EditorClassIdentifier: 
+  entryName: Garlic
+  subTitle: Casual Dining / Ingredient
+  entryId: ingredient-casual-garlic
+  category: 5
+  description: Garlic is stocked for the Casual Dining kitchen.
+  gameplayNotes: 'Store in dry storage. A box supplies 40 units.
+
+    Available from
+    Day 6.
+
+    Used in: Roasted Chicken, Pork Chop, Garlic Butter Shrimp.
+
+    Check
+    the box''s expiry label; the wrong storage environment makes stock spoil faster.'
+  bossNote: 
+  relatedIds:
+  - food-roasted-chicken
+  - food-pork-chop
+  - food-garlic-butter-shrimp
+  - storage-dry
+  - storage-delivery
+  icon: {fileID: 21300000, guid: 04b1f46a6b9761242a14193b0991d7b4, type: 3}
+  previewKind: 0
+  previewPrefab: {fileID: 0}
+  previewEuler: {x: 0, y: 155, z: 0}
+  idleClip: {fileID: 0}
+  introductionClip: {fileID: 0}
+  variants: []
+  sourceNotes: 'Assets/_Project/Office/Inventory/Casual Dining/Garlic.asset
+
+    Assets/_Project/Resources/CasualDiningMenuCatalog.asset
+
+    Assets/_Project/Office/Inventory/ItemData.cs
+
+    Assets/_Project/Restaurant/RestockRoom/RestockOrderManager.cs'

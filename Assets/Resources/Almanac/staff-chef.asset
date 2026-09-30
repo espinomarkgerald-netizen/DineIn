@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7c441fc5b04604458af20f08da8df09, type: 3}
+  m_Name: staff-chef
+  m_EditorClassIdentifier: 
+  entryName: Chef
+  subTitle: "Casual Dining \xB7 kitchen"
+  entryId: staff-chef
+  category: 1
+  description: Works on food orders in the Casual Dining kitchen. Keeping a chef
+    assigned helps prepared dishes reach the dining room while the service team looks
+    after the guests.
+  gameplayNotes: 'Assign kitchen staff through staff management.
+
+    Uniform: chef
+    outfit and chef hat.'
+  bossNote: 
+  relatedIds:
+  - staff-waiter
+  - staff-barista
+  icon: {fileID: 21300000, guid: c94a9f5fa82aa6948b7c44f23c19b9fa, type: 3}
+  previewKind: 1
+  previewPrefab: {fileID: 8211122123187514310, guid: 3c703da97a104424a91d9419323f1408, type: 3}
+  previewEuler: {x: 0, y: 160, z: 0}
+  idleClip: {fileID: 7400000, guid: 68b0a9eb38471694cbba952db7d69009, type: 2}
+  introductionClip: {fileID: -203655887218126122, guid: d94b5977e97cf904a80062282db30404, type: 3}
+  variants:
+  - label: "Casual Dining \xB7 Male"
+    prefab: {fileID: 8211122123187514310, guid: 3c703da97a104424a91d9419323f1408, type: 3}
+  - label: "Casual Dining \xB7 Female"
+    prefab: {fileID: 1474611808029410722, guid: 3ddb1054ae194334e964c151d536c6f4, type: 3}
+  sourceNotes: Office/HR/EmployeeRoleCatalog.cs; Gameplay/AutonomousService/Lobby/LobbyAutonomousService.cs;
+    Gameplay/AutonomousService/Kitchen/KitchenWorkerBot.cs; Editor/FastFoodStaffAuthoring.cs;
+    Resources/CasualEmployeeUniforms.asset; Resources/FastFoodEmployeeUniforms.asset.

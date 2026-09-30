@@ -13,6 +13,33 @@ MonoBehaviour:
   m_Name: Busser
   m_EditorClassIdentifier: 
   entryName: Busser
-  subTitle: Front of House/Lobby
-  description: Cleans trays and messes so tables become available again.
-  icon: {fileID: 21300000, guid: 3ba2bb8ffbd2b074da8eb93acb274c56, type: 3}
+  subTitle: "Casual Dining \xB7 clean tables, ready seats"
+  entryId: staff-busser
+  category: 1
+  description: Clears dirty tables and carries used trays away, helping the next
+    group find a clean place to sit. A busy dining room needs someone keeping its
+    tables ready.
+  gameplayNotes: 'Clear tables after customers leave.
+
+    Uniform: waiter outfit.
+
+    In
+    Fast Food this role is called Lobby Person.'
+  bossNote: 
+  relatedIds:
+  - customer-messy
+  - staff-lobby-person
+  icon: {fileID: 21300000, guid: 1ddea4d065eb5f944affd47334bd0219, type: 3}
+  previewKind: 1
+  previewPrefab: {fileID: 7338516764369221228, guid: cbd2dd99b7c65d243961419b5d113079, type: 3}
+  previewEuler: {x: 0, y: 160, z: 0}
+  idleClip: {fileID: 7400000, guid: 68b0a9eb38471694cbba952db7d69009, type: 2}
+  introductionClip: {fileID: -203655887218126122, guid: d94b5977e97cf904a80062282db30404, type: 3}
+  variants:
+  - label: "Casual Dining \xB7 Male"
+    prefab: {fileID: 7338516764369221228, guid: cbd2dd99b7c65d243961419b5d113079, type: 3}
+  - label: "Casual Dining \xB7 Female"
+    prefab: {fileID: 2407561977138356239, guid: bb1c7509e3d263b45a92303993469a70, type: 3}
+  sourceNotes: Office/HR/EmployeeRoleCatalog.cs; Gameplay/AutonomousService/Lobby/LobbyAutonomousService.cs;
+    Gameplay/AutonomousService/Kitchen/KitchenWorkerBot.cs; Editor/FastFoodStaffAuthoring.cs;
+    Resources/CasualEmployeeUniforms.asset; Resources/FastFoodEmployeeUniforms.asset.

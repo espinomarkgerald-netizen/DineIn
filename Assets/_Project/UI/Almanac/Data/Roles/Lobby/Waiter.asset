@@ -13,9 +13,31 @@ MonoBehaviour:
   m_Name: Waiter
   m_EditorClassIdentifier: 
   entryName: Waiter
-  subTitle: Front of House/Lobby
-  description: 'Takes orders, delivers food, handles bills, and brings payments to
-    the cashier.
+  subTitle: "Casual Dining \xB7 table service"
+  entryId: staff-waiter
+  category: 1
+  description: Takes orders, delivers food and bills, and brings customer payments
+    to the cashier. The waiter connects the dining room with the kitchen and payment
+    station.
+  gameplayNotes: 'Watch order, food and bill requests.
 
-'
-  icon: {fileID: 21300000, guid: 0ea5e424241c87f4d82e425dfa96f93f, type: 3}
+    Uniform: waiter outfit.'
+  bossNote: 
+  relatedIds:
+  - staff-chef
+  - staff-barista
+  - staff-cashier
+  icon: {fileID: 21300000, guid: 1ddea4d065eb5f944affd47334bd0219, type: 3}
+  previewKind: 1
+  previewPrefab: {fileID: 7665387106341400399, guid: eef3b060370ccb44b9c6148d4e1643d0, type: 3}
+  previewEuler: {x: 0, y: 160, z: 0}
+  idleClip: {fileID: 7400000, guid: 68b0a9eb38471694cbba952db7d69009, type: 2}
+  introductionClip: {fileID: -203655887218126122, guid: d94b5977e97cf904a80062282db30404, type: 3}
+  variants:
+  - label: "Casual Dining \xB7 Male"
+    prefab: {fileID: 7665387106341400399, guid: eef3b060370ccb44b9c6148d4e1643d0, type: 3}
+  - label: "Casual Dining \xB7 Female"
+    prefab: {fileID: 8279416928787323710, guid: 68b9ef0257d697745bb52ca74ae8d084, type: 3}
+  sourceNotes: Office/HR/EmployeeRoleCatalog.cs; Gameplay/AutonomousService/Lobby/LobbyAutonomousService.cs;
+    Gameplay/AutonomousService/Kitchen/KitchenWorkerBot.cs; Editor/FastFoodStaffAuthoring.cs;
+    Resources/CasualEmployeeUniforms.asset; Resources/FastFoodEmployeeUniforms.asset.

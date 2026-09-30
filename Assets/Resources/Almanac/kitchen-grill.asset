@@ -1,0 +1,49 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7c441fc5b04604458af20f08da8df09, type: 3}
+  m_Name: kitchen-grill
+  m_EditorClassIdentifier: 
+  entryName: Grill & Preparation Board
+  subTitle: Fast Food / Cooking station
+  entryId: kitchen-grill
+  category: 3
+  description: A grill cooks food on a hot surface. Its preparation board is where
+    sandwiches come together.
+  gameplayNotes: 'Cook burger patties at the grill.
+
+    Assemble burgers with bun
+    and cheese in the shown order.
+
+    Chicken and fish sandwich proteins come from
+    the fryer, then finish at this preparation board.
+
+    Collect cooked portions
+    before they burn.'
+  bossNote: 
+  relatedIds:
+  - food-burger
+  - food-chicken-sandwich
+  - food-fish-fillet-sandwich
+  - kitchen-fryer
+  icon: {fileID: 21300000, guid: bce8338c4286b6946ab86be291184122, type: 3}
+  previewKind: 2
+  previewPrefab: {fileID: 3718879664627720815, guid: df4526265aa6c454891a79e76f120395, type: 3}
+  previewEuler: {x: 0, y: 155, z: 0}
+  idleClip: {fileID: 0}
+  introductionClip: {fileID: 0}
+  variants: []
+  sourceNotes: 'Assets/_Project/Restaurant/FastFoodCookingState.cs: Station, PreparationStation,
+    AssemblySteps
+
+    Assets/_Project/Office/Manager/Recipe/Cheese Burger.asset
+
+    Assets/_Project/Resources/FastFood/Recipes'

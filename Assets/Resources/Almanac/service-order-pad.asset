@@ -1,0 +1,44 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7c441fc5b04604458af20f08da8df09, type: 3}
+  m_Name: service-order-pad
+  m_EditorClassIdentifier: 
+  entryName: Order Notepad
+  subTitle: Reviewing orders
+  entryId: service-order-pad
+  category: 6
+  description: The order notepad helps you review what a customer wants before sending
+    the order to the kitchen.
+  gameplayNotes: 'Read the customer''s requested food and drink.
+
+    Choose the
+    corresponding items from the restaurant''s available menu.
+
+    Keep track of
+    the order when collecting and delivering its food.'
+  bossNote: 
+  relatedIds:
+  - management-menu
+  - service-tray
+  - kitchen-assembler
+  icon: {fileID: 21300000, guid: f71c200efb3234446927bdbeb28cb211, type: 3}
+  previewKind: 0
+  previewPrefab: {fileID: 0}
+  previewEuler: {x: 0, y: 155, z: 0}
+  idleClip: {fileID: 0}
+  introductionClip: {fileID: 0}
+  variants: []
+  sourceNotes: 'Assets/_Project/Restaurant/Items/OrderChecklistUI.cs
+
+    Assets/_Project/Restaurant/Items/ReviewedOrderSubmission.cs
+
+    Assets/_Project/Restaurant/Items/NotepadMenuEntryUI.cs'

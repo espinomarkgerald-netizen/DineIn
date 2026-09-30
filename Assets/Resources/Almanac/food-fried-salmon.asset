@@ -1,0 +1,48 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7c441fc5b04604458af20f08da8df09, type: 3}
+  m_Name: food-fried-salmon
+  m_EditorClassIdentifier: 
+  entryName: Fried Salmon
+  subTitle: Casual Dining / Dish
+  entryId: food-fried-salmon
+  category: 5
+  description: Fried salmon fillet finished with lemon and seasoning.
+  gameplayNotes: 'Available from Day 10.
+
+    Ingredients per serving: Salmon Fillet
+    x1, Oil x1, Lemon x1, Seasoning x1.
+
+    Enable it in the restaurant menu and
+    keep its ingredients stocked for customer orders.'
+  bossNote: 
+  relatedIds:
+  - restaurant-casual-dining
+  - management-menu
+  - ingredient-casual-salmon-fillet
+  - ingredient-casual-cooking-oil
+  - ingredient-casual-lemon
+  - ingredient-casual-seasoning
+  icon: {fileID: 21300000, guid: 8c50bf2aa44f6dd4aa0f9fa426d7c475, type: 3}
+  previewKind: 0
+  previewPrefab: {fileID: 0}
+  previewEuler: {x: 0, y: 155, z: 0}
+  idleClip: {fileID: 0}
+  introductionClip: {fileID: 0}
+  variants: []
+  sourceNotes: 'Assets/_Project/Office/Manager/Recipe/Casual Dining/Fried Salmon.asset
+
+    Assets/_Project/Resources/CasualDiningMenuCatalog.asset
+
+    Assets/_Project/Office/Inventory/Recipe.cs
+
+    Assets/_Project/Restaurant/FastFoodCookingState.cs'

@@ -1,0 +1,47 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7c441fc5b04604458af20f08da8df09, type: 3}
+  m_Name: ingredient-casual-pineapple-juice-powder
+  m_EditorClassIdentifier: 
+  entryName: Pineapple Juice Powder
+  subTitle: Casual Dining / Ingredient
+  entryId: ingredient-casual-pineapple-juice-powder
+  category: 5
+  description: Pineapple Juice Powder is stocked for the Casual Dining kitchen.
+  gameplayNotes: 'Store in dry storage. A box supplies 20 units.
+
+    Available from
+    Day 4.
+
+    Used in: Pineapple Juice Pitcher.
+
+    Check the box''s expiry label;
+    the wrong storage environment makes stock spoil faster.'
+  bossNote: 
+  relatedIds:
+  - food-pineapple-juice-pitcher
+  - storage-dry
+  - storage-delivery
+  icon: {fileID: 21300000, guid: 0fdead9d5c7f7e549a0721088314d43e, type: 3}
+  previewKind: 0
+  previewPrefab: {fileID: 0}
+  previewEuler: {x: 0, y: 155, z: 0}
+  idleClip: {fileID: 0}
+  introductionClip: {fileID: 0}
+  variants: []
+  sourceNotes: 'Assets/_Project/Office/Inventory/Casual Dining/Pineapple Juice Powder.asset
+
+    Assets/_Project/Resources/CasualDiningMenuCatalog.asset
+
+    Assets/_Project/Office/Inventory/ItemData.cs
+
+    Assets/_Project/Restaurant/RestockRoom/RestockOrderManager.cs'

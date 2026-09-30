@@ -13,7 +13,25 @@ MonoBehaviour:
   m_Name: VIPCustomer
   m_EditorClassIdentifier: 
   entryName: VIP Customer
-  subTitle: Pink Alien
-  description: A special customer with lower patience who expects faster service.
-    If served quickly and correctly, they may reward the player with a tip.
-  icon: {fileID: 21300000, guid: bb6c698bbac427849b9d79e56d21316e, type: 3}
+  subTitle: "Pink guest \xB7 prompt service matters"
+  entryId: customer-vip
+  category: 0
+  description: These pink guests expect prompt attention. A happy visit earns an
+    extra tip, but their patience drains faster while waiting in line or for an order.
+  gameplayNotes: "Line and order patience drain 3\xD7 as fast.\nHappy payment adds
+    a 100 bonus tip.\nCasual Dining: Day 5. Fast Food: Day 1."
+  bossNote: 
+  relatedIds:
+  - staff-host
+  - staff-waiter
+  - staff-cashier
+  icon: {fileID: 21300000, guid: e4325db48a4061c479803d171413d4a1, type: 3}
+  previewKind: 1
+  previewPrefab: {fileID: 8967213546406780146, guid: 65c1c58cd40b38f45b5b0cf3df08d349, type: 3}
+  previewEuler: {x: 0, y: 160, z: 0}
+  idleClip: {fileID: 7400000, guid: 68b0a9eb38471694cbba952db7d69009, type: 2}
+  introductionClip: {fileID: 0}
+  variants: []
+  sourceNotes: Assets/_Project/Art/Models/Customer/New Alien Models/PlayerType/PinkCustomer.asset;
+    Customers/Booth/GroupSpawner.CampaignCustomers.cs; Customers/Customer/CustomerGroup.CampaignVisit.cs;
+    Lobby1/Lobby2 scene spawner references.

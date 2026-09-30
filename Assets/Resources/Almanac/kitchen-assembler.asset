@@ -1,0 +1,47 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7c441fc5b04604458af20f08da8df09, type: 3}
+  m_Name: kitchen-assembler
+  m_EditorClassIdentifier: 
+  entryName: Assembly Counter
+  subTitle: Fast Food / Order assembly
+  entryId: kitchen-assembler
+  category: 3
+  description: The assembly counter brings finished food and drinks together into
+    a customer's order.
+  gameplayNotes: 'Use the order ticket to choose the required portions.
+
+    Place
+    each finished item on the order''s tray.
+
+    Drinks are added here alongside
+    cooked food.
+
+    Every required portion must be placed before the ticket is
+    ready.'
+  bossNote: 
+  relatedIds:
+  - service-tray
+  - service-order-pad
+  - kitchen-grill
+  - kitchen-fryer
+  icon: {fileID: 21300000, guid: 5549d60382c4c904fa187ed8fbf0a49e, type: 3}
+  previewKind: 2
+  previewPrefab: {fileID: 3060417901569154181, guid: f11083ceea6caa64794c5fc61282d003, type: 3}
+  previewEuler: {x: 0, y: 155, z: 0}
+  idleClip: {fileID: 0}
+  introductionClip: {fileID: 0}
+  variants: []
+  sourceNotes: 'Assets/_Project/Restaurant/FastFoodCookingState.cs: Ticket.Ready,
+    Place
+
+    Assets/_Project/Restaurant/FastFoodCookingView.Assembler.cs'

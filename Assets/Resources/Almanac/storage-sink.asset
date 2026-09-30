@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7c441fc5b04604458af20f08da8df09, type: 3}
+  m_Name: storage-sink
+  m_EditorClassIdentifier: 
+  entryName: Sink
+  subTitle: Tray cleanup
+  entryId: storage-sink
+  category: 7
+  description: A sink provides a washing point for used service ware.
+  gameplayNotes: 'Bring carried dirty trays to the sink to finish the cleanup trip.
+
+    Keeping
+    trays moving back to the sink helps staff prepare the dining area for new guests.'
+  bossNote: 
+  relatedIds:
+  - service-tray
+  - equipment-busser-trolley
+  icon: {fileID: 21300000, guid: c201f03f9ef5f2345a2b9b8a52071433, type: 3}
+  previewKind: 2
+  previewPrefab: {fileID: 890000000000000009, guid: 5f9a915d2d1e5c378377c2dfeab824b4, type: 3}
+  previewEuler: {x: 0, y: 155, z: 0}
+  idleClip: {fileID: 0}
+  introductionClip: {fileID: 0}
+  variants: []
+  sourceNotes: 'Assets/_Project/Restaurant/Items/SinkInteractable.cs
+
+    Assets/_Project/Gameplay/AutonomousService/Lobby/LobbyAutonomousService.cs'

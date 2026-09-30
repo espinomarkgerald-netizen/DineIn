@@ -1,0 +1,49 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7c441fc5b04604458af20f08da8df09, type: 3}
+  m_Name: kitchen-fryer
+  m_EditorClassIdentifier: 
+  entryName: Fryer
+  subTitle: Fast Food / Cooking station
+  entryId: kitchen-fryer
+  category: 3
+  description: A fryer cooks food in hot oil. Keep an eye on each basket as the food
+    cooks.
+  gameplayNotes: 'Prepare fries, fried chicken, nuggets, and the proteins for chicken
+    and fish sandwiches.
+
+    Collect ready baskets and use the holding rack.
+
+    Chicken
+    and fish sandwiches finish at the grill preparation board.
+
+    Food left cooking
+    too long burns.'
+  bossNote: 
+  relatedIds:
+  - food-fries
+  - food-fried-chicken
+  - food-chicken-nuggets
+  - kitchen-grill
+  icon: {fileID: 21300000, guid: 873059643e1193943b110a339812dc70, type: 3}
+  previewKind: 2
+  previewPrefab: {fileID: 8746048516294481698, guid: e7209e2720960814a817006e35256e59, type: 3}
+  previewEuler: {x: 0, y: 155, z: 0}
+  idleClip: {fileID: 0}
+  introductionClip: {fileID: 0}
+  variants: []
+  sourceNotes: 'Assets/_Project/Restaurant/FastFoodCookingState.cs: Station, BasketRaised,
+    CollectBasket
+
+    Assets/_Project/Office/Manager/Recipe
+
+    Assets/_Project/Resources/FastFood/Recipes'

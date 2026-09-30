@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7c441fc5b04604458af20f08da8df09, type: 3}
+  m_Name: restaurant-fine
+  m_EditorClassIdentifier: 
+  entryName: Fine Dining
+  subTitle: "Coming soon \xB7 restaurant preview"
+  entryId: restaurant-fine
+  category: 2
+  description: A look at the Fine Dining restaurant shown on the district map. Its
+    exterior and Fine Dining clothing are available to preview while its campaign
+    is still to come.
+  gameplayNotes: This restaurant does not have a playable campaign yet.
+  bossNote: 
+  relatedIds:
+  - restaurant-casual-dining
+  - restaurant-fast-food
+  icon: {fileID: 21300000, guid: c72a118ae67c093409028773b7faf99c, type: 3}
+  previewKind: 0
+  previewPrefab: {fileID: 7299733588408132885, guid: 8d7227566ef30de43ba1bb9438868e60, type: 3}
+  previewEuler: {x: 0, y: 145, z: 0}
+  idleClip: {fileID: 0}
+  introductionClip: {fileID: 0}
+  variants: []
+  sourceNotes: 'MainMenu/GameMenu/Scripts/UI/GameModePopupController.cs: campaignRestaurantScenes
+    contains Lobby1 and Lobby2 only; Save/CampaignSaveStore.cs; EditorBuildSettings;
+    NewGameMenu restaurant exterior references.'
