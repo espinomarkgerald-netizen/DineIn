@@ -47,7 +47,7 @@ namespace DineIn.Appearance
         private bool[] controlsVisible;
         private bool[] presentationVisible;
         private Sprite[] categorySprites;
-        private bool editing, followWasEnabled, cameraCaptured;
+        private bool editing, followWasEnabled, cameraCaptured, returningToMenu, returnApplied;
         private int category;
         private Vector3 cameraPosition;
         private Vector3 lastPreviewPosition;
@@ -74,7 +74,7 @@ namespace DineIn.Appearance
             grid = options.GetComponent<CosmeticOptionLayout>();
         }
         private void OnEnable() => PlayerCustomizationData.ProfileChanged += Cancel;
-        private void OnDisable() { PlayerCustomizationData.ProfileChanged -= Cancel; Cancel(); }
+        private void OnDisable() { PlayerCustomizationData.ProfileChanged -= Cancel; Cancel(); if (returningToMenu) FinishClose(); }
         private void Update()
         {
             if (!editing) return;
@@ -88,6 +88,12 @@ namespace DineIn.Appearance
         }
         private void LateUpdate()
         {
+            if (returningToMenu)
+            {
+                AdvanceFraming(Time.unscaledDeltaTime);
+                if (!transitioning || previewCamera == null) FinishClose();
+                return;
+            }
             if (!editing || previewCamera == null || preview == null) return;
             // Camera stays attached to the same preview. Travel is suspended by the selector.
             var delta = preview.transform.position - lastPreviewPosition;
@@ -98,7 +104,7 @@ namespace DineIn.Appearance
         }
         public void Open()
         {
-            if (editing) return;
+            if (editing || returningToMenu) return;
             draftAccount = PlayerCustomizationData.AccountId;
             draft = preview.Catalog.Validate(PlayerCustomizationData.CommittedAppearance);
             editing = true; binding.Previewing = true;
@@ -138,16 +144,34 @@ namespace DineIn.Appearance
         private void Close(bool applied = false)
         {
             editing = false; draft = null; transitioning = framingReady = false;
+            returnApplied = applied;
             if (binding != null) { binding.Previewing = false; binding.Refresh(); }
+            if (panel != null) panel.SetActive(false);
+            returningToMenu = true;
+            if (previewCamera != null && cameraCaptured && isActiveAndEnabled)
+            {
+                // Reuse the opening/category easing for the return, keeping follow suspended.
+                frameFrom = previewCamera.transform.position; frameTo = cameraPosition;
+                lensFrom = previewCamera.orthographic ? previewCamera.orthographicSize : previewCamera.fieldOfView;
+                lensTo = previewCamera.orthographic ? cameraSize : cameraFov;
+                frameElapsed = 0; transitioning = true;
+            }
+            else FinishClose();
+        }
+        private void FinishClose()
+        {
+            returningToMenu = transitioning = false;
+            if (previewCamera != null && cameraCaptured)
+            {
+                previewCamera.transform.position = cameraPosition;
+                previewCamera.orthographicSize = cameraSize; previewCamera.fieldOfView = cameraFov;
+            }
+            if (cameraFollow != null) cameraFollow.enabled = followWasEnabled;
+            cameraCaptured = false;
             for (int i = 0; i < menuPresentation.Length; i++) if (menuPresentation[i] != null) menuPresentation[i].SetActive(presentationVisible[i]);
             for (int i = 0; i < menuControls.Length; i++) if (menuControls[i] != null)
             { menuControls[i].interactable = controlsEnabled[i]; menuControls[i].gameObject.SetActive(controlsVisible[i]); }
-            if (previewCamera != null)
-            { previewCamera.transform.position = cameraPosition; previewCamera.orthographicSize = cameraSize; previewCamera.fieldOfView = cameraFov; }
-            if (cameraFollow != null) cameraFollow.enabled = followWasEnabled;
-            cameraCaptured = false;
-            if (panel != null) panel.SetActive(false);
-            if (restaurantSelector != null && restaurantSelector.isActiveAndEnabled) restaurantSelector.EndCustomization(applied);
+            if (restaurantSelector != null && restaurantSelector.isActiveAndEnabled) restaurantSelector.EndCustomization(returnApplied);
         }
         private void FramePreview()
         {

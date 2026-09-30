@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.Audio;
+using UnityEngine.SceneManagement;
 
 /// <summary>
 /// Plays background music and keeps the Music mixer group's volume in sync
@@ -21,8 +22,25 @@ public class MusicManager : MonoBehaviour
     [SerializeField] private bool playOnStart = true;
     [SerializeField] private bool loop = true;
 
+    private static MusicManager menuInstance;
+    private DineIn.NewMenu.SettingsManager subscribedSettings;
+
     private void Awake()
     {
+        if (IrisScaleToggle.IsMenuScene(gameObject.scene.name))
+        {
+            if (menuInstance != null && menuInstance != this)
+            {
+                if (musicSource != null) musicSource.Stop();
+                Destroy(gameObject);
+                return;
+            }
+
+            menuInstance = this;
+            DontDestroyOnLoad(gameObject);
+            SceneManager.sceneLoaded += HandleSceneLoaded;
+        }
+
         if (musicSource == null)
             musicSource = GetComponent<AudioSource>() ?? gameObject.AddComponent<AudioSource>();
 
@@ -48,14 +66,26 @@ public class MusicManager : MonoBehaviour
         if (playOnStart)
             Play(defaultTrack != null ? defaultTrack : musicSource.clip);
 
-        if (DineIn.NewMenu.SettingsManager.Instance != null)
-            DineIn.NewMenu.SettingsManager.Instance.OnSettingsLoaded += HandleSettingsLoaded;
+        subscribedSettings = DineIn.NewMenu.SettingsManager.Instance;
+        if (subscribedSettings != null)
+            subscribedSettings.OnSettingsLoaded += HandleSettingsLoaded;
     }
 
     private void OnDestroy()
     {
-        if (DineIn.NewMenu.SettingsManager.Instance != null)
-            DineIn.NewMenu.SettingsManager.Instance.OnSettingsLoaded -= HandleSettingsLoaded;
+        if (subscribedSettings != null)
+            subscribedSettings.OnSettingsLoaded -= HandleSettingsLoaded;
+        SceneManager.sceneLoaded -= HandleSceneLoaded;
+        if (menuInstance == this) menuInstance = null;
+    }
+
+    private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        if (mode == LoadSceneMode.Additive || IrisScaleToggle.IsMenuScene(scene.name)) return;
+        // Menu music must not overlap the restaurants' gameplay audio.
+        musicSource.Stop();
+        if (menuInstance == this) menuInstance = null;
+        Destroy(gameObject);
     }
 
     private void HandleSettingsLoaded(DineIn.NewMenu.UserSettings settings)
@@ -67,6 +97,7 @@ public class MusicManager : MonoBehaviour
     {
         if (clip == null) return;
 
+        if (musicSource.clip == clip && musicSource.isPlaying) return;
         musicSource.clip = clip;
         musicSource.Play();
     }

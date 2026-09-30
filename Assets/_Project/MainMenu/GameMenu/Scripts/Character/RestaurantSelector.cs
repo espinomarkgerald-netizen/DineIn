@@ -18,6 +18,12 @@ public class RestaurantSelector : MonoBehaviour
     [Header("Movement Settings")]
     [Tooltip("Speed at which the character moves to the travel point.")]
     public float moveSpeed = 10f;
+    [Tooltip("Optional promenade samples in world space, ordered from the first stop to the last.")]
+    [SerializeField] private Vector3[] promenadePath = Array.Empty<Vector3>();
+    [SerializeField, Min(.1f)] private float moveAcceleration = 18f;
+    [SerializeField, Min(.1f)] private float runClipTravelSpeed = 5f;
+    private float[] routeDistances;
+    private AnimationClipPlayable idlePlayable;
 
     [Header("Game Menu presentation only")]
     [SerializeField] private bool animatePresentation;
@@ -51,6 +57,28 @@ public class RestaurantSelector : MonoBehaviour
     [Tooltip("Restores the restaurant the player last previewed when GameMenu opens again.")]
     [SerializeField] private bool restoreLastSelectedRestaurant = true;
 
+    [Header("Restaurant Name")]
+    [SerializeField] private TMPro.TMP_Text restaurantNameLabel;
+    [SerializeField] private string[] restaurantNames = { "Casual Dining", "Fast Food", "Fine Dining" };
+
+    [Header("Selection Arrows")]
+    [SerializeField] private UnityEngine.UI.Button previousButton;
+    [SerializeField] private UnityEngine.UI.Button nextButton;
+
+    private void UpdateSelectionArrows()
+    {
+        if (previousButton != null) previousButton.interactable = !customizing && currentIndex > 0;
+        if (nextButton != null) nextButton.interactable = !customizing && currentIndex < travelPoints.Length - 1;
+    }
+
+    private void UpdateRestaurantName()
+    {
+        UpdateSelectionArrows();
+        if (restaurantNameLabel != null)
+            restaurantNameLabel.text = restaurantNames != null && currentIndex < restaurantNames.Length
+                ? restaurantNames[currentIndex] : string.Empty;
+    }
+
     private int currentIndex = 0;
     private Coroutine moveCoroutine;
 
@@ -65,11 +93,15 @@ public class RestaurantSelector : MonoBehaviour
 
     void Start()
     {
+        CacheRoute();
         if (restoreLastSelectedRestaurant && travelPoints.Length > 0)
         {
             int savedIndex = PlayerPrefs.GetInt(SelectedRestaurantKey, 0);
             currentIndex = Mathf.Clamp(savedIndex, 0, travelPoints.Length - 1);
         }
+
+        UpdateRestaurantName();
+        OnRestaurantSelected?.Invoke(currentIndex);
 
         // Snap to the saved/initial restaurant position at start.
         if (travelPoints.Length > 0 && character != null)
@@ -85,6 +117,11 @@ public class RestaurantSelector : MonoBehaviour
     {
         AdvanceSelectionReaction(Time.unscaledDeltaTime);
         if (!presentationGraph.IsValid()) return;
+        // Imported clips do not all have loop flags; keep menu idle/travel continuous.
+        if (idlePlayable.IsValid() && idleClip.length > 0 && idlePlayable.GetTime() >= idleClip.length)
+            idlePlayable.SetTime(idlePlayable.GetTime() % idleClip.length);
+        if (continuousAction && actionPlayable.IsValid() && activeClip.length > 0 && actionPlayable.GetTime() >= activeClip.length)
+            actionPlayable.SetTime(actionPlayable.GetTime() % activeClip.length);
         if (!continuousAction) actionRemaining = Mathf.Max(0, actionRemaining - Time.unscaledDeltaTime);
         float target = continuousAction || actionRemaining > 0 ? 1 : 0;
         actionWeight = Mathf.MoveTowards(actionWeight, target, Time.unscaledDeltaTime / Mathf.Max(.01f, poseBlendSeconds));
@@ -97,8 +134,8 @@ public class RestaurantSelector : MonoBehaviour
         presentationGraph = PlayableGraph.Create("Game Menu Character");
         presentationGraph.SetTimeUpdateMode(DirectorUpdateMode.UnscaledGameTime);
         poseMixer = AnimationMixerPlayable.Create(presentationGraph, 2);
-        var idle = AnimationClipPlayable.Create(presentationGraph, idleClip);
-        presentationGraph.Connect(idle, 0, poseMixer, 0); poseMixer.SetInputWeight(0, 1);
+        idlePlayable = AnimationClipPlayable.Create(presentationGraph, idleClip);
+        presentationGraph.Connect(idlePlayable, 0, poseMixer, 0); poseMixer.SetInputWeight(0, 1);
         var output = AnimationPlayableOutput.Create(presentationGraph, "Menu Pose", menuAnimator);
         output.SetSourcePlayable(poseMixer); presentationGraph.Play();
     }
@@ -113,8 +150,10 @@ public class RestaurantSelector : MonoBehaviour
             if (actionPlayable.IsValid()) { poseMixer.DisconnectInput(1); presentationGraph.DestroyPlayable(actionPlayable); }
             actionPlayable = AnimationClipPlayable.Create(presentationGraph, clip);
             presentationGraph.Connect(actionPlayable, 0, poseMixer, 1); activeClip = clip;
+            actionWeight = 0;
+            poseMixer.SetInputWeight(0, 1); poseMixer.SetInputWeight(1, 0);
         }
-        actionPlayable.SetTime(0); continuousAction = loop;
+        actionPlayable.SetTime(0); actionPlayable.SetSpeed(1); continuousAction = loop;
         actionRemaining = Mathf.Max(0, clip.length - poseBlendSeconds);
     }
 
@@ -178,7 +217,7 @@ public class RestaurantSelector : MonoBehaviour
     }
     public void EndCustomization(bool applied)
     {
-        customizing = false; pendingCategory = -1; CancelPresentation();
+        customizing = false; pendingCategory = -1; CancelPresentation(); UpdateSelectionArrows();
         if (character == null) return;
         if (travelPoints.Length > currentIndex && travelPoints[currentIndex] != null && Vector3.Distance(character.position, travelPoints[currentIndex].position) > .01f)
             MoveToCurrentPoint();
@@ -219,7 +258,8 @@ public class RestaurantSelector : MonoBehaviour
     {
         if (customizing || travelPoints.Length == 0) return;
 
-        currentIndex = (currentIndex + 1) % travelPoints.Length;
+        if (currentIndex >= travelPoints.Length - 1) return;
+        currentIndex++;
         SaveCurrentSelection();
         MoveToCurrentPoint();
     }
@@ -231,7 +271,8 @@ public class RestaurantSelector : MonoBehaviour
     {
         if (customizing || travelPoints.Length == 0) return;
 
-        currentIndex = (currentIndex - 1 + travelPoints.Length) % travelPoints.Length;
+        if (currentIndex <= 0) return;
+        currentIndex--;
         SaveCurrentSelection();
         MoveToCurrentPoint();
     }
@@ -240,6 +281,7 @@ public class RestaurantSelector : MonoBehaviour
     {
         PlayerPrefs.SetInt(SelectedRestaurantKey, currentIndex);
         PlayerPrefs.Save();
+        UpdateRestaurantName();
         OnRestaurantSelected?.Invoke(currentIndex);
     }
 
@@ -260,20 +302,71 @@ public class RestaurantSelector : MonoBehaviour
 
     private IEnumerator SmoothMove(Vector3 targetPosition)
     {
+        bool routed = routeDistances != null && routeDistances.Length > 1;
+        float routePosition = routed ? NearestRouteDistance(character.position) : 0;
+        float destination = routed ? NearestRouteDistance(targetPosition) : 0;
+        Vector3 firstStep = routed ? RoutePoint(Mathf.MoveTowards(routePosition, destination, .3f)) : targetPosition;
         if (animatePresentation)
         {
-            var direction = targetPosition - character.position; direction.y = 0;
+            var direction = firstStep - character.position; direction.y = 0;
             if (direction.sqrMagnitude > .001f) yield return TurnTo(Quaternion.LookRotation(direction) * Quaternion.Euler(0, facingOffset, 0));
             Pose(runClip, true);
         }
-        while (Vector3.Distance(character.position, targetPosition) > 0.01f)
+        float speed = 0;
+        while (Vector3.Distance(character.position, targetPosition) > .01f)
         {
-            character.position = Vector3.MoveTowards(character.position, targetPosition, moveSpeed * Time.deltaTime);
+            float dt = LevelOneUIAccessibility.UnscaledAnimationDeltaTime;
+            float remaining = routed ? Mathf.Abs(destination - routePosition) : Vector3.Distance(character.position, targetPosition);
+            float desiredSpeed = Mathf.Min(moveSpeed, Mathf.Sqrt(2 * moveAcceleration * remaining));
+            speed = Mathf.MoveTowards(speed, Mathf.Max(.1f, desiredSpeed), moveAcceleration * dt);
+            Vector3 next;
+            if (routed)
+            {
+                routePosition = Mathf.MoveTowards(routePosition, destination, speed * dt);
+                next = RoutePoint(routePosition);
+            }
+            else next = Vector3.MoveTowards(character.position, targetPosition, speed * dt);
+            var direction = next - character.position; direction.y = 0;
+            if (animatePresentation && direction.sqrMagnitude > .00001f)
+                character.rotation = Quaternion.RotateTowards(character.rotation,
+                    Quaternion.LookRotation(direction) * Quaternion.Euler(0, facingOffset, 0), turnSpeed * dt);
+            character.position = next;
+            if (continuousAction && actionPlayable.IsValid())
+                actionPlayable.SetSpeed(Mathf.Clamp(speed / runClipTravelSpeed, .25f, 1.5f));
             yield return null;
         }
-
-        character.position = targetPosition; // Snap exact final position
+        character.position = targetPosition;
         if (animatePresentation) yield return FaceCamera(waveClip);
         moveCoroutine = null;
+    }
+
+    private void CacheRoute()
+    {
+        if (promenadePath == null || promenadePath.Length < 2) return;
+        routeDistances = new float[promenadePath.Length];
+        for (int i = 1; i < promenadePath.Length; i++)
+            routeDistances[i] = routeDistances[i - 1] + Vector3.Distance(promenadePath[i - 1], promenadePath[i]);
+    }
+
+    private float NearestRouteDistance(Vector3 point)
+    {
+        float nearest = float.PositiveInfinity, distance = 0;
+        for (int i = 1; i < promenadePath.Length; i++)
+        {
+            var segment = promenadePath[i] - promenadePath[i - 1];
+            float t = segment.sqrMagnitude > .00001f ? Mathf.Clamp01(Vector3.Dot(point - promenadePath[i - 1], segment) / segment.sqrMagnitude) : 0;
+            float error = (point - (promenadePath[i - 1] + segment * t)).sqrMagnitude;
+            if (error >= nearest) continue;
+            nearest = error; distance = Mathf.Lerp(routeDistances[i - 1], routeDistances[i], t);
+        }
+        return distance;
+    }
+
+    private Vector3 RoutePoint(float distance)
+    {
+        for (int i = 1; i < routeDistances.Length; i++)
+            if (distance <= routeDistances[i])
+                return Vector3.Lerp(promenadePath[i - 1], promenadePath[i], Mathf.InverseLerp(routeDistances[i - 1], routeDistances[i], distance));
+        return promenadePath[promenadePath.Length - 1];
     }
 }
