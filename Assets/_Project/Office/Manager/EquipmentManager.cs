@@ -26,6 +26,7 @@ public class EquipmentManager : MonoBehaviour
 
     public void UnlockByDay(int day)
     {
+        if (MultiplayerRestaurantBridge.IsObserver) return;
         if (AllEquipment == null || UnlockManager.Instance == null) return;
         foreach (var equip in AllEquipment)
         {

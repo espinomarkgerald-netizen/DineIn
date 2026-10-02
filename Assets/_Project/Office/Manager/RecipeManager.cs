@@ -29,11 +29,13 @@ public class RecipeManager : MonoBehaviour
     private void OnEnable()
     {
         UnlockManager.OnRecipeUnlocked += HandleRecipeUnlocked;
+        UnlockManager.OnStateRestored += PopulateRecipesUI;
     }
 
     private void OnDisable()
     {
         UnlockManager.OnRecipeUnlocked -= HandleRecipeUnlocked;
+        UnlockManager.OnStateRestored -= PopulateRecipesUI;
     }
 
     private void Start()
@@ -75,6 +77,7 @@ public class RecipeManager : MonoBehaviour
 
     public void UnlockByDay(int currentDay)
     {
+        if (MultiplayerRestaurantBridge.IsObserver) return;
         IReadOnlyList<Recipe> recipes = AllRecipes;
         if (recipes == null || UnlockManager.Instance == null)
             return;

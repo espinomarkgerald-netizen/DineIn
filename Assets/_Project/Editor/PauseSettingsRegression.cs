@@ -50,10 +50,38 @@ public static class PauseSettingsRegression
         string[] commands={"day","approval","money","addmoney","startday","endday","gameover","timescale","wrongorder","burntfood","cardpayment","fillstocks","zerostocks","setcoin","addcoin","resetrun","recover","upgrade","unlockpopup","save","status","help"};
         Require(commands.All(c=>developerView.options.Any(o=>o.command==c)),"Missing debug command mapping.");
         Require(developerView.options.Count(o=>o.command=="upgrade")==3 && developerView.options.Count(o=>o.command=="unlockpopup")==3,"Missing equipment controls.");
+        CheckDropdownSorting();
         CheckPlayersTab();
         CheckCallbacksAndPersistence();
         Debug.Log("[Pause settings] PASS: prefab references, tabs, callbacks, preferences, resets, non-compounding global scale, computer/pause visibility, tutorial time restoration, developer categories and landscape layout bounds. Device display/F10 input and live multiplayer remain manual checks.");
     }
+    public static void CheckDropdownSorting()
+    {
+        var root=PrefabUtility.LoadPrefabContents(PausePath);
+        try
+        {
+            var view=root.GetComponent<LobbyPauseMenuView>();
+            view.Overlay.SetActive(true);
+            var panel=root.GetComponentInChildren<PauseSettingsPanel>(true);
+            panel.SelectTab(2);
+            var dropdown=panel.rows.First(r=>r.setting==Key.Quality).dropdown;
+            dropdown.ClearOptions();dropdown.AddOptions(new List<string>{"Low","Mid","High"});
+            // Preview scenes do not call Start; TMP initializes its fade runner there.
+            typeof(TMP_Dropdown).GetMethod("Start",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(dropdown,null);
+            dropdown.Show();
+            var list=dropdown.transform.Find("Dropdown List");
+            Require(list!=null,"Graphics quality choices did not open.");
+            int before=list.GetComponent<Canvas>().sortingOrder;
+            panel.RefreshDropdownSorting();
+            int after=list.GetComponent<Canvas>().sortingOrder;
+            Require(after>view.GetComponent<Canvas>().sortingOrder,"Graphics dropdown remains behind pause menu.");
+            var blocker=view.transform.Find("Blocker");
+            Require(blocker!=null && blocker.GetComponent<Canvas>().sortingOrder==after-1,"Dropdown blocker sorting is wrong.");
+            Debug.Log($"[Pause dropdown] PASS: popup {before} -> {after}, menu {view.GetComponent<Canvas>().sortingOrder}.");
+        }
+        finally {PrefabUtility.UnloadPrefabContents(root);}
+    }
+
     [MenuItem("Dine In/Validation/Validate Multiplayer Players Pause Tab")]
     public static void CheckPlayersTab()
     {

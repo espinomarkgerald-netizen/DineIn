@@ -20,11 +20,13 @@ public class EquipmentShopManager : MonoBehaviour
     private void OnEnable()
     {
         UnlockManager.OnEquipmentUnlocked += OnEquipmentUnlocked;
+        UnlockManager.OnStateRestored += RebuildShop;
     }
 
     private void OnDisable()
     {
         UnlockManager.OnEquipmentUnlocked -= OnEquipmentUnlocked;
+        UnlockManager.OnStateRestored -= RebuildShop;
     }
 
     private void OnEquipmentUnlocked(string equipmentID)

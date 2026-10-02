@@ -173,6 +173,7 @@ public partial class MultiplayerCustomerInteractionBridge
         if (result?.context == null || !result.context.MatchesAction(pendingReviewedOrder.context)
             || result.context.actor != session.LocalActorNumber
             || !result.context.MatchesSession(session, session.LocalActorNumber)) return;
+        MultiplayerDiagnostics.TraceAction(result);
         pendingReviewedOrder = null; // Duplicate replies cannot produce another local effect.
         if (result.Accepted)
         {

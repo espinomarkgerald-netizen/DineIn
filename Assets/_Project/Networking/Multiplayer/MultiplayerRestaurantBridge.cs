@@ -197,6 +197,7 @@ public sealed partial class MultiplayerRestaurantBridge : MonoBehaviourPunCallba
             DailyFinanceBridge.Instance?.ApplyNetworkState(snapshot.finance);
             return;
         }
+        bool announceUnlocks = HasState; // First join/rejoin restores state without replaying old notices.
         bool newDay = GameFlowManager.Instance.CurrentDay != snapshot.data.currentDay;
         if (newDay) { GameDayManager.Instance?.PrepareNextMultiplayerDay(); ResetDay(); }
         receivedRevision = snapshot.revision;
@@ -210,11 +211,11 @@ public sealed partial class MultiplayerRestaurantBridge : MonoBehaviourPunCallba
             DailyObjectiveManager.Instance?.ApplyNetworkState(snapshot.objectives);
             DailyFinanceBridge.Instance?.ApplyNetworkState(snapshot.finance);
         }
-        UnlockManager.Instance?.ApplySaveData(snapshot.data);
+        bool unlocksChanged = UnlockManager.Instance?.ApplyMultiplayerState(snapshot.data, announceUnlocks) == true;
         string staff = JsonUtility.ToJson(new StaffState { employees = snapshot.data.employees,
             next = snapshot.data.employeeApplicantNextRefreshDay, processed = snapshot.data.employeeApplicantLastProcessedDay,
             unseen = snapshot.data.employeeApplicantsUnseen });
-        bool changed = newDay;
+        bool changed = newDay || unlocksChanged;
         if (staff != staffSignature)
         { staffSignature = staff; EmployeeManager.Instance?.ApplySaveData(snapshot.data); changed = true; }
         EmployeeManager.Instance?.ApplyMultiplayerSlotLock(snapshot.slotsLocked);

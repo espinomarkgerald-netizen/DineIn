@@ -10,6 +10,7 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
     private const byte SeatRequestEvent = 186, SeatResultEvent = 187;
     private RoleBasedAssignController seatController;
     private bool seatPending;
+    private long seatLease;
     private int seatApproachVersion;
     private MultiplayerSessionManager session;
     private MultiplayerTaskClaims claims;
@@ -322,19 +323,21 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
     {
         if (orderTarget == null) return;
         int view = orderTarget.photonView.ViewID;
-        if (session.IsAuthority) HandleReview(view, session.LocalActorNumber, session.LocalActorNumber);
-        else MultiplayerWire.Raise(ReviewRequestEvent, new object[] { view, session.LocalActorNumber },
+        long lease = claims.GetLease(orderTaskId);
+        if (session.IsAuthority) HandleReview(view, session.LocalActorNumber, session.LocalActorNumber, lease);
+        else MultiplayerWire.Raise(ReviewRequestEvent, new object[] { view, session.LocalActorNumber, lease },
             new RaiseEventOptions { Receivers = ReceiverGroup.MasterClient }, SendOptions.SendReliable);
     }
 
-    private void HandleReview(int viewId, int actor, int sender)
+    private void HandleReview(int viewId, int actor, int sender, long lease)
     {
-        if (HygieneManager.Defer(() => { if (this != null) HandleReview(viewId, actor, sender); })) return;
+        if (HygieneManager.Defer(() => { if (this != null) HandleReview(viewId, actor, sender, lease); })) return;
         if (!session.IsAuthority || actor != sender) return;
         var view = PhotonView.Find(viewId);
         var customer = view != null ? view.GetComponent<MultiplayerCustomerSpawn>() : null;
         bool valid = PhotonNetwork.CurrentRoom.Players.TryGetValue(sender, out var player) && !player.IsInactive
             && session.TryGetManager(sender, out _) && claims.IsClaimedBy($"Customer:{viewId}:Order", sender)
+            && lease > 0 && claims.GetLease($"Customer:{viewId}:Order") == lease
             && customer != null && customer.HasGeneratedOrder && customer.Group != null
             && !customer.Group.IsNetworkObserver && customer.Group.state == CustomerGroup.GroupState.ReadyToOrder
             && customer.Group.currentOrder != null && customer.Group.currentOrder.lines.Count > 0;
@@ -345,7 +348,7 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
             ObserveReview(customer.Group);
         }
         else if (sender == session.LocalActorNumber) CancelOrder();
-        else MultiplayerWire.Raise(ReviewRejectedEvent, viewId,
+        else MultiplayerWire.Raise(ReviewRejectedEvent, new object[] { viewId, lease },
             new RaiseEventOptions { TargetActors = new[] { sender } }, SendOptions.SendReliable);
     }
 
@@ -787,29 +790,31 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
         if (photonEvent.Code == ConfirmRejectedEvent)
         { ReceiveReviewedOrderResult(photonEvent.Sender, payload); return; }
         if (photonEvent.Code == ReviewRejectedEvent && photonEvent.Sender == PhotonNetwork.MasterClient.ActorNumber
-            && payload is int rejectedView && orderTarget != null && orderTarget.photonView.ViewID == rejectedView)
+            && payload is object[] rejected && rejected.Length == 2 && rejected[0] is int rejectedView
+            && rejected[1] is long rejectedLease && rejectedLease == claims.GetLease(orderTaskId)
+            && orderTarget != null && orderTarget.photonView.ViewID == rejectedView)
         { CancelOrder(); return; }
         if (photonEvent.Code == ReviewRequestEvent && session.IsAuthority
-            && payload is object[] review && review.Length == 2
-            && review[0] is int reviewView && review[1] is int reviewActor)
-        { HandleReview(reviewView, reviewActor, photonEvent.Sender); return; }
+            && payload is object[] review && review.Length == 3
+            && review[0] is int reviewView && review[1] is int reviewActor && review[2] is long reviewLease)
+        { HandleReview(reviewView, reviewActor, photonEvent.Sender, reviewLease); return; }
         if (photonEvent.Code == GreetRequestEvent && photonEvent.Sender == session.Run?.hostActor
             && payload is object[] greetingResult && greetingResult.Length == 4
             && greetingResult[0] is int greetView && greetingResult[1] is int greetActor
             && greetingResult[2] is long lease && greetingResult[3] is bool greeted)
         { FinishGreeting(greetView, greetActor, lease, greeted); return; }
         if (photonEvent.Code == SeatResultEvent && photonEvent.Sender == PhotonNetwork.MasterClient.ActorNumber
-            && payload is object[] result && result.Length == 2
-            && result[0] is int resultView && result[1] is bool accepted)
+            && payload is object[] result && result.Length == 3
+            && result[0] is int resultView && result[1] is bool accepted && result[2] is long resultLease && resultLease == seatLease)
         {
             FinishSeat(resultView, accepted);
             return;
         }
         if (!session.IsAuthority) return;
-        if (photonEvent.Code == SeatRequestEvent && payload is object[] seat && seat.Length == 3
-            && seat[0] is int seatView && seat[1] is int seatActor && seat[2] is string boothId)
+        if (photonEvent.Code == SeatRequestEvent && payload is object[] seat && seat.Length == 4
+            && seat[0] is int seatView && seat[1] is int seatActor && seat[2] is string boothId && seat[3] is long seatStamp)
         {
-            HandleSeat(seatView, seatActor, photonEvent.Sender, boothId);
+            HandleSeat(seatView, seatActor, photonEvent.Sender, boothId, seatStamp);
             return;
         }
         if (photonEvent.Code != GreetRequestEvent) return;
@@ -916,6 +921,7 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
         if (mover == null || !mover.isActiveAndEnabled) return true;
         bridge.seatController = controller;
         bridge.seatPending = true;
+        bridge.seatLease = bridge.claims.GetLease(bridge.taskId);
         var customer = bridge.target;
         string claimedTask = bridge.taskId;
         int version = ++bridge.seatApproachVersion;
@@ -943,9 +949,9 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
                 }
                 int viewId = customer.photonView.ViewID;
                 string boothId = BoothIdentity(booth);
-                if (session.IsAuthority) bridge.HandleSeat(viewId, session.LocalActorNumber, session.LocalActorNumber, boothId);
+                if (session.IsAuthority) bridge.HandleSeat(viewId, session.LocalActorNumber, session.LocalActorNumber, boothId, bridge.seatLease);
                 else if (!MultiplayerWire.Raise(SeatRequestEvent,
-                    new object[] { viewId, session.LocalActorNumber, boothId },
+                    new object[] { viewId, session.LocalActorNumber, boothId, bridge.seatLease },
                     new RaiseEventOptions { Receivers = ReceiverGroup.MasterClient }, SendOptions.SendReliable))
                     bridge.FinishSeat(viewId, false);
             },
@@ -996,9 +1002,9 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
         return result;
     }
 
-    private void HandleSeat(int viewId, int actor, int sender, string boothId)
+    private void HandleSeat(int viewId, int actor, int sender, string boothId, long lease)
     {
-        if (HygieneManager.Defer(() => { if (this != null) HandleSeat(viewId, actor, sender, boothId); })) return;
+        if (HygieneManager.Defer(() => { if (this != null) HandleSeat(viewId, actor, sender, boothId, lease); })) return;
         if (!session.IsAuthority || actor != sender
             || !PhotonNetwork.CurrentRoom.Players.TryGetValue(sender, out var player) || player.IsInactive) return;
         string id = $"Customer:{viewId}:GreetSeat";
@@ -1008,6 +1014,7 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
         var booth = ResolveBooth(boothId);
         var line = FindFirstObjectByType<LobbyLineManager>();
         bool accepted = session.TryGetManager(sender, out _) && claims.IsClaimedBy(id, sender)
+            && lease > 0 && claims.GetLease(id) == lease
             && group != null && !group.IsNetworkObserver && group.hasBeenGreeted && !group.HasBeenAssigned
             && group.state == CustomerGroup.GroupState.Waiting && group.CanBeSeated
             && line != null && line.GetFrontOfLine() == group
@@ -1027,7 +1034,7 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
             claims.CompleteOnAuthority(id, sender);
         }
         if (sender == session.LocalActorNumber) FinishSeat(viewId, accepted);
-        else MultiplayerWire.Raise(SeatResultEvent, new object[] { viewId, accepted },
+        else MultiplayerWire.Raise(SeatResultEvent, new object[] { viewId, accepted, lease },
             new RaiseEventOptions { TargetActors = new[] { sender } }, SendOptions.SendReliable);
     }
 

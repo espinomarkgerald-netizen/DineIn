@@ -30,7 +30,7 @@ public class LocalGameSaveManager : MonoBehaviour
     public void LoadInventoryOnce()
     {
         if (GameSaveManager.IsPersistenceSuspended || CampaignSaveStore.IsFastFood) return;
-        if (hasLoaded)
+        if (hasLoaded || System.IO.File.Exists(CampaignSaveStore.SavePath))
             return;
 
         hasLoaded = true;

@@ -74,12 +74,15 @@ Shader "Dine In/World Outline"
             #pragma multi_compile_fragment _ _GBUFFER_NORMALS_OCT
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareDepthTexture.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareNormalsTexture.hlsl"
-            struct ScreenVaryings { float4 positionCS : SV_POSITION; UNITY_VERTEX_OUTPUT_STEREO };
+            struct ScreenVaryings { float4 positionCS : SV_POSITION; float2 uv : TEXCOORD0; UNITY_VERTEX_OUTPUT_STEREO };
             ScreenVaryings ScreenVertex(uint id : SV_VertexID)
             {
                 ScreenVaryings o;
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
                 o.positionCS = GetFullScreenTriangleVertexPosition(id);
+                // Derive UVs from the triangle, not screen pixels: the active target
+                // can be render-scaled or an Almanac RenderTexture on mobile.
+                o.uv = GetFullScreenTriangleTexCoord(id);
                 return o;
             }
             float EyeDepth(float2 uv)
@@ -97,10 +100,16 @@ Shader "Dine In/World Outline"
             half4 ScreenFragment(ScreenVaryings input) : SV_Target
             {
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
-                float2 uv = GetNormalizedScreenSpaceUV(input.positionCS);
+                // Mobile depth/normal edges produce displaced contours on the Realme.
+                // Keep authored toon shading and interactive object highlights, but
+                // omit this automatic full-screen overlay on mobile GPUs.
+                #if defined(SHADER_API_MOBILE)
+                return half4(0, 0, 0, 0);
+                #endif
+                float2 uv = input.uv;
                 float depth = EyeDepth(uv);
                 float3 normal = SampleSceneNormals(uv);
-                float2 stepUV = max(.65, _Width * _ScaledScreenParams.y / 1080.0) / _ScaledScreenParams.xy;
+                float2 stepUV = max(.65, _Width * _CameraDepthTexture_TexelSize.w / 1080.0) * _CameraDepthTexture_TexelSize.xy;
                 float edge = 0;
                 const float2 directions[4] = { float2(1,0), float2(-1,0), float2(0,1), float2(0,-1) };
                 [unroll] for (int i = 0; i < 4; i++)

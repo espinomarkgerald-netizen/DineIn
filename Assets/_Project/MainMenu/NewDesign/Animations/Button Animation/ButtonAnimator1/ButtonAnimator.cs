@@ -1,10 +1,11 @@
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem.UI;
 using DG.Tweening;
 
 [RequireComponent(typeof(Button), typeof(CanvasGroup))]
-public class ButtonAnimator : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerDownHandler, IPointerUpHandler
+public class ButtonAnimator : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerDownHandler, IPointerUpHandler, ICanvasRaycastFilter
 {
     [SerializeField] private ButtonAnimationProfile profile;
     
@@ -13,14 +14,18 @@ public class ButtonAnimator : MonoBehaviour, IPointerEnterHandler, IPointerExitH
     private Vector3 _originalScale;
     private Color _originalColor;
     private Image _image;
+    private RectTransform _rect;
+    private bool _initialized;
 
     private void Awake()
     {
         _button = GetComponent<Button>();
         _canvasGroup = GetComponent<CanvasGroup>();
         _image = GetComponent<Image>();
+        _rect = (RectTransform)transform;
         _originalScale = transform.localScale;
         _originalColor = _image != null ? _image.color : Color.white;
+        _initialized = true;
     }
 
     private void Animate(Vector3 targetScale, Color targetColor, Ease ease)
@@ -52,28 +57,62 @@ public class ButtonAnimator : MonoBehaviour, IPointerEnterHandler, IPointerExitH
         }
     }
 
-    public void OnPointerEnter(PointerEventData eventData) => Animate(
-        profile != null ? profile.hoverScale : Vector3.Scale(_originalScale, new Vector3(1.04f, 1.04f, 1f)),
-        profile != null ? profile.hoverColor : Color.Lerp(_originalColor, Color.white, 0.12f),
-        profile != null ? profile.hoverEase : Ease.OutBack);
+    public static bool IsTouchPointer(PointerEventData eventData) =>
+        eventData is ExtendedPointerEventData extended
+            ? extended.pointerType == UIPointerType.Touch
+            : eventData != null && eventData.pointerId >= 0;
+
+    // Touch has press/release feedback, not a persistent mouse hover. Input System
+    // mouse IDs are also positive, so use its explicit pointer type when available.
+    public void OnPointerEnter(PointerEventData eventData)
+    {
+        if (eventData == null || IsTouchPointer(eventData) ||
+            !IsRaycastLocationValid(eventData.position, eventData.enterEventCamera)) return;
+        Animate(
+            profile != null ? profile.hoverScale : Vector3.Scale(_originalScale, new Vector3(1.04f, 1.04f, 1f)),
+            profile != null ? profile.hoverColor : Color.Lerp(_originalColor, Color.white, 0.12f),
+            profile != null ? profile.hoverEase : Ease.OutBack);
+    }
 
     public void OnPointerExit(PointerEventData eventData) => Animate(
         _originalScale,
         _originalColor,
         profile != null ? profile.hoverEase : Ease.OutBack);
 
-    public void OnPointerDown(PointerEventData eventData) => Animate(
-        profile != null ? profile.pressScale : Vector3.Scale(_originalScale, new Vector3(0.94f, 0.94f, 1f)),
-        profile != null ? profile.pressColor : new Color(
-            _originalColor.r * 0.9f, _originalColor.g * 0.9f, _originalColor.b * 0.9f, _originalColor.a),
-        profile != null ? profile.pressEase : Ease.OutQuad);
+    public void OnPointerDown(PointerEventData eventData)
+    {
+        if (eventData == null || eventData.button != PointerEventData.InputButton.Left ||
+            !IsRaycastLocationValid(eventData.position, eventData.pressEventCamera)) return;
+        Animate(
+            profile != null ? profile.pressScale : Vector3.Scale(_originalScale, new Vector3(0.94f, 0.94f, 1f)),
+            profile != null ? profile.pressColor : new Color(
+                _originalColor.r * 0.9f, _originalColor.g * 0.9f, _originalColor.b * 0.9f, _originalColor.a),
+            profile != null ? profile.pressEase : Ease.OutQuad);
+    }
 
     public void OnPointerUp(PointerEventData eventData)
     {
-        if (RectTransformUtility.RectangleContainsScreenPoint((RectTransform)transform, eventData.position))
+        if (eventData != null && !IsTouchPointer(eventData) &&
+            IsRaycastLocationValid(eventData.position, eventData.pressEventCamera))
             OnPointerEnter(eventData);
         else
             OnPointerExit(eventData);
+    }
+
+    // GraphicRaycaster also applies this filter to child labels. A bounce must
+    // never enlarge the interactive rectangle into another button or empty space.
+    public bool IsRaycastLocationValid(Vector2 screenPoint, Camera eventCamera)
+    {
+        // A graphics-free grouping Button is not an interactive rectangle. Its
+        // children own their hitboxes (e.g. restaurant Play/Prev/Next).
+        if (!_initialized || !isActiveAndEnabled || _button.targetGraphic == null) return true;
+        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
+            _rect, screenPoint, eventCamera, out Vector2 localPoint)) return false;
+        if (Mathf.Approximately(_originalScale.x, 0f) || Mathf.Approximately(_originalScale.y, 0f)) return false;
+        Vector3 scale = transform.localScale;
+        localPoint.x *= scale.x / _originalScale.x;
+        localPoint.y *= scale.y / _originalScale.y;
+        return _rect.rect.Contains(localPoint);
     }
 
     private void OnDisable()

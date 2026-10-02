@@ -12,7 +12,7 @@ using Hashtable = ExitGames.Client.Photon.Hashtable;
 public class MultiplayerSessionManager : MonoBehaviourPunCallbacks
 {
     public const string SceneName = "Lobby1 Multiplayer", RunKey = "restaurant.run.v2";
-    public const string ProtocolKey = "restaurant.protocol", Protocol = "casual-session-16";
+    public const string ProtocolKey = "restaurant.protocol", Protocol = "casual-session-17";
     public const string ResultRulesVersion = "casual-session-2";
     public const string ReadyKey = "restaurant.ready", LoadedKey = "restaurant.loaded";
     public const int RejoinSeconds = 90;
@@ -40,7 +40,8 @@ public class MultiplayerSessionManager : MonoBehaviourPunCallbacks
     public bool IsAuthority => IsHostConnection && !Ended;
     public bool Ended => run != null && !string.IsNullOrEmpty(run.endReason);
     public bool CanAct => IsConnected && !Ended && run != null && !leaving && !reconnecting
-        && !restoringConnection && ValidActor(localActor) && MultiplayerProgressionContext.Ready;
+        && !restoringConnection && ValidActor(localActor) && MultiplayerProgressionContext.Ready
+        && GetComponent<MultiplayerTaskClaims>()?.HasSnapshot == true;
     public string RunId => run?.runId ?? string.Empty;
     public MultiplayerRunRecord Run => run;
     public Player LocalPhotonPlayer => IsConnected ? PhotonNetwork.LocalPlayer : null;
@@ -106,7 +107,8 @@ public class MultiplayerSessionManager : MonoBehaviourPunCallbacks
                 nextRebind = Time.realtimeSinceStartup + 0.25f;
                 bool hasAvatar = MultiplayerManagerRegistration.TryRebindActor(this, localActor, out _);
                 if (hasAvatar && managementRestored && MultiplayerProgressionContext.Ready
-                    && GetComponent<MultiplayerDayBridge>()?.HasRestoredState == true)
+                    && GetComponent<MultiplayerDayBridge>()?.HasRestoredState == true
+                    && GetComponent<MultiplayerTaskClaims>()?.HasSnapshot == true)
                 { restoringConnection = false; PhotonCustomizationSync.PushToPhoton(); }
             }
         }
@@ -137,6 +139,13 @@ public class MultiplayerSessionManager : MonoBehaviourPunCallbacks
                 || !Equals(player.CustomProperties[LoadedKey], RunId + ":" + p.loadEpoch)) return false;
         }
         return true;
+    }
+    public bool IsActorInReconnectGrace(int actor)
+    {
+        var participant = run?.participants.Find(p => p.actor == actor);
+        return IsConnected && !Ended && participant != null && !participant.departed
+            && PhotonNetwork.CurrentRoom.Players.TryGetValue(actor, out var player) && player.IsInactive
+            && (participant.disconnectDeadline <= 0 || PhotonNetwork.Time <= participant.disconnectDeadline);
     }
     public bool ValidActor(int actor)
     {
@@ -365,7 +374,8 @@ public class MultiplayerSessionManager : MonoBehaviourPunCallbacks
                 && Time.realtimeSinceStartup < deadline) yield return null;
         }
         Time.timeScale = 1f;
-        SceneManager.LoadScene("NewGameMenu");
+        if (SceneLoader.Instance != null) SceneLoader.Instance.LoadScene("NewGameMenu");
+        else SceneLoader.TryLoadScene("NewGameMenu", LoadSceneMode.Single, out _);
     }
     private void OnApplicationQuit()
     {

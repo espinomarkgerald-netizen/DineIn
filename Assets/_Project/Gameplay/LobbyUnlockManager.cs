@@ -26,10 +26,15 @@ public class LobbyUnlockManager : MonoBehaviour
 
     [SerializeField] private List<BoothEntry> boothEntries = new();
 
+    private GameFlowManager flow;
     private void Start()
     {
+        flow = GameFlowManager.Instance;
+        if (flow != null) flow.OnDayChanged += HandleDayChanged;
         ApplyUnlocks();
     }
+    private void OnDestroy() { if (flow != null) flow.OnDayChanged -= HandleDayChanged; }
+    private void HandleDayChanged(int day) => ApplyUnlocks();
 
     /// <summary>
     /// Activates or deactivates each booth based on the current day reported by

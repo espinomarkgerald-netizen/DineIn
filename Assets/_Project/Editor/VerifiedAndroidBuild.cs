@@ -7,14 +7,14 @@ using UnityEditor.Build.Reporting;
 using UnityEngine;
 
 /// <summary>
-/// Reproducible Android test-build entry point. It uses the same five-scene
+/// Reproducible Android test-build entry point. It uses the complete restaurant/tutorial scene
 /// sequence as the authored Android Build Profile and always runs the stale
 /// reference guard before Unity begins serialization.
 /// </summary>
 public static class VerifiedAndroidBuild
 {
     private const string DefaultOutputPath =
-        "Builds/Android/Thesis B TestBuilds/0.5.2-mobile-safe.apk";
+        "Builds/Android/Thesis B TestBuilds/restaurant-touch-development.apk";
     private const string ResultPath = "Logs/VerifiedAndroidBuild.result";
 
     private static readonly string[] AndroidScenes =
@@ -23,7 +23,11 @@ public static class VerifiedAndroidBuild
         "Assets/_Project/Scenes/NewMenu/NewMainMenu.unity",
         "Assets/_Project/Scenes/NewMenu/NewGameMenu.unity",
         "Assets/_Project/Scenes/RoleBased/Lobby1.unity",
-        "Assets/_Project/Scenes/RoleBased/RestockScene.unity"
+        "Assets/_Project/Scenes/RoleBased/RestockScene.unity",
+        "Assets/_Project/Scenes/TutorialScenes/Lobby1Tutorial.unity",
+        "Assets/_Project/Scenes/RoleBased/Lobby1 Multiplayer.unity",
+        "Assets/_Project/Scenes/RoleBased/Lobby2.unity",
+        "Assets/_Project/Scenes/RoleBased/Lobby2Tutorial.unity"
     };
 
     [MenuItem("Tools/Dine In/Build Verified Android APK")]
@@ -48,7 +52,7 @@ public static class VerifiedAndroidBuild
                 locationPathName = absoluteOutputPath,
                 target = BuildTarget.Android,
                 targetGroup = BuildTargetGroup.Android,
-                options = BuildOptions.None
+                options = BuildOptions.Development
             };
 
             Debug.Log(

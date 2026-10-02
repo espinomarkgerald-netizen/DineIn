@@ -73,6 +73,15 @@ public class CameraRigController : MonoBehaviour
     {
         // Auth may have retained its original canvas across a menu round trip.
         yield return null;
+        if (MobileUISettings.UseMobileLayout)
+        {
+            // The chalk font's decorative star is not present in the shipped atlas.
+            // Keep the label and font; omit unsupported decoration on mobile.
+            foreach (TMP_Text text in FindObjectsByType<TMP_Text>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+                if ((text.gameObject.scene == gameObject.scene || text.GetComponentInParent<PlayFabAuthManager>() != null) &&
+                    text.text.Contains("\u2726") && text.font != null && !text.font.HasCharacter('\u2726', true))
+                    text.text = text.text.Replace("\u2726", string.Empty).Trim();
+        }
         foreach (var config in switchConfigs)
         {
             if (config.inputType != InputType.ButtonClick || config.triggerButton == null) continue;

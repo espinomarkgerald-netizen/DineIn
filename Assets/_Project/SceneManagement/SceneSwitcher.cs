@@ -39,6 +39,7 @@ public class SceneManagerUI : MonoBehaviourPunCallbacks
 
     // Guard against double-firing while a load/unload is already in progress.
     private bool isLoading;
+    private bool returningFromRoom;
 
     // SceneManagerUI receives callbacks for every scene operation, including
     // additive loads owned by independent systems such as RestockFlowCoordinator.
@@ -77,6 +78,7 @@ public class SceneManagerUI : MonoBehaviourPunCallbacks
         {
             SceneManager.sceneLoaded   -= OnSceneLoaded;
             SceneManager.sceneUnloaded -= OnSceneUnloaded;
+            Instance = null;
         }
     }
 
@@ -234,32 +236,38 @@ public class SceneManagerUI : MonoBehaviourPunCallbacks
 
     private void LoadSingleSafe(string sceneName)
     {
+        if (SceneLoader.Instance != null)
+        {
+            if (_pendingOverlay != null) _pendingOverlay.SetActive(false);
+            _pendingOverlay = null;
+            SceneLoader.Instance.LoadScene(sceneName);
+            return;
+        }
+        if (!SceneLoader.TryLoadScene(sceneName, LoadSceneMode.Single, out _))
+        {
+            if (_pendingOverlay != null) _pendingOverlay.SetActive(false);
+            _pendingOverlay = null;
+            return;
+        }
         BeginOwnedOperation(sceneName, SceneAction.LoadSingle);
-        Debug.Log($"[SceneManagerUI] LoadSingle -> '{sceneName}'");
-        SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Single);
         // isLoading is cleared in OnSceneLoaded.
     }
 
     private void LoadAdditiveSafe(string sceneName)
     {
-        Scene existing = SceneManager.GetSceneByName(sceneName);
-
-        if (existing.isLoaded)
-        {
-            // Scene is still loaded (or mid-unload). Unload it first, then reload.
-            // Store the pending target so OnSceneUnloaded can re-fire the load.
-            Debug.Log($"[SceneManagerUI] '{sceneName}' still loaded — unloading before re-adding.");
-            pendingLoadAfterUnload = sceneName;
-            BeginOwnedOperation(sceneName, SceneAction.Unload);
-            SceneManager.UnloadSceneAsync(sceneName);
-            // Flow continues in OnSceneUnloaded.
-            return;
-        }
-
+        if (SceneLoader.Instance != null && SceneLoader.Instance.IsLoading) return;
+        if (!SceneLoader.TryLoadScene(sceneName, LoadSceneMode.Additive, out _)) return;
         BeginOwnedOperation(sceneName, SceneAction.LoadAdditive);
-        Debug.Log($"[SceneManagerUI] LoadAdditive -> '{sceneName}'");
-        SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Additive);
         // isLoading is cleared in OnSceneLoaded.
+    }
+
+    // Reload is intentional; ordinary additive navigation never unloads/re-adds an existing menu.
+    public void ReloadAdditive(string sceneName)
+    {
+        if (isLoading || SceneLoader.HasPendingLoad || SceneLoader.Instance?.IsLoading == true) return;
+        if (!SceneManager.GetSceneByName(sceneName).isLoaded) { LoadAdditiveSafe(sceneName); return; }
+        pendingLoadAfterUnload = sceneName;
+        UnloadSafe(sceneName);
     }
 
     private void UnloadSafe(string sceneName)
@@ -335,16 +343,16 @@ public class SceneManagerUI : MonoBehaviourPunCallbacks
     {
         Debug.Log($"[SceneManagerUI] OnSceneUnloaded: '{scene.name}'");
 
-        // If we unloaded a scene in order to reload it (LoadAdditiveSafe race-fix),
+        // If an explicit ReloadAdditive request unloaded this scene,
         // now do the actual load.
         if (!string.IsNullOrEmpty(pendingLoadAfterUnload) && pendingLoadAfterUnload == scene.name)
         {
             string target = pendingLoadAfterUnload;
             pendingLoadAfterUnload = null;
-            // isLoading stays true until OnSceneLoaded fires for the new load.
+            // Transfer ownership from the completed unload to the new load.
             Debug.Log($"[SceneManagerUI] Re-loading '{target}' after unload completed.");
-            BeginOwnedOperation(target, SceneAction.LoadAdditive);
-            SceneManager.LoadSceneAsync(target, LoadSceneMode.Additive);
+            CompleteOwnedOperation();
+            LoadAdditiveSafe(target);
             return;
         }
 
@@ -383,6 +391,9 @@ public class SceneManagerUI : MonoBehaviourPunCallbacks
     /// <summary>Call this from any Exit / Back button.</summary>
     public void ReturnToMenu()
     {
+        if (MultiplayerSessionManager.Instance != null)
+        { MultiplayerSessionManager.Instance.LeaveToMenu(); return; }
+        if (returningFromRoom) return;
         if (isLoading)
         {
             Debug.LogWarning("[SceneManagerUI] ReturnToMenu ignored — load already in progress.");
@@ -393,7 +404,8 @@ public class SceneManagerUI : MonoBehaviourPunCallbacks
         if (PhotonNetwork.IsConnectedAndReady && PhotonNetwork.InRoom)
         {
             Debug.Log("[SceneManagerUI] ReturnToMenu -> Leaving Photon room first.");
-            PhotonNetwork.LeaveRoom();
+            returningFromRoom = true;
+            if (!PhotonNetwork.LeaveRoom()) returningFromRoom = false;
             return;
         }
 
@@ -410,9 +422,16 @@ public class SceneManagerUI : MonoBehaviourPunCallbacks
 
     public override void OnLeftRoom()
     {
-        Debug.Log("[SceneManagerUI] OnLeftRoom -> Loading menu scene.");
-        CompleteOwnedOperation(); // clear any leftover guard before triggering new load
-        LoadSingleSafe(menuSceneName);
+        // Only the caller that initiated this legacy leave owns its navigation.
+        // The scored multiplayer session and reconnect controller have their own cleanup.
+        if (!returningFromRoom) return;
+        returningFromRoom = false;
+        if (MultiplayerSessionManager.Instance == null) LoadSingle(menuSceneName);
+    }
+
+    public override void OnDisconnected(DisconnectCause cause)
+    {
+        if (returningFromRoom) OnLeftRoom();
     }
 
     // -------------------------------------------------------------------------

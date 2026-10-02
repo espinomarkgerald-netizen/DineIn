@@ -27,7 +27,7 @@ public partial class CustomerGroup
             customer.ReviewActor = 0;
             var claims = session.GetComponent<MultiplayerTaskClaims>();
             string task = $"Customer:{customer.photonView.ViewID}:Order";
-            if (claims != null) claims.CompleteOnAuthority(task, claims.GetOwner(task));
+            if (claims != null) claims.ReleaseOnAuthority(task, claims.GetOwner(task));
         }
         ClearOrderBubble();
         ClearTableNumber();

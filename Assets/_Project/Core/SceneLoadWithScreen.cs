@@ -18,6 +18,7 @@ public class SceneLoadWithScreen : MonoBehaviour
 
     // Used only in standalone (no SceneManagerUI) mode.
     private bool isLoading;
+    private AsyncOperation activeOperation;
 
     private void Awake()
     {
@@ -35,6 +36,9 @@ public class SceneLoadWithScreen : MonoBehaviour
     private void OnDisable()
     {
         SceneManager.sceneLoaded -= OnSceneLoaded;
+        StopAllCoroutines();
+        if (activeOperation != null && !activeOperation.isDone) activeOperation.allowSceneActivation = true;
+        isLoading = false;
     }
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
@@ -62,6 +66,8 @@ public class SceneLoadWithScreen : MonoBehaviour
 
     private void TriggerLoad(string targetSceneName)
     {
+        if (SceneLoader.Instance != null)
+        { SceneLoader.Instance.LoadScene(targetSceneName); return; }
         // Preferred path: delegate to SceneManagerUI which owns the load guard.
         // This prevents two concurrent async operations racing each other.
         if (SceneManagerUI.Instance != null)
@@ -95,7 +101,9 @@ public class SceneLoadWithScreen : MonoBehaviour
             yield return null;
         }
 
-        AsyncOperation operation = SceneManager.LoadSceneAsync(targetSceneName, LoadSceneMode.Single);
+        if (!SceneLoader.TryLoadScene(targetSceneName, LoadSceneMode.Single, out var operation))
+        { isLoading = false; if (loadingScreenRoot != null) loadingScreenRoot.SetActive(false); yield break; }
+        activeOperation = operation;
         operation.allowSceneActivation = false;
 
         while (operation.progress < 0.9f || visibleTime < minimumLoadingScreenTime)

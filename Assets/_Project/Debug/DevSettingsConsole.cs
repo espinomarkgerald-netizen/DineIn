@@ -740,7 +740,7 @@ public class DevSettingsConsole : MonoBehaviour
 
     private static bool IsWindowsDebugBuild()
     {
-#if UNITY_STANDALONE_WIN && DEVELOPMENT_BUILD
+#if UNITY_STANDALONE_WIN && (DEVELOPMENT_BUILD || DINEIN_PRESENTATION_BUILD)
         return true;
 #else
         return false;

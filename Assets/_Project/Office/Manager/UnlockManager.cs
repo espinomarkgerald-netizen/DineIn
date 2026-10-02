@@ -15,6 +15,7 @@ public class UnlockManager : MonoBehaviour
     public static event Action<string> OnRecipeUnlocked;
     public static event Action<string> OnEquipmentUnlocked;
     public static event Action<ItemData> OnIngredientUnlocked;
+    public static event Action OnStateRestored;
 
     private void Awake()
     {
@@ -93,6 +94,27 @@ public class UnlockManager : MonoBehaviour
             data.unlockedKitchenItems.Add((int)item);
     }
 
+    // Install the full host state before notifying UI; presentation never grants an unlock.
+    public bool ApplyMultiplayerState(GameSaveData data, bool announce)
+    {
+        if (data == null) return false;
+        var previousRecipes = new HashSet<string>(unlockedRecipes);
+        var previousEquipment = new HashSet<string>(unlockedEquipment);
+        var previousIngredients = new HashSet<ItemData>(unlockedIngredients);
+        var previousKitchen = new HashSet<ItemTypeKitchen>(unlockedKitchenItems);
+        ApplySaveData(data);
+        bool changed = !previousRecipes.SetEquals(unlockedRecipes) || !previousEquipment.SetEquals(unlockedEquipment)
+            || !previousIngredients.SetEquals(unlockedIngredients) || !previousKitchen.SetEquals(unlockedKitchenItems);
+        if (announce)
+        {
+            foreach (string id in unlockedRecipes) if (!previousRecipes.Contains(id)) OnRecipeUnlocked?.Invoke(id);
+            foreach (string id in unlockedEquipment) if (!previousEquipment.Contains(id)) OnEquipmentUnlocked?.Invoke(id);
+            foreach (var item in unlockedIngredients) if (!previousIngredients.Contains(item)) OnIngredientUnlocked?.Invoke(item);
+        }
+        if (changed && !announce) OnStateRestored?.Invoke();
+        return changed;
+    }
+
     public void ApplySaveData(GameSaveData data)
     {
         if (data == null)
@@ -100,7 +122,7 @@ public class UnlockManager : MonoBehaviour
 
         unlockedRecipes.Clear();
         unlockedEquipment.Clear();
-        bool restoreRestaurantIngredients = !CampaignSaveStore.ProtectedSession;
+        bool restoreRestaurantIngredients = !CampaignSaveStore.ProtectedSession || MultiplayerProgressionContext.IsActive;
         if (restoreRestaurantIngredients) unlockedIngredients.Clear();
         unlockedKitchenItems.Clear();
 
@@ -113,7 +135,8 @@ public class UnlockManager : MonoBehaviour
             }
         }
 
-        var catalog = MenuCatalog.ForScene(CampaignSaveStore.RestaurantScene);
+        var catalog = MultiplayerProgressionContext.IsActive ? MultiplayerProgressionContext.Catalog
+            : MenuCatalog.ForScene(CampaignSaveStore.RestaurantScene);
         if (restoreRestaurantIngredients && catalog != null)
             foreach (var recipe in catalog.Products)
                 if (recipe != null && unlockedRecipes.Contains(recipe.recipeID) && recipe.ingredients != null)

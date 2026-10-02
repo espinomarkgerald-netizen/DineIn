@@ -36,14 +36,14 @@ public class GameSaveManager : MonoBehaviour
     public bool SuppressWritesForTests { get; set; }
 #endif
 
-    private string SavePath => Path.Combine(Application.persistentDataPath, CampaignSaveStore.ResolveFileName(saveFileName));
+    private string SavePath => Path.Combine(CampaignSaveStore.LocalDirectory, CampaignSaveStore.ResolveFileName(saveFileName));
     public string CampaignSavePath => SavePath;
     // Preserve the existing clean post-tutorial start; never overwrite an existing career.
     public void CreateInitialCampaign(GameSaveData cleanStart)
     {
         // Tutorial graduation always belongs to Casual Dining, even after visiting Fast Food.
-        string initialPath = Path.Combine(Application.persistentDataPath, saveFileName);
-        string initialCheckpoint = Path.Combine(Application.persistentDataPath,
+        string initialPath = Path.Combine(CampaignSaveStore.LocalDirectory, saveFileName);
+        string initialCheckpoint = Path.Combine(CampaignSaveStore.LocalDirectory,
             Path.GetFileNameWithoutExtension(saveFileName) + "_day_start.json");
         if (IsPersistenceSuspended || MultiplayerRestockBridge.IsActive || File.Exists(initialPath) ||
             File.Exists(initialCheckpoint) || cleanStart == null) return;
@@ -51,6 +51,7 @@ public class GameSaveManager : MonoBehaviour
         if (SuppressWritesForTests) return;
 #endif
         CampaignSaveStore.AtomicWrite(initialPath, JsonUtility.ToJson(cleanStart, true));
+        CampaignSaveStore.NotifyLocalWrite();
     }
     public void ReloadCampaignFromDisk()
     {
@@ -59,7 +60,7 @@ public class GameSaveManager : MonoBehaviour
         LoadGame();
     }
     private string DayCheckpointPath => Path.Combine(
-        Application.persistentDataPath,
+        CampaignSaveStore.LocalDirectory,
         Path.GetFileNameWithoutExtension(CampaignSaveStore.ResolveFileName(saveFileName)) + "_day_start.json");
 
     private bool hasAutoLoaded;
@@ -294,6 +295,7 @@ public class GameSaveManager : MonoBehaviour
         if (CampaignSaveStore.ProtectedSession) return;
         string json = JsonUtility.ToJson(data, true);
         CampaignSaveStore.AtomicWrite(path, json);
+        CampaignSaveStore.NotifyLocalWrite();
 
         Debug.Log("[GameSaveManager] Game saved to: " + path);
         Debug.Log("[GameSaveManager] Saved money: " + data.money);

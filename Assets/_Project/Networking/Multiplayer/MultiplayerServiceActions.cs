@@ -422,7 +422,7 @@ public sealed partial class MultiplayerServiceActions : MonoBehaviourPunCallback
             || request.operation == "cleanup_pickup" && dirtyOwners.ContainsKey(request.value)) return;
         var claims = session.GetComponent<MultiplayerTaskClaims>();
         if (claims.IsClaimedBy(task, actor) && claims.GetLease(task) == request.context.lease)
-            claims.CompleteOnAuthority(task, actor);
+            claims.ReleaseOnAuthority(task, actor);
     }
 
     private static bool Reject(Reply reply, MultiplayerActionOutcome outcome, string message = null)
@@ -518,8 +518,9 @@ public sealed partial class MultiplayerServiceActions : MonoBehaviourPunCallback
         reservations.Remove(view);
         var claims = session.GetComponent<MultiplayerTaskClaims>();
         string task = $"Customer:{view}:Payment";
-        if (claims.IsClaimedBy(task, reservation.actor) && claims.GetLease(task) == reservation.lease)
-            claims.CompleteOnAuthority(task, reservation.actor);
+        if (!session.IsActorInReconnectGrace(reservation.actor) && claims.IsClaimedBy(task, reservation.actor)
+            && claims.GetLease(task) == reservation.lease)
+            claims.ReleaseOnAuthority(task, reservation.actor);
         if (reservation.actor == session.LocalActorNumber)
         {
             CashierRegisterUI.Instance?.CloseNetworkPayment(Resolve(view));
@@ -541,6 +542,7 @@ public sealed partial class MultiplayerServiceActions : MonoBehaviourPunCallback
         if (reply?.result?.context == null || pending?.context == null || reply.result.context.actor != session.LocalActorNumber
             || !reply.result.context.MatchesAction(pending.context) || reply.value != pending.value
             || reply.result.context.run != session.RunId || reply.result.context.day != GameFlowManager.Instance.CurrentDay) return;
+        MultiplayerDiagnostics.TraceAction(reply.result);
         pending = null;
         var group = Resolve(reply.view);
         ReceiveCleanup(reply);

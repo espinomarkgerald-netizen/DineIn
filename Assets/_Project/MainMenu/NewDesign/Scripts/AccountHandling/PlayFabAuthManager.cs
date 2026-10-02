@@ -180,6 +180,11 @@ public class PlayFabAuthManager : MonoBehaviour
 
         bool isMainMenu = sceneName == mainMenuSceneName;
         authCanvas.enabled = isMainMenu;
+        // A hidden persistent canvas must not keep invisible mobile input targets alive.
+        // CameraRigController owns which board is interactive when the menu is visible.
+        if (!isMainMenu)
+            foreach (GraphicRaycaster raycaster in authCanvas.GetComponentsInChildren<GraphicRaycaster>(true))
+                raycaster.enabled = false;
 
         if (verboseLogging)
             Debug.Log("PlayFabAuthManager: scene '" + sceneName + "' loaded. authCanvas.enabled=" + isMainMenu +

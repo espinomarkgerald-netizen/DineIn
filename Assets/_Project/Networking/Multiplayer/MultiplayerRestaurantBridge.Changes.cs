@@ -27,6 +27,8 @@ public sealed partial class MultiplayerRestaurantBridge
     private void EconomyChanged(int ignored) => economyDirty = true;
     private void InventoryChanged(ItemType ignored, int count) => economyDirty = true;
     private void ManagementChanged() => managementDirty = true;
+    private void UnlockChanged(string ignored) => managementDirty = true;
+    private void IngredientUnlocked(ItemData ignored) => managementDirty = true;
     private void SubscribeChanges()
     {
         if (subscribed || !MultiplayerProgressionContext.LocallyPrepared) return;
@@ -39,6 +41,9 @@ public sealed partial class MultiplayerRestaurantBridge
         if (employeeSource != null) { employeeSource.AssignmentsChanged += ManagementChanged; employeeSource.ApplicantsRefreshed += ManagementChanged; }
         if (equipmentSource != null) equipmentSource.PurchasesChanged += ManagementChanged;
         if (menuSource != null) menuSource.MenuChanged += ManagementChanged;
+        UnlockManager.OnRecipeUnlocked += UnlockChanged;
+        UnlockManager.OnEquipmentUnlocked += UnlockChanged;
+        UnlockManager.OnIngredientUnlocked += IngredientUnlocked;
         subscribed = true;
     }
     private Snapshot CaptureEconomy()
@@ -57,6 +62,12 @@ public sealed partial class MultiplayerRestaurantBridge
     }
     private void OnDestroy()
     {
+        if (subscribed)
+        {
+            UnlockManager.OnRecipeUnlocked -= UnlockChanged;
+            UnlockManager.OnEquipmentUnlocked -= UnlockChanged;
+            UnlockManager.OnIngredientUnlocked -= IngredientUnlocked;
+        }
         if (moneySource != null) moneySource.OnMoneyChanged -= EconomyChanged;
         if (inventorySource != null) inventorySource.OnStockChanged -= InventoryChanged;
         if (approvalSource != null) approvalSource.OnApprovalChanged -= EconomyChanged;

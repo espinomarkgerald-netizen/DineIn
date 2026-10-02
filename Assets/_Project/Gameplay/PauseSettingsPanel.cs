@@ -57,6 +57,11 @@ public sealed class PauseSettingsPanel : MonoBehaviour
         foreach(var row in rows)
         {
             Row captured = row;
+            if (row.setting == Setting.UIScale && row.slider != null)
+            {
+                row.slider.minValue = settings.MinimumUIScale;
+                row.slider.maxValue = settings.MaximumUIScale;
+            }
             if(row.slider != null) row.slider.onValueChanged.AddListener(v=>Change(captured.setting,v));
             if(row.toggle != null) row.toggle.onValueChanged.AddListener(v=>Change(captured.setting,v?1:0));
             if(row.dropdown != null) row.dropdown.onValueChanged.AddListener(v=>Change(captured.setting,v));
@@ -246,6 +251,29 @@ public sealed class PauseSettingsPanel : MonoBehaviour
         if(remaining<=0) {RevertDisplay();return;}
         displayStatus.text=$"Keep these display settings? Reverting in {Mathf.CeilToInt(remaining)}s.";
     }
+    // TMP uses sortingOrder 30000 for its popup, below this pause canvas (32766).
+    // Raise only open dropdowns and their own click-away blocker above their menu.
+    private void LateUpdate() => RefreshDropdownSorting();
+    public void RefreshDropdownSorting()
+    {
+        if (rows == null) return;
+        foreach (var row in rows)
+        {
+            if (row.dropdown == null || !row.dropdown.IsExpanded) continue;
+            var list = row.dropdown.transform.Find("Dropdown List");
+            var parent = row.dropdown.GetComponentInParent<Canvas>();
+            if (list == null || parent == null || !list.TryGetComponent<Canvas>(out var popup)) continue;
+            popup.sortingLayerID = parent.sortingLayerID;
+            popup.sortingOrder = Mathf.Min(32767, parent.sortingOrder + 1);
+            var blocker = parent.rootCanvas.transform.Find("Blocker");
+            if (blocker != null && blocker.TryGetComponent<Canvas>(out var blockerCanvas))
+            {
+                blockerCanvas.sortingLayerID = popup.sortingLayerID;
+                blockerCanvas.sortingOrder = popup.sortingOrder - 1;
+            }
+        }
+    }
+
     private void RevertDisplay()
     {
         if(previewing) Screen.SetResolution(previousResolution.x,previousResolution.y,previousMode);

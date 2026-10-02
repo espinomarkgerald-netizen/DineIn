@@ -70,6 +70,6 @@ public sealed class TutorialCompletionFlow : MonoBehaviour
     private static void Load(string scene)
     {
         if (SceneLoader.Instance != null) SceneLoader.Instance.LoadScene(scene);
-        else SceneManager.LoadSceneAsync(scene, LoadSceneMode.Single);
+        else SceneLoader.TryLoadScene(scene, LoadSceneMode.Single, out _);
     }
 }

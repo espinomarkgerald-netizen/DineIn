@@ -534,7 +534,7 @@ public sealed class LobbyPauseMenu : MonoBehaviour
         Time.timeScale = 1f;
         GameSaveManager.Instance?.RestoreDayStartCheckpoint();
         if (SceneLoader.Instance != null) SceneLoader.Instance.LoadScene(GameMenuSceneName);
-        else SceneManager.LoadSceneAsync(GameMenuSceneName, LoadSceneMode.Single);
+        else SceneLoader.TryLoadScene(GameMenuSceneName, LoadSceneMode.Single, out _);
     }
 
     private void RefreshAccessibilityLabels()

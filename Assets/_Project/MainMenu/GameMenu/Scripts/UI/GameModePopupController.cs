@@ -78,6 +78,7 @@ public class GameModePopupController : MonoBehaviour
     /// <summary>Wire this to CampaignButton.</summary>
     public void ChooseCampaign()
     {
+        if (!CampaignCloudSync.CanEnterGameplay()) return;
         if (!TryGetSelectedCampaignScene(out string careerScene))
             return;
 
@@ -107,6 +108,7 @@ public class GameModePopupController : MonoBehaviour
     /// <summary>Wire this to MultiplayerButton.</summary>
     public void ChooseMultiplayer()
     {
+        if (!CampaignCloudSync.CanEnterGameplay()) return;
         ChooseMode(GameModeChoice.Multiplayer);
     }
 

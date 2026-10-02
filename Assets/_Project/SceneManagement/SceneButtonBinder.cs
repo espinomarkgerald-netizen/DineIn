@@ -82,7 +82,7 @@ public class SceneButtonBinder : MonoBehaviour
         switch (action)
         {
             case SceneManagerUI.SceneAction.LoadAdditive:
-                SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Additive);
+                SceneLoader.TryLoadScene(sceneName, LoadSceneMode.Additive, out _);
                 break;
             case SceneManagerUI.SceneAction.Unload:
                 Scene loaded = SceneManager.GetSceneByName(sceneName);
@@ -90,7 +90,8 @@ public class SceneButtonBinder : MonoBehaviour
                     SceneManager.UnloadSceneAsync(loaded);
                 break;
             default:
-                SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Single);
+                if (SceneLoader.Instance != null) SceneLoader.Instance.LoadScene(sceneName);
+                else SceneLoader.TryLoadScene(sceneName, LoadSceneMode.Single, out _);
                 break;
         }
     }

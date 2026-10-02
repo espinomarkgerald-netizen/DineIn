@@ -9,6 +9,10 @@ public static class PlayerCustomizationData
     public static string AccountId => accountId;
     public static event Action AppearanceChanged;
     public static event Action ProfileChanged;
+    public static void NotifyCloudAppearanceApplied()
+    {
+        ProfileChanged?.Invoke(); AppearanceChanged?.Invoke(); PhotonCustomizationSync.PushToPhoton();
+    }
     public static LocalSaveManager.AppearanceRecord AppearanceRecord
     {
         get

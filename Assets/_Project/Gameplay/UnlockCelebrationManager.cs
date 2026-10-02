@@ -168,6 +168,7 @@ public sealed class UnlockCelebrationManager : MonoBehaviour
 
     private void QueueCurrentDayUnlocks()
     {
+        if (MultiplayerProgressionContext.IsActive) return; // Host unlock events/snapshot diffs own multiplayer notices.
         int day = GameFlowManager.Instance != null ? GameFlowManager.Instance.CurrentDay : 1;
         string restaurant = CampaignSaveStore.RestaurantScene;
         if (lastScannedDay == day && lastScannedRestaurant == restaurant)
@@ -304,11 +305,13 @@ public sealed class UnlockCelebrationManager : MonoBehaviour
     private bool CanPresentInCurrentScene()
     {
         Scene active = SceneManager.GetActiveScene();
-        return active.IsValid() && active.isLoaded && IsPresentationScene(active.name);
+        return active.IsValid() && active.isLoaded && IsPresentationScene(active.name)
+            && (!MultiplayerProgressionContext.IsActive || MultiplayerProgressionContext.Ready);
     }
 
     private bool IsPresentationScene(string sceneName)
     {
+        if (sceneName == MultiplayerSessionManager.SceneName) return true;
         if (string.IsNullOrWhiteSpace(sceneName) || presentationSceneNames == null)
             return false;
         for (int i = 0; i < presentationSceneNames.Length; i++)

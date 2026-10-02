@@ -197,6 +197,7 @@ public partial class MultiplayerCustomerInteractionBridge
         if (pendingBillAction == null || reply?.result?.context == null
             || reply.result.context.actor != session.LocalActorNumber
             || !reply.result.context.MatchesAction(pendingBillAction.request.context)) return;
+        MultiplayerDiagnostics.TraceAction(reply.result);
         pendingBillAction = null;
         if (!reply.result.Accepted)
         {

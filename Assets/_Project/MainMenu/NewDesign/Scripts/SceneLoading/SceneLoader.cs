@@ -8,8 +8,8 @@ using UnityEngine.UI;
 /// - Survives scene loads via DontDestroyOnLoad.
 /// - Spawns its own loading screen from a prefab reference (a Project asset,
 ///   never a scene object) so nothing can go "Missing" after an unload.
-/// - Guards against overlapping loads and guarantees its lock is always released,
-///   even if something fails mid-transition.
+/// - Guards against overlapping loads until Unity actually completes the operation,
+///   including when the loading screen reaches its safety timeout.
 /// </summary>
 [DefaultExecutionOrder(-100)]
 public class SceneLoader : MonoBehaviour
@@ -25,13 +25,19 @@ public class SceneLoader : MonoBehaviour
     [Tooltip("Minimum time the loading screen stays visible, even if the scene loads instantly.")]
     [SerializeField] private float minimumLoadingTime = 1f;
 
-    [Tooltip("Hard ceiling in seconds. If a load exceeds this, we abort instead of hanging forever.")]
+    [Tooltip("Safety deadline in seconds. Releases blocked activation and reports the stall; navigation stays guarded until Unity completes.")]
     [SerializeField] private float safetyTimeoutSeconds = 30f;
 
     private GameObject spawnedLoadingCanvas;
     private Slider progressBar;
     private TMPro.TextMeshProUGUI progressText;
     private bool isLoading = false;
+    private AsyncOperation activeOperation;
+    private int transitionGeneration;
+    private static int loadGeneration;
+    private static AsyncOperation pendingOperation;
+    private static string pendingScene;
+    public static bool HasPendingLoad => pendingOperation != null && !pendingOperation.isDone;
 
     public bool IsLoading => isLoading;
 
@@ -122,7 +128,7 @@ public class SceneLoader : MonoBehaviour
             Debug.LogError($"[SceneLoader] Scene '{sceneName}' is not available in the active build profile.");
             return;
         }
-        RequestLoad(() => SceneManager.LoadSceneAsync(sceneName), sceneName);
+        RequestLoad(sceneName);
     }
 
     /// <summary>Load a scene by Build Settings index. Use this if you prefer not to hardcode names.</summary>
@@ -134,27 +140,82 @@ public class SceneLoader : MonoBehaviour
                             $"(0–{SceneManager.sceneCountInBuildSettings - 1}). Check Build Settings.");
             return;
         }
-        RequestLoad(() => SceneManager.LoadSceneAsync(buildIndex), $"buildIndex {buildIndex}");
+        LoadScene(SceneUtility.GetScenePathByBuildIndex(buildIndex));
     }
 
-    // ---------- Internal ----------
+    /// <summary>Intentional reload, distinct from normal idempotent navigation.</summary>
+    public void ReloadScene(string sceneName) => RequestLoad(sceneName, true);
 
-    private void RequestLoad(System.Func<AsyncOperation> beginLoad, string label)
+    // Shared physical-load gate for the existing Bootstrap and fallback loaders.
+    // Unity operations cannot be cancelled: keep the gate until the real operation completes.
+    public static bool TryLoadScene(string sceneName, LoadSceneMode mode, out AsyncOperation operation, bool reload = false)
     {
-        if (isLoading)
+        operation = null;
+        if (Instance != null && Instance.IsLoading) return false;
+        return BeginNativeLoad(sceneName, mode, out operation, reload);
+    }
+
+    private static bool BeginNativeLoad(string sceneName, LoadSceneMode mode, out AsyncOperation operation, bool reload)
+    {
+        operation = null;
+        string path = ScenePath(sceneName);
+        if (HasPendingLoad || (!reload && IsSceneLoaded(path))) return false;
+        if (string.IsNullOrEmpty(path) || !Application.CanStreamedLevelBeLoaded(path))
+        { Debug.LogError($"[SceneLoader] Scene '{sceneName}' is not available in the active build profile."); return false; }
+        int generation = ++loadGeneration;
+        operation = SceneManager.LoadSceneAsync(path, mode);
+        if (operation == null) return false;
+        pendingOperation = operation; pendingScene = path;
+        var captured = operation;
+        operation.completed += _ =>
         {
-            // This is the mutex guard: rapid double-clicks or spammed triggers are ignored,
-            // not queued and not crashed on.
-            Debug.LogWarning($"[SceneLoader] Ignored request to load '{label}' — a transition is already in progress.");
-            return;
-        }
-
-        StartCoroutine(LoadSceneRoutine(beginLoad, label));
+            if (generation != loadGeneration || pendingOperation != captured) return;
+            pendingOperation = null; pendingScene = null;
+        };
+        if (Debug.isDebugBuild) Debug.Log($"[SceneLoader] physicalLoad={path} mode={mode} frame={Time.frameCount} loadGeneration={generation}");
+        return true;
     }
 
-    private IEnumerator LoadSceneRoutine(System.Func<AsyncOperation> beginLoad, string label)
+    private static string ScenePath(string sceneName)
     {
+        if (string.IsNullOrWhiteSpace(sceneName)) return null;
+        string value = sceneName.Replace('\\', '/');
+        for (int i = 0; i < SceneManager.sceneCountInBuildSettings; i++)
+        {
+            string path = SceneUtility.GetScenePathByBuildIndex(i);
+            if (string.Equals(value, path, System.StringComparison.OrdinalIgnoreCase) ||
+                (value.IndexOf('/') < 0 && string.Equals(System.IO.Path.GetFileNameWithoutExtension(value), System.IO.Path.GetFileNameWithoutExtension(path), System.StringComparison.OrdinalIgnoreCase)))
+                return path;
+        }
+        return value;
+    }
+
+    public static bool IsSceneLoaded(string sceneName)
+    {
+        string path = ScenePath(sceneName);
+        for (int i = 0; i < SceneManager.sceneCount; i++)
+        {
+            Scene scene = SceneManager.GetSceneAt(i);
+            if (scene.IsValid() && scene.isLoaded && string.Equals(scene.path, path, System.StringComparison.OrdinalIgnoreCase)) return true;
+        }
+        return false;
+    }
+
+    private void RequestLoad(string sceneName, bool reload = false)
+    {
+        if (Debug.isDebugBuild)
+            Debug.Log($"[SceneLoader] requestedScene={sceneName} currentActiveScene={SceneManager.GetActiveScene().name} currentlyLoading={isLoading || HasPendingLoad} pendingScene={pendingScene} requestSource={new System.Diagnostics.StackTrace(1, false)} frame={Time.frameCount} loadGeneration={loadGeneration}");
+        if (isLoading || HasPendingLoad || (!reload && IsSceneLoaded(sceneName))) return;
+        if (!Application.CanStreamedLevelBeLoaded(sceneName))
+        { Debug.LogError($"[SceneLoader] Scene '{sceneName}' is not available in the active build profile."); return; }
+        // Reserve before starting the iris/coroutine, including synchronous re-entry.
         isLoading = true;
+        int generation = ++transitionGeneration;
+        StartCoroutine(LoadSceneRoutine(sceneName, reload, generation));
+    }
+
+    private IEnumerator LoadSceneRoutine(string sceneName, bool reload, int generation)
+    {
         IrisScaleToggle iris = null;
         if (IrisScaleToggle.IsMenuScene(SceneManager.GetActiveScene().name))
         {
@@ -163,79 +224,71 @@ public class SceneLoader : MonoBehaviour
             iris.PlayCloseThenInvoke(() => closed = true);
             while (!closed) yield return null;
         }
-
-        // Defensive: if the canvas was ever destroyed unexpectedly, rebuild it before use.
-        if (spawnedLoadingCanvas == null)
-        {
-            InitializeUI();
-        }
-
-        if (spawnedLoadingCanvas != null)
-        {
-            spawnedLoadingCanvas.SetActive(true);
-        }
-
+        if (generation != transitionGeneration) yield break;
+        if (spawnedLoadingCanvas == null) InitializeUI();
+        if (spawnedLoadingCanvas != null) spawnedLoadingCanvas.SetActive(true);
         UpdateProgress(0f);
         if (iris != null) iris.SuspendForLoading();
-        float elapsedTime = 0f;
 
-        AsyncOperation asyncOperation = beginLoad.Invoke();
-
-        // Guaranteed reset path #1: the load never started (bad name/index, not in Build Settings).
-        if (asyncOperation == null)
+        bool started = false;
+        try { started = BeginNativeLoad(sceneName, LoadSceneMode.Single, out activeOperation, reload); }
+        catch (System.Exception error) { Debug.LogException(error); }
+        if (!started) { FinishTransition(generation); yield break; }
+        var operation = activeOperation;
+        operation.allowSceneActivation = false;
+        operation.completed += _ => { if (this != null) FinishTransition(generation); };
+        float elapsed = 0f;
+        while (!operation.isDone)
         {
-            Debug.LogError($"[SceneLoader] Failed to begin loading '{label}'. " +
-                            "Confirm it is added under File > Build Settings > Scenes In Build.");
-            if (spawnedLoadingCanvas != null) spawnedLoadingCanvas.SetActive(false);
-            isLoading = false;
-            if (iris != null) iris.PlayOpen();
-            yield break;
-        }
-
-        asyncOperation.allowSceneActivation = false;
-
-        while (!asyncOperation.isDone)
-        {
-            elapsedTime += Time.unscaledDeltaTime;
-
-            // Guaranteed reset path #2: safety timeout, in case progress ever stalls
-            // for a reason unrelated to allowSceneActivation.
-            if (elapsedTime > safetyTimeoutSeconds)
+            elapsed += Time.unscaledDeltaTime;
+            if (elapsed > safetyTimeoutSeconds)
             {
-                Debug.LogError($"[SceneLoader] Loading '{label}' exceeded the {safetyTimeoutSeconds}s safety " +
-                                "timeout. Aborting to avoid a permanent lock. Check for scene load hangs.");
-                break;
+                Debug.LogError($"[SceneLoader] Loading '{sceneName}' exceeded the {safetyTimeoutSeconds}s safety timeout. " +
+                    $"progress={operation.progress}. Releasing activation; duplicate loads remain blocked until Unity completes the pending operation.");
+                // A timeout is NOT cancellation. Leaving activation false blocks Unity's
+                // queue; unlocking navigation here used to enqueue more stalled copies.
+                operation.allowSceneActivation = true;
+                RevealCurrentScene();
+                yield break; // Completion owns the lock, even after this coroutine exits.
             }
-
-            float normalizedProgress = Mathf.Clamp01(asyncOperation.progress / 0.9f);
-            float timeProgress = Mathf.Clamp01(elapsedTime / minimumLoadingTime);
-            float finalDisplayProgress = Mathf.Min(normalizedProgress, timeProgress);
-
-            UpdateProgress(finalDisplayProgress);
-
-            if (asyncOperation.progress >= 0.9f && elapsedTime >= minimumLoadingTime)
-            {
-                asyncOperation.allowSceneActivation = true;
-            }
-
+            UpdateProgress(Mathf.Min(Mathf.Clamp01(operation.progress / 0.9f), Mathf.Clamp01(elapsed / Mathf.Max(0.001f, minimumLoadingTime))));
+            if (operation.progress >= 0.9f && elapsed >= minimumLoadingTime) operation.allowSceneActivation = true;
             yield return null;
         }
+        FinishTransition(generation);
+    }
 
-        // Guaranteed reset path #3: normal completion.
-        bool revealMenu = IrisScaleToggle.IsMenuScene(SceneManager.GetActiveScene().name);
-        if (revealMenu)
-        {
-            iris = IrisScaleToggle.Ensure();
-            iris.SetCovered();
-        }
-        if (spawnedLoadingCanvas != null)
-        {
-            spawnedLoadingCanvas.SetActive(false);
-        }
-
+    private void FinishTransition(int generation)
+    {
+        if (generation != transitionGeneration || !isLoading) return;
+        activeOperation = null;
         isLoading = false;
-        if (revealMenu) iris.PlayOpen();
-        else if (iris != null) iris.RevealImmediately();
+        RevealCurrentScene();
+    }
+
+    private void RevealCurrentScene()
+    {
+        if (spawnedLoadingCanvas != null) spawnedLoadingCanvas.SetActive(false);
+        if (IrisScaleToggle.IsMenuScene(SceneManager.GetActiveScene().name)) IrisScaleToggle.Ensure().PlayOpen();
+        else if (IrisScaleToggle.Instance != null) IrisScaleToggle.Instance.RevealImmediately();
+    }
+
+    private void OnDisable()
+    {
+        if (Instance != this || !isLoading) return;
+        StopAllCoroutines();
+        if (activeOperation != null && !activeOperation.isDone) activeOperation.allowSceneActivation = true;
+        else { transitionGeneration++; isLoading = false; }
+        if (spawnedLoadingCanvas != null) spawnedLoadingCanvas.SetActive(false);
+        if (IrisScaleToggle.Instance != null) IrisScaleToggle.Instance.RevealImmediately();
+    }
+
+    private void OnDestroy()
+    {
+        if (Instance != this) return;
+        if (activeOperation != null && !activeOperation.isDone) activeOperation.allowSceneActivation = true;
+        if (spawnedLoadingCanvas != null) Destroy(spawnedLoadingCanvas);
+        Instance = null;
     }
 
     private void UpdateProgress(float progressValue)

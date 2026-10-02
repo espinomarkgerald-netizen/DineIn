@@ -6,7 +6,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 
 /// <summary>Access to the existing Campaign files; never captures disposable session managers.</summary>
-public static class CampaignSaveStore
+public static partial class CampaignSaveStore
 {
     public static bool ProtectedSession => GameSaveManager.IsPersistenceSuspended ||
         MultiplayerRestockBridge.IsActive || SceneManager.GetSceneByName("Lobby1 Multiplayer").isLoaded ||
@@ -43,9 +43,11 @@ public static class CampaignSaveStore
         NeedsReload = false;
         IsCreditPending = false;
         cachedStamp = null;
+        localDirectory = null;
+        installingAccount = false;
     }
     public static string SavePath => GameSaveManager.Instance != null
-        ? GameSaveManager.Instance.CampaignSavePath : Path.Combine(Application.persistentDataPath, ResolveFileName("dinein_save.json"));
+        ? GameSaveManager.Instance.CampaignSavePath : Path.Combine(LocalDirectory, ResolveFileName("dinein_save.json"));
     public static string CheckpointPath => Path.Combine(Path.GetDirectoryName(SavePath),
         Path.GetFileNameWithoutExtension(SavePath) + "_day_start.json");
 
@@ -101,6 +103,7 @@ public static class CampaignSaveStore
         Directory.CreateDirectory(Path.GetDirectoryName(path));
         string temp = path + ".tmp";
         File.WriteAllText(temp, value);
+        if (File.ReadAllText(temp) != value) throw new IOException("Save verification failed; previous copy preserved.");
         if (File.Exists(path)) File.Replace(temp, path, path + ".bak");
         else File.Move(temp, path);
     }
@@ -121,6 +124,7 @@ public static class CampaignSaveStore
         AtomicWrite(SavePath + ".pending_pair.json", JsonUtility.ToJson(snapshot));
         RecoverPendingWrite();
         cachedStamp = null;
+        NotifyLocalWrite();
     }
 
     public static void RecoverPendingWrite()
@@ -192,6 +196,8 @@ public static class CampaignSaveStore
     [Serializable] private sealed class Binding { public string account; }
     public static bool AccountMatches(string account)
     {
+        var owner = ReadAccountState().account;
+        if (!string.IsNullOrEmpty(owner) && owner != account) return false;
         string path = SavePath + ".cloud_state.json";
         if (!File.Exists(path)) return true;
         var binding = JsonUtility.FromJson<Binding>(File.ReadAllText(path));

@@ -74,7 +74,9 @@ public partial class MultiplayerCustomerSpawn
         state.revision = serviceRevision;
         state.authorityTime = Time.time; state.sentAt = PhotonNetwork.Time;
         nextServiceBaseline = Time.unscaledTime + 3f;
-        photonView.RPC(nameof(ReceiveServiceState), RpcTarget.Others, JsonUtility.ToJson(state));
+        string payload = JsonUtility.ToJson(state);
+        MultiplayerDiagnostics.RecordCustomerState(payload);
+        photonView.RPC(nameof(ReceiveServiceState), RpcTarget.Others, payload);
     }
 
     [PunRPC]

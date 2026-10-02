@@ -28,6 +28,7 @@ public class ShopItemView : MonoBehaviour
     [SerializeField] private Button buyButton;
 
     [Header("Display Formatting")]
+    [SerializeField] private Color priceColor = new Color(.22f, .12f, .015f, 1f);
     [Tooltip("Prefix shown before the Normal Money reward amount for Currency items, e.g. \"+2500 NM\".")]
     [SerializeField] private string moneyRewardPrefix = "+";
     [Tooltip("Suffix shown after the Normal Money reward amount for Currency items.")]
@@ -63,7 +64,11 @@ public class ShopItemView : MonoBehaviour
         ApplyItemValueText(itemData);
 
         if (priceText != null)
+        {
             priceText.text = itemData.price + " " + itemData.priceCurrencyCode;
+            priceText.color = priceColor;
+            priceText.raycastTarget = false;
+        }
 
         if (buyButton != null)
         {

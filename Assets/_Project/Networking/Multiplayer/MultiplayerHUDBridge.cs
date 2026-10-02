@@ -6,6 +6,7 @@ public sealed class MultiplayerHUDBridge : MonoBehaviour
 {
     private const string TaskSource = "multiplayer.local";
     private bool bound;
+    private float nextGuidanceRefresh;
     public static bool IsActive => MultiplayerDayBridge.IsActive
         && SceneManager.GetActiveScene().name == "Lobby1 Multiplayer";
     public static ManagerPlayer LocalPlayer => IsActive
@@ -27,6 +28,8 @@ public sealed class MultiplayerHUDBridge : MonoBehaviour
             PlayerTaskHUD.Instance?.RefreshSceneVisibility();
             bound = true;
         }
+        if (Time.unscaledTime < nextGuidanceRefresh) return;
+        nextGuidanceRefresh = Time.unscaledTime + 0.1f;
         var session = MultiplayerSessionManager.Instance;
         var activity = MultiplayerActorActivity.Read(session.LocalManager);
         string action = activity.action, detail = activity.detail;
@@ -42,7 +45,10 @@ public sealed class MultiplayerHUDBridge : MonoBehaviour
             else if (!GameDayManager.Instance.ServiceActive)
             { action = "Prepare the restaurant"; detail = "The host requests Start Day at the computer; guests confirm Ready in the popup."; }
         }
-        PlayerTaskGuidance.SetTask(TaskSource, action, action, detail, 10000,
+        var claims = session.GetComponent<MultiplayerTaskClaims>();
+        string task = claims != null ? claims.GetTaskForActor(session.LocalActorNumber) : null;
+        if (session.CanAct && task != null) detail = claims.Describe(task) + " — " + detail;
+        PlayerTaskGuidance.SetTask(TaskSource, task ?? action, action, detail, 10000,
             activity.target, PlayerTaskCategory.Service);
     }
 

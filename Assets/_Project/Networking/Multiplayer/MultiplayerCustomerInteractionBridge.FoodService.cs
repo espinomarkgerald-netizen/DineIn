@@ -252,6 +252,7 @@ public partial class MultiplayerCustomerInteractionBridge
     {
         if (pendingFoodAction == null || result?.context == null || result.context.actor != session.LocalActorNumber
             || !result.context.MatchesAction(pendingFoodAction.request.context)) return;
+        MultiplayerDiagnostics.TraceAction(result);
         pendingFoodAction = null;
         if (!result.Accepted)
         {

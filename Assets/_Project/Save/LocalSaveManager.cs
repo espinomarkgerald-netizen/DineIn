@@ -11,6 +11,7 @@ public static class LocalSaveManager
     public class SaveData
     {
         public string username = "Guest";
+        public string progressAccount;
         public int coins = 0;
         public List<string> ownedItemIds = new List<string>();
 
@@ -37,6 +38,8 @@ public static class LocalSaveManager
     }
 
     private static SaveData _cache;
+    public static bool NeedsRecovery { get; private set; }
+    public static void MarkRestored() { NeedsRecovery = false; }
 
     private static string FilePath => Path.Combine(Application.persistentDataPath, FileName);
 
@@ -95,8 +98,11 @@ public static class LocalSaveManager
     {
         try
         {
-            var json = JsonUtility.ToJson(Data, true);
-            File.WriteAllText(FilePath, json);
+            var data = Data;
+            if (NeedsRecovery) return false;
+            var json = JsonUtility.ToJson(data, true);
+            CampaignSaveStore.AtomicWrite(FilePath, json);
+            CampaignSaveStore.NotifyLocalWrite();
             return true;
         }
         catch (Exception e)
@@ -120,7 +126,8 @@ public static class LocalSaveManager
             }
 
             var json = File.ReadAllText(FilePath);
-            var d2 = JsonUtility.FromJson<SaveData>(json) ?? new SaveData();
+            var d2 = JsonUtility.FromJson<SaveData>(json);
+            if (d2 == null || d2.roles == null || d2.ownedItemIds == null || !json.Contains("\"roles\"")) throw new InvalidDataException("Invalid local profile.");
             _cache = d2;
             EnsureDefaultRoles();
             return d2;
@@ -128,6 +135,9 @@ public static class LocalSaveManager
         catch (Exception e)
         {
             Debug.LogError($"[LocalSaveManager] Load failed: {e}");
+            NeedsRecovery = true;
+            // Quarantine the unreadable bytes; do not save defaults over the only copy.
+            try { if (File.Exists(FilePath)) File.Copy(FilePath, FilePath + ".corrupt", true); } catch { }
             var d = new SaveData();
             _cache = d;
             EnsureDefaultRoles();

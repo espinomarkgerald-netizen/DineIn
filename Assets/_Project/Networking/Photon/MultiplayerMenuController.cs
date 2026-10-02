@@ -142,6 +142,7 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
 
     private void Begin(bool create, string code, bool rejoin = false)
     {
+        if (!CampaignCloudSync.CanEnterGameplay()) return;
         var account = PlayFabAuthManager.Instance;
         if (account == null || !account.IsLoggedIn || string.IsNullOrEmpty(account.PlayFabId))
         { SetStatus("Sign in before starting multiplayer."); return; }

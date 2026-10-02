@@ -113,17 +113,23 @@ namespace UI.Effects
 
                 trigger.triggers.Clear();
 
-                AddEventTriggerListener(trigger, EventTriggerType.PointerEnter, (data) => OnPointerEnter(entry));
+                AddEventTriggerListener(trigger, EventTriggerType.PointerEnter, (data) => OnPointerEnter(entry, data as PointerEventData));
                 AddEventTriggerListener(trigger, EventTriggerType.PointerExit, (data) => OnPointerExit(entry));
-                AddEventTriggerListener(trigger, EventTriggerType.PointerDown, (data) => OnPointerDown(entry));
+                AddEventTriggerListener(trigger, EventTriggerType.PointerDown, (data) => OnPointerDown(entry, data as PointerEventData));
+                AddEventTriggerListener(trigger, EventTriggerType.PointerUp, (data) =>
+                {
+                    if (ButtonAnimator.IsTouchPointer(data as PointerEventData)) OnPointerExit(entry);
+                });
             }
         }
 
         #region Pointer Events
 
-        private void OnPointerEnter(ButtonConfig entry)
+        private void OnPointerEnter(ButtonConfig entry, PointerEventData pointer)
         {
-            if (!entry.targetButton.interactable) return;
+            if (!entry.targetButton.interactable || pointer == null || ButtonAnimator.IsTouchPointer(pointer)) return;
+            var animator = entry.targetButton.GetComponent<ButtonAnimator>();
+            if (animator != null && !animator.IsRaycastLocationValid(pointer.position, pointer.enterEventCamera)) return;
 
             entry.isHovering = true;
             PlaySFX(entry.hoverSFX);
@@ -138,9 +144,11 @@ namespace UI.Effects
             StartAnimationCoroutine(entry, AnimateToResetState(entry, 0.15f / entry.speedMultiplier));
         }
 
-        private void OnPointerDown(ButtonConfig entry)
+        private void OnPointerDown(ButtonConfig entry, PointerEventData pointer)
         {
-            if (!entry.targetButton.interactable) return;
+            if (!entry.targetButton.interactable || pointer == null || pointer.button != PointerEventData.InputButton.Left) return;
+            var animator = entry.targetButton.GetComponent<ButtonAnimator>();
+            if (animator != null && !animator.IsRaycastLocationValid(pointer.position, pointer.pressEventCamera)) return;
 
             PlaySFX(entry.clickSFX);
             StartPresetAnimation(entry, isClick: true);

@@ -25,6 +25,7 @@ public sealed class MobileUIAccessibility : MonoBehaviour
     private static MobileUIAccessibility instance;
     private readonly Dictionary<RectTransform, Vector3> authoredScales =
         new Dictionary<RectTransform, Vector3>();
+    private readonly Dictionary<RectTransform, Vector2> authoredHudSizes = new Dictionary<RectTransform, Vector2>();
     private float nextScan;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -124,16 +125,10 @@ public sealed class MobileUIAccessibility : MonoBehaviour
         if (NameMatches(canvasName, "GameCanvas") || isLoadingCanvas)
             return;
 
-        // These are compact, persistent HUD canvases rather than modal layouts. On a
-        // 20:9 phone, width scaling makes their authored 76-82 unit buttons render at
-        // approximately 51-55 physical pixels instead of 40-44 pixels. Modal panels
-        // remain on the non-cropping policy below.
-        if (IsWidthScaledPersistentHud(canvasName))
-        {
-            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
-            scaler.matchWidthOrHeight = 0f;
-            return;
-        }
+        // Keep the HUD on the same non-cropping scale policy as the other mobile
+        // canvases. Width-only scaling on 20:9 phones enlarged the HUD vertically,
+        // pushing approval into a second row and the camera into the customer panel.
+        // Persistent buttons still receive their physical-pixel minimum below.
 
         // The management computer is authored and previewed against this scaler.
         // A second Android-only scaler policy made the final build use a different
@@ -163,7 +158,9 @@ public sealed class MobileUIAccessibility : MonoBehaviour
 
     private static void EnsureTouchArea(Selectable button)
     {
-        if (button == null)
+        // Layout/grouping Selectables have no artwork and must not acquire a
+        // transparent input surface in front of their independently wired children.
+        if (button == null || button.targetGraphic == null)
             return;
 
         RectTransform buttonRect = button.transform as RectTransform;
@@ -183,8 +180,10 @@ public sealed class MobileUIAccessibility : MonoBehaviour
         float scaleY = buttonRect.rect.height > 0 ? physical.y / buttonRect.rect.height : canvasScale;
 
         Rect rect = buttonRect.rect;
-        float extraX = Mathf.Max(0f, MinimumCanvasTouchSizeForScale(scaleX) - rect.width) * 0.5f;
-        float extraY = Mathf.Max(0f, MinimumCanvasTouchSizeForScale(scaleY) - rect.height) * 0.5f;
+        // Never let a tiny/hidden control acquire a screen-sized invisible target.
+        // Projection is especially important for the chalkboards' world-space canvas.
+        float extraX = Mathf.Min(rect.width * .25f, Mathf.Max(0f, MinimumCanvasTouchSizeForScale(scaleX) - rect.width) * .5f);
+        float extraY = Mathf.Min(rect.height * .25f, Mathf.Max(0f, MinimumCanvasTouchSizeForScale(scaleY) - rect.height) * .5f);
 
         Transform existing = button.transform.Find(TouchAreaName);
         if (extraX <= 0f && extraY <= 0f && existing == null)
@@ -241,7 +240,7 @@ public sealed class MobileUIAccessibility : MonoBehaviour
         return minimum / Mathf.Max(0.01f, canvasScale);
     }
 
-    private static void EnsurePersistentHudVisualSize(Button button)
+    private void EnsurePersistentHudVisualSize(Button button)
     {
         if (button == null || button.transform is not RectTransform rect)
             return;
@@ -262,8 +261,15 @@ public sealed class MobileUIAccessibility : MonoBehaviour
         if (minimumPixels <= 0f)
             return;
 
-        Vector2 physicalSize = GetPhysicalSize(rect, canvas);
-        Vector2 targetSize = rect.rect.size;
+        if (!authoredHudSizes.TryGetValue(rect, out Vector2 authoredSize))
+            authoredHudSizes.Add(rect, authoredSize = rect.rect.size);
+        // Size the minimum against the authored UI scale, not the player's current
+        // scale. Otherwise lowering scale enlarges the RectTransform permanently.
+        Vector2 currentSize = rect.rect.size;
+        Vector2 physicalSize = GetPhysicalSize(rect, canvas) / Mathf.Max(.01f, DineIn.NewMenu.SettingsManager.UIScaleMultiplier);
+        physicalSize = new Vector2(physicalSize.x * authoredSize.x / Mathf.Max(.01f, currentSize.x),
+            physicalSize.y * authoredSize.y / Mathf.Max(.01f, currentSize.y));
+        Vector2 targetSize = authoredSize;
         if (physicalSize.x > 0f && physicalSize.x < minimumPixels)
             targetSize.x *= minimumPixels / physicalSize.x;
         if (physicalSize.y > 0f && physicalSize.y < minimumPixels)
@@ -291,6 +297,17 @@ public sealed class MobileUIAccessibility : MonoBehaviour
 
     private static Vector2 GetPhysicalSize(RectTransform rect, Canvas canvas)
     {
+        if (canvas.renderMode == RenderMode.WorldSpace)
+        {
+            Camera camera = canvas.worldCamera != null ? canvas.worldCamera : Camera.main;
+            if (camera == null) return rect.rect.size; // No valid projection: keep authored targets.
+            Vector3[] corners = new Vector3[4];
+            rect.GetWorldCorners(corners);
+            Vector2 bottomLeft = camera.WorldToScreenPoint(corners[0]);
+            Vector2 topLeft = camera.WorldToScreenPoint(corners[1]);
+            Vector2 bottomRight = camera.WorldToScreenPoint(corners[3]);
+            return new Vector2(Vector2.Distance(bottomLeft, bottomRight), Vector2.Distance(bottomLeft, topLeft));
+        }
         float scaleX = Mathf.Max(0.01f, canvas.scaleFactor);
         float scaleY = scaleX;
         Transform current = rect;

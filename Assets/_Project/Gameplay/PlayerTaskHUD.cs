@@ -542,8 +542,17 @@ public sealed class PlayerTaskHUD : MonoBehaviour
         RefreshFromGuidance(true);
     }
 
+    public void NotifyMultiplayerCompletion()
+    {
+        if (isActiveAndEnabled && MultiplayerHUDBridge.IsActive)
+            StartCompletionPresentation();
+    }
+
     private void RefreshFromGuidance(bool animate)
     {
+        bool multiplayer = MultiplayerDayBridge.IsActive;
+        // Claim release, cancellation and guidance changes are not completion.
+        if (multiplayer && completionRoutine != null) return;
         PlayerTaskView task = PlayerTaskGuidance.Current;
         if (!task.IsValid)
         {
@@ -553,7 +562,7 @@ public sealed class PlayerTaskHUD : MonoBehaviour
             SetBadge(false);
             reminderAt = float.PositiveInfinity;
 
-            if (completedTask && animate)
+            if (completedTask && animate && !multiplayer)
                 StartCompletionPresentation();
             else
                 ApplyIdleStyle();
@@ -569,7 +578,7 @@ public sealed class PlayerTaskHUD : MonoBehaviour
         RestoreAuthoredColors();
 
         string compositeKey = task.Source + ":" + task.Key;
-        bool completedPreviousStep = animate &&
+        bool completedPreviousStep = animate && !multiplayer &&
                                      !string.IsNullOrEmpty(currentCompositeKey) &&
                                      compositeKey != currentCompositeKey;
         bool newStep = compositeKey != currentCompositeKey;

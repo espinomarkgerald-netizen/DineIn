@@ -54,7 +54,7 @@ public static partial class PauseSettingsAuthoring
         button.transition=Selectable.Transition.ColorTint;button.navigation=new Navigation{mode=Navigation.Mode.None};
         var colors=button.colors;colors.normalColor=Color.white;colors.highlightedColor=new Color(.9f,.96f,1);colors.selectedColor=Color.white;colors.pressedColor=new Color(.75f,.83f,.9f);button.colors=colors;
         var animation=rect.GetComponent<ButtonAnimator>();if(animation!=null) animation.enabled=false;
-        var label=Text(rect,"Label",text,36,Color.white,TextAlignmentOptions.Center);label.font=DisplayFont;
+        var label=Text(rect,"Label",text,36,Color.white,TextAlignmentOptions.Center);label.font=DisplayFont;label.fontSharedMaterial=DisplayFont.material;label.fontStyle=FontStyles.Normal;
         return button;
     }
     private static RectTransform Content(Transform page)

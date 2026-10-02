@@ -6,7 +6,7 @@ using System;
 public sealed class MultiplayerActionContext
 {
     public string run, operation, actionId, expectedStage;
-    public int day, actor, customerView, orderNumber;
+    public int day, actor, customerView, orderNumber, loadEpoch;
     public long lease, expectedRevision;
 
     public static MultiplayerActionContext Capture(MultiplayerSessionManager session, CustomerGroup group,
@@ -17,6 +17,7 @@ public sealed class MultiplayerActionContext
         {
             run = session?.RunId, day = GameFlowManager.Instance != null ? GameFlowManager.Instance.CurrentDay : 0,
             actor = session != null ? session.LocalActorNumber : 0,
+            loadEpoch = session?.Run?.participants.Find(p => p.actor == session.LocalActorNumber)?.loadEpoch ?? -1,
             customerView = group != null ? group.GetComponentInParent<MultiplayerCustomerSpawn>()?.photonView.ViewID ?? 0 : 0,
             orderNumber = group != null ? group.currentOrderNumber : -1,
             operation = operation, actionId = Guid.NewGuid().ToString("N"), expectedStage = expectedStage,
@@ -28,14 +29,16 @@ public sealed class MultiplayerActionContext
     public bool MatchesSession(MultiplayerSessionManager session, int sender) => session != null
         && session.IsMultiplayerSession && !session.Ended && session.Run != null && run == session.RunId
         && GameFlowManager.Instance != null && day == GameFlowManager.Instance.CurrentDay
-        && actor == sender && session.ValidActor(sender) && !string.IsNullOrWhiteSpace(operation)
+        && actor == sender && session.ValidActor(sender)
+        && loadEpoch == session.Run.participants.Find(p => p.actor == sender)?.loadEpoch
+        && !string.IsNullOrWhiteSpace(operation)
         && !string.IsNullOrWhiteSpace(expectedStage) && Guid.TryParseExact(actionId, "N", out _);
 
     public bool MatchesOrder(CustomerGroup group) => group != null && group.currentOrderNumber == orderNumber
         && group.GetComponentInParent<MultiplayerCustomerSpawn>()?.photonView.ViewID == customerView;
 
     public bool MatchesAction(MultiplayerActionContext other) => other != null && run == other.run
-        && day == other.day && actor == other.actor && customerView == other.customerView
+        && day == other.day && actor == other.actor && loadEpoch == other.loadEpoch && customerView == other.customerView
         && orderNumber == other.orderNumber && operation == other.operation && actionId == other.actionId
         && expectedStage == other.expectedStage && lease == other.lease && expectedRevision == other.expectedRevision;
 }

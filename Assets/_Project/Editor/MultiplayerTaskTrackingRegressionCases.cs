@@ -87,6 +87,71 @@ public static class MultiplayerTaskTrackingRegressionCases
             foreach (var root in roots) if (root != null) Object.Destroy(root);
         }
     }
+    public static void RunStabilityCases()
+    {
+        const BindingFlags fields = BindingFlags.Instance | BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public;
+        var root = new GameObject("Stability regression (temporary)");
+        root.SetActive(false);
+        var recipeEvent = typeof(UnlockManager).GetField("OnRecipeUnlocked", fields);
+        var equipmentEvent = typeof(UnlockManager).GetField("OnEquipmentUnlocked", fields);
+        var ingredientEvent = typeof(UnlockManager).GetField("OnIngredientUnlocked", fields);
+        var restoredEvent = typeof(UnlockManager).GetField("OnStateRestored", fields);
+        object restoredBefore = restoredEvent.GetValue(null);
+        object recipesBefore = recipeEvent.GetValue(null), equipmentBefore = equipmentEvent.GetValue(null), ingredientsBefore = ingredientEvent.GetValue(null);
+        try
+        {
+            int recipeNotices = 0, equipmentNotices = 0, restores = 0;
+            restoredEvent.SetValue(null, (Action)(() => restores++));
+            var unlocks = root.AddComponent<UnlockManager>();
+            recipeEvent.SetValue(null, (Action<string>)(id => { Check(unlocks.IsRecipeUnlocked(id), "Recipe event preceded state installation."); recipeNotices++; }));
+            equipmentEvent.SetValue(null, (Action<string>)(id => { Check(unlocks.IsEquipmentUnlocked(id), "Equipment event preceded state installation."); equipmentNotices++; }));
+            ingredientEvent.SetValue(null, null);
+            var baseline = new GameSaveData();
+            baseline.unlockedRecipeIDs.Add("regression.recipe.1");
+            baseline.unlockedEquipmentIDs.Add("regression.equipment.1");
+            Check(unlocks.ApplyMultiplayerState(baseline, false), "Join baseline did not install unlocks.");
+            Check(recipeNotices == 0 && equipmentNotices == 0 && restores == 1, "Join must refresh UI without replaying old unlock notices.");
+            var next = new GameSaveData();
+            next.unlockedRecipeIDs.AddRange(baseline.unlockedRecipeIDs); next.unlockedRecipeIDs.Add("regression.recipe.2");
+            next.unlockedEquipmentIDs.AddRange(baseline.unlockedEquipmentIDs); next.unlockedEquipmentIDs.Add("regression.equipment.2");
+            Check(unlocks.ApplyMultiplayerState(next, true), "New host unlocks were ignored.");
+            Check(recipeNotices == 1 && equipmentNotices == 1, "New host unlocks did not notify exactly once.");
+            Check(!unlocks.ApplyMultiplayerState(next, true), "Duplicate snapshot appeared changed.");
+            Check(recipeNotices == 1 && equipmentNotices == 1, "Duplicate snapshot replayed notices.");
+
+            var claims = root.AddComponent<MultiplayerTaskClaims>();
+            var map = (Dictionary<string, int>)typeof(MultiplayerTaskClaims).GetField("claims", fields).GetValue(claims);
+            var leases = (Dictionary<string, long>)typeof(MultiplayerTaskClaims).GetField("leases", fields).GetValue(claims);
+            var reconcile = typeof(MultiplayerTaskClaims).GetMethod("Reconcile", fields);
+            void Apply(long stamp, string[] keys, int[] owners, long[] tokens) => reconcile.Invoke(claims, new object[] { stamp, keys, owners, tokens });
+            string key = "Customer:42:Order";
+            Apply(5, new[] { key }, new[] { 2 }, new long[] { 4 });
+            Check(map[key] == 2 && leases[key] == 4, "Guest snapshot lost the owner's lease.");
+            Apply(4, Array.Empty<string>(), Array.Empty<int>(), Array.Empty<long>());
+            Check(map.ContainsKey(key), "Older empty snapshot cleared a newer claim.");
+            Apply(6, new[] { key }, Array.Empty<int>(), new long[] { 5 });
+            Check(map[key] == 2 && leases[key] == 4, "Malformed snapshot damaged a valid claim.");
+            Apply(7, Array.Empty<string>(), Array.Empty<int>(), Array.Empty<long>());
+            Check(map.Count == 0 && leases.Count == 0, "Authoritative release retained a stale lease.");
+            var action = new MultiplayerActionContext { run = "test", day = 1, actor = 2, loadEpoch = 2, operation = "food_pickup", expectedStage = "Prepared", actionId = "00000000000000000000000000000001" };
+            var replay = JsonUtility.FromJson<MultiplayerActionContext>(JsonUtility.ToJson(action));
+            Check(action.MatchesAction(replay), "Action epoch did not survive JSON round trip.");
+            replay.loadEpoch++;
+            Check(!action.MatchesAction(replay), "An old connection's reply matched a new connection's action.");
+            var scope = typeof(MultiplayerTaskClaims).GetMethod("ScopeGeneration", fields);
+            var matches = typeof(MultiplayerTaskClaims).GetMethod("GenerationMatchesEpoch", fields);
+            long generation = (long)scope.Invoke(null, new object[] { 2, 1L });
+            Check((bool)matches.Invoke(null, new object[] { generation, 2 }) && !(bool)matches.Invoke(null, new object[] { generation, 3 }),
+                "A previous connection's action remained valid after rejoin.");
+        }
+        finally
+        {
+            recipeEvent.SetValue(null, recipesBefore); equipmentEvent.SetValue(null, equipmentBefore); ingredientEvent.SetValue(null, ingredientsBefore);
+            restoredEvent.SetValue(null, restoredBefore);
+            Object.DestroyImmediate(root);
+        }
+    }
+
     private static void Check(bool condition, string message)
     { if (!condition) throw new InvalidOperationException(message); }
 }

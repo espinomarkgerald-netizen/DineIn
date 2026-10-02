@@ -12,6 +12,11 @@ namespace DineIn.NewMenu
 
     public partial class SettingsManager
     {
+        [SerializeField, Tooltip("UI scale limits for the existing menus and HUD. Defaults avoid overlapping controls.")]
+        private Vector2 uiScaleRange = new Vector2(.85f, 1.05f);
+        public float MinimumUIScale => Mathf.Clamp(uiScaleRange.x, .5f, 1f);
+        public float MaximumUIScale => Mathf.Clamp(uiScaleRange.y, 1f, 1.15f);
+
         public static float PanMultiplier => Instance != null ? Instance.Current.panSpeed : 1f;
         public static float ZoomMultiplier => Instance != null ? Instance.Current.zoomSpeed * (Instance.Current.invertZoom ? -1 : 1) : 1f;
         public static float DialogueMultiplier => Instance != null ? Instance.Current.dialogueSpeed : 1f;
@@ -41,7 +46,7 @@ namespace DineIn.NewMenu
         public void ResetControls() { Current.edgePan = false; SetControls(1, 1, false); }
         public void SetPresentation(float scale, float dialogue)
         {
-            Current.uiScale = Mathf.Clamp(scale, .85f, 1.15f);
+            Current.uiScale = Mathf.Clamp(scale, MinimumUIScale, MaximumUIScale);
             Current.dialogueSpeed = Mathf.Clamp(dialogue, .5f, 2f);
             Changed();
         }
@@ -97,7 +102,7 @@ namespace DineIn.NewMenu
             Current.zoomSpeed = Mathf.Clamp(PlayerPrefs.GetFloat("Settings_ZoomSpeed", 1), .25f, 2);
             Current.invertZoom = PlayerPrefs.GetInt("Settings_InvertZoom", 0) != 0;
             Current.edgePan = PlayerPrefs.GetInt("Settings_EdgePan", 0) != 0;
-            Current.uiScale = Mathf.Clamp(PlayerPrefs.GetFloat("Settings_UIScale", 1), .85f, 1.15f);
+            Current.uiScale = Mathf.Clamp(PlayerPrefs.GetFloat("Settings_UIScale", 1), MinimumUIScale, MaximumUIScale);
             Current.dialogueSpeed = Mathf.Clamp(PlayerPrefs.GetFloat("Settings_DialogueSpeed", 1), .5f, 2);
             Current.vSync = Mathf.Clamp(PlayerPrefs.GetInt("Settings_VSync", QualitySettings.vSyncCount), 0, 1);
             int fps = PlayerPrefs.GetInt("Settings_FPSLimit", 60);
