@@ -336,7 +336,7 @@ public class Booth : MonoBehaviour, Photon.Realtime.IOnEventCallback
     private void Update()
     {
         if (HumanCleanupActive && (!MultiplayerProgressionContext.Ready || !CanRequestHumanCleanup
-            || (!MultiplayerSocialUI.InputBlocked && (Input.GetKeyDown(KeyCode.Escape) || Input.GetMouseButtonDown(1)))
+            || (!MultiplayerSocialUI.InputBlocked && (Input.GetKeyDown(KeyCode.Escape) || MainCameraController.RightClickCancelRequested))
             || (!cleanupRequested && cleanupClaims != null && !cleanupClaims.IsClaimedBy(CleanupTaskId, MultiplayerSessionManager.Instance.LocalActorNumber))
             || (cleanupMover != null && (!cleanupMover.isActiveAndEnabled
                 || cleanupMover.gameObject != MultiplayerSessionManager.Instance.LocalManager

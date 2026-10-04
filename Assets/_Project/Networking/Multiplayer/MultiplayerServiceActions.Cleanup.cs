@@ -95,7 +95,7 @@ public sealed partial class MultiplayerServiceActions
         }
         if ((pending?.operation == "cleanup_pickup" || deferredDirtyPickup != null)
             && !MultiplayerSocialUI.InputBlocked
-            && (Input.GetKeyDown(KeyCode.Escape) || Input.GetMouseButtonDown(1))) suppressDirtyContinuation = true;
+            && (Input.GetKeyDown(KeyCode.Escape) || MainCameraController.RightClickCancelRequested)) suppressDirtyContinuation = true;
         if (deferredDirtyPickup == null) return;
         var context = deferredDirtyPickup.result.context;
         var claims = session.GetComponent<MultiplayerTaskClaims>();

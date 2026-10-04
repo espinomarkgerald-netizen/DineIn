@@ -674,7 +674,10 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
             Vector3 authoredApproach = authoredTruck != null && authoredTruck.StandPoint != null
                 ? authoredTruck.StandPoint.position
                 : parkedPosition;
-            if (authoredMarker != null && !HasCompleteNavMeshPath(origin, authoredApproach))
+            // Fast Food multiplayer shares Lobby2's authored outdoor parking marker.
+            // A local player's spawn/path readiness must not relocate it independently on each peer.
+            if (authoredMarker != null && lobbyScene.name != FastFoodScene.Multiplayer
+                && !HasCompleteNavMeshPath(origin, authoredApproach))
             {
                 parkedPosition = reachableFallback;
                 Debug.LogWarning(

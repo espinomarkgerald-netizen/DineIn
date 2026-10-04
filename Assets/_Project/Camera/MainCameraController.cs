@@ -43,6 +43,48 @@ public class MainCameraController : MonoBehaviour
     private float accumulatedPanDistance;
     private bool panGestureReported;
 
+    private static MainCameraController inputController;
+    private int rightReleaseFrame = -1;
+    private bool rightReleaseIsClick;
+
+    // Shared release decision: camera input runs in LateUpdate, while task handlers
+    // run in Update. Cache before clearing the gesture so either order gives the same result.
+    public static bool RightClickCancelRequested
+    {
+        get
+        {
+            if (!Input.GetMouseButtonUp(1) || inputController == null) return false;
+            inputController.CaptureRightClickRelease();
+            return inputController.rightReleaseIsClick && !PanInputBlocked;
+        }
+    }
+
+    private static bool PanInputBlocked => LobbyPauseMenu.IsAnyOpen
+        || MultiplayerSocialUI.InputBlocked || GameplayUIBlocker.IsBlocked();
+
+    private void OnEnable() { inputController = this; }
+    private void OnDisable()
+    {
+        if (inputController == this) inputController = null;
+        isDragging = false;
+        rightReleaseFrame = -1;
+        rightReleaseIsClick = false;
+    }
+    private void OnApplicationFocus(bool focused)
+    {
+        if (!focused) { isDragging = false; rightReleaseIsClick = false; }
+    }
+    private void CaptureRightClickRelease()
+    {
+        if (!Input.GetMouseButtonUp(1) || rightReleaseFrame == Time.frameCount) return;
+        rightReleaseFrame = Time.frameCount;
+        // Include movement on the release frame, even when no held frame saw it.
+        float distance = accumulatedPanDistance + Vector2.Distance(lastPointerPos, Input.mousePosition);
+        rightReleaseIsClick = requireRightMouseOnPC && isDragging && !panGestureReported
+            && distance < panGestureThresholdPixels && !PanInputBlocked
+            && !(blockPanOverUI && EventSystem.current != null && EventSystem.current.IsPointerOverGameObject());
+    }
+
     public event Action<Vector2> CameraPanned;
 
     public Camera Cam => cam;
@@ -138,7 +180,8 @@ public class MainCameraController : MonoBehaviour
 
     private void HandlePanInput()
     {
-        if (LobbyPauseMenu.IsAnyOpen) { isDragging = false; return; }
+        CaptureRightClickRelease();
+        if (PanInputBlocked) { isDragging = false; return; }
         if (!Input.GetMouseButton(0) && !Input.GetMouseButton(1))
             PanByScreenDelta(-DineIn.NewMenu.SettingsManager.EdgePanDirection(edgePanMargin) * edgePanPixelsPerSecond * Time.deltaTime);
         if (Input.touchCount >= 2)

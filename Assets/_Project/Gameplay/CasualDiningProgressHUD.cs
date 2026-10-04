@@ -21,7 +21,7 @@ public sealed partial class CasualDiningProgressHUD : MonoBehaviour
 
     public static CasualDiningProgressHUD Instance { get; private set; }
     public bool IsExpanded => expanded;
-    public RectTransform ApprovalPopupAnchor => approvalRow;
+    public RectTransform ApprovalPopupAnchor => approvalFill != null ? approvalFill.parent as RectTransform : null;
     public bool PreserveReferenceResolutionOnMobile => preserveReferenceResolutionOnMobile;
 
     [Header("Canvas")]

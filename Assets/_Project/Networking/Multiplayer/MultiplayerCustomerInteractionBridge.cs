@@ -1232,7 +1232,7 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
     {
         if (HygieneManager.DecisionPaused) return;
         bool cancelInput = !MultiplayerSocialUI.InputBlocked
-            && (Input.GetKeyDown(KeyCode.Escape) || Input.GetMouseButtonDown(1));
+            && (Input.GetKeyDown(KeyCode.Escape) || MainCameraController.RightClickCancelRequested);
         if (greetWaiting && HygieneManager.ServiceTime >= greetReplyUntil)
         { Cancel(); WarningSlideUI.Instance?.Show("Greeting timed out. Select the customer to try again."); }
         TickBillActions();

@@ -29,10 +29,11 @@ public sealed class MultiplayerChatFeedback : MonoBehaviour
     [SerializeField, Min(0.05f)] private float fadeSeconds = 0.2f;
     [SerializeField] private Vector3 bubbleOffset = new(0f, 0.4f, 0f);
     [Header("HUD presentation")]
-    [Tooltip("Optional HUD anchor. When empty, uses the existing approval row. Future restaurant HUDs can assign their own row.")]
+    [Tooltip("Optional HUD anchor. When empty, uses the existing approval bar track, excluding the portrait.")]
     [SerializeField] private RectTransform popupAnchor;
     [SerializeField, Range(1, 3)] private int popupLines = 2;
     [SerializeField, Min(0f)] private float popupGap = 12f;
+    [SerializeField, Min(1f)] private float popupMaximumWidth = 700f;
     [SerializeField, Min(0f)] private float popupSpacing = 8f;
     [SerializeField, Min(0f)] private float popupSlideDistance = 8f;
     [Tooltip("Frozen session roster order, so colors remain consistent after reconnects and departures.")]
@@ -138,16 +139,18 @@ public sealed class MultiplayerChatFeedback : MonoBehaviour
         float offset = popupGap;
         foreach (var popup in popups)
         {
+            if (!popup.group.gameObject.activeSelf) continue;
             var rect = (RectTransform)popup.group.transform;
             var parent = (RectTransform)rect.parent;
             if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(parent,
                     RectTransformUtility.WorldToScreenPoint(sourceCamera, anchorCorners[0]), destinationCamera, out var left) ||
                 !RectTransformUtility.ScreenPointToLocalPointInRectangle(parent,
                     RectTransformUtility.WorldToScreenPoint(sourceCamera, anchorCorners[3]), destinationCamera, out var right)) continue;
-            rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, Mathf.Max(1f, right.x - left.x));
+            rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, Mathf.Clamp(right.x - left.x, 1f, popupMaximumWidth));
             rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, Mathf.Min(popup.maximumHeight, popup.text.preferredHeight + 8f));
             rect.position = parent.TransformPoint(new Vector3(
-                (left.x + right.x) * 0.5f - rect.rect.width * 0.5f, Mathf.Min(left.y, right.y) - offset, 0f));
+                (left.x + right.x) * 0.5f + (rect.pivot.x - 0.5f) * rect.rect.width,
+                Mathf.Min(left.y, right.y) - offset - (1f - rect.pivot.y) * rect.rect.height, 0f));
             offset += rect.rect.height + popupSpacing;
         }
     }

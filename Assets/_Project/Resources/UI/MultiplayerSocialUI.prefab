@@ -8180,7 +8180,7 @@ MonoBehaviour:
   m_fontSizeMin: 22
   m_fontSizeMax: 28
   m_fontStyle: 0
-  m_HorizontalAlignment: 1
+  m_HorizontalAlignment: 2
   m_VerticalAlignment: 256
   m_textAlignment: 65535
   m_characterSpacing: 0
@@ -8365,7 +8365,7 @@ MonoBehaviour:
   m_fontSizeMin: 22
   m_fontSizeMax: 28
   m_fontStyle: 0
-  m_HorizontalAlignment: 1
+  m_HorizontalAlignment: 2
   m_VerticalAlignment: 256
   m_textAlignment: 65535
   m_characterSpacing: 0
@@ -8550,7 +8550,7 @@ MonoBehaviour:
   m_fontSizeMin: 22
   m_fontSizeMax: 28
   m_fontStyle: 0
-  m_HorizontalAlignment: 1
+  m_HorizontalAlignment: 2
   m_VerticalAlignment: 256
   m_textAlignment: 65535
   m_characterSpacing: 0
@@ -9466,6 +9466,7 @@ MonoBehaviour:
   bubbleOffset: {x: 0, y: 0.6, z: 0}
   popupAnchor: {fileID: 0}
   popupGap: 12
+  popupMaximumWidth: 700
   popupSpacing: 8
   popupSlideDistance: 8
   usernameColors:
