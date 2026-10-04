@@ -336,7 +336,7 @@ public class Booth : MonoBehaviour, Photon.Realtime.IOnEventCallback
     private void Update()
     {
         if (HumanCleanupActive && (!MultiplayerProgressionContext.Ready || !CanRequestHumanCleanup
-            || Input.GetKeyDown(KeyCode.Escape) || Input.GetMouseButtonDown(1)
+            || (!MultiplayerSocialUI.InputBlocked && (Input.GetKeyDown(KeyCode.Escape) || Input.GetMouseButtonDown(1)))
             || (!cleanupRequested && cleanupClaims != null && !cleanupClaims.IsClaimedBy(CleanupTaskId, MultiplayerSessionManager.Instance.LocalActorNumber))
             || (cleanupMover != null && (!cleanupMover.isActiveAndEnabled
                 || cleanupMover.gameObject != MultiplayerSessionManager.Instance.LocalManager
@@ -641,7 +641,9 @@ public class Booth : MonoBehaviour, Photon.Realtime.IOnEventCallback
         {
             // Dirty state belongs to this booth, not to the departing customer.
             if (isDirty) flags |= 1;
-            if (currentGroup != null && currentGroup.MultiplayerPaymentComplete) flags |= 3;
+            // Fast Food pays at the counter before seating. Its existing departure
+            // transition arms used trays; prepayment must not mark a meal cleanable.
+            if (currentGroup != null && currentGroup.FastFood == null && currentGroup.MultiplayerPaymentComplete) flags |= 3;
             if (flags != 0 && (!(room.CustomProperties[dirtySnapshotKey] is int previous) || previous != flags))
                 room.SetCustomProperties(new ExitGames.Client.Photon.Hashtable { [dirtySnapshotKey] = flags });
         }

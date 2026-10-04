@@ -23,7 +23,7 @@ public sealed class FastFoodProgressionSettings : ScriptableObject
 
     private static FastFoodProgressionSettings cached;
     public static FastFoodProgressionSettings Current =>
-        CampaignSaveStore.IsFastFood && !CampaignSaveStore.ProtectedSession
+        (FastFoodMultiplayerSession.IsActive || CampaignSaveStore.IsFastFood && !CampaignSaveStore.ProtectedSession)
             ? (cached != null ? cached : cached = Resources.Load<FastFoodProgressionSettings>(ResourcePath))
             : null;
     public float Evaluate(AnimationCurve curve, int day) =>

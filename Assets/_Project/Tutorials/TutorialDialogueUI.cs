@@ -401,6 +401,7 @@ public class TutorialDialogueUI : MonoBehaviour
 
     public void ShowManual(string speaker, string message, Sprite portrait, Action onNext)
     {
+        if (shuttingDown) return;
         manualNextAction = onNext;
         ShowInternal(speaker, message, portrait, true);
     }
@@ -410,6 +411,7 @@ public class TutorialDialogueUI : MonoBehaviour
 
     public void ShowAuto(string speaker, string message, Sprite portrait, float duration)
     {
+        if (shuttingDown) return;
         manualNextAction = null;
         ShowInternal(speaker, message, portrait, false);
         if (autoHideRoutine != null) StopCoroutine(autoHideRoutine);
@@ -495,8 +497,21 @@ public class TutorialDialogueUI : MonoBehaviour
         SetNextVisible(false);
     }
 
+    private bool shuttingDown;
+
+    public void ShutdownForTransition()
+    {
+        shuttingDown = true;
+        HideImmediate();
+        StopAllCoroutines();
+        CanAdvanceAt = null;
+        if (bodyText != null) bodyText.OnPreRenderText -= AnimateRevealedLetters;
+        gameObject.SetActive(false);
+    }
+
     private void ShowInternal(string speaker, string message, Sprite portrait, bool manualMode)
     {
+        if (shuttingDown) return;
         if (StableFastFoodPlacement)
         {
             ((RectTransform)transform).anchoredPosition = dialogueHome;
@@ -561,6 +576,7 @@ public class TutorialDialogueUI : MonoBehaviour
     // Explicit passive coaching: no continue gesture and no gameplay raycast surface.
     public void ShowPassiveWait(string speaker, string message, Sprite portrait)
     {
+        if (shuttingDown) return;
         manualNextAction = null;
         ShowInternal(speaker, message, portrait, false);
         GameObject panel = root != null ? root : gameObject;

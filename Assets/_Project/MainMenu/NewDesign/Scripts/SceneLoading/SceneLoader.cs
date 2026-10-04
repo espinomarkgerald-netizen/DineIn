@@ -162,6 +162,7 @@ public class SceneLoader : MonoBehaviour
         if (HasPendingLoad || (!reload && IsSceneLoaded(path))) return false;
         if (string.IsNullOrEmpty(path) || !Application.CanStreamedLevelBeLoaded(path))
         { Debug.LogError($"[SceneLoader] Scene '{sceneName}' is not available in the active build profile."); return false; }
+        if (mode == LoadSceneMode.Single) TutorialSystem.Instance?.PrepareForSceneTransition();
         int generation = ++loadGeneration;
         operation = SceneManager.LoadSceneAsync(path, mode);
         if (operation == null) return false;
@@ -211,6 +212,7 @@ public class SceneLoader : MonoBehaviour
         // Reserve before starting the iris/coroutine, including synchronous re-entry.
         isLoading = true;
         int generation = ++transitionGeneration;
+        TutorialSystem.Instance?.PrepareForSceneTransition();
         StartCoroutine(LoadSceneRoutine(sceneName, reload, generation));
     }
 

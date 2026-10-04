@@ -277,7 +277,7 @@ public class EmployeeManager : MonoBehaviour
     public static bool IsRoleUsedInCurrentRestaurant(EmployeeRole role) =>
         EmployeeRoleCatalog.IsSupported(role) && (
         EmployeeRoleCatalog.UsesFastFoodRoles && (role == EmployeeRole.Chef || role == EmployeeRole.Barista) ? false :
-        !CampaignSaveStore.IsFastFood || CampaignSaveStore.ProtectedSession ||
+        !EmployeeRoleCatalog.UsesFastFoodRoles ||
         (role != EmployeeRole.Host && role != EmployeeRole.Waiter));
 
     private static bool IsRequiredRole(EmployeeRole role) => IsRoleUsedInCurrentRestaurant(role) &&

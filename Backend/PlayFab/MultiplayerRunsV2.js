@@ -2,8 +2,13 @@
 // Numeric leaderboard truth is a server-written Max statistic. Clients cannot write it.
 (function () {
     "use strict";
-    var STAT = "CasualDiningLongestRunV2";
-    var LAST = "CasualDiningLastRunV2";
+    function contract(restaurant) {
+        if (restaurant === "CasualDining") return { stat: "CasualDiningLongestRunV2", last: "CasualDiningLastRunV2",
+            receipt: "CDRun2Receipt", rules: "casual-session-2", scene: "Lobby1 Multiplayer" };
+        if (restaurant === "FastFood") return { stat: "FastFoodLongestRunV2", last: "FastFoodLastRunV2",
+            receipt: "FFRun2Receipt", rules: "fastfood-session-2", scene: "Lobby2 Multiplayer" };
+        return null;
+    }
     function fail(message) { return { accepted: false, message: message }; }
     function integer(value, min, max) { return typeof value === "number" && value % 1 === 0 && value >= min && value <= max; }
     function read(player, name, internal) {
@@ -17,13 +22,14 @@
         if (internal) server.UpdateUserInternalData(request);
         else { request.Permission = "Private"; server.UpdateUserReadOnlyData(request); }
     }
-    function best(player) {
-        var stats = server.GetPlayerStatistics({ PlayFabId: player, StatisticNames: [STAT] }).Statistics || [];
+    function best(player, restaurant) {
+        var stats = server.GetPlayerStatistics({ PlayFabId: player, StatisticNames: [contract(restaurant).stat] }).Statistics || [];
         return stats.length ? stats[0].Value : 0;
     }
     function valid(record) {
-        if (!record || record.schema !== 2 || !/^[a-f0-9]{32}$/.test(record.runId || "") ||
-            record.restaurant !== "CasualDining" || record.rulesVersion !== "casual-session-2" ||
+        var rules = record && contract(record.restaurant);
+        if (!record || !rules || record.schema !== 2 || !/^[a-f0-9]{32}$/.test(record.runId || "") ||
+            record.rulesVersion !== rules.rules || record.sceneName !== rules.scene ||
             !integer(record.partySize, 2, 4) || !integer(record.completedDay, 0, 1000000) ||
             !integer(record.highestDay, Math.max(1, record.completedDay), 1000001) ||
             !integer(record.revision, 1, 2147483647) || !record.participants || record.participants.length !== record.partySize ||
@@ -46,15 +52,16 @@
     }
     // Eight fixed slots, regardless of run duration or number of runs. The score
     // is already committed to every participant before its host receipt can age out.
-    function receiptKey(runId) { return "CDRun2Receipt" + (parseInt(runId.substr(0, 4), 16) % 8); }
+    function receiptKey(record) { return contract(record.restaurant).receipt + (parseInt(record.runId.substr(0, 4), 16) % 8); }
     function publishScore(record, participant, final) {
+        var rules = contract(record.restaurant);
         server.UpdatePlayerStatistics({ PlayFabId: participant.accountId,
-            Statistics: [{ StatisticName: STAT, Value: participant.completedDay }] });
-        var previous = read(participant.accountId, LAST, false);
+            Statistics: [{ StatisticName: rules.stat, Value: participant.completedDay }] });
+        var previous = read(participant.accountId, rules.last, false);
         var sameRun = previous && previous.runId === record.runId;
         if (!previous || (sameRun && record.revision >= previous.revision &&
                 (final || !previous.final)) || (!sameRun && Date.parse(record.startedUtc) > Date.parse(previous.startedUtc))) {
-            write(participant.accountId, LAST, {
+            write(participant.accountId, rules.last, {
                 schema: 2, runId: record.runId, revision: record.revision, restaurant: record.restaurant,
                 rulesVersion: record.rulesVersion, completedDay: participant.completedDay, highestDay: participant.highestDay,
                 partySize: record.partySize, gameVersion: record.gameVersion, startedUtc: record.startedUtc,
@@ -67,13 +74,16 @@
     handlers.DineInPublishRunV2 = function (args) {
         var record = args && args.record;
         if (!valid(record) || record.hostAccountId !== currentPlayerId) return fail("Only the authenticated host can publish this run.");
-        var key = receiptKey(record.runId);
+        var key = receiptKey(record);
         var receipt = read(currentPlayerId, key, true);
         if (receipt && receipt.runId === record.runId) {
             if (membership(receipt) !== membership(record) || record.startedUtc !== receipt.startedUtc ||
-                record.hostActor !== receipt.hostActor || record.gameVersion !== receipt.gameVersion)
+                record.hostActor !== receipt.hostActor || record.gameVersion !== receipt.gameVersion
+                || record.restaurant !== receipt.restaurant || record.rulesVersion !== receipt.rulesVersion
+                || record.sceneName !== receipt.sceneName)
                 return fail("Run membership and identity cannot change.");
-            if (record.revision <= receipt.revision) record = receipt;
+            if (record.revision <= receipt.revision)
+                return { accepted: true, bestCompletedDay: best(currentPlayerId, receipt.restaurant) };
             else {
                 if (record.completedDay < receipt.completedDay || record.highestDay < receipt.highestDay)
                     return fail("Run progress cannot decrease.");
@@ -93,7 +103,7 @@
         for (var i = 0; i < record.participants.length; i++)
             publishScore(record, record.participants[i], !!record.endReason || !!record.participants[i].departed);
         write(currentPlayerId, key, record, true);
-        return { accepted: true, bestCompletedDay: best(currentPlayerId) };
+        return { accepted: true, bestCompletedDay: best(currentPlayerId, record.restaurant) };
     };
     handlers.DineInClaimRunV2 = function (args) {
         var record = args && args.record;
@@ -105,14 +115,17 @@
         record.endReason = reason;
         var own = record.participants.filter(function (p) { return p.accountId === currentPlayerId; })[0];
         if (!own) return fail("Account is not a participant.");
-        var secured = best(currentPlayerId);
-        var receipt = read(record.hostAccountId, receiptKey(record.runId), true);
-        if (receipt && receipt.runId === record.runId && membership(receipt) === membership(record)) {
+        var secured = best(currentPlayerId, record.restaurant);
+        var receipt = read(record.hostAccountId, receiptKey(record), true);
+        if (receipt && receipt.runId === record.runId && membership(receipt) === membership(record)
+            && receipt.restaurant === record.restaurant && receipt.rulesVersion === record.rulesVersion
+            && receipt.sceneName === record.sceneName && receipt.startedUtc === record.startedUtc
+            && receipt.hostAccountId === record.hostAccountId && receipt.gameVersion === record.gameVersion) {
             var verified = receipt.participants.filter(function (p) { return p.accountId === currentPlayerId; })[0];
             if (!verified || own.completedDay > verified.completedDay || own.highestDay > verified.highestDay)
                 return fail("Awaiting the host completion receipt.");
             if (args.final) publishScore(record, own, true);
-            return { accepted: true, bestCompletedDay: best(currentPlayerId) };
+            return { accepted: true, bestCompletedDay: best(currentPlayerId, record.restaurant) };
         }
         // An aged-out receipt needs no write: the host already secured this or a
         // better score directly on the participant's account.

@@ -112,15 +112,18 @@ public partial class MultiplayerCustomerInteractionBridge
         bool hasManager = session.TryGetManager(sender, out var manager);
         var hands = hasManager ? manager.GetComponent<WaiterHands>() : null;
         if (!context.MatchesOrder(group)) outcome = MultiplayerActionOutcome.WrongTarget;
-        else if (group.IsNetworkObserver || group.IsTakeout || group.HasConfirmedOrder
+        else if (group.IsNetworkObserver || (group.IsTakeout && group.FastFood == null) || group.HasConfirmedOrder
             || group.state != CustomerGroup.GroupState.ReadyToOrder || !group.IsPlayerReviewingOrder
-            || !customer.HasGeneratedOrder)
+            || !customer.HasGeneratedOrder || !CanReviewAtCurrentPoint(group)
+            || GameDayManager.Instance?.ServiceActive != true)
             outcome = MultiplayerActionOutcome.StaleStage;
         else if (claims == null || context.lease <= 0 || !claims.IsClaimedBy(task, sender)
             || claims.GetLease(task) != context.lease || context.expectedRevision > claims.CurrentRevision
             || customer.ReviewActor != sender)
             outcome = MultiplayerActionOutcome.AnotherOwner;
         else if (hands == null) outcome = MultiplayerActionOutcome.Unavailable;
+        else if (ReviewPoint(group) == null || (NetworkPlayerMovementSync.AuthorityPosition(manager)
+            - ReviewPoint(group).position).sqrMagnitude > 3.1f * 3.1f) outcome = MultiplayerActionOutcome.Unreachable;
         else if (hands.HasTray || hands.HasBill || hands.HasTicket || hands.HasMoney
             || (manager.GetComponent<BusserHands>() != null && manager.GetComponent<BusserHands>().HasTray))
             outcome = MultiplayerActionOutcome.OccupiedHands;
@@ -180,7 +183,10 @@ public partial class MultiplayerCustomerInteractionBridge
             if (OrderSubmissionStillVisible(result.context))
                 ProcessingBillIndicatorUI.Instance?.ShowForSeconds("Order Sent to Kitchen", 2f);
             // A newer customer snapshot may already have closed this notepad.
+            var paidNext = orderTarget != null && !orderCancelled && orderTarget.photonView.ViewID == result.context.customerView
+                && orderTarget.Group?.FastFood != null ? orderTarget.Group : null;
             if (orderTarget != null && orderTarget.photonView.ViewID == result.context.customerView) CancelOrder();
+            if (paidNext != null) MultiplayerServiceActions.Active?.ContinueFastFoodPayment(paidNext);
         }
         else if (OrderSubmissionStillVisible(result.context))
             WarningSlideUI.Instance?.Show(string.IsNullOrWhiteSpace(result.message)

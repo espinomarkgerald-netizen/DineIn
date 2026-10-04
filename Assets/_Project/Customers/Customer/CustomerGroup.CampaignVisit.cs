@@ -20,13 +20,17 @@ public partial class CustomerGroup
         StopFamilyPlay();
         assistedServiceOwner = null;
         childCount = 0;
-        visitProfile = gameObject.scene.name == "Lobby2" && !CampaignSaveStore.ProtectedSession ? profile : null;
+        visitProfile = ((gameObject.scene.name == "Lobby2" && !CampaignSaveStore.ProtectedSession)
+            || FastFoodScene.Contains(gameObject.scene) && MultiplayerRestaurantBridge.IsActive) ? profile : null;
     }
 
-    internal void ConfigureCampaignMembers()
+    public int CampaignChildCount => childCount;
+
+    internal void ConfigureCampaignMembers(int observedChildren = -1)
     {
         // Representative remains the first adult. Children are members of this same order/seat group.
-        childCount = visitProfile != null && visitProfile.family ? Random.Range(1, Mathf.Min(2, members.Count - 1) + 1) : 0;
+        childCount = visitProfile == null ? 0 : observedChildren >= 0 ? Mathf.Clamp(observedChildren, 0, Mathf.Max(0, members.Count - 1))
+            : visitProfile != null && visitProfile.family ? Random.Range(1, Mathf.Min(2, members.Count - 1) + 1) : 0;
         for (int i = 0; i < members.Count; i++)
             if (members[i] != null) members[i].ConfigureCampaignAppearance(
                 visitProfile != null ? visitProfile.walkingSpeedMultiplier : 1f,

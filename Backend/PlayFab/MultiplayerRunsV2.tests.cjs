@@ -1,4 +1,4 @@
-// External-runner contract tests. Not executed on the user's computer.
+// Isolated backend contract tests; no live title or Unity runtime is used.
 // Run from repository root: node Backend/PlayFab/MultiplayerRunsV2.tests.cjs
 'use strict';
 const assert = require('node:assert/strict');
@@ -11,7 +11,8 @@ const LAST = 'CasualDiningLastRunV2';
 const clone = value => JSON.parse(JSON.stringify(value));
 
 function fixture() {
-    const internal = {}, readonly = {}, scores = {};
+    const internal = {}, readonly = {}, scores = {}, fastFoodScores = {}, writes = [];
+    const scoreStore = name => name === STAT ? scores : name === "FastFoodLongestRunV2" ? fastFoodScores : null;
     let failPlayerOnce = null;
     function get(store, args) {
         const Data = {};
@@ -35,17 +36,23 @@ function fixture() {
                 assert.equal(args.Permission, 'Private');
                 put(readonly, args);
             },
-            GetPlayerStatistics: args => ({ Statistics: scores[args.PlayFabId] === undefined ? []
-                : [{ StatisticName: STAT, Value: scores[args.PlayFabId] }] }),
+            GetPlayerStatistics: args => {
+                const store = scoreStore(args.StatisticNames[0]);
+                assert.ok(store);
+                return { Statistics: store[args.PlayFabId] === undefined ? []
+                    : [{ StatisticName: args.StatisticNames[0], Value: store[args.PlayFabId] }] };
+            },
             UpdatePlayerStatistics: args => {
                 if (args.PlayFabId === failPlayerOnce) {
                     failPlayerOnce = null;
                     throw new Error('Simulated participant write outage');
                 }
                 assert.equal(args.Statistics.length, 1);
-                assert.equal(args.Statistics[0].StatisticName, STAT);
+                const store = scoreStore(args.Statistics[0].StatisticName);
+                assert.ok(store);
+                writes.push(clone(args));
                 // Live title Max configuration must be validated separately.
-                scores[args.PlayFabId] = Math.max(scores[args.PlayFabId] || 0, args.Statistics[0].Value);
+                store[args.PlayFabId] = Math.max(store[args.PlayFabId] || 0, args.Statistics[0].Value);
             }
         }
     };
@@ -56,8 +63,11 @@ function fixture() {
         return context.handlers[handler]({ record: clone(record), final });
     }
     return {
-        internal, scores,
-        last: account => readonly[account]?.[LAST] ? JSON.parse(readonly[account][LAST]) : null,
+        internal, scores, fastFoodScores, writes,
+        last: (account, restaurant = "CasualDining") => {
+            const key = restaurant === "FastFood" ? "FastFoodLastRunV2" : LAST;
+            return readonly[account]?.[key] ? JSON.parse(readonly[account][key]) : null;
+        },
         publish: (record, account = 'AA') => call('DineInPublishRunV2', account, record),
         claim: (record, account = 'BB', final = false) => call('DineInClaimRunV2', account, record, final),
         failOnce: account => { failPlayerOnce = account; }
@@ -67,7 +77,7 @@ function fixture() {
 function run(day = 1, revision = 1, id = '00000000000000000000000000000001') {
     return {
         schema: 2, runId: id, revision, restaurant: 'CasualDining', rulesVersion: 'casual-session-2',
-        gameVersion: 'contract-test', startedUtc: '2026-09-15T00:00:00.000Z', endedUtc: null, endReason: null,
+        sceneName: 'Lobby1 Multiplayer', gameVersion: 'contract-test', startedUtc: '2026-09-15T00:00:00.000Z', endedUtc: null, endReason: null,
         partySize: 2, hostActor: 1, hostAccountId: 'AA', completedDay: day, highestDay: Math.max(1, day),
         participants: ['AA', 'BB'].map((accountId, index) => ({ accountId, actor: index + 1,
             completedDay: day, highestDay: Math.max(1, day), provisionalDay: 0, provisionalHighestDay: 0,
@@ -221,6 +231,81 @@ test('unsupported schema, negative credit and excessive day values are rejected'
         assert.equal(f.publish(Object.assign(run(), change)).accepted, false);
         assert.deepEqual(f.scores, {});
     }
+});
+
+function fastFood(day = 1, revision = 1) {
+    return Object.assign(run(day, revision), { restaurant: 'FastFood', sceneName: 'Lobby2 Multiplayer', rulesVersion: 'fastfood-session-2' });
+}
+
+test('Fast Food secures every participant once without changing Casual Dining credit', () => {
+    const f = fixture();
+    f.publish(run(12));
+    const r = fastFood(6);
+    assert.equal(f.publish(r).accepted, true);
+    assert.equal(f.fastFoodScores.AA, 6);
+    assert.equal(f.fastFoodScores.BB, 6);
+    const writes = f.writes.length;
+    assert.equal(f.publish(r).accepted, true);
+    assert.equal(f.publish(fastFood(2)).accepted, true);
+    assert.equal(f.claim(r).accepted, true);
+    assert.equal(f.writes.length, writes);
+    assert.equal(f.scores.BB, 12);
+    assert.equal(f.last('BB', 'FastFood').restaurant, 'FastFood');
+    assert.equal(f.last('BB').restaurant, 'CasualDining');
+});
+
+test('Fast Food restores partial uploads and excludes absent or departed extra credit', () => {
+    const f = fixture(), r = fastFood(8);
+    Object.assign(r.participants[1], { completedDay: 5, highestDay: 6, departed: true });
+    f.failOnce('BB');
+    assert.throws(() => f.publish(r), /write outage/);
+    assert.equal(f.publish(r).accepted, true);
+    assert.equal(f.fastFoodScores.AA, 8);
+    assert.equal(f.fastFoodScores.BB, 5);
+    const forged = clone(r);
+    forged.revision++;
+    forged.participants[1].completedDay = 6;
+    assert.equal(f.publish(forged).accepted, false);
+    assert.equal(f.claim(forged).accepted, false);
+    assert.equal(f.fastFoodScores.BB, 5);
+});
+
+test('restaurant, destination and result rules must match a supported contract', () => {
+    for (const change of [{ sceneName: 'Lobby1 Multiplayer' }, { rulesVersion: 'casual-session-2' },
+        { restaurant: 'FineDining' }, { sceneName: '' }]) {
+        const f = fixture();
+        assert.equal(f.publish(Object.assign(fastFood(), change)).accepted, false);
+        assert.deepEqual(f.fastFoodScores, {});
+    }
+});
+
+test('four-player Fast Food reconnect credit is stable across day and final retries', () => {
+    const f = fixture(), r = fastFood(7, 2);
+    r.partySize = 4;
+    r.participants.push(...['CC', 'DD'].map((accountId, i) => ({ accountId, actor: i + 3,
+        completedDay: 7, highestDay: 7, departed: false })));
+    Object.assign(r.participants[1], { completedDay: 5, highestDay: 6, provisionalDay: 7,
+        provisionalHighestDay: 7, disconnectDeadline: 123 });
+    assert.equal(f.publish(r).accepted, true);
+    assert.equal(f.fastFoodScores.BB, 5);
+    const absentClaim = clone(r);
+    absentClaim.participants[1].completedDay = 7;
+    assert.equal(f.claim(absentClaim).accepted, false);
+    const returned = clone(r);
+    returned.revision++;
+    // Unity receipts normalize a returning transport actor back to initialActor.
+    Object.assign(returned.participants[1], { completedDay: 7, highestDay: 7,
+        provisionalDay: 0, provisionalHighestDay: 0, disconnectDeadline: 0 });
+    assert.equal(f.publish(returned).accepted, true);
+    const securedWrites = f.writes.length;
+    assert.equal(f.publish(r).accepted, true);
+    assert.equal(f.publish(returned).accepted, true);
+    assert.equal(f.writes.length, securedWrites);
+    returned.endReason = 'HostDisconnected';
+    assert.equal(f.claim(returned, 'BB', true).accepted, true);
+    assert.equal(f.claim(returned, 'BB', true).accepted, true);
+    assert.deepEqual(f.fastFoodScores, { AA: 7, BB: 7, CC: 7, DD: 7 });
+    assert.equal(f.claim(returned, 'EE', true).accepted, false);
 });
 
 for (const { name, body } of cases) {

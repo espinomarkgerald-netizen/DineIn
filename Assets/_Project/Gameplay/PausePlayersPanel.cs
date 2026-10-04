@@ -15,12 +15,13 @@ public sealed class PausePlayersPanel : MonoBehaviour
         public TMP_Text name, status, volumeValue, muteLabel;
         public UnityEngine.UI.Image speaking;
         public UnityEngine.UI.Slider volume;
-        public UnityEngine.UI.Button mute;
+        public UnityEngine.UI.Button mute, kick;
         [NonSerialized] public int actorNumber;
         [NonSerialized] public string userId;
     }
 
-    public UnityEngine.UI.Button voiceToggle, microphoneToggle;
+    public UnityEngine.UI.Button voiceToggle, microphoneToggle, chatButton, leaveButton;
+    public TMP_Text localPlayerLabel;
     public TMP_Text voiceToggleLabel, microphoneLabel, voiceStatus, masterValue, emptyRoster;
     public UnityEngine.UI.Slider masterVolume;
     public RemoteRow[] remoteRows;
@@ -42,6 +43,8 @@ public sealed class PausePlayersPanel : MonoBehaviour
         settings=Settings.EnsureInstance();
         if(settings==null) return;
         bound=true;
+        if (chatButton != null) chatButton.onClick.AddListener(MultiplayerSocialUI.ShowChat);
+        if (leaveButton != null) leaveButton.onClick.AddListener(MultiplayerSocialUI.ConfirmLeave);
         voiceToggle.onClick.AddListener(()=>settings.SetVoiceEnabled(!settings.Current.voiceEnabled));
         microphoneToggle.onClick.AddListener(()=>settings.SetMicrophoneMuted(!settings.Current.microphoneMuted));
         masterVolume.onValueChanged.AddListener(settings.SetMasterVoiceVolume);
@@ -50,6 +53,7 @@ public sealed class PausePlayersPanel : MonoBehaviour
             var captured=row;
             row.volume.onValueChanged.AddListener(value=>settings.SetPlayerVoiceVolume(captured.userId,value));
             row.mute.onClick.AddListener(()=>settings.SetPlayerVoiceMuted(captured.userId,!settings.GetPlayerVoiceMuted(captured.userId)));
+            if (row.kick != null) row.kick.onClick.AddListener(() => MultiplayerSocialUI.ConfirmRemove(captured.userId));
             row.name.richText=false;
         }
         settings.OnSettingsLoaded+=SettingsChanged;
@@ -80,30 +84,40 @@ public sealed class PausePlayersPanel : MonoBehaviour
         masterVolume.SetValueWithoutNotify(prefs.masterVoiceVolume);
         masterValue.text=Mathf.RoundToInt(prefs.masterVoiceVolume*100)+"%";
         microphoneToggle.interactable=prefs.voiceEnabled;
-        var players=PhotonNetwork.InRoom?PhotonNetwork.PlayerList:Array.Empty<Player>();
-        Array.Sort(players,(a,b)=>a.ActorNumber.CompareTo(b.ActorNumber));
-        int index=0;
-        foreach(var player in players)
+        if (localPlayerLabel != null)
         {
-            if(player.IsLocal || index>=remoteRows.Length) continue;
+            localPlayerLabel.richText = false;
+            var own = session?.Run?.participants.Find(p => p.accountId == PlayFabAuthManager.Instance?.PlayFabId);
+            localPlayerLabel.text = own == null ? "YOU" : own.displayName + " (YOU)" + (own.actor == session.Run.hostActor ? " (HOST)" : "")
+                + (session.IsConnected ? " - Connected" : " - Disconnected");
+        }
+        if (chatButton != null) chatButton.interactable = active && !session.Ended;
+        if (leaveButton != null) leaveButton.interactable = active && (session.IsConnected || session.Ended);
+        int index=0;
+        if (session?.Run != null) foreach(var member in session.Run.participants)
+        {
+            if(member.accountId == PlayFabAuthManager.Instance?.PlayFabId || member.departed || index>=remoteRows.Length) continue;
             var row=remoteRows[index++];
             row.root.SetActive(true);
-            row.actorNumber=player.ActorNumber;row.userId=player.UserId;
-            string nickname=string.IsNullOrWhiteSpace(player.NickName)?"Player":player.NickName.Replace('\n',' ').Replace('\r',' ');
-            row.name.text=nickname.Length>28?nickname.Substring(0,28):nickname;
+            row.actorNumber=member.actor; row.userId=member.accountId;
+            string nickname=string.IsNullOrWhiteSpace(member.displayName)?"Player":member.displayName.Replace('\n',' ').Replace('\r',' ');
+            row.name.text=(nickname.Length>28?nickname.Substring(0,28):nickname) + (member.actor == session.Run.hostActor ? " (HOST)" : "");
             float volume=settings.GetPlayerVoiceVolume(row.userId);
             bool muted=settings.GetPlayerVoiceMuted(row.userId);
-            bool speaking=!player.IsInactive && prefs.voiceEnabled &&
-                voice!=null && voice.IsSpeaking(row.actorNumber);
+            bool connected=session.ValidActor(member.actor);
+            bool speaking=connected && prefs.voiceEnabled && voice!=null && voice.IsSpeaking(row.actorNumber);
             row.speaking.color=speaking?speakingColor:quietColor;
-            row.status.text=player.IsInactive?"Reconnecting":muted?(speaking?"Speaking (muted)":"Muted for you"):!prefs.voiceEnabled?"Voice off":
-                voice==null || !voice.Available?"Voice unavailable":!voice.Connected?"Connecting":speaking?"Speaking":"Not speaking";
+            row.status.text=!connected?"Disconnected - place reserved":speaking?"Connected - speaking":muted?"Connected - muted for you":"Connected";
             row.volume.SetValueWithoutNotify(volume);
             row.volumeValue.text=Mathf.RoundToInt(volume*100)+"%";
             row.muteLabel.text=muted?"UNMUTE":"MUTE";
-            // UserIds are published by existing rooms. Never share preferences under an empty identity.
             bool hasIdentity=!string.IsNullOrEmpty(row.userId);
             row.volume.interactable=hasIdentity;row.mute.interactable=hasIdentity;
+            if (row.kick != null)
+            {
+                row.kick.gameObject.SetActive(session.IsAuthority);
+                row.kick.interactable=session.CanRemove(row.userId);
+            }
         }
         for(int i=index;i<remoteRows.Length;i++)
         {

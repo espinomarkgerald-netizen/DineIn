@@ -87,7 +87,7 @@ public sealed class AlmanacMenu : MonoBehaviour
 #if ENABLE_INPUT_SYSTEM
         if (UnityEngine.InputSystem.Keyboard.current?.escapeKey.wasPressedThisFrame == true) Close();
 #else
-        if (Input.GetKeyDown(KeyCode.Escape)) Close();
+        if (!MultiplayerSocialUI.InputBlocked && Input.GetKeyDown(KeyCode.Escape)) Close();
 #endif
     }
     public void Toggle() { if (opened) Close(); else Open(); }

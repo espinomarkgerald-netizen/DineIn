@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public sealed partial class MultiplayerRestaurantBridge
+public partial class MultiplayerRestaurantBridge
 {
     [System.Serializable] private sealed class InventoryStateSignature
     {
@@ -60,7 +60,7 @@ public sealed partial class MultiplayerRestaurantBridge
         if (Photon.Pun.PhotonNetwork.CurrentRoom?.CustomProperties[EconomyKey] is not string json) return;
         try { Apply(JsonUtility.FromJson<Snapshot>(json)); } catch (System.ArgumentException) { }
     }
-    private void OnDestroy()
+    protected virtual void OnDestroy()
     {
         if (subscribed)
         {

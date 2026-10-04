@@ -11,7 +11,8 @@ public sealed class MultiplayerRunParticipant
     public string accountId, displayName;
     public int actor, completedDay, provisionalDay, highestDay = 1, provisionalHighestDay, loadEpoch;
     public double disconnectDeadline;
-    public bool departed;
+    public bool departed, kicked;
+    public int initialActor;
 }
 
 // Deliberately contains no restaurant save state or credentials.
@@ -20,7 +21,7 @@ public sealed class MultiplayerRunRecord
 {
     public int schema = 2, revision = 1, hostActor, partySize, highestDay = 1, completedDay;
     public string runId, hostAccountId, gameVersion, rulesVersion = MultiplayerSessionManager.ResultRulesVersion;
-    public string restaurant = "CasualDining", startedUtc, endedUtc, endReason;
+    public string restaurant = "CasualDining", sceneName = MultiplayerSessionManager.SceneName, startedUtc, endedUtc, endReason;
     public List<MultiplayerRunParticipant> participants = new();
 }
 
@@ -78,7 +79,7 @@ public sealed class MultiplayerRunRecords : MonoBehaviour
     public static bool Valid(MultiplayerRunRecord value)
     {
         if (value == null || value.schema != 2 || !Guid.TryParseExact(value.runId, "N", out _)
-            || value.rulesVersion != MultiplayerSessionManager.ResultRulesVersion || value.restaurant != "CasualDining"
+            || !MultiplayerDestinations.Matches(value.restaurant, value.sceneName, value.rulesVersion)
             || value.revision < 1 || value.completedDay < 0 || value.completedDay > 1000000 || value.highestDay > 1000001
             || value.highestDay < Math.Max(1, value.completedDay)
             || value.partySize < 2 || value.partySize > 4 || value.participants?.Count != value.partySize) return false;
@@ -115,6 +116,9 @@ public sealed class MultiplayerRunRecords : MonoBehaviour
         pending.host |= host;
         pending.final |= final || !string.IsNullOrEmpty(run.endReason) || participant.departed;
         pending.record = JsonUtility.FromJson<MultiplayerRunRecord>(JsonUtility.ToJson(run));
+        // Score receipts keep the original frozen roster; transport actor IDs may change on return.
+        foreach (var member in pending.record.participants)
+            if (member.initialActor > 0) member.actor = member.initialActor;
         instance.Save();
         instance.nextAttempt = Mathf.Min(instance.nextAttempt, Time.realtimeSinceStartup + 1f);
     }

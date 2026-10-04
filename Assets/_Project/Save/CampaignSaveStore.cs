@@ -10,6 +10,7 @@ public static partial class CampaignSaveStore
 {
     public static bool ProtectedSession => GameSaveManager.IsPersistenceSuspended ||
         MultiplayerRestockBridge.IsActive || SceneManager.GetSceneByName("Lobby1 Multiplayer").isLoaded ||
+        SceneManager.GetSceneByName(FastFoodScene.Multiplayer).isLoaded ||
         SceneManager.GetSceneByName("Lobby1Tutorial").isLoaded ||
         SceneManager.GetSceneByName(FastFoodScene.Tutorial).isLoaded;
     public static void SelectFastFoodTraining()

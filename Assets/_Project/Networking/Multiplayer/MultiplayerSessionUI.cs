@@ -40,8 +40,8 @@ public sealed class MultiplayerSessionUI : MonoBehaviour
         canvasRoot = view.gameObject; safeArea = view.safeArea;
         title = view.title; detail = view.detail; readyLabel = view.readyLabel; roster = view.roster;
         readyButton = view.readyButton; cancelButton = view.cancelButton;
-        readyButton.onClick.AddListener(() => day.ToggleLocalReady());
-        cancelButton.onClick.AddListener(() => day.CancelReadyRequest());
+        readyButton.onClick.AddListener(() => { if (session.IsRecovering) session.RetryRecovery(); else day?.ToggleLocalReady(); });
+        cancelButton.onClick.AddListener(() => { if (session.IsRecovering) session.LeaveToMenu(); else day?.CancelReadyRequest(); });
         view.pauseButton.onClick.AddListener(OpenPause);
         canvasRoot.SetActive(false);
     }
@@ -102,9 +102,9 @@ public sealed class MultiplayerSessionUI : MonoBehaviour
 
     private void Update()
     {
-        if (session == null || day == null || canvasRoot == null) return;
+        if (session == null || canvasRoot == null) return;
         ShowConnectionChanges();
-        var request = day.Readiness;
+        var request = day?.Readiness;
         // The persistent HUD may finish Start after this scene-owned component.
         if (pause == null) pause = FindFirstObjectByType<LobbyPauseMenu>();
         bool recovering = session.IsRecovering && !session.Ended;
@@ -131,14 +131,18 @@ public sealed class MultiplayerSessionUI : MonoBehaviour
         {
             title.text = session.IsConnected ? "SYNCHRONIZING RESTAURANT" : "CONNECTION LOST";
             detail.text = session.Status;
-            readyButton.interactable = false;
-            cancelButton.interactable = false;
-            cancelButton.gameObject.SetActive(false);
+            readyButton.gameObject.SetActive(true);
+            readyButton.interactable = session.RecoveryNeedsRetry;
+            readyLabel.text = "RETRY";
+            cancelButton.interactable = true;
+            cancelButton.gameObject.SetActive(true);
+            cancelButton.GetComponentInChildren<TMP_Text>().text = "RETURN TO MENU";
             if (roster != null) roster.text = string.Empty;
             // The authored input shield remains active; its Pause button can
             // open the existing menu while gameplay stays blocked.
             return;
         }
+        cancelButton.GetComponentInChildren<TMP_Text>().text = "CANCEL START";
         bool host = session.IsHostConnection;
         string count = request.Count + "/" + request.actors.Length;
         if (request.CountingDown)
@@ -170,7 +174,7 @@ public sealed class MultiplayerSessionUI : MonoBehaviour
                 string nickname = string.IsNullOrWhiteSpace(player.NickName) ? "Player" : player.NickName.Replace('\n',' ').Replace('\r',' ');
                 if (nickname.Length > 22) nickname = nickname.Substring(0,22);
                 lines.Append(nickname).Append(player.IsMasterClient ? " (HOST)" : "").Append(player.IsLocal ? " (YOU)" : "");
-                lines.Append(player.IsInactive ? " - RECONNECTING" : request.IsReady(player.ActorNumber) ? " - READY" : " - PREPARING");
+                lines.Append(player.IsInactive ? "\nRECONNECTING" : request.IsReady(player.ActorNumber) ? "\nREADY" : "\nPreparing");
             }
             roster.text = lines.ToString();
         }

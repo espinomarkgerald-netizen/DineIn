@@ -8,7 +8,8 @@ public sealed class MultiplayerHUDBridge : MonoBehaviour
     private bool bound;
     private float nextGuidanceRefresh;
     public static bool IsActive => MultiplayerDayBridge.IsActive
-        && SceneManager.GetActiveScene().name == "Lobby1 Multiplayer";
+        && (SceneManager.GetActiveScene().name == "Lobby1 Multiplayer"
+            || SceneManager.GetActiveScene().name == FastFoodScene.Multiplayer);
     public static ManagerPlayer LocalPlayer => IsActive
         ? MultiplayerSessionManager.Instance.LocalManager?.GetComponent<ManagerPlayer>() : null;
 

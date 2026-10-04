@@ -18,7 +18,7 @@ public sealed class FastFoodCookingController : MonoBehaviour
     public static FastFoodCookingController Instance { get; private set; }
     public FastFoodCookingState State { get; private set; }
     public bool IsHelpingKitchen => view != null && view.IsOpen;
-    public bool CanEnterKitchen => Active && view != null && view.CanOpen;
+    public bool CanEnterKitchen => Active && view != null && view.CanOpen && (!IsMultiplayer || MultiplayerSessionManager.Instance.CanAct);
     public void EnterKitchen() { if (CanEnterKitchen) view.Open(); }
     public void ExitKitchen() => view?.Exit();
     public bool ShowKitchenNotice(string message,int kind=2) => view!=null && view.ShowKitchenNotice(message,kind);
@@ -52,12 +52,16 @@ public sealed class FastFoodCookingController : MonoBehaviour
     private float reserveCheck;
     [SerializeField] private FastFoodCookingView view;
     [SerializeField, Min(.1f)] private float reserveRefreshSeconds = 2;
-    public bool Active => FastFoodScene.Contains(gameObject.scene) && !MultiplayerDayBridge.IsActive;
+    public static bool IsMultiplayer => !MultiplayerProgressionContext.RestorationInProgress && MultiplayerSessionManager.Instance?.IsMultiplayerSession == true && MultiplayerSessionManager.Instance.RestaurantType == "FastFood";
+    public bool Active => FastFoodScene.Contains(gameObject.scene) && (!MultiplayerDayBridge.IsActive || IsMultiplayer);
+    public bool IsAuthority => !IsMultiplayer || MultiplayerSessionManager.Instance.IsAuthority;
+    public MultiplayerFastFoodCooking Network => IsMultiplayer ? MultiplayerSessionManager.Instance.GetComponent<MultiplayerFastFoodCooking>() : null;
     public static bool Handles(CustomerGroup group) => group != null && group.FastFood != null && ForScene() != null;
     public static FastFoodCookingController ForScene()
     {
-        if (MultiplayerDayBridge.IsActive) return null;
-        var scene = SceneManager.GetSceneByName(FastFoodTutorialBridge.Active ? FastFoodScene.Tutorial : "Lobby2");
+        if (MultiplayerProgressionContext.RestorationInProgress) return Instance;
+        if (MultiplayerDayBridge.IsActive && !IsMultiplayer) return null;
+        var scene = IsMultiplayer ? MultiplayerSessionManager.Instance.gameObject.scene : SceneManager.GetSceneByName(FastFoodTutorialBridge.Active ? FastFoodScene.Tutorial : "Lobby2");
         if (!scene.isLoaded) return null;
         if (Instance != null && Instance.Active) return Instance;
         return scene.GetRootGameObjects().SelectMany(r=>r.GetComponentsInChildren<FastFoodCookingController>(true)).FirstOrDefault();
@@ -77,7 +81,9 @@ public sealed class FastFoodCookingController : MonoBehaviour
         view?.Exit();
         groups.Clear();
         State = new FastFoodCookingState(type => InventoryManager.Instance != null ? InventoryManager.Instance.GetStock(type) : 0, Consume);
-        State.Changed += () => { LobbyStockBridge.Instance?.RefreshKitchenAvailability(); GameSaveManager.Instance?.RequestSave(); };
+        State.Networked = IsMultiplayer;
+        State.NetworkStationChanged = mode => Network?.SelectStation(mode);
+        State.Changed += () => { LobbyStockBridge.Instance?.RefreshKitchenAvailability(); if (!IsMultiplayer) GameSaveManager.Instance?.RequestSave(); };
         Configure();
     }
     private void Configure()
@@ -87,6 +93,7 @@ public sealed class FastFoodCookingController : MonoBehaviour
         State.stationGraceSeconds = Mathf.Max(0, stationGraceSeconds);
         foreach (var rig in GetComponentsInChildren<FastFoodCookingStation>(true))
         {
+            if (rig.mode == FastFoodStationMode.Grill) State.grillPrepSlots = rig.PrepTargets.Length;
             if (rig.mode == FastFoodStationMode.Assembler) continue;
             var slots = rig.Slots.OrderBy(s => s.slotIndex).ToArray();
             if (slots.Length == 0 || slots.Where((s, i) => s.slotIndex != i).Any())
@@ -101,18 +108,21 @@ public sealed class FastFoodCookingController : MonoBehaviour
     }
     private bool Consume(Recipe recipe)
     {
+        if (!IsAuthority) return false;
         var inv = InventoryManager.Instance;
         // The atomic transaction is also used by the existing order flow.
         return inv != null && inv.TryUseStockBatch(FastFoodCookingState.Requirements(recipe), null);
     }
     public void ResetForDay()
     {
+        if (!IsAuthority) return;
         var ready = State.Portions.Where(p => p.stage == FastFoodCookingStage.Complete && State.FindTicket(p.order)?.submitted != true).Select(p => p.recipe).ToArray();
         ResetState();
         foreach (var recipe in ready) State.RestoreReady(recipe, 1);
     }
     public bool Accept(CustomerGroup group, IReadOnlyList<Recipe> recipes, Func<bool> commit)
     {
+        if (!IsAuthority || group == null) return false;
         int order = group.currentOrderNumber;
         bool existed = State.FindTicket(order) != null;
         if (!existed && !State.Accept(order, recipes)) return false;
@@ -130,6 +140,7 @@ public sealed class FastFoodCookingController : MonoBehaviour
     }
     public IEnumerator WaitForAssembly(CustomerGroup group)
     {
+        if (!IsAuthority) yield break;
         RebindRemake(group);
         int order = group.currentOrderNumber;
         if (State.FindTicket(order) == null && !Accept(group, group.currentOrder.ResolveProducts(), null)) yield break;
@@ -140,7 +151,7 @@ public sealed class FastFoodCookingController : MonoBehaviour
         while (Valid(group, order) && State.FindTicket(order)?.submitted != true) yield return null;
     }
     public bool IsAssembled(int order) => State.FindTicket(order)?.submitted == true;
-    public void Release(int order, bool delivered) { State.Release(order, delivered); groups.Remove(order); }
+    public void Release(int order, bool delivered) { if (!IsAuthority) return; State.Release(order, delivered); groups.Remove(order); }
     private static bool Valid(CustomerGroup group, int order) => group != null && group.currentOrderNumber == order &&
         !group.IsFastFoodLeaving && group.HasConfirmedOrder &&
         (group.state == CustomerGroup.GroupState.OrderTaken || group.FastFoodAwaitingSeat);
@@ -152,6 +163,7 @@ public sealed class FastFoodCookingController : MonoBehaviour
             FastFoodTutorialBridge.Instance.TickKitchen(this);
             return;
         }
+        if (IsMultiplayer && (!IsAuthority || !MultiplayerProgressionContext.Ready)) { PublishGuidance(); return; }
         State.cookSeconds = Mathf.Max(1, cookSeconds) * HygieneManager.CookMultiplier;
         foreach (var entry in groups.ToArray()) if (!Valid(entry.Value, entry.Key)) Release(entry.Key, false);
         State.Tick(Time.deltaTime, HygieneManager.HoldNewCooking, HygieneManager.KitchenPaused);
@@ -202,6 +214,7 @@ public sealed class FastFoodCookingController : MonoBehaviour
     }
     public void ApplySaveData(GameSaveData data)
     {
+        if (IsMultiplayer) return; // The network ledger restores ongoing work without replaying stock use.
         ResetState();
         if (data.fastFoodReadyFood == null) return;
         foreach (var entry in data.fastFoodReadyFood)
@@ -209,6 +222,22 @@ public sealed class FastFoodCookingController : MonoBehaviour
             var recipe = MenuCatalog.Default.FindProduct(entry.productId);
             if (recipe != null) State.RestoreReady(recipe, Mathf.Max(0, entry.quantity));
         }
+    }
+    public void RequestAction(string operation, FastFoodCookingState.Portion portion, ItemData item, int slot, Action<bool> completed)
+    {
+        if (IsMultiplayer)
+        {
+            if (Network == null) { completed?.Invoke(false); return; }
+            Network.RequestAction(operation, portion, item, slot, completed);
+            return;
+        }
+        bool result = operation switch
+        {
+            "Load" => State.Load(portion, item, slot), "Collect" => State.Collect(portion),
+            "Basket" => State.CollectBasket(slot) > 0, "Discard" => State.Discard(portion),
+            "Place" => State.Place(portion), "Serve" => State.Serve(slot), _ => false
+        };
+        completed?.Invoke(result);
     }
     private void OnDestroy()
     { view?.Exit(); PlayerTaskGuidance.ClearTask("FastFoodCooking"); PlayerTaskGuidance.SetKitchenFocus(false); if (Instance == this) Instance = null; }

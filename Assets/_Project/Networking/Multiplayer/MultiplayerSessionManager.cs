@@ -9,25 +9,27 @@ using Hashtable = ExitGames.Client.Photon.Hashtable;
 
 // Scene-owned disposable run; next days reuse this scene and the existing gameplay systems.
 [DefaultExecutionOrder(-11000)]
-public class MultiplayerSessionManager : MonoBehaviourPunCallbacks
+public partial class MultiplayerSessionManager : MonoBehaviourPunCallbacks
 {
     public const string SceneName = "Lobby1 Multiplayer", RunKey = "restaurant.run.v2";
-    public const string ProtocolKey = "restaurant.protocol", Protocol = "casual-session-17";
+    public const string ProtocolKey = "restaurant.protocol", Protocol = "shared-session-19";
     public const string ResultRulesVersion = "casual-session-2";
     public const string ReadyKey = "restaurant.ready", LoadedKey = "restaurant.loaded";
     public const int RejoinSeconds = 90;
     public static MultiplayerSessionManager Instance { get; private set; }
     private readonly Dictionary<int, MultiplayerManagerRegistration> managers = new();
     private MultiplayerRunRecord run;
+    [SerializeField] private MultiplayerSocialUI socialUIPrefab;
+    [Tooltip("Scene component implementing IMultiplayerSessionGameplay. Empty uses the existing Casual Dining bridge.")]
+    [SerializeField] private MonoBehaviour gameplayBinding;
+    private IMultiplayerSessionGameplay gameplay;
     [Header("Connection recovery")]
     [SerializeField, Range(10f, 60f)] private float automaticReconnectSeconds = 30f;
     [SerializeField, Range(10f, 60f)] private float restorationTimeoutSeconds = 25f;
-    private bool leaving, reconnecting, restoringConnection, managementRestored;
+    private bool leaving, reconnecting, restoringConnection;
     private float restoreUntil, nextRebind, nextRemember;
     private bool leaveInactive;
-    public bool IsRecovering => reconnecting || restoringConnection;
-    private int ReturnWindowSeconds => PhotonNetwork.CurrentRoom != null
-        ? Mathf.Clamp(PhotonNetwork.CurrentRoom.PlayerTtl / 1000, 1, 300) : RejoinSeconds;
+    public bool IsRecovering => reconnecting || restoringConnection || recoveryFailed;
     private float reconnectUntil, nextReconnect;
     private int localActor;
     private int previousSerializationRate;
@@ -40,8 +42,8 @@ public class MultiplayerSessionManager : MonoBehaviourPunCallbacks
     public bool IsAuthority => IsHostConnection && !Ended;
     public bool Ended => run != null && !string.IsNullOrEmpty(run.endReason);
     public bool CanAct => IsConnected && !Ended && run != null && !leaving && !reconnecting
-        && !restoringConnection && ValidActor(localActor) && MultiplayerProgressionContext.Ready
-        && GetComponent<MultiplayerTaskClaims>()?.HasSnapshot == true;
+        && !restoringConnection && !recoveryFailed && !intentionalLeavePending && ValidActor(localActor)
+        && gameplay?.ReadyForInput == true;
     public string RunId => run?.runId ?? string.Empty;
     public MultiplayerRunRecord Run => run;
     public Player LocalPhotonPlayer => IsConnected ? PhotonNetwork.LocalPlayer : null;
@@ -49,7 +51,7 @@ public class MultiplayerSessionManager : MonoBehaviourPunCallbacks
     public Player[] ConnectedPlayers => IsConnected ? PhotonNetwork.PlayerList : Array.Empty<Player>();
     public int ConnectedHumanCount => Array.FindAll(ConnectedPlayers, p => !p.IsInactive).Length;
     public int PartySize => run?.partySize ?? 0;
-    public string RestaurantType => "CasualDining";
+    public string RestaurantType => run?.restaurant ?? string.Empty;
     public GameObject LocalManager => CanAct && TryGetManager(localActor, out var manager)
         && manager.activeInHierarchy && manager.GetComponent<PhotonView>().OwnerActorNr == localActor
         && manager.GetComponent<PhotonView>().IsMine ? manager : null;
@@ -58,28 +60,31 @@ public class MultiplayerSessionManager : MonoBehaviourPunCallbacks
     {
         if (Instance != null && Instance != this) { enabled = false; return; }
         Instance = this;
+        PhotonNetwork.EnableCloseConnection = true;
         PhotonNetwork.AutomaticallySyncScene = true;
         previousSerializationRate = PhotonNetwork.SerializationRate;
         PhotonNetwork.SerializationRate = 10;
         localActor = PhotonNetwork.LocalPlayer?.ActorNumber ?? 0;
         ReadRun();
         if (run == null) Status = "This room has no valid run. Return to the menu.";
-        if (GetComponent<MultiplayerProgressionContext>() == null) gameObject.AddComponent<MultiplayerProgressionContext>();
-        if (GetComponent<MultiplayerRestaurantBridge>() == null) gameObject.AddComponent<MultiplayerRestaurantBridge>();
-        if (GetComponent<MultiplayerHUDBridge>() == null) gameObject.AddComponent<MultiplayerHUDBridge>();
-        if (GetComponent<MultiplayerDayBridge>() == null) gameObject.AddComponent<MultiplayerDayBridge>();
-        if (GetComponent<MultiplayerRestockBridge>() == null) gameObject.AddComponent<MultiplayerRestockBridge>();
+        gameplay = gameplayBinding as IMultiplayerSessionGameplay;
+        if (gameplay == null && RestaurantType == "CasualDining")
+        {
+            var bridge = GetComponent<MultiplayerRestaurantBridge>();
+            if (bridge == null) bridge = gameObject.AddComponent<MultiplayerRestaurantBridge>();
+            gameplayBinding = bridge; gameplay = bridge;
+        }
+        gameplay?.InitializeSession();
         if (GetComponent<MultiplayerSessionUI>() == null) gameObject.AddComponent<MultiplayerSessionUI>();
-        if (GetComponent<MultiplayerServiceActions>() == null) gameObject.AddComponent<MultiplayerServiceActions>();
-        if (GetComponent<MultiplayerObjectBridge>() == null) gameObject.AddComponent<MultiplayerObjectBridge>();
-        if (Debug.isDebugBuild && GetComponent<MultiplayerDiagnostics>() == null) gameObject.AddComponent<MultiplayerDiagnostics>();
         if (GetComponent<MultiplayerVoiceController>() == null) gameObject.AddComponent<MultiplayerVoiceController>();
+        if (socialUIPrefab == null) socialUIPrefab = Resources.Load<MultiplayerSocialUI>("UI/MultiplayerSocialUI");
+        if (socialUIPrefab != null) Instantiate(socialUIPrefab, transform, false);
         if (run != null && PhotonNetwork.MasterClient?.ActorNumber != run.hostActor) EndLocal("HostDisconnected");
         if (run != null && !Ended)
         {
             MultiplayerLastRun.Remember(run, localActor);
             nextRemember = Time.realtimeSinceStartup + 30f;
-            if (PhotonNetwork.LocalPlayer?.HasRejoined == true) BeginRestoration();
+            if (!IsHostConnection) BeginRestoration();
         }
     }
 
@@ -87,46 +92,34 @@ public class MultiplayerSessionManager : MonoBehaviourPunCallbacks
     {
         if (run == null || leaving) return;
         var auth = PlayFabAuthManager.Instance;
-        var participant = run.participants.Find(p => p.actor == localActor);
+        var participant = run.participants.Find(p => p.accountId == auth?.PlayFabId);
+        if (participant?.kicked == true) { ReturnAfterRecoveryFailure(RemovedMessage, true); return; }
+        if (participant?.departed == true) { ReturnAfterRecoveryFailure("You left the session.", true); return; }
+        TickLeaveRequest();
         if (!Ended && (auth == null || !auth.IsLoggedIn || participant == null || participant.accountId != auth.PlayFabId))
         { LeaveToMenu(); return; }
-        if (reconnecting)
-        {
-            if (Time.realtimeSinceStartup >= reconnectUntil) { ReturnAfterRecoveryFailure("Could not reconnect. Try Reconnect to Last Run while the host is still playing.", false); return; }
-            Status = "Connection lost. Reconnecting… " + Mathf.CeilToInt(reconnectUntil - Time.realtimeSinceStartup) + "s";
-            if (Time.realtimeSinceStartup >= nextReconnect && PhotonNetwork.NetworkClientState == ClientState.Disconnected)
-            { nextReconnect = Time.realtimeSinceStartup + 3f; PhotonNetwork.ReconnectAndRejoin(); }
-            return;
-        }
+        if (reconnecting) { TickRecovery(); return; }
+        if (recoveryFailed) return;
         if (restoringConnection)
         {
             if (Time.realtimeSinceStartup >= restoreUntil)
-            { ReturnAfterRecoveryFailure("Could not restore the run safely. You can try reconnecting again.", false); return; }
+            { FailRecovery("Synchronization timed out. Retry or return to the menu."); return; }
             if (Time.realtimeSinceStartup >= nextRebind)
             {
                 nextRebind = Time.realtimeSinceStartup + 0.25f;
-                bool hasAvatar = MultiplayerManagerRegistration.TryRebindActor(this, localActor, out _);
-                if (hasAvatar && managementRestored && MultiplayerProgressionContext.Ready
-                    && GetComponent<MultiplayerDayBridge>()?.HasRestoredState == true
-                    && GetComponent<MultiplayerTaskClaims>()?.HasSnapshot == true)
+                bool hasAvatar = ValidActor(localActor) && MultiplayerManagerRegistration.TryRebindActor(this, localActor, out _);
+                if (hasAvatar && gameplay?.RestorationComplete == true)
                 { restoringConnection = false; PhotonCustomizationSync.PushToPhoton(); }
             }
         }
         if (!Ended && IsConnected && Time.realtimeSinceStartup >= nextRemember)
         { MultiplayerLastRun.Remember(run, localActor); nextRemember = Time.realtimeSinceStartup + 30f; }
         string loadedToken = participant != null ? RunId + ":" + participant.loadEpoch : string.Empty;
-        if (!Ended && !restoringConnection && MultiplayerProgressionContext.Ready && IsConnected
+        if (!Ended && !restoringConnection && gameplay?.ReadyForInput == true && IsConnected
             && TryGetManager(localActor, out _) && !Equals(PhotonNetwork.LocalPlayer.CustomProperties[LoadedKey], loadedToken))
             PhotonNetwork.LocalPlayer.SetCustomProperties(new Hashtable { [LoadedKey] = loadedToken });
-        if (IsAuthority)
-        {
-            bool changed = false;
-            foreach (var p in run.participants)
-                if (!p.departed && p.disconnectDeadline > 0 && PhotonNetwork.Time > p.disconnectDeadline)
-                { p.departed = true; p.provisionalDay = 0; p.provisionalHighestDay = 0; p.disconnectDeadline = 0; changed = true; }
-            if (changed) PublishRun();
-        }
-        if (!Ended) Status = restoringConnection ? "Synchronizing restaurant…" : "Connected";
+        if (!Ended) Status = intentionalLeavePending ? "Leaving session..."
+            : restoringConnection ? "Synchronizing restaurant…" : "Connected";
     }
 
     public bool AllPlayersLoaded()
@@ -140,18 +133,13 @@ public class MultiplayerSessionManager : MonoBehaviourPunCallbacks
         }
         return true;
     }
-    public bool IsActorInReconnectGrace(int actor)
-    {
-        var participant = run?.participants.Find(p => p.actor == actor);
-        return IsConnected && !Ended && participant != null && !participant.departed
-            && PhotonNetwork.CurrentRoom.Players.TryGetValue(actor, out var player) && player.IsInactive
-            && (participant.disconnectDeadline <= 0 || PhotonNetwork.Time <= participant.disconnectDeadline);
-    }
+    // A reserved seat does not reserve interrupted work; other players may take it.
+    public bool IsActorInReconnectGrace(int actor) => false;
     public bool ValidActor(int actor)
     {
         if (!IsConnected || Ended || run == null) return false;
-        var p = run.participants.Find(value => value.actor == actor && !value.departed);
-        return p != null && PhotonNetwork.CurrentRoom.Players.TryGetValue(actor, out var player)
+        var p = run.participants.Find(value => value.actor == actor && !value.departed && !value.kicked);
+        return p != null && p.disconnectDeadline == 0 && PhotonNetwork.CurrentRoom.Players.TryGetValue(actor, out var player)
             && !player.IsInactive && player.UserId == p.accountId;
     }
     public bool TryGetManager(int actor, out GameObject manager)
@@ -212,12 +200,18 @@ public class MultiplayerSessionManager : MonoBehaviourPunCallbacks
         try
         {
             var incoming = JsonUtility.FromJson<MultiplayerRunRecord>(json);
-            if (!MultiplayerRunRecords.Valid(incoming) || incoming.gameVersion != Application.version || (run != null &&
+            if (!MultiplayerRunRecords.Valid(incoming) || incoming.gameVersion != Application.version
+                || incoming.sceneName != gameObject.scene.name
+                || !Equals(PhotonNetwork.CurrentRoom.CustomProperties[ProtocolKey], Protocol)
+                || !Equals(PhotonNetwork.CurrentRoom.CustomProperties[MultiplayerDestinations.RestaurantKey], incoming.restaurant)
+                || !Equals(PhotonNetwork.CurrentRoom.CustomProperties[MultiplayerDestinations.SceneKey], incoming.sceneName)
+                || (run != null &&
                 (incoming.runId != run.runId || incoming.revision < run.revision || incoming.hostActor != run.hostActor
+                    || incoming.restaurant != run.restaurant || incoming.sceneName != run.sceneName || incoming.rulesVersion != run.rulesVersion
                     || incoming.hostAccountId != run.hostAccountId || incoming.startedUtc != run.startedUtc
                     || incoming.partySize != run.partySize || incoming.gameVersion != run.gameVersion
                     || Ended && string.IsNullOrEmpty(incoming.endReason)
-                    || incoming.participants.Exists(p => !run.participants.Exists(old => old.actor == p.actor && old.accountId == p.accountId))))) return;
+                    || incoming.participants.Exists(p => !run.participants.Exists(old => old.accountId == p.accountId && old.initialActor == p.initialActor))))) return;
             run = incoming;
             MultiplayerRunRecords.Record(run, localActor, IsHostConnection);
             if (Ended) { ForgetLastRun(); StopSimulation(); }
@@ -225,7 +219,11 @@ public class MultiplayerSessionManager : MonoBehaviourPunCallbacks
         catch (ArgumentException) { Status = "Invalid run record."; }
     }
     public override void OnRoomPropertiesUpdate(Hashtable changed)
-    { if (changed.ContainsKey(RunKey) && !IsHostConnection) ReadRun(); }
+    {
+        if (!changed.ContainsKey(RunKey)) return;
+        if (!IsHostConnection) ReadRun();
+        FinishPendingRemovals(changed[RunKey] as string);
+    }
 
     public override void OnPlayerLeftRoom(Player player)
     {
@@ -235,25 +233,14 @@ public class MultiplayerSessionManager : MonoBehaviourPunCallbacks
         if (!IsAuthority) return;
         var p = run.participants.Find(value => value.actor == player.ActorNumber);
         if (p == null || p.departed) return;
-        if (player.IsInactive) { p.loadEpoch++; p.disconnectDeadline = PhotonNetwork.Time + ReturnWindowSeconds; }
-        else { p.departed = true; p.provisionalDay = 0; p.provisionalHighestDay = 0; p.disconnectDeadline = 0; }
+        p.loadEpoch++;
+        p.disconnectDeadline = Math.Max(1d, PhotonNetwork.Time); // Presence marker, not expiry.
         PublishRun();
+        RefreshReservations();
     }
     public override void OnPlayerEnteredRoom(Player player)
     {
-        MultiplayerManagerRegistration.TryRebindActor(this, player.ActorNumber, out _);
-        if (!IsAuthority) return;
-        var p = run.participants.Find(value => value.actor == player.ActorNumber && value.accountId == player.UserId);
-        if (p == null || p.departed || p.disconnectDeadline > 0 && PhotonNetwork.Time > p.disconnectDeadline)
-        { PhotonNetwork.CloseConnection(player); return; }
-        p.completedDay = Math.Max(p.completedDay, p.provisionalDay);
-        p.highestDay = Math.Max(p.highestDay, p.provisionalHighestDay);
-        p.provisionalDay = 0;
-        p.provisionalHighestDay = 0;
-        p.disconnectDeadline = 0;
-        PublishRun();
-        GetComponent<MultiplayerRestaurantBridge>()?.Publish(true);
-        GetComponent<MultiplayerDayBridge>()?.PublishNow();
+        if (IsAuthority) AdmitParticipant(player);
     }
     public override void OnMasterClientSwitched(Player player)
     { if (run != null && player.ActorNumber != run.hostActor) EndLocal("HostDisconnected"); }
@@ -263,42 +250,38 @@ public class MultiplayerSessionManager : MonoBehaviourPunCallbacks
         if (leaving || Ended || run == null) return;
         StopSimulation();
         if (localActor == run.hostActor) { EndLocal("HostDisconnected"); return; }
-        GameDayManager.Instance?.PrepareNextMultiplayerDay(); // Discard replicas whose PUN groups are being destroyed.
+        gameplay?.ConnectionLost();
         restoringConnection = false;
-        if (!reconnecting) reconnectUntil = Time.realtimeSinceStartup + Mathf.Min(automaticReconnectSeconds, ReturnWindowSeconds);
-        reconnecting = true;
-        nextReconnect = Time.realtimeSinceStartup + 1f;
+        joinInFlight = false;
+        if (!reconnecting && !recoveryFailed) StartRecovery();
     }
     public override void OnJoinedRoom()
     {
-        if (!reconnecting || run == null) return;
-        var pointer = MultiplayerLastRun.Load(run.participants.Find(p => p.actor == localActor)?.accountId, out _);
-        if (!MultiplayerLastRun.TryValidateJoinedRun(pointer, out var returned, out var reason)
-            || returned.runId != run.runId || returned.hostActor != run.hostActor
-            || returned.hostAccountId != run.hostAccountId || returned.revision < run.revision)
-        { ReturnAfterRecoveryFailure(reason ?? "The run has changed and cannot be resumed.", true); return; }
-        reconnecting = false;
+        if ((!reconnecting && !recoveryFailed) || run == null) return;
+        if (recoveryFailed) reconnectUntil = Time.realtimeSinceStartup + restorationTimeoutSeconds;
+        reconnecting = true; recoveryFailed = false;
+        localActor = PhotonNetwork.LocalPlayer.ActorNumber;
+        admissionPending = true; joinInFlight = false;
         ReadRun();
-        if (Ended) return;
-        BeginRestoration();
+        Status = "Rejoining - waiting for host admission...";
+        TryFinishAdmission();
     }
     private void BeginRestoration()
     {
         restoringConnection = true;
-        managementRestored = false;
         restoreUntil = Time.realtimeSinceStartup + restorationTimeoutSeconds;
         nextRebind = 0f;
-        GetComponent<MultiplayerRestaurantBridge>()?.RequestSnapshot();
-        GetComponent<MultiplayerDayBridge>()?.RefreshAfterRejoin();
+        gameplay?.RequestRestoration();
         MultiplayerManagerRegistration.TryRebindActor(this, localActor, out _);
     }
-    public void SnapshotRestored() { managementRestored = true; }
     public override void OnJoinRoomFailed(short code, string message)
     {
-        bool unavailable = code == ErrorCode.GameDoesNotExist || code == ErrorCode.JoinFailedWithRejoinerNotFound
-            || code == ErrorCode.GameClosed;
-        ReturnAfterRecoveryFailure(unavailable ? "That run or your reserved place is no longer available."
-            : "Reconnection failed. Try Reconnect to Last Run from the menu.", unavailable);
+        if (!reconnecting) return;
+        joinInFlight = false;
+        if (code == ErrorCode.JoinFailedWithRejoinerNotFound) fallbackJoin = true;
+        else if (code == ErrorCode.GameDoesNotExist)
+        { ReturnAfterRecoveryFailure("The original session has ended.", true); return; }
+        nextReconnect = Time.realtimeSinceStartup + 3f;
     }
     private void ReturnAfterRecoveryFailure(string message, bool definitive)
     {
@@ -315,7 +298,7 @@ public class MultiplayerSessionManager : MonoBehaviourPunCallbacks
     private void ForgetLastRun()
     {
         if (run == null) return;
-        MultiplayerLastRun.Forget(run.participants.Find(p => p.actor == localActor)?.accountId, run.runId);
+        MultiplayerLastRun.Forget(PlayFabAuthManager.Instance?.PlayFabId, run.runId);
     }
     public override void OnLeftRoom() { managers.Clear(); if (!leaving && !Ended) EndLocal("LeftRoom"); }
     private void EndLocal(string reason)
@@ -331,19 +314,8 @@ public class MultiplayerSessionManager : MonoBehaviourPunCallbacks
     }
     private void StopSimulation()
     {
-        if (GameDayManager.Instance != null) GameDayManager.Instance.ObserveDayOnly = true;
         if (Ended) Status = "Run ended: " + run.endReason + ". Completed " + run.completedDay + " days.";
-        FindFirstObjectByType<ManagementComputerController>()?.CloseComputer();
-        CashierRegisterUI.Instance?.Hide();
-        CardPaymentUI.Instance?.CloseNetworkPayment();
-        ManagerComplaintSystem.Instance?.SuspendNetworkPresentation();
-        if (!Ended) return; // A guest can restore its live presentation after a timely rejoin.
-        foreach (var group in FindObjectsByType<CustomerGroup>(FindObjectsSortMode.None)) group.StopAllCoroutines();
-        foreach (var bot in FindObjectsByType<AutonomousStaffBot>(FindObjectsSortMode.None)) bot.enabled = false;
-        foreach (var kitchen in FindObjectsByType<KitchenManager>(FindObjectsSortMode.None)) kitchen.StopAllCoroutines();
-        foreach (var worker in FindObjectsByType<KitchenWorkerBot>(FindObjectsSortMode.None)) worker.StopAllCoroutines();
-        foreach (var agent in FindObjectsByType<UnityEngine.AI.NavMeshAgent>(FindObjectsSortMode.None))
-            if (agent.gameObject.scene == gameObject.scene && agent.enabled && agent.isOnNavMesh) agent.isStopped = true;
+        gameplay?.SuspendSession(Ended);
     }
     public void LeaveToMenu()
     {
@@ -360,6 +332,9 @@ public class MultiplayerSessionManager : MonoBehaviourPunCallbacks
     }
     private IEnumerator LeaveRoutine()
     {
+        MultiplayerSocialUI.HideForExit();
+        var sessionUI = GetComponent<MultiplayerSessionUI>();
+        if (sessionUI != null) sessionUI.enabled = false;
         PhotonNetwork.AutomaticallySyncScene = false;
         if (PhotonNetwork.InRoom) PhotonNetwork.LeaveRoom(leaveInactive);
         else if (PhotonNetwork.NetworkClientState != ClientState.Disconnected) PhotonNetwork.Disconnect();

@@ -4,6 +4,7 @@ using UnityEngine.SceneManagement;
 public static class FastFoodScene
 {
     public const string Tutorial = "Lobby2Tutorial";
+    public const string Multiplayer = "Lobby2 Multiplayer";
     public static bool Contains(Scene scene) => scene.IsValid() && Contains(scene.name);
-    public static bool Contains(string name) => name == "Lobby2" || name == Tutorial;
+    public static bool Contains(string name) => name == "Lobby2" || name == Tutorial || name == Multiplayer;
 }

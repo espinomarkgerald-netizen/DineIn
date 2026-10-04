@@ -101,7 +101,7 @@ public sealed class LobbyPauseMenu : MonoBehaviour
     private void LateUpdate()
     {
         RefreshSceneContext();
-        if (IsOpen && !DevSettingsConsole.IsWindowOpen && Input.GetKeyDown(KeyCode.Escape)) Resume();
+        if (IsOpen && !MultiplayerSocialUI.InputBlocked && !DevSettingsConsole.IsWindowOpen && Input.GetKeyDown(KeyCode.Escape)) Resume();
         RefreshPauseButtonVisibility();
     }
 

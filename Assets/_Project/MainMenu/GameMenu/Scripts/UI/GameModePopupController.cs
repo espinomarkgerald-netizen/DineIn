@@ -26,6 +26,10 @@ public class GameModePopupController : MonoBehaviour
     [Tooltip("Usually found automatically as a child of GameManager. Assign it manually only if your hierarchy changes.")]
     [SerializeField] private RestaurantSelector restaurantSelector;
 
+    [Header("Multiplayer Entry")]
+    [SerializeField] private MultiplayerMenuController multiplayerMenu;
+    [SerializeField] private AnimatedPanel multiplayerPanel;
+
     [Header("Campaign Scene Routing")]
     [Tooltip("Scene names by restaurant index. Casual Dining (0) loads Lobby1; Fast Food (1) loads Lobby2.")]
     [SerializeField] private string[] campaignRestaurantScenes = { "Lobby1", "Lobby2" };
@@ -109,7 +113,19 @@ public class GameModePopupController : MonoBehaviour
     public void ChooseMultiplayer()
     {
         if (!CampaignCloudSync.CanEnterGameplay()) return;
+        if (restaurantSelector == null || multiplayerMenu == null || multiplayerPanel == null)
+        {
+            NotificationPopupController.Instance?.Show("Multiplayer menu references are missing.",
+                NotificationPopupController.PopupType.Error);
+            return;
+        }
+        if (!multiplayerMenu.TrySelectRestaurant(restaurantSelector.SelectedRestaurantIndex, out string error))
+        {
+            NotificationPopupController.Instance?.Show(error, NotificationPopupController.PopupType.Error);
+            return;
+        }
         ChooseMode(GameModeChoice.Multiplayer);
+        multiplayerPanel.Open();
     }
 
     private void ChooseMode(GameModeChoice choice)

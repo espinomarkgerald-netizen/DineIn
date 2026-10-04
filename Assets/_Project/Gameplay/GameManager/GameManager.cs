@@ -597,7 +597,7 @@ public class GameDayManager : MonoBehaviour
     {
         var fastFood = FastFoodRestaurant.For(this);
         if (fastFood != null && (GameSaveManager.Instance == null || GameFlowManager.Instance == null ||
-            !GameSaveManager.Instance.HasCompletedInitialLoad || CampaignSaveStore.NeedsReload))
+            !GameSaveManager.Instance.HasCompletedInitialLoad || (!MultiplayerDayBridge.IsActive && CampaignSaveStore.NeedsReload)))
         { ShowWarning("Restaurant progress is not ready. Please wait for loading to finish."); return; }
         if (fastFood != null && !fastFood.ValidateServiceSetup(out var setupProblem))
         {
@@ -1084,7 +1084,7 @@ public class GameDayManager : MonoBehaviour
     public int[] CaptureFastFoodReport() => new[] { groupsSeated, ordersTaken, ordersProcessed, foodDelivered, billsDelivered, traysCleaned, paymentsCompleted, tipsEarned, happyCustomers, neutralCustomers, angryCustomers, cashErrors, groupsSpawnedThisShift };
     public void RestoreFastFoodReport(int[] stats)
     {
-        if (gameObject.scene.name != "Lobby2" || stats == null || stats.Length != 13) return;
+        if (!FastFoodScene.Contains(gameObject.scene) || stats == null || stats.Length != 13) return;
         groupsSeated = Mathf.Max(0, stats[0]);
         ordersTaken = Mathf.Max(0, stats[1]);
         ordersProcessed = Mathf.Max(0, stats[2]);

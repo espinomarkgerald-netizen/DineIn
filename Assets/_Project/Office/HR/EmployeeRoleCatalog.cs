@@ -24,7 +24,7 @@ public static class EmployeeRoleCatalog
     };
 
     public static IReadOnlyList<EmployeeRole> LobbyRoles => LobbyRoleArray;
-    public static bool UsesFastFoodRoles => CampaignSaveStore.IsFastFood && !CampaignSaveStore.ProtectedSession;
+    public static bool UsesFastFoodRoles => FastFoodMultiplayerSession.IsActive || CampaignSaveStore.IsFastFood && !CampaignSaveStore.ProtectedSession;
     private static readonly EmployeeRole[] FastFoodKitchenRoles =
         { EmployeeRole.GrillStation, EmployeeRole.FryStation, EmployeeRole.FastFoodAssembler };
     public static IReadOnlyList<EmployeeRole> KitchenRoles => UsesFastFoodRoles ? FastFoodKitchenRoles : KitchenRoleArray;

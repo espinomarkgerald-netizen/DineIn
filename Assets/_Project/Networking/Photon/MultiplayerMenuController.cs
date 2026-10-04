@@ -20,9 +20,9 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
     [SerializeField] private TMP_Text joinCodeText;
     [SerializeField] private TMP_Text[] statusTexts;
     [SerializeField] private TMP_Text[] rosterTexts;
+    [SerializeField] private TMP_Text createHeading, joinHeading;
 
     [Header("Returning players")]
-    [SerializeField, Range(30, 300)] private int playerReturnSeconds = MultiplayerSessionManager.RejoinSeconds;
     [SerializeField] private GameObject reconnectCard;
     [SerializeField] private Button reconnectButton;
     [SerializeField] private TMP_Text reconnectDescription;
@@ -63,8 +63,17 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
     private string createTabLabel;
     private byte pendingSize;
     private float operationDeadline;
-    private const string RestaurantKey = "RestaurantType";
-    private const string Destination = "Lobby1 Multiplayer";
+    private const string RestaurantKey = MultiplayerDestinations.RestaurantKey;
+    [SerializeField] private string gameplayScene = MultiplayerDestinations.CasualScene;
+    [SerializeField] private string fastFoodGameplayScene = MultiplayerDestinations.FastFoodScene;
+    private string pendingRestaurant;
+    private int lastLevelSelectIndex = -1;
+    private string RoomRestaurant => PhotonNetwork.CurrentRoom?.CustomProperties[RestaurantKey] as string;
+    private string Destination => MultiplayerDestinations.TryGet(RoomRestaurant, out var scene, out _) ? scene : null;
+
+    private bool SupportedRoom() => MultiplayerDestinations.TryGet(RoomRestaurant, out var scene, out _)
+        && Equals(PhotonNetwork.CurrentRoom.CustomProperties[MultiplayerSessionManager.ProtocolKey], MultiplayerSessionManager.Protocol)
+        && Equals(PhotonNetwork.CurrentRoom.CustomProperties[MultiplayerDestinations.SceneKey], scene);
 
     private void Awake()
     {
@@ -108,15 +117,45 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
         createTabButton.onClick.RemoveListener(ShowCreateTab);
     }
 
+    // Level Select and the existing dropdown use the same authored order, not enum ordinals
+    // (RestaurantType.FastFood is 0) or localized/decorative option labels.
+    private static string RestaurantForSelection(int index) => index == 0 ? nameof(RestaurantType.CasualDining)
+        : index == 1 ? nameof(RestaurantType.FastFood) : null;
+
+    public bool TrySelectRestaurant(int index, out string error)
+    {
+        error = null;
+        // Existing rooms and in-flight requests own their destination.
+        if (busy || starting || PhotonNetwork.InRoom) return true;
+        if (!MultiplayerDestinations.TryGet(RestaurantForSelection(index), out _, out _))
+        { error = "Choose Casual Dining or Fast Food. Fine Dining is not available yet."; return false; }
+        if (restaurantDropdown == null || restaurantDropdown.options.Count <= index)
+        { error = "The multiplayer restaurant selector is not configured correctly."; return false; }
+        // Reopening the panel must retain an explicit choice made in its dropdown.
+        // A different Level Select restaurant starts a new selection context.
+        if (lastLevelSelectIndex != index)
+        {
+            restaurantDropdown.SetValueWithoutNotify(index);
+            restaurantDropdown.RefreshShownValue();
+            lastLevelSelectIndex = index;
+        }
+        return true;
+    }
+
     private void Create()
     {
         if (PhotonNetwork.InRoom) { RoomAction(); return; }
         if (busy || PhotonNetwork.InRoom) return;
-        if (restaurantDropdown.value != 0)
+        pendingRestaurant = RestaurantForSelection(restaurantDropdown.value);
+        if (!MultiplayerDestinations.TryGet(pendingRestaurant, out var scene, out _))
         {
-            SetStatus("Only Casual Dining is available.");
+            SetStatus("Choose Casual Dining or Fast Food. Fine Dining is not available yet.");
             return;
         }
+        if (scene != (pendingRestaurant == nameof(RestaurantType.FastFood) ? fastFoodGameplayScene : gameplayScene))
+        { SetStatus("The selected restaurant's multiplayer scene is configured incorrectly."); return; }
+        if (!Application.CanStreamedLevelBeLoaded(scene))
+        { SetStatus("The selected restaurant's multiplayer scene is missing from this build."); return; }
         const string alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
         var code = new StringBuilder("DINE-");
         for (int i = 0; i < 4; i++) code.Append(alphabet[UnityEngine.Random.Range(0, alphabet.Length)]);
@@ -146,8 +185,8 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
         var account = PlayFabAuthManager.Instance;
         if (account == null || !account.IsLoggedIn || string.IsNullOrEmpty(account.PlayFabId))
         { SetStatus("Sign in before starting multiplayer."); return; }
-        pendingRejoin = rejoin;
-        PhotonNetwork.AutomaticallySyncScene = !rejoin;
+        pendingRejoin = rejoin; fallbackRejoin = awaitingAdmission = false;
+        PhotonNetwork.AutomaticallySyncScene = false;
         busy = true;
         operationDeadline = Time.realtimeSinceStartup + 30f;
         pendingCreate = create;
@@ -157,7 +196,7 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
         SetStatus("Connecting...");
         if (PhotonBootstrap.Instance == null)
             new GameObject("PhotonBootstrap").AddComponent<PhotonBootstrap>();
-        PhotonNetwork.AutomaticallySyncScene = !rejoin;
+        PhotonNetwork.AutomaticallySyncScene = false;
         PhotonBootstrap.Instance.SafeConnect();
     }
 
@@ -192,19 +231,25 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
         if (pendingRejoin)
         {
             if (!MultiplayerLastRun.IsCompatible(rejoinPointer, account.PlayFabId, DateTime.UtcNow, out var reason))
-            { MultiplayerLastRun.Forget(account.PlayFabId); Fail(reason); return; }
+            { Fail(reason); return; }
             SetStatus("Checking your reserved place and reconnecting...");
-            if (!PhotonNetwork.RejoinRoom(code)) Fail("Could not start reconnecting. Please retry.");
+            if (!(fallbackRejoin ? PhotonNetwork.JoinRoom(code) : PhotonNetwork.RejoinRoom(code))) Fail("Could not start reconnecting. Please retry.");
             return;
         }
         SetStatus(pendingCreate ? "Creating..." : "Joining...");
         PhotonCustomizationSync.PushToPhoton();
+        string destination = null;
+        if (pendingCreate && !MultiplayerDestinations.TryGet(pendingRestaurant, out destination, out _))
+        { Fail("The selected multiplayer restaurant is unsupported."); return; }
         bool sent = pendingCreate
             ? PhotonNetwork.CreateRoom(code, new RoomOptions
             {
                 MaxPlayers = pendingSize, IsOpen = true, IsVisible = false, PublishUserId = true,
-                PlayerTtl = Mathf.Clamp(playerReturnSeconds, 30, 300) * 1000, EmptyRoomTtl = 0,
-                CustomRoomProperties = new Hashtable { { RestaurantKey, "CasualDining" },
+                // The stable run roster + ExpectedUsers reserve seats. Dropped transport actors
+                // are removed immediately, so hosts can release offline seats without waiting for TTL.
+                PlayerTtl = 0, EmptyRoomTtl = 0,
+                CustomRoomProperties = new Hashtable { { RestaurantKey, pendingRestaurant },
+                    { MultiplayerDestinations.SceneKey, destination },
                     { MultiplayerSessionManager.ProtocolKey, MultiplayerSessionManager.Protocol } }
             }, TypedLobby.Default)
             : PhotonNetwork.JoinRoom(code);
@@ -213,7 +258,34 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
 
     public override void OnJoinedRoom()
     {
+        if (!SupportedRoom())
+        {
+            rejoinFailure = "Room version or restaurant is unsupported. Use the same updated game version.";
+            pendingRejoin = awaitingAdmission = false;
+            PhotonNetwork.LeaveRoom(false);
+            return;
+        }
+        if (PhotonNetwork.CurrentRoom.CustomProperties[MultiplayerSessionManager.RunKey] is string existingRun)
+        {
+            if (!pendingRejoin)
+            {
+                // Manual room-code join follows exactly the same admission checks as Rejoin Session.
+                try
+                {
+                    var record = JsonUtility.FromJson<MultiplayerRunRecord>(existingRun);
+                    var member = record?.participants?.Find(p => p.accountId == PhotonNetwork.LocalPlayer.UserId);
+                    rejoinPointer = MultiplayerRunRecords.Valid(record) && member != null
+                        ? new LastMultiplayerRun { room = PhotonNetwork.CurrentRoom.Name, runId = record.runId,
+                            accountId = member.accountId, actor = member.actor, restaurant = record.restaurant }
+                        : null;
+                }
+                catch (ArgumentException) { rejoinPointer = null; }
+                pendingRejoin = true;
+            }
+            CompleteLastRunJoin(); return;
+        }
         if (pendingRejoin) { CompleteLastRunJoin(); return; }
+        PhotonNetwork.AutomaticallySyncScene = true;
         busy = false;
         PhotonNetwork.LocalPlayer.SetCustomProperties(new Hashtable {
             [MultiplayerSessionManager.ReadyKey] = false, [MultiplayerSessionManager.LoadedKey] = "" });
@@ -226,11 +298,22 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
     public override void OnRoomPropertiesUpdate(Hashtable changed)
     {
         RefreshRoom();
+        if (awaitingAdmission) { CompleteLastRunJoin(); return; }
         if (starting && PhotonNetwork.IsMasterClient && changed[MultiplayerSessionManager.RunKey] is string json
             && !string.IsNullOrEmpty(startingRunId) && json.Contains(startingRunId))
         {
+            MultiplayerRunRecord accepted;
+            try { accepted = JsonUtility.FromJson<MultiplayerRunRecord>(json); }
+            catch (ArgumentException) { return; }
+            if (!SupportedRoom() || !MultiplayerRunRecords.Valid(accepted) || accepted.runId != startingRunId
+                || accepted.restaurant != RoomRestaurant || accepted.sceneName != Destination)
+            {
+                startingRunId = null;
+                Fail("Run restaurant or destination does not match the room. Leave and create a supported room.");
+                return;
+            }
             startingRunId = null;
-            PhotonNetwork.LoadLevel(Destination);
+            PhotonNetwork.LoadLevel(accepted.sceneName);
         }
     }
     public override void OnLeftRoom()
@@ -242,6 +325,8 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
     }
     public override void OnDisconnected(DisconnectCause cause)
     {
+        if (!string.IsNullOrEmpty(rejoinFailure))
+        { string notice = rejoinFailure; rejoinFailure = null; Fail(notice); return; }
         if (cause == DisconnectCause.DisconnectByClientLogic && busy) return;
         if (busy) Fail(PhotonBootstrap.Instance?.LastConnectionError ?? "Photon disconnected (" + cause + "). Please retry.");
     }
@@ -252,8 +337,9 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
     public override void OnJoinRoomFailed(short code, string message)
     {
         if (!pendingRejoin) { Fail(JoinFailureMessage(code)); return; }
-        bool expired = code == ErrorCode.GameDoesNotExist || code == ErrorCode.JoinFailedWithRejoinerNotFound
-            || code == ErrorCode.GameClosed;
+        if (code == ErrorCode.JoinFailedWithRejoinerNotFound)
+        { fallbackRejoin = true; pendingCode = rejoinPointer.room; return; }
+        bool expired = code == ErrorCode.GameDoesNotExist;
         if (expired) MultiplayerLastRun.Forget(rejoinPointer?.accountId, rejoinPointer?.runId);
         Fail(expired ? "That run or your reserved place no longer exists. Join or create a new room."
             : code == ErrorCode.JoinFailedFoundActiveJoiner || code == ErrorCode.JoinFailedPeerAlreadyJoined
@@ -268,14 +354,14 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
             code == ErrorCode.JoinFailedFoundActiveJoiner || code == ErrorCode.JoinFailedPeerAlreadyJoined
                 ? "This account is already in the room. Each player must sign in with a different account." :
             code == ErrorCode.JoinFailedFoundInactiveJoiner
-                ? "Your previous connection still reserves a place. Reconnect from that game, or wait 90 seconds and retry." :
-            "Unable to join (" + code + "). Reconnect, then ask the host to create a fresh room.";
+                ? "Your place is reserved. Use Rejoin Session to return." :
+            "Unable to join (" + code + "). Check your connection and try again.";
 
     private void Fail(string message)
     {
         if (pendingRejoin && !PhotonNetwork.InRoom && !Ready()) PhotonNetwork.Disconnect();
-        pendingRejoin = false;
-        PhotonNetwork.AutomaticallySyncScene = true;
+        pendingRejoin = awaitingAdmission = false;
+        PhotonNetwork.AutomaticallySyncScene = !PhotonNetwork.InRoom;
         busy = false;
         pendingCode = null;
         starting = false;
@@ -288,36 +374,35 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
         RefreshControls();
         if (!PhotonNetwork.InRoom)
         {
-            codeText.text = "DINE IN CODE: ----";
+            codeText.text = "<size=50%>Room code</size>\n<nobr>—</nobr>";
             if (joinCodeText != null) joinCodeText.text = codeText.text;
-            foreach (var text in rosterTexts) text.text = "";
-            SetStatus("Create or join a room.");
+            foreach (var text in rosterTexts) text.text = "Waiting…";
+            SetStatus("Waiting…");
             return;
         }
         var room = PhotonNetwork.CurrentRoom;
-        codeText.text = "DINE IN CODE: " + room.Name;
+        codeText.text = "<size=50%>Room code</size>\n<nobr>" + MultiplayerSocialUI.Escape(room.Name) + "</nobr>";
         if (joinCodeText != null) joinCodeText.text = codeText.text;
-        var roster = new StringBuilder($"PLAYERS {room.PlayerCount}/{room.MaxPlayers}");
+        var roster = new StringBuilder();
         var players = PhotonNetwork.PlayerList;
         Array.Sort(players, (a, b) => a.ActorNumber.CompareTo(b.ActorNumber));
         foreach (var player in players)
         {
             string nickname = string.IsNullOrWhiteSpace(player.NickName) ? "Player" : player.NickName.Replace('\n',' ').Replace('\r',' ');
             if (nickname.Length > 22) nickname = nickname.Substring(0,22);
-            roster.Append('\n').Append(nickname).Append(player.IsMasterClient ? " (HOST)" : "")
+            roster.Append(player == players[0] ? "" : "\n").Append(nickname).Append(player.IsMasterClient ? " (HOST)" : "")
                 .Append(player.IsLocal ? " (YOU)" : "")
-                .Append(player.IsInactive ? " • Reconnecting" : Equals(player.CustomProperties[MultiplayerSessionManager.ReadyKey], true) ? " • Ready" : " • Preparing");
+                .Append(player.IsInactive ? "\nReconnecting" : Equals(player.CustomProperties[MultiplayerSessionManager.ReadyKey], true) ? "\nREADY" : "\nNot ready");
         }
-        for (int i = players.Length; i < room.MaxPlayers; i++) roster.Append("\nOpen slot");
+        for (int i = players.Length; i < room.MaxPlayers; i++) roster.Append("\nOpen seat\nWaiting…");
         foreach (var text in rosterTexts) text.text = roster.ToString();
-        if (!Equals(room.CustomProperties[RestaurantKey], "CasualDining") ||
-            !Equals(room.CustomProperties[MultiplayerSessionManager.ProtocolKey], MultiplayerSessionManager.Protocol))
+        if (!SupportedRoom())
         {
             SetStatus("Room version or restaurant differs. All players must use the same updated game version.");
             return;
         }
         bool enoughPlayers = HasPlayablePartySize(room.PlayerCount, room.MaxPlayers);
-        SetStatus(starting ? "STARTING..." : enoughPlayers ? "Ready up. The host starts when everyone here is ready." : "WAITING FOR AT LEAST 2 PLAYERS...");
+        SetStatus(starting ? "STARTING..." : enoughPlayers ? "Ready up. Host starts when all are ready." : "Waiting for players…");
     }
 
     private void Update()
@@ -329,7 +414,11 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
             && PlayFabAuthManager.Instance?.IsLoggedIn == true
             && PhotonBootstrap.ConnectionMatchesAccount(PlayFabAuthManager.Instance.PlayFabId)) Submit();
         if (busy && Time.realtimeSinceStartup > operationDeadline)
-            Fail(PhotonBootstrap.Instance?.LastConnectionError ?? "Room request timed out. Please retry.");
+        {
+            if (awaitingAdmission && PhotonNetwork.InRoom)
+            { rejoinFailure = "Host admission timed out. Your session remains available to retry."; pendingRejoin = awaitingAdmission = false; PhotonNetwork.LeaveRoom(false); }
+            else Fail(PhotonBootstrap.Instance?.LastConnectionError ?? "Room request timed out. Please retry.");
+        }
         if (starting && startingRunId != null && Time.realtimeSinceStartup > operationDeadline)
         {
             startingRunId = null; starting = false;
@@ -341,6 +430,8 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
     private void RoomAction()
     {
         if (!PhotonNetwork.InRoom || starting) return;
+        if (!SupportedRoom())
+        { SetStatus("Room restaurant, destination or version is inconsistent. Leave and create a supported room."); return; }
         var players = PhotonNetwork.PlayerList;
         var room = PhotonNetwork.CurrentRoom;
         bool allReady = EveryonePresentReady(players, room.MaxPlayers);
@@ -350,12 +441,14 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
                 !Equals(PhotonNetwork.LocalPlayer.CustomProperties[MultiplayerSessionManager.ReadyKey], true) });
             return;
         }
-        if (!Equals(room.CustomProperties[MultiplayerSessionManager.ProtocolKey], MultiplayerSessionManager.Protocol)) return;
+        MultiplayerDestinations.TryGet(RoomRestaurant, out var scene, out var rules);
         var record = new MultiplayerRunRecord { runId = Guid.NewGuid().ToString("N"),
             hostActor = PhotonNetwork.LocalPlayer.ActorNumber, hostAccountId = PhotonNetwork.LocalPlayer.UserId,
-            partySize = players.Length, gameVersion = Application.version, startedUtc = DateTime.UtcNow.ToString("o") };
+            partySize = players.Length, gameVersion = Application.version, restaurant = RoomRestaurant,
+            sceneName = scene, rulesVersion = rules,
+            startedUtc = DateTime.UtcNow.ToString("o") };
         foreach (var player in players) record.participants.Add(new MultiplayerRunParticipant {
-            accountId = player.UserId, actor = player.ActorNumber, displayName = player.NickName });
+            accountId = player.UserId, actor = player.ActorNumber, initialActor = player.ActorNumber, displayName = player.NickName });
         if (!MultiplayerRunRecords.Valid(record)) { SetStatus("Each player must use a different signed-in account."); return; }
         if (!Application.CanStreamedLevelBeLoaded(Destination))
         {
@@ -365,13 +458,18 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
         starting = true;
         startingRunId = record.runId;
         operationDeadline = Time.realtimeSinceStartup + 8f;
-        room.IsOpen = false;
+        // The host admits only the frozen roster; an open transport room permits long-disconnect returns.
+        room.IsOpen = true;
         room.IsVisible = false;
         room.SetCustomProperties(new Hashtable { [MultiplayerSessionManager.RunKey] = JsonUtility.ToJson(record) });
     }
 
     private void RefreshControls()
     {
+        if (createHeading != null) createHeading.text = PhotonNetwork.InRoom ? "ROOM LOBBY" : "CREATE ROOM";
+        if (joinHeading != null) joinHeading.text = PhotonNetwork.InRoom ? "ROOM LOBBY" : "JOIN ROOM";
+        var roomTabLabel = joinTabButton.GetComponentInChildren<TMP_Text>();
+        if (roomTabLabel != null) roomTabLabel.text = PhotonNetwork.InRoom ? "Room" : "Join";
         var leaveLabel = createTabButton.GetComponentInChildren<TMP_Text>();
         if (leaveLabel != null) leaveLabel.text = PhotonNetwork.InRoom ? "LEAVE ROOM" : createTabLabel;
         createTabButton.interactable = !starting && !busy;
@@ -389,8 +487,8 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
         }
         else
         {
-            createButton.GetComponentInChildren<TMP_Text>().text = "CREATE";
-            joinButton.GetComponentInChildren<TMP_Text>().text = "JOIN";
+            createButton.GetComponentInChildren<TMP_Text>().text = "Create Room";
+            joinButton.GetComponentInChildren<TMP_Text>().text = "Join";
         }
     }
 

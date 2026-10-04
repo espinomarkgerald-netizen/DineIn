@@ -46,7 +46,7 @@ public sealed partial class FastFoodCookingView
             cameraStartPosition=stationCamera.transform.position;cameraStartRotation=stationCamera.transform.rotation;
             cameraStartSize=stationCamera.orthographicSize;cameraStartFov=stationCamera.fieldOfView;
         }
-        State.FryerPrepPaused=State.Mode==FastFoodStationMode.Fry && (prepView || cameraMoving);
+        State.FryerPrepPaused=!FastFoodCookingController.IsMultiplayer && State.Mode==FastFoodStationMode.Fry && (prepView || cameraMoving);
         if(!cameraMoving || drag!=null || Time.timeScale<=0)return;
         var target=prepView?activeStation.preparationViewAnchor:activeStation.cookingViewAnchor;
         if(target==null){cameraMoving=false;return;}

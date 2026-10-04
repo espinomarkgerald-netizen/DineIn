@@ -19,6 +19,7 @@ public class RecipeIngredient { public ItemData item; public int amount; }
 public class KitchenAssemblyStep { public ItemData item; public string label; }
 public class Recipe
 {
+    public string ProductId => kitchenItemType.ToString();
     public FastFoodStationMode cookingStation;
     public FastFoodStationMode preparationStation;
     public List<KitchenAssemblyStep> kitchenAssemblySteps = new();
@@ -26,6 +27,13 @@ public class Recipe
     public MenuProductCategory category;
     public ItemTypeKitchen kitchenItemType;
     public List<RecipeIngredient> ingredients = new();
+}
+
+public sealed class MenuCatalog
+{
+    public static readonly MenuCatalog Default = new();
+    public readonly Dictionary<string, Recipe> products = new();
+    public Recipe FindProduct(string id) => id != null && products.TryGetValue(id, out var recipe) ? recipe : null;
 }
 
 public static class CookingHarness
@@ -56,8 +64,12 @@ public static class CookingHarness
         public void FinishBurger(FastFoodCookingState.Portion p)
         { Cook(p);Assert(state.Collect(p),"collect");foreach(var s in FastFoodCookingState.Steps(burger).Skip(1))Assert(state.Load(p,s.item),"add ingredient"); }
     }
-    private static Recipe Make(ItemTypeKitchen type,params ItemType[] items)=>new Recipe
-    { kitchenItemType=type, ingredients=items.Select(i=>new RecipeIngredient{item=new ItemData{itemType=i},amount=1}).ToList() };
+    private static Recipe Make(ItemTypeKitchen type,params ItemType[] items)
+    {
+        var recipe = new Recipe { kitchenItemType=type, ingredients=items.Select(i=>new RecipeIngredient{item=new ItemData{itemType=i},amount=1}).ToList() };
+        MenuCatalog.Default.products[recipe.ProductId] = recipe;
+        return recipe;
+    }
     private static void Assert(bool value,string message) { if(!value)throw new Exception(message); }
     private static void Test(string name,Action body) { body();Console.WriteLine("PASS "+name); }
     public static void Main()
@@ -146,6 +158,74 @@ public static class CookingHarness
             for(int i=0;i<10;i++)f.state.Tick(1,false,false);
             Assert(f.consumes==1,"staff completes without double debit");
         });
-        Console.WriteLine("30 cooking and guidance scenarios passed. Unity lifecycle and rendering are not simulated.");
+        Test("multiplayer local navigation never acquires or releases teammate work",()=>
+        {
+            var f=new Fixture();f.state.Networked=true;f.state.Accept(1,new[]{f.burger});f.state.Activate(1);
+            f.state.SetParticipantStation(2,FastFoodStationMode.Grill);var p=f.state.Portions[0];
+            f.state.Enter(FastFoodStationMode.Fry);f.state.SelectStations();
+            Assert(p.player&&f.state.ParticipantStation(2)==FastFoodStationMode.Grill,"teammate ownership preserved");
+            Assert(f.state.Mode==FastFoodStationMode.None,"local selection");
+        });
+        Test("two participants share a station without a whole station lock",()=>
+        {
+            var f=new Fixture();f.state.Networked=true;f.state.Accept(1,new[]{f.burger,f.burger});f.state.Activate(1);
+            f.state.SetParticipantStation(1,FastFoodStationMode.Grill);f.state.SetParticipantStation(2,FastFoodStationMode.Grill);
+            var a=f.state.Portions[0];var b=f.state.Portions[1];
+            Assert(f.state.ExecuteNetworkAction("Load",FastFoodStationMode.Grill,a.networkId,(int)ItemType.Patty,0,1),"first slot");
+            Assert(f.state.ExecuteNetworkAction("Load",FastFoodStationMode.Grill,b.networkId,(int)ItemType.Patty,1,1),"second slot");
+            f.state.SetParticipantStation(1,FastFoodStationMode.None);Assert(a.player&&b.player,"second participant retains work");
+            f.state.Tick(4,false,false);Assert(a.elapsed==4&&b.elapsed==4,"both cook");
+        });
+        Test("different multiplayer stations progress without changing local focus",()=>
+        {
+            var f=new Fixture();f.state.Networked=true;f.state.Accept(1,new[]{f.burger,f.fries});f.state.Activate(1);
+            f.state.SetParticipantStation(1,FastFoodStationMode.Grill);f.state.SetParticipantStation(2,FastFoodStationMode.Fry);
+            f.state.Enter(FastFoodStationMode.Assembler);var a=f.state.Portions[0];var b=f.state.Portions[1];
+            Assert(f.state.ExecuteNetworkAction("Load",FastFoodStationMode.Grill,a.networkId,(int)ItemType.Patty,0,1),"grill load");
+            Assert(f.state.ExecuteNetworkAction("Load",FastFoodStationMode.Fry,b.networkId,(int)ItemType.Potato,0,1),"fry load");
+            f.state.FryerPrepPaused=true;f.state.Tick(3,false,false);
+            Assert(a.elapsed==3&&b.elapsed==3&&f.state.Mode==FastFoodStationMode.Assembler,"camera-independent simulation");
+        });
+        Test("cooking snapshot restores timers and references without consuming ingredients",()=>
+        {
+            var host=new Fixture();host.state.Networked=true;host.state.Accept(1,new[]{host.burger});host.state.Activate(1);
+            host.state.SetParticipantStation(1,FastFoodStationMode.Grill);var p=host.state.Portions[0];
+            host.state.ExecuteNetworkAction("Load",FastFoodStationMode.Grill,p.networkId,(int)ItemType.Patty,2,1);host.state.Tick(3,false,false);
+            var guest=new Fixture();guest.state.Networked=true;guest.state.Enter(FastFoodStationMode.Fry);
+            var snapshot=host.state.CaptureNetworkState();Assert(guest.state.ApplyNetworkState(snapshot),"restore");
+            var restored=guest.state.FindPortion(p.networkId);
+            Assert(restored.slot==2&&restored.elapsed==3&&restored.stage==FastFoodCookingStage.Cooking,"exact timer");
+            Assert(guest.consumes==0&&guest.stock[ItemType.Patty]==30&&guest.state.Mode==FastFoodStationMode.Fry,"no transaction or navigation replay");
+            Assert(guest.state.ApplyNetworkState(snapshot)&&ReferenceEquals(restored,guest.state.FindPortion(p.networkId))&&guest.consumes==0,"idempotent restoration preserves view references");
+        });
+        Test("repeated accepted kitchen operations cannot debit ingredients twice",()=>
+        {
+            var f=new Fixture();f.state.Networked=true;f.state.Accept(1,new[]{f.drink});f.state.Activate(1);
+            f.state.SetParticipantStation(1,FastFoodStationMode.Assembler);var p=f.state.Portions[0];
+            string previous=FastFoodCookingState.PortionVersion(p);
+            Assert(f.state.ExecuteNetworkAction("Place",FastFoodStationMode.Assembler,p.networkId,-1,-1,1),"first placement");
+            Assert(previous!=FastFoodCookingState.PortionVersion(p),"stale action version invalidated");
+            Assert(!f.state.ExecuteNetworkAction("Place",FastFoodStationMode.Assembler,p.networkId,-1,-1,1),"duplicate placement rejected");
+            Assert(f.state.ExecuteNetworkAction("Serve",FastFoodStationMode.Assembler,0,-1,-1,1)&&!f.state.ExecuteNetworkAction("Serve",FastFoodStationMode.Assembler,0,-1,-1,1)&&f.consumes==1,"one debit and one submission");
+        });
+        Test("last participant departure hands unfinished cooking to staff once",()=>
+        {
+            var f=new Fixture();f.state.Networked=true;f.state.Accept(1,new[]{f.burger});f.state.Activate(1);
+            f.state.SetParticipantStation(1,FastFoodStationMode.Grill);var p=f.state.Portions[0];
+            f.state.ExecuteNetworkAction("Load",FastFoodStationMode.Grill,p.networkId,(int)ItemType.Patty,0,1);f.state.Tick(2,false,false);
+            f.state.SetParticipantStation(1,FastFoodStationMode.None);f.state.SetParticipantStation(1,FastFoodStationMode.None);
+            Assert(!p.player&&p.elapsed==2,"handoff preserves progress");
+            for(int i=0;i<20;i++)f.state.Tick(1,false,false);
+            Assert(f.consumes==1&&f.state.FindTicket(1).submitted,"staff finishes original reservation once");
+        });
+        Test("completed prep and placed food restore without replaying consumption",()=>
+        {
+            var host=new Fixture();var p=host.PlayerBurger();host.FinishBurger(p);host.state.Networked=true;
+            var guest=new Fixture();guest.state.Networked=true;var snapshot=host.state.CaptureNetworkState();
+            Assert(guest.state.ApplyNetworkState(snapshot),"restore finished prep");
+            var restored=guest.state.FindPortion(p.networkId);
+            Assert(restored.stage==FastFoodCookingStage.Complete&&restored.placed&&restored.prepSlot==-1&&guest.consumes==0,"finished food exact and no debit");
+        });
+        Console.WriteLine("37 cooking and guidance scenarios passed. Unity lifecycle, transport and rendering are not simulated.");
     }
 }

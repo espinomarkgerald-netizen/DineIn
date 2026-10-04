@@ -16,7 +16,8 @@ public sealed class MultiplayerRestockBridge : MonoBehaviourPunCallbacks, IOnEve
         public string run;
         public int day;
         public int sequence;
-        public string operation, restaurant, shelf;
+        public string operation, restaurant, shelf, container, batch;
+        public int units;
         public string[] items;
         public int[] quantities;
         public int column, row;
@@ -64,6 +65,26 @@ public sealed class MultiplayerRestockBridge : MonoBehaviourPunCallbacks, IOnEve
         && Active.state.owner == Active.session.LocalActorNumber);
     public static bool RequestPending => IsActive && (Active == null || Active.pending != null);
     public bool StockRoomInUse => state.owner != 0;
+    public bool HasRestoredState => initialized && session != null && (session.IsAuthority ||
+        state.revision > 0 && state.run == session.RunId && state.data.currentDay == MultiplayerProgressionContext.CurrentDay);
+    public void RefreshAfterRejoin()
+    {
+        if (session == null || session.IsAuthority) return;
+        CancelLocal();
+        state = new Snapshot(); published = displayedLedger = null; initialized = false;
+    }
+    public void PublishNow()
+    {
+        if (session != null && session.IsAuthority && MultiplayerProgressionContext.Ready)
+        { initialized = true; Publish(); }
+    }
+    public void ParticipantUnavailable(int actor)
+    {
+        if (session == null || !session.IsAuthority) return;
+        if (state.owner == actor) state.owner = 0;
+        PublishNow();
+    }
+    public void SuspendSession() => CancelLocal();
 
     private ManagementComputerController computer;
     private ManagementComputerController Computer
@@ -123,6 +144,14 @@ public sealed class MultiplayerRestockBridge : MonoBehaviourPunCallbacks, IOnEve
         => Submit(new Request { operation = "place", items = new[] { item.StableItemId },
             shelf = grid.StableShelfId, column = column, row = row,
             wrongStorageConfirmed = grid.StorageType != item.requiredStorage }, done);
+
+    public void RequestDiscard(RestockStorageContainer box, Action<bool, string> done)
+    {
+        if (!FastFoodMultiplayerSession.IsActive || box == null || box.Item == null)
+        { done?.Invoke(false, "This box cannot be discarded in the current session."); return; }
+        Submit(new Request { operation = "discard", container = box.ContainerID, batch = box.StockBatchID,
+            items = new[] { box.Item.StableItemId }, units = box.CurrentRemainingQuantity }, done);
+    }
 
     private void Submit(Request request, Action<bool, string> done)
     {
@@ -205,6 +234,8 @@ public sealed class MultiplayerRestockBridge : MonoBehaviourPunCallbacks, IOnEve
             }
             else if (request.operation == "place" && state.owner == actor)
                 accepted = Place(request, out message);
+            else if (request.operation == "discard" && state.owner == actor && session.RestaurantType == "FastFood")
+                accepted = Discard(request, out message);
         }
         finally { committing = false; }
         var receipt = new Receipt { actor = actor, sequence = request.sequence, accepted = accepted, message = message };
@@ -284,6 +315,33 @@ public sealed class MultiplayerRestockBridge : MonoBehaviourPunCallbacks, IOnEve
             wrongStorage = shelf.storage != item.requiredStorage,
             rotationY = item.worldContainerPrefab.transform.eulerAngles.y
         });
+        return true;
+    }
+
+    private bool Discard(Request request, out string message)
+    {
+        message = "This box or its quantity changed. Check the shared stock and try again.";
+        var orders = RestockOrderManager.Instance;
+        var inventory = InventoryManager.Instance;
+        ItemData item = request.items?.Length == 1 ? FindItem(request.items[0]) : null;
+        if (orders == null || inventory == null || item == null || request.units < 0
+            || string.IsNullOrEmpty(request.container) || string.IsNullOrEmpty(request.batch)) return false;
+        RestockStoredContainerSaveData stored = null;
+        foreach (var entry in orders.StoredContainers)
+            if (entry != null && entry.containerID == request.container) { stored = entry; break; }
+        if (stored == null || stored.stockBatchID != request.batch || stored.itemID != item.StableItemId
+            || stored.itemType != item.itemType) return false;
+        bool hasBatch = inventory.TryGetBatch(stored.stockBatchID, out var batch);
+        if (hasBatch && (batch.itemType != stored.itemType || batch.currentStorage != stored.storageType
+            || batch.unitsRemaining < 0 || batch.unitsRemaining != request.units)) return false;
+        if (!hasBatch && request.units != 0) return false;
+        int units = hasBatch ? batch.unitsRemaining : 0;
+        if (inventory.GetStock(item.itemType) < units) return false;
+        // Exact authoritative batch only: never fall back to another container of the ingredient.
+        if (units > 0 && inventory.DiscardContainerStock(item.itemType, units, stored.stockBatchID) != units) return false;
+        orders.RemovePhysicalContainer(stored.containerID);
+        message = units > 0 ? $"Threw away {item.displayName}. {units} stock removed."
+            : $"Removed the empty {item.displayName} container. No stock remained to deduct.";
         return true;
     }
 
@@ -379,7 +437,8 @@ public sealed class MultiplayerRestockBridge : MonoBehaviourPunCallbacks, IOnEve
     {
         if (string.IsNullOrEmpty(json)) return;
         Snapshot incoming = JsonUtility.FromJson<Snapshot>(json);
-        if (incoming?.data == null || incoming.run != session.RunId || incoming.revision <= state.revision) return;
+        if (incoming?.data == null || incoming.run != session.RunId || incoming.revision <= state.revision
+            || incoming.data.currentDay != MultiplayerProgressionContext.CurrentDay) return;
         foreach (var order in RestockOrderManager.Instance.Orders)
             if (order.deliveryNoticeShown) seenNotices.Add(order.orderID);
         foreach (var order in incoming.data.restockOrders)

@@ -18,7 +18,7 @@ public sealed partial class MultiplayerObjectBridge : MonoBehaviour, Photon.Real
         public string parent;
         public string[] products;
         public bool cleanup, locked, burnt, complaintRemoval;
-        public Vector3 position, localPosition;
+        public Vector3 position, localPosition, worldScale;
         public Quaternion rotation, localRotation;
     }
     [Serializable] private sealed class Snapshot
@@ -30,6 +30,7 @@ public sealed partial class MultiplayerObjectBridge : MonoBehaviour, Photon.Real
     }
     private MultiplayerSessionManager session;
     private int revision, received;
+    public bool HasRestoredState => session != null && (session.IsAuthority || received > 0 && pendingObjects == null);
     private float nextTick;
     private readonly Dictionary<int, FoodTray> observedTrays = new();
     private readonly Dictionary<GameObject, MultiplayerAnimatorState> animationStates = new();
@@ -65,6 +66,11 @@ public sealed partial class MultiplayerObjectBridge : MonoBehaviour, Photon.Real
         if (string.IsNullOrEmpty(id)) return null;
         if (id.StartsWith("player:") && int.TryParse(id.Substring(7), out int actor))
             return session.TryGetManager(actor, out var manager) ? manager.transform : null;
+        if (id.StartsWith("staff:"))
+        {
+            var staff = session.GetComponent<MultiplayerStaffRosterController>()?.FindStaff(id.Substring(6));
+            if (staff != null) return staff.transform;
+        }
         foreach (var bot in MultiplayerWorldRegistry.All<AutonomousStaffBot>())
             if (id == "staff:" + bot.name) return bot.transform;
         return null;
@@ -78,6 +84,13 @@ public sealed partial class MultiplayerObjectBridge : MonoBehaviour, Photon.Real
         foreach (var trolley in trolleys)
             for (int i = 0; i < trolley.TraySlots.Count; i++)
                 if (trolley.TraySlots[i] != null && tray.transform.IsChildOf(trolley.TraySlots[i])) return "trolley:" + (int)trolley.Effect + ":" + i;
+        var customer = tray.GetComponentInParent<CustomerAgent>();
+        var customerGroup = customer != null ? customer.GetComponentInParent<CustomerGroup>() : null;
+        if (customerGroup != null && customer.TrayCarryAnchor != null && tray.transform.IsChildOf(customer.TrayCarryAnchor))
+        {
+            int member = customerGroup.members.IndexOf(customer);
+            if (member >= 0 && GroupId(customerGroup) > 0) return "customer:" + GroupId(customerGroup) + ":" + member;
+        }
         var booth = tray.GetComponentInParent<Booth>();
         if (booth != null) return "booth:" + MultiplayerCustomerInteractionBridge.BoothIdentity(booth);
         if (kitchen != null && kitchen.traySpawnPoints != null)
@@ -103,7 +116,7 @@ public sealed partial class MultiplayerObjectBridge : MonoBehaviour, Photon.Real
                 interactionMode = (int)(tray.GetComponent<FoodTrayInteractable>()?.CurrentMode ?? FoodTrayInteractable.TrayMode.None),
                 complaintRemoval = tray.GetComponent<FoodTrayInteractable>()?.IsComplaintRemoval == true,
                 locked = tray.NetworkCarryLocked, burnt = tray.ContainsBurntFood,
-                position = tray.transform.position, rotation = tray.transform.rotation, localPosition = tray.transform.localPosition, localRotation = tray.transform.localRotation });
+                worldScale = tray.transform.lossyScale, position = tray.transform.position, rotation = tray.transform.rotation, localPosition = tray.transform.localPosition, localRotation = tray.transform.localRotation });
         }
         SendPoses(state.workers, state.trolleys);
         // Only existence/visibility belongs in the reliable baseline. Animation
@@ -173,10 +186,11 @@ public sealed partial class MultiplayerObjectBridge : MonoBehaviour, Photon.Real
             observedTrays[state.order] = tray;
             if (tray.TargetGroup == null && state.group > 0 && MultiplayerServiceActions.Resolve(state.group) != null)
                 tray.PresentNetworkData(MultiplayerServiceActions.Resolve(state.group), state.order, state.products, state.burnt);
-            tray.NetworkCarryLocked = state.locked || state.parent.StartsWith("waiter:") || state.parent.StartsWith("busser:") || state.parent.StartsWith("trolley:");
+            tray.NetworkCarryLocked = state.locked || state.parent.StartsWith("waiter:") || state.parent.StartsWith("busser:") || state.parent.StartsWith("trolley:") || state.parent.StartsWith("customer:");
             tray.SetContainsBurntFood(state.burnt);
             Transform parent = null;
             int preparedSlot = -1;
+            CustomerAgent carryingCustomer = null;
             if (state.parent.StartsWith("waiter:") || state.parent.StartsWith("busser:"))
             {
                 var root = ActorRoot(state.parent.Substring(7));
@@ -185,6 +199,16 @@ public sealed partial class MultiplayerObjectBridge : MonoBehaviour, Photon.Real
                 {
                     if (dirty) { var hands = root.GetComponent<BusserHands>(); if (hands != null) { hands.holdingTray = tray; parent = hands.TrayHoldPoint; } }
                     else { var hands = root.GetComponent<WaiterHands>(); if (hands != null) { hands.holdingTray = tray; parent = hands.TrayHoldPoint; } }
+                }
+            }
+            else if (state.parent.StartsWith("customer:"))
+            {
+                string[] parts = state.parent.Split(':');
+                if (parts.Length == 3 && int.TryParse(parts[1], out int groupId) && int.TryParse(parts[2], out int member))
+                {
+                    var group = MultiplayerServiceActions.Resolve(groupId);
+                    if (group != null && member >= 0 && member < group.members.Count)
+                    { carryingCustomer = group.members[member]; parent = carryingCustomer != null ? carryingCustomer.TrayCarryAnchor : null; }
                 }
             }
             else if (state.parent.StartsWith("booth:")) parent = MultiplayerCustomerInteractionBridge.ResolveBooth(state.parent.Substring(6))?.NetworkTrayPoint;
@@ -197,13 +221,24 @@ public sealed partial class MultiplayerObjectBridge : MonoBehaviour, Photon.Real
                 if (parts.Length == 3 && int.TryParse(parts[1], out int effect) && int.TryParse(parts[2], out int slot))
                     foreach (var trolley in trolleys) if ((int)trolley.Effect == effect && slot >= 0 && slot < trolley.TraySlots.Count) parent = trolley.TraySlots[slot];
             }
+            var oldCustomer = tray.GetComponentInParent<CustomerAgent>();
             var oldWaiter = tray.GetComponentInParent<WaiterHands>(true);
             var oldBusser = tray.GetComponentInParent<BusserHands>(true);
             if (parent == null && !string.IsNullOrEmpty(state.parent)) { unresolved = true; continue; }
+            if (oldCustomer != null && oldCustomer != carryingCustomer) oldCustomer.EndTrayCarry(tray);
+            if (carryingCustomer != null && carryingCustomer != oldCustomer) carryingCustomer.BeginTrayCarry(tray);
             if (oldWaiter != null && (parent == null || !parent.IsChildOf(oldWaiter.transform)) && oldWaiter.holdingTray == tray) oldWaiter.holdingTray = null;
             if (oldBusser != null && (parent == null || !parent.IsChildOf(oldBusser.transform)) && oldBusser.holdingTray == tray) oldBusser.holdingTray = null;
             if (parent != null) WaiterHands.AttachKeepingWorldScale(tray.transform, parent, state.localPosition, state.localRotation);
             else { tray.transform.SetParent(null, true); tray.transform.SetPositionAndRotation(state.position, state.rotation); }
+            if (state.worldScale.sqrMagnitude > 0f)
+            {
+                var scale = parent != null ? parent.lossyScale : Vector3.one;
+                tray.transform.localScale = new Vector3(
+                    Mathf.Abs(scale.x) > .00001f ? state.worldScale.x / scale.x : 1f,
+                    Mathf.Abs(scale.y) > .00001f ? state.worldScale.y / scale.y : 1f,
+                    Mathf.Abs(scale.z) > .00001f ? state.worldScale.z / scale.z : 1f);
+            }
             kitchen.RegisterObservedTray(tray, preparedSlot);
             if (state.parent.StartsWith("booth:") && tray.TargetGroup != null && tray.TargetGroup.state == CustomerGroup.GroupState.Eating)
                 tray.TargetGroup.PresentObservedServed(tray);
@@ -216,7 +251,7 @@ public sealed partial class MultiplayerObjectBridge : MonoBehaviour, Photon.Real
         foreach (int order in new List<int>(observedTrays.Keys)) if (!present.Contains(order))
         {
             var tray = observedTrays[order];
-            if (tray != null) { var w = tray.GetComponentInParent<WaiterHands>(true); if (w != null && w.holdingTray == tray) w.holdingTray = null;
+            if (tray != null) { tray.GetComponentInParent<CustomerAgent>()?.EndTrayCarry(tray); var w = tray.GetComponentInParent<WaiterHands>(true); if (w != null && w.holdingTray == tray) w.holdingTray = null;
                 var b = tray.GetComponentInParent<BusserHands>(true); if (b != null && b.holdingTray == tray) b.holdingTray = null; Destroy(tray.gameObject); }
             observedTrays.Remove(order);
         }

@@ -161,6 +161,7 @@ public sealed class TutorialDayContext : MonoBehaviour
         { DailyFinanceBridge.Instance?.ResetDay(); DailyRevenueTracker.Instance?.ResetForNewDay(); }
         DailyObjectiveManager.Instance?.ResetForNewRun();
         runtimeIsolated = true;
+        GetComponent<TutorialStaffSpawnGate>()?.RefreshStaffAppearance();
         Debug.Log("[Tutorial Day] Fresh isolated session applied: Day 1, P5000, 50% approval, empty stock/orders, fresh staff and menu state.", this);
     }
 

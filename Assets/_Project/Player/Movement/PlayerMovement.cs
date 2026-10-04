@@ -209,7 +209,8 @@ public class PlayerMovement : MonoBehaviour
 
         if (activeCam == null) return;
 
-        if (isPlayerControlled && state != State.DoingJob && !MultiplayerDayBridge.PreparationLocked)
+        if (isPlayerControlled && !MultiplayerSocialUI.InputBlocked
+            && state != State.DoingJob && !MultiplayerDayBridge.PreparationLocked)
         {
             // Always handle touch input when touches are present (covers mobile + tablet).
             // Fall back to mouse input on desktop / editor when no touches are active.

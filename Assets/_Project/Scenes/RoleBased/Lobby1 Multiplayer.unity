@@ -38334,6 +38334,7 @@ GameObject:
   - component: {fileID: 2200000505}
   - component: {fileID: 2200000506}
   - component: {fileID: 2200000507}
+  - component: {fileID: 2200000508}
   m_Layer: 0
   m_Name: Multiplayer Manager Spawn
   m_TagString: Untagged
@@ -38384,6 +38385,22 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b461983d20344ed4ad7e2d8103fd8001, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  socialUIPrefab: {fileID: 8000266, guid: e96f5e2d19c14bdb879ae80fb600db05, type: 3}
+  gameplayBinding: {fileID: 2200000508}
+  automaticReconnectSeconds: 30
+  restorationTimeoutSeconds: 25
+--- !u!114 &2200000508
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2200000500}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 925ccc5e096e48c09299028976aa5849, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
 --- !u!114 &2200000504
 MonoBehaviour:
   m_ObjectHideFlags: 0

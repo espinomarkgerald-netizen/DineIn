@@ -20,6 +20,7 @@ public sealed partial class MultiplayerDayBridge : MonoBehaviourPunCallbacks, IO
         public float remaining, scale;
         public double sentAt, startedAt;
         public int[] report;
+        public int[] fastFoodReport;
         public MultiplayerDayReadiness readiness;
         public int noticeRevision;
         public string notice;
@@ -244,7 +245,8 @@ public sealed partial class MultiplayerDayBridge : MonoBehaviourPunCallbacks, IO
         snapshot = new Snapshot { run = session.RunId, revision = ++revision, day = CurrentDay,
             running = day.ShiftRunning, closing = day.ClosingOut, results = day.HasDayResults,
             remaining = day.TimeRemaining, scale = Time.timeScale, sentAt = PhotonNetwork.Time, startedAt = startedAt,
-            report = day.CaptureMultiplayerReport(), readiness = readiness,
+            report = day.CaptureMultiplayerReport(),
+            fastFoodReport = FastFoodMultiplayerSession.IsActive ? day.CaptureFastFoodReport() : null, readiness = readiness,
             readinessActive = readiness != null && !day.ServiceActive && !day.HasDayResults,
             notice = notice, noticeRevision = noticeRevision,
             stockoutActive = stockoutActive, stockoutEpisode = stockoutEpisode, stockoutMessage = stockoutMessage };
@@ -260,6 +262,7 @@ public sealed partial class MultiplayerDayBridge : MonoBehaviourPunCallbacks, IO
             var incoming = JsonUtility.FromJson<Snapshot>(json);
             if (incoming == null || incoming.run != session.RunId || incoming.day < 1
                 || incoming.revision <= appliedRevision || incoming.report?.Length != 7
+                || FastFoodMultiplayerSession.IsActive && incoming.fastFoodReport?.Length != 13
                 || !NormalizeReadiness(incoming)) return;
             snapshot = incoming;
             readPayload = json;
@@ -281,6 +284,7 @@ public sealed partial class MultiplayerDayBridge : MonoBehaviourPunCallbacks, IO
         if (snapshot.revision > appliedRevision)
         {
             day.ApplyMultiplayerReport(snapshot.report);
+            if (FastFoodMultiplayerSession.IsActive) day.RestoreFastFoodReport(snapshot.fastFoodReport);
             appliedRevision = snapshot.revision;
             readiness = snapshot.readiness;
             if (readiness == null) pendingVote = null;
@@ -305,6 +309,7 @@ public sealed partial class MultiplayerDayBridge : MonoBehaviourPunCallbacks, IO
     }
     public void RefreshAfterRejoin()
     {
+        session ??= GetComponent<MultiplayerSessionManager>();
         appliedRevision = 0; readPayload = null; pendingVote = null; observedStockoutEpisode = 0;
         ReadSnapshot();
         // Rebuild current controls without replaying an old start/cancel announcement.

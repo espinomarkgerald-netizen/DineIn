@@ -9,6 +9,7 @@ $refs = Get-ChildItem $framework.FullName -Filter '*.dll' | Where-Object { $_.Na
 $assembly = Join-Path $output 'CookingHarness.dll'
 $rsp = @('-nologo','-target:exe','-langversion:latest',('-out:"' + $assembly + '"')) + $refs + @(('"' + $project + '/Assets/_Project/Restaurant/FastFoodCookingState.cs"'),('"' + $PSScriptRoot + '/fixtures/fastfood_cooking_harness.cs"'))
 $rsp += '"' + $project + '/Assets/_Project/Gameplay/PlayerTaskGuidance.cs"'
+$rsp += '"' + $project + '/Assets/_Project/Restaurant/FastFoodCookingState.Multiplayer.cs"'
 [IO.File]::WriteAllLines("$output/harness.rsp", $rsp)
 $config = @{runtimeOptions=@{tfm='net'+$framework.Name.Substring(0,3);framework=@{name='Microsoft.NETCore.App';version=$framework.Name}}} | ConvertTo-Json -Depth 5
 [IO.File]::WriteAllText("$output/CookingHarness.runtimeconfig.json",$config)

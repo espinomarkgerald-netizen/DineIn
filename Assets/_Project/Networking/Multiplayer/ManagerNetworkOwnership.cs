@@ -16,7 +16,7 @@ public class ManagerNetworkOwnership : MonoBehaviourPun
             || photonView.OwnerActorNr != session.LocalActorNumber;
         if (blocked == inputBlocked) return;
         inputBlocked = blocked;
-        GetComponent<ManagerPlayer>()?.SetExternalInputSuppressed(blocked);
+        GetComponent<ManagerPlayer>()?.SetNetworkInputSuppressed(blocked);
     }
 
     private void Start()

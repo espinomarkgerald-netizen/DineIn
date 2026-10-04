@@ -3,7 +3,54 @@ using UnityEngine;
 
 public partial class CustomerGroup
 {
-    // Set only by the authored Lobby2 coordinator. Other restaurants never opt in.
+    [System.Serializable] public sealed class FastFoodNetworkState
+    {
+        public bool dineIn, paid, selfPickup, served, collecting, bagReady;
+        public int station, waiting, pickup, deliveredOrder;
+        public float seatWait, readyWait, orderPatience;
+    }
+    public FastFoodNetworkState CaptureFastFoodState() => FastFood == null ? null : new FastFoodNetworkState
+    {
+        dineIn = FastFoodDineIn, paid = FastFoodPaid, selfPickup = FastFoodSelfPickup,
+        served = firstDeliveryCompleted, collecting = collectingFastFoodTray, deliveredOrder = deliveredFastFoodOrder,
+        station = FastFood.NetworkStation(this), waiting = FastFood.NetworkWaiting(this), pickup = FastFood.NetworkPickup(this),
+        seatWait = FastFood.NetworkSeatWait(this), readyWait = FastFood.NetworkReadyWait(this), bagReady = FastFood.IsBagReady(this),
+        orderPatience = FastFoodOrderPatience01
+    };
+    public bool PresentFastFoodState(FastFoodNetworkState value)
+    {
+        if (!IsNetworkObserver || value == null) return false;
+        if (FastFood == null) FastFood = FastFoodRestaurant.For(this);
+        if (FastFood == null) return false;
+        FastFoodDineIn = value.dineIn; FastFoodPaid = value.paid; FastFoodSelfPickup = value.selfPickup;
+        firstDeliveryCompleted = value.served; collectingFastFoodTray = value.collecting; deliveredFastFoodOrder = value.deliveredOrder;
+        SetServiceType(value.paid && value.dineIn ? ServiceType.DineIn : ServiceType.Takeout);
+        FastFood.PresentCustomer(this, value);
+        observedFastFoodOrderPatience = Mathf.Clamp01(value.orderPatience);
+        if (GetComponent<TakeoutCustomerInteractable>() == null) gameObject.AddComponent<TakeoutCustomerInteractable>();
+        GetComponent<TakeoutCustomerInteractable>().enabled = !value.paid;
+        return true;
+    }
+    private float observedFastFoodOrderPatience = 1f;
+    public float FastFoodOrderPatience01 => IsNetworkObserver ? observedFastFoodOrderPatience
+        : ordinaryOrderPatience > 0f ? Mathf.Clamp01(ordinaryOrderRemaining / ordinaryOrderPatience) : 1f;
+    internal void PresentFastFoodPatience()
+    {
+        if (IsNetworkObserver && FastFood != null && state == GroupState.ReadyToOrder)
+            orderBubbleInstance?.GetComponentInChildren<OrderBubbleUI>(true)?.SetPatience(observedFastFoodOrderPatience);
+    }
+    internal void PresentFastFoodOrder(bool confirmed, int queueState)
+    {
+        if (!IsNetworkObserver || FastFood == null) return;
+        hasConfirmedOrder = confirmed;
+        SetTakeoutQueueState((TakeoutQueueState)queueState);
+        if (confirmed && currentOrder != null)
+        {
+            submittedOrder = JsonUtility.FromJson<SimpleOrder>(JsonUtility.ToJson(currentOrder));
+            ClearOrderBubble();
+        }
+    }
+    // Set only by the authored Fast Food coordinator. Other restaurants never opt in.
     public FastFoodRestaurant FastFood { get; private set; }
     public bool FastFoodDineIn { get; private set; }
     public bool FastFoodPaid { get; private set; }

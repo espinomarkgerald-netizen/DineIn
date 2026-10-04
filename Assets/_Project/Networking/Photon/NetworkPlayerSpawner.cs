@@ -15,32 +15,57 @@ public class NetworkPlayerSpawner : MonoBehaviourPunCallbacks
     [Tooltip("Transform whose position/rotation will be used as the spawn point. Leave null to use Vector3.zero.")]
     [SerializeField] private Transform spawnPoint;
 
+    [Tooltip("Optional authored positions in frozen participant order. Fast Food uses four safe entry positions.")]
+    [SerializeField] private Transform[] partySpawnPoints;
+
     [Tooltip("Random radius around the spawn point so multiple players don't overlap.")]
     [SerializeField] private float spawnScatterRadius = 1.5f;
 
     private bool spawned;
+    private Coroutine admissionRoutine;
 
     private void Start()
     {
         // If we're already in a room when this scene loads, spawn immediately.
         // (Master called PhotonNetwork.LoadLevel which loads for everyone simultaneously.)
         if (PhotonNetwork.InRoom && !spawned)
-            SpawnLocalPlayer();
+            QueueSpawn();
     }
 
     public override void OnJoinedRoom()
     {
         // Safety net: in case the scene was already active before joining.
-        SpawnLocalPlayer();
+        QueueSpawn();
+    }
+
+    public override void OnDisconnected(Photon.Realtime.DisconnectCause cause)
+    {
+        spawned = false;
+        if (admissionRoutine != null) StopCoroutine(admissionRoutine);
+        admissionRoutine = null;
+    }
+    private void QueueSpawn()
+    {
+        if (spawned || admissionRoutine != null) return;
+        admissionRoutine = StartCoroutine(WaitForAdmission());
+    }
+    private System.Collections.IEnumerator WaitForAdmission()
+    {
+        // JoinRoom completes before the host has mapped a returning account to its new actor.
+        yield return null;
+        var session = MultiplayerSessionManager.Instance;
+        while (PhotonNetwork.InRoom && session != null && !session.Ended
+            && !session.ValidActor(PhotonNetwork.LocalPlayer.ActorNumber)) yield return null;
+        admissionRoutine = null;
+        if (PhotonNetwork.InRoom && (session == null || !session.Ended)) SpawnLocalPlayer();
     }
 
     /// <summary>Instantiates the local player over the network from the Resources folder.</summary>
     private void SpawnLocalPlayer()
     {
         if (!PhotonNetwork.InRoom) return;
-        bool managerScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "Lobby1 Multiplayer";
-        if (managerScene && (gameObject.scene.name != "Lobby1 Multiplayer" ||
-            playerPrefabName != "ManagerMultiplayer")) return;
+        var session = MultiplayerSessionManager.Instance;
+        if (session != null && gameObject.scene != session.gameObject.scene) return;
         if (PhotonNetwork.LocalPlayer.HasRejoined)
         {
             // PUN replays the inactive actor's cached instantiation. Creating a
@@ -64,12 +89,20 @@ public class NetworkPlayerSpawner : MonoBehaviourPunCallbacks
         Vector3 position = Vector3.zero;
         Quaternion rotation = Quaternion.identity;
 
-        if (spawnPoint != null)
+        int slot = session?.Run?.participants.FindIndex(p => p.accountId == PhotonNetwork.LocalPlayer.UserId) ?? -1;
+        if (slot < 0)
         {
-            // Scatter slightly so players don't stack on top of each other.
-            int slot = 0;
+            slot = 0;
             foreach (var member in PhotonNetwork.PlayerList)
                 if (member.ActorNumber < PhotonNetwork.LocalPlayer.ActorNumber) slot++;
+        }
+        if (partySpawnPoints != null && slot < partySpawnPoints.Length && partySpawnPoints[slot] != null)
+        {
+            position = partySpawnPoints[slot].position;
+            rotation = partySpawnPoints[slot].rotation;
+        }
+        else if (spawnPoint != null)
+        {
             Vector2 scatter = usePartySlots
                 ? new Vector2(slot % 2, slot / 2) * spawnScatterRadius
                 : Random.insideUnitCircle * spawnScatterRadius;

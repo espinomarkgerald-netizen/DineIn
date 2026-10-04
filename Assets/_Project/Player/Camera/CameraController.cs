@@ -86,7 +86,7 @@ public sealed class CameraController : MonoBehaviourPun
 
     private void Update()
     {
-        if (LobbyPauseMenu.IsAnyOpen) { IsPanning = false; hasStartedDragging = false; return; }
+        if (LobbyPauseMenu.IsAnyOpen || MultiplayerSocialUI.InputBlocked) { IsPanning = false; hasStartedDragging = false; return; }
         // NOTE: Don't worry about this blocking the UI click.
         // The Button's onClick is handled by Unity's UI system, not by this Update loop.
         if (IsPointerOverUI()) return;

@@ -39,6 +39,17 @@ public sealed class ManagerPlayer : MonoBehaviour
     [SerializeField] private bool canBarista = true;
 
     private bool externalInputSuppressed;
+    private bool networkInputSuppressed;
+    private bool InputSuppressed => externalInputSuppressed || networkInputSuppressed || MultiplayerSocialUI.InputBlocked;
+    public void SetNetworkInputSuppressed(bool suppressed)
+    {
+        // Network ownership remains independent of external UI suppression during restoration.
+        networkInputSuppressed = suppressed;
+        if (Movement != null) Movement.SetPlayerControlled(!InputSuppressed);
+        var seating = GetComponent<RoleBasedAssignController>();
+        if (seating != null) seating.enabled = !InputSuppressed;
+    }
+
 
     public PlayerMovement Movement { get; private set; }
 
@@ -67,8 +78,11 @@ public sealed class ManagerPlayer : MonoBehaviour
     {
         if (GetComponent<MultiplayerManagerRegistration>() != null)
         {
-            if (Active != this) return;
-            Movement.SetPlayerControlled(!externalInputSuppressed);
+            // Set up the owner's camera/controller even while synchronization blocks input.
+            var view = GetComponent<Photon.Pun.PhotonView>();
+            if (view == null || !view.IsMine) return;
+            networkInputSuppressed = MultiplayerSessionManager.Instance?.CanAct != true;
+            Movement.SetPlayerControlled(!InputSuppressed);
             Movement.CancelAutoFinish();
         }
         Movement.RefreshSceneCamera();
@@ -79,7 +93,7 @@ public sealed class ManagerPlayer : MonoBehaviour
     {
         if (GetComponent<MultiplayerManagerRegistration>() != null && Active != this) return;
         if (Movement != null)
-            Movement.SetPlayerControlled(!externalInputSuppressed);
+            Movement.SetPlayerControlled(!InputSuppressed);
     }
 
     private void LateUpdate()
@@ -90,12 +104,12 @@ public sealed class ManagerPlayer : MonoBehaviour
         if (Movement != null)
         {
             Movement.enabled = true;
-            Movement.SetPlayerControlled(!externalInputSuppressed);
+            Movement.SetPlayerControlled(!InputSuppressed);
         }
 
         RoleBasedAssignController seating = GetComponent<RoleBasedAssignController>();
         if (seating != null)
-            seating.enabled = !externalInputSuppressed;
+            seating.enabled = !InputSuppressed;
     }
 
     private void OnDestroy()
@@ -135,19 +149,19 @@ public sealed class ManagerPlayer : MonoBehaviour
     /// </summary>
     public void SetExternalInputSuppressed(bool suppressed)
     {
-        if (GetComponent<MultiplayerManagerRegistration>() != null && Active != this) return;
         externalInputSuppressed = suppressed;
+        if (GetComponent<MultiplayerManagerRegistration>() != null && Active != this) return;
 
         if (Movement != null)
         {
-            Movement.SetPlayerControlled(!suppressed);
+            Movement.SetPlayerControlled(!InputSuppressed);
             if (suppressed)
                 Movement.StopForRoleSwitch();
         }
 
         RoleBasedAssignController seating = GetComponent<RoleBasedAssignController>();
         if (seating != null)
-            seating.enabled = !suppressed;
+            seating.enabled = !InputSuppressed;
     }
 
     private void ConfigureLobbyInputFromHost()

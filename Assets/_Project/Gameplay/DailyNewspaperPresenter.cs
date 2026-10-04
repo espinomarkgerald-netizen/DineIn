@@ -79,7 +79,7 @@ public sealed class DailyNewspaperPresenter : MonoBehaviour
             RefreshVisibility();
         }
 
-        if (IsOpen && Input.GetKeyDown(KeyCode.Escape))
+        if (IsOpen && !MultiplayerSocialUI.InputBlocked && Input.GetKeyDown(KeyCode.Escape))
         {
             Close();
             return;
@@ -106,7 +106,7 @@ public sealed class DailyNewspaperPresenter : MonoBehaviour
 
     public void RefreshVisibility()
     {
-        bool inLobby = SceneManager.GetActiveScene().name == LobbySceneName || SceneManager.GetActiveScene().name == "Lobby2";
+        bool inLobby = SceneManager.GetActiveScene().name == LobbySceneName || SceneManager.GetActiveScene().name == "Lobby2" || MultiplayerHUDBridge.IsActive;
         GameFlowManager flow = GameFlowManager.Instance;
         bool preparation = flow != null && flow.UsesSingleRestaurantFlow &&
             (flow.CurrentRestaurantSessionState == GameFlowManager.RestaurantSessionState.PreOpen ||

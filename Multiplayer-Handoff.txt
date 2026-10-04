@@ -1,0 +1,295 @@
+Dine In multiplayer handoff - 2026-10-04
+
+Implemented by extending the existing Photon PUN session, roster, restoration bridges,
+pause menu and input guards. No new networking service was added.
+
+Confirmed findings from code inspection
+- Saved rejoin eligibility expired using the transport retention timer.
+- The host marked disconnected participants departed when that timer expired.
+- Gameplay closed room admission, and validation required the old actor ID and HasRejoined.
+- Automatic recovery only supported retained-actor rejoin, with no logical-participant fallback.
+- Input restoration depended on the active-manager accessor even while that accessor was blocked.
+These paths prevent long/restarted connections from returning. They are confirmed code defects;
+no runtime trace was collected to establish which one caused the reported Windows failure.
+
+Behavior changed
+- Original participant identities remain reserved in the run roster and Photon ExpectedUsers.
+  PlayerTtl is now zero: dropped transport actors are cleaned up, while logical seats persist.
+- Recovery tries retained-actor rejoin, then supported JoinRoom when that actor is unavailable.
+  The host admits only an original eligible account and remaps its transport actor; no room
+  is created by recovery. Score receipts retain the original frozen actor identities.
+- Recovery is bounded, with Retry/Return to Menu. Saved eligibility survives connection
+  failures and menu returns. Leave Session waits for host acknowledgement.
+- Host-only kick uses stable participant identity, confirmation and actual event-sender checks.
+  The departure record is acknowledged before cleanup/disconnection. Offline seats can be
+  removed; automatic and manual return check the same roster. Existing task/item cleanup runs.
+- One shared room chat supports text, eight quick phrases, six bundled sprite emojis, history,
+  unread indication, sender validation, formatting escaping and a shared send cooldown.
+- Chat blocks local gameplay input without changing the shared time scale. Exit hides its UI,
+  releases blockers and disables its Photon callbacks. Existing host departure behavior stays.
+
+Inspector setup (already authored for Casual Dining)
+- Assets/_Project/Scenes/RoleBased/Lobby1 Multiplayer.unity:
+  Multiplayer Manager Spawn -> MultiplayerSessionManager has socialUIPrefab and gameplayBinding
+  assigned. Automatic reconnect is 30 seconds; synchronization timeout is 25 seconds.
+- Assets/_Project/Resources/UI/MultiplayerSocialUI.prefab:
+  Canvas, safe area, chat/history/input, quick tray, confirmation and all references are authored.
+- Assets/_Project/Resources/UI/MultiplayerChatCatalog.asset:
+  Edit phrases, stable IDs, emoji labels/indices, 160-character limit, 1-second cooldown,
+  and 50-message history. Keep catalog IDs consistent across clients.
+- MultiplayerEmoji.asset references MultiplayerEmoji.png and its TMP sprite material.
+- Both LobbyHUD.prefab and the fallback LobbyPauseMenu.prefab have the Players actions wired.
+- All clients need the same updated build/protocol. Existing older-protocol rooms are incompatible.
+
+Future restaurant integration
+Reuse MultiplayerSessionManager, MultiplayerSocialUI and MultiplayerChatCatalog. Assign a scene
+component implementing IMultiplayerSessionGameplay to gameplayBinding. It supplies readiness,
+restoration completion, snapshot requests, participant-return publication, disconnect cleanup
+and suspension through that restaurant's existing gameplay systems. Set the run's restaurant
+and sceneName and the menu's gameplayScene, and bind the existing NetworkPlayerSpawner to that
+mode's manager prefab/spawn point. Casual Dining uses MultiplayerRestaurantBridge.Session.cs.
+The menu still offers only implemented Casual Dining gameplay. Fast Food/Fine Dining gameplay,
+scene creation and their result-backend integration were not implemented.
+
+Checks actually run
+- Roslyn C# compile with Windows player symbols and cached Unity/Photon references: passed.
+  Log: Temp/TutorialFixCompile/MultiplayerWindows.log
+- Unique serialized file IDs, local prefab/scene references, shared UI bindings, both pause
+  rosters, external asset/script GUIDs, script metadata, catalog IDs/limits and six RGBA
+  emoji glyph rectangles/atlas bounds: passed static checks.
+- git diff --check for changed tracked multiplayer/UI/input files: passed.
+- No Unity launch, Play Mode, game build, desktop automation or live networking test was run.
+- Unity asset import, rendered layout, platform fonts/sprites and real client synchronization
+  remain unverified. Compilation is not proof of working Windows multiplayer.
+
+Manual Windows-build checklist (same updated build, two or more signed-in accounts)
+1. Host starts a room; guest joins. Players lists identities and connected status. Only the
+   host sees Kick for other players; cancel/confirm works and the host cannot remove itself.
+2. Kick a connected guest, then a disconnected guest. Confirm the removal message, freed
+   reservation and rejection through both Rejoin Session and manual room-code joining.
+3. Disconnect a guest briefly, then longer than 90 seconds while the host keeps playing.
+   Exercise automatic recovery, Retry and Return to Menu. Rejoin after restarting the app.
+4. On return verify exactly one manager, correct appearance/ownership/camera/HUD, current day
+   and inventory, and input only after synchronization. Remaining players must continue.
+5. Disconnect during order, food, bill/payment and dirty-tray tasks. Verify others can take
+   over, items are not duplicated/lost and transactions are not repeated or stations locked.
+6. Leave Session explicitly and verify no rejoin eligibility. Return to Menu after a connection
+   failure and verify eligibility remains. End/close the host and verify a clear ended notice.
+7. Exchange text, all phrases and all six emojis between clients. Check unread/history scrolling,
+   empty/oversized/rate-limited messages, literal formatting tags and disabled sending offline.
+   Reconnect: history has no duplicates. New session: old history is cleared.
+8. Open/close chat over gameplay and pause using keyboard/mouse and touch. Verify no movement,
+   camera shortcuts, Escape task cancellation or extra overlays. Repeat joins/exits and inspect
+   narrow/wide window sizes. Shared simulation must continue while either menu is open.
+
+Changed files (relative to G:/Unity Projects/DineIn/DineIn)
+Assets/_Project/Networking/Multiplayer/
+  IMultiplayerSessionGameplay.cs (new)
+  ManagerNetworkOwnership.cs
+  MultiplayerChat.cs (new)
+  MultiplayerChatCatalog.cs (new)
+  MultiplayerCustomerInteractionBridge.cs
+  MultiplayerLastRun.cs
+  MultiplayerObjectBridge.cs
+  MultiplayerRestaurantBridge.cs
+  MultiplayerRestaurantBridge.Session.cs (new)
+  MultiplayerRunRecords.cs
+  MultiplayerServiceActions.cs
+  MultiplayerServiceActions.Cleanup.cs
+  MultiplayerSessionManager.cs
+  MultiplayerSessionManager.Moderation.cs (new)
+  MultiplayerSessionManager.Recovery.cs (new)
+  MultiplayerSessionUI.cs
+  MultiplayerSocialUI.cs (new)
+  MultiplayerTaskClaims.cs
+Assets/_Project/Networking/Photon/
+  MultiplayerMenuController.cs
+  MultiplayerMenuController.Rejoin.cs
+  NetworkPlayerSpawner.cs
+  PhotonBootstrap.cs
+Assets/_Project/Resources/UI/
+  LobbyHUD.prefab
+  MultiplayerSocialUI.prefab (new)
+  MultiplayerChatCatalog.asset (new)
+  MultiplayerEmoji.asset (new)
+  MultiplayerEmoji.png (new)
+Assets/_Project/Gameplay/
+  LobbyPauseMenu.cs
+  PausePlayersPanel.cs
+  DailyNewspaperPresenter.cs
+  UI/Resources/LobbyPauseMenu.prefab
+Assets/_Project/Player/
+  ManagerPlayer.cs
+  Movement/PlayerMovement.cs
+  Camera/CameraController.cs
+Assets/_Project/Customers/Booth/Booth.cs
+Assets/_Project/ManagementComputer/ManagementComputerController.cs
+Assets/_Project/UI/Almanac/AlmanacMenu.cs
+Assets/_Project/Scenes/RoleBased/Lobby1 Multiplayer.unity
+New Unity assets/scripts include their .meta files.
+Multiplayer-Handoff.txt (this file)
+
+Pre-existing tutorial, dust, font and other unrelated changes were preserved.
+2026-10-04: Shared multiplayer UI polish
+
+Implemented in the existing shared multiplayer UI and chat path:
+- Larger, grouped Create/Join panel with separate code and team areas, readable two-line player entries, HOST/YOU markers, readiness labels, and room-state headings. Existing create/join/leave/start/rejoin logic retained.
+- One icon-only HUD chat entry below the right-side progress area. Text, eight quick replies, six reactions, and Wave/Celebrate/Dance share the existing chat panel and history. The pause Players tab still opens this same panel.
+- Existing AnimatedPanel/ButtonAnimator provide short panel fades and button feedback. Chat keeps its pointer shield through closing and the existing gameplay input guard remains active.
+- Three noninteractive HUD message slots show new messages for five seconds. Four reusable reaction bubbles follow sender avatars on the same canvas. Transient feedback is never replayed from reconnect history and is cleared on disconnect/exit.
+- Emotes use the existing host-validated reliable chat events, stable sender identities, cooldown, and a host timestamp. The supplied FBXs have humanoid import settings and a zero-default-weight Multiplayer Emotes layer in Player.controller. Movement, tasks, carrying, pause, and session loss cancel emotes; no navigation/task authority is transferred to the emote component.
+
+Primary changed assets:
+Assets/_Project/Scenes/NewMenu/NewGameMenu.unity
+Assets/_Project/Resources/UI/MultiplayerSocialUI.prefab
+Assets/_Project/Resources/UI/MultiplayerReadyPrompt.prefab
+Assets/_Project/Resources/UI/MultiplayerChatCatalog.asset
+Assets/_Project/Resources/UI/MultiplayerChatIcon.png (+ meta, new)
+Assets/Resources/ManagerMultiplayer.prefab
+Assets/Resources/Player.controller
+Assets/_Project/Art/Animations/MultiplayerEmotes/ (new folder, Waving.fbx, Celebrate.fbx, Dance.fbx and their .meta settings)
+
+Code changed:
+Assets/_Project/Networking/Photon/MultiplayerMenuController.cs
+Assets/_Project/Networking/Multiplayer/MultiplayerSessionUI.cs
+Assets/_Project/Networking/Multiplayer/MultiplayerChat.cs
+Assets/_Project/Networking/Multiplayer/MultiplayerChatCatalog.cs
+Assets/_Project/Networking/Multiplayer/MultiplayerSocialUI.cs
+Assets/_Project/Networking/Multiplayer/MultiplayerChatFeedback.cs (+ meta, new)
+Assets/_Project/Networking/Multiplayer/MultiplayerAvatarEmote.cs (+ meta, new)
+
+Integration / Inspector:
+The existing SessionManager already instantiates Resources/UI/MultiplayerSocialUI and the shared ready prompt. Its existing gameplay binding remains the mode integration point. No separate restaurant chat manager or extra canvas was added. Future multiplayer modes can reuse these assets; their network avatar needs the same emote component and animator layer.
+All current references are serialized; no manual hookup is expected. Edit layout in MultiplayerSocialUI.prefab and NewGameMenu's MultiplayerPanel. Edit popup/bubble lifetime and fade in MultiplayerChatFeedback, emote clips/durations in MultiplayerChatCatalog.asset, and blend/movement thresholds on ManagerMultiplayer's MultiplayerAvatarEmote. Wave uses the supplied short 0.6-second clip; Celebrate and Dance are capped at three seconds. Root movement is baked into the imported clips and the existing avatar still has Apply Root Motion disabled.
+
+Verification performed:
+- Lightweight Roslyn compilation against cached Unity/Photon assemblies using Windows player symbols; passed (pre-existing project warnings).
+- Changed serialized assets: duplicate IDs and local references checked; new asset GUID bindings checked.
+- All three copied FBX files match the supplied originals by SHA-256.
+- Pure RectTransform calculations checked selected actionable room/chat controls at 1920x1080, 1440x1080, and 2520x1080, under desktop scaling and the existing mobile Expand policy. This caught the menu's separate 800-wide canvas, and only the multiplayer panel's units were corrected. These calculations are not rendered UI validation.
+- Targeted git diff --check passed. Existing unrelated changes were preserved; no Git history was changed.
+
+Not run / manual verification still needed:
+Unity was not launched; no Unity asset-import validation, Play Mode, game build, desktop automation, or live multiplayer test was run. After Unity imports the FBXs, inspect all three humanoid avatars/clips for import or retargeting warnings. With two clients, check room create/join/ready/start/leave and reconnect/kick, single-icon chat, long messages, message stacking/expiry, remote avatar reactions, emotes while idle and cancellation on movement/tasks/carrying/pause, and no replay of transient feedback after reconnect. Check rendered layout at 16:9, 4:3 and a wide mobile ratio, including device safe areas and the mobile keyboard. Visual quality and networking behavior are not claimed runtime-verified.
+
+2026-10-04: Multiplayer visual corrections (latest pass)
+
+- Restored the original room artwork/palette: green text on grey surfaces, white text on green surfaces. Existing room RectTransforms and behavior retained.
+- Chat uses untinted Blue/Double artwork and grey inset panels. HUD message and avatar reaction backgrounds were removed; Anton text uses a dedicated white-face/black-outline material. Four serialized username colors follow stable session participant order.
+- HUD messages retain their five-second lifetime, fade and small slide. Their stack aligns below the actual Alien approval row through the existing HUD reference. The chat icon shares the Task/News column center, with clearance below the mood row.
+- Networking, room controls, chat bindings, reconnect, kick, ready, emotes and input handling were preserved.
+
+Files changed in this pass:
+Assets/_Project/Scenes/NewMenu/NewGameMenu.unity
+Assets/_Project/Resources/UI/MultiplayerSocialUI.prefab
+Assets/_Project/Resources/UI/MultiplayerReadyPrompt.prefab
+Assets/_Project/Resources/UI/MultiplayerFloatingText.mat (+ .meta, new outline preset)
+Assets/_Project/Networking/Multiplayer/MultiplayerChatFeedback.cs
+Assets/_Project/Gameplay/CasualDiningProgressHUD.cs
+Multiplayer-Handoff.txt
+
+Inspector/setup:
+No manual hookup is required for the existing HUD. MultiplayerChatFeedback exposes popupAnchor (optional override for future HUDs), gap, spacing, slide distance and username colors. The current HUD approval row is resolved automatically when the override is empty. Edit floating text outline in MultiplayerFloatingText.mat; layout/art remain in the existing prefabs and scene.
+
+Checks actually run:
+Windows-symbol lightweight Roslyn compile passed with existing project warnings. Serialized local references/IDs and targeted text/material/color rules passed. Room RectTransforms and social Button/chat binding blocks were checked against the start-of-pass snapshots. Static geometry checks passed for Task/News/chat column alignment and mood-row clearance at 16:9, 4:3 and 21:9. Targeted git diff --check passed.
+
+Not run:
+Unity imports, rendering, Play Mode, builds, desktop automation and live network tests. Manually check rendered chat/room contrast, long messages and stacking beneath the approval bar at supported aspect ratios, plus username color consistency across reconnect. Static checks do not establish runtime visual quality.
+
+2026-10-04: Original room layout and chat readability correction
+- Restored the original room RectTransforms, hierarchy and typography from the existing repository version, retaining current controls and networking. Backgrounds render before controls. Small code-field and reconnect-card sizing adjustments prevent overlaps.
+- Increased chat typography, interior padding and control gutters. Existing Blue/Double sliced borders use a 0.4 pixels-per-unit multiplier to remain substantial at HUD canvas scale. Close uses the actual Red/Double/check_square_color_cross sprite, with no CLOSE caption.
+- Floating message text is centered horizontally in the safe-area parent, while its vertical position remains below the actual approval row. Existing lifetime, fade and bindings retained.
+Files: NewGameMenu.unity; MultiplayerSocialUI.prefab; MultiplayerChatFeedback.cs; MultiplayerMenuController.cs (original Join tab caption); this handoff.
+Checks: lightweight Windows-symbol Roslyn compile passed with existing warnings; serialized references, reciprocal hierarchy, unchanged chat/button bindings, Red/Double sprite assignment and centered text settings passed; selected control overlap/bounds checks passed at 16:9, 4:3 and 21:9 under desktop and mobile scaling; targeted diff whitespace check passed.
+Not run: Unity, imports, Play Mode, builds, rendered visual checks or live multiplayer. Manually verify original room appearance, chat text/borders, red X close, and centered floating messages at the intended game resolution.
+
+2026-10-04: Room rows and vertical chat readability (latest pass)
+
+Confirmed causes:
+- JoinActions has an active VerticalLayoutGroup. Its 20-unit code row overrode the previously edited RectTransform, squeezing a two-line label/code into that row.
+- Chat Render always set verticalNormalizedPosition to zero, pulling readers to the latest message on every update.
+- The dedicated floating text material explicitly enabled OUTLINE_ON with width 0.4.
+
+Changes:
+- Configured the existing Join LayoutElements and spacing; code now has a 60-unit row with a half-size label and 30-unit, non-wrapping full code. Create has corresponding separate anchored rows. Status has a 60-unit area. Reconnect uses the lower empty Team card when outside a room, so it no longer competes for the left column. Team uses more frame height, concise waiting text, and two lines per participant. Original green/grey artwork, room code generation, joining and readiness logic retained.
+- Full-width chat history above an existing option tray, then aligned input/Send and status. Three category selectors use the existing button pattern and serialized arrays to show Quick chat, Emojis or Emotes in that tray. Options wrap into authored rows; labels do not autoshrink. History wraps with the existing ContentSizeFitter; new messages retain the reading offset while scrolled up and use the existing unread indicator.
+- Floating-only material has no outline keyword, zero outline width and transparent outline. No floating backgrounds added. Messages remain Anton/white with session name colors, five-second visibility and existing animation. Horizontal position now follows the approval bar midpoint rather than the screen midpoint. HUD chat button unchanged.
+
+Changed files:
+Assets/_Project/Scenes/NewMenu/NewGameMenu.unity
+Assets/_Project/Resources/UI/MultiplayerSocialUI.prefab
+Assets/_Project/Resources/UI/MultiplayerFloatingText.mat
+Assets/_Project/Networking/Photon/MultiplayerMenuController.cs
+Assets/_Project/Networking/Photon/MultiplayerMenuController.Rejoin.cs (shorter reconnect description only)
+Assets/_Project/Networking/Multiplayer/MultiplayerSocialUI.cs
+Assets/_Project/Networking/Multiplayer/MultiplayerChatFeedback.cs
+Multiplayer-Handoff.txt
+
+Exact chat sprite assignments (under Assets/_Project/MainMenu/NewDesign/UI Elements/PNG):
+- Panel: Blue/Double/button_square_depth_flat.png (e7533a9a79c73e54b99d3af2cafdca8c).
+- History viewport, input, option tray, unselected category: Blue/Double/check_square_grey.png (2df32074875de604695b7e226f866beb).
+- Send, option buttons and selected category: Blue/Double/button_rectangle_depth_gradient.png (30358b82f02aa03429acc3e01c4f4f21).
+- Close: Red/Double/check_square_color_cross.png (35e415750fdb23c4c89f91656981294d), no caption.
+- Floating messages/reactions: Resources/UI/MultiplayerFloatingText.mat, Anton atlas retained; no shared font material edited.
+- History/input text: existing blue RGB (0.12, 0.23, 0.33), white text on blue buttons; untinted white sprite colors retained.
+
+Contrast limitation (measured from authored text colors and dominant opaque sprite pixels, not a runtime capture): existing blue text/grey about 8.52:1; white/blue about 3.00:1; green/grey about 1.83:1; white/green about 2.50:1. The latter three miss the requested normal-text 4.5:1 target. Fixed art/colors were preserved, not silently darkened.
+Guidance consulted: https://learn.microsoft.com/en-us/gaming/accessibility/xbox-accessibility-guidelines/102 and https://docs.unity.cn/Packages/com.unity.ugui@2.5/manual/comp-UIAutoLayout.html .
+
+Checks actually run:
+- Lightweight Windows-symbol Roslyn compile passed with existing project warnings.
+- Unique serialized IDs/local references, reciprocal parent/child lists, existing action bindings and unchanged HUD button checked.
+- Static geometry checks model the active Join layout group and each selected chat category independently; passed desktop/mobile scaling at 1920x1080, 2960x1440, 2520x1080 and 1440x1080.
+- Targeted diff whitespace and UTF-8 label checks passed.
+No Unity launch, asset import, Play Mode, build, desktop automation or live network test. Compilation and geometry do not visually verify the UI. Manually check long names/errors, four-person roster, category selection, long wrapped messages, scroll retention/new-message indicator, full room codes, and outline-free floating messages beneath the actual approval bar. No manual reference hookups required.
+
+2026-10-04: Compact chat and hold-to-open wheel (latest implementation; supersedes earlier chat layout/typography)
+
+Implemented:
+- Existing shared SocialUI now has a 760x460 desktop window, positioned inside the right HUD column, with header, history and input. The emoji icon opens a hidden two-category Emojis/Emotes tray; history shortens while it is open. No permanent phrase grid remains in the chat window.
+- Actual approval-label font identified from LobbyHUD.prefab and CasualDiningProgressHUD: Fredoka-VariableFont_wdth,wght SDF. Regular 28-unit conversation/input/floating/wheel/picker text uses its own existing unoutlined material. Chat's small decorative title and the room lobby keep their established typography. History uses single paragraph breaks, wrapping and its existing ContentSizeFitter, retaining reading offset while scrolled up. An in-panel new-message label uses the existing unread state. Unsent drafts survive same-session closing/disconnects and clear when RunId changes.
+- One HUD button remains in its existing aligned position. Click/tap toggles chat. PC Tab and mobile 0.35-second hold open eight real radial choices, with horizontal short labels and full highlighted catalog phrase in the center. The controlling pointer must move deliberately before selection; actual displayed option rectangles determine hits. Release sends once through the existing MultiplayerChat.Send path. Center/outside/Escape/canceled touch/focus loss/disconnect/scene change cancel. Suppression lasts through the originating release, preventing a late long-press release from becoming a tap. Other touches cannot select/send/toggle the owned gesture.
+- Transparent input shield, existing UI blockers and cursor capture/restoration protect gameplay without pausing simulation or canceling tasks. Only this UI's blocker entries are released. No new networking layer, manager, canvas, input package or animation framework.
+- Mobile layout responds to safe-area, canvas-size and keyboard changes in the same SocialUI component. History yields space to the keyboard; larger UI scale can use some of the upper HUD space to keep history/input readable. Picker opening waits for keyboard dismissal. Inspector fallback handles platforms that report a visible keyboard with zero area.
+- Floating messages use Fredoka, left alignment, the approval bar's actual width/center, a maximum of two lines, five seconds and three slots; no backplates/outlines. Above-avatar feedback follows the actual NameTagBillboard anchor with a 64-pixel screen offset and the existing pop/fade follower. Existing Waving/Celebrate/Dance clips, host-validated sends, animation safety and non-replay history behavior retained.
+- Kick and destructive confirmation use actual sliced Red/Double sprites and red pressed states. Close uses the actual red X in both normal/pressed states. Room headings have fixed one-line 30-unit text within a 265x52 region; no global room font/palette change.
+- Found unsliced rectangle gradient sprites (zero spriteBorder); affected controls now use already-sliced project alternatives. No shared sprite import or font material settings changed.
+
+Files changed in this pass:
+Assets/_Project/Resources/UI/MultiplayerSocialUI.prefab
+Assets/_Project/Gameplay/UI/Resources/LobbyPauseMenu.prefab
+Assets/_Project/Scenes/NewMenu/NewGameMenu.unity
+Assets/_Project/Networking/Multiplayer/MultiplayerSocialUI.cs (+ execution order in .meta)
+Assets/_Project/Networking/Multiplayer/MultiplayerSocialUI.Presentation.cs (+ .meta, new partial of the existing component)
+Assets/_Project/Networking/Multiplayer/MultiplayerChatHold.cs (+ .meta, small pointer handler on existing HUD button)
+Assets/_Project/Networking/Multiplayer/MultiplayerChatFeedback.cs
+Multiplayer-Handoff.txt
+
+Exact font/material:
+Assets/_Project/UI/Assets/Legacy/Fonts/Fredoka,Lilita_One/Fredoka/Fredoka-VariableFont_wdth,wght SDF.asset
+GUID 44132a242d69e514eaf236194f4a06cf; font fileID 11400000; shared base material fileID 4763482080473113484. Base outline width and face dilate are both zero. This is the font referenced by the actual Alien's approval label. Earlier MultiplayerFloatingText.mat is no longer assigned to these displays; unrelated assets/materials were not edited.
+
+Exact sprite assignments (under Assets/_Project/MainMenu/NewDesign/UI Elements/PNG):
+- Outer chat frame: Blue/Double/button_square_depth_flat.png (e7533a9a79c73e54b99d3af2cafdca8c).
+- History/input/unselected wheel and category surfaces: Blue/Double/check_square_grey.png (2df32074875de604695b7e226f866beb).
+- Blue controls/selected wheel and categories: Blue/Double/button_rectangle_depth_flat.png (f8fd340688358464480e8f8918413eb6); blue pressed state: Blue/Double/button_square_flat.png (46233cf76158b5f468315241d9877ad5).
+- Kick and destructive action: Red/Double/button_square_depth_flat.png (ea249d7b9cb1e9b4bb8d24082e3d50aa); pressed state: Red/Double/button_square_flat.png (5d5fbb4e343aff248b4568e03e375b60).
+- Close X: Red/Double/check_square_color_cross.png (35e415750fdb23c4c89f91656981294d).
+- Hold progress ring: Blue/Double/button_round_border.png (cb7d3f674825fff4f80210b5e1f30270), radial fill, no raycasts.
+- Picker icon: existing MultiplayerEmoji TMP sprite asset, smile index 1. Existing emoji/emote catalog and sprite IDs preserved.
+
+Inspector tuning on MultiplayerSocialUI:
+Desktop size 760x460; right/top inset 240/250; mobile cap 1100x620; minimum mobile height 264; zero-area keyboard fallback 0.42 of screen height. History bottom 100; picker height 196. Hold 0.35 s; radius 224; dead zone 90; deliberate drag 14 reference units; fade 0.15 s; selected scale 1.05. Wheel/card/font/sprite/control references are serialized. SocialUI execution order -250 processes owned keys before gameplay. ChatFeedback popupLines=2, messageSeconds=5, popupGap=12, popupSpacing=8; avatar follower screenOffset.y=64. No manual hookups required.
+
+Checks actually run:
+- Lightweight Windows-symbol Roslyn compile against cached Unity/Photon assemblies: passed with existing warnings.
+- Serialized ID/local reference and reciprocal hierarchy checks across all edited scene/prefabs; exact font/material, script GUID and preserved chat/catalog/control reference audits.
+- Static compact region/keyboard calculations at 1920x1080, 2960x1440 and 2520x1080, including larger UI scale; radial option/selected-scale overlap and complete-wheel edge clamping checks.
+- Wheel/picker label widths checked using actual Fredoka glyph advances. Eight stable catalog phrases and original emote source hashes checked.
+- Source review of Tab/hold/release/second-touch/cancel/focus/scene/disconnect paths, single wheel send site and subscription ownership. This is not an executed Unity input test.
+- Targeted tracked-file diff whitespace checks passed. Git history untouched; unrelated dirty files preserved.
+
+NOT RUN / manual verification:
+Unity launch/import, rendered UI, Play Mode, builds, desktop automation, mobile device keyboard/touch tests and live two-client networking were not run. Check full-resolution text/borders and one-line room headings; long/unbroken chat strings and draft/unread/scroll behavior; desktop Tab release versus Escape/no movement; mobile short tap/hold/drag/release/outside/second finger/canceled touch/backgrounding; native keyboard clearance and safe areas at chosen UI scale (especially Android devices with zero keyboard area); no click/task/camera action on release; correct cursor state on close; emoji tray and real remote animations/cancellation; above-nameplate feedback through zoom; host-only Kick and reconnect restrictions. Compilation/static geometry do not establish visual quality, physical touch behavior or multiplayer correctness.

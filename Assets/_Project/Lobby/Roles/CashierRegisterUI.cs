@@ -511,8 +511,9 @@ public class CashierRegisterUI : MonoBehaviour
             return false;
         }
 
-        if (multiplayer && !group.BeginMultiplayerSettlement()) return false;
+        if (multiplayer && group.MultiplayerPaymentComplete) return false;
         if (group.FastFood != null && !group.FastFood.ReserveSettlement(group)) return false;
+        if (multiplayer && !group.BeginMultiplayerSettlement()) return false;
         DailyFinanceBridge.Instance?.AddEarnings(amountEarned, "Autonomous cashier payment");
         GameDayManager.Instance?.RefreshRevenueUI();
         GameDayManager.Instance?.RegisterPaymentCompleted();

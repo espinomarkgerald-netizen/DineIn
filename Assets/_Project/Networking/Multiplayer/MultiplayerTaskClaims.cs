@@ -255,7 +255,8 @@ public class MultiplayerTaskClaims : MonoBehaviourPunCallbacks, IOnEventCallback
             var view = parts.Length == 3 && int.TryParse(parts[1], out int viewId) ? PhotonView.Find(viewId) : null;
             var customer = view != null ? view.GetComponent<MultiplayerCustomerSpawn>() : null;
             accepted &= session.TryGetManager(actor, out _) && customer != null && customer.Group != null
-                && !customer.Group.IsNetworkObserver && customer.Group.HasBeenAssigned
+                && !customer.Group.IsNetworkObserver && (customer.Group.FastFood != null
+                    ? customer.Group.FastFood.CanReviewCounterOrder(customer.Group) : customer.Group.HasBeenAssigned)
                 && customer.Group.state == CustomerGroup.GroupState.ReadyToOrder && !customer.Group.HasConfirmedOrder;
         }
         if (acquire && taskId.StartsWith("Customer:", StringComparison.Ordinal)
@@ -275,7 +276,8 @@ public class MultiplayerTaskClaims : MonoBehaviourPunCallbacks, IOnEventCallback
             var parts = taskId.Split(':');
             var group = parts.Length == 3 && int.TryParse(parts[1], out int view) ? MultiplayerServiceActions.Resolve(view) : null;
             var money = group != null ? MultiplayerWorldRegistry.MoneyFor(group) : null;
-            accepted &= group != null && !group.MultiplayerPaymentComplete && money != null && money.IsAvailableForCollection;
+            accepted &= group != null && (group.FastFood != null ? group.FastFood.CanSettle(group)
+                : !group.MultiplayerPaymentComplete && money != null && money.IsAvailableForCollection);
         }
         if (acquire && taskId.StartsWith("Order:", StringComparison.Ordinal) && taskId.EndsWith(":Cleanup", StringComparison.Ordinal))
         {
@@ -559,7 +561,8 @@ public class MultiplayerTaskClaims : MonoBehaviourPunCallbacks, IOnEventCallback
                 var group = MultiplayerServiceActions.Resolve(view);
                 valid = group != null && (parts[2] == "GreetSeat" ? !group.HasBeenAssigned && group.CanBeSeated
                     : parts[2] == "Order" ? group.state == CustomerGroup.GroupState.ReadyToOrder && !group.HasConfirmedOrder
-                    : parts[2] == "Payment" ? !group.MultiplayerPaymentComplete && MultiplayerWorldRegistry.MoneyFor(group) != null
+                    : parts[2] == "Payment" ? (group.FastFood != null ? group.FastFood.CanSettle(group)
+                        : !group.MultiplayerPaymentComplete && MultiplayerWorldRegistry.MoneyFor(group) != null)
                     : group.state == CustomerGroup.GroupState.NeedsBill && !group.HasReceivedBill);
             }
             else if (parts[0] == "Order" && parts.Length == 3 && int.TryParse(parts[1], out int order))
@@ -635,22 +638,26 @@ public class MultiplayerTaskClaims : MonoBehaviourPunCallbacks, IOnEventCallback
         }
     }
 
-    public override void OnPlayerLeftRoom(Player otherPlayer)
+    public void RefreshAfterRejoin()
+    {
+        if (!Active || session.IsAuthority) return;
+        ClearClaims();
+        RequestSnapshot();
+    }
+    public override void OnPlayerLeftRoom(Player otherPlayer) => ReleaseActorOnAuthority(otherPlayer.ActorNumber);
+    public void ReleaseActorOnAuthority(int actor)
     {
         if (!Active || !session.IsAuthority) return;
         var released = new List<string>();
         foreach (var claim in claims)
-            if (claim.Value == otherPlayer.ActorNumber) released.Add(claim.Key);
+            if (claim.Value == actor) released.Add(claim.Key);
         foreach (string id in released)
         {
-            if (!otherPlayer.IsInactive) Publish(id, 0, 0, true);
-            // Preserve the claim during the existing reconnect grace period,
-            // but end transient reviews/printing and return unsafe held items.
-            else { leases[id] = ++revision; ResetReleasedOrder(id); }
+            Publish(id, 0, 0, true);
         }
-        latestHumanIntent.Remove(otherPlayer.ActorNumber);
+        latestHumanIntent.Remove(actor);
         foreach (var key in new List<(int actor, string task)>(answeredRequests.Keys))
-            if (key.actor == otherPlayer.ActorNumber) answeredRequests.Remove(key);
+            if (key.actor == actor) answeredRequests.Remove(key);
     }
 
     // Master change ends the scored run; clear transient claims without transferring authority.

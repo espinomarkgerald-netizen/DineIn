@@ -9,6 +9,7 @@ public class MultiplayerCustomerSpawnBridge : MonoBehaviour
     [SerializeField] private string networkPrefab = "MultiplayerCustomerSpawn";
     // Consumed synchronously by PUN's local instantiation callback, never another spawn.
     public CustomerGroup PendingGroup { get; private set; }
+    public CustomerTypeProfile ProfileFor(CustomerGroup.CustomerType type) => spawner != null ? spawner.ProfileFor(type) : null;
 
     private void OnEnable()
     {
@@ -27,7 +28,7 @@ public class MultiplayerCustomerSpawnBridge : MonoBehaviour
         {
             PhotonNetwork.InstantiateRoomObject(networkPrefab, group.transform.position,
                 group.transform.rotation, 0,
-                new object[] { (int)group.CurrentCustomerType, group.members.Count, takeout });
+                new object[] { (int)group.CurrentCustomerType, group.members.Count, takeout, group.FastFood != null, group.CampaignChildCount });
         }
         finally { PendingGroup = null; }
     }

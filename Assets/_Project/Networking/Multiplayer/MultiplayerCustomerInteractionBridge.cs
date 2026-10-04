@@ -243,8 +243,8 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
         return bridge != null && !bridge.orderCancelled && !bridge.orderPending && bridge.orderApproached
             && bridge.orderTarget != null && bridge.orderTarget.Group == group && group.IsPlayerReviewingOrder
             && group.state == CustomerGroup.GroupState.ReadyToOrder && !group.HasConfirmedOrder
-            && bridge.orderBooth != null && group.assignedBooth == bridge.orderBooth
-            && bridge.orderBooth.CurrentGroup == group
+            && (group.FastFood != null ? group.FastFood.CanReviewCounterOrder(group)
+                : bridge.orderBooth != null && group.assignedBooth == bridge.orderBooth && bridge.orderBooth.CurrentGroup == group)
             && bridge.orderTarget.HasGeneratedOrder && bridge.session.LocalManager != null
             && bridge.orderTarget.ReviewActor == bridge.session.LocalActorNumber
             && bridge.claims.IsClaimedBy(bridge.orderTaskId, bridge.session.LocalActorNumber);
@@ -273,6 +273,15 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
         bridge.reviewUI.Open(group);
     }
 
+    private static bool CanReviewAtCurrentPoint(CustomerGroup group) => group != null
+        && (group.FastFood != null ? group.FastFood.CanReviewCounterOrder(group)
+            : group.HasBeenAssigned && group.assignedBooth != null && group.assignedBooth.CurrentGroup == group);
+
+    private static Transform ReviewPoint(CustomerGroup group) => group?.FastFood != null
+        ? group.FastFood.StationFor(group)?.StaffApproach
+        : group?.assignedBooth != null ? group.assignedBooth.approachPoint != null
+            ? group.assignedBooth.approachPoint : group.assignedBooth.transform : null;
+
     private void BeginOrderApproach()
     {
         var customer = orderTarget;
@@ -280,9 +289,9 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
         var manager = session.LocalManager;
         var mover = manager != null ? manager.GetComponent<PlayerMovement>() : null;
         var booth = group != null ? group.assignedBooth : null;
-        Transform stand = booth != null ? booth.approachPoint != null ? booth.approachPoint : booth.transform : null;
-        if (group == null || group.HasConfirmedOrder || !group.HasBeenAssigned || booth == null
-            || booth.CurrentGroup != group || mover == null || !mover.isActiveAndEnabled || stand == null
+        Transform stand = ReviewPoint(group);
+        if (group == null || group.HasConfirmedOrder || !CanReviewAtCurrentPoint(group)
+            || mover == null || !mover.isActiveAndEnabled || stand == null
             || !claims.IsClaimedBy(orderTaskId, session.LocalActorNumber))
         { CancelOrder(); return; }
         string claimedTask = orderTaskId;
@@ -301,8 +310,7 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
                     || !session.IsMultiplayerSession || session.LocalManager != mover.gameObject
                     || !mover.isActiveAndEnabled || !group.gameObject.activeInHierarchy
                     || group.state != CustomerGroup.GroupState.ReadyToOrder || group.HasConfirmedOrder
-                    || !group.HasBeenAssigned || booth == null || !booth.gameObject.activeInHierarchy
-                    || group.assignedBooth != booth || booth.CurrentGroup != group
+                    || !CanReviewAtCurrentPoint(group) || ReviewPoint(group) != stand
                     || !claims.IsClaimedBy(claimedTask, session.LocalActorNumber))
                 { CancelOrder(); return; }
                 orderApproached = true;
@@ -340,7 +348,17 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
             && lease > 0 && claims.GetLease($"Customer:{viewId}:Order") == lease
             && customer != null && customer.HasGeneratedOrder && customer.Group != null
             && !customer.Group.IsNetworkObserver && customer.Group.state == CustomerGroup.GroupState.ReadyToOrder
-            && customer.Group.currentOrder != null && customer.Group.currentOrder.lines.Count > 0;
+            && customer.Group.currentOrder != null && customer.Group.currentOrder.lines.Count > 0
+            && CanReviewAtCurrentPoint(customer.Group) && session.ValidActor(sender)
+            && GameDayManager.Instance?.ServiceActive == true;
+        if (valid)
+        {
+            session.TryGetManager(sender, out var manager);
+            var stand = ReviewPoint(customer.Group);
+            var delta = stand != null ? NetworkPlayerMovementSync.AuthorityPosition(manager) - stand.position : Vector3.positiveInfinity;
+            delta.y = 0f;
+            valid = delta.sqrMagnitude <= 3.1f * 3.1f;
+        }
         if (valid && customer.Group.BeginPlayerOrderReview())
         {
             customer.ReviewActor = sender;
@@ -1213,6 +1231,8 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
     private void Update()
     {
         if (HygieneManager.DecisionPaused) return;
+        bool cancelInput = !MultiplayerSocialUI.InputBlocked
+            && (Input.GetKeyDown(KeyCode.Escape) || Input.GetMouseButtonDown(1));
         if (greetWaiting && HygieneManager.ServiceTime >= greetReplyUntil)
         { Cancel(); WarningSlideUI.Instance?.Show("Greeting timed out. Select the customer to try again."); }
         TickBillActions();
@@ -1225,7 +1245,7 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
             || session.LocalManager != orderMover.gameObject || !orderApproach.CanInteract()
             || !ReferenceEquals(orderMover.CurrentTarget, orderApproach))) CancelOrder();
         if (requestedTaskId != null && (!session.IsMultiplayerSession || session.LocalManager == null
-            || Input.GetKeyDown(KeyCode.Escape) || Input.GetMouseButtonDown(1))) CancelRequestedTask();
+            || cancelInput)) CancelRequestedTask();
         if (billTarget != null && billTarget.MultiplayerPaymentComplete)
         {
             billTaskId = null;
@@ -1237,14 +1257,14 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
         if (billTaskId != null && (!session.IsMultiplayerSession || session.LocalManager == null
             || billTarget == null || billTarget.state != CustomerGroup.GroupState.NeedsBill || billTarget.HasReceivedBill
             || (!billPending && !claims.IsClaimedBy(billTaskId, session.LocalActorNumber)))) CancelBill();
-        if (billTaskId != null && (Input.GetKeyDown(KeyCode.Escape) || Input.GetMouseButtonDown(1))) PauseBillApproach();
+        if (billTaskId != null && cancelInput) PauseBillApproach();
         if (pickupTaskId != null && (!CanClaimPreparedTray(pickupTarget)
-            || Input.GetKeyDown(KeyCode.Escape) || Input.GetMouseButtonDown(1)
+            || cancelInput
             || (!pickupPending && !claims.IsClaimedBy(pickupTaskId, session.LocalActorNumber)))) CancelPickup();
         if (orderTaskId != null && (!session.IsMultiplayerSession || session.LocalManager == null
             || orderTarget == null || orderTarget.Group == null
             || orderTarget.Group.state != CustomerGroup.GroupState.ReadyToOrder || orderTarget.Group.HasConfirmedOrder
-            || Input.GetKeyDown(KeyCode.Escape) || Input.GetMouseButtonDown(1)
+            || cancelInput
             || (!orderPending && !claims.IsClaimedBy(orderTaskId, session.LocalActorNumber)))) CancelOrder();
         if (taskId == null) return;
         if (greetApproach != null && (greetMover == null || !greetMover.isActiveAndEnabled
@@ -1252,7 +1272,7 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
             || !ReferenceEquals(greetMover.CurrentTarget, greetApproach)))
         { Cancel(); return; }
         if (!session.IsMultiplayerSession || session.LocalManager == null || target == null
-            || !target.ReadyForInteraction || Input.GetKeyDown(KeyCode.Escape) || Input.GetMouseButtonDown(1)
+            || !target.ReadyForInteraction || cancelInput
             || (!pending && !claims.IsClaimedBy(taskId, session.LocalActorNumber))) Cancel();
     }
 

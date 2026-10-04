@@ -203,6 +203,8 @@ public partial class MultiplayerCustomerInteractionBridge
                 return MultiplayerActionOutcome.StaleStage;
             var interaction = tray.GetComponent<FoodTrayInteractable>();
             if (interaction == null || !interaction.isActiveAndEnabled) return MultiplayerActionOutcome.Unavailable;
+            if (!interaction.IsDeliveryPickable || interaction.IsCustomerReserved || interaction.IsStaffCarried)
+                return MultiplayerActionOutcome.AnotherOwner;
             stand = interaction.StandPoint; radius = interaction.GetInteractRadius();
         }
         else

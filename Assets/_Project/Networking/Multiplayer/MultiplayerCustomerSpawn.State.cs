@@ -16,6 +16,9 @@ public partial class MultiplayerCustomerSpawn
         public bool reviewing, confirmed, complaint, paid, billDelivered, ready, greeted, patienceVisible;
         public bool eatingStarted, eatingComplete;
         public bool waitingForStock;
+        public bool isFastFood;
+        public CustomerGroup.FastFoodNetworkState fastFood;
+        public int takeoutQueue;
         public float stockWaitRemaining;
         public double eatingAt;
         public float eatingDuration, patience;
@@ -23,6 +26,7 @@ public partial class MultiplayerCustomerSpawn
         public Quaternion paperRotation;
     }
     private int serviceRevision, appliedServiceRevision;
+    public bool HasRestoredServiceState => simulating || appliedServiceRevision > 0;
     private string lastServicePayload;
     private ServiceState pendingServiceState;
     private PhotonMessageInfo pendingServiceInfo;
@@ -57,7 +61,8 @@ public partial class MultiplayerCustomerSpawn
             patienceVisible = Group.QueuePatienceVisible, eatingStarted = Group.MultiplayerEatingStarted,
             eatingAt = Group.MultiplayerEatingStartedAt, eatingDuration = Group.MultiplayerEatingDuration,
             eatingComplete = Group.MultiplayerEatingComplete,
-            waitingForStock = Group.WaitingForStock, stockWaitRemaining = Mathf.Ceil(Group.StockWaitRemaining) };
+            waitingForStock = Group.WaitingForStock, stockWaitRemaining = Mathf.Ceil(Group.StockWaitRemaining),
+            isFastFood = Group.FastFood != null, fastFood = Group.CaptureFastFoodState(), takeoutQueue = (int)Group.CurrentTakeoutQueueState };
         state.carrier = CarrierActorNumber; state.carrierRecovery = CarrierNeedsRecovery;
         var kitchen = MultiplayerWorldRegistry.Kitchen;
         if (Group.HasConfirmedOrder && kitchen != null && kitchen.TryGetForecast(Group.currentOrderNumber, out var forecast) && forecast.Group == Group)
@@ -103,6 +108,7 @@ public partial class MultiplayerCustomerSpawn
         var holder = MultiplayerWorldRegistry.ResolveHolder(state.billHolder);
         if (!string.IsNullOrEmpty(state.billHolder) && holder == null) return;
         var info = pendingServiceInfo;
+        if (state.isFastFood && !Group.PresentFastFoodState(state.fastFood)) return;
         Group.PresentStockWait(state.waitingForStock, state.stockWaitRemaining);
         if (!string.IsNullOrEmpty(state.orderJson) && state.choices?.Length == 4)
             ReceiveGeneratedOrder(state.orderJson, state.orderNumber, state.choices, info);
@@ -112,6 +118,13 @@ public partial class MultiplayerCustomerSpawn
                 state.thought, state.mood, state.result, state.complaint, state.paid, info);
         else ReceiveQueue(state.phase, state.queuePosition, state.patience, state.patienceVisible,
             state.ready, state.greeted, state.thought, state.mood, state.result, state.complaint, info);
+        if (state.isFastFood)
+        {
+            Group.PresentFastFoodOrder(state.confirmed, state.takeoutQueue);
+            ReviewActor = state.reviewing ? state.reviewActor : 0;
+            if (state.reviewing) Group.BeginPlayerOrderReview(); else Group.EndPlayerOrderReview();
+            MultiplayerCustomerInteractionBridge.ObserveReview(Group);
+        }
         CurrentBillStage = (BillStage)state.billStage; BillOwnerActor = state.billOwner;
         CarrierActorNumber = state.carrier; CarrierNeedsRecovery = state.carrierRecovery;
         if (state.hasKitchen) ReceiveKitchenEntry(state.orderNumber, state.kitchenStarted, state.preparation,
@@ -138,6 +151,7 @@ public partial class MultiplayerCustomerSpawn
         if (served != null && Group.state == CustomerGroup.GroupState.Eating) Group.PresentObservedServed(served);
         appliedServiceRevision = state.revision; pendingServiceState = null;
         Group.ReconcileMultiplayerBubbles(this);
+        Group.PresentFastFoodPatience();
         if (state.waitingForStock) Group.PresentStockWait(true, state.stockWaitRemaining);
     }
 }

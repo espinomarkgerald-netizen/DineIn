@@ -459,7 +459,7 @@ public sealed class PlayerTaskHUD : MonoBehaviour
 
     public void RefreshSceneVisibility()
     {
-        fastFoodStatus = SceneManager.GetActiveScene().name == "Lobby2" ? FindFirstObjectByType<FastFoodRestaurant>() : null;
+        fastFoodStatus = (SceneManager.GetActiveScene().name == "Lobby2" || SceneManager.GetActiveScene().name == FastFoodScene.Multiplayer) ? FindFirstObjectByType<FastFoodRestaurant>() : null;
         supportedSceneVisible = false;
         objectivesSceneVisible = false;
         if (MultiplayerDayBridge.IsActive)

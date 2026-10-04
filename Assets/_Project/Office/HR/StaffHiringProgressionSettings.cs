@@ -18,7 +18,7 @@ public sealed class StaffHiringProgressionSettings : ScriptableObject
 
     public static int Limit(EmployeeRole role, int normalLimit, int hiredCount)
     {
-        if (CampaignSaveStore.ProtectedSession ||
+        if (CampaignSaveStore.ProtectedSession && !FastFoodMultiplayerSession.IsActive ||
             (role != EmployeeRole.Busser && role != EmployeeRole.Cashier)) return normalLimit;
         // Preserve existing staff without opening additional slots beyond the milestone cap.
         return Mathf.Max(hiredCount, CurrentDay >= UnlockDay(role) ? 2 : 1);

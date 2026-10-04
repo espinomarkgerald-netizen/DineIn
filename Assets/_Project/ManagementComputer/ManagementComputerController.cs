@@ -186,7 +186,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
                 || EventSystem.current.currentSelectedGameObject.GetComponent<TMP_InputField>() == null))
         { sharedAppRefreshPending = false; OpenApp(selectedApp); }
 
-        if (Input.GetKeyDown(KeyCode.Escape))
+        if (!MultiplayerSocialUI.InputBlocked && Input.GetKeyDown(KeyCode.Escape))
         {
             if (appWindow != null && appWindow.gameObject.activeSelf)
                 CloseApp();
@@ -201,6 +201,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         }
 
         fallbackConsumedRelease = false;
+        if (MultiplayerSocialUI.InputBlocked) { ResetFallbackInputState(); return; }
         RouteScrollingWhenCanvasDepthIsInvalid();
         RoutePointerReleaseWhenCanvasDepthIsInvalid();
     }

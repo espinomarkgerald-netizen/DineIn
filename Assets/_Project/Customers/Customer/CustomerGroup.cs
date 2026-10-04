@@ -495,6 +495,8 @@ public partial class CustomerGroup : MonoBehaviour
         var session = MultiplayerSessionManager.Instance;
         if (session == null || !session.IsAuthority || IsNetworkObserver || !PauseBeforeEating
             || !MultiplayerEatingComplete || state != GroupState.Eating) return;
+        if (FastFood != null && FastFoodPaid)
+        { SetState(GroupState.NeedsBill); PayAndLeave(); return; }
         hasReceivedBill = false;
         SetState(GroupState.NeedsBill);
         SpawnBillBubble();

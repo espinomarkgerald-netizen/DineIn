@@ -72,6 +72,10 @@ public class DraggableStorageBox : MonoBehaviour
         ((RestockFlowCoordinator.Instance != null && RestockFlowCoordinator.Instance.IsRestockRoomOpen) ||
          UnityEngine.SceneManagement.SceneManager.GetActiveScene() == gameObject.scene);
 
+    public bool CanDiscardStock => CanInteractInRestock && (!MultiplayerRestockBridge.IsActive
+        || FastFoodMultiplayerSession.IsActive && MultiplayerRestockBridge.CanUsePayload
+            && !MultiplayerRestockBridge.RequestPending && MultiplayerSessionManager.Instance.CanAct);
+
     private bool CheckInteractionContext()
     {
         if (CanInteractInRestock) return true;
@@ -330,7 +334,7 @@ public class DraggableStorageBox : MonoBehaviour
         Vector2 screenPosition)
     {
         if (!CheckInteractionContext()) return;
-        // Multiplayer permits inspection only; retain its existing drag restriction.
+        // Stored-box repositioning keeps its existing multiplayer restriction.
         if (MultiplayerRestockBridge.IsActive) return;
         if (!pointerHeld)
             return;
@@ -837,9 +841,23 @@ public class DraggableStorageBox : MonoBehaviour
 
     public void ThrowAway()
     {
-        if (!CheckInteractionContext()) return;
-        if (MultiplayerRestockBridge.IsActive) return;
+        if (!CheckInteractionContext() || !CanDiscardStock) return;
         ResetPointerState();
+        if (MultiplayerRestockBridge.IsActive)
+        {
+            MultiplayerRestockBridge.Active.RequestDiscard(GetComponent<RestockStorageContainer>(), (accepted, message) =>
+            {
+                RestockFlowCoordinator.Instance?.ShowMessage(message);
+                if (this == null) return;
+                if (accepted)
+                {
+                    InspectionChoiceMade?.Invoke(this, true);
+                    RemoveEmptyContainer(); // Presentation only; the host already removed its ledger entry.
+                }
+                else if (CanInteractInRestock) ShowInteractionUI();
+            });
+            return;
+        }
         RestockStorageContainer identity = GetComponent<RestockStorageContainer>();
         if (identity == null || (!identity.TryResolveLegacyItem() && identity.Item == null))
         {

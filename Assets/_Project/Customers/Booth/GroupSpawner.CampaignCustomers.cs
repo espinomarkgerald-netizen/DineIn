@@ -4,7 +4,8 @@ public partial class GroupSpawner
 {
     [Header("Normal campaign customer introductions / additional Fast Food visitors")]
     [SerializeField] private CustomerTypeProfile[] campaignCustomers = new CustomerTypeProfile[0];
-    public bool NormalFastFood => gameObject.scene.name == "Lobby2" && !CampaignSaveStore.ProtectedSession;
+    public bool NormalFastFood => (gameObject.scene.name == "Lobby2" && !CampaignSaveStore.ProtectedSession)
+        || (FastFoodScene.Contains(gameObject.scene) && MultiplayerRestaurantBridge.IsActive);
     public System.Collections.Generic.IReadOnlyList<CustomerTypeProfile> CampaignCustomers => campaignCustomers;
 
     public CustomerTypeProfile ProfileFor(CustomerGroup.CustomerType type)

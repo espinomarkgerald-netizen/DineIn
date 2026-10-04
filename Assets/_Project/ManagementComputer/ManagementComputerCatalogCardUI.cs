@@ -68,6 +68,7 @@ public sealed class ManagementComputerCatalogCardUI : MonoBehaviour
     public void RestoreExpectedVisualState()
     {
         RestoreTextVisuals();
+        EnsureStatusDrawOrder();
         GetComponent<UIRevealAnimation>()?.RestoreVisibleStateIfIdle();
     }
 
@@ -439,9 +440,9 @@ public sealed class ManagementComputerCatalogCardUI : MonoBehaviour
             statusBackground.type = statusBackground.sprite != null ? Image.Type.Sliced : Image.Type.Simple;
             statusBackground.raycastTarget = false;
             band.gameObject.SetActive(true);
-            if (statusText != null)
-                band.SetSiblingIndex(Mathf.Max(0, statusText.transform.GetSiblingIndex()));
         }
+
+        EnsureStatusDrawOrder();
 
         if (restockStatsRoot == null)
         {
@@ -624,6 +625,16 @@ public sealed class ManagementComputerCatalogCardUI : MonoBehaviour
         rect.anchoredPosition = Vector2.zero;
         rect.sizeDelta = Vector2.zero;
         rect.pivot = new Vector2(0.5f, 0.5f);
+    }
+
+    private void EnsureStatusDrawOrder()
+    {
+        if (statusBackground == null || statusText == null) return;
+        Transform band = statusBackground.transform;
+        Transform label = statusText.transform;
+        // Serialized bands need the same ordering as runtime-created bands.
+        if (band.parent == label.parent && band.GetSiblingIndex() > label.GetSiblingIndex())
+            band.SetSiblingIndex(label.GetSiblingIndex());
     }
 
     private void SetStatusBackground(Color color)

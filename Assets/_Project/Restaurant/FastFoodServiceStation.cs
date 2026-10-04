@@ -20,7 +20,9 @@ public sealed class FastFoodServiceStation : MonoBehaviour, IInteractable
     public float CashierOrderSeconds => cashierOrderSeconds;
     public float CashierPaymentSeconds => cashierPaymentSeconds;
     public Transform[] CompanionPoints => companionPoints;
-    public float ServiceProgress => timedCustomer != null ? Mathf.Clamp01(elapsed / (kioskOrderSeconds * timedCustomer.OrderingDurationMultiplier)) : 0f;
+    private float observedProgress;
+    public void PresentNetworkProgress(float value) => observedProgress = Mathf.Clamp01(value);
+    public float ServiceProgress => MultiplayerRestaurantBridge.IsObserver ? observedProgress : timedCustomer != null ? Mathf.Clamp01(elapsed / (kioskOrderSeconds * timedCustomer.OrderingDurationMultiplier)) : 0f;
     private CustomerGroup timedCustomer;
     private float elapsed;
     public bool IsKiosk => kind == StationKind.Kiosk;
@@ -41,7 +43,7 @@ public sealed class FastFoodServiceStation : MonoBehaviour, IInteractable
 
     private void Update()
     {
-        if (!IsKiosk || !IsUnlocked || !FastFoodScene.Contains(gameObject.scene) || MultiplayerDayBridge.IsActive) return;
+        if (!IsKiosk || !IsUnlocked || !FastFoodScene.Contains(gameObject.scene) || MultiplayerRestaurantBridge.IsObserver) return;
         var group = queue != null ? queue.CurrentFront : null;
         if (group != timedCustomer) { timedCustomer = group; elapsed = 0f; }
         if (group == null || group.FastFood == null || group.FastFoodPaid ||

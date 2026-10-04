@@ -4,23 +4,41 @@ using Photon.Realtime;
 using UnityEngine;
 using UnityEngine.AI;
 
-// Reuses the four scene roots. No bot Photon player, prefab instantiation, or task replication.
+// Reuses the authored scene roots. No bot Photon player, prefab instantiation, or task replication.
 public sealed class MultiplayerServiceStaffBridge : MonoBehaviour, IOnEventCallback
 {
     private const byte StaffSnapshot = 198;
     private static MultiplayerServiceStaffBridge instance;
     private MultiplayerSessionManager session;
     private MultiplayerStaffRosterController roster;
-    private readonly GameObject[] roots = new GameObject[4];
-    private readonly MultiplayerAnimatorState[] animators = new MultiplayerAnimatorState[4];
-    private readonly MultiplayerPoseBuffer[] poses = new MultiplayerPoseBuffer[4];
-    private readonly bool[] received = new bool[4];
-    private readonly bool[] visible = new bool[4];
+    private GameObject[] roots = System.Array.Empty<GameObject>();
+    private MultiplayerAnimatorState[] animators = System.Array.Empty<MultiplayerAnimatorState>();
+    private MultiplayerPoseBuffer[] poses = System.Array.Empty<MultiplayerPoseBuffer>();
+    private bool[] received = System.Array.Empty<bool>();
+    private bool[] visible = System.Array.Empty<bool>();
     private float nextSend, nextReliable;
     private int sequence, lastSequence = -1, lastSender;
     private static readonly int Speed = Animator.StringToHash("Speed");
     private static readonly int Moving = Animator.StringToHash("IsMoving");
     private static readonly int Carrying = Animator.StringToHash("IsCarrying");
+
+    public bool HasRestoredState
+    {
+        get
+        {
+            if (session == null || roster == null || !roster.IsInitialized || roots.Length != roster.StaffRootCount) return false;
+            if (session.IsAuthority) return true;
+            for (int i = 0; i < roots.Length; i++) if (roots[i] != null && !received[i]) return false;
+            return true;
+        }
+    }
+    public void ResetObservedState()
+    {
+        if (session == null || session.IsAuthority) return;
+        lastSequence = -1;
+        for (int i = 0; i < roots.Length; i++)
+        { received[i] = false; visible[i] = false; if (roots[i] != null) poses[i] = new MultiplayerPoseBuffer(); }
+    }
 
     public static bool CanSimulate => !MultiplayerDayBridge.IsActive
         || MultiplayerSessionManager.Instance.IsAuthority;
@@ -30,7 +48,7 @@ public sealed class MultiplayerServiceStaffBridge : MonoBehaviour, IOnEventCallb
         if (!MultiplayerDayBridge.IsActive || instance == null || root == null) return requested;
         for (int i = 0; i < instance.roots.Length; i++)
             if (instance.roots[i] == root)
-                return requested && instance.roster.IsRoleAvailableForAI((MultiplayerStaffRosterController.ServiceRole)i);
+                return requested && instance.roster.IsStaffAvailable(i);
         return requested; // Kitchen and unrelated objects retain their original policy.
     }
 
@@ -40,9 +58,12 @@ public sealed class MultiplayerServiceStaffBridge : MonoBehaviour, IOnEventCallb
         roster = GetComponent<MultiplayerStaffRosterController>();
         if (session == null || !session.IsMultiplayerSession || roster == null || !roster.IsInitialized) return;
         instance = this;
+        roots = new GameObject[roster.StaffRootCount];
+        animators = new MultiplayerAnimatorState[roots.Length]; poses = new MultiplayerPoseBuffer[roots.Length];
+        received = new bool[roots.Length]; visible = new bool[roots.Length];
         for (int i = 0; i < roots.Length; i++)
         {
-            var root = roots[i] = roster.GetStaffRoot((MultiplayerStaffRosterController.ServiceRole)i);
+            var root = roots[i] = roster.GetStaffRoot(i);
             if (root == null) continue;
             if ((MultiplayerStaffRosterController.ServiceRole)i == MultiplayerStaffRosterController.ServiceRole.Busser)
                 HygieneStaffCleaningVisual.Ensure(root);
@@ -86,6 +107,7 @@ public sealed class MultiplayerServiceStaffBridge : MonoBehaviour, IOnEventCallb
 
     private void SetRoleName(int role)
     {
+        if (role >= 4) return;
         foreach (var tag in roots[role].GetComponentsInChildren<NameTagBillboard>(true))
             tag.SetName(((MultiplayerStaffRosterController.ServiceRole)role).ToString());
     }
@@ -97,7 +119,7 @@ public sealed class MultiplayerServiceStaffBridge : MonoBehaviour, IOnEventCallb
         {
             var root = roots[i];
             if (root == null) continue;
-            bool available = roster.IsRoleAvailableForAI((MultiplayerStaffRosterController.ServiceRole)i);
+            bool available = roster.IsStaffAvailable(i);
             if (!available) root.SetActive(false);
             else if (!session.IsAuthority)
             {
@@ -113,7 +135,7 @@ public sealed class MultiplayerServiceStaffBridge : MonoBehaviour, IOnEventCallb
         nextSend = Time.unscaledTime + 0.1f;
         bool reliable = Time.unscaledTime >= nextReliable;
         if (reliable) nextReliable = Time.unscaledTime + 0.5f;
-        var states = new object[4];
+        var states = new object[roots.Length];
         for (int i = 0; i < roots.Length; i++)
         {
             var root = roots[i];
@@ -138,12 +160,12 @@ public sealed class MultiplayerServiceStaffBridge : MonoBehaviour, IOnEventCallb
         lastSequence = tick;
         foreach (var value in states)
         {
-            if (value is not object[] state || state.Length != 7 || state[0] is not int role || role < 0 || role >= 4
+            if (value is not object[] state || state.Length != 7 || state[0] is not int role || role < 0 || role >= roots.Length
                 || state[1] is not bool active || state[2] is not Vector3 position || state[3] is not Quaternion rotation
                 || state[4] is not float speed || state[5] is not bool moving || state[6] is not bool carrying
                 || roots[role] == null) continue;
             if (!poses[role].Add(at, position, rotation, receivedAt: PhotonNetwork.Time)) continue;
-            visible[role] = active && roster.IsRoleAvailableForAI((MultiplayerStaffRosterController.ServiceRole)role);
+            visible[role] = active && roster.IsStaffAvailable(role);
             if (!received[role]) roots[role].transform.SetPositionAndRotation(position, rotation);
             received[role] = true;
             var animator = animators[role];

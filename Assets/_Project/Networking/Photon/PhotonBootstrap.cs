@@ -45,6 +45,7 @@ public class PhotonBootstrap : MonoBehaviourPunCallbacks
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
+        PhotonNetwork.EnableCloseConnection = true; // PUN validates the actual MasterClient sender.
         DontDestroyOnLoad(gameObject);
         PhotonNetwork.AutomaticallySyncScene = true;
     }

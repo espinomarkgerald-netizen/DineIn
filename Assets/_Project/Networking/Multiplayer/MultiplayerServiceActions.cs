@@ -24,6 +24,7 @@ public sealed partial class MultiplayerServiceActions : MonoBehaviourPunCallback
     {
         public MultiplayerActionResult result;
         public int amount, total, value;
+        public bool card;
         public string id => result?.context?.actionId;
         public string operation => result?.context?.operation;
         public int view => result?.context != null ? result.context.customerView : 0;
@@ -36,6 +37,8 @@ public sealed partial class MultiplayerServiceActions : MonoBehaviourPunCallback
         public string moneyHolder, bagHolder;
         public bool confirmed, paid, billDelivered, hasMoney, card, hasBag;
         public CustomerGroup.SimpleOrder order, submitted;
+        public bool isFastFood;
+        public CustomerGroup.FastFoodNetworkState fastFood;
         public Vector3 bagPosition;
         public Quaternion bagRotation;
     }
@@ -45,6 +48,8 @@ public sealed partial class MultiplayerServiceActions : MonoBehaviourPunCallback
         public int day, revision, takeoutView, takeoutPhase;
         public List<GroupState> groups = new();
         public ManagerComplaintSystem.NetworkState complaint;
+        public bool isFastFood;
+        public FastFoodRestaurant.NetworkState fastFood;
     }
     private sealed class Reservation { public int actor, order; public long lease; public bool registerOpen; }
     private MultiplayerSessionManager session;
@@ -60,6 +65,9 @@ public sealed partial class MultiplayerServiceActions : MonoBehaviourPunCallback
     private bool cashierAfterPickup;
     public bool? CardPaymentResult { get; private set; }
     private Snapshot observed;
+    public bool HasRestoredState => session != null && (session.IsAuthority || observed != null
+        && observed.run == session.RunId && observed.day == GameFlowManager.Instance.CurrentDay
+        && appliedObjects >= observed.revision);
     private string approachTask;
     private PlayerMovement approachMover;
     private IInteractable approachTarget;
@@ -194,7 +202,7 @@ public sealed partial class MultiplayerServiceActions : MonoBehaviourPunCallback
         if (operation == "card_confirm") active.CardPaymentResult = null;
         var group = Resolve(view);
         string task = operation.StartsWith("cleanup_", StringComparison.Ordinal) ? $"Order:{value}:Cleanup"
-            : IsPayment(operation) && group?.IsTakeout != true ? $"Customer:{view}:Payment" : null;
+            : IsPayment(operation) && (group?.IsTakeout != true || group.FastFood != null) ? $"Customer:{view}:Payment" : null;
         var context = MultiplayerActionContext.Capture(active.session, group, operation, task, ExpectedStage(operation));
         context.expectedRevision = active.session.IsAuthority ? active.revision : active.received;
         if (operation.StartsWith("cleanup_", StringComparison.Ordinal)) context.orderNumber = value;
@@ -234,7 +242,7 @@ public sealed partial class MultiplayerServiceActions : MonoBehaviourPunCallback
                 var entry = reservations[key];
                 var group = Resolve(key);
                 var claims = session.GetComponent<MultiplayerTaskClaims>();
-                bool claimValid = group != null && (group.IsTakeout || claims.IsClaimedBy($"Customer:{key}:Payment", entry.actor)
+                bool claimValid = group != null && (group.IsTakeout && group.FastFood == null || claims.IsClaimedBy($"Customer:{key}:Payment", entry.actor)
                     && claims.GetLease($"Customer:{key}:Payment") == entry.lease);
                 if (group == null || group.currentOrderNumber != entry.order || group.MultiplayerPaymentComplete
                     || !session.ValidActor(entry.actor) || !claimValid)
@@ -252,6 +260,7 @@ public sealed partial class MultiplayerServiceActions : MonoBehaviourPunCallback
             ApplyObserved(); // Newly instantiated customers/players may arrive after the property.
         }
         TryOpenCard();
+        TickFastFoodPaymentContinuation();
         TryFinishPickupPresentation();
         TickDirtyContinuation();
     }
@@ -261,7 +270,7 @@ public sealed partial class MultiplayerServiceActions : MonoBehaviourPunCallback
         pending = null; deferredCard = deferredPickup = null; cancelAfterPending = null; cashierAfterPickup = false;
         deferredDirtyPickup = null; dirtyPickupMover = dirtyDisposalMover = finishedDirtyDisposalMover = null; suppressDirtyContinuation = false;
         completedDirtyReplicas.Clear();
-        CardPaymentResult = null; received = appliedObjects = 0;
+        CardPaymentResult = null; received = appliedObjects = 0; continueFastFoodPayment = null;
         StopAllCoroutines(); executing.Clear();
         receipts.Clear(); reservations.Clear(); dirtyOwners.Clear(); previous = null; observed = null; lastReadPayload = null;
         CashierRegisterUI.Instance?.Hide();
@@ -276,7 +285,7 @@ public sealed partial class MultiplayerServiceActions : MonoBehaviourPunCallback
     private bool Reserve(int view, int actor, CustomerGroup group, UnityEngine.Object target)
     {
         if (reservations.TryGetValue(view, out var existing)) return existing.actor == actor && existing.order == group.currentOrderNumber
-            && (group.IsTakeout || existing.lease == session.GetComponent<MultiplayerTaskClaims>().GetLease($"Customer:{view}:Payment"));
+            && (group.IsTakeout && group.FastFood == null || existing.lease == session.GetComponent<MultiplayerTaskClaims>().GetLease($"Customer:{view}:Payment"));
         if (target is MoneyPickup && !session.GetComponent<MultiplayerTaskClaims>().IsClaimedBy($"Customer:{view}:Payment", actor)) return false;
         foreach (var reservation in reservations.Values) if (reservation.actor == actor) return false;
         if (target is not MoneyPickup && RestaurantTaskClaim.IsClaimedByBot(group)) return false;
@@ -335,11 +344,12 @@ public sealed partial class MultiplayerServiceActions : MonoBehaviourPunCallback
         else MultiplayerWire.Raise(ReplyEvent, JsonUtility.ToJson(reply), new RaiseEventOptions { TargetActors = new[] { actor } }, SendOptions.SendReliable);
     }
 
-    private static bool IsPayment(string operation) => operation == "money_pickup" || operation == "card_open"
+    private static bool IsPayment(string operation) => operation == "fastfood_payment" || operation == "money_pickup" || operation == "card_open"
         || operation == "cash_open" || operation == "cash_confirm" || operation == "card_confirm" || operation == "payment_cancel";
 
     private static string ExpectedStage(string operation) => operation switch
     {
+        "fastfood_payment" => "fastfood.waiting-payment",
         "money_pickup" or "card_open" => "payment.available",
         "cash_open" => "payment.carried",
         "cash_confirm" => "payment.cash-register",
@@ -372,7 +382,7 @@ public sealed partial class MultiplayerServiceActions : MonoBehaviourPunCallback
         if (!context.MatchesOrder(group)) return MultiplayerActionOutcome.WrongTarget;
         if (!IsPayment(request.operation)) return MultiplayerActionOutcome.Success;
         if (group.MultiplayerPaymentComplete) return MultiplayerActionOutcome.StaleStage;
-        if (!group.IsTakeout)
+        if (!group.IsTakeout || group.FastFood != null)
         {
             string task = $"Customer:{request.view}:Payment";
             if (!claims.IsClaimedBy(task, actor)) return MultiplayerActionOutcome.AnotherOwner;
@@ -392,6 +402,12 @@ public sealed partial class MultiplayerServiceActions : MonoBehaviourPunCallback
     {
         Transform stand = null;
         radius = 2f;
+        if (group != null && group.FastFood != null && IsPayment(request.operation))
+        {
+            stand = group.FastFood.StationFor(group)?.StaffApproach;
+            point = stand != null ? stand.position : Vector3.zero;
+            return stand != null;
+        }
         switch (request.operation)
         {
             case "money_pickup": case "card_open": case "card_confirm":
@@ -416,7 +432,7 @@ public sealed partial class MultiplayerServiceActions : MonoBehaviourPunCallback
 
     private void ReleaseFailedAcquisition(Command request, int actor)
     {
-        string task = request.operation == "money_pickup" || request.operation == "card_open" ? $"Customer:{request.view}:Payment"
+        string task = request.operation == "fastfood_payment" || request.operation == "money_pickup" || request.operation == "card_open" ? $"Customer:{request.view}:Payment"
             : request.operation == "cleanup_pickup" ? $"Order:{request.value}:Cleanup" : null;
         if (task == null || reservations.ContainsKey(request.view)
             || request.operation == "cleanup_pickup" && dirtyOwners.ContainsKey(request.value)) return;
@@ -431,6 +447,8 @@ public sealed partial class MultiplayerServiceActions : MonoBehaviourPunCallback
     private bool Execute(Command request, int actor, GameObject player, CustomerGroup group, Reply reply)
     {
         WaiterHands.ReconcileMultiplayerHands(player);
+        if (group.FastFood != null && IsPayment(request.operation))
+            return ExecuteFastFoodPayment(request, actor, player, group, reply);
         var money = Money(group);
         var bag = Bag(group);
         var hands = player.GetComponent<WaiterHands>();
@@ -444,13 +462,13 @@ public sealed partial class MultiplayerServiceActions : MonoBehaviourPunCallback
             case "complaint_open": return ManagerComplaintSystem.Instance != null && ManagerComplaintSystem.Instance.OpenNetworkComplaint(group, actor);
             case "complaint_choice": return ManagerComplaintSystem.Instance != null && ManagerComplaintSystem.Instance.ResolveNetworkComplaint(group, actor, request.value);
             case "takeout_order":
-                return group.IsTakeout && flow != null && flow.ActiveGroup == group && flow.CurrentPhase == TakeoutFlowManager.TakeoutPhase.WaitingForOrder
+                return group.FastFood == null && group.IsTakeout && flow != null && flow.ActiveGroup == group && flow.CurrentPhase == TakeoutFlowManager.TakeoutPhase.WaitingForOrder
                     && Near(player, group.GetCurrentWorldCenter()) && !RestaurantTaskClaim.IsClaimedByBot(group)
                     && group.TakeOrderFromWaiter(group.chosenFood, group.chosenDrink, hands);
             case "bag_pickup":
-                return bag != null && Near(player, bag.transform) && LocalBagFor(actor) == null && bag.NetworkPickup(hands, actor);
+                return group.FastFood == null && bag != null && Near(player, bag.transform) && LocalBagFor(actor) == null && bag.NetworkPickup(hands, actor);
             case "bag_deliver":
-                return bag != null && Near(player, group.GetCurrentWorldCenter(), 1.4f) && bag.NetworkDeliver(group, actor);
+                return group.FastFood == null && bag != null && Near(player, group.GetCurrentWorldCenter(), 1.4f) && bag.NetworkDeliver(group, actor);
             case "money_pickup":
             case "card_open":
                 if (money == null || !money.IsAvailableForCollection) return Reject(reply, MultiplayerActionOutcome.StaleStage);
@@ -554,13 +572,13 @@ public sealed partial class MultiplayerServiceActions : MonoBehaviourPunCallback
             return;
         }
         localReservationRevision = Math.Max(localReservationRevision, reply.revision);
-        if (reply.operation == "cash_open" || reply.operation == "takeout_payment")
+        if (reply.operation == "cash_open" || reply.operation == "takeout_payment" || reply.operation == "fastfood_payment" && !reply.card)
         {
             var register = CashierRegisterUI.ResolveInstance();
             if (register != null) register.OpenForPayment(group, reply.amount, reply.total);
             else WarningSlideUI.Instance?.Show("The cash register is unavailable. Select the cashier to try again.");
         }
-        else if (reply.operation == "card_open")
+        else if (reply.operation == "card_open" || reply.operation == "fastfood_payment" && reply.card)
         {
             deferredCard = reply; cardOpenUntil = HygieneManager.ServiceTime + 8f; TryOpenCard();
         }
@@ -639,17 +657,18 @@ public sealed partial class MultiplayerServiceActions : MonoBehaviourPunCallback
         if (!session.IsAuthority) return;
         nextPublish = HygieneManager.ServiceTime + 0.3f;
         var flow = TakeoutFlowManager.Instance;
+        var restaurant = FastFoodRestaurant.For(this);
         var snapshot = new Snapshot { run = session.RunId, day = GameFlowManager.Instance.CurrentDay,
             takeoutView = ViewId(flow?.ActiveGroup), takeoutPhase = (int)(flow?.CurrentPhase ?? TakeoutFlowManager.TakeoutPhase.None),
-            complaint = ManagerComplaintSystem.Instance?.CaptureNetworkState() };
+            complaint = ManagerComplaintSystem.Instance?.CaptureNetworkState(), isFastFood = restaurant != null, fastFood = restaurant?.CaptureNetworkState() };
         foreach (var customer in MultiplayerWorldRegistry.All<MultiplayerCustomerSpawn>())
         {
             var group = customer.Group;
             if (group == null) continue;
             var money = Money(group); var bag = Bag(group);
             snapshot.groups.Add(new GroupState { view = customer.photonView.ViewID, phase = (int)group.state,
-                queue = (int)group.CurrentTakeoutQueueState, orderNumber = group.currentOrderNumber, order = group.IsTakeout ? group.currentOrder : null,
-                submitted = group.IsTakeout ? group.submittedOrder : null, confirmed = group.HasConfirmedOrder, paid = group.MultiplayerPaymentComplete,
+                queue = (int)group.CurrentTakeoutQueueState, orderNumber = group.currentOrderNumber, order = group.IsTakeout || group.FastFood != null ? group.currentOrder : null,
+                isFastFood = group.FastFood != null, fastFood = group.CaptureFastFoodState(), submitted = group.IsTakeout || group.FastFood != null ? group.submittedOrder : null, confirmed = group.HasConfirmedOrder, paid = group.MultiplayerPaymentComplete,
                 billDelivered = group.HasReceivedBill, hasMoney = money != null, moneyAmount = money != null ? money.Amount : 0,
                 card = money != null && money.IsCardPayment, moneyHolder = Holder(money?.transform),
                 owner = reservations.TryGetValue(customer.photonView.ViewID, out var owner) ? owner.actor : 0,
@@ -684,7 +703,8 @@ public sealed partial class MultiplayerServiceActions : MonoBehaviourPunCallback
             present.Add(state.view);
             var group = Resolve(state.view);
             if (group == null) { unresolved = true; continue; }
-            if (!group.IsTakeout && state.orderNumber != group.currentOrderNumber) { unresolved = true; continue; }
+            if (state.isFastFood && group.GetComponentInParent<MultiplayerCustomerSpawn>()?.HasRestoredServiceState != true) unresolved = true;
+            if (!group.IsTakeout && !state.isFastFood && state.orderNumber != group.currentOrderNumber) { unresolved = true; continue; }
             group.PresentServiceState(state);
             if (state.owner != session.LocalActorNumber && !state.paid && observed.revision >= localReservationRevision)
             {
@@ -704,6 +724,8 @@ public sealed partial class MultiplayerServiceActions : MonoBehaviourPunCallback
             {
                 var holder = ResolveHolder(state.moneyHolder);
                 if (!string.IsNullOrEmpty(state.moneyHolder) && holder == null) { unresolved = true; continue; }
+                if (money == null && group.FastFood != null && state.card)
+                { money = group.FastFood.CreateNetworkCard(group, state.moneyAmount); observedMoney[state.view] = money; }
                 if (money == null && group.assignedBooth != null)
                 {
                     money = group.assignedBooth.GetComponent<BoothMoneySpawner>()?.SpawnMoney(group, state.moneyAmount, group.assignedBooth.approachPoint, state.card);
@@ -731,7 +753,12 @@ public sealed partial class MultiplayerServiceActions : MonoBehaviourPunCallback
         }
         foreach (int key in new List<int>(observedMoney.Keys)) if (!present.Contains(key)) { RemoveObservedMoney(observedMoney[key]); observedMoney.Remove(key); }
         foreach (int key in new List<int>(observedBags.Keys)) if (!present.Contains(key)) { if (observedBags[key] != null) Destroy(observedBags[key].gameObject); observedBags.Remove(key); }
-        TakeoutFlowManager.Instance?.PresentNetworkState(Resolve(observed.takeoutView), observed.takeoutPhase);
+        if (observed.isFastFood)
+        {
+            var restaurant = FastFoodRestaurant.For(this);
+            if (restaurant == null || !restaurant.ApplyNetworkState(observed.fastFood)) unresolved = true;
+        }
+        else TakeoutFlowManager.Instance?.PresentNetworkState(Resolve(observed.takeoutView), observed.takeoutPhase);
         ManagerComplaintSystem.EnsureInstance()?.ApplyNetworkState(observed.complaint);
         if (observed.takeoutView > 0 && Resolve(observed.takeoutView) == null) unresolved = true;
         if (!unresolved) appliedObjects = observed.revision;
@@ -739,6 +766,7 @@ public sealed partial class MultiplayerServiceActions : MonoBehaviourPunCallback
     public static bool CanUseTakeout(CustomerGroup group)
     {
         if (Active == null || !Active.session.CanAct || group == null || !group.IsTakeout) return false;
+        if (group.FastFood != null) return group.FastFood.CanReviewCounterOrder(group) || group.FastFood.CanSettle(group);
         var flow = TakeoutFlowManager.Instance;
         return Active.LocalBag?.TargetGroup == group || flow != null && flow.ActiveGroup == group
             && (flow.CurrentPhase == TakeoutFlowManager.TakeoutPhase.WaitingForOrder || flow.CurrentPhase == TakeoutFlowManager.TakeoutPhase.WaitingForPayment);
@@ -746,6 +774,12 @@ public sealed partial class MultiplayerServiceActions : MonoBehaviourPunCallback
     public static void UseTakeout(CustomerGroup group)
     {
         if (!CanUseTakeout(group)) return;
+        if (group.FastFood != null)
+        {
+            if (group.FastFood.CanSettle(group)) RequestFastFoodPayment(group);
+            else MultiplayerCustomerInteractionBridge.TryHandleOrder(group);
+            return;
+        }
         if (Active.LocalBag?.TargetGroup == group) { Send("bag_deliver", group); return; }
         if (TakeoutFlowManager.Instance.CurrentPhase == TakeoutFlowManager.TakeoutPhase.WaitingForOrder) Send("takeout_order", group);
         else

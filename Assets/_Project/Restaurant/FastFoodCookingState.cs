@@ -7,11 +7,12 @@ public enum FastFoodCookingStage { Waiting, Cooking, Ready, Preparing, Burnt, Co
 public enum FastFoodCookingSlotOwner { Player, Staff }
 
 /// <summary>Shared kitchen ledger. Reservations are not consumption. Only Finish debits stock.</summary>
-public sealed class FastFoodCookingState
+public sealed partial class FastFoodCookingState
 {
     public sealed class Portion
     {
         public Recipe recipe;
+        public int networkId;
         public int order = -1;
         public FastFoodCookingStage stage;
         public bool player, placed, dragging;
@@ -235,7 +236,7 @@ public sealed class FastFoodCookingState
     }
     private Portion AddPortion(Recipe recipe)
     {
-        var p = new Portion { recipe = recipe };
+        var p = new Portion { recipe = recipe, networkId = ++nextPortionId };
         if (recipe.category == MenuProductCategory.Food)
         {
             var batch = Batches.LastOrDefault(b => b.recipe == recipe && !b.sealedTarget && b.target < 10);
@@ -267,6 +268,13 @@ public sealed class FastFoodCookingState
     }
     public void Enter(FastFoodStationMode mode)
     {
+        if (Networked)
+        {
+            Mode = mode; FryerPrepPaused = false;
+            NetworkStationChanged?.Invoke(mode);
+            Changed?.Invoke();
+            return;
+        }
         if (mode == FastFoodStationMode.None)
         {
             foreach (var owned in playerStations.ToArray()) HandOff(owned);
@@ -295,6 +303,7 @@ public sealed class FastFoodCookingState
     }
     public void SelectStations()
     {
+        if (Networked) { Enter(FastFoodStationMode.None); return; }
         if (playerStations.Contains(Mode)) stationAway[Mode] = 0;
         Mode = FastFoodStationMode.None;
         FryerPrepPaused = false;
@@ -495,12 +504,26 @@ public sealed class FastFoodCookingState
             stationAway[station] += delta;
             if (stationAway[station] >= stationGraceSeconds) { HandOff(station); Changed?.Invoke(); }
         }
-        if (PlayerWork.Count > 0 && PlayerWork.All(StationWorkDone)) completedBatchFor += delta;
+        if (Networked)
+        {
+            var localMode = Mode;
+            foreach (var occupied in playerStations)
+            {
+                Mode = occupied;
+                if (PlayerWork.Count > 0 && PlayerWork.All(StationWorkDone)) completedBatchFor += delta;
+            }
+            Mode = localMode;
+        }
+        else if (PlayerWork.Count > 0 && PlayerWork.All(StationWorkDone)) completedBatchFor += delta;
         foreach (var b in Batches) { b.sealedTarget = true; if (b.completed < b.target) b.elapsed += delta; }
         Batches.RemoveAll(b => b.completed == b.target && !Portions.Any(p => p.batch == b && p.stage != FastFoodCookingStage.Complete));
         foreach (var t in Tickets.Where(t => t.active && !t.submitted))
-        { if (!t.player || t == PlayerTicket) t.elapsed += delta; }
-        if (!holdNew) OfferWaitingPortion(false);
+        { if (Networked || !t.player || t == PlayerTicket) t.elapsed += delta; }
+        if (!holdNew)
+        {
+            if (Networked) RefreshNetworkWork();
+            else OfferWaitingPortion(false);
+        }
         foreach (var p in Portions.ToArray())
         {
             if (!CanWork(p) || p.recipe.category == MenuProductCategory.Drink || p.stage == FastFoodCookingStage.Complete) continue;
@@ -521,7 +544,7 @@ public sealed class FastFoodCookingState
                 p.slot = free; p.stage = FastFoodCookingStage.Cooking; p.elapsed = 0;
                 staffFinishing.Add(p);
             }
-            if (FryerPrepPaused && Station(p.recipe) == FastFoodStationMode.Fry &&
+            if (!Networked && FryerPrepPaused && Station(p.recipe) == FastFoodStationMode.Fry &&
                 (p.stage == FastFoodCookingStage.Cooking || p.stage == FastFoodCookingStage.Ready)) continue;
             if (p.stage == FastFoodCookingStage.Cooking)
             {
@@ -557,5 +580,5 @@ public sealed class FastFoodCookingState
         }
     }
     public void RestoreReady(Recipe recipe, int count)
-    { for (int i = 0; i < count; i++) Portions.Add(new Portion { recipe = recipe, stage = FastFoodCookingStage.Complete }); }
+    { for (int i = 0; i < count; i++) Portions.Add(new Portion { recipe = recipe, networkId = ++nextPortionId, stage = FastFoodCookingStage.Complete }); }
 }

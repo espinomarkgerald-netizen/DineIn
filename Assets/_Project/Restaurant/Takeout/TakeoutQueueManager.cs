@@ -28,6 +28,21 @@ public class TakeoutQueueManager : MonoBehaviour
     private float currentFrontMoveStartedAt = -1f;
     private int currentFrontTravelRetries;
 
+    public int[] CaptureNetworkQueue() => queue.ConvertAll(group => group != null
+        ? group.GetComponentInParent<MultiplayerCustomerSpawn>()?.photonView.ViewID ?? 0 : 0).ToArray();
+    public bool PresentNetworkQueue(int[] ids, CustomerGroup front)
+    {
+        if (!MultiplayerRestaurantBridge.IsObserver || ids == null) return false;
+        var restored = new List<CustomerGroup>();
+        foreach (int id in ids)
+        {
+            var group = MultiplayerServiceActions.Resolve(id);
+            if (id > 0 && group == null) return false;
+            if (group != null) restored.Add(group);
+        }
+        queue.Clear(); queue.AddRange(restored); currentFront = front;
+        return true;
+    }
     public CustomerGroup CurrentFront => currentFront;
     public int Count => queue.Count;
     public IReadOnlyList<Transform> QueuePoints => queuePoints;
@@ -40,7 +55,7 @@ public class TakeoutQueueManager : MonoBehaviour
 
     private void Awake()
     {
-        if (Instance != null && Instance != this && (!FastFoodScene.Contains(gameObject.scene) || MultiplayerDayBridge.IsActive))
+        if (Instance != null && Instance != this && !FastFoodScene.Contains(gameObject.scene))
         {
             Destroy(gameObject);
             return;
@@ -107,7 +122,7 @@ public class TakeoutQueueManager : MonoBehaviour
 
     public void ResetFastFoodDay()
     {
-        if (!FastFoodScene.Contains(gameObject.scene) || MultiplayerDayBridge.IsActive) return;
+        if (!FastFoodScene.Contains(gameObject.scene)) return;
         foreach (var group in queue)
             if (group != null)
             {
@@ -157,8 +172,8 @@ public class TakeoutQueueManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Releases any takeout group — whether it is the current front or still
-    /// waiting in the queue — and drives it to the exit point so it despawns.
+    /// Releases any takeout group â€” whether it is the current front or still
+    /// waiting in the queue â€” and drives it to the exit point so it despawns.
     /// Used by the unhappy/angry timeout paths in CustomerGroup.StartLeaving().
     /// </summary>
     public void ReleaseGroup(CustomerGroup group)

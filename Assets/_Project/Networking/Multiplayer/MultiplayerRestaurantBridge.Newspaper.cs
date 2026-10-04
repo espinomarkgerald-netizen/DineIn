@@ -3,7 +3,7 @@ using Photon.Pun;
 using Photon.Realtime;
 using UnityEngine;
 
-public sealed partial class MultiplayerRestaurantBridge
+public partial class MultiplayerRestaurantBridge
 {
     // Reading is independent of the exclusive management-edit request. One
     // retained receipt per current issue survives a lost reply or brief rejoin.

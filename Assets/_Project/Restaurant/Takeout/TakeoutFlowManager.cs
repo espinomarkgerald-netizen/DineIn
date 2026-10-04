@@ -65,7 +65,7 @@ public class TakeoutFlowManager : MonoBehaviour
 
     public void ResetFastFoodDay()
     {
-        if (FastFoodScene.Contains(gameObject.scene) && !MultiplayerDayBridge.IsActive) ClearRuntime();
+        if (FastFoodScene.Contains(gameObject.scene)) ClearRuntime();
     }
 
     public void SetAutomatedService(bool enabled)
@@ -75,7 +75,7 @@ public class TakeoutFlowManager : MonoBehaviour
 
     private void Awake()
     {
-        if (Instance != null && Instance != this && (!FastFoodScene.Contains(gameObject.scene) || MultiplayerDayBridge.IsActive))
+        if (Instance != null && Instance != this && !FastFoodScene.Contains(gameObject.scene))
         {
             Destroy(gameObject);
             return;
@@ -322,7 +322,8 @@ public class TakeoutFlowManager : MonoBehaviour
         { phaseStartedAt += Time.deltaTime; return; }
         if (activeGroup.FastFood != null && (activeGroup.IsPlayerReviewingOrder ||
             CashierRegisterUI.Instance?.IsOpenFor(activeGroup) == true ||
-            CardPaymentUI.Instance?.IsOpenFor(activeGroup) == true))
+            CardPaymentUI.Instance?.IsOpenFor(activeGroup) == true ||
+            MultiplayerServiceActions.IsReserved(activeGroup)))
         { phaseStartedAt += Time.deltaTime; return; }
 
         if (activeGroup.FastFood != null && currentPhase == TakeoutPhase.WaitingForPayment && !activeGroup.FastFood.HasPaidWaitingSpace)

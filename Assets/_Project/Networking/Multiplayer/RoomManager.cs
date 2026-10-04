@@ -47,7 +47,8 @@ public class RoomManager : MonoBehaviourPunCallbacks
     private IEnumerator SpawnRoutine()
     {
         // This scene has its own Manager spawner; never spawn the legacy Player here.
-        if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "Lobby1 Multiplayer")
+        if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "Lobby1 Multiplayer"
+            || UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == FastFoodScene.Multiplayer)
             yield break;
         if (spawnedThisScene || spawning) yield break;
         spawning = true;

@@ -12,7 +12,7 @@ public sealed partial class FastFoodCookingView
     private GameObject prepDragTemplate;
     void OnPrepTransferred(FastFoodCookingState.Portion portion,int slot)
     {
-        if(!opened || activeStation==null || State.Mode!=FastFoodStationMode.Grill ||
+        if(!opened || activeStation==null || activeStation.mode!=FastFoodStationMode.Grill || State.Mode!=FastFoodStationMode.Grill ||
             slot<0 || slot>=activeStation.PrepTargets.Length)return;
         if(!preparedVisuals.TryGetValue(portion,out var food))
         {

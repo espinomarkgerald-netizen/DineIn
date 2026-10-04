@@ -110,6 +110,6 @@ public static class TutorialGameModeEntry
     {
         if (!CampaignCloudSync.CanEnterGameplay()) return;
         if (SceneLoader.Instance != null) SceneLoader.Instance.LoadScene(scene);
-        else SceneManager.LoadSceneAsync(scene, LoadSceneMode.Single);
+        else SceneLoader.TryLoadScene(scene, LoadSceneMode.Single, out _);
     }
 }

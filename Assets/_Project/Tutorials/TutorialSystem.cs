@@ -158,6 +158,8 @@ public sealed class TutorialSystem : MonoBehaviour
     private bool debugSession;
     private Coroutine debugStartRoutine;
     public bool IsDebugSession => debugSession;
+    public bool IsExiting { get; private set; }
+    private bool ownsFocusMask;
     public bool IsFastFood => gameObject.scene.name == FastFoodScene.Tutorial;
     private string TaskSource => IsFastFood ? FastFoodScene.Tutorial : "Lobby1Tutorial";
     public bool IsPresentationBusy => waitingForNext || transitioning || recovering || travelling || externalTargetPending || focusTransitionPending;
@@ -368,6 +370,7 @@ public sealed class TutorialSystem : MonoBehaviour
         if (uiFocusMask == null && dialogueUI != null)
         {
             uiFocusMask = TutorialUIFocusMask.Create(dialogueUI.transform.parent);
+            ownsFocusMask = true;
             // These fields configure only the runtime-created mask. An authored
             // mask keeps its own saved Inspector values.
             uiFocusMask.ConfigurePulse(focusPulseAmount, focusPulseSpeed, focusPulseExpansion);
@@ -475,12 +478,33 @@ public sealed class TutorialSystem : MonoBehaviour
     private void OnDestroy()
     {
         UnsubscribeFromGameplayEvents();
+        if (ownsFocusMask && uiFocusMask != null) Destroy(uiFocusMask.gameObject);
         TutorialInputTerminology.Configure(TutorialInputMode.Auto);
 
         if (Instance == this)
             Instance = null;
 
         RestoreAutomaticSpawning();
+    }
+
+    /// <summary>Called before a single-scene load reveals its loading UI.</summary>
+    public void PrepareForSceneTransition()
+    {
+        if (IsExiting) return;
+        IsExiting = true;
+        // These are the dedicated tutorial controller roots in both scenes.
+        // Stopping their routines and disabling them runs each bridge's existing
+        // unsubscription/input restoration without touching shared managers.
+        foreach (MonoBehaviour owner in GetComponentsInChildren<MonoBehaviour>(true))
+            owner.StopAllCoroutines();
+        ClearGuidance(false);
+        dialogueUI?.ShutdownForTransition();
+        if (handIndicator != null) handIndicator.enabled = false;
+        if (targetIndicator != null) targetIndicator.enabled = false;
+        waitingForNext = waitingForPlayerAction = false;
+        InteractionRestrictionChanged?.Invoke(false);
+        PlayerTaskGuidance.ClearTask(TaskSource);
+        gameObject.SetActive(false);
     }
 
     private void OnDisable()
@@ -497,7 +521,7 @@ public sealed class TutorialSystem : MonoBehaviour
     {
         if (Instance == null) Instance = this;
         SubscribeToGameplayEvents();
-        if (CurrentStep != null && !tutorialCompleted)
+        if (!IsExiting && CurrentStep != null && !tutorialCompleted)
             ShowCurrentStep();
     }
 
@@ -769,6 +793,7 @@ public sealed class TutorialSystem : MonoBehaviour
 
     private void ShowCurrentStep()
     {
+        if (IsExiting) return;
         TutorialStep step = CurrentStep;
         currentStepId = step != null ? step.Id : string.Empty;
         if (step == null)

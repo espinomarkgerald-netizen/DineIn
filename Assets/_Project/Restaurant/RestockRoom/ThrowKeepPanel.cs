@@ -122,7 +122,7 @@ public sealed class ThrowKeepPanel : MonoBehaviour
         confirming = false;
         confirmation.gameObject.SetActive(false);
         KeepButton.interactable = true;
-        ThrowButton.interactable = !MultiplayerRestockBridge.IsActive;
+        ThrowButton.interactable = box.CanDiscardStock;
         RefreshDetails();
         Animate(panel, panelGroup, refresh ? refreshDuration : openDuration);
     }
@@ -151,7 +151,8 @@ public sealed class ThrowKeepPanel : MonoBehaviour
         }
         Layout();
         RefreshDetails();
-        if (MultiplayerRestockBridge.IsActive) ThrowButton.interactable = false;
+        ThrowButton.interactable = SelectedBox.CanDiscardStock;
+        if (confirmButton != null) confirmButton.interactable = SelectedBox.CanDiscardStock;
     }
 
     private bool IsExpired => selectedItem != null && selectedItem.ExpiresDay > 0 &&
@@ -177,7 +178,7 @@ public sealed class ThrowKeepPanel : MonoBehaviour
     private void Keep() { if (SelectedBox != null) SelectedBox.KeepStock(); }
     private void RequestThrow()
     {
-        if (SelectedBox == null || MultiplayerRestockBridge.IsActive) return;
+        if (SelectedBox == null || !SelectedBox.CanDiscardStock) return;
         if (IsExpired) { Discard(); return; }
         confirming = true;
         panel.gameObject.SetActive(false);
@@ -194,7 +195,7 @@ public sealed class ThrowKeepPanel : MonoBehaviour
     }
     private void Discard()
     {
-        if (SelectedBox != null && !MultiplayerRestockBridge.IsActive) SelectedBox.ThrowAway();
+        if (SelectedBox != null && SelectedBox.CanDiscardStock) SelectedBox.ThrowAway();
     }
 
     private void OnDisable()

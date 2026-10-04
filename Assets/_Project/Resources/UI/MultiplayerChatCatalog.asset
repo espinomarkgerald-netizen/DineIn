@@ -1,0 +1,81 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f61b6a3e48324b1ea0440dc418c6d1d3, type: 3}
+  m_Name: MultiplayerChatCatalog
+  m_EditorClassIdentifier:
+  characterLimit: 160
+  sendCooldown: 1
+  historyLimit: 50
+  emojiSprites: {fileID: 11400000, guid: 2aae8b9b0c4b41c49ee7ebdf7b280585, type: 2}
+  phrases:
+  - id: help
+    label: "Need help!"
+    spriteIndex: -1
+  - id: orders
+    label: "I'll take orders."
+    spriteIndex: -1
+  - id: cook
+    label: "I'll cook."
+    spriteIndex: -1
+  - id: serve
+    label: "I'll serve."
+    spriteIndex: -1
+  - id: clean
+    label: "I'll clean."
+    spriteIndex: -1
+  - id: restock
+    label: "Restocking."
+    spriteIndex: -1
+  - id: thanks
+    label: "Thanks!"
+    spriteIndex: -1
+  - id: good_job
+    label: "Good job!"
+    spriteIndex: -1
+  emojis:
+  - id: thumbs_up
+    label: Thumbs Up
+    spriteIndex: 0
+  - id: smile
+    label: Smile
+    spriteIndex: 1
+  - id: laugh
+    label: Laugh
+    spriteIndex: 2
+  - id: surprised
+    label: Surprised
+    spriteIndex: 3
+  - id: sorry
+    label: Sorry
+    spriteIndex: 4
+  - id: celebration
+    label: Celebration
+    spriteIndex: 5
+  emotes:
+  - id: wave
+    label: Wave
+    spriteIndex: 0
+    clip: {fileID: 7400000, guid: ef37b5bab7a445d2811f89e916e6c742, type: 3}
+    animatorState: Wave
+    duration: 0.6
+  - id: celebrate
+    label: Celebrate
+    spriteIndex: 5
+    clip: {fileID: 7400000, guid: 9d9c393016f647f49a4f02ee105587e3, type: 3}
+    animatorState: Celebrate
+    duration: 3
+  - id: dance
+    label: Dance
+    spriteIndex: 5
+    clip: {fileID: 7400000, guid: 5721dcc7a4e0457bb17b1bfbbd45bf81, type: 3}
+    animatorState: Dance
+    duration: 3

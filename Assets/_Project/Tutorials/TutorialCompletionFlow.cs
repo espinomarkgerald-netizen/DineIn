@@ -14,10 +14,17 @@ public sealed class TutorialCompletionFlow : MonoBehaviour
     private TutorialDayContext day;
     private bool ending, rebound;
     private string performanceFeedback;
+    private Button resultAction;
 
     private void Awake() { tutorial = GetComponent<TutorialSystem>(); day = GetComponent<TutorialDayContext>(); }
     private void OnEnable() { if (tutorial != null) tutorial.TutorialCompletedChanged += OnCompleted; }
-    private void OnDisable() { if (tutorial != null) tutorial.TutorialCompletedChanged -= OnCompleted; }
+    private void OnDisable()
+    {
+        StopAllCoroutines();
+        if (tutorial != null) tutorial.TutorialCompletedChanged -= OnCompleted;
+        if (resultAction != null) resultAction.onClick.RemoveListener(Finish);
+        resultAction = null;
+    }
 
     private void OnCompleted()
     {
@@ -42,6 +49,7 @@ public sealed class TutorialCompletionFlow : MonoBehaviour
                 if (summary != null && !string.IsNullOrEmpty(performanceFeedback)) summary.text = performanceFeedback;
                 action.onClick = new Button.ButtonClickedEvent();
                 action.onClick.AddListener(Finish);
+                resultAction = action;
                 TMP_Text label = Read<TMP_Text>(manager, "resultsActionButtonText");
                 if (label != null) label.text = TutorialGameModeEntry.IsMenuLaunch || (day != null && day.CareerSaveExisted)
                     ? "RETURN TO GAME MODE" : "START DAY 2";

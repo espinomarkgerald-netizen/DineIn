@@ -6,7 +6,7 @@ This folder contains game-account backend code. The website is outside this chan
 
 1. Room connection defaults to the game's existing Photon setup, with the signed-in PlayFab ID supplied as the Photon user ID. Creating/joining rooms does not require the new backend handlers or a PlayFab–Photon custom-auth integration. For stronger identity binding, first configure the PlayFab title's Photon integration and Photon custom authentication, then enable `PhotonBootstrap.usePlayFabCustomAuthentication` on the authored bootstrap. In that explicit mode Unity obtains a PlayFab Photon token and sends `username` and `token`; failures do not silently fall back. No server secret belongs in Unity.
 2. Merge `MultiplayerRunsV2.js` into the title's existing **Classic CloudScript** revision, preserving unrelated handlers, and publish the reviewed revision. It defines `DineInPublishRunV2` and `DineInClaimRunV2`.
-3. Create the player statistic `CasualDiningLongestRunV2` with **Max** aggregation and **no automatic reset**. Keep client statistic writes disabled. Do not replace a differently configured existing statistic without reviewing its data.
+3. Create the player statistics `CasualDiningLongestRunV2` and `FastFoodLongestRunV2` with **Max** aggregation and **no automatic reset**. Keep client statistic writes disabled. Do not replace a differently configured existing statistic without reviewing its data.
 4. On an external development runner, execute `node Backend/PlayFab/MultiplayerRunsV2.tests.cjs`. These are isolated backend contract tests, with mocked PlayFab storage. They do not verify title settings, Photon authentication, Unity behavior or live concurrency.
 5. On external devices/runners, complete the acceptance matrix in `Documentation/Gameplay/MultiplayerImplementation.md`, including actual authentication and backend failures, before release.
 
@@ -27,9 +27,9 @@ The schema carries a random run ID, protocol/version, restaurant, frozen host/ac
 
 | Data | Location | Meaning |
 | --- | --- | --- |
-| `CasualDiningLongestRunV2` | Server-written player statistic, Max | Authoritative numeric personal best; future leaderboard score |
-| `CasualDiningLastRunV2` | Private read-only player data | Latest run summary, including completed/highest days, outcome, versions and `AuthenticatedPlayerHost` verification |
-| `CDRun2Receipt0` … `CDRun2Receipt7` | Host's internal player data | Eight bounded receipt slots, indexed by run-ID hash |
+| `CasualDiningLongestRunV2` / `FastFoodLongestRunV2` | Server-written player statistic, Max | Authoritative numeric personal best; future leaderboard score |
+| `CasualDiningLastRunV2` / `FastFoodLastRunV2` | Private read-only player data | Latest run summary, including completed/highest days, outcome, versions and `AuthenticatedPlayerHost` verification |
+| `CDRun2Receipt0` … `CDRun2Receipt7` / `FFRun2Receipt0` … `FFRun2Receipt7` | Host's internal player data | Eight bounded receipt slots per restaurant, indexed by run-ID hash |
 | `multiplayer_results_v2.json` | Local persistent-data directory | Account-bound pending result uploads; never used to resume a restaurant |
 
 The authenticated host publishes earned credit directly to **every frozen participant**, including offline guests. The handler writes all participant statistics/summaries before committing its receipt. Partial failures can safely retry; Max aggregation prevents shorter or duplicate submissions from lowering a best score.
@@ -47,3 +47,9 @@ This is a cooperative, player-hosted implementation. The backend authenticates t
 If the host crashes before a completion is uploaded, guests retain their result receipts, but an increased score remains pending until that host's outbox is uploaded. A host that never returns, loses its local storage, or cannot authenticate may leave that completion unverifiable. Abrupt termination can also omit a final stopped-day summary; previously acknowledged completed-day scores remain secured. This implementation does not claim crash-proof finalization from an unavailable player host.
 
 External validation must cover authentication rejection, missing handlers, wrong statistic aggregation, duplicates, out-of-order revisions, offline guests, partial backend failures, corrupt local outbox recovery, account switching, simultaneous devices, receipt-slot reuse, and service/data quotas for long runs. No currency, campaign cloud files or website UI are written by these handlers.
+
+## Fast Food deployment and credit
+
+Deploy the updated handlers and configure `FastFoodLongestRunV2` with Max aggregation before enabling Fast Food result recording in a released build. Fast Food records must use `restaurant: FastFood`, `sceneName: Lobby2 Multiplayer`, and `rulesVersion: fastfood-session-2`. Casual Dining keeps its existing destination, rules and account keys. These destination/rules combinations are validated on both the client and backend; Fine Dining is unavailable.
+
+The existing reward is completed-day credit/personal-best progression, not currency. This change adds no reward values or payout system. Host result revisions retain the stable frozen account roster, guest eligibility, bounded receipt storage and Max protection. Already committed host revisions are acknowledged without rewriting participant scores. Partial participant-write failures remain retryable; repeated writes use Max and cannot add duplicate credit. Result recording still requires deployment and live configuration verification.

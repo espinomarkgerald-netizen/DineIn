@@ -6,7 +6,7 @@ using Photon.Realtime;
 using UnityEngine;
 
 // Transports existing manager data and invokes existing operations; owns no restaurant rules.
-public sealed partial class MultiplayerRestaurantBridge : MonoBehaviourPunCallbacks, IOnEventCallback
+public partial class MultiplayerRestaurantBridge : MonoBehaviourPunCallbacks, IOnEventCallback
 {
     private const byte CommandEvent = 173, ReplyEvent = 174, SnapshotRequestEvent = 175;
     private const string SnapshotKey = "restaurant.management.v2";
@@ -24,7 +24,7 @@ public sealed partial class MultiplayerRestaurantBridge : MonoBehaviourPunCallba
     }
     [Serializable] private sealed class StaffState
     { public List<EmployeeSaveEntry> employees; public int next, processed; public bool unseen; }
-    private MultiplayerSessionManager session;
+    protected MultiplayerSessionManager session;
     private int revision, receivedRevision, economyRevision;
     private float nextPublish, retryAt, requestUntil;
     private bool committing;
@@ -40,7 +40,7 @@ public sealed partial class MultiplayerRestaurantBridge : MonoBehaviourPunCallba
         && !MultiplayerDayBridge.PreparationLocked
         && GameDayManager.Instance != null && !GameDayManager.Instance.ServiceActive && !GameDayManager.Instance.HasDayResults);
     public static bool IsObserver => IsActive && !MultiplayerSessionManager.Instance.IsAuthority;
-    private void Awake() => session = GetComponent<MultiplayerSessionManager>();
+    protected virtual void Awake() => session = GetComponent<MultiplayerSessionManager>();
     public int NextRevision() => ++revision;
     public void RunSystemAction(Action operation)
     {
@@ -49,7 +49,7 @@ public sealed partial class MultiplayerRestaurantBridge : MonoBehaviourPunCallba
         try { operation(); } finally { committing = previous; managementDirty = true; }
     }
 
-    private void Update()
+    protected virtual void Update()
     {
         SubscribeChanges();
         if (!session.IsConnected || !MultiplayerProgressionContext.LocallyPrepared) return;
@@ -247,7 +247,6 @@ public sealed partial class MultiplayerRestaurantBridge : MonoBehaviourPunCallba
         if (polish != polishSignature)
         { polishSignature = polish; CasualDiningPolishManager.Instance?.ApplySaveData(source); changed = true; }
         ReadEconomy();
-        session.SnapshotRestored();
         if (changed) StateChanged?.Invoke();
     }
     public void ApplyEconomy(GameSaveData data, int stamp)

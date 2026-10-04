@@ -169,9 +169,12 @@ public partial class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiat
             Group = Instantiate(groupPrefab, transform.position, transform.rotation, transform);
             Group.members.Clear();
             Group.SetCustomerType(type);
+            var visit = data.Length > 3 && (bool)data[3] ? bridge?.ProfileFor(type) : null;
+            Group.ConfigureCampaignVisit(visit);
             Group.SetServiceType((bool)data[2] ? CustomerGroup.ServiceType.Takeout : CustomerGroup.ServiceType.DineIn);
             CustomerAgent prefab = type == CustomerGroup.CustomerType.Pink ? pinkPrefab
                 : type == CustomerGroup.CustomerType.Blue ? bluePrefab : greenPrefab;
+            if (visit != null && visit.customerPrefab != null) prefab = visit.customerPrefab;
             if (prefab == null) prefab = greenPrefab;
             for (int i = 0; i < size; i++)
             {
@@ -180,12 +183,18 @@ public partial class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiat
                     Quaternion.identity, Group.transform);
                 Group.members.Add(member);
             }
+            Group.ConfigureCampaignMembers(data.Length > 4 ? (int)data[4] : 0);
             // Observation only: no local navigation, timers, interaction, or customer scripts.
             foreach (var behaviour in Group.GetComponentsInChildren<MonoBehaviour>(true)) behaviour.enabled = false;
             foreach (var agent in Group.GetComponentsInChildren<NavMeshAgent>(true)) agent.enabled = false;
             foreach (var collider in Group.GetComponentsInChildren<Collider>(true))
             { collider.isTrigger = true; collider.enabled = true; }
             Group.IsNetworkObserver = true;
+            if (data.Length > 3 && (bool)data[3])
+            {
+                var restaurant = FastFoodRestaurant.For(this);
+                if (restaurant != null) Group.ConfigureFastFood(restaurant, !(bool)data[2]);
+            }
         }
         else Group.transform.SetParent(transform, true);
         Group.name = $"Group_{type}_{size}_View{photonView.ViewID}";
@@ -295,7 +304,7 @@ public partial class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiat
             }
             ReadyForInteraction = !serviceStarted && Group.state == CustomerGroup.GroupState.Waiting
                 && interactionLine != null && interactionLine.GetFrontOfLine() == Group && Group.CanBeGreeted();
-            if (Group.HasBeenAssigned && (Time.unscaledTime >= nextSnapshot || phase != Group.state))
+            if ((Group.HasBeenAssigned || Group.FastFood != null) && (Time.unscaledTime >= nextSnapshot || phase != Group.state))
             {
                 phase = Group.state;
                 nextSnapshot = Time.unscaledTime + 0.1f;
@@ -321,7 +330,8 @@ public partial class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiat
                 animators[i].SetBool(SittingParameter, sitting[i]);
             }
         }
-        Group.PresentObservedQueue(phase, queueDestination, patience, showPatience);
+        Group.PresentObservedQueue(phase, queueDestination, Group.FastFood != null
+            && phase == CustomerGroup.GroupState.ReadyToOrder ? Group.FastFoodOrderPatience01 : patience, showPatience);
     }
 
     public void FinishClosing()
@@ -429,15 +439,16 @@ public partial class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiat
         string thought, int mood, int result, bool complaintPending, PhotonMessageInfo info)
     {
         if (session == null || !session.IsMultiplayerSession || info.Sender != PhotonNetwork.MasterClient || simulating) return;
-        if (Group != null && Group.HasBeenAssigned) return;
+        if (Group != null && Group.HasBeenAssigned && Group.FastFood == null) return;
         var receivedPhase = (CustomerGroup.GroupState)value;
-        if (!IsPreService(receivedPhase)) return;
+        if (Group?.FastFood == null && !IsPreService(receivedPhase)) return;
         Group?.PresentObservedOutcome(thought, mood, result, complaintPending);
         phase = receivedPhase;
         queueDestination = destination;
         patience = Mathf.Clamp01(progress);
         showPatience = visible;
         ReadyForInteraction = ready;
+        if (Group?.FastFood != null) Group.PresentObservedQueue(phase, queueDestination, patience, showPatience);
         if (Group != null && greeted && !Group.hasBeenGreeted)
         {
             Group.MarkGreeted();

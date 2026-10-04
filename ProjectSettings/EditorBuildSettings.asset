@@ -47,6 +47,9 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/_Project/Scenes/RoleBased/Lobby2.unity
     guid: a00faffa58fab1b45a6b0d7d9832a1ac
+  - enabled: 1
+    path: Assets/_Project/Scenes/RoleBased/Lobby2 Multiplayer.unity
+    guid: d104c9c2603841a78c66e13f029b6b44
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   m_UseUCBPForAssetBundles: 0

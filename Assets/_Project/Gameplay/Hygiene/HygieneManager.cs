@@ -520,6 +520,14 @@ public sealed partial class HygieneManager : MonoBehaviourPunCallbacks, Photon.R
         State.clockScale = Time.timeScale;
         PhotonNetwork.CurrentRoom.SetCustomProperties(new Hashtable { [StateKey] = HygieneSnapshot.Encode(State) });
     }
+    public bool HasRestoredMultiplayerState => sceneReady && (Authority ||
+        State.run == Run && State.day == Day && lastPayload != null);
+    public void RefreshMultiplayerState()
+    {
+        if (!sceneReady) return;
+        if (Authority) Publish();
+        else ReadState();
+    }
     private void ReadState()
     {
         if (Authority || PhotonNetwork.CurrentRoom == null || !(PhotonNetwork.CurrentRoom.CustomProperties[StateKey] is string payload)

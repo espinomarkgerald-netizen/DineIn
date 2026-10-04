@@ -18,7 +18,7 @@ public partial class CustomerGroup
     public void PresentServiceState(MultiplayerServiceActions.GroupState value)
     {
         if (!IsNetworkObserver || value == null) return;
-        if (IsTakeout)
+        if (IsTakeout && FastFood == null)
         {
             state = (GroupState)value.phase;
             GetComponentInParent<MultiplayerCustomerSpawn>()?.PresentTakeoutPhase(value.phase);
@@ -47,8 +47,8 @@ public partial class CustomerGroup
     public void ReconcileMultiplayerBubbles(MultiplayerCustomerSpawn customer)
     {
         if (customer == null) return;
-        bool order = !IsTakeout && state == GroupState.ReadyToOrder && !HasConfirmedOrder;
-        bool bill = !IsTakeout && state == GroupState.NeedsBill && !HasReceivedBill && !MultiplayerPaymentComplete;
+        bool order = (!IsTakeout || FastFood != null) && state == GroupState.ReadyToOrder && !HasConfirmedOrder;
+        bool bill = FastFood == null && !IsTakeout && state == GroupState.NeedsBill && !HasReceivedBill && !MultiplayerPaymentComplete;
         if (order) { if (orderBubbleInstance == null) SpawnOrderBubble(); }
         else ClearOrderBubble();
         if (bill) { if (billBubbleInstance == null) SpawnBillBubble(); }
@@ -59,7 +59,7 @@ public partial class CustomerGroup
         if (money == null || money.IsPickedUp || MultiplayerPaymentComplete) ClearMoneyBubble();
         else if (state == GroupState.NeedsBill) PresentPaymentBubble(money);
         if (HasReceivedBill || MultiplayerPaymentComplete) ClearBillBubble();
-        if (MultiplayerPaymentComplete || state == GroupState.Leaving || state == GroupState.AngryLeft || state == GroupState.UnhappyLeft)
+        if (MultiplayerPaymentComplete && FastFood == null || state == GroupState.Leaving || state == GroupState.AngryLeft || state == GroupState.UnhappyLeft)
         { ClearOrderBubble(); ClearBillBubble(); ClearMoneyBubble(); ClearTableNumber(); }
     }
 

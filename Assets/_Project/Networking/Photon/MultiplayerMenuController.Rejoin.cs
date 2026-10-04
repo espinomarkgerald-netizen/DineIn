@@ -4,7 +4,7 @@ using Hashtable = ExitGames.Client.Photon.Hashtable;
 
 public partial class MultiplayerMenuController
 {
-    private bool pendingRejoin;
+    private bool pendingRejoin, awaitingAdmission, fallbackRejoin;
     private LastMultiplayerRun rejoinPointer;
     private string rejoinFailure;
     private float nextCardRefresh;
@@ -16,9 +16,14 @@ public partial class MultiplayerMenuController
         var saved = account?.IsLoggedIn == true ? MultiplayerLastRun.Load(account.PlayFabId, out _) : null;
         bool show = saved != null && !PhotonNetwork.InRoom;
         reconnectCard.SetActive(show);
-        if (reconnectButton != null) reconnectButton.interactable = show && !busy && !starting;
+        if (reconnectButton != null)
+        {
+            reconnectButton.interactable = show && !busy && !starting;
+            var label = reconnectButton.GetComponentInChildren<TMPro.TMP_Text>();
+            if (label != null) label.text = "REJOIN SESSION";
+        }
         if (reconnectDescription != null && show)
-            reconnectDescription.text = "Casual Dining\nAvailability checked on reconnect.";
+            reconnectDescription.text = "Reserved place (host must be online).";
     }
 
     private void ReconnectLastRun()
@@ -33,26 +38,33 @@ public partial class MultiplayerMenuController
 
     private void CompleteLastRunJoin()
     {
-        if (!MultiplayerLastRun.TryValidateJoinedRun(rejoinPointer, out _, out var reason)
-            || !Application.CanStreamedLevelBeLoaded(Destination))
+        if (!PhotonNetwork.InRoom) return;
+        awaitingAdmission = true;
+        if (!MultiplayerLastRun.TryValidateJoinedRun(rejoinPointer, out var returned, out var reason)
+            && reason != "Waiting for host admission.")
         {
-            rejoinFailure = reason ?? "The multiplayer scene is unavailable in this build.";
-            MultiplayerLastRun.Forget(rejoinPointer?.accountId, rejoinPointer?.runId);
-            pendingRejoin = false;
-            // Scene synchronization stays disabled until the invalid room has been left.
+            rejoinFailure = reason;
+            // Only confirmed end/departure/removal clears eligibility, never a timeout.
+            if (MultiplayerRunRecords.Valid(returned) && (returned.runId != rejoinPointer?.runId || !string.IsNullOrEmpty(returned.endReason)
+                || reason == "The host left, so this run has ended."
+                || returned.participants.Exists(p => p.accountId == rejoinPointer?.accountId && (p.departed || p.kicked))))
+                MultiplayerLastRun.Forget(rejoinPointer?.accountId, rejoinPointer?.runId);
+            pendingRejoin = awaitingAdmission = false;
             PhotonNetwork.LeaveRoom(false);
             return;
         }
-        pendingRejoin = false;
-        busy = false;
-        starting = true;
-        PhotonNetwork.LocalPlayer.SetCustomProperties(new Hashtable {
-            [MultiplayerSessionManager.LoadedKey] = "" });
+        string scene = returned.sceneName; // Validated against the original run, never the local dropdown.
+        if (!Application.CanStreamedLevelBeLoaded(scene))
+        { rejoinFailure = "The host's restaurant scene is unavailable in this build."; pendingRejoin = awaitingAdmission = false; PhotonNetwork.LeaveRoom(false); return; }
+        pendingRejoin = awaitingAdmission = false;
+        busy = false; starting = true;
+        MultiplayerLastRun.Remember(returned, PhotonNetwork.LocalPlayer.ActorNumber);
+        PhotonNetwork.LocalPlayer.SetCustomProperties(new Hashtable { [MultiplayerSessionManager.LoadedKey] = "" });
         PhotonCustomizationSync.PushToPhoton();
-        SetStatus("Rejoining the current restaurant...");
-        // Session.Awake restores automatic synchronization after this single load.
-        // This pauses PUN's event queue while the existing gameplay scene loads;
-        // cached player objects then replay into that scene, rather than the menu.
-        PhotonNetwork.LoadLevel(Destination);
+        SetStatus("Synchronizing the current restaurant...");
+        // Eligibility is already checked by account/run/host here. Final actor admission is
+        // checked in the gameplay scene with input blocked. Load now to pause PUN's replay
+        // queue before cached customer/manager objects can instantiate in the menu.
+        PhotonNetwork.LoadLevel(scene);
     }
 }

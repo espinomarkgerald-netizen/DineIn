@@ -13,7 +13,7 @@ public sealed partial class FastFoodCookingView
     private readonly Dictionary<FastFoodCookingState.Portion, GameObject> collecting = new();
     private readonly Dictionary<Recipe, FastFoodCookingDragHandle> proteinSlots = new();
     private bool CanTapCollect => opened && activeStation != null && drag == null && !cameraMoving &&
-        stationTransition == null && Time.timeScale > 0 && !HygieneManager.KitchenPaused;
+        stationTransition == null && Time.timeScale > 0 && !HygieneManager.KitchenPaused && owner.Network?.AwaitingAction != true;
 
     void UpdateBaskets()
     {
@@ -35,6 +35,17 @@ public sealed partial class FastFoodCookingView
             FastFoodCookingState.Station(p.recipe) == FastFoodStationMode.Fry && p.slot >= basket.firstSlot && p.slot < basket.firstSlot + 2).ToArray();
         if (food.Length == 0) return;
         if (State.FryRackCount + food.Length > State.fryRackCapacity) { Warn("Drying rack full — assemble the ready food first"); return; }
+        if (FastFoodCookingController.IsMultiplayer)
+        {
+            owner.RequestAction("Basket", null, null, basket.firstSlot, accepted =>
+            {
+                if (!accepted || !opened || State.Mode != FastFoodStationMode.Fry) return;
+                basket.ClearHighlight(); fryerPrepUntil = Time.unscaledTime + prepLookSeconds + collectTravelSeconds;
+                PlayKitchenCue(placementSound); Message("Food moved to the drying rack", false);
+                lastSignature = null; Refresh();
+            });
+            return;
+        }
         var flights = food.Select(CaptureCollection).ToArray();
         int count = State.CollectBasket(basket.firstSlot);
         for (int i = 0; i < food.Length; i++)
@@ -70,6 +81,17 @@ public sealed partial class FastFoodCookingView
         if (State.Mode != FastFoodStationMode.Grill) return;
         var source = cookingVisuals.FirstOrDefault(v => v.portion == portion)?.root;
         var point = source != null ? stationCamera.WorldToScreenPoint(source.position) : Vector3.zero;
+        if (FastFoodCookingController.IsMultiplayer)
+        {
+            owner.RequestAction("Collect", portion, null, portion.slot, accepted =>
+            {
+                if (!accepted || !opened || State.Mode != FastFoodStationMode.Grill) return;
+                lastSignature = null; Refresh(); PlayKitchenCue(placementSound);
+                if (point.z > 0 && !LevelOneUIAccessibility.ReducedMotion) StartCoroutine(FlyProteinToHotbar(portion, point));
+                else PulseProteinSlot(portion.recipe);
+            });
+            return;
+        }
         if (!State.Collect(portion)) return;
         lastSignature = null; Refresh();
         PlayKitchenCue(placementSound);

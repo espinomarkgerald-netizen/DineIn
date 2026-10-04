@@ -196,7 +196,7 @@ public class DailyObjectiveManager : MonoBehaviour
     public void RollObjectivesForDay(int day, int maxGroupsThisShift)
     {
         if (MultiplayerRestaurantBridge.IsObserver) return;
-        if (CampaignSaveStore.IsFastFood && currentDay == day && ActiveMandatory != null) return;
+        if (EmployeeRoleCatalog.UsesFastFoodRoles && currentDay == day && ActiveMandatory != null) return;
         currentDay = day;
         angryDeparturesToday = 0;
 
@@ -228,7 +228,7 @@ public class DailyObjectiveManager : MonoBehaviour
         {
             int rawTarget = ActiveMandatory.GetTargetForDay(day);
             ActiveMandatory.baseTargetValue = Mathf.Min(rawTarget, maxGroupsThisShift);
-            if (CampaignSaveStore.IsFastFood) ActiveMandatory.scalingPerDay = 0f;
+            if (EmployeeRoleCatalog.UsesFastFoodRoles) ActiveMandatory.scalingPerDay = 0f;
             // Do NOT overwrite descriptionTemplate — keep "Serve {0} groups"
         }
     }
@@ -247,7 +247,7 @@ public class DailyObjectiveManager : MonoBehaviour
     /// <returns>The ObjectiveGrade awarded for this day.</returns>
     public ObjectiveGrade EvaluateAndApply()
     {
-        if (MultiplayerRestaurantBridge.IsObserver || (CampaignSaveStore.IsFastFood && HasPreviousDayResult && LastResultDay == currentDay)) return LastGrade;
+        if (MultiplayerRestaurantBridge.IsObserver || (EmployeeRoleCatalog.UsesFastFoodRoles && HasPreviousDayResult && LastResultDay == currentDay)) return LastGrade;
         bool mandatoryPassed = Evaluate(ActiveMandatory);
         bool secondaryPassed = Evaluate(ActiveSecondary);
         bool bonusPassed     = Evaluate(ActiveBonus);

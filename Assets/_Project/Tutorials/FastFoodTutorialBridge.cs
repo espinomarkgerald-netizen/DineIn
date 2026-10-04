@@ -1031,12 +1031,14 @@ public sealed class FastFoodTutorialBridge : MonoBehaviour
         kitchen.enabled = false; // The disposable ledger must not tick after runtime restoration.
         day.ReleaseFastFoodSession();
         if (SceneLoader.Instance != null) SceneLoader.Instance.LoadScene("Lobby2");
-        else SceneManager.LoadSceneAsync("Lobby2");
+        else SceneLoader.TryLoadScene("Lobby2", LoadSceneMode.Single, out _);
     }
     private void ShowSkipConfirmation() => confirmation.SetActive(true);
     private void HideSkipConfirmation() => confirmation.SetActive(false);
     private void OnDisable()
     {
+        if (tutorial != null && tutorial.IsExiting && controlsCanvas != null)
+            controlsCanvas.gameObject.SetActive(false);
         ClearWaitingStatus();
         if (waitingTimer != null) Destroy(waitingTimer.gameObject);
         CancelOwnedTravel();

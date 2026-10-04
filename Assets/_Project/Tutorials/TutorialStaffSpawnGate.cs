@@ -35,6 +35,8 @@ public sealed class TutorialStaffSpawnGate : MonoBehaviour
     private bool subscribed;
     private bool lastAllowed;
     private RoleManager lobbyRoles;
+    private EmployeeManager appearanceEmployees;
+    private readonly Dictionary<GameObject, EmployeeData> demonstrationEmployees = new();
 
     public bool StaffAllowed => tutorial != null && tutorial.AllowStaffSpawning;
 
@@ -80,6 +82,9 @@ public sealed class TutorialStaffSpawnGate : MonoBehaviour
     private void OnDisable()
     {
         Unsubscribe();
+        if (appearanceEmployees != null)
+            appearanceEmployees.AssignmentsChanged -= RefreshStaffAppearance;
+        appearanceEmployees = null;
     }
 
     private void OnDestroy()
@@ -168,6 +173,7 @@ public sealed class TutorialStaffSpawnGate : MonoBehaviour
         if (!force && lastAllowed == allowed)
             return;
 
+        if (allowed) RefreshStaffAppearance();
         lastAllowed = allowed;
         CaptureOriginalSpawnerStates();
 
@@ -200,6 +206,56 @@ public sealed class TutorialStaffSpawnGate : MonoBehaviour
         // They remain ordinary pre-shift idle staff until the real Start Shift flow.
         if (allowed && lobbyRoles != null)
             lobbyRoles.DisablePlayerRoleControl();
+    }
+
+    // Tutorials can display role demonstrations before anyone is hired and while
+    // autonomous service is suppressed. Bind only visuals through gameplay's API.
+    public void RefreshStaffAppearance()
+    {
+        if (tutorial == null || tutorial.IsExiting) return;
+        if (appearanceEmployees != EmployeeManager.Instance)
+        {
+            if (appearanceEmployees != null)
+                appearanceEmployees.AssignmentsChanged -= RefreshStaffAppearance;
+            appearanceEmployees = EmployeeManager.Instance;
+            if (appearanceEmployees != null)
+                appearanceEmployees.AssignmentsChanged += RefreshStaffAppearance;
+        }
+        if (lobbyRoles == null)
+            lobbyRoles = FindFirstObjectByType<RoleManager>(FindObjectsInactive.Include);
+        bool fastFood = tutorial.IsFastFood;
+        if (lobbyRoles != null)
+        {
+            BindAppearance(lobbyRoles.host, EmployeeRole.Host);
+            BindAppearance(lobbyRoles.waiter, fastFood ? EmployeeRole.Busser : EmployeeRole.Waiter, fastFood ? 1 : 0);
+            BindAppearance(lobbyRoles.busser, EmployeeRole.Busser);
+            BindAppearance(lobbyRoles.cashier, EmployeeRole.Cashier);
+        }
+        foreach (GameObject root in gameObject.scene.GetRootGameObjects())
+        {
+            foreach (KitchenWorkerBot worker in root.GetComponentsInChildren<KitchenWorkerBot>(true))
+                BindAppearance(worker.gameObject, worker.EmployeeRole);
+            if (fastFood)
+                foreach (FastFoodLobbyAuthoring authoring in root.GetComponentsInChildren<FastFoodLobbyAuthoring>(true))
+                    BindAppearance(authoring.SecondCashier, EmployeeRole.Cashier, 1);
+        }
+    }
+
+    private void BindAppearance(GameObject worker, EmployeeRole role, int slot = 0)
+    {
+        if (worker == null || worker.scene != gameObject.scene ||
+            worker.GetComponent<DineIn.Appearance.CharacterAppearance>() == null) return;
+        EmployeeData employee = appearanceEmployees?.GetAssignedEmployee(role, slot);
+        // Use the tutorial applicant's personal traits even before the hiring lesson.
+        if (employee == null && appearanceEmployees != null)
+            employee = appearanceEmployees.allEmployees.Find(candidate => candidate != null && candidate.role == role);
+        if (employee == null && !demonstrationEmployees.TryGetValue(worker, out employee))
+        {
+            employee = new EmployeeData("Tutorial " + role, 2, role);
+            employee.RestoreIdentity(gameObject.scene.name + ":" + role + ":" + slot);
+            demonstrationEmployees.Add(worker, employee);
+        }
+        DineIn.Appearance.EmployeeAppearance.Bind(worker, employee, role, tutorial.IsFastFood);
     }
 
     private void RestoreSpawnerStates()

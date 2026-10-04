@@ -37,7 +37,8 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
     {
         if (owner == null || owner.FastFood == null || tray == null || tray.TargetGroup != owner ||
             mode != TrayMode.Delivery || staffCarried || customerCarrier != null ||
-            RestaurantTaskClaim.IsClaimedByPlayer(tray) || RestaurantTaskClaim.IsClaimedByBot(tray)) return false;
+            RestaurantTaskClaim.IsClaimedByPlayer(tray) || RestaurantTaskClaim.IsClaimedByBot(tray) ||
+            MultiplayerSessionManager.Instance?.GetComponent<MultiplayerTaskClaims>()?.IsClaimed($"Order:{tray.orderNumber}:Pickup") == true) return false;
         modeBeforeStaffPickup = mode;
         queueBeforeStaffPickup = queueOwner;
         readySinceBeforeStaffPickup = readySince;

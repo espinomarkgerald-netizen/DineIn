@@ -23,6 +23,12 @@ public sealed class FastFoodCounter : MonoBehaviour, IInteractable
     {
         if (!CanInteract()) return;
         var group = station.Flow.ActiveGroup;
+        if (MultiplayerServiceActions.IsActive)
+        {
+            if (restaurant.CanSettle(group)) MultiplayerServiceActions.RequestFastFoodPayment(group);
+            else MultiplayerCustomerInteractionBridge.TryHandleOrder(group);
+            return;
+        }
         if (restaurant.CanSettle(group)) { restaurant.OpenCounterPayment(group); return; }
         var review = OrderChecklistUI.Instance;
         if (review == null || !RestaurantTaskClaim.TryClaimPlayer(group)) return;

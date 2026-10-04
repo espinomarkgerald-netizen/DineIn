@@ -210,10 +210,16 @@ public static class RestaurantTaskClaim
         if (target is FoodTray tray && tray.TargetGroup != null && !tray.TargetGroup.IsTakeout
             && tray.TargetGroup.state == CustomerGroup.GroupState.OrderTaken)
             return $"Order:{tray.orderNumber}:Pickup";
-        if (!(target is CustomerGroup group) || group.IsTakeout) return null;
+        if (!(target is CustomerGroup group) || group.IsTakeout && group.FastFood == null) return null;
         var customer = group.GetComponentInParent<MultiplayerCustomerSpawn>();
         var view = customer != null ? customer.photonView : null;
         if (view == null || view.ViewID <= 0) return null;
+        if (group.FastFood != null)
+        {
+            string action = group.FastFood.CanReviewCounterOrder(group) ? "Order"
+                : group.FastFood.CanSettle(group) ? "Payment" : null;
+            return action == null ? null : $"Customer:{view.ViewID}:{action}";
+        }
         string kind = group.state == CustomerGroup.GroupState.Waiting ? "GreetSeat"
             : group.state == CustomerGroup.GroupState.ReadyToOrder ? "Order"
             : group.state == CustomerGroup.GroupState.NeedsBill ? "Bill" : null;
@@ -226,14 +232,7 @@ public static class RestaurantTaskClaim
         if (session == null || !session.IsAuthority || bot == null || !bot.isActiveAndEnabled) return false;
         var roster = session.GetComponent<MultiplayerStaffRosterController>();
         if (roster == null) return false;
-        for (int i = 0; i < 4; i++)
-        {
-            var role = (MultiplayerStaffRosterController.ServiceRole)i;
-            var root = roster.GetStaffRoot(role);
-            if (root != null && (bot.gameObject == root || bot.transform.IsChildOf(root.transform)))
-                return roster.IsRoleAvailableForAI(role);
-        }
-        return false;
+        return roster.Includes(bot);
     }
 
     private static bool CanStartMultiplayerTask(Object target)

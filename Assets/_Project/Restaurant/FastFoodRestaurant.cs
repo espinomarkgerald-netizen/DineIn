@@ -5,7 +5,7 @@ using UnityEngine.AI;
 
 /// <summary>Authored single-player Lobby2 service coordinator. No runtime bootstrap.</summary>
 [DefaultExecutionOrder(-100)]
-public sealed class FastFoodRestaurant : MonoBehaviour
+public sealed partial class FastFoodRestaurant : MonoBehaviour
 {
     [Header("Scene references")]
     [SerializeField] private TakeoutQueueManager counterQueue;
@@ -334,13 +334,13 @@ public sealed class FastFoodRestaurant : MonoBehaviour
     // Called BEFORE finance callbacks; closes the payment against reentrant clicks.
     public bool ReserveSettlement(CustomerGroup group)
     {
-        if (!CanSettle(group)) return false;
+        if (MultiplayerRestaurantBridge.IsObserver || !CanSettle(group)) return false;
         return settled.Add(group);
     }
 
     public void PaymentCompleted(CustomerGroup group)
     {
-        if (group == null || group.FastFood != this || !settled.Contains(group) || !group.CommitFastFoodPayment()) return;
+        if (MultiplayerRestaurantBridge.IsObserver || group == null || group.FastFood != this || !settled.Contains(group) || !group.CommitFastFoodPayment()) return;
         StationFor(group)?.Queue.Remove(group); // Detach without sending this paid customer to the exit.
         StationFor(group)?.Flow.ForceRelease(group);
         paid.Add(group);
@@ -367,7 +367,7 @@ public sealed class FastFoodRestaurant : MonoBehaviour
 
     private void Update()
     {
-        if (!Operational || Time.time < nextSeatCheck) return;
+        if (!Operational || MultiplayerRestaurantBridge.IsObserver || Time.time < nextSeatCheck) return;
         nextSeatCheck = Time.time + seatCheckInterval;
         foreach (var group in new List<CustomerGroup>(readyWait.Keys))
         {
@@ -475,6 +475,10 @@ public sealed class FastFoodRestaurant : MonoBehaviour
     private void OnOutcome(CustomerGroup group, CustomerGroup.FinalResult result)
     {
         if (group == null) return;
+        if (MultiplayerServiceActions.IsActive)
+            foreach (var payment in MultiplayerWorldRegistry.All<MoneyPickup>())
+                if (payment != null && payment.TargetGroup == group)
+                { payment.gameObject.SetActive(false); Destroy(payment.gameObject); }
         StationFor(group)?.Queue.Remove(group);
         StationFor(group)?.Flow.ForceRelease(group);
         OrderChecklistUI.Instance?.DismissUnavailableOrder(group);
@@ -593,7 +597,7 @@ public sealed class FastFoodRestaurant : MonoBehaviour
 
     public void FinishClosing()
     {
-        if (!Operational || MultiplayerDayBridge.IsActive) return;
+        if (!Operational || MultiplayerRestaurantBridge.IsObserver) return;
         acceptingCustomers = false;
         // The existing closing grace period is over. Settle failed, unserved
         // prepaid orders before the daily finance result is captured.
@@ -608,11 +612,14 @@ public sealed class FastFoodRestaurant : MonoBehaviour
 
     public void RequestPaymentAfterReview(CustomerGroup group)
     {
+        // The accepted review reply opens payment only for the reviewing participant.
+        if (MultiplayerServiceActions.IsActive) return;
         if (!CanSettle(group) || !RestaurantTaskClaim.TryClaimPlayer(group)) return;
         StartCoroutine(OpenAfterReview(group, serviceGeneration));
     }
     public void RequestCounterPayment(CustomerGroup group)
     {
+        if (MultiplayerServiceActions.IsActive) { MultiplayerServiceActions.RequestFastFoodPayment(group); return; }
         if (!CanSettle(group)) return;
         var mover = RoleManager.Instance?.GetActivePlayerMovement();
         var cashierApproach = StationFor(group)?.StaffApproach;
@@ -633,6 +640,7 @@ public sealed class FastFoodRestaurant : MonoBehaviour
     }
     public bool OpenCounterPayment(CustomerGroup group)
     {
+        if (MultiplayerServiceActions.IsActive) return MultiplayerServiceActions.RequestFastFoodPayment(group);
         if (!CanSettle(group)) return false;
         var cashierApproach = StationFor(group)?.StaffApproach;
         var register = CashierRegisterUI.ResolveInstance();
@@ -666,13 +674,14 @@ public sealed class FastFoodRestaurant : MonoBehaviour
 
     public void CancelCounterPayment(CustomerGroup group)
     {
+        if (MultiplayerServiceActions.IsActive) return;
         if (group != null && group.FastFood == this && !group.FastFoodPaid)
             RestaurantTaskClaim.ReleasePlayer(group);
     }
 
     public void BeginServiceDay()
     {
-        if (!Operational || MultiplayerDayBridge.IsActive) return;
+        if (!Operational || MultiplayerRestaurantBridge.IsObserver) return;
         ResetServiceObjects();
         acceptingCustomers = true;
         serviceAvailable = true;

@@ -96,7 +96,8 @@ public class MoneyPickup : MonoBehaviour, IInteractable, ICancelableTaskTarget
     // object, amount and order identity when its holder releases it.
     public bool PresentAtPickup()
     {
-        var anchor = targetGroup != null ? targetGroup.assignedBooth?.GetComponent<BoothMoneySpawner>()?.MoneySpawnPoint : null;
+        var anchor = targetGroup?.FastFood != null ? targetGroup.FastFood.StationFor(targetGroup)?.StaffApproach
+            : targetGroup != null ? targetGroup.assignedBooth?.GetComponent<BoothMoneySpawner>()?.MoneySpawnPoint : null;
         if (anchor == null) return false;
         GetComponentInParent<WaiterHands>(true)?.DetachMoneyPickup(this);
         transform.SetParent(anchor, true);
