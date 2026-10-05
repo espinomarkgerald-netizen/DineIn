@@ -12,6 +12,7 @@ namespace DineIn.Appearance
         private CharacterAppearance look;
         private ApplyCustomizationOnSpawn legacy;
         public bool Previewing { get; set; }
+        public event System.Action Refreshed;
         public override void OnEnable()
         {
             base.OnEnable(); PlayerCustomizationData.AppearanceChanged += Refresh;
@@ -39,6 +40,7 @@ namespace DineIn.Appearance
                     ["HatI"] = PlayerCustomizationData.EquippedHatId
                 });
             }
+            Refreshed?.Invoke();
         }
         public override void OnPlayerPropertiesUpdate(Player target, Hashtable changed)
         {

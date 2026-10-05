@@ -102,7 +102,12 @@ public sealed partial class MultiplayerSocialUI : MonoBehaviour
             var label = button.GetComponentInChildren<TMP_Text>();
             label.spriteAsset = chat.Catalog.emojiSprites;
             label.text = kind >= 2 ? "<sprite index=" + entry.spriteIndex + "> " + Escape(entry.label) : Escape(entry.label);
-            button.onClick.AddListener(() => { if (chat.Send(kind, entry.id)) SetPicker(false); });
+            button.onClick.AddListener(() =>
+            {
+                if (!chat.Send(kind, entry.id)) return;
+                if (kind == 3) CloseChat(); // Reveal the emote; keep history and the unsent draft.
+                else SetPicker(false);
+            });
         }
     }
     private void SelectCategory(int category)
@@ -133,7 +138,7 @@ public sealed partial class MultiplayerSocialUI : MonoBehaviour
             foreach (var b in emoteButtons) b.interactable = chat.CanSend && canEmote;
         }
         confirmButton.interactable = confirmingLeave ? session.IsConnected || session.Ended : session.CanRemove(selectedAccount);
-        status.text = session.CanAct ? "Enter to send  /  Esc to close" : "Chat unavailable while disconnected or synchronizing.";
+        status.text = session.CanAct ? (Application.isMobilePlatform ? string.Empty : "Enter to send  /  Esc to close") : "Chat unavailable while disconnected or synchronizing.";
         UpdatePresentationInput();
         if (InputBlocked && Input.GetKeyDown(KeyCode.Escape))
         { if (confirmation.activeSelf) CloseConfirmation(); else if (wheelShield.activeSelf || touchId >= 0) EndWheel(false, true); else if (optionTray.activeSelf) SetPicker(false); else if (panel.activeSelf) CloseChat();
@@ -157,7 +162,7 @@ public sealed partial class MultiplayerSocialUI : MonoBehaviour
     }
     private void CloseChat()
     {
-        SetPicker(false);
+        pickerPending = false; // Keep the current geometry during the close animation.
         input.DeactivateInputField();
         panelAnimation.Close();
         // AnimatedPanel normally releases raycasts as its fade starts. Keep this
@@ -166,6 +171,7 @@ public sealed partial class MultiplayerSocialUI : MonoBehaviour
     }
     private void OnChatClosed()
     {
+        SetPicker(false);
         GameplayUIBlocker.Instance?.SetPanelBlocksGameplay(panel, false);
         closedFrame = Time.frameCount;
         RestoreCursor();

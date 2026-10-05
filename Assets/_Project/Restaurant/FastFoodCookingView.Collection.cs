@@ -13,7 +13,7 @@ public sealed partial class FastFoodCookingView
     private readonly Dictionary<FastFoodCookingState.Portion, GameObject> collecting = new();
     private readonly Dictionary<Recipe, FastFoodCookingDragHandle> proteinSlots = new();
     private bool CanTapCollect => opened && activeStation != null && drag == null && !cameraMoving &&
-        stationTransition == null && Time.timeScale > 0 && !HygieneManager.KitchenPaused && owner.Network?.AwaitingAction != true;
+        stationTransition == null && !kitchenTravelBusy && Time.timeScale > 0 && !HygieneManager.KitchenPaused && owner.Network?.AwaitingAction != true;
 
     void UpdateBaskets()
     {

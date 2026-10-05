@@ -31,7 +31,7 @@ public sealed partial class FastFoodCookingView
     }
     private void UpdateProductionCamera()
     {
-        if(activeStation==null || stationCamera==null)return;
+        if(activeStation==null || stationCamera==null || kitchenTravelBusy)return;
         bool finishedPrep=State.ShowingCompletedBatch && State.PlayerWork.Any(p=>FastFoodCookingState.AssemblySteps(p.recipe).Count>0) ||
             State.Mode==FastFoodStationMode.Grill && (prepPickups.Count>0 || State.Portions.Any(p=>p.prepSlot>=0 && !p.placed));
         bool wantsPrep=(State.PrepReady||finishedPrep||State.Mode==FastFoodStationMode.Fry&&Time.unscaledTime<fryerPrepUntil) && activeStation.preparationViewAnchor!=null;

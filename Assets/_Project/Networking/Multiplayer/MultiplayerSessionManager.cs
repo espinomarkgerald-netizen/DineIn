@@ -12,7 +12,7 @@ using Hashtable = ExitGames.Client.Photon.Hashtable;
 public partial class MultiplayerSessionManager : MonoBehaviourPunCallbacks
 {
     public const string SceneName = "Lobby1 Multiplayer", RunKey = "restaurant.run.v2";
-    public const string ProtocolKey = "restaurant.protocol", Protocol = "shared-session-19";
+    public const string ProtocolKey = "restaurant.protocol", Protocol = "shared-session-20";
     public const string ResultRulesVersion = "casual-session-2";
     public const string ReadyKey = "restaurant.ready", LoadedKey = "restaurant.loaded";
     public const int RejoinSeconds = 90;
@@ -33,6 +33,7 @@ public partial class MultiplayerSessionManager : MonoBehaviourPunCallbacks
     private float reconnectUntil, nextReconnect;
     private int localActor;
     private int previousSerializationRate;
+    private float previousDispatchThreshold;
     public string Status { get; private set; } = "Loading restaurant…";
     // Remains a multiplayer context while disconnected/ended: never fall back to local simulation.
     public bool IsMultiplayerSession => Instance == this && isActiveAndEnabled;
@@ -62,6 +63,9 @@ public partial class MultiplayerSessionManager : MonoBehaviourPunCallbacks
         Instance = this;
         PhotonNetwork.EnableCloseConnection = true;
         PhotonNetwork.AutomaticallySyncScene = true;
+        // Hygiene decisions pause simulation; room updates must still resolve that pause.
+        previousDispatchThreshold = PhotonNetwork.MinimalTimeScaleToDispatchInFixedUpdate;
+        PhotonNetwork.MinimalTimeScaleToDispatchInFixedUpdate = Mathf.Max(0f, previousDispatchThreshold);
         previousSerializationRate = PhotonNetwork.SerializationRate;
         PhotonNetwork.SerializationRate = 10;
         localActor = PhotonNetwork.LocalPlayer?.ActorNumber ?? 0;
@@ -365,6 +369,11 @@ public partial class MultiplayerSessionManager : MonoBehaviourPunCallbacks
     private void OnDestroy()
     {
         managers.Clear();
-        if (Instance == this) { PhotonNetwork.SerializationRate = previousSerializationRate; Instance = null; }
+        if (Instance == this)
+        {
+            PhotonNetwork.SerializationRate = previousSerializationRate;
+            PhotonNetwork.MinimalTimeScaleToDispatchInFixedUpdate = previousDispatchThreshold;
+            Instance = null;
+        }
     }
 }

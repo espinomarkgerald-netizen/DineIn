@@ -44,6 +44,7 @@ public sealed class MultiplayerFastFoodCooking : MonoBehaviourPunCallbacks, IOnE
     private MultiplayerSessionManager session;
     private MultiplayerTaskClaims claims;
     private Pending pending;
+    private string workpointClaim;
     private readonly Dictionary<string, Reply> receipts = new();
     private readonly Dictionary<int, (int epoch, long sequence)> stationSequences = new();
     private int day, revision, received = -1;
@@ -72,7 +73,8 @@ public sealed class MultiplayerFastFoodCooking : MonoBehaviourPunCallbacks, IOnE
     public override void OnDisable()
     {
         if (claims != null) claims.ClaimResult -= OnClaimResult;
-        CancelPending();
+        controller?.ExitKitchen();
+        CancelPending(); ReleaseWorkpoint();
         base.OnDisable();
     }
     private void Start()
@@ -108,12 +110,43 @@ public sealed class MultiplayerFastFoodCooking : MonoBehaviourPunCallbacks, IOnE
     }
     public void SelectStation(FastFoodStationMode mode)
     {
+        // Entering a station is acknowledged through RequestStation before the local walk.
+        if (mode != FastFoodStationMode.None) return;
+        CancelPending(false); ReleaseWorkpoint();
         if (!Active || suspended || !session.IsConnected || controller?.State == null) return;
-        CancelPending();
         var context = MultiplayerActionContext.Capture(session, null, "Station", null, "Station");
         var command = new Command { context = context, mode = (int)mode, stationSequence = ++stationSequence };
         if (session.IsAuthority) Handle(command, session.LocalActorNumber);
         else MultiplayerWire.Raise(RequestEvent, JsonUtility.ToJson(command), new RaiseEventOptions { Receivers = ReceiverGroup.MasterClient }, SendOptions.SendReliable);
+    }
+    private static string WorkpointTask(FastFoodStationMode mode) => "FastFood:Workpoint:" + (int)mode;
+    private void ReleaseWorkpoint()
+    {
+        string task = workpointClaim; workpointClaim = null;
+        if (task != null && claims != null) claims.Release(task);
+    }
+    public void RequestStation(FastFoodStationMode mode, Action<bool> completed)
+    {
+        var station = controller != null ? controller.Station(mode) : null;
+        if (!Active || suspended || !session.CanAct || pending != null || HygieneManager.KitchenPaused ||
+            station == null || station.playerWorkPoint == null)
+        { completed?.Invoke(false); return; }
+        var command = new Command {
+            context = MultiplayerActionContext.Capture(session, null, "Station", null, "Station"),
+            mode = (int)mode, stationSequence = ++stationSequence,
+            tasks = new[] { WorkpointTask(mode) }, leases = new long[1]
+        };
+        pending = new Pending { command = command, completed = completed, until = Time.realtimeSinceStartup + requestTimeoutSeconds };
+        AcquireNext();
+    }
+    private bool AtWorkpoint(int actor, FastFoodStationMode mode)
+    {
+        var station = controller.Station(mode);
+        if (station == null || station.playerWorkPoint == null || !claims.IsClaimedBy(WorkpointTask(mode), actor) ||
+            !session.TryGetManager(actor, out var manager)) return false;
+        Vector3 delta = NetworkPlayerMovementSync.AuthorityPosition(manager) - station.playerWorkPoint.position;
+        delta.y = 0; // Match the existing planar service-interaction checks.
+        return delta.sqrMagnitude <= station.playerWorkRadius * station.playerWorkRadius;
     }
     public void RequestAction(string operation, FastFoodCookingState.Portion portion, ItemData item, int slot, Action<bool> completed)
     {
@@ -137,7 +170,8 @@ public sealed class MultiplayerFastFoodCooking : MonoBehaviourPunCallbacks, IOnE
     private static string[] RequiredTasks(Command command)
     {
         var tasks = new List<string>();
-        if (command.context.operation == "Serve") tasks.Add("FastFood:Assembly:" + command.order);
+        if (command.context.operation == "Station") tasks.Add(WorkpointTask((FastFoodStationMode)command.mode));
+        else if (command.context.operation == "Serve") tasks.Add("FastFood:Assembly:" + command.order);
         else if (command.context.operation == "Basket") tasks.Add("FastFood:Basket:" + command.slot);
         else if (command.portion > 0) tasks.Add("FastFood:Portion:" + command.portion);
         if (command.context.operation == "Load") tasks.Add("FastFood:Surface:" + command.mode + ":" + command.slot + ":" + command.context.expectedStage);
@@ -161,7 +195,7 @@ public sealed class MultiplayerFastFoodCooking : MonoBehaviourPunCallbacks, IOnE
     {
         var request = pending;
         if (request == null || request.waitingTask != task || request.sent) return;
-        if (!accepted) { CancelPending(); WarningSlideUI.Instance?.Show("A teammate is using that food or slot. Try another available slot."); return; }
+        if (!accepted) { CancelPending(); WarningSlideUI.Instance?.Show(request.command.context.operation == "Station" ? "A teammate is using that station workpoint. Choose another station." : "A teammate is using that food or slot. Try another available slot."); return; }
         request.command.leases[request.acquired++] = claims.GetLease(task);
         request.waitingTask = null;
         AcquireNext();
@@ -197,9 +231,29 @@ public sealed class MultiplayerFastFoodCooking : MonoBehaviourPunCallbacks, IOnE
         if (command.context.operation == "Station")
         {
             if (command.stationSequence <= 0 || stationSequences.TryGetValue(sender, out var last) && last.epoch == command.context.loadEpoch && last.sequence >= command.stationSequence) return;
-            if (mode != FastFoodStationMode.None && (!session.TryGetManager(sender, out _) || HygieneManager.KitchenPaused)) return;
             stationSequences[sender] = (command.context.loadEpoch, command.stationSequence);
-            state.SetParticipantStation(sender, mode); PublishNow(); return;
+            if (mode == FastFoodStationMode.None)
+            {
+                var previousMode = state.ParticipantStation(sender);
+                if (previousMode != FastFoodStationMode.None) claims.ReleaseOnAuthority(WorkpointTask(previousMode), sender);
+                state.SetParticipantStation(sender, mode); PublishNow(); return;
+            }
+            var station = controller.Station(mode);
+            bool accepted = session.TryGetManager(sender, out _) && !HygieneManager.KitchenPaused && station != null &&
+                station.playerWorkPoint != null && command.tasks != null && command.tasks.Length == 1 &&
+                command.tasks[0] == WorkpointTask(mode) && command.leases != null && command.leases.Length == 1 &&
+                claims.IsClaimedBy(command.tasks[0], sender) && claims.GetLease(command.tasks[0]) == command.leases[0];
+            if (accepted)
+            {
+                var previousMode = state.ParticipantStation(sender);
+                state.SetParticipantStation(sender, mode);
+                if (previousMode != FastFoodStationMode.None && previousMode != mode)
+                    claims.ReleaseOnAuthority(WorkpointTask(previousMode), sender);
+            }
+            var stationReply = new Reply { result = new MultiplayerActionResult { context = command.context,
+                outcome = accepted ? MultiplayerActionOutcome.Success : MultiplayerActionOutcome.Unavailable,
+                revision = ++revision, message = "That kitchen workpoint is unavailable." }, snapshot = Capture() };
+            receipts[key] = stationReply; SendReply(sender, stationReply); PublishNow(); return;
         }
         var outcome = MultiplayerActionOutcome.Unavailable;
         bool phaseValid = GameFlowManager.Instance != null && command.phase == (int)GameFlowManager.Instance.CurrentRestaurantSessionState
@@ -214,7 +268,7 @@ public sealed class MultiplayerFastFoodCooking : MonoBehaviourPunCallbacks, IOnE
         else if (!validClaims) outcome = MultiplayerActionOutcome.AnotherOwner;
         else if (string.IsNullOrEmpty(version) || version != command.version) outcome = MultiplayerActionOutcome.StaleStage;
         else if (phaseValid && session.TryGetManager(sender, out var manager) && manager != null && manager.activeInHierarchy
-            && state.ParticipantStation(sender) == mode && mode != FastFoodStationMode.None && !HygieneManager.KitchenPaused
+            && state.ParticipantStation(sender) == mode && mode != FastFoodStationMode.None && AtWorkpoint(sender, mode) && !HygieneManager.KitchenPaused
             && (!HygieneManager.HoldNewCooking || command.context.operation != "Load" || portion?.stage != FastFoodCookingStage.Waiting))
         {
             bool accepted = state.ExecuteNetworkAction(command.context.operation, mode, command.portion, command.item, command.slot, command.order);
@@ -239,7 +293,12 @@ public sealed class MultiplayerFastFoodCooking : MonoBehaviourPunCallbacks, IOnE
         if (request == null || !request.command.context.MatchesAction(reply.result.context)) return;
         if (!session.IsAuthority && (reply.snapshot == null || reply.snapshot.revision >= received && !Apply(reply.snapshot))) return;
         pending = null;
-        ReleaseClaims(request);
+        if (reply.result.Accepted && request.command.context.operation == "Station")
+        {
+            if (workpointClaim != request.command.tasks[0]) ReleaseWorkpoint();
+            workpointClaim = request.command.tasks[0];
+        }
+        else ReleaseClaims(request);
         if (!reply.result.Accepted) WarningSlideUI.Instance?.Show(reply.result.message);
         request.completed?.Invoke(reply.result.Accepted);
     }
@@ -280,6 +339,8 @@ public sealed class MultiplayerFastFoodCooking : MonoBehaviourPunCallbacks, IOnE
     public void ParticipantUnavailable(int actor)
     {
         if (!Active || !session.IsAuthority || controller?.State == null) return;
+        var mode = controller.State.ParticipantStation(actor);
+        if (mode != FastFoodStationMode.None) claims.ReleaseOnAuthority(WorkpointTask(mode), actor);
         controller.State.SetParticipantStation(actor, FastFoodStationMode.None);
         stationSequences.Remove(actor);
         PublishNow();
@@ -287,15 +348,16 @@ public sealed class MultiplayerFastFoodCooking : MonoBehaviourPunCallbacks, IOnE
     public void SuspendSession()
     {
         suspended = true;
-        CancelPending(); controller?.ExitKitchen(); restoredState = null; received = -1;
+        CancelPending(); controller?.ExitKitchen(); ReleaseWorkpoint(); restoredState = null; received = -1;
         if (session != null && session.IsAuthority && controller?.State != null)
             foreach (int actor in controller.State.NetworkParticipants) controller.State.SetParticipantStation(actor, FastFoodStationMode.None);
     }
-    private void CancelPending()
+    private void CancelPending(bool releaseStation = true)
     {
         var request = pending; pending = null;
         if (request == null) return;
         ReleaseClaims(request);
+        if (releaseStation && request.command.context.operation == "Station") SelectStation(FastFoodStationMode.None);
         request.completed?.Invoke(false);
     }
     private void ReleaseClaims(Pending request)

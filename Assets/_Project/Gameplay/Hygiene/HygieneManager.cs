@@ -547,6 +547,10 @@ public sealed partial class HygieneManager : MonoBehaviourPunCallbacks, Photon.R
                     || float.IsNaN(mark.position.sqrMagnitude) || float.IsInfinity(mark.position.sqrMagnitude)) return;
             State = incoming;
             lastPayload = payload;
+            // Reconcile from the accepted revision, including late joins/reconnects.
+            // ReleasePause and this dialogue own only the hygiene prompt's pause/blocker.
+            if (!State.decisionOpen) ReleasePause();
+            dialogue?.Present(State, false, Choose);
         }
         catch (ArgumentException) { Debug.LogWarning("[Hygiene] Ignored invalid sanitation state."); }
     }

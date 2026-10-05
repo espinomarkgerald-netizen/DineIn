@@ -59,6 +59,8 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
     private bool starting;
     private bool pendingCreate;
     private string pendingCode;
+    private string pendingAccountId;
+    private string submittedCode;
     private string startingRunId;
     private string createTabLabel;
     private byte pendingSize;
@@ -185,6 +187,8 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
         var account = PlayFabAuthManager.Instance;
         if (account == null || !account.IsLoggedIn || string.IsNullOrEmpty(account.PlayFabId))
         { SetStatus("Sign in before starting multiplayer."); return; }
+        pendingAccountId = account.PlayFabId;
+        if (!rejoin) { rejoinPointer = null; rejoinFailure = null; }
         pendingRejoin = rejoin; fallbackRejoin = awaitingAdmission = false;
         PhotonNetwork.AutomaticallySyncScene = false;
         busy = true;
@@ -222,9 +226,10 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
     {
         if (pendingCode == null || !Ready()) return;
         string code = pendingCode;
+        submittedCode = code;
         pendingCode = null;
         var account = PlayFabAuthManager.Instance;
-        if (account == null || !account.IsLoggedIn || !PhotonBootstrap.ConnectionMatchesAccount(account.PlayFabId))
+        if (account == null || !account.IsLoggedIn || account.PlayFabId != pendingAccountId || !PhotonBootstrap.ConnectionMatchesAccount(account.PlayFabId))
         { Fail("Sign in and reconnect before joining a run."); return; }
         PhotonNetwork.NickName = account != null && account.IsLoggedIn &&
             !string.IsNullOrWhiteSpace(account.DisplayName) ? account.DisplayName.Trim() : "Player";
@@ -232,6 +237,7 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
         {
             if (!MultiplayerLastRun.IsCompatible(rejoinPointer, account.PlayFabId, DateTime.UtcNow, out var reason))
             { Fail(reason); return; }
+            TraceRoom("rejoin request", code);
             SetStatus("Checking your reserved place and reconnecting...");
             if (!(fallbackRejoin ? PhotonNetwork.JoinRoom(code) : PhotonNetwork.RejoinRoom(code))) Fail("Could not start reconnecting. Please retry.");
             return;
@@ -241,6 +247,7 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
         string destination = null;
         if (pendingCreate && !MultiplayerDestinations.TryGet(pendingRestaurant, out destination, out _))
         { Fail("The selected multiplayer restaurant is unsupported."); return; }
+        TraceRoom(pendingCreate ? "create request" : "join request", code);
         bool sent = pendingCreate
             ? PhotonNetwork.CreateRoom(code, new RoomOptions
             {
@@ -256,8 +263,11 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
         if (!sent) Fail("Unable to contact room. Try again.");
     }
 
+    public override void OnCreatedRoom() => TraceRoom("created", PhotonNetwork.CurrentRoom?.Name);
+
     public override void OnJoinedRoom()
     {
+        TraceRoom("joined", PhotonNetwork.CurrentRoom?.Name);
         if (!SupportedRoom())
         {
             rejoinFailure = "Room version or restaurant is unsupported. Use the same updated game version.";
@@ -331,11 +341,15 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
         if (busy) Fail(PhotonBootstrap.Instance?.LastConnectionError ?? "Photon disconnected (" + cause + "). Please retry.");
     }
     private void OnConnectionFailed(string message) { if (busy) Fail(message); }
-    public override void OnCreateRoomFailed(short code, string message) =>
+    public override void OnCreateRoomFailed(short code, string message)
+    {
+        TraceRoom("create failed", submittedCode, code, message);
         Fail(code == ErrorCode.GameIdAlreadyExists ? "Code already used. Press Create again."
             : "Could not create room (" + code + "). Reconnect and retry.");
+    }
     public override void OnJoinRoomFailed(short code, string message)
     {
+        TraceRoom("join failed", submittedCode, code, message);
         if (!pendingRejoin) { Fail(JoinFailureMessage(code)); return; }
         if (code == ErrorCode.JoinFailedWithRejoinerNotFound)
         { fallbackRejoin = true; pendingCode = rejoinPointer.room; return; }
@@ -348,14 +362,26 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
     }
 
     internal static string JoinFailureMessage(short code) =>
-        code == ErrorCode.GameDoesNotExist ? "Room not found. Use the same updated game version and ask the host for a new room code." :
+        code == ErrorCode.GameDoesNotExist ? "Room not found (32758). Check the exact code and that the host is still in the room." :
             code == ErrorCode.GameFull ? "Room is full." :
-            code == ErrorCode.GameClosed ? "Room has already started. Ask the host to create a new room." :
+            code == ErrorCode.GameClosed ? "Room is closed to joining. Check with the host." :
             code == ErrorCode.JoinFailedFoundActiveJoiner || code == ErrorCode.JoinFailedPeerAlreadyJoined
                 ? "This account is already in the room. Each player must sign in with a different account." :
             code == ErrorCode.JoinFailedFoundInactiveJoiner
                 ? "Your place is reserved. Use Rejoin Session to return." :
             "Unable to join (" + code + "). Check your connection and try again.";
+
+    [System.Diagnostics.Conditional("UNITY_EDITOR"), System.Diagnostics.Conditional("DEVELOPMENT_BUILD")]
+    private static void TraceRoom(string action, string code, short failure = 0, string detail = null)
+    {
+        var client = PhotonNetwork.NetworkingClient;
+        var room = PhotonNetwork.CurrentRoom;
+        // Application/account IDs are identifiers; never log AuthValues, tokens or credentials.
+        Debug.Log($"[Room] {action} code='{code}' account={PhotonNetwork.LocalPlayer?.UserId} " +
+            $"app={client.AppId} region={PhotonNetwork.CloudRegion} version={client.AppVersion} " +
+            $"state={PhotonNetwork.NetworkClientState} room='{room?.Name}' open={room?.IsOpen} " +
+            $"players={room?.PlayerCount}/{room?.MaxPlayers} failure={failure} message={detail}");
+    }
 
     private void Fail(string message)
     {

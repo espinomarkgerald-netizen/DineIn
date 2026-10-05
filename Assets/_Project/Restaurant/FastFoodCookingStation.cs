@@ -6,6 +6,12 @@ public sealed class FastFoodCookingStation : MonoBehaviour
 {
     public FastFoodStationMode mode;
     public Camera stationCamera;
+    [Header("Multiplayer restaurant workpoint")]
+    [Tooltip("The player's walkable restaurant position, separate from staff and close-up camera rigs.")]
+    public Transform playerWorkPoint;
+    [Min(.05f)] public float playerArrivalRadius = .25f;
+    [Tooltip("Authority-side tolerance for the existing interpolated movement stream.")]
+    [Min(.25f)] public float playerWorkRadius = 1f;
     [Tooltip("Existing appliance/counter used when authoring the station framing.")]
     public Renderer workSurface;
     [Tooltip("Kitchen pointer targets, independent of staff and appliance colliders.")]

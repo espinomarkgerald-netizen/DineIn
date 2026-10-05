@@ -62,14 +62,22 @@ public sealed partial class FastFoodCookingView : MonoBehaviour
     private readonly List<(Recipe recipe, FastFoodCookingDragHandle view)> ticketProducts = new();
     private readonly List<(CanvasGroup group,float alpha,bool interactable,bool blocks,bool added)> hidden = new();
     private readonly List<(Renderer renderer,bool hidden)> hiddenStaff = new();
+    private readonly List<(Renderer renderer,bool hidden)> hiddenLocalBody = new();
+    private readonly List<(GameObject root,bool active)> hiddenLocalNames = new();
+    private GameObject hiddenLocalPlayer;
+    private DineIn.Appearance.PlayerAppearanceBinding hiddenAppearance;
     private readonly List<(Canvas canvas,bool enabled)> hiddenNameplates = new();
+    private int stationApproach;
+    private PlayerMovement kitchenMovement;
+    public FastFoodCookingStation Station(FastFoodStationMode mode) => stations.FirstOrDefault(s => s != null && s.mode == mode);
     public bool IsOpen => opened;
     public bool OwnsDrag(FastFoodCookingDragHandle handle)=>drag==handle;
     public bool HasActiveDrag=>drag!=null;
     public bool CanOpen => owner != null && owner.Active && IsAuthored && !opened &&
         ManagerPlayer.Active != null && !GameplayUIBlocker.IsBlocked() && Time.timeScale > 0 &&
         RestockFlowCoordinator.Instance?.IsRestockRoomOpen != true &&
-        (!FastFoodCookingController.IsMultiplayer || MultiplayerSessionManager.Instance.CanAct);
+        (!FastFoodCookingController.IsMultiplayer || MultiplayerSessionManager.Instance.CanAct &&
+            ManagerPlayer.Active.Movement != null && !ManagerPlayer.Active.Movement.IsTaskLocked);
     public bool IsAuthored => canvas != null && ingredientTemplate != null && ticketTemplate != null && stations.Length == 3 && stations.All(s=>s!=null && s.stationCamera!=null && s.preparation!=null);
 
     private void Awake() { owner=GetComponent<FastFoodCookingController>(); }
@@ -94,6 +102,7 @@ public sealed partial class FastFoodCookingView : MonoBehaviour
     }
     public void ServeOrder()
     {
+        if (kitchenTravelBusy) return;
         var ticket = State.PlayerTicket;
         if (ticket == null) return;
         owner.RequestAction("Serve", null, null, ticket.number, accepted =>
@@ -112,7 +121,19 @@ public sealed partial class FastFoodCookingView : MonoBehaviour
     }
     public void Back()
     {
+        if (FastFoodCookingController.IsMultiplayer && kitchenTravelBusy) return;
+        if (FastFoodCookingController.IsMultiplayer && activeStation != null && !kitchenTravelBusy)
+        {
+            kitchenTravelBusy = true;
+            stationTransition = StartCoroutine(ReturnFromCloseUp(true));
+            return;
+        }
+        OpenStationPicker();
+    }
+    private void OpenStationPicker()
+    {
         CasualDiningProgressHUD.Instance?.ClearKitchenCleaningAnchor(cleaningProgressAnchor);
+        CancelStationApproach();
         StopStationTransition(); CancelDrag(); State.SelectStations(); PlayerTaskGuidance.SetKitchenFocus(true);
         DestroyWorld(); selection.gameObject.SetActive(true); station.gameObject.SetActive(false); help.gameObject.SetActive(false);
         PulseUI(selection);
@@ -122,11 +143,52 @@ public sealed partial class FastFoodCookingView : MonoBehaviour
     private void Enter(FastFoodStationMode mode)
     {
         if (FastFoodTutorialBridge.Active && !FastFoodTutorialBridge.Instance.AllowsStation(mode)) return;
+        if (FastFoodCookingController.IsMultiplayer)
+        {
+            if (!opened || kitchenTravelBusy || owner.Network == null) return;
+            var target = Station(mode);
+            if (target == null || target.playerWorkPoint == null || target.stationCamera == null || previousCamera == null)
+            { WarningSlideUI.Instance?.Show("This station is missing its workpoint or camera."); return; }
+            CancelDrag();
+            kitchenTravelBusy = true;
+            int approach = ++stationApproach;
+            owner.Network.RequestStation(mode, accepted =>
+            {
+                if (!opened || approach != stationApproach) return;
+                if (!accepted)
+                {
+                    kitchenTravelBusy = false;
+                    // A rejected initial choice leaves the picker usable; a failed switch returns to the restaurant.
+                    if (activeStation != null)
+                    {
+                        kitchenTravelBusy = true;
+                        stationTransition = StartCoroutine(ReturnFromCloseUp(false));
+                    }
+                    return;
+                }
+                selection.gameObject.SetActive(false);
+                station.gameObject.SetActive(false);
+                stationTransition = StartCoroutine(TravelToStation(target, approach));
+                if (!kitchenTravelBusy) stationTransition = null;
+            });
+            return;
+        }
+        ShowStation(mode);
+    }
+    private void CancelStationApproach()
+    {
+        stationApproach++;
+        var movement = kitchenMovement; kitchenMovement = null;
+        if (movement != null) movement.CancelLockedTask();
+    }
+    private void ShowStation(FastFoodStationMode mode)
+    {
         CancelDrag(); DestroyWorld(); ResetPolish();
         activeStation=stations.First(s=>s.mode==mode);
         activeStation.gameObject.SetActive(true); activeStation.labels.gameObject.SetActive(true);
-        stationCamera=activeStation.stationCamera;
+        stationCamera=activeStation.stationCamera; stationCamera.enabled=true;
         HideStaffVisuals();
+        HideLocalBody();
         if(previousCamera!=null)previousCamera.enabled=false;
         loadTarget=activeStation.cooking; prepTarget=activeStation.preparation; discardTarget=activeStation.discard;
         foreach(var target in activeStation.Slots.Concat(activeStation.PrepTargets).Concat(activeStation.collectionSurfaces).Concat(new[]{prepTarget,discardTarget})) if(target!=null)target.view=this;
@@ -369,7 +431,7 @@ public sealed partial class FastFoodCookingView : MonoBehaviour
         if(Time.timeScale<=0 || drag!=null || !handle.enabled || owner.Network?.AwaitingAction == true)return;
         CancelDrag();
         if(handle.storedProtein && (!State.PrepReady || handle.item==null)) { Warn("Finish cooking this batch to start assembly"); return; }
-        if(cameraMoving||stationTransition!=null)return;
+        if(cameraMoving||stationTransition!=null||kitchenTravelBusy)return;
         if(State.Mode!=FastFoodStationMode.Assembler && handle.item==null && handle.portion?.stage==FastFoodCookingStage.Ready) return;
         if(State.Mode!=FastFoodStationMode.Assembler && handle.item!=null)
             handle.portion=State.PrepReady?Enumerable.Range(0,State.grillPrepSlots).Select(i=>State.PrepPortion(handle.item,i)).FirstOrDefault(p=>p!=null):State.NextLoad(handle.item);
@@ -524,6 +586,43 @@ public sealed partial class FastFoodCookingView : MonoBehaviour
         foreach(var nameplate in staffNameplates)
             if(nameplate!=null) { hiddenNameplates.Add((nameplate,nameplate.enabled)); nameplate.enabled=false; }
     }
+    private void HideLocalBody()
+    {
+        if (!FastFoodCookingController.IsMultiplayer || hiddenLocalPlayer != null) return;
+        hiddenLocalPlayer = MultiplayerSessionManager.Instance.LocalManager;
+        if (hiddenLocalPlayer == null) return;
+        hiddenAppearance = hiddenLocalPlayer.GetComponent<DineIn.Appearance.PlayerAppearanceBinding>();
+        if (hiddenAppearance != null) hiddenAppearance.Refreshed += CaptureLocalVisuals;
+        CaptureLocalVisuals();
+    }
+    private void CaptureLocalVisuals()
+    {
+        if (hiddenLocalPlayer == null) return;
+        foreach (var renderer in hiddenLocalPlayer.GetComponentsInChildren<Renderer>(true))
+        {
+            if (!hiddenLocalBody.Any(entry => entry.renderer == renderer))
+                hiddenLocalBody.Add((renderer, renderer.forceRenderingOff));
+            // Preserve appearance-owned enabled flags, including changes made during close-up.
+            renderer.forceRenderingOff = true;
+        }
+        foreach (var name in hiddenLocalPlayer.GetComponentsInChildren<NameTagBillboard>(true))
+        {
+            if (!hiddenLocalNames.Any(entry => entry.root == name.gameObject))
+                hiddenLocalNames.Add((name.gameObject, name.gameObject.activeSelf));
+            // The actual nametag owns a child Canvas, not a Renderer. Text updates cannot reactivate this root.
+            name.gameObject.SetActive(false);
+        }
+    }
+    private void RestoreLocalBody()
+    {
+        if (hiddenAppearance != null) hiddenAppearance.Refreshed -= CaptureLocalVisuals;
+        hiddenAppearance = null; hiddenLocalPlayer = null;
+        foreach (var entry in hiddenLocalBody)
+            if (entry.renderer != null) entry.renderer.forceRenderingOff = entry.hidden;
+        foreach (var entry in hiddenLocalNames)
+            if (entry.root != null) entry.root.SetActive(entry.active);
+        hiddenLocalBody.Clear(); hiddenLocalNames.Clear();
+    }
     private void RestoreStaffVisuals()
     {
         foreach(var entry in hiddenStaff)if(entry.renderer!=null)entry.renderer.forceRenderingOff=entry.hidden;
@@ -559,6 +658,7 @@ public sealed partial class FastFoodCookingView : MonoBehaviour
         cookingVisuals.Clear();
         acceptedPortion=null; observedStages.Clear();
         RestoreStaffVisuals();
+        RestoreLocalBody();
         foreach (var go in transientVisuals) if (go != null) Destroy(go);
         transientVisuals.Clear(); foodVisual=null;
         if (activeStation != null) {
@@ -574,10 +674,24 @@ public sealed partial class FastFoodCookingView : MonoBehaviour
         }
         activeStation=null; stationCamera=null;
     }
+    // User navigation uses the iris; lifecycle callers keep the immediate cleanup below.
+    public void ExitFromUI()
+    {
+        if (FastFoodCookingController.IsMultiplayer && activeStation != null)
+        {
+            if (ownsKitchenIris) return; // The covered switch already owns the screen.
+            CancelStationApproach();
+            StopStationTransition();
+            kitchenTravelBusy = true;
+            stationTransition = StartCoroutine(ReturnFromCloseUp(false));
+        }
+        else Exit();
+    }
     public void Exit()
     {
         CasualDiningProgressHUD.Instance?.ClearKitchenCleaningAnchor(cleaningProgressAnchor);
         if(!opened)return;
+        CancelStationApproach();
         State.PrepTransferred-=OnPrepTransferred;
         StopStationTransition(); CancelDrag(); owner.State.Enter(FastFoodStationMode.None); PlayerTaskGuidance.SetKitchenFocus(false); PlayerTaskGuidance.ClearTask("FastFoodCooking");
         DestroyWorld(); if(previousCamera!=null)previousCamera.enabled=previousCameraEnabled;

@@ -21,6 +21,7 @@ public sealed class FastFoodCookingController : MonoBehaviour
     public bool CanEnterKitchen => Active && view != null && view.CanOpen && (!IsMultiplayer || MultiplayerSessionManager.Instance.CanAct);
     public void EnterKitchen() { if (CanEnterKitchen) view.Open(); }
     public void ExitKitchen() => view?.Exit();
+    public FastFoodCookingStation Station(FastFoodStationMode mode) => view != null ? view.Station(mode) : null;
     public bool ShowKitchenNotice(string message,int kind=2) => view!=null && view.ShowKitchenNotice(message,kind);
     [Header("Relaxed kitchen help")]
     // Retained only for old scene serialization; occupied stations no longer use a quota.

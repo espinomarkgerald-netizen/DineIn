@@ -15,7 +15,7 @@ public sealed partial class MultiplayerSocialUI
     public Vector2 mobileSize = new(1100f, 620f);
     [Min(220f)] public float minimumMobileHeight = 264f;
     [Range(.2f, .7f)] public float keyboardFallbackFraction = .42f;
-    public float historyBottom = 100f, pickerHeight = 196f;
+    public float historyBottom = 116f, pickerHeight = 308f;
     [Header("Hold wheel")]
     public GameObject wheelShield;
     public RectTransform wheel;
@@ -81,6 +81,8 @@ public sealed partial class MultiplayerSocialUI
     {
         pickerPending = false;
         optionTray.SetActive(show);
+        lastKeyboard = -1f; // Picker changes the required window height even at the same resolution.
+        RefreshWindowLayout();
         scroll.GetComponent<RectTransform>().offsetMin = new Vector2(24f, historyBottom + (show ? pickerHeight : 0f));
     }
     private void CaptureCursor()
@@ -264,19 +266,21 @@ public sealed partial class MultiplayerSocialUI
         if (wheelShield.activeSelf) EndWheel(false, true); // orientation/safe-area changes cancel rather than reuse stale geometry
         lastSafeRect = safe; lastSafeSize = size; lastKeyboard = keyboard;
         float keyboardInset = Mathf.Max(0f, keyboard - safe.yMin) / Mathf.Max(.01f, uiCanvas.scaleFactor);
+        float minimumHeight = optionTray.activeSelf ? historyBottom + pickerHeight + 196f : minimumMobileHeight;
         if (Application.isMobilePlatform)
         {
             window.anchorMin = window.anchorMax = new Vector2(.5f, 0f); window.pivot = new Vector2(.5f, 0f);
             float available = size.y - keyboardInset - 32f;
-            float reserveTop = Mathf.Min(desktopInset.y, Mathf.Max(0f, available - minimumMobileHeight));
-            window.sizeDelta = new Vector2(Mathf.Min(mobileSize.x, size.x - 32f), Mathf.Min(mobileSize.y, available - reserveTop));
+            float reserveTop = Mathf.Min(desktopInset.y, Mathf.Max(0f, available - minimumHeight));
+            window.sizeDelta = new Vector2(Mathf.Min(mobileSize.x, size.x - 32f), Mathf.Min(Mathf.Max(mobileSize.y, minimumHeight), available - reserveTop));
             window.anchoredPosition = new Vector2(0f, keyboardInset + 16f);
         }
         else
         {
             window.anchorMin = window.anchorMax = Vector2.one; window.pivot = Vector2.one;
-            window.sizeDelta = new Vector2(Mathf.Min(desktopSize.x, size.x - 32f), Mathf.Min(desktopSize.y, size.y - desktopInset.y - 16f));
-            window.anchoredPosition = new Vector2(-Mathf.Min(desktopInset.x, Mathf.Max(16f, size.x - window.rect.width - 16f)), -desktopInset.y);
+            float topInset = Mathf.Min(desktopInset.y, Mathf.Max(16f, size.y - minimumHeight - 16f));
+            window.sizeDelta = new Vector2(Mathf.Min(desktopSize.x, size.x - 32f), Mathf.Min(Mathf.Max(desktopSize.y, minimumHeight), size.y - topInset - 16f));
+            window.anchoredPosition = new Vector2(-Mathf.Min(desktopInset.x, Mathf.Max(16f, size.x - window.rect.width - 16f)), -topInset);
         }
     }
     private void OnEnable() => UnityEngine.SceneManagement.SceneManager.activeSceneChanged += OnSceneChanged;
