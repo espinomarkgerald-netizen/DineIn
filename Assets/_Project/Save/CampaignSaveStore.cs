@@ -193,7 +193,7 @@ public static partial class CampaignSaveStore
         catch (Exception e) { Debug.LogError("[Campaign] Local wallet save failed: " + e.Message); return false; }
     }
 
-    [Serializable] private sealed class Credit { public string id, account, restaurant; public int amount; }
+    [Serializable] private sealed class Credit { public string id, account, restaurant; public int amount; public bool debitUnconfirmed; }
     [Serializable] private sealed class Binding { public string account; }
     public static bool AccountMatches(string account)
     {
@@ -203,6 +203,30 @@ public static partial class CampaignSaveStore
         if (!File.Exists(path)) return true;
         var binding = JsonUtility.FromJson<Binding>(File.ReadAllText(path));
         return binding != null && (string.IsNullOrEmpty(binding.account) || binding.account == account);
+    }
+    public static bool HasPendingPurchaseCredit(string account)
+    {
+        string path = Path.Combine(Application.persistentDataPath, "campaign_credits");
+        if (!Directory.Exists(path)) return false;
+        foreach (string file in Directory.GetFiles(path, "*.json"))
+        {
+            var credit = JsonUtility.FromJson<Credit>(File.ReadAllText(file));
+            if (credit != null && credit.account == account && credit.amount > 0) return true;
+        }
+        return false;
+    }
+    public static void RecordPendingDebit(string account, string receipt, int amount, string restaurant)
+    {
+        string path = Path.Combine(Application.persistentDataPath, "campaign_credits");
+        Directory.CreateDirectory(path);
+        AtomicWrite(Path.Combine(path, receipt + ".json"), JsonUtility.ToJson(new Credit
+        { id = receipt, account = account, amount = amount, restaurant = restaurant, debitUnconfirmed = true }));
+    }
+    public static bool IsCreditQueued(string receipt) => File.Exists(Path.Combine(Application.persistentDataPath, "campaign_credits", receipt + ".json"));
+    public static void ClearRejectedDebit(string receipt)
+    {
+        string path = Path.Combine(Application.persistentDataPath, "campaign_credits", receipt + ".json");
+        if (File.Exists(path)) File.Delete(path);
     }
     public static void QueueConfirmedCredit(string account, int amount, string receipt, string restaurant = null, string savePath = null)
     {
@@ -224,7 +248,7 @@ public static partial class CampaignSaveStore
         foreach (string file in Directory.GetFiles(path, "*.json"))
         {
             var credit = JsonUtility.FromJson<Credit>(File.ReadAllText(file));
-            if (credit == null || credit.account != auth.PlayFabId || credit.amount <= 0 ||
+            if (credit == null || credit.debitUnconfirmed || credit.account != auth.PlayFabId || credit.amount <= 0 ||
                 (string.IsNullOrEmpty(credit.restaurant) ? "Lobby1" : credit.restaurant) != RestaurantScene) continue;
             var snapshot = Read();
             if (!string.IsNullOrEmpty(snapshot.save) && !Valid(snapshot))

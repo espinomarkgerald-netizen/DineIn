@@ -35,7 +35,7 @@ namespace DineIn.Appearance
             [Range(0, 1)] public float previewCenter = .5f;
             [Range(.25f, 1.5f)] public float previewHeight = 1f;
         }
-        [Header("Category presentation (Body, Skin, Face, Hair, Hair Color, Outfit, Hats)")]
+        [Header("Category presentation (Body, Skin, Face, Hair, Hair Color, Outfit, Hats, Costume)")]
         [SerializeField] private CategoryPresentation[] categoryPresentation = System.Array.Empty<CategoryPresentation>();
         [SerializeField, Min(.05f)] private float framingSeconds = .4f;
         [SerializeField] private Vector2 previewViewportCenter = new(.225f, .53f);
@@ -185,9 +185,9 @@ namespace DineIn.Appearance
             {
                 bounds.center = framingBounds.center + Vector3.up * framingBounds.size.y * (presentation.previewCenter - .5f);
                 float height = framingBounds.size.y * presentation.previewHeight;
-                if (framingCategory == 6 && draft != null)
+                if ((framingCategory == 6 || framingCategory == 7) && draft != null)
                 {
-                    var hat = AppearanceCatalog.Find(preview.Catalog.hats, draft.hatId);
+                    var hat = preview.Catalog.HeadwearFor(draft);
                     float extra = hat != null ? hat.previewHeadroom * framingBounds.size.y : 0;
                     height += extra; bounds.center += Vector3.up * extra * .5f;
                 }
@@ -250,7 +250,7 @@ namespace DineIn.Appearance
             if (editing) { BeginPreviewDrag(); preview.transform.Rotate(Vector3.up, -pixels * .3f, Space.World); }
         }
         private string SelectedId() => category switch
-        { 0 => draft.bodyId, 1 => draft.skinId, 2 => draft.faceId, 3 => draft.hairId, 4 => draft.hairColorId, 5 => draft.outfitId, _ => draft.hatId };
+        { 0 => draft.bodyId, 1 => draft.skinId, 2 => draft.faceId, 3 => draft.hairId, 4 => draft.hairColorId, 5 => draft.outfitId, 6 => draft.hatId, _ => draft.costumeId ?? "" };
         private void SelectCategory(int index)
         {
             if (restaurantSelector != null) restaurantSelector.InterruptPreviewPose();
@@ -277,7 +277,7 @@ namespace DineIn.Appearance
             cells.Clear();
             var c = preview.Catalog;
             IEnumerable<AppearanceCatalog.Option> available = category switch
-            { 0 => c.bodies, 1 => c.skins, 2 => c.faces, 3 => c.hairs, 4 => c.hairColors, 5 => c.outfits, _ => c.hats };
+            { 0 => c.bodies, 1 => c.skins, 2 => c.faces, 3 => c.hairs, 4 => c.hairColors, 5 => c.outfits, 6 => c.hats, _ => new AppearanceCatalog.Option[] { new AppearanceCatalog.Option { id = "", label = "No costume", thumbnail = AppearanceCatalog.Find(c.hats, "none")?.thumbnail } }.Concat(c.costumes.Where(o => o != null && PlayerCustomizationData.OwnsCostume(o.id))) };
             foreach (var option in available.Where(o => o != null && (category == 0 || o.Fits(draft.bodyId))))
             {
                 var button = Instantiate(optionTemplate, options); button.gameObject.SetActive(true); cells.Add(button.gameObject);
@@ -314,23 +314,25 @@ namespace DineIn.Appearance
                 if (border != null) border.gameObject.SetActive(option.id == SelectedId());
                 string id = option.id; button.onClick.AddListener(() => Choose(id));
             }
+            status.text = category == 7 && cells.Count <= 1 ? "No costumes owned yet. Visit Shop > Costumes." : "Changes save when you Apply.";
             LayoutRebuilder.ForceRebuildLayoutImmediate(options); scroll.verticalNormalizedPosition = 1;
         }
         private void Choose(string id)
         {
             if (!editing) return;
-            if (SelectedId() == id) return;
+            if (SelectedId() == id && !((category == 5 || category == 6) && !string.IsNullOrEmpty(draft.costumeId))) return;
             switch (category)
             {
                 case 0: draft.bodyId = id; break; case 1: draft.skinId = id; break;
                 case 2: draft.faceId = id; break; case 3: draft.hairId = id; break;
-                case 4: draft.hairColorId = id; break; case 5: draft.outfitId = id; break;
-                default: draft.hatId = id; break;
+                case 4: draft.hairColorId = id; break; case 5: draft.outfitId = id; draft.costumeId = ""; break;
+                case 6: draft.hatId = id; draft.costumeId = ""; break;
+                default: if (!PlayerCustomizationData.OwnsCostume(id)) return; draft.costumeId = id; break;
             }
             float scrollPosition = scroll.verticalNormalizedPosition;
             draft = preview.Catalog.Validate(draft); preview.Apply(draft); RebuildOptions();
             scroll.verticalNormalizedPosition = scrollPosition;
-            if (category == 0 || category == 6) FramePreview();
+            if (category == 0 || category == 6 || category == 7) FramePreview();
             if (restaurantSelector != null) restaurantSelector.ReactToSelection(category);
         }
     }

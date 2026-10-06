@@ -41,8 +41,24 @@ namespace DineIn.Appearance
             [Range(0, .5f)] public float previewHeadroom;
             [Tooltip("Visual-only hairstyle fit while this hat is worn. Removing it restores the authored hair transform.")]
             public HairFit[] hairFits = Array.Empty<HairFit>();
+            [Tooltip("Fit the accessory around a hairstyle without changing or hiding that hair.")]
+            public HairFit[] headwearFits = Array.Empty<HairFit>();
             public bool HidesHair(string hairId) => hidesHair || Array.IndexOf(incompatibleHairIds ?? Array.Empty<string>(), hairId) >= 0;
         }
+
+        [Serializable] public sealed class Costume : Option
+        {
+            [Tooltip("Body-compatible UV materials. These never become free outfit options.")]
+            public Surface[] surfaces = Array.Empty<Surface>();
+            public Attachment headwear = new Attachment();
+            public bool coverHands;
+            public Color handColor = Color.white;
+            public Material MaterialFor(string body) => surfaces?.FirstOrDefault(s => s != null && s.Fits(body))?.material;
+        }
+
+        public Costume[] costumes = Array.Empty<Costume>();
+        public Attachment HeadwearFor(AppearanceRecipe recipe) =>
+            Find(costumes, recipe.costumeId)?.headwear ?? Find(hats, recipe.hatId);
 
         public Body[] bodies = Array.Empty<Body>();
         public Palette[] skins = Array.Empty<Palette>(), hairColors = Array.Empty<Palette>();
@@ -79,6 +95,8 @@ namespace DineIn.Appearance
             r.hairColorId = Resolve(hairColors, r.hairColorId, d.hairColorId, r.bodyId);
             r.outfitId = Resolve(outfits, r.outfitId, d.outfitId, r.bodyId);
             r.hatId = Resolve(hats, r.hatId, d.hatId, r.bodyId);
+            var costume = Find(costumes, r.costumeId);
+            if (costume == null || !costume.Fits(r.bodyId) || costume.MaterialFor(r.bodyId) == null) r.costumeId = "";
             return r;
         }
 

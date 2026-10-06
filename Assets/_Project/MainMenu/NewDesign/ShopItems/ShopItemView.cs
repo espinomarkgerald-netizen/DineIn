@@ -27,12 +27,18 @@ public class ShopItemView : MonoBehaviour
     [Tooltip("-> Panel/BuyButton")]
     [SerializeField] private Button buyButton;
 
+    [SerializeField] private Vector2 costumeIconSize = new Vector2(88f, 88f);
+    private Vector2 originalIconSize;
+    private bool capturedIconSize;
+
     [Header("Display Formatting")]
-    [SerializeField] private Color priceColor = new Color(.22f, .12f, .015f, 1f);
+    [SerializeField] private Color priceColor = Color.white;
+    [SerializeField] private Color ownedPriceColor = new Color(.04f, .24f, .31f, 1);
+    [SerializeField] private Sprite purchaseSprite, ownedSprite;
     [Tooltip("Prefix shown before the Normal Money reward amount for Currency items, e.g. \"+2500 NM\".")]
     [SerializeField] private string moneyRewardPrefix = "+";
     [Tooltip("Suffix shown after the Normal Money reward amount for Currency items.")]
-    [SerializeField] private string moneyRewardSuffix = " NM";
+    [SerializeField] private string moneyRewardSuffix = "";
 
     /// <summary>The ShopItemData currently bound to this view, if any.</summary>
     public ShopItemData Data { get; private set; }
@@ -56,7 +62,12 @@ public class ShopItemView : MonoBehaviour
         onBuyClicked = onBuyClickedCallback;
 
         if (iconImage != null)
+        {
+            if (!capturedIconSize) { originalIconSize = iconImage.rectTransform.sizeDelta; capturedIconSize = true; }
             iconImage.sprite = itemData.icon;
+            iconImage.preserveAspect = true;
+            iconImage.rectTransform.sizeDelta = itemData.category == ShopCategory.Cosmetic ? costumeIconSize : originalIconSize;
+        }
 
         if (itemNameText != null)
             itemNameText.text = itemData.displayName;
@@ -87,20 +98,32 @@ public class ShopItemView : MonoBehaviour
             return;
 
         // Only Currency items have a meaningful "value received" to show
-        // right now (the Normal Money reward). Other categories (e.g.
-        // future Cosmetics) simply hide the label rather than show a
-        // stale/blank value - update this switch when a cosmetic has its
-        // own value to display (a rarity tier, a stat bonus, etc.).
+        // (the Normal Money reward). Permanent costumes have no currency reward.
         switch (itemData.category)
         {
             case ShopCategory.Currency:
                 itemValueText.gameObject.SetActive(true);
-                itemValueText.text = moneyRewardPrefix + itemData.normalMoneyReward + moneyRewardSuffix;
+                itemValueText.text = moneyRewardPrefix + itemData.normalMoneyReward.ToString("N0") + moneyRewardSuffix;
                 break;
 
             default:
+                itemValueText.text = string.Empty;
                 itemValueText.gameObject.SetActive(false);
                 break;
+        }
+    }
+
+    public void SetPurchaseState(bool owned, bool processing, bool available, int price)
+    {
+        if (Data == null) return;
+        if (priceText != null) priceText.text = owned ? "Owned" : processing ? "Please wait" :
+            "Buy \u00b7 " + price + " " + Data.priceCurrencyCode;
+        if (priceText != null) priceText.color = owned ? ownedPriceColor : priceColor;
+        if (buyButton != null)
+        {
+            if (buyButton.image != null && purchaseSprite != null && ownedSprite != null)
+                buyButton.image.sprite = owned ? ownedSprite : purchaseSprite;
+            buyButton.interactable = !owned && !processing && available;
         }
     }
 

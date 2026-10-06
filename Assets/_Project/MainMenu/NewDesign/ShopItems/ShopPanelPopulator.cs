@@ -1,198 +1,137 @@
 using System.Collections.Generic;
+using System.Linq;
+using TMPro;
 using UnityEngine;
-using UnityEngine.UI;
 
-/// <summary>
-/// Builds the visible shop item list per category by instantiating
-/// ShopItemView prefabs from a flat list of ShopItemData assets, and routes
-/// Buy clicks to whichever manager owns that category.
-///
-/// Single Responsibility: this script only decides which ShopItemData
-/// belongs under which category container and who to notify when Buy is
-/// clicked. It never talks to PlayFab directly and never decides whether a
-/// purchase should succeed - CurrencyExchangeManager (and, later, a
-/// CosmeticPurchaseManager shaped the same way) own that entirely.
-///
-/// Runs its population in OnEnable() rather than Awake(), since this is
-/// meant to sit on a shop/wallet panel that starts disabled - Unity can't
-/// run coroutines (or reliably a few other things) on a disabled
-/// GameObject's Awake, so waiting for OnEnable (which only fires once the
-/// panel is actually active) avoids that class of bug.
-/// </summary>
-public class ShopPanelPopulator : MonoBehaviour
+// Presentation and confirmation only; the existing wallet/exchange managers settle purchases.
+public partial class ShopPanelPopulator : MonoBehaviour
 {
-    [Header("Item Source")]
-    [Tooltip("The ShopItem prefab (with a ShopItemView component) to instantiate once per matching ShopItemData.")]
     [SerializeField] private ShopItemView itemPrefab;
-    [Tooltip("Every ShopItemData asset the shop can possibly show, across all categories. Drag every item asset in here.")]
     [SerializeField] private List<ShopItemData> allItems = new List<ShopItemData>();
-
-    [Header("Category Containers")]
-    [Tooltip("Parent transform items with category == Currency are instantiated under.")]
-    [SerializeField] private Transform currencyContainer;
-    [Tooltip("Parent transform items with category == Cosmetic are instantiated under. Safe to leave unassigned until cosmetics exist - those items are simply skipped.")]
-    [SerializeField] private Transform cosmeticsContainer;
-
-    [Header("Purchase Routing")]
-    [Tooltip("Handles Buy clicks for Currency category items.")]
+    [SerializeField] private RectTransform itemContainer;
     [SerializeField] private CurrencyExchangeManager currencyExchangeManager;
-    // [Tooltip("Handles Buy clicks for Cosmetic category items.")]
-    // [SerializeField] private CosmeticPurchaseManager cosmeticPurchaseManager; // add when cosmetics exist
-
-    [Header("Behaviour")]
-    [Tooltip("If true, the panel repopulates every time it becomes active (e.g. shop reopened). If false, only the first OnEnable populates and later ones are ignored.")]
-    [SerializeField] private bool populateOnEveryEnable = true;
-
-    [Header("Diagnostics")]
-    [SerializeField] private bool verboseLogging = false;
-
-    [Header("Mobile layout")]
-    [SerializeField] private Vector2 mobileContentPadding = new Vector2(24f, 64f);
-    private Rect previousSafeArea;
-    private Vector2Int previousScreenSize;
-    private bool mobileLayoutDirty;
-    private bool hasPopulatedOnce;
+    [SerializeField] private UnityEngine.UI.ScrollRect sectionsScroll;
+    [SerializeField] private UnityEngine.UI.Button moneyTab, costumesTab;
+    [SerializeField] private TMP_Text balanceText, shopStatus;
+    [SerializeField] private TMP_Text campaignBalanceText;
+    [SerializeField] private Sprite selectedTabSprite, normalTabSprite;
+    [SerializeField] private Color selectedTabTextColor = Color.white;
+    [SerializeField] private Color normalTabTextColor = new Color(.04f, .24f, .31f, 1);
+    private PlayFabWalletManager wallet;
     private AnimatedPanel animatedPanel;
-    private bool waitingForOpenAnimation;
-
+    private ShopCategory category;
+    private readonly float[] scrollPositions = { 1, 1 };
+    private readonly Dictionary<ShopItemData, int> quotedPrices = new Dictionary<ShopItemData, int>();
+    private readonly List<ShopItemView> views = new List<ShopItemView>();
     private void Awake()
     {
         animatedPanel = GetComponent<AnimatedPanel>();
-        if (animatedPanel != null) animatedPanel.OnOpened.AddListener(OnPanelOpened);
-    }
-
-    private void OnDestroy()
-    {
-        if (animatedPanel != null) animatedPanel.OnOpened.RemoveListener(OnPanelOpened);
-    }
-
-    private void OnPanelOpened()
-    {
-        waitingForOpenAnimation = false;
-        mobileLayoutDirty = true;
-    }
-
-    private void LateUpdate()
-    {
-        if (!MobileUISettings.UseMobileLayout || waitingForOpenAnimation) return;
-        Vector2Int size = new Vector2Int(Screen.width, Screen.height);
-        if (!mobileLayoutDirty && size == previousScreenSize && Screen.safeArea == previousSafeArea) return;
-        previousScreenSize = size;
-        previousSafeArea = Screen.safeArea;
-        mobileLayoutDirty = false;
-        FitMobileContent();
-    }
-
-    private void FitMobileContent()
-    {
-        if (currencyContainer == null || transform is not RectTransform panel) return;
-        Transform contentRoot = currencyContainer;
-        while (contentRoot.parent != null && contentRoot.parent != transform) contentRoot = contentRoot.parent;
-        if (contentRoot.parent != transform || contentRoot is not RectTransform content) return;
-        Canvas.ForceUpdateCanvases();
-        content.localScale = Vector3.one;
-        // Fit the actual cards, not unused space in the layout container.
-        Bounds bounds = default;
-        bool hasBounds = false;
-        foreach (var item in currencyContainer.GetComponentsInChildren<ShopItemView>())
+        moneyTab.onClick.AddListener(() => SelectCategory(ShopCategory.Currency));
+        costumesTab.onClick.AddListener(() => SelectCategory(ShopCategory.Cosmetic));
+        confirmButton.onClick.AddListener(ConfirmPurchase);
+        cancelButton.onClick.AddListener(DismissPurchase);
+        purchaseClose.onClick.AddListener(DismissPurchase);
+        PlayerCustomizationData.ProfileChanged += AccountChanged;
+        PlayerCustomizationData.CostumeOwnershipChanged += RefreshCards;
+        if (currencyExchangeManager != null)
         {
-            Bounds card = RectTransformUtility.CalculateRelativeRectTransformBounds(content, item.transform);
-            if (!hasBounds) { bounds = card; hasBounds = true; }
-            else bounds.Encapsulate(card);
+            currencyExchangeManager.OnExchangeSucceeded += MoneySucceeded;
+            currencyExchangeManager.OnExchangeFailed += PurchaseFailed;
         }
-        if (!hasBounds) return;
-        if (bounds.size.x <= 0 || bounds.size.y <= 0) return;
-        Canvas canvas = GetComponentInParent<Canvas>();
-        Camera camera = canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay ? canvas.worldCamera : null;
-        RectTransformUtility.ScreenPointToLocalPointInRectangle(panel, Screen.safeArea.min, camera, out Vector2 min);
-        RectTransformUtility.ScreenPointToLocalPointInRectangle(panel, Screen.safeArea.max, camera, out Vector2 max);
-        min = Vector2.Max(min, panel.rect.min) + new Vector2(mobileContentPadding.x, mobileContentPadding.x);
-        max = Vector2.Min(max, panel.rect.max) - mobileContentPadding;
-        float scale = Mathf.Clamp(Mathf.Min((max.x - min.x) / bounds.size.x, (max.y - min.y) / bounds.size.y), .01f, 1f);
-        content.anchorMin = content.anchorMax = content.pivot = new Vector2(.5f, .5f);
-        content.localScale = new Vector3(scale, scale, 1f);
-        content.anchoredPosition = (min + max) * .5f - (Vector2)bounds.center * scale - panel.rect.center;
     }
-
+    private void Start() { SubscribeWallet(); RefreshWalletView(); }
     private void OnEnable()
     {
-        // Screen-to-local measurements must use the settled panel transform.
-        waitingForOpenAnimation = animatedPanel != null && animatedPanel.enabled;
-        mobileLayoutDirty = true;
-        if (hasPopulatedOnce && !populateOnEveryEnable)
-            return;
-
-        Repopulate();
-        hasPopulatedOnce = true;
+        SubscribeWallet(); Repopulate(); RefreshWalletView();
+        if (selectedItem != null) { purchaseRoot.SetActive(true); RenderPurchase(); if (success) BeginSuccessAnimation(); }
+        else purchaseRoot.SetActive(false);
+        wallet?.RefreshWallet();
     }
-
-    /// <summary>Clears and rebuilds every category container from allItems. Safe to call manually (e.g. after allItems changes at runtime).</summary>
+    private void SubscribeWallet()
+    {
+        var current = PlayFabWalletManager.Instance;
+        if (wallet == current) return;
+        if (wallet != null) { wallet.OnWalletUpdated -= WalletUpdated; wallet.OnWalletCleared -= AccountChanged; wallet.OnWalletRefreshFailed -= WalletFailed; }
+        wallet = current;
+        if (wallet != null) { wallet.OnWalletUpdated += WalletUpdated; wallet.OnWalletCleared += AccountChanged; wallet.OnWalletRefreshFailed += WalletFailed; }
+    }
+    private void OnDisable()
+    {
+        if (sectionsScroll != null) scrollPositions[(int)category] = sectionsScroll.verticalNormalizedPosition;
+        StopAllCoroutines();
+        if (!submitted && !success) { quoteVersion++; selectedItem = null; }
+    }
+    private void OnDestroy()
+    {
+        PlayerCustomizationData.ProfileChanged -= AccountChanged;
+        PlayerCustomizationData.CostumeOwnershipChanged -= RefreshCards;
+        if (wallet != null) { wallet.OnWalletUpdated -= WalletUpdated; wallet.OnWalletCleared -= AccountChanged; wallet.OnWalletRefreshFailed -= WalletFailed; }
+        if (currencyExchangeManager != null) { currencyExchangeManager.OnExchangeSucceeded -= MoneySucceeded; currencyExchangeManager.OnExchangeFailed -= PurchaseFailed; }
+    }
+    private void Update()
+    {
+        if (selectedItem == null) return;
+#if ENABLE_INPUT_SYSTEM
+        if (UnityEngine.InputSystem.Keyboard.current?.escapeKey.wasPressedThisFrame == true) DismissPurchase();
+#else
+        if (Input.GetKeyDown(KeyCode.Escape)) DismissPurchase();
+#endif
+    }
+    private void WalletUpdated(int gold, int money) { RefreshWalletView(); if (selectedItem != null) RenderPurchase(); }
+    private void WalletFailed(string message) { SetShopStatus("Wallet unavailable. Try again."); Debug.LogWarning("[Shop] Wallet refresh failed: " + message); RefreshCards(); if (selectedItem != null && !submitted) RenderPurchase(); }
+    private void AccountChanged()
+    {
+        quoteVersion++; selectedItem = null; submitted = success = checking = false; quotedPrices.Clear();
+        if (purchaseRoot != null) purchaseRoot.SetActive(false);
+        RefreshWalletView();
+    }
+    private void RefreshWalletView()
+    {
+        if (balanceText != null && !success) balanceText.text = wallet != null && wallet.IsCurrentWallet ? "G" + wallet.GoldCoins.ToString("N0") : "G--";
+        if (campaignBalanceText != null) campaignBalanceText.text = wallet != null && wallet.IsCurrentWallet ? "$" + wallet.NormalMoney.ToString("N0") : "$--";
+        RefreshCards();
+    }
+    private void SetShopStatus(string message) { if (shopStatus != null) shopStatus.text = message; }
+    private void SelectCategory(ShopCategory next)
+    {
+        if (selectedItem != null) return;
+        scrollPositions[(int)category] = sectionsScroll.verticalNormalizedPosition;
+        category = next; Repopulate();
+    }
     public void Repopulate()
     {
-        mobileLayoutDirty = true;
-        PopulateCategory(ShopCategory.Currency, currencyContainer);
-        PopulateCategory(ShopCategory.Cosmetic, cosmeticsContainer);
+        foreach (var view in views) if (view != null) { view.gameObject.SetActive(false); Destroy(view.gameObject); }
+        views.Clear();
+        if (itemContainer == null || itemPrefab == null) return;
+        foreach (var item in allItems.Where(i => i != null && i.category == category))
+        { var view = Instantiate(itemPrefab, itemContainer); view.Bind(item, RequestPurchase); views.Add(view); }
+        StyleTab(moneyTab, category == ShopCategory.Currency);
+        StyleTab(costumesTab, category == ShopCategory.Cosmetic);
+        UnityEngine.UI.LayoutRebuilder.ForceRebuildLayoutImmediate(itemContainer);
+        sectionsScroll.verticalNormalizedPosition = scrollPositions[(int)category];
+        SetShopStatus(category == ShopCategory.Currency ? "Exchange GC for Campaign money." : "Costumes unlock in Customize after purchase.");
+        RefreshCards();
     }
-
-    private void PopulateCategory(ShopCategory category, Transform container)
+    private void StyleTab(UnityEngine.UI.Button tab, bool selected)
     {
-        if (container == null)
-        {
-            if (verboseLogging)
-                Debug.Log("ShopPanelPopulator: no container assigned for category " + category + ", skipping.");
-            return;
-        }
-
-        if (itemPrefab == null)
-        {
-            Debug.LogWarning("ShopPanelPopulator: itemPrefab is not assigned - cannot populate " + category + ".");
-            return;
-        }
-
-        // Clear whatever was there before (e.g. from a previous open, or
-        // leftover placeholder children left in the editor).
-        for (int i = container.childCount - 1; i >= 0; i--)
-            Destroy(container.GetChild(i).gameObject);
-
-        int spawned = 0;
-
-        foreach (var item in allItems)
-        {
-            if (item == null || item.category != category)
-                continue;
-
-            var view = Instantiate(itemPrefab, container);
-            view.Bind(item, HandleBuyClicked);
-            spawned++;
-        }
-
-        if (verboseLogging)
-            Debug.Log("ShopPanelPopulator: spawned " + spawned + " item(s) for category " + category + ".");
+        tab.image.sprite = selected ? selectedTabSprite : normalTabSprite;
+        var label = tab.GetComponentInChildren<TMP_Text>();
+        if (label != null) label.color = selected ? selectedTabTextColor : normalTabTextColor;
     }
-
-    private void HandleBuyClicked(ShopItemData item)
+    private void RefreshCards()
     {
-        if (item == null)
-            return;
-
-        switch (item.category)
+        foreach (var view in views)
         {
-            case ShopCategory.Currency:
-                if (currencyExchangeManager != null)
-                    currencyExchangeManager.BuyPackage(item);
-                else
-                    Debug.LogWarning("ShopPanelPopulator: Currency item '" + item.itemId + "' clicked but currencyExchangeManager is not assigned.");
-                break;
-
-            case ShopCategory.Cosmetic:
-                // cosmeticPurchaseManager?.BuyCosmetic(item); // wire up once CosmeticPurchaseManager exists
-                if (verboseLogging)
-                    Debug.Log("ShopPanelPopulator: Cosmetic item '" + item.itemId + "' clicked - no CosmeticPurchaseManager wired up yet.");
-                break;
-
-            default:
-                Debug.LogWarning("ShopPanelPopulator: unhandled ShopCategory " + item.category + " for item '" + item.itemId + "'.");
-                break;
+            if (view == null || view.Data == null) continue;
+            bool owned = view.Data.category == ShopCategory.Cosmetic && PlayerCustomizationData.OwnsCostume(view.Data.cosmeticUnlockId);
+            int price = quotedPrices.TryGetValue(view.Data, out int cost) ? cost : view.Data.price;
+            view.SetPurchaseState(owned, submitted || (wallet != null && wallet.IsGoldCoinSpendInFlight) || (currencyExchangeManager != null && currencyExchangeManager.IsPurchaseInProgress), true, price);
         }
+    }
+    public void RequestPackage(CurrencyExchangePackage package)
+    {
+        var item = allItems.Find(i => i != null && i.category == ShopCategory.Currency && i.price == package.goldCost && i.normalMoneyReward == package.normalMoneyReward);
+        if (item != null) RequestPurchase(item);
+        else { if (animatedPanel != null) animatedPanel.Open(); SetShopStatus("Item unavailable. Try later."); Debug.LogWarning("[Shop] Package has no matching shop item; nothing submitted."); }
     }
 }

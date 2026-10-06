@@ -138,30 +138,39 @@ namespace DineIn.Appearance
                     target.localBounds = match.localBounds;
                 }
             }
-            if (creating || applied == null || applied.skinId != next.skinId || applied.faceId != next.faceId || applied.outfitId != next.outfitId)
+            var costume = AppearanceCatalog.Find(Catalog.costumes, next.costumeId);
+            bool costumeChanged = applied == null || applied.costumeId != next.costumeId;
+            if (creating || applied == null || costumeChanged || applied.bodyId != next.bodyId || applied.skinId != next.skinId || applied.faceId != next.faceId || applied.outfitId != next.outfitId)
             {
                 var skin = AppearanceCatalog.Find(Catalog.skins, next.skinId).color;
                 foreach (var r in meshes)
                 {
                     bool isSkin = r.name == "BodyHead" || r.name == "Ears" || r.name == "Hands";
                     r.sharedMaterial = isSkin ? Catalog.skinMaterial : r.name == "Face" ?
-                        AppearanceCatalog.Find(Catalog.faces, next.faceId).material : AppearanceCatalog.Find(Catalog.outfits, next.outfitId).material;
-                    Tint(r, isSkin ? skin : Color.white);
+                        AppearanceCatalog.Find(Catalog.faces, next.faceId).material : (costume?.MaterialFor(next.bodyId) ?? AppearanceCatalog.Find(Catalog.outfits, next.outfitId).material);
+                    Tint(r, r.name == "Hands" && costume != null && costume.coverHands ? costume.handColor : isSkin ? skin : Color.white);
                 }
             }
-            var hatOption = AppearanceCatalog.Find(Catalog.hats, next.hatId);
+            var hatOption = Catalog.HeadwearFor(next);
             if (creating || applied == null || applied.hairId != next.hairId)
                 Replace(ref hair, AppearanceCatalog.Find(Catalog.hairs, next.hairId), true);
-            if (creating || applied == null || applied.hatId != next.hatId || applied.hairId != next.hairId)
+            if (creating || applied == null || costumeChanged || applied.hatId != next.hatId || applied.hairId != next.hairId)
             {
                 Replace(ref hat, hatOption, false);
+                var headwearFit = hatOption.headwearFits?.FirstOrDefault(f => f != null && f.hairId == next.hairId);
+                if (hat != null && headwearFit != null)
+                {
+                    hat.transform.localPosition += attachmentRotation * headwearFit.position;
+                    hat.transform.localRotation *= Quaternion.Euler(headwearFit.eulerAngles);
+                    hat.transform.localScale = Vector3.Scale(hat.transform.localScale, headwearFit.scale);
+                }
                 if (hat != null && (hair == null || hatOption.HidesHair(next.hairId)))
                     hat.transform.localPosition += attachmentRotation * hatOption.bareHeadPositionOffset;
             }
             if (hair != null)
             {
                 hair.SetActive(!hatOption.HidesHair(next.hairId));
-                if (creating || applied == null || applied.hatId != next.hatId || applied.hairId != next.hairId)
+                if (creating || applied == null || costumeChanged || applied.hatId != next.hatId || applied.hairId != next.hairId)
                 {
                     var hairOption = AppearanceCatalog.Find(Catalog.hairs, next.hairId);
                     // Always start from the authored pose, never accumulate offsets across selections.

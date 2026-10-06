@@ -42,7 +42,7 @@ public class ShopItemData : ScriptableObject
     [Tooltip("Normal Money granted when this pack is bought. Ignored for Cosmetic items.")]
     public int normalMoneyReward;
 
-    [Header("Cosmetic-Specific (used only when category == Cosmetic) - reserved for future use")]
-    [Tooltip("Id a future cosmetic/inventory system would check or grant. Unused for Currency items.")]
+    [Header("Costume unlock (Cosmetic category)")]
+    [Tooltip("Must match the AppearanceCatalog costume ID and the PlayFab catalog item ID.")]
     public string cosmeticUnlockId;
 }

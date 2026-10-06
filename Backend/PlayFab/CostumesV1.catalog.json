@@ -1,0 +1,28 @@
+{
+  "CatalogVersion": "CostumesV1",
+  "SetAsDefaultCatalog": false,
+  "Catalog": [
+    {
+      "ItemId": "pink-beaver",
+      "DisplayName": "Pink Beaver",
+      "Description": "Permanent costume for male and female avatars.",
+      "ItemClass": "Costume",
+      "IsStackable": false,
+      "IsTradable": false,
+      "VirtualCurrencyPrices": {
+        "GC": 100
+      }
+    },
+    {
+      "ItemId": "cowboy",
+      "DisplayName": "Cowboy",
+      "Description": "Permanent costume for male and female avatars.",
+      "ItemClass": "Costume",
+      "IsStackable": false,
+      "IsTradable": false,
+      "VirtualCurrencyPrices": {
+        "GC": 100
+      }
+    }
+  ]
+}

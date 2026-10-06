@@ -534,6 +534,97 @@ MonoBehaviour:
       position: {x: 0, y: 0, z: 0}
       eulerAngles: {x: 0, y: 0, z: 0}
       scale: {x: 1, y: 1, z: 0.9}
+  costumes:
+  - id: pink-beaver
+    label: Pink Beaver
+    thumbnail: {fileID: 21300000, guid: 3e622d3df6855a3e950ee8003a89565a, type: 3}
+    bodies: []
+    surfaces:
+    - id: pink-beaver-body
+      label: Pink Beaver
+      thumbnail: {fileID: 0}
+      bodies: []
+      material: {fileID: 2100000, guid: 97be16e36d4f52d7b67f8bdb922b29a0, type: 2}
+    headwear:
+      id: pink-beaver-headwear
+      label: Pink Beaver
+      thumbnail: {fileID: 0}
+      bodies: []
+      prefab: {fileID: 100000, guid: ba91250031f95f1c99e34e745921638d, type: 3}
+      position: {x: 0, y: -0.04, z: 0}
+      eulerAngles: {x: 0, y: 0, z: 0}
+      scale: {x: 1, y: 1, z: 1}
+      hidesHair: 0
+      incompatibleHairIds: []
+      bareHeadPositionOffset: {x: 0, y: -0.2, z: 0}
+      previewHeadroom: 0.22
+      hairFits: []
+      headwearFits:
+      - hairId: bald
+        position: {x: 0, y: 0, z: 0}
+        eulerAngles: {x: 0, y: 0, z: 0}
+        scale: {x: 0.7, y: 0.92, z: 0.8}
+      - hairId: male-hair-02
+        position: {x: 0, y: 0.05, z: 0}
+        eulerAngles: {x: 0, y: 0, z: 0}
+        scale: {x: 1.03, y: 1, z: 1.03}
+      - hairId: male-hair-03
+        position: {x: 0, y: 0.05, z: 0}
+        eulerAngles: {x: 0, y: 0, z: 0}
+        scale: {x: 1.03, y: 1, z: 1.03}
+      - hairId: female-hair-02
+        position: {x: 0, y: 0.05, z: 0}
+        eulerAngles: {x: 0, y: 0, z: 0}
+        scale: {x: 1.03, y: 1, z: 1.03}
+      - hairId: female-hair-03
+        position: {x: 0, y: -0.09, z: 0.12}
+        eulerAngles: {x: 0, y: 0, z: 0}
+        scale: {x: 0.94, y: 1, z: 1.03}
+    coverHands: 1
+    handColor: {r: 0.94, g: 0.49, b: 0.66, a: 1}
+  - id: cowboy
+    label: Cowboy
+    thumbnail: {fileID: 21300000, guid: 7c2ace68fe2053168442bc38da6cb9d9, type: 3}
+    bodies: []
+    surfaces:
+    - id: cowboy-body
+      label: Cowboy
+      thumbnail: {fileID: 0}
+      bodies: []
+      material: {fileID: 2100000, guid: d8cd7dfbf7cc51c3b61be37002be3bfb, type: 2}
+    headwear:
+      id: cowboy-headwear
+      label: Cowboy
+      thumbnail: {fileID: 0}
+      bodies: []
+      prefab: {fileID: 6568582532269575094, guid: e349b181043603b43888318fe9a20207, type: 3}
+      position: {x: 0, y: 0, z: 0}
+      eulerAngles: {x: 0, y: 0, z: 0}
+      scale: {x: 1, y: 1, z: 1}
+      hidesHair: 0
+      incompatibleHairIds: []
+      bareHeadPositionOffset: {x: 0, y: -0.2, z: 0}
+      previewHeadroom: 0.22
+      hairFits: []
+      headwearFits:
+      - hairId: male-hair-02
+        position: {x: 0, y: 0.1, z: 0}
+        eulerAngles: {x: 0, y: 0, z: 0}
+        scale: {x: 1.03, y: 1, z: 1.03}
+      - hairId: male-hair-03
+        position: {x: 0, y: 0.1, z: 0}
+        eulerAngles: {x: 0, y: 0, z: 0}
+        scale: {x: 1.03, y: 1, z: 1.03}
+      - hairId: female-hair-02
+        position: {x: 0, y: 0.1, z: 0}
+        eulerAngles: {x: 0, y: 0, z: 0}
+        scale: {x: 1.03, y: 1, z: 1.03}
+      - hairId: female-hair-03
+        position: {x: 0, y: 0.1, z: 0.12}
+        eulerAngles: {x: 0, y: 0, z: 0}
+        scale: {x: 1.03, y: 1, z: 1.03}
+    coverHands: 0
+    handColor: {r: 0.94, g: 0.49, b: 0.66, a: 1}
   skinMaterial: {fileID: 2100000, guid: 1b665dea9d92aea4e82253e20c71320e, type: 2}
   hairMaterial: {fileID: 2100000, guid: c8e49e330eadecd42a6e84cf1707dd40, type: 2}
   adultHeight: 3.81

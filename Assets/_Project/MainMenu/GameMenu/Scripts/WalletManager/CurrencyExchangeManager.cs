@@ -66,6 +66,9 @@ public class CurrencyExchangeManager : MonoBehaviour
         new CurrencyExchangePackage { packageName = "Large Pack",  goldCost = 100, normalMoneyReward = 15000 },
     };
 
+    [SerializeField] private ShopPanelPopulator shop;
+    private readonly System.Collections.Generic.HashSet<string> uncertainAccounts = new System.Collections.Generic.HashSet<string>();
+    public bool HasUncertainPurchase => PlayFabAuthManager.Instance != null && (uncertainAccounts.Contains(PlayFabAuthManager.Instance.PlayFabId) || CampaignSaveStore.HasPendingPurchaseCredit(PlayFabAuthManager.Instance.PlayFabId));
     public bool IsPurchaseInProgress { get; private set; }
 
     // ================= HOOK-READY EVENTS =================
@@ -89,7 +92,8 @@ public class CurrencyExchangeManager : MonoBehaviour
             return;
         }
 
-        TryBuyPackage(exchangePackages[index]);
+        if (shop != null) shop.RequestPackage(exchangePackages[index]);
+        else Fail("Shop confirmation is not configured.");
     }
 
     /// <summary>
@@ -108,14 +112,14 @@ public class CurrencyExchangeManager : MonoBehaviour
             return;
         }
 
-        var package = new CurrencyExchangePackage
-        {
-            packageName = itemData.displayName,
-            goldCost = itemData.price,
-            normalMoneyReward = itemData.normalMoneyReward
-        };
-
-        TryBuyPackage(package);
+        if (shop != null) shop.RequestPurchase(itemData);
+        else Fail("Shop confirmation is not configured.");
+    }
+    internal void PurchaseConfirmed(ShopItemData itemData)
+    {
+        if (itemData == null || itemData.category != ShopCategory.Currency || itemData.priceCurrencyCode != "GC" || itemData.price <= 0 || itemData.normalMoneyReward <= 0)
+        { Fail("Invalid money package configuration."); return; }
+        TryBuyPackage(new CurrencyExchangePackage { packageName = itemData.displayName, goldCost = itemData.price, normalMoneyReward = itemData.normalMoneyReward });
     }
 
     // ================= PURCHASE FLOW =================
@@ -126,8 +130,9 @@ public class CurrencyExchangeManager : MonoBehaviour
             Fail("Campaign currency purchases are available in the Main Menu.", NotificationPopupController.PopupType.Info);
             return;
         }
-        if (IsPurchaseInProgress)
-            return; // silently ignore double-clicks rather than stacking status messages
+        if (HasUncertainPurchase) { Fail("The previous debit is unconfirmed. Contact support to reconcile it; another money-pack charge is blocked."); return; }
+        if (IsPurchaseInProgress || CampaignSaveStore.IsCreditPending || (Wallet != null && Wallet.IsGoldCoinSpendInFlight))
+            { Fail("Another purchase is still processing."); return; }
 
         if (PlayFabAuthManager.Instance == null || !PlayFabAuthManager.Instance.IsLoggedIn)
         {
@@ -136,7 +141,7 @@ public class CurrencyExchangeManager : MonoBehaviour
         }
 
         var wallet = Wallet;
-        if (wallet == null || !wallet.HasLoadedWallet)
+        if (wallet == null || !wallet.IsCurrentWallet)
         {
             Fail("Wallet still loading.", NotificationPopupController.PopupType.Info);
             return;
@@ -188,19 +193,24 @@ public class CurrencyExchangeManager : MonoBehaviour
         string receipt = Guid.NewGuid().ToString("N");
         string restaurant = CampaignSaveStore.RestaurantScene;
         string savePath = CampaignSaveStore.SavePath;
+        try { CampaignSaveStore.RecordPendingDebit(account, receipt, package.normalMoneyReward, restaurant); }
+        catch (Exception e) { onFailure("Could not prepare the purchase receipt. No charge submitted. " + e.Message); return; }
         CampaignSaveStore.IsCreditPending = true;
         PlayFabClientAPI.SubtractUserVirtualCurrency(
             new SubtractUserVirtualCurrencyRequest
             {
                 VirtualCurrency = "GC",
+                AuthenticationContext = PlayFabSettings.staticPlayer,
                 Amount = package.goldCost
             },
-            _ =>
+            result =>
             {
+                Wallet?.ApplyConfirmedGoldBalance(account, result.Balance);
                 try
                 {
                     CampaignSaveStore.QueueConfirmedCredit(account, package.normalMoneyReward, receipt, restaurant, savePath);
-                    onSuccess();
+                    if (CampaignSaveStore.IsCreditQueued(receipt)) onFailure("GC charged; your confirmed Campaign credit is saved and waiting for recovery in the original Campaign.");
+                    else onSuccess();
                 }
                 catch (Exception e)
                 {
@@ -211,7 +221,15 @@ public class CurrencyExchangeManager : MonoBehaviour
             subtractError =>
             {
                 CampaignSaveStore.IsCreditPending = false;
-                onFailure(subtractError.ErrorMessage);
+                if (PlayFabWalletManager.IsUncertainPurchaseError(subtractError)) uncertainAccounts.Add(account);
+                if (!PlayFabWalletManager.IsUncertainPurchaseError(subtractError))
+                {
+                    try { CampaignSaveStore.ClearRejectedDebit(receipt); }
+                    catch (Exception e) { Debug.LogWarning("Purchase rejected; receipt cleanup needs recovery: " + e.Message); }
+                }
+                onFailure(PlayFabWalletManager.IsUncertainPurchaseError(subtractError)
+                    ? "Debit status is uncertain. Wallet will refresh, but it cannot prove the Campaign grant. Contact support before retrying."
+                    : subtractError.ErrorMessage);
             }
         );
     }

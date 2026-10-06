@@ -1,5 +1,7 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
 using PlayFab;
 using PlayFab.ClientModels;
 using UnityEngine;
@@ -11,10 +13,9 @@ using UnityEngine;
 /// out - it only reads PlayFabAuthManager.Instance.IsLoggedIn and listens
 /// to its OnLoginSuccess / OnLoggedOut events, the same pattern
 /// SettingsManager uses. It never calls Login/SignOut, and
-/// PlayFabAuthManager has zero knowledge this class exists. It also knows
-/// nothing about spending currency - that belongs to CurrencyExchangeManager,
-/// which calls RefreshWallet() on this class after a purchase instead of
-/// touching PlayFab directly.
+/// PlayFabAuthManager has zero knowledge this class exists. Currency packages remain in
+/// CurrencyExchangeManager; permanent costume purchases use the PlayFab
+/// catalog here so payment and entitlement are processed together.
 ///
 /// UI scripts (like WalletUIController) don't talk to PlayFab directly at
 /// all - they call RefreshWallet() / StartPolling() / StopPolling() and
@@ -28,6 +29,38 @@ public class PlayFabWalletManager : MonoBehaviour
     [Header("Currency Codes")]
     [Tooltip("PlayFab virtual currency code for the premium currency.")]
     [SerializeField] private string goldCurrencyCode = "GC";
+
+    [Header("Costumes")]
+    [SerializeField] private string costumeCatalogVersion = "CostumesV1";
+    private readonly HashSet<string> ownedCostumes = new HashSet<string>();
+    private string walletAccount;
+    private int authGeneration, inventoryRequest;
+    private readonly HashSet<string> uncertainCostumes = new HashSet<string>();
+    public bool IsCurrentWallet => HasLoadedWallet && CurrentAccount(walletAccount);
+    public bool IsCostumeUncertain(string id) => uncertainCostumes.Contains(walletAccount + ":" + id);
+    public static bool IsUncertainPurchaseError(PlayFabError error) => error.HttpCode <= 0 || error.HttpCode == 408 || error.HttpCode >= 500;
+    public void ApplyConfirmedGoldBalance(string account, int balance)
+    {
+        if (!CurrentAccount(account)) return;
+        inventoryRequest++; IsRefreshing = false;
+        GoldCoins = Mathf.Max(0, balance); walletAccount = account; HasLoadedWallet = true;
+        OnWalletUpdated?.Invoke(GoldCoins, NormalMoney);
+    }
+    public void GetCostumeQuote(ShopItemData item, Action<int, string> completed)
+    {
+        if (item == null || !IsCurrentWallet)
+        { completed(0, "Sign in and refresh your wallet first."); return; }
+        string account = walletAccount; int generation = authGeneration;
+        PlayFabClientAPI.GetCatalogItems(new GetCatalogItemsRequest
+        { CatalogVersion = costumeCatalogVersion, AuthenticationContext = PlayFabSettings.staticPlayer }, result =>
+        {
+            if (generation != authGeneration || !CurrentAccount(account)) { completed(0, "Account changed. Open confirmation again."); return; }
+            var entry = result.Catalog?.Find(c => c.ItemId == item.itemId);
+            if (entry == null || entry.VirtualCurrencyPrices == null || !entry.VirtualCurrencyPrices.TryGetValue(goldCurrencyCode, out uint cost) || cost == 0 || cost > int.MaxValue)
+            { completed(0, "Store setup required: publish " + item.itemId + " with a GC price in PlayFab catalog " + costumeCatalogVersion + "."); return; }
+            completed((int)cost, null);
+        }, error => completed(0, "Cannot load costume catalog " + costumeCatalogVersion + ": " + error.ErrorMessage));
+    }
 
     [Header("Behaviour")]
     [Tooltip("Automatically call RefreshWallet() when PlayFabAuthManager.OnLoginSuccess fires.")]
@@ -81,6 +114,7 @@ public class PlayFabWalletManager : MonoBehaviour
 
     private void Start()
     {
+        PlayerCustomizationData.ProfileChanged += CacheCostumeOwnership;
         if (PlayFabAuthManager.Instance != null)
         {
             PlayFabAuthManager.Instance.OnLoginSuccess += HandleLoginSuccess;
@@ -111,6 +145,7 @@ public class PlayFabWalletManager : MonoBehaviour
 
     private void OnDestroy()
     {
+        PlayerCustomizationData.ProfileChanged -= CacheCostumeOwnership;
         if (PlayFabAuthManager.Instance != null)
         {
             PlayFabAuthManager.Instance.OnLoginSuccess -= HandleLoginSuccess;
@@ -120,6 +155,9 @@ public class PlayFabWalletManager : MonoBehaviour
 
     private void HandleLoginSuccess()
     {
+        authGeneration++; inventoryRequest++;
+        HasLoadedWallet = IsRefreshing = goldCoinSpendInFlight = false;
+        walletAccount = null; ownedCostumes.Clear();
         if (refreshOnLogin)
             RefreshWallet();
     }
@@ -127,6 +165,9 @@ public class PlayFabWalletManager : MonoBehaviour
     private void HandleLoggedOut()
     {
         StopPolling();
+        authGeneration++; inventoryRequest++;
+        IsRefreshing = goldCoinSpendInFlight = false;
+        ownedCostumes.Clear(); walletAccount = null;
 
         if (!clearOnLogout) return;
 
@@ -161,7 +202,7 @@ public class PlayFabWalletManager : MonoBehaviour
             return;
         }
 
-        if (IsRefreshing)
+        if (IsRefreshing || goldCoinSpendInFlight)
         {
             if (verboseLogging)
                 Debug.Log("PlayFabWalletManager: RefreshWallet skipped - a refresh is already in flight.");
@@ -170,14 +211,18 @@ public class PlayFabWalletManager : MonoBehaviour
 
 
         IsRefreshing = true;
+        string account = PlayFabAuthManager.Instance.PlayFabId;
+        int generation = authGeneration, request = ++inventoryRequest;
+        var context = PlayFabSettings.staticPlayer;
 
         if (verboseLogging)
             Debug.Log("PlayFabWalletManager: Calling GetUserInventory...");
 
         PlayFabClientAPI.GetUserInventory(
-            new GetUserInventoryRequest(),
+            new GetUserInventoryRequest { AuthenticationContext = context },
             result =>
             {
+                if (generation != authGeneration || request != inventoryRequest || !CurrentAccount(account)) return;
                 IsRefreshing = false;
 
                 int gc = 0;
@@ -189,6 +234,12 @@ public class PlayFabWalletManager : MonoBehaviour
 
                 GoldCoins = gc;
                 HasLoadedWallet = true;
+                walletAccount = account;
+                ownedCostumes.Clear();
+                foreach (var item in result.Inventory ?? new List<ItemInstance>())
+                    if (item.CatalogVersion == costumeCatalogVersion && !string.IsNullOrEmpty(item.ItemId))
+                    { ownedCostumes.Add(item.ItemId); uncertainCostumes.Remove(account + ":" + item.ItemId); }
+                CacheCostumeOwnership();
 
                 if (verboseLogging)
                     Debug.Log("PlayFabWalletManager: GetUserInventory succeeded. GC=" + gc);
@@ -197,11 +248,105 @@ public class PlayFabWalletManager : MonoBehaviour
             },
             error =>
             {
+                if (generation != authGeneration || request != inventoryRequest || !CurrentAccount(account)) return;
                 IsRefreshing = false;
                 Debug.LogWarning("PlayFabWalletManager.RefreshWallet failed: " + error.GenerateErrorReport());
                 OnWalletRefreshFailed?.Invoke(error.ErrorMessage);
             }
         );
+    }
+
+    private bool CurrentAccount(string account) => PlayFabAuthManager.Instance != null &&
+        PlayFabAuthManager.Instance.IsLoggedIn && PlayFabAuthManager.Instance.PlayFabId == account;
+
+    private void CacheCostumeOwnership()
+    {
+        if (HasLoadedWallet && CurrentAccount(walletAccount))
+            PlayerCustomizationData.UpdateOwnedCostumes(walletAccount, ownedCostumes);
+    }
+
+    /// <summary>PlayFab purchases the durable item and debits GC in the same request.
+    /// Never retry an uncertain purchase automatically; refresh inventory to recover its entitlement.</summary>
+    public void TryPurchaseCostume(ShopItemData item, int confirmedPrice, Action onSuccess, Action<string> onFailure)
+    {
+        var costume = item == null ? null : DineIn.Appearance.AppearanceCatalog.Find(
+            DineIn.Appearance.AppearanceCatalog.Load()?.costumes, item.cosmeticUnlockId);
+        if (item == null || item.category != ShopCategory.Cosmetic || item.price <= 0 ||
+            item.priceCurrencyCode != goldCurrencyCode || item.itemId != item.cosmeticUnlockId || costume == null)
+        { onFailure?.Invoke("This costume is not configured for purchase."); return; }
+        if (!HasLoadedWallet || !CurrentAccount(walletAccount))
+        { RefreshWallet(); onFailure?.Invoke("Sign in and wait for your wallet to load."); return; }
+        if (goldCoinSpendInFlight || CampaignSaveStore.IsCreditPending)
+        { onFailure?.Invoke("A purchase is already processing."); return; }
+        if (ownedCostumes.Contains(item.itemId))
+        { CacheCostumeOwnership(); onFailure?.Invoke("You already own this costume."); return; }
+        if (!CampaignSaveStore.AccountMatches(walletAccount) || LocalSaveManager.NeedsRecovery)
+        { onFailure?.Invoke("Wait for your account profile to finish loading."); return; }
+        if (IsCostumeUncertain(item.itemId))
+        { RefreshWallet(); onFailure?.Invoke("The previous request is still unconfirmed. Refresh inventory; another charge is blocked until ownership is resolved."); return; }
+        if (confirmedPrice <= 0) { onFailure?.Invoke("Refresh the item price before confirming."); return; }
+        if (GoldCoins < confirmedPrice)
+        { onFailure?.Invoke("Not enough Gold Coins."); return; }
+        string account = walletAccount;
+        int generation = authGeneration;
+        string itemId = item.itemId;
+        goldCoinSpendInFlight = true;
+        // A refresh begun before purchase must not overwrite the returned entitlement.
+        inventoryRequest++; IsRefreshing = false;
+        OnWalletUpdated?.Invoke(GoldCoins, NormalMoney);
+        var context = PlayFabSettings.staticPlayer;
+        // Check current authoritative ownership immediately before a non-repeatable purchase.
+        PlayFabClientAPI.GetUserInventory(new GetUserInventoryRequest { AuthenticationContext = context }, inventory =>
+        {
+            if (generation != authGeneration || !CurrentAccount(account)) return;
+            if (inventory.Inventory != null && inventory.Inventory.Any(i => i.CatalogVersion == costumeCatalogVersion && i.ItemId == itemId))
+            {
+                goldCoinSpendInFlight = false; ownedCostumes.Add(itemId); CacheCostumeOwnership();
+                RefreshWallet(); onFailure?.Invoke("You already own this costume. No purchase was submitted."); return;
+            }
+            int currentGold = 0;
+            inventory.VirtualCurrency?.TryGetValue(goldCurrencyCode, out currentGold);
+            GoldCoins = currentGold;
+            if (currentGold < confirmedPrice)
+            {
+                goldCoinSpendInFlight = false; OnWalletUpdated?.Invoke(GoldCoins, NormalMoney);
+                onFailure?.Invoke("Not enough Gold Coins."); return;
+            }
+            PlayFabClientAPI.PurchaseItem(new PurchaseItemRequest
+            {
+                AuthenticationContext = context,
+                CatalogVersion = costumeCatalogVersion, ItemId = itemId,
+                VirtualCurrency = goldCurrencyCode, Price = confirmedPrice
+            }, result =>
+            {
+                if (generation != authGeneration || !CurrentAccount(account)) return;
+                goldCoinSpendInFlight = false;
+                bool granted = result.Items != null && result.Items.Any(i => i.ItemId == itemId);
+                if (granted)
+                {
+                    ownedCostumes.Add(itemId);
+                    CacheCostumeOwnership();
+                }
+                HasLoadedWallet = false; // Refresh the authoritative GC balance before another spend.
+                RefreshWallet();
+                if (granted) onSuccess?.Invoke();
+                else { uncertainCostumes.Add(account + ":" + itemId); onFailure?.Invoke("Purchase response is unconfirmed. Refresh inventory; another charge is blocked."); }
+            }, error =>
+            {
+                if (generation != authGeneration || !CurrentAccount(account)) return;
+                goldCoinSpendInFlight = false;
+                HasLoadedWallet = false;
+                if (IsUncertainPurchaseError(error)) uncertainCostumes.Add(account + ":" + itemId);
+                RefreshWallet();
+                Debug.LogWarning("[Shop] Costume purchase " + itemId + " (" + costumeCatalogVersion + "): " + error.Error + " / " + error.HttpCode + " / " + error.ErrorMessage);
+                onFailure?.Invoke(IsUncertainPurchaseError(error) ? "Purchase status is uncertain. Refresh inventory before any retry. " + error.ErrorMessage : "Purchase failed: " + error.ErrorMessage);
+            });
+        }, failure =>
+        {
+            if (generation != authGeneration || !CurrentAccount(account)) return;
+            goldCoinSpendInFlight = false;
+            onFailure?.Invoke("Could not verify ownership. Nothing was purchased. " + failure.ErrorMessage);
+        });
     }
 
     /// <summary>Convenience check for UI/shop scripts before attempting a spend.</summary>

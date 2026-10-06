@@ -8,6 +8,7 @@ namespace DineIn.Appearance
     {
         public int version = 2;
         public string bodyId, skinId, faceId, hairId, hairColorId, outfitId, hatId;
+        public string costumeId; // Optional V2 field; empty means the saved everyday outfit.
         public AppearanceRecipe Copy() => (AppearanceRecipe)MemberwiseClone();
         public static AppearanceRecipe Decode(string json)
         {
@@ -21,6 +22,7 @@ namespace DineIn.Appearance
         }
         public bool SameAs(AppearanceRecipe other) => other != null && version == other.version &&
             bodyId == other.bodyId && skinId == other.skinId && faceId == other.faceId &&
-            hairId == other.hairId && hairColorId == other.hairColorId && outfitId == other.outfitId && hatId == other.hatId;
+            hairId == other.hairId && hairColorId == other.hairColorId && outfitId == other.outfitId && hatId == other.hatId &&
+            string.Equals(costumeId ?? "", other.costumeId ?? "", StringComparison.Ordinal);
     }
 }

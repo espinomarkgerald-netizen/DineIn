@@ -11,6 +11,8 @@ namespace DineIn.Appearance
         [SerializeField] private Vector2 swatchSize = new(52, 58);
         [SerializeField] private Vector2 spacing = new(14, 14);
         [SerializeField, Range(1, 8)] private int paletteColumns = 4;
+        [SerializeField, Range(1, 8)] private int cardColumns = 2;
+        [SerializeField] private bool alignTop;
         private bool palette;
         private int columns, rows;
         private Vector2 cell;
@@ -25,7 +27,7 @@ namespace DineIn.Appearance
             float width = Mathf.Max(1, rectTransform.rect.width - padding.horizontal);
             cell = palette ? swatchSize : cardSize;
             // Authored sizes never shrink to avoid scrolling. Narrow layouts wrap to one column.
-            columns = Mathf.Max(1, Mathf.Min(Mathf.Max(1, count), palette ? paletteColumns : 2,
+            columns = Mathf.Max(1, Mathf.Min(Mathf.Max(1, count), palette ? paletteColumns : cardColumns,
                 Mathf.FloorToInt((width + spacing.x) / (cell.x + spacing.x))));
             rows = Mathf.CeilToInt((float)count / columns);
             totalHeight = rows * cell.y + Mathf.Max(0, rows - 1) * spacing.y + padding.vertical;
@@ -46,7 +48,7 @@ namespace DineIn.Appearance
         private void Arrange(int axis)
         {
             Measure();
-            float top = padding.top + Mathf.Max(0, rectTransform.rect.height - totalHeight) * .5f;
+            float top = padding.top + (alignTop ? 0 : Mathf.Max(0, rectTransform.rect.height - totalHeight) * .5f);
             for (int i = 0; i < rectChildren.Count; i++)
             {
                 int row = i / columns, col = i % columns;

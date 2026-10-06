@@ -25,19 +25,57 @@ public static class PlayerCustomizationData
     }
     public static AppearanceRecipe CommittedAppearance
     {
-        get { TryReadAppearance(AppearanceRecord.json, out var recipe); return recipe?.Copy(); }
+        get
+        {
+            TryReadAppearance(AppearanceRecord.json, out var recipe);
+            if (recipe != null && !OwnsCostume(recipe.costumeId)) recipe.costumeId = "";
+            return recipe?.Copy();
+        }
     }
     public static void SelectProfile(string playFabId)
     {
         string next = string.IsNullOrEmpty(playFabId) ? "guest" : "playfab:" + playFabId;
         if (next == accountId) return;
         accountId = next;
+        costumeOwnershipNeedsSave = false;
         ResetToDefault();
         if (TryReadAppearance(AppearanceRecord.json, out _)) LoadFromJson(AppearanceRecord.json);
         ProfileChanged?.Invoke(); AppearanceChanged?.Invoke();
     }
+    public static event Action CostumeOwnershipChanged;
+    public static bool OwnsCostume(string id)
+    {
+        if (string.IsNullOrEmpty(id)) return true;
+        var data = LocalSaveManager.Data;
+        return !LocalSaveManager.NeedsRecovery && accountId != "guest" &&
+            accountId == "playfab:" + data.progressAccount && data.ownedItemIds.Contains(id);
+    }
+    private static bool costumeOwnershipNeedsSave;
+    // Server inventory is authoritative; the existing profile list is its offline cache.
+    public static void UpdateOwnedCostumes(string account, IEnumerable<string> inventoryIds)
+    {
+        if (accountId != "playfab:" + account || LocalSaveManager.Data.progressAccount != account ||
+            LocalSaveManager.NeedsRecovery) return;
+        var catalog = AppearanceCatalog.Load();
+        if (catalog == null) return;
+        var owned = LocalSaveManager.Data.ownedItemIds;
+        var incoming = new HashSet<string>(inventoryIds);
+        bool changed = false;
+        foreach (var costume in catalog.costumes)
+        {
+            if (costume == null) continue;
+            if (incoming.Contains(costume.id))
+            { if (!owned.Contains(costume.id)) { owned.Add(costume.id); changed = true; } }
+            else changed |= owned.RemoveAll(id => id == costume.id) > 0;
+        }
+        costumeOwnershipNeedsSave |= changed;
+        if (costumeOwnershipNeedsSave && LocalSaveManager.TrySave()) costumeOwnershipNeedsSave = false;
+        if (changed) { CostumeOwnershipChanged?.Invoke(); AppearanceChanged?.Invoke(); PhotonCustomizationSync.PushToPhoton(); }
+    }
+
     public static bool CommitAppearance(AppearanceRecipe recipe, AppearanceCatalog catalog)
     {
+        if (recipe != null && !OwnsCostume(recipe.costumeId)) return false;
         var record = AppearanceRecord;
         string previous = record.json;
         long revision = record.revision;
