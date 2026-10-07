@@ -20,6 +20,18 @@ public class KitchenWorkerBot : MonoBehaviour
     [Tooltip("Fast Food preparation products handled at this station. Assembler accepts every order.")]
     [SerializeField] private ItemTypeKitchen[] stationProducts;
 
+    [Header("Optional Pianist Ambience")]
+    [SerializeField] private AudioSource performanceAudio;
+    [SerializeField] private ParticleSystem musicNotes;
+    [SerializeField, Min(10)] private float reactionInterval = 40f;
+    [SerializeField, Min(1)] private float reactionRadius = 35f;
+    [SerializeField] private Transform[] performanceHands;
+    [SerializeField, Range(0f,20f)] private float keyTapDegrees = 8f;
+    private Quaternion[] handRest;
+    private bool handsPerforming;
+    private float nextMusicReaction;
+    public bool IsPerforming => employeeRole == EmployeeRole.Pianist && isActiveAndEnabled && HasWork && homePoint != null && Vector3.Distance(transform.position, homePoint.position) < 1f;
+
     [Header("Navigation")]
     [SerializeField, Range(0, 99)] private int avoidancePriority = 60;
 
@@ -57,12 +69,36 @@ public class KitchenWorkerBot : MonoBehaviour
 
     private void OnDisable()
     {
+        RestorePerformanceHands();
         UnbindKitchenManager();
         activeOrders.Clear();
+        if (performanceAudio != null) performanceAudio.Stop();
+        if (musicNotes != null) musicNotes.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
     }
 
     private void Update()
     {
+        if (employeeRole == EmployeeRole.Pianist)
+        {
+            if (musicNotes != null) { if(IsPerforming && !musicNotes.isPlaying)musicNotes.Play(); else if(!IsPerforming && musicNotes.isPlaying)musicNotes.Stop(); }
+            if(IsPerforming && Time.time >= nextMusicReaction)
+            {
+                nextMusicReaction=Time.time+reactionInterval;
+                var groups=FindObjectsByType<CustomerGroup>(FindObjectsSortMode.None);
+                foreach(var group in groups)
+                {
+                    if(group.gameObject.scene!=gameObject.scene || group.state!=CustomerGroup.GroupState.Eating || group.members.Count == 0 || group.members[0] == null || Vector3.Distance(group.members[0].transform.position,transform.position)>reactionRadius)continue;
+                    if(group.members.Count>0 && group.members[0]!=null) group.members[0].PlayProceduralReaction(CustomerProceduralReaction.Positive);
+                    break;
+                }
+            }
+        }
+        if (employeeRole == EmployeeRole.Pianist && performanceAudio != null)
+        {
+            bool performing = IsPerforming;
+            if (performing && !performanceAudio.isPlaying) performanceAudio.Play();
+            else if (!performing && performanceAudio.isPlaying) performanceAudio.Stop();
+        }
         if (MultiplayerRestaurantBridge.IsObserver) return;
         if (!HasWork || staffBot == null || staffBot.IsBusy)
             return;
@@ -70,7 +106,26 @@ public class KitchenWorkerBot : MonoBehaviour
         staffBot.StartTask(WorkWhileOrdersAreActive());
     }
 
-    private bool HasWork => activeOrders.Count > 0 || HasCookingWork || HygieneManager.Instance?.State.Cleaning == true;
+    private void LateUpdate()
+    {
+        if(performanceHands==null || performanceHands.Length==0)return;
+        if(IsPerforming)
+        {
+            if(!handsPerforming){handRest=new Quaternion[performanceHands.Length];for(int i=0;i<performanceHands.Length;i++)if(performanceHands[i]!=null)handRest[i]=performanceHands[i].localRotation;handsPerforming=true;}
+            for(int i=0;i<performanceHands.Length;i++)if(performanceHands[i]!=null)performanceHands[i].localRotation=handRest[i]*Quaternion.Euler(Mathf.Sin(Time.time*5f+i*2f)*keyTapDegrees,0,0);
+        }
+        else RestorePerformanceHands();
+    }
+    private void RestorePerformanceHands()
+    {
+        if(!handsPerforming)return;
+        for(int i=0;i<performanceHands.Length;i++)if(performanceHands[i]!=null)performanceHands[i].localRotation=handRest[i];
+        handsPerforming=false;
+    }
+
+    private bool HasWork => employeeRole == EmployeeRole.Pianist
+        ? GameDayManager.Instance != null && GameDayManager.Instance.ShiftRunning
+        : activeOrders.Count > 0 || HasCookingWork || HygieneManager.Instance?.State.Cleaning == true;
 
     private bool HasCookingWork
     {
@@ -87,7 +142,7 @@ public class KitchenWorkerBot : MonoBehaviour
 
     private void BindKitchenManager()
     {
-        if (subscribed)
+        if (subscribed || employeeRole == EmployeeRole.Pianist)
             return;
 
         kitchenManager = FindFirstObjectByType<KitchenManager>();
@@ -170,13 +225,15 @@ public class KitchenWorkerBot : MonoBehaviour
 
             Vector3 approach = target.position;
             Transform equipment = null;
-            bool registeredStation = !FastFoodScene.Contains(gameObject.scene) && HygieneManager.Instance != null && HygieneManager.Instance.TryGetWorkStation(
+            bool registeredStation = employeeRole != EmployeeRole.Pianist && !FastFoodScene.Contains(gameObject.scene) && HygieneManager.Instance != null && HygieneManager.Instance.TryGetWorkStation(
                 employeeRole, ref hygieneStationIndex, transform.position, out equipment, out approach);
             if (registeredStation) yield return staffBot.MoveWithin(approach, .25f, .5f, 12f);
             else yield return staffBot.MoveTo(target);
 
             if (staffBot.LastMoveSucceeded && HasWork)
             {
+                if (employeeRole == EmployeeRole.Pianist)
+                    yield return staffBot.FaceTowards(target.position + target.forward);
                 bool wasCleaning = HygieneManager.Instance?.State.Cleaning == true;
                 yield return staffBot.WorkFor(waitAtPoint);
                 if (!wasCleaning && activeOrders.Count > 0) HygieneManager.Instance?.RecordKitchenUse(registeredStation ? equipment : target, autonomous: true);

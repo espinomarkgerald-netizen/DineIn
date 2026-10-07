@@ -10,6 +10,7 @@ public class BillManager : MonoBehaviour
     [SerializeField] private GameObject billPaperPrefab;
     [SerializeField] private List<Transform> billSpawnPoints = new List<Transform>();
     [SerializeField] private float printSeconds = 3f;
+    [SerializeField] private Transform billPickupApproach;
 
     [Header("Optional Root (Organization)")]
     [SerializeField] private Transform billsRoot;
@@ -142,6 +143,7 @@ public class BillManager : MonoBehaviour
                 var bill = go.GetComponentInChildren<BillPaper>(true);
                 if (bill != null)
                 {
+                    if (billPickupApproach != null) bill.ConfigurePickupApproach(billPickupApproach);
                     bill.Init(group);
                     slots[bill] = spawn;
 

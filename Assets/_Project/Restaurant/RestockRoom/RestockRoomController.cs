@@ -53,9 +53,12 @@ public sealed class RestockRoomController
         if (authoredEmptyHotbar != null)
             authoredEmptyHotbar.SetActive(false);
         WireButtons();
-        if (MultiplayerRestockBridge.IsActive)
+        bool fineDining = coordinator != null && coordinator.RestaurantCatalog != null &&
+                          coordinator.RestaurantCatalog.RestaurantType == RestaurantType.FineDining;
+        if (MultiplayerRestockBridge.IsActive || fineDining)
         {
-            // Authored prototype boxes have no session batch and must not obstruct session shelves.
+            // Authored Fast Food prototype boxes are not stock. Fine Dining and
+            // multiplayer restore their real containers from the existing batch ledger.
             foreach (var root in scene.GetRootGameObjects())
                 foreach (var box in root.GetComponentsInChildren<DraggableStorageBox>(true))
                 {
@@ -75,6 +78,10 @@ public sealed class RestockRoomController
 
     public void Deactivate()
     {
+        // Each visit has a new controller. Detach this instance's callback before
+        // the cached room is reused or one click would toggle several times.
+        if (switchRoomButton != null)
+            switchRoomButton.onClick.RemoveListener(ToggleRoom);
         ThrowKeepPanel.Instance?.SelectedBox?.HideInteractionUI();
         CancelHotbarWorldDrag();
         hud?.SetLobbyContext();

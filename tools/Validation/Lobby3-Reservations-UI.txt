@@ -1,0 +1,55 @@
+Lobby3 Reservations UI — 2026-10-07
+
+Implemented an Inspector-editable two-panel Reservations prefab with party portraits,
+group mini portraits, selected details, static actual-FBX table previews, explicit
+selection/acceptance, decline confirmation, Requests/Tonight counts, status feedback,
+independent scrolling and preserved selection. Uses existing approved fonts and
+matching Double sprite families. No runtime furniture-thumbnail cameras.
+
+Causes addressed: the old generated row UI lacked visual selection and details;
+generic management typography/mobile helpers overwrote the specialized layout;
+some matching source sprites lacked slicing borders; short TMP bounds hid titles.
+Reservation-local sliced sprite assets preserve shared texture/import settings.
+
+Changed files:
+Assets/_Project/ManagementComputer/ManagementReservationCard.cs (new)
+Assets/_Project/ManagementComputer/ManagementReservationPanel.cs (new)
+Assets/_Project/ManagementComputer/ManagementComputerController.Reservations.cs
+Assets/_Project/ManagementComputer/ManagementComputerController.cs
+Assets/_Project/ManagementComputer/ManagementComputerWindow.cs
+Assets/_Project/ManagementComputer/ManagementComputerResponsiveLayout.cs
+Assets/_Project/ManagementComputer/Prefabs/ManagementReservationsPanel.prefab (new)
+Assets/_Project/ManagementComputer/Prefabs/ReservationStyle/* (new)
+Assets/_Project/ManagementComputer/Prefabs/ReservationPreviews/* (new)
+Assets/_Project/Editor/FineDiningReservationUIAuthoring.cs (new)
+Assets/_Project/Restaurant/FineDiningReservationState.cs
+Assets/_Project/Restaurant/FineDiningReservations.cs
+Assets/_Project/Restaurant/FineDiningTable.cs
+Assets/_Project/Customers/Booth/GroupSpawner.cs
+Assets/_Project/Scenes/RoleBased/Lobby3.unity
+Associated Unity metadata for new assets.
+
+Reservation customer-type metadata is saved through the existing save model, so the
+portrait matches the arriving party. Older bookings acquire missing identity safely.
+Existing scheduling, capacity, conflict, ownership of reservations and persistence
+systems remain in place. Table thumbnail references and layout tuning are editable.
+
+Checks completed:
+- Unity compilation and focused diff/reference checks.
+- 105 protected Play-mode UI checks: real pointer routing, selection, explicit accept,
+  duplicate confirmation, conflict/capacity/occupied states, reassignment, decline,
+  cancellation, expiry, ordering/counts, refresh/scroll preservation, save round-trip,
+  actual booked-party type/size spawn, camera restoration and office/reception routing.
+- No errors/exceptions during that interaction sequence.
+- Visual inspection at 1920x1080 and 2960x1440, plus mobile-preview layout checks.
+- Final saved prefab at 2960x1440: scrollbar gutters/widths and 222-unit table cards.
+- Final Requests screenshot inspected after scrollbar refinement.
+- Campaign writes protected during checks; original scene setup and editor options
+  restored. Editor stopped, not compiling, restored scenes clean.
+
+Evidence (temporary): Temp/ReservationUI/checks.txt, final-layout.txt,
+final-requests.png, expired-verified.png and tonight-mobile.png.
+
+Not run: full restaurant evening regression, device build, physical mobile touch or
+performance testing. Manually verify touch scrolling and readability on target device.
+No claim of a completely bug-free game is made.

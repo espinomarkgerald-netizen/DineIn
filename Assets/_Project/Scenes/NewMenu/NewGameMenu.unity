@@ -19484,6 +19484,7 @@ MonoBehaviour:
   campaignRestaurantScenes:
   - Lobby1
   - Lobby2
+  - Lobby3
 --- !u!1 &520055192
 GameObject:
   m_ObjectHideFlags: 0
@@ -54673,6 +54674,11 @@ MonoBehaviour:
   - {fileID: 11400000, guid: e0e88329b678806408fb8fca95aa2b2b, type: 2}
   - {fileID: 11400000, guid: b8075bb3c958592ea0041ca70713b0af, type: 2}
   - {fileID: 11400000, guid: d14e6991a6655f26b834732e611fe998, type: 2}
+  - {fileID: 11400000, guid: 5b83d7cf8658564ea33f42a58d66a415, type: 2}
+  - {fileID: 11400000, guid: 5addbc33c79b59beb86757ce9285516c, type: 2}
+  - {fileID: 11400000, guid: bce6d22741fc50d8bb618d2a77633110, type: 2}
+  - {fileID: 11400000, guid: 3516f6d607a958278b64ea1f7fa294a1, type: 2}
+  - {fileID: 11400000, guid: 54007439f0d75fe69c2bc950fda3b174, type: 2}
   itemContainer: {fileID: 1136276925}
   currencyExchangeManager: {fileID: 2124082840}
   sectionsScroll: {fileID: 1074092070}

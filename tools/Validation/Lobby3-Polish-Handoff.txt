@@ -1,0 +1,42 @@
+Lobby3 polish verification - 2026-10-07
+
+Changes
+- Lobby3.unity and Lobby3-NavMesh.asset: authored staff homes, camera coverage/background, HUD instance, furniture outline targets, corrected menu transforms, disabled oversized approach colliders, scene decorations, pianist audio, existing kitchen timing bridge, updated navigation.
+- FineDiningSceneBindings.cs: opt-out of runtime placement (disabled in Lobby3), preserve menu prefab orientation, refresh nonserialized furniture cache after editor reload.
+- FineDiningSceneTools.cs: navigation baking respects manually authored placement.
+- EmployeeUniforms.cs and Resources/FineDiningEmployeeUniforms.asset: existing Fine Dining outfits for both bodies and eight roles. Sous chef/pianist use existing procedural appearance.
+- LobbyHUDRedesign.cs and CasualDiningProgressHUD.cs: include Lobby3 in existing HUD visibility.
+- QuickOutline/Scripts/Outline.cs: optional explicit renderer targets, allowing existing interaction proxies to highlight visible FBX furniture; original default behavior preserved.
+- KitchenWorkerBot.cs: optional pianist positional audio follows work state and faces the piano.
+- KitchenManager.cs: Fine Dining orders use current existing staffing timing rather than the initial cached preparation value.
+- Fourteen Fine Dining recipe assets: normalized serving scale/rotation. Nine existing serving-preview prefabs: upright camera-facing sprite child; five supplied 3D foods retain their meshes.
+- FineDiningDecorMaterials: four materials for existing decorative meshes.
+
+Causes
+Runtime furniture binding overwrote authored positions. Legacy staff positions were outside. Lobby3 was omitted from HUD scene filters. Outline proxies referenced hidden furniture. Eight approach spheres had enormous world bounds and intercepted interaction clicks. Serving transforms mixed inherited model/sprite scales and rotations. The kitchen timing bridge was absent. Hot reload retained an empty furniture lookup cache.
+
+Editable scene locations
+Fine Dining Decorations; Fine Dining Service Bindings; Roles / Kitchen workers; CameraRig; LobbyHUD; Kitchen Assignment Timing. Existing pianist worker has optional AudioSource. Use Apply Furniture Bindings only when intentionally rebuilding anchors; normal Play and navigation bake now preserve the authored layout.
+
+Actually checked
+- Protected Play Mode test using isolated campaign directory and suppressed normal save writes; temporary hires/stock used.
+- Both office and reception computer open/close behavior.
+- All eight runtime employee role outfits, human sous chef/pianist, and active normal HUD canvases.
+- Camera bounds and runtime overview/food presentation screenshots.
+- One reserved party and one walk-in completed seating, ordering, cooking, eating, billing/payment and departure.
+- Reservation completed; stock 602 to 567; all eight tables clean/available after service.
+- Closing stopped arrivals/service and pianist audio; no remaining customers.
+- One missing kitchen timing bridge warning found and fixed; subsequent initialization confirmed the bridge.
+- Final compilation, foundation/reference and baked-navigation validation passed after timing/cache fixes. Full evening was not repeated after these last narrow fixes.
+- git diff --check passed (existing line-ending notices only).
+- Original editor scene setup and Play Mode settings restored; Editor left stopped.
+
+Remaining manual checks / limits
+This was a narrow two-party run, not proof of zero bugs. Recheck dense evening traffic, all fourteen dishes, delivery/restock routes, touch-device camera/UI, financial results and interrupted-service save restart with a disposable save. Those flows were not exhaustively rerun in this polish pass. Nine drink/soup previews are the existing upright sprites, not newly modeled 3D dishes. Pianist uses existing jazz audio and character behavior, not a new piano-playing animation.
+
+Evidence
+Temp/FineDiningPolish/runtime-presentation.txt
+Temp/FineDiningPolish/interaction-checks.txt
+Temp/FineDiningPolish/service-verification.txt
+Temp/FineDiningPolish/closing.txt
+Temp/FineDiningPolish/served-food.png

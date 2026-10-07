@@ -235,7 +235,7 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
     public void RefreshVisibility()
     {
         string activeScene = SceneManager.GetActiveScene().name;
-        bool inLobby = activeScene == LobbySceneName || FastFoodScene.Contains(activeScene) || MultiplayerHUDBridge.IsActive;
+        bool inLobby = activeScene == LobbySceneName || activeScene == "Lobby3" || FastFoodScene.Contains(activeScene) || MultiplayerHUDBridge.IsActive;
         bool inRestock = activeScene == "RestockScene";
         bool localMultiplayerRestock = MultiplayerSessionManager.Instance != null
             && MultiplayerSessionManager.Instance.IsMultiplayerSession

@@ -26,6 +26,7 @@ public class BillPaper : MonoBehaviour, IInteractable, ICancelableTaskTarget
     private bool pickupRequested;
     private bool isPickedUp;
 
+    public void ConfigurePickupApproach(Transform approach) => standPoint = approach;
     public Transform StandPoint => standPoint != null ? standPoint : transform;
     public bool AutoReturnHome => autoReturnHome;
 

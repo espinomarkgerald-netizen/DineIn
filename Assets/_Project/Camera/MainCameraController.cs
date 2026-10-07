@@ -31,6 +31,58 @@ public class MainCameraController : MonoBehaviour
     [SerializeField] private Vector2 minXz = new Vector2(-50f, -50f);
     [SerializeField] private Vector2 maxXz = new Vector2(50f, 50f);
 
+    [Header("Viewport Bounds (Optional)")]
+    [Tooltip("Constrain the visible view, rather than just the rig center. Disabled in existing scenes unless explicitly enabled.")]
+    [SerializeField] private bool useViewportBounds;
+    [Tooltip("World-space center of the usable restaurant framing area.")]
+    [SerializeField] private Vector3 viewBoundsCenter;
+    [Tooltip("Width and height in camera-plane world units. Include a small margin around usable furniture.")]
+    [SerializeField] private Vector2 viewBoundsSize = new Vector2(100f, 60f);
+
+    private float MaximumOrthoSize => useViewportBounds && cam != null
+        ? Mathf.Max(minOrthoSize, Mathf.Min(maxOrthoSize, Mathf.Max(viewBoundsSize.x / (2f * Mathf.Max(.01f, cam.aspect)), viewBoundsSize.y * .5f)))
+        : maxOrthoSize;
+
+    private Vector3 ClampRigPosition(Vector3 position, float size)
+    {
+        if (useViewportBounds && cam != null)
+        {
+            // Solve a world XZ translation from camera-plane offsets, retaining rig height.
+            Vector3 right = cam.transform.right, up = cam.transform.up;
+            float determinant = right.x * up.z - right.z * up.x;
+            if (Mathf.Abs(determinant) > .0001f)
+            {
+                Vector3 relative = cam.transform.position + position - transform.position - viewBoundsCenter;
+                float x = Vector3.Dot(relative, right), y = Vector3.Dot(relative, up);
+                float limitX = Mathf.Max(0f, viewBoundsSize.x * .5f - size * cam.aspect);
+                float limitY = Mathf.Max(0f, viewBoundsSize.y * .5f - size);
+                float dx = Mathf.Clamp(x, -limitX, limitX) - x;
+                float dy = Mathf.Clamp(y, -limitY, limitY) - y;
+                position.x += (dx * up.z - right.z * dy) / determinant;
+                position.z += (right.x * dy - dx * up.x) / determinant;
+            }
+        }
+        else if (useBounds)
+        {
+            position.x = Mathf.Clamp(position.x, minXz.x, maxXz.x);
+            position.z = Mathf.Clamp(position.z, minXz.y, maxXz.y);
+        }
+        if (lockRigY) position.y = rigY;
+        return position;
+    }
+
+    private void OnDrawGizmosSelected()
+    {
+        if (!useViewportBounds || cam == null) return;
+        Gizmos.color = new Color(.2f, .85f, 1f, 1f);
+        Vector3 r = cam.transform.right * viewBoundsSize.x * .5f;
+        Vector3 u = cam.transform.up * viewBoundsSize.y * .5f;
+        Gizmos.DrawLine(viewBoundsCenter-r-u, viewBoundsCenter+r-u);
+        Gizmos.DrawLine(viewBoundsCenter+r-u, viewBoundsCenter+r+u);
+        Gizmos.DrawLine(viewBoundsCenter+r+u, viewBoundsCenter-r+u);
+        Gizmos.DrawLine(viewBoundsCenter-r+u, viewBoundsCenter-r-u);
+    }
+
     private Vector3 targetRigPos;
     private Vector3 rigVel;
 
@@ -89,7 +141,7 @@ public class MainCameraController : MonoBehaviour
 
     public Camera Cam => cam;
     public float NormalizedZoom => cam != null
-        ? Mathf.InverseLerp(minOrthoSize, maxOrthoSize, cam.orthographicSize)
+        ? Mathf.InverseLerp(minOrthoSize, MaximumOrthoSize, cam.orthographicSize)
         : 0f;
 
     private void Awake()
@@ -102,9 +154,9 @@ public class MainCameraController : MonoBehaviour
 
         targetOrtho = cam != null
             ? cam.orthographicSize
-            : Mathf.Clamp((minOrthoSize + maxOrthoSize) * 0.5f, minOrthoSize, maxOrthoSize);
+            : Mathf.Clamp((minOrthoSize + maxOrthoSize) * 0.5f, minOrthoSize, MaximumOrthoSize);
 
-        targetOrtho = Mathf.Clamp(targetOrtho, minOrthoSize, maxOrthoSize);
+        targetOrtho = Mathf.Clamp(targetOrtho, minOrthoSize, MaximumOrthoSize);
     }
 
     private void LateUpdate()
@@ -114,28 +166,17 @@ public class MainCameraController : MonoBehaviour
 
         HandlePanInput();
         HandleZoomInput();
+        targetOrtho = Mathf.Clamp(targetOrtho, minOrthoSize, MaximumOrthoSize);
 
         Vector3 desired = targetRigPos;
         if (lockRigY) desired.y = rigY;
         transform.position = Vector3.SmoothDamp(transform.position, desired, ref rigVel, panSmoothTime);
 
         float z = Mathf.SmoothDamp(cam.orthographicSize, targetOrtho, ref zoomVel, zoomSmoothTime);
-        cam.orthographicSize = Mathf.Clamp(z, minOrthoSize, maxOrthoSize);
+        cam.orthographicSize = Mathf.Clamp(z, minOrthoSize, MaximumOrthoSize);
 
-        if (useBounds)
-        {
-            Vector3 p = transform.position;
-            p.x = Mathf.Clamp(p.x, minXz.x, maxXz.x);
-            p.z = Mathf.Clamp(p.z, minXz.y, maxXz.y);
-            if (lockRigY) p.y = rigY;
-            transform.position = p;
-
-            Vector3 tp = targetRigPos;
-            tp.x = Mathf.Clamp(tp.x, minXz.x, maxXz.x);
-            tp.z = Mathf.Clamp(tp.z, minXz.y, maxXz.y);
-            if (lockRigY) tp.y = rigY;
-            targetRigPos = tp;
-        }
+        targetRigPos = ClampRigPosition(targetRigPos, Mathf.Max(targetOrtho, cam.orthographicSize));
+        transform.position = ClampRigPosition(transform.position, cam.orthographicSize);
     }
 
     public void SetRigTargetPosition(Vector3 worldPos, bool snapInstant = false)
@@ -145,11 +186,7 @@ public class MainCameraController : MonoBehaviour
         if (lockRigY)
             targetRigPos.y = rigY;
 
-        if (useBounds)
-        {
-            targetRigPos.x = Mathf.Clamp(targetRigPos.x, minXz.x, maxXz.x);
-            targetRigPos.z = Mathf.Clamp(targetRigPos.z, minXz.y, maxXz.y);
-        }
+        targetRigPos = ClampRigPosition(targetRigPos, cam != null ? Mathf.Max(targetOrtho, cam.orthographicSize) : targetOrtho);
 
         if (snapInstant)
         {
@@ -170,11 +207,13 @@ public class MainCameraController : MonoBehaviour
 
     public void SetTargetOrthographicSize(float orthographicSize, bool snapInstant = false)
     {
-        targetOrtho = Mathf.Clamp(orthographicSize, minOrthoSize, maxOrthoSize);
+        targetOrtho = Mathf.Clamp(orthographicSize, minOrthoSize, MaximumOrthoSize);
         if (snapInstant && cam != null)
         {
             zoomVel = 0f;
             cam.orthographicSize = targetOrtho;
+            targetRigPos = ClampRigPosition(targetRigPos, targetOrtho);
+            transform.position = ClampRigPosition(transform.position, targetOrtho);
         }
     }
 
@@ -276,7 +315,7 @@ public class MainCameraController : MonoBehaviour
 
     private void PanByScreenDelta(Vector2 screenDelta)
     {
-        float zoomScale = Mathf.InverseLerp(minOrthoSize, maxOrthoSize, targetOrtho);
+        float zoomScale = Mathf.InverseLerp(minOrthoSize, MaximumOrthoSize, targetOrtho);
         float scaledUnitsPerPixel = panUnitsPerPixel * DineIn.NewMenu.SettingsManager.PanMultiplier * Mathf.Lerp(0.7f, 2.0f, zoomScale);
 
         Vector3 right = cam.transform.right;
@@ -317,7 +356,7 @@ public class MainCameraController : MonoBehaviour
             float currDist = Vector2.Distance(a.position, b.position);
             float delta = currDist - prevDist;
 
-            targetOrtho = Mathf.Clamp(targetOrtho - delta * zoomSpeedPinch * DineIn.NewMenu.SettingsManager.ZoomMultiplier, minOrthoSize, maxOrthoSize);
+            targetOrtho = Mathf.Clamp(targetOrtho - delta * zoomSpeedPinch * DineIn.NewMenu.SettingsManager.ZoomMultiplier, minOrthoSize, MaximumOrthoSize);
             return;
         }
 
@@ -330,7 +369,7 @@ public class MainCameraController : MonoBehaviour
             targetOrtho = Mathf.Clamp(
                 targetOrtho - wheel * zoomSpeedMouseWheel * DineIn.NewMenu.SettingsManager.ZoomMultiplier * Time.deltaTime,
                 minOrthoSize,
-                maxOrthoSize
+                MaximumOrthoSize
             );
         }
     }

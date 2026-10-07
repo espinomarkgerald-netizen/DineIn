@@ -290,7 +290,7 @@ public class BoothAssignArrowManager : MonoBehaviour
         if (seatCount < groupSize)
             return false;
 
-        if (!booth.IsAvailableFor(groupSize))
+        if (!group.CanUseBooth(booth))
             return false;
 
         return true;

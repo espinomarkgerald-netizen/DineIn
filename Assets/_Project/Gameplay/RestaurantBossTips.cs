@@ -49,7 +49,7 @@ public sealed class RestaurantBossTips : MonoBehaviour
     {
         if (IsCoaching) return;
         string scene = SceneManager.GetActiveScene().name;
-        bool restaurant = scene == "Lobby1" || scene == "Lobby2" || scene == "Lobby1 Multiplayer";
+        bool restaurant = scene == "Lobby1" || scene == "Lobby2" || scene == "Lobby3" || scene == "Lobby1 Multiplayer";
         if (!restaurant || TutorialSystem.IsTutorialMode || GameplayUIBlocker.IsBlocked() ||
             Time.timeScale <= 0f || HygieneManager.DecisionPaused || ManagerComplaintSystem.Instance?.HasActiveComplaint == true)
         {

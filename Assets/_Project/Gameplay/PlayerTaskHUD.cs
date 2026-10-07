@@ -18,7 +18,7 @@ public sealed class PlayerTaskHUD : MonoBehaviour
     [Header("Canvas")]
     [SerializeField] private Canvas hudCanvas;
     [SerializeField] private CanvasGroup hudGroup;
-    [SerializeField] private string[] supportedScenes = { "Lobby1", "Lobby2", "RestockScene" };
+    [SerializeField] private string[] supportedScenes = { "Lobby1", "Lobby2", "Lobby3", "RestockScene" };
     [SerializeField] private bool hideWhileGameplayUIBlocked = true;
 
     [Header("Task Button")]
@@ -350,7 +350,7 @@ public sealed class PlayerTaskHUD : MonoBehaviour
     {
         hudCanvas = configuredCanvas;
         hudGroup = configuredHudGroup;
-        supportedScenes = new[] { "Lobby1", "Lobby2", "RestockScene" };
+        supportedScenes = new[] { "Lobby1", "Lobby2", "Lobby3", "RestockScene" };
         taskButton = configuredTaskButton;
         buttonRect = configuredButtonRect;
         buttonImage = configuredButtonImage;
@@ -471,14 +471,14 @@ public sealed class PlayerTaskHUD : MonoBehaviour
         {
             // RestockScene is additive, so a loaded Lobby1 scene is not enough.
             // The redesigned HUD belongs only to the active normal Lobby view.
-            bool activeLobby = SceneManager.GetActiveScene().name == "Lobby1" || SceneManager.GetActiveScene().name == "Lobby2" || MultiplayerHUDBridge.IsActive;
+            bool activeLobby = SceneManager.GetActiveScene().name == "Lobby1" || SceneManager.GetActiveScene().name == "Lobby2" || SceneManager.GetActiveScene().name == "Lobby3" || MultiplayerHUDBridge.IsActive;
             supportedSceneVisible = activeLobby || (preserveAuthoredPresentation && SceneManager.GetActiveScene().name == "RestockScene");
             objectivesSceneVisible = activeLobby;
         }
         else for (int i = 0; i < SceneManager.sceneCount && !supportedSceneVisible; i++)
         {
             string sceneName = SceneManager.GetSceneAt(i).name;
-            if (sceneName == "Lobby1" || sceneName == "Lobby2")
+            if (sceneName == "Lobby1" || sceneName == "Lobby2" || sceneName == "Lobby3")
                 objectivesSceneVisible = true;
             if (supportedScenes == null)
                 continue;

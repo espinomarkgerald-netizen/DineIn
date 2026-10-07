@@ -1,4 +1,4 @@
-﻿//
+//
 //  Outline.cs
 //  QuickOutline
 //
@@ -64,6 +64,9 @@ public class Outline : MonoBehaviour {
 
   [Header("Optional")]
 
+  [SerializeField, Tooltip("Visible furniture renderers for a separate interaction target. Empty retains normal child-renderer behavior.")]
+  private Renderer[] targetRenderers = Array.Empty<Renderer>();
+
   [SerializeField, Tooltip("Precompute enabled: Per-vertex calculations are performed in the editor and serialized with the object. "
   + "Precompute disabled: Per-vertex calculations are performed at runtime in Awake(). This may cause a pause for large meshes.")]
   private bool precomputeOutline;
@@ -83,7 +86,8 @@ public class Outline : MonoBehaviour {
   void Awake() {
 
     // Cache renderers
-    renderers = GetComponentsInChildren<Renderer>();
+    renderers = targetRenderers != null && targetRenderers.Length > 0
+      ? targetRenderers.Where(r => r != null).ToArray() : GetComponentsInChildren<Renderer>();
 
     // Instantiate outline materials
     outlineMaskMaterial = Instantiate(Resources.Load<Material>(@"Materials/OutlineMask"));
@@ -162,7 +166,9 @@ public class Outline : MonoBehaviour {
     // Generate smooth normals for each mesh
     var bakedMeshes = new HashSet<Mesh>();
 
-    foreach (var meshFilter in GetComponentsInChildren<MeshFilter>()) {
+    foreach (var meshFilter in targetRenderers != null && targetRenderers.Length > 0
+      ? targetRenderers.Where(r => r != null).Select(r => r.GetComponent<MeshFilter>()).Where(f => f != null).Distinct().ToArray()
+      : GetComponentsInChildren<MeshFilter>()) {
 
       var mesh = meshFilter.sharedMesh;
       if (mesh == null || !mesh.isReadable) {
@@ -185,7 +191,9 @@ public class Outline : MonoBehaviour {
   void LoadSmoothNormals() {
 
     // Retrieve or generate smooth normals
-    foreach (var meshFilter in GetComponentsInChildren<MeshFilter>()) {
+    foreach (var meshFilter in targetRenderers != null && targetRenderers.Length > 0
+      ? targetRenderers.Where(r => r != null).Select(r => r.GetComponent<MeshFilter>()).Where(f => f != null).Distinct().ToArray()
+      : GetComponentsInChildren<MeshFilter>()) {
 
       var mesh = meshFilter.sharedMesh;
       if (mesh == null || !mesh.isReadable) {
@@ -213,7 +221,8 @@ public class Outline : MonoBehaviour {
     }
 
     // Clear UV3 on skinned mesh renderers
-    foreach (var skinnedMeshRenderer in GetComponentsInChildren<SkinnedMeshRenderer>()) {
+    foreach (var skinnedMeshRenderer in targetRenderers != null && targetRenderers.Length > 0
+      ? targetRenderers.OfType<SkinnedMeshRenderer>().ToArray() : GetComponentsInChildren<SkinnedMeshRenderer>()) {
 
       var mesh = skinnedMeshRenderer.sharedMesh;
       if (mesh == null || !mesh.isReadable) {

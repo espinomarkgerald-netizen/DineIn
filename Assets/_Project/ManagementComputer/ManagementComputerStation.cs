@@ -1,9 +1,13 @@
 using UnityEngine;
 
+public enum RestaurantComputerPurpose { Management, Reservations }
+
 [DisallowMultipleComponent]
 public sealed class ManagementComputerStation : MonoBehaviour, IInteractable
 {
     [SerializeField] private ManagementComputerController controller;
+    [SerializeField] private RestaurantComputerPurpose purpose;
+    public RestaurantComputerPurpose Purpose => purpose;
     [SerializeField] private Transform standPoint;
     [SerializeField] private float interactRadius = 2.5f;
 

@@ -1,0 +1,50 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1e5d1a0d830632446bbf9c3cce255d59, type: 3}
+  m_Name: Lobster
+  m_EditorClassIdentifier: 
+  recipeID: fine-lobster
+  recipeName: Lobster
+  restaurantType: 2
+  category: 0
+  availableOnMenu: 1
+  menuSortOrder: 2
+  kitchenItemType: 24
+  cookingStation: 0
+  firstCookingIngredient: {fileID: 0}
+  preparationStation: 0
+  kitchenAssemblySteps: []
+  kitchenCookingPrefab: {fileID: 0}
+  kitchenServingPrefab: {fileID: 0}
+  kitchenPreviewPrefab: {fileID: 0}
+  kitchenIngredientIcon: {fileID: 0}
+  kitchenRawColorMultiplier: {r: 1, g: 1, b: 1, a: 1}
+  sprite: {fileID: 21300000, guid: f4d155284b576474a80bccb1c7159a69, type: 3}
+  servingPrefab: {fileID: 919132149155446097, guid: afe84b64f48f4268be2c7fff166a1f9a, type: 3}
+  servingPositionOffset: {x: 0.010811865, y: 0.054145876, z: -0.027104259}
+  servingRotation: {x: 0, y: 0, z: 0}
+  servingScale: {x: 1.5, y: 1.5, z: 1.5}
+  normalizedServingTransform: 1
+  dayToUnlock: 5
+  ingredients:
+  - item: {fileID: 11400000, guid: a78aab82537d4cf0819211283bf2b5c9, type: 2}
+    amount: 1
+  - item: {fileID: 11400000, guid: cd10000000000000000000000000000c, type: 2}
+    amount: 1
+  - item: {fileID: 11400000, guid: cd100000000000000000000000000009, type: 2}
+    amount: 1
+  - item: {fileID: 11400000, guid: cd100000000000000000000000000008, type: 2}
+    amount: 1
+  - item: {fileID: 11400000, guid: cd100000000000000000000000000003, type: 2}
+    amount: 1
+  sellPrice: 285
+  descriptionText: Lobster (Fine Dining menu).

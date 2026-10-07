@@ -285,15 +285,19 @@ public static partial class LevelSelectDistrictAuthoring
     }
     private static void WaterParticles(string name,Vector3 p,Material material,float speed,float life,float rate,float size,float radius,float gravity)
     {
-        var go=new GameObject(name,typeof(ParticleSystem));go.transform.SetParent(root,false);go.transform.position=p;
+        effects.Add(CreateWaterParticles(root, pebble, name, p, material, speed, life, rate, size, radius, gravity));
+    }
+    public static ParticleSystem CreateWaterParticles(Transform parent, Mesh particleMesh, string name,Vector3 p,Material material,float speed,float life,float rate,float size,float radius,float gravity)
+    {
+        var go=new GameObject(name,typeof(ParticleSystem));go.transform.SetParent(parent,false);go.transform.position=p;
         go.transform.rotation=Quaternion.Euler(-90,0,0);
         var ps=go.GetComponent<ParticleSystem>();ps.Stop(true,ParticleSystemStopBehavior.StopEmittingAndClear);
         var main=ps.main;main.duration=3;main.loop=true;main.startLifetime=life;main.startSpeed=speed;main.startSize=new ParticleSystem.MinMaxCurve(size*.6f,size);main.maxParticles=64;main.gravityModifier=gravity;main.simulationSpace=ParticleSystemSimulationSpace.World;main.useUnscaledTime=true;
         var emission=ps.emission;emission.rateOverTime=rate;
         var shape=ps.shape;shape.shapeType=ParticleSystemShapeType.Cone;shape.angle=12;shape.radius=radius;
-        var renderer=ps.GetComponent<ParticleSystemRenderer>();renderer.renderMode=ParticleSystemRenderMode.Mesh;renderer.mesh=pebble;renderer.sharedMaterial=material;renderer.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;
+        var renderer=ps.GetComponent<ParticleSystemRenderer>();renderer.renderMode=ParticleSystemRenderMode.Mesh;renderer.mesh=particleMesh;renderer.sharedMaterial=material;renderer.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;
         var sizeLife=ps.sizeOverLifetime;sizeLife.enabled=true;sizeLife.size=new ParticleSystem.MinMaxCurve(1,AnimationCurve.EaseInOut(0,1,1,0));
-        effects.Add(ps);
+        return ps;
     }
     private static void ConfigureLabel(RestaurantSelector selector)
     {

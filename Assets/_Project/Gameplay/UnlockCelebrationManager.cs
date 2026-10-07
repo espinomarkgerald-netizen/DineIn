@@ -13,7 +13,7 @@ public sealed class UnlockCelebrationManager : MonoBehaviour
     private readonly HashSet<string> seen = new HashSet<string>();
     [Header("Presentation Scenes")]
     [Tooltip("Unlocks wait in the queue everywhere else and are only presented in these scenes.")]
-    [SerializeField] private string[] presentationSceneNames = { "Lobby1", "Lobby2" };
+    [SerializeField] private string[] presentationSceneNames = { "Lobby1", "Lobby2", "Lobby3" };
 
     private UnlockCelebrationUI view;
     private bool presenting;

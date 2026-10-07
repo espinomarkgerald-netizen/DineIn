@@ -1,0 +1,44 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1e5d1a0d830632446bbf9c3cce255d59, type: 3}
+  m_Name: Citrus Mocktail
+  m_EditorClassIdentifier: 
+  recipeID: fine-citrus-mocktail
+  recipeName: Citrus Mocktail
+  restaurantType: 2
+  category: 1
+  availableOnMenu: 1
+  menuSortOrder: 5
+  kitchenItemType: 33
+  cookingStation: 0
+  firstCookingIngredient: {fileID: 0}
+  preparationStation: 0
+  kitchenAssemblySteps: []
+  kitchenCookingPrefab: {fileID: 0}
+  kitchenServingPrefab: {fileID: 0}
+  kitchenPreviewPrefab: {fileID: 0}
+  kitchenIngredientIcon: {fileID: 0}
+  kitchenRawColorMultiplier: {r: 1, g: 1, b: 1, a: 1}
+  sprite: {fileID: 21300000, guid: 4919470b29fc43529879c0020663ef28, type: 3}
+  servingPrefab: {fileID: 1000, guid: 66271375f87d4dccada38ae40fa6610a, type: 3}
+  servingPositionOffset: {x: 0, y: 0, z: 0}
+  servingRotation: {x: 0, y: 0, z: 0}
+  servingScale: {x: 2.6, y: 2.6, z: 2.6}
+  normalizedServingTransform: 1
+  dayToUnlock: 2
+  ingredients:
+  - item: {fileID: 11400000, guid: 43f12523c9b44a11b1cd819ab698b164, type: 2}
+    amount: 1
+  - item: {fileID: 11400000, guid: cd100000000000000000000000000008, type: 2}
+    amount: 1
+  sellPrice: 75
+  descriptionText: Citrus Mocktail (Fine Dining menu).

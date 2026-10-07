@@ -182,6 +182,10 @@ public class RestockStoredContainerSaveData
 [Serializable]
 public class GameSaveData
 {
+    public FineDiningReservationSave fineDiningReservations;
+    public bool fineDiningDayComplete;
+    public int[] fineDiningDayStats;
+    public int[] fineDiningFinance;
     public int saveSchemaVersion = 3;
     public List<FastFoodReadyFoodSaveEntry> fastFoodReadyFood = new List<FastFoodReadyFoodSaveEntry>();
     public DailyObjectiveManager.NetworkState objectives;
@@ -231,6 +235,7 @@ public class GameSaveData
     public int polishDayStartMoney = 5000;
     public int restaurantRatingScore = 60;
     public int supplierMarketGeneratedDay;
+    public bool employeeRosterInitialized;
     public int employeeApplicantNextRefreshDay = 3;
     public int employeeApplicantLastProcessedDay;
     public bool employeeApplicantsUnseen;

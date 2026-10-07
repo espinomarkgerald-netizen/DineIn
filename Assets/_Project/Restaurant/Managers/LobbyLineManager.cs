@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.AI;
 
 public class LobbyLineManager : MonoBehaviour
 {
@@ -11,6 +12,9 @@ public class LobbyLineManager : MonoBehaviour
     public float backSpacing = 0.6f;
 
     private CustomerGroup[] slots;
+    public bool HasSpace { get { CleanupSlots(); return slots != null && GetNextBackSlot() >= 0 && GetNextBackSlot() < slots.Length; } }
+    public CustomerGroup GetNextServiceableParty() => FineDiningReservations.For(this) is { } reservations
+        ? reservations.NextReceptionParty(slots ?? System.Array.Empty<CustomerGroup>()) : GetFrontOfLine();
 
     private void Awake()
     {
@@ -34,6 +38,17 @@ public class LobbyLineManager : MonoBehaviour
             return false;
         }
 
+        if (FineDiningReservations.For(this) != null)
+        {
+            var slot = linePoints[slotIndex];
+            if (slot == null) return false;
+            foreach (var member in group.members)
+            {
+                if (member == null || member.Agent == null || !member.Agent.isOnNavMesh) return false;
+                var path = new NavMeshPath();
+                if (!member.Agent.CalculatePath(slot.position, path) || path.status != NavMeshPathStatus.PathComplete) return false;
+            }
+        }
         UnsubscribeGroup(group);
         SubscribeGroup(group);
 
@@ -256,8 +271,13 @@ public class LobbyLineManager : MonoBehaviour
         group.SetLineSlotTarget(basePos);
     }
 
+    public IEnumerable<CustomerGroup> WaitingParties => slots ?? System.Array.Empty<CustomerGroup>();
+
+    public void DetachForWaiting(CustomerGroup group) { RemoveGroupFromSlots(group, true); RebuildLine(); }
+
     public bool IsGroupInLine(CustomerGroup group)
     {
+        if (FineDiningReservations.For(this)?.waitingArea?.Contains(group) == true) return true;
         if (group == null || slots == null)
             return false;
 

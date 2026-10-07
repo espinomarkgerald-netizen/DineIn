@@ -27,7 +27,7 @@ public static class TutorialGameModeEntry
 
     public static void BeginCampaignRoute(string careerScene, bool isMenuLaunch)
     {
-        if (careerScene == "Lobby2")
+        if (careerScene == "Lobby1" || careerScene == "Lobby2" || careerScene == "Lobby3")
             CampaignSaveStore.SelectRestaurant(careerScene);
 
         IsMenuLaunch = isMenuLaunch;
@@ -76,6 +76,11 @@ public static class TutorialGameModeEntry
         revisit.onClick = new Button.ButtonClickedEvent();
         revisit.onClick.AddListener(() =>
         {
+            if (controller.SelectedRestaurantIndex > 1)
+            {
+                NotificationPopupController.Instance?.Show("Fine Dining tutorial is not available yet.", NotificationPopupController.PopupType.Error);
+                return;
+            }
             IsMenuLaunch = IsRevisitLaunch = true;
             Load(controller.SelectedRestaurantIndex == 1 ? FastFoodScene.Tutorial : "Lobby1Tutorial");
         });

@@ -15,14 +15,15 @@ public enum ManagementComputerApp
     Restock,
     Equipment,
     Finances,
-    Objectives
+    Objectives,
+    Reservations
 }
 
 /// <summary>
 /// Controls the Lobby1 manager computer. App content is populated from the
 /// existing ScriptableObject/managers and every repeated entry is a prefab row.
 /// </summary>
-public sealed class ManagementComputerController : MonoBehaviour, IPointerClickHandler
+public sealed partial class ManagementComputerController : MonoBehaviour, IPointerClickHandler
 {
     private static readonly HashSet<ManagementComputerController> openComputers = new HashSet<ManagementComputerController>();
     public static bool IsAnyOpen => openComputers.Count > 0;
@@ -34,7 +35,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         bool changed = open ? openComputers.Add(this) : openComputers.Remove(this);
         if (changed) OpenStateChanged?.Invoke();
     }
-    private void OnDisable() { PublishOpenState(false); }
+    private void OnDisable() { if (ReservationMode && IsOpen) CloseComputer(); PublishOpenState(false); }
     private void OnEnable() { PublishOpenState(IsOpen); }
     private const string CatalogUIConfigResource = "ManagementComputerCatalogUIConfig";
 
@@ -170,6 +171,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
 
     private void OnDestroy()
     {
+        ReleaseReservationStation();
         PublishOpenState(false);
         MultiplayerRestaurantBridge.StateChanged -= RefreshSharedApp;
         if (MoneyManager.Instance != null)
@@ -588,6 +590,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         RestockFlowCoordinator.Instance?.EnsureLobbyUIInputReady();
         activeManager = manager;
         activeStation = station;
+        ConfigureReservationStation();
 
         if (activeManager != null)
             activeManager.SetExternalInputSuppressed(true);
@@ -607,7 +610,8 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         GameplayUIBlocker.Instance?.SetPanelBlocksGameplay(desktopRoot, true);
         CasualDiningProgressHUD.Instance?.RefreshBlockingVisibility();
         ResetComputerInputState();
-        CloseApp();
+        ClearApp();
+        if (ReservationMode) OpenApp((int)ManagementComputerApp.Reservations);
         RefreshStatusBar();
 
         RebuildComputerLayoutNow();
@@ -628,7 +632,8 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         if (MoneyManager.Instance != null)
             MoneyManager.Instance.OnMoneyChanged -= OnMoneyChanged;
 
-        CloseApp();
+        ClearApp();
+        ReleaseReservationStation();
         desktopRoot.SetActive(false);
         PublishOpenState(false);
         CasualDiningProgressHUD.Instance?.RefreshBlockingVisibility();
@@ -767,8 +772,12 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
     public void OpenApp(int appIndex)
     {
         startChecklistOpen = false;
+        if (ReservationMode != (appIndex == (int)ManagementComputerApp.Reservations)) return;
         if (!Enum.IsDefined(typeof(ManagementComputerApp), appIndex) || appWindow == null)
             return;
+
+        if (appIndex == (int)ManagementComputerApp.Reservations && reservationPanel != null && reservationPanel.gameObject.activeInHierarchy)
+        { reservationPanel.RefreshData(); return; }
 
         selectedApp = appIndex;
         appWindow.ClearRows();
@@ -779,6 +788,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         appWindow.SetContentLayout(currentAppUsesCards);
         appWindow.SetEmbeddedPanelLayout(UsesEmbeddedCatalogLayout(app));
         appWindow.SetFinanceStatementLayout(app == ManagementComputerApp.Finances);
+        appWindow.SetReservationLayout(app == ManagementComputerApp.Reservations);
 
         switch (app)
         {
@@ -789,6 +799,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
             case ManagementComputerApp.Equipment: PopulateEquipment(); break;
             case ManagementComputerApp.Finances: PopulateFinances(); break;
             case ManagementComputerApp.Objectives: PopulateObjectives(); break;
+            case ManagementComputerApp.Reservations: PopulateReservations(); break;
         }
 
         // Menu and Restock contain the dense, phone-readable information that
@@ -826,6 +837,12 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
     }
 
     public void CloseApp()
+    {
+        if (ReservationMode) { CloseComputer(); return; }
+        ClearApp();
+    }
+
+    private void ClearApp()
     {
         startChecklistOpen = false;
         selectedApp = -1;
@@ -1003,7 +1020,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
             GetExpectedCustomers(),
             ConfirmRestockOrder);
         panel.GetComponent<UIRevealAnimation>()?.Play();
-        appWindow.SetMessage(string.Empty);
+        appWindow.SetMessage(FineDiningReservations.For(this)?.DemandSummary ?? string.Empty);
     }
 
     private void PopulateEquipment()
@@ -1304,6 +1321,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
 
     public void TryStartShift()
     {
+        if (ReservationMode) return;
         if (GameDayManager.Instance == null)
         {
             ShowDesktopHint("Shift controller not found.", true);
@@ -1344,6 +1362,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
 
     private bool CompleteStartShift(bool startImmediately)
     {
+        if (ReservationMode) return false;
         StartChecklistSnapshot readiness = BuildStartChecklist();
         if (readiness.blockers > 0)
         {
@@ -1730,7 +1749,8 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         return app == ManagementComputerApp.Staff ||
                app == ManagementComputerApp.Menu ||
                app == ManagementComputerApp.Restock ||
-               app == ManagementComputerApp.Finances;
+               app == ManagementComputerApp.Finances ||
+               app == ManagementComputerApp.Reservations;
     }
 
     private void PopulateAgain(ManagementComputerApp app)
@@ -1769,6 +1789,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
 
     private int GetExpectedCustomers()
     {
+        if (FineDiningReservations.For(this) is { } reservations) return reservations.ExpectedGuests;
         if (GameDayManager.Instance != null && GameDayManager.Instance.MaxCustomersThisShift > 0)
             return GameDayManager.Instance.MaxCustomersThisShift;
 
@@ -1794,7 +1815,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
         bool active = IsShiftActive;
         bool ended = MultiplayerDayBridge.IsActive && GameDayManager.Instance != null && GameDayManager.Instance.HasDayResults;
         if (startShiftLabel != null) startShiftLabel.text = ended ? "SHIFT ENDED" : active ? "SHIFT RUNNING" : "START SHIFT";
-        if (startShiftButton != null) startShiftButton.interactable = !active && !ended;
+        if (startShiftButton != null) startShiftButton.interactable = !ReservationMode && !active && !ended;
         if (MultiplayerDayBridge.IsActive && !active && !ended)
         {
             var session = MultiplayerSessionManager.Instance;
@@ -1841,6 +1862,7 @@ public sealed class ManagementComputerController : MonoBehaviour, IPointerClickH
             case ManagementComputerApp.Equipment: return "Equipment Store";
             case ManagementComputerApp.Finances: return "Finance Report";
             case ManagementComputerApp.Objectives: return "Alien Demands";
+            case ManagementComputerApp.Reservations: return "Reservations";
             default: return "Management";
         }
     }

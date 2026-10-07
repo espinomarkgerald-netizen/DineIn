@@ -15,6 +15,9 @@ public class KitchenAssignmentSaveBridge : MonoBehaviour
     [SerializeField] private string assignedBaristaName;
     [SerializeField] private int assignedBaristaStars;
 
+    [Header("Fine Dining")]
+    [SerializeField, Range(0f, 0.2f)] private float sousChefSpeedBonusPerStar = 0.04f;
+
     public string AssignedChefName => assignedChefName;
     public int AssignedChefStars => assignedChefStars;
     public string AssignedBaristaName => assignedBaristaName;
@@ -93,6 +96,17 @@ public class KitchenAssignmentSaveBridge : MonoBehaviour
             // Keep the existing two-stage duration: cooking average plus assembly.
             return Mathf.Max(1f, (GetTimeFromStars(grill?.stars ?? 0) +
                 GetTimeFromStars(fry?.stars ?? 0)) * .5f + GetTimeFromStars(assembler?.stars ?? 0));
+        }
+        if (EmployeeRoleCatalog.UsesFineDiningRoles && EmployeeManager.Instance != null)
+        {
+            var staff = EmployeeManager.Instance;
+            var chef = staff.GetAssignedEmployee(EmployeeRole.Chef);
+            var sousChef = staff.GetAssignedEmployee(EmployeeRole.SousChef);
+            var bartender = staff.GetAssignedEmployee(EmployeeRole.Bartender);
+            float kitchenSeconds = GetTimeFromStars(chef?.stars ?? 0);
+            if (sousChef != null)
+                kitchenSeconds *= Mathf.Clamp(1f - sousChefSpeedBonusPerStar * sousChef.stars, .8f, 1f);
+            return Mathf.Max(1f, kitchenSeconds + GetTimeFromStars(bartender?.stars ?? 0));
         }
         float total = GetChefSpawnTime() + GetBaristaSpawnTime();
         return Mathf.Max(1f, total);

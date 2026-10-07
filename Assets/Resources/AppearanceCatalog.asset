@@ -625,6 +625,176 @@ MonoBehaviour:
         scale: {x: 1.03, y: 1, z: 1.03}
     coverHands: 0
     handColor: {r: 0.94, g: 0.49, b: 0.66, a: 1}
+  - id: red-spider-hoodie
+    label: Red Spider Hoodie
+    thumbnail: {fileID: 21300000, guid: 6524905be26a58dbafeadccf69dd84fe, type: 3}
+    bodies: []
+    surfaces:
+    - id: red-spider-hoodie-body
+      label: Red Spider Hoodie
+      thumbnail: {fileID: 0}
+      bodies:
+      - male
+      material: {fileID: 2100000, guid: 48f52de9cb08516290a27ff32b25dccb, type: 2}
+    - id: red-spider-hoodie-female-body
+      label: RedSpiderHoodieFemale
+      thumbnail: {fileID: 0}
+      bodies:
+      - female
+      material: {fileID: 2100000, guid: c9c7ac0b1da859a4824ca48c0864d960, type: 2}
+    headwear:
+      id: red-spider-hoodie-hood
+      label: Red Spider Hoodie
+      thumbnail: {fileID: 0}
+      bodies: []
+      prefab: {fileID: 100000, guid: 119c3b8b089651faab1283e4574d4ca9, type: 3}
+      position: {x: 0, y: 0, z: 0}
+      eulerAngles: {x: 0, y: 0, z: 0}
+      scale: {x: 1, y: 1, z: 1}
+      hidesHair: 0
+      incompatibleHairIds: []
+      bareHeadPositionOffset: {x: 0, y: 0, z: 0}
+      previewHeadroom: 0.2
+      hairFits: []
+      headwearFits: []
+    coverHands: 0
+    handColor: {r: 1, g: 1, b: 1, a: 1}
+  - id: pink-spider-hoodie
+    label: Pink Spider Hoodie
+    thumbnail: {fileID: 21300000, guid: a0f11be1e1015cac91fae2dc1f2ddeb9, type: 3}
+    bodies: []
+    surfaces:
+    - id: pink-spider-hoodie-body
+      label: Pink Spider Hoodie
+      thumbnail: {fileID: 0}
+      bodies:
+      - female
+      material: {fileID: 2100000, guid: 0b346862ba555f72b4d24d55b5d457b2, type: 2}
+    - id: pink-spider-hoodie-male-body
+      label: PinkSpiderHoodieMale
+      thumbnail: {fileID: 0}
+      bodies:
+      - male
+      material: {fileID: 2100000, guid: 15fb6f02a4b95d92985b1e65d474b11d, type: 2}
+    headwear:
+      id: pink-spider-hoodie-hood
+      label: Pink Spider Hoodie
+      thumbnail: {fileID: 0}
+      bodies: []
+      prefab: {fileID: 100000, guid: 8b99d860d4f957f2beda742149c4b9e2, type: 3}
+      position: {x: 0, y: 0, z: 0}
+      eulerAngles: {x: 0, y: 0, z: 0}
+      scale: {x: 1, y: 1, z: 1}
+      hidesHair: 0
+      incompatibleHairIds: []
+      bareHeadPositionOffset: {x: 0, y: 0, z: 0}
+      previewHeadroom: 0.2
+      hairFits: []
+      headwearFits: []
+    coverHands: 0
+    handColor: {r: 1, g: 1, b: 1, a: 1}
+  - id: bunny-cop
+    label: Bunny Cop
+    thumbnail: {fileID: 21300000, guid: 613aaaced06250af908efcf5682c3b22, type: 3}
+    bodies: []
+    surfaces:
+    - id: bunny-cop-body
+      label: Bunny Cop
+      thumbnail: {fileID: 0}
+      bodies:
+      - female
+      material: {fileID: 2100000, guid: 9f95a2ed23e255b0979dc0f4a088cb3d, type: 2}
+    - id: bunny-cop-male-body
+      label: BunnyCopMale
+      thumbnail: {fileID: 0}
+      bodies:
+      - male
+      material: {fileID: 2100000, guid: ca1d229b97c45f399f82cee475d9d28d, type: 2}
+    headwear:
+      id: bunny-cop-hood
+      label: Bunny Cop
+      thumbnail: {fileID: 0}
+      bodies: []
+      prefab: {fileID: 100000, guid: 1733013011315978a9b59fa463fb8e0e, type: 3}
+      position: {x: 0, y: 0, z: 0}
+      eulerAngles: {x: 0, y: 0, z: 0}
+      scale: {x: 1, y: 1, z: 1}
+      hidesHair: 0
+      incompatibleHairIds: []
+      bareHeadPositionOffset: {x: 0, y: 0, z: 0}
+      previewHeadroom: 0.5
+      hairFits: []
+      headwearFits: []
+    coverHands: 1
+    handColor: {r: 0.025, g: 0.03, b: 0.04, a: 1}
+  - id: green-ogre
+    label: Green Ogre
+    thumbnail: {fileID: 21300000, guid: cc45eb9e7971576895304f077ccf3189, type: 3}
+    bodies: []
+    surfaces:
+    - id: green-ogre-body
+      label: Green Ogre
+      thumbnail: {fileID: 0}
+      bodies:
+      - female
+      material: {fileID: 2100000, guid: 6bd5af557cc052fdb6087d31aaf71cf6, type: 2}
+    - id: green-ogre-male-body
+      label: GreenOgre
+      thumbnail: {fileID: 0}
+      bodies:
+      - male
+      material: {fileID: 2100000, guid: fb8a850c02505eea80390ddbab736f66, type: 2}
+    headwear:
+      id: green-ogre-hood
+      label: Green Ogre
+      thumbnail: {fileID: 0}
+      bodies: []
+      prefab: {fileID: 100000, guid: 4e90ec0363bf57c1825bdceda5b6a284, type: 3}
+      position: {x: 0, y: 0, z: 0}
+      eulerAngles: {x: 0, y: 0, z: 0}
+      scale: {x: 1, y: 1, z: 1}
+      hidesHair: 0
+      incompatibleHairIds: []
+      bareHeadPositionOffset: {x: 0, y: 0, z: 0}
+      previewHeadroom: .35
+      hairFits: []
+      headwearFits: []
+    coverHands: 0
+    handColor: {r: 0.025, g: 0.03, b: 0.04, a: 1}
+  - id: bob
+    label: Bob
+    thumbnail: {fileID: 21300000, guid: 068978eca5325fb9a85571ce497c81a5, type: 3}
+    bodies: []
+    surfaces:
+    - id: bob-body
+      label: Bob
+      thumbnail: {fileID: 0}
+      bodies:
+      - female
+      material: {fileID: 2100000, guid: 6e8db0bcaf045d84a18c660ebbee4767, type: 2}
+    - id: bob-male-body
+      label: Bob
+      thumbnail: {fileID: 0}
+      bodies:
+      - male
+      material: {fileID: 2100000, guid: ea8d372ee6175895bf6833072247e375, type: 2}
+    headwear:
+      id: bob-hood
+      label: Bob
+      thumbnail: {fileID: 0}
+      bodies: []
+      prefab: {fileID: 100000, guid: ee96ed0f9ab4589f98d09e0e62b1eb79, type: 3}
+      position: {x: 0, y: 0, z: 0}
+      eulerAngles: {x: 0, y: 0, z: 0}
+      scale: {x: 1, y: 1, z: 1}
+      hidesHair: 0
+      incompatibleHairIds: []
+      bareHeadPositionOffset: {x: 0, y: 0, z: 0}
+      previewHeadroom: .15
+      hairFits: []
+      headwearFits: []
+    coverHands: 0
+    handColor: {r: 0.025, g: 0.03, b: 0.04, a: 1}
   skinMaterial: {fileID: 2100000, guid: 1b665dea9d92aea4e82253e20c71320e, type: 2}
   hairMaterial: {fileID: 2100000, guid: c8e49e330eadecd42a6e84cf1707dd40, type: 2}
   adultHeight: 3.81

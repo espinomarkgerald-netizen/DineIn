@@ -737,7 +737,7 @@ public class LobbyAutonomousService : MonoBehaviour
         if (host == null || host.IsBusy || lineManager == null)
             return;
 
-        CustomerGroup group = lineManager.GetFrontOfLine();
+        CustomerGroup group = lineManager.GetNextServiceableParty();
         if (group == null || group.HasBeenAssigned || group.state != CustomerGroup.GroupState.Waiting)
             return;
 
@@ -752,7 +752,7 @@ public class LobbyAutonomousService : MonoBehaviour
 
         CustomerGreetBubbleSpawner.Instance?.Hide();
 
-        Booth booth = FindAvailableBooth(group.Size);
+        Booth booth = FineDiningReservations.For(this) is { } reservations ? reservations.FindTable(group) : FindAvailableBooth(group.Size);
         if (booth != null)
             host.StartTask(RunReceptionTask(group, host, SeatGroup(group, booth)));
         else
@@ -1163,14 +1163,14 @@ public class LobbyAutonomousService : MonoBehaviour
         yield return host.FaceTowards(groupCenter);
         yield return host.WorkFor(greetingSeconds);
 
-        if (group == null || booth == null || !group.CanBeSeated || !booth.IsAvailableFor(group.Size))
+        if (group == null || booth == null || !group.CanBeSeated || !group.CanUseBooth(booth))
             yield break;
 
         yield return host.MoveTo(booth.GetNavigableApproachPosition());
         yield return host.FaceTowards(GetGroupCenter(group));
         yield return host.WorkFor(greetingSeconds);
 
-        if (group != null && booth != null && group.CanBeSeated && booth.IsAvailableFor(group.Size))
+        if (group != null && booth != null && group.CanBeSeated && group.CanUseBooth(booth))
             group.AssignToBooth(booth);
     }
 
@@ -1549,7 +1549,8 @@ public class LobbyAutonomousService : MonoBehaviour
         {
             yield return waiter.MoveWithin(
                 group.FastFood != null && group.FastFood.PickupApproach != null
-                    ? group.FastFood.PickupApproach.position : tray.transform.position,
+                    ? group.FastFood.PickupApproach.position : kitchenManager != null && kitchenManager.OutputPickupApproach != null
+                        ? kitchenManager.OutputPickupApproach.position : tray.transform.position,
                 pickupServiceDistance,
                 2f);
             if (!waiter.LastMoveSucceeded)
@@ -1658,7 +1659,8 @@ public class LobbyAutonomousService : MonoBehaviour
 
             waiter.SetApproachingTarget(tray);
             yield return waiter.MoveWithin(tray.TargetGroup?.FastFood?.PickupApproach != null
-                ? tray.TargetGroup.FastFood.PickupApproach.position : tray.transform.position,
+                ? tray.TargetGroup.FastFood.PickupApproach.position : kitchenManager != null && kitchenManager.OutputPickupApproach != null
+                    ? kitchenManager.OutputPickupApproach.position : tray.transform.position,
                 pickupServiceDistance, 2f);
             FoodTrayInteractable interactable = tray != null
                 ? tray.GetComponent<FoodTrayInteractable>()

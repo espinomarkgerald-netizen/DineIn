@@ -1,0 +1,114 @@
+LIVE EDITOR / SHORT PLAYTEST UPDATE - 2026-10-07
+This update supersedes the earlier NOT RUN / unbaked notes below.
+Navigation baked in the real Editor. Five blocked approach anchors corrected and Lobby3 saved:
+cashier home, cashier desk, kitchen sink, sous chef home, pianist home.
+Both management and reservation computer open/close paths passed in Play Mode.
+Three requests generated; repeated confirmation did not add duplicate bookings.
+A real group spawned, reached Waiting, and accepted a table assignment (WalkingToBooth).
+Final group state was UnhappyLeft; successful seating/service completion was NOT established.
+BLOCKER: Delivery Unload Approach has no complete NavMesh route from customer entrance.
+Unity Remote also logged an ADB no-device error; Editor Play Mode still ran.
+Campaign persistence was suspended for this disposable smoke test. No complete evening,
+financial rollback, rendered-UI quality, or save/reload test was performed.
+Play Mode stopped and original scene setup and editor play-mode options restored.
+Changed in this pass: Lobby3.unity; Lobby3-NavMesh.asset plus meta; this handoff.
+
+LOBBY3 FINE DINING HANDOFF - 2026-10-07
+
+IMPLEMENTED
+Existing supplied model transform and current saved overrides preserved.
+Customer entrance/exit: rounded front foyer, beside the small reception desk.
+Delivery entrance: separate rear kitchen doorway; existing delivery truck prefab and floor support.
+Two physical computer stations: office management and reception Requests/Tonight.
+Scene-side furniture bindings: 3 four-seat tables, 2 two-seat tables, 3 six-seat curved booths.
+Reservation generation/confirmation/reassignment, compatible seating, shared admission budget,
+arrival notices, stock guidance, closing summary, and preparation-checkpoint persistence.
+Existing 14 recipe catalog, service, inventory, payment, cleaning, and restock systems retained.
+Optional Pianist role uses existing hiring/wages; bonus applies at daily request generation.
+Sunset/dusk/night settings and existing perimeter planter/streetlight assets.
+
+PROBLEMS CORRECTED
+Inherited Lobby1 interaction locations did not follow the Fine Dining furniture.
+Template seat anchors/capacities did not match the actual FBX chair and booth cushions.
+Tray/bill pickup needed separate reachable floor approaches.
+Atkinson files in this project are TextCore assets, not TMP_FontAsset; Unity cleared those
+assignments. The reception UI now explicitly uses the existing Open Sans TMP asset.
+Perimeter lights now use Realtime mode so clock-driven changes can take effect.
+
+CHECKS RUN
+Offline runtime C# compilation: passed.
+Offline editor C# compilation: passed.
+22 standalone reservation schedule and JSON-state checks: passed.
+Static scene references: passed (including stable table IDs, correct computer purposes,
+14 recipe references, known furniture names, and unchanged supplied-model overrides).
+Source review: seating entry points share the final reservation-aware check; failed queue
+admission does not consume a booking; reception cannot open management apps/start service;
+existing save/checkpoint pair handles rollback and committed day results.
+
+NOT RUN / REQUIRED IN UNITY
+No Unity launch, Play Mode, build, or live purchase was performed by Codex.
+Navigation is NOT baked. The level is not runtime-certified or guaranteed bug-free.
+
+1. Reload the updated Lobby3 scene, preserving any additional unsaved edits separately.
+2. Use Dine In > Fine Dining > Bake Lobby3 Navigation. This first applies the furniture
+   bindings and imported materials, then bakes the dedicated Lobby3 NavMesh and validates
+   every authored approach. Save Lobby3 afterward. Do not continue past validation errors.
+3. Check the front customer route and rear delivery route, queue spacing, all seats,
+   pickup/cleanup/cashier/storage approaches, monitor orientation, and light placement.
+4. Office: management apps/start service. Reception: Requests/Tonight only. Open/close
+   both; verify camera/input restoration and readable UI at 16:9 and 2960 x 1440.
+5. Confirm a booking twice, test capacity/conflicts and reassignment before seating,
+   reopen the UI, then verify its decisions survive restarting during preparation.
+6. Play one evening with reservations and walk-ins. Check a blocked/dirty table,
+   alternative seating, claimed tasks, queue fairness, failed paths, and abandonment.
+7. Cover unfilled roles manually; then repeat with hired staff. Check all 14 menu items,
+   ingredient deductions, beverage prep, serving, bills/payment, cleanup, and deliveries.
+8. Interrupt after service spending/stock use: restart must restore the preparation
+   checkpoint and accepted upcoming bookings. Finish a day: results/wages/progression
+   must apply once, and the next preparation day must generate its requests once.
+9. Spot-check Lobby1, Lobby2, tutorials, and office management apps for regressions.
+
+BALANCING
+Current defaults: 30-minute slots, 60-minute visit + 10-minute cleanup, 3 daily requests,
+40% maximum reservation allocation, 20% pianist request bonus, capped at allocation.
+These are provisional Inspector-visible values; verify walking/service times after baking.
+
+CHANGED FILES (new scripts/assets also have Unity .meta files)
+Assets/_Project/Core/GameFlowManager.cs
+Assets/_Project/Customers/Booth/GroupSpawner.cs
+Assets/_Project/Customers/Customer/CustomerGroup.cs
+Assets/_Project/Editor/FineDiningSceneTools.cs
+Assets/_Project/Gameplay/AutonomousService/Kitchen/KitchenWorkerBot.cs
+Assets/_Project/Gameplay/AutonomousService/Lobby/LobbyAutonomousService.cs
+Assets/_Project/Gameplay/GameManager/GameManager.cs
+Assets/_Project/Lobby/Roles/HostAssignController.cs
+Assets/_Project/Lobby/Roles/RoleBasedAssignController.cs
+Assets/_Project/ManagementComputer/ManagementComputerController.Reservations.cs
+Assets/_Project/ManagementComputer/ManagementComputerController.cs
+Assets/_Project/ManagementComputer/ManagementComputerStation.cs
+Assets/_Project/Office/DailyFinanceBridge.cs
+Assets/_Project/Office/HR/EmployeeRole.cs
+Assets/_Project/Office/HR/EmployeeRoleCatalog.cs
+Assets/_Project/Restaurant/Assets/FineDiningReceptionMonitor.asset
+Assets/_Project/Restaurant/FineDiningEveningLighting.cs
+Assets/_Project/Restaurant/FineDiningReservationState.cs
+Assets/_Project/Restaurant/FineDiningReservations.cs
+Assets/_Project/Restaurant/FineDiningSceneBindings.cs
+Assets/_Project/Restaurant/FineDiningTable.cs
+Assets/_Project/Restaurant/Items/BillManager.cs
+Assets/_Project/Restaurant/Items/BillPaper.cs
+Assets/_Project/Restaurant/Items/FoodTrayInteractable.cs
+Assets/_Project/Restaurant/Items/KitchenManager.cs
+Assets/_Project/Restaurant/Managers/LobbyLineManager.cs
+Assets/_Project/Restaurant/RestockRoom/RestockFlowCoordinator.cs
+Assets/_Project/Save/GameSaveData.cs
+Assets/_Project/Save/GameSaveManager.cs
+Assets/_Project/Scenes/RoleBased/Lobby3.unity
+Assets/_Project/Tutorials/BoothAssignArrowManager.cs
+Tools/Validation/FineDiningReservationChecks.cs
+
+2026-10-07 focused service playtest follow-up
+Fixes: Lobby3 delivery unload approach moved outside the truck collision bounds; missing delivery ramp renderer reference assigned. Five Fine Dining servingPrefab references repaired to actual imported GameObject roots (Chicken Alfredo, Fish and Chips, Lasagna, Lobster, Rib-Eye Steak). Lobby3 Host/Waiter/Cashier/Busser now have authored AutonomousStaffBot components, reusing their existing 20-second travel budget for interaction moves; shared prefabs and other scenes unchanged.
+Verified live: all 14 serving models instantiate; all authored navigation approaches have complete paths; walk-in and reserved parties reached order/eating/bill/paid departure; stock consumed; every table clean and reusable afterward; reservation Completed; duplicate confirmation, capacity and conflicting-booking rejection; both computers open/close; stable request count; EndShift stops service and opens results with no remaining customers. Final reserved-party run recorded zero warnings/errors. Foundation/reference validation and Editor compilation passed.
+Isolation: temporary staff and stock in Play Mode, campaign writes suppressed and campaign directory redirected under project Temp; normal financial/save rollback was NOT tested. The empty isolated economy produced a bankruptcy result, so results-panel transition is verified, not economy balancing or progression correctness. Original Editor scene setup/settings restored.
+Not verified: full five-hour/multiple-party congestion, manual mouse/touch interactions, actual delivery purchase/unload loop, interrupted-service disk/cloud recovery, or device/build behavior. No claim of zero bugs. Detailed traces: Temp/FineDiningImplementation/reserved-service-test.txt, reserved-service-trace.txt, closing-test.txt, food-preview-check.txt, service-ui-checks.txt.

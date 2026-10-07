@@ -126,7 +126,7 @@ public sealed class LobbyPauseMenu : MonoBehaviour
         }
         string scene = SceneManager.GetActiveScene().name;
         bool tutorial = TutorialSystem.Instance != null;
-        bool lobby = scene == "Lobby1" || scene == "Lobby2" || scene == "Lobby1Tutorial" || MultiplayerContext || tutorial;
+        bool lobby = scene == "Lobby1" || scene == "Lobby2" || scene == "Lobby3" || scene == "Lobby1Tutorial" || MultiplayerContext || tutorial;
         lobby &= tutorial || !(RestockFlowCoordinator.Instance != null && RestockFlowCoordinator.Instance.IsRestockRoomOpen);
         if (!lobby && paused) Resume();
         if (combinedHudView != null && combinedHudView.gameObject.activeSelf != lobby)

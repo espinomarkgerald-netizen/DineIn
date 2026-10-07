@@ -771,6 +771,9 @@ public partial class CustomerGroup : MonoBehaviour
     private GameObject thoughtBubbleInstance;
 
     public bool HasBeenAssigned => hasBeenAssigned;
+    public string FineDiningReservationId { get; internal set; }
+    public bool CanUseBooth(Booth booth) => FineDiningReservations.For(this) is { } reservations
+        ? reservations.CanSeat(this, booth, out _) : booth != null && booth.IsAvailableFor(Size);
     public bool CanBeSeated =>
         (FastFood == null || choosingFastFoodSeat) &&
         !IsTakeout &&
@@ -1107,6 +1110,7 @@ public partial class CustomerGroup : MonoBehaviour
     public void AssignToBooth(Booth booth)
     {
         if (booth == null || !CanBeSeated) return;
+        if (FineDiningReservations.For(this) is { } reservations && !reservations.CommitSeating(this, booth)) return;
 
         hasBeenAssigned = true;
         hasLineSlotTarget = false;
@@ -1157,11 +1161,12 @@ public partial class CustomerGroup : MonoBehaviour
                 desiredApproach = hit.position;
 
             approachTargets[i] = desiredApproach;
-            if (FastFood != null)
+            if (FastFood != null || FineDiningReservations.For(this) != null)
             {
                 if (!member.TryWalkTo(desiredApproach, out approachTargets[i]))
                 {
-                    FailFastFoodService("We could not reach our table.");
+                    if (FastFood != null) FailFastFoodService("We could not reach our table.");
+                    else BecomeUnhappyAndLeave();
                     yield break;
                 }
                 var route = new NavMeshPath();
@@ -1202,11 +1207,13 @@ public partial class CustomerGroup : MonoBehaviour
             yield return null;
         }
 
-        if (FastFood != null && (validMemberCount != members.Count || seatedMembers.Count != members.Count))
+        if ((FastFood != null || FineDiningReservations.For(this) != null) &&
+            (validMemberCount != members.Count || seatedMembers.Count != members.Count))
         {
             // Never claim a paid group is seated while a member is still standing.
             // Existing failure cleanup releases the table and refunds the unserved order.
-            FailFastFoodService("We could not reach our seats.");
+            if (FastFood != null) FailFastFoodService("We could not reach our seats.");
+            else BecomeUnhappyAndLeave();
             yield break;
         }
 
@@ -2567,6 +2574,7 @@ public partial class CustomerGroup : MonoBehaviour
     {
         if (!CanDecideCustomerOutcome) return;
         if (state != GroupState.NeedsBill) return;
+        FineDiningReservations.For(this)?.PaidDeparture(this);
         HygieneManager.Instance?.RecordDiningUse(assignedBooth, .02f);
 
         if (angryResultLocked || receivedWrongOrder)
@@ -2611,6 +2619,29 @@ public partial class CustomerGroup : MonoBehaviour
         ClearEatingBubble();
 
         StartLeaving(false);
+    }
+
+    internal void PresentReservationArrival(string guestName, int arrivalMinute)
+    {
+        ShowThought(new[] { guestName + " • " + FineDiningReservations.Clock(arrivalMinute) }, happyFaceSprite);
+    }
+
+    internal void BeginFineDiningClosing()
+    {
+        if (FineDiningReservations.For(this) == null || leavingRoutineStarted) return;
+        StopAllCoroutines();
+        CancelManagerComplaint();
+        BecomeUnhappyAndLeave();
+    }
+
+    internal void FinishFineDiningClosing()
+    {
+        if (FineDiningReservations.For(this) == null) return;
+        StopAllCoroutines();
+        CancelOutstandingGroupTask();
+        CleanupOnLeave();
+        gameObject.SetActive(false);
+        Destroy(gameObject);
     }
 
     internal void FinishMultiplayerClosing()
@@ -3441,6 +3472,7 @@ public partial class CustomerGroup : MonoBehaviour
     private void UpdateLinePatience()
     {
         if (!CanDecideCustomerOutcome) return;
+        if (FineDiningReservations.For(this)?.WaitForBookedTime(this) == true) return;
         if (WaitingForStock) { ShowStockWaitPatience(); return; }
         if (debugForceShowLinePatience)
         {
@@ -3672,8 +3704,11 @@ public partial class CustomerGroup : MonoBehaviour
             SetState(GroupState.WalkingToLobby);
     }
 
+    public void LeaveReceptionUnavailable() => HandleLinePatienceExpired();
+
     private void UpdateWaitingStateFromLineTarget()
     {
+        if (FineDiningReservations.For(this)?.waitingArea?.Contains(this) == true) return;
         if (hasBeenAssigned)
             return;
 
@@ -3683,6 +3718,20 @@ public partial class CustomerGroup : MonoBehaviour
         if (state == GroupState.AngryLeft || state == GroupState.UnhappyLeft || state == GroupState.Leaving)
             return;
 
+        if (FineDiningReservations.For(this) != null && state == GroupState.WalkingToLobby)
+        {
+            foreach (var member in members)
+            {
+                if (member == null || member.Agent == null) continue;
+                var agent = member.Agent;
+                if (!agent.pathPending && (!agent.isOnNavMesh ||
+                    (agent.hasPath && agent.pathStatus != NavMeshPathStatus.PathComplete)))
+                {
+                    BecomeUnhappyAndLeave();
+                    return;
+                }
+            }
+        }
         if (IsGroupAtLineTarget())
         {
             if (state != GroupState.Waiting)

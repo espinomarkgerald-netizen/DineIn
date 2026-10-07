@@ -202,7 +202,7 @@ public class GameSaveManager : MonoBehaviour
             return false;
 
         ApplySaveData(data, true, false);
-        if (CampaignSaveStore.IsFastFood)
+        if (CampaignSaveStore.IsFastFood || CampaignSaveStore.IsFineDining)
         {
             CampaignSaveStore.WritePair(new CampaignSaveStore.Snapshot { save = JsonUtility.ToJson(data, true), checkpoint = null });
             CampaignSaveStore.NeedsReload = false;
@@ -243,6 +243,7 @@ public class GameSaveManager : MonoBehaviour
     private GameSaveData CaptureCurrentData()
     {
         GameSaveData data = new GameSaveData();
+        if (CampaignSaveStore.IsFineDining) FineDiningReservations.Instance?.FillSaveData(data);
         GameSaveData previous = IsPersistenceSuspended ? null : ReadSaveData(SavePath);
         if (previous?.campaignCreditReceipts != null)
             data.campaignCreditReceipts = previous.campaignCreditReceipts;
@@ -287,6 +288,12 @@ public class GameSaveManager : MonoBehaviour
             if (data.fastFoodDayComplete) data.fastFoodDayStats = GameDayManager.Instance?.CaptureFastFoodReport();
         }
 
+        if (CampaignSaveStore.IsFineDining)
+        {
+            DailyObjectiveManager.Instance?.FillSaveData(data);
+            data.fineDiningFinance = DailyFinanceBridge.Instance?.CaptureNetworkState();
+            if (data.fineDiningDayComplete) data.fineDiningDayStats = GameDayManager.Instance?.CaptureFastFoodReport();
+        }
         return data;
     }
 
@@ -348,7 +355,7 @@ public class GameSaveManager : MonoBehaviour
         if (!HasSave() && !File.Exists(DayCheckpointPath))
         {
             Debug.Log("[GameSaveManager] No save file found — using defaults.");
-            if (CampaignSaveStore.IsFastFood || profileChanged)
+            if (CampaignSaveStore.IsFastFood || CampaignSaveStore.IsFineDining || profileChanged)
             {
                 ApplySaveData(new GameSaveData(), false, false);
                 EmployeeManager.Instance?.PrepareFreshRestaurantRoster();
@@ -380,7 +387,7 @@ public class GameSaveManager : MonoBehaviour
 
         ApplySaveData(data, false, requiresFiniteInventoryMigration);
 
-        if (CampaignSaveStore.IsFastFood && loadPath == DayCheckpointPath)
+        if ((CampaignSaveStore.IsFastFood || CampaignSaveStore.IsFineDining) && loadPath == DayCheckpointPath)
         {
             // Rollback is complete. Subsequent preparation edits must not be masked by an old checkpoint.
             CampaignSaveStore.WritePair(new CampaignSaveStore.Snapshot { save = JsonUtility.ToJson(data, true), checkpoint = null });
@@ -451,6 +458,14 @@ public class GameSaveManager : MonoBehaviour
                 if (data.fastFoodDayComplete) GameDayManager.Instance?.RestoreFastFoodReport(data.fastFoodDayStats);
             }
 
+            if (CampaignSaveStore.IsFineDining)
+            {
+                DailyObjectiveManager.Instance?.ApplySaveData(data);
+                FinanceManager.Instance?.ResetDailyExpenses();
+                DailyRevenueTracker.Instance?.ResetForNewDay();
+                DailyFinanceBridge.Instance?.ApplyRestaurantSave(data.fineDiningFinance);
+                if (data.fineDiningDayComplete) GameDayManager.Instance?.RestoreFastFoodReport(data.fineDiningDayStats);
+            }
             if (MoneyManager.Instance != null)
             {
                 if (reconcileMoney)
@@ -464,6 +479,7 @@ public class GameSaveManager : MonoBehaviour
 
             if (GameFlowManager.Instance != null)
                 GameFlowManager.Instance.ApplySaveData(data);
+            if (CampaignSaveStore.IsFineDining) FineDiningReservations.Instance?.ApplySaveData(data);
         }
         finally
         {

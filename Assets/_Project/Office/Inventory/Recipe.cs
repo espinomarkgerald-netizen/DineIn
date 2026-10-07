@@ -94,6 +94,7 @@ public class Recipe : ScriptableObject
     {
         get
         {
+            if (restaurantType == RestaurantType.FineDining && dayToUnlock > (GameFlowManager.Instance != null ? GameFlowManager.Instance.CurrentDay : 1)) return false;
             if (UnlockManager.Instance != null &&
                 UnlockManager.Instance.IsRecipeUnlocked(recipeID))
                 return true;

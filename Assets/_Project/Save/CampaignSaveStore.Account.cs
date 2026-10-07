@@ -29,7 +29,18 @@ public static partial class CampaignSaveStore
     }
     [Serializable] public sealed class AccountSnapshot
     {
-        public int version = 2;
+        public int version = 3;
+        public string account, lineage;
+        public long revision;
+        public string savedUtc, device;
+        public Snapshot casual, fastFood, fineDining;
+        public ProfileProgress profile;
+        public string contentHash, checksum;
+    }
+    // Preserve version 2 checksum verification when reading existing cloud saves.
+    [Serializable] private sealed class LegacyAccountSnapshot
+    {
+        public int version;
         public string account, lineage;
         public long revision;
         public string savedUtc, device;
@@ -37,6 +48,7 @@ public static partial class CampaignSaveStore
         public ProfileProgress profile;
         public string contentHash, checksum;
     }
+
     [Serializable] public sealed class AccountState
     {
         public int version = 2;
@@ -144,6 +156,7 @@ public static partial class CampaignSaveStore
         var value = new AccountSnapshot { account = state.account, lineage = state.lineage,
             revision = state.revision, savedUtc = state.savedUtc, device = state.device,
             casual = ReadCareer(LocalDirectory, "dinein_save.json"), fastFood = ReadCareer(LocalDirectory, "dinein_fastfood_save.json"),
+            fineDining = ReadCareer(LocalDirectory, "dinein_finedining_save.json"),
             profile = LocalSaveManager.NeedsRecovery ? null : CaptureProfile(state.account) };
         value.contentHash = ContentHash(value);
         if (observeChanges && ValidContent(value) && value.contentHash != state.contentHash)
@@ -209,8 +222,14 @@ public static partial class CampaignSaveStore
         LocalSaveManager.MarkRestored();
         if (!LocalSaveManager.TrySave()) throw new IOException("Could not persist restored profile.");
     }
-    public static string ContentHash(AccountSnapshot value) => Hash(Hash(value.casual?.save, value.casual?.checkpoint),
-        Hash(Hash(value.fastFood?.save, value.fastFood?.checkpoint), JsonUtility.ToJson(value.profile)));
+    public static string ContentHash(AccountSnapshot value)
+    {
+        string casual = Hash(value.casual?.save, value.casual?.checkpoint);
+        string fastFoodAndProfile = Hash(Hash(value.fastFood?.save, value.fastFood?.checkpoint), JsonUtility.ToJson(value.profile));
+        if (value.version == 2) return Hash(casual, fastFoodAndProfile);
+        string fineDiningAndProfile = Hash(Hash(value.fineDining?.save, value.fineDining?.checkpoint), JsonUtility.ToJson(value.profile));
+        return Hash(casual, Hash(Hash(value.fastFood?.save, value.fastFood?.checkpoint), fineDiningAndProfile));
+    }
     public static void Seal(AccountSnapshot value)
     {
         value.contentHash = ContentHash(value); value.checksum = null;
@@ -218,17 +237,27 @@ public static partial class CampaignSaveStore
     }
     public static bool ValidAccount(AccountSnapshot value, string account)
     {
-        if (value == null || value.version != 2 || value.account != account || value.revision < 0 || !ValidContent(value) ||
-            value.contentHash != ContentHash(value)) return false;
+        if (value == null || (value.version != 2 && value.version != 3) || value.account != account ||
+            value.revision < 0 || !ValidContent(value) || value.contentHash != ContentHash(value)) return false;
+        if (value.version == 2)
+        {
+            var legacy = new LegacyAccountSnapshot { version = 2, account = value.account, lineage = value.lineage,
+                revision = value.revision, savedUtc = value.savedUtc, device = value.device,
+                casual = value.casual, fastFood = value.fastFood, profile = value.profile,
+                contentHash = value.contentHash, checksum = value.checksum };
+            string checksum = legacy.checksum; legacy.checksum = null;
+            return !string.IsNullOrEmpty(checksum) && checksum == Hash(JsonUtility.ToJson(legacy), null);
+        }
         var copy = JsonUtility.FromJson<AccountSnapshot>(JsonUtility.ToJson(value));
-        string checksum = copy.checksum; copy.checksum = null;
-        return !string.IsNullOrEmpty(checksum) && checksum == Hash(JsonUtility.ToJson(copy), null);
+        string currentChecksum = copy.checksum; copy.checksum = null;
+        return !string.IsNullOrEmpty(currentChecksum) && currentChecksum == Hash(JsonUtility.ToJson(copy), null);
     }
     public static bool ValidContent(AccountSnapshot value)
     {
         bool Career(Snapshot pair) => pair != null && pair.version == 1 && pair.hash == Hash(pair.save, pair.checkpoint) &&
             ((string.IsNullOrEmpty(pair.save) && string.IsNullOrEmpty(pair.checkpoint)) || Valid(pair));
-        if (value == null || !Career(value.casual) || !Career(value.fastFood) || value.profile?.tutorials?.Length != ProgressPreferenceKeys.Length ||
+        if (value == null || !Career(value.casual) || !Career(value.fastFood) ||
+            (value.version == 3 && !Career(value.fineDining)) || value.profile?.tutorials?.Length != ProgressPreferenceKeys.Length ||
             value.profile.coins < 0 || value.profile.roles == null || value.profile.ownedItemIds == null) return false;
         foreach (int flag in value.profile.tutorials) if (flag < 0 || flag > 100) return false;
         foreach (var role in value.profile.roles) if (role == null || role.highestUnlockedLevel < 1 || role.completedLevels == null) return false;
@@ -237,8 +266,9 @@ public static partial class CampaignSaveStore
     public static bool Meaningful(AccountSnapshot value)
     {
         if (!ValidContent(value)) return false;
-        foreach (var pair in new[] { value.casual, value.fastFood })
+        foreach (var pair in new[] { value.casual, value.fastFood, value.version == 3 ? value.fineDining : null })
         {
+            if (pair == null) continue;
             foreach (string json in new[] { pair.save, pair.checkpoint })
             {
                 if (string.IsNullOrEmpty(json)) continue;
@@ -279,6 +309,8 @@ public static partial class CampaignSaveStore
         {
             WriteCareer(directory, "dinein_save.json", journal.snapshot.casual);
             WriteCareer(directory, "dinein_fastfood_save.json", journal.snapshot.fastFood);
+            WriteCareer(directory, "dinein_finedining_save.json", journal.snapshot.fineDining ??
+                new Snapshot { hash = Hash(null, null) });
             applyProfile(journal.snapshot.profile, journal.state.account);
             AtomicWrite(Path.Combine(directory, StateName), JsonUtility.ToJson(journal.state));
             File.Delete(path); NeedsReload = true; cachedStamp = null;

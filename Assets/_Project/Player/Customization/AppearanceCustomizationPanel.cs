@@ -73,8 +73,19 @@ namespace DineIn.Appearance
             panel.SetActive(false); optionTemplate.gameObject.SetActive(false);
             grid = options.GetComponent<CosmeticOptionLayout>();
         }
-        private void OnEnable() => PlayerCustomizationData.ProfileChanged += Cancel;
-        private void OnDisable() { PlayerCustomizationData.ProfileChanged -= Cancel; Cancel(); if (returningToMenu) FinishClose(); }
+        private void OnEnable()
+        {
+            PlayerCustomizationData.ProfileChanged += Cancel;
+            PlayerCustomizationData.CostumeOwnershipChanged += RefreshCostumeOptions;
+        }
+        private void RefreshCostumeOptions()
+        {
+            if (!editing || category != 7) return;
+            float position = scroll.verticalNormalizedPosition;
+            RebuildOptions();
+            scroll.verticalNormalizedPosition = position;
+        }
+        private void OnDisable() { PlayerCustomizationData.ProfileChanged -= Cancel; PlayerCustomizationData.CostumeOwnershipChanged -= RefreshCostumeOptions; Cancel(); if (returningToMenu) FinishClose(); }
         private void Update()
         {
             if (!editing) return;
@@ -278,11 +289,13 @@ namespace DineIn.Appearance
             var c = preview.Catalog;
             IEnumerable<AppearanceCatalog.Option> available = category switch
             { 0 => c.bodies, 1 => c.skins, 2 => c.faces, 3 => c.hairs, 4 => c.hairColors, 5 => c.outfits, 6 => c.hats, _ => new AppearanceCatalog.Option[] { new AppearanceCatalog.Option { id = "", label = "No costume", thumbnail = AppearanceCatalog.Find(c.hats, "none")?.thumbnail } }.Concat(c.costumes.Where(o => o != null && PlayerCustomizationData.OwnsCostume(o.id))) };
-            foreach (var option in available.Where(o => o != null && (category == 0 || o.Fits(draft.bodyId))))
+            foreach (var option in available.Where(o => o != null && (category == 0 || category == 7 || o.Fits(draft.bodyId))))
             {
                 var button = Instantiate(optionTemplate, options); button.gameObject.SetActive(true); cells.Add(button.gameObject);
                 button.name = option.id;
                 var label = button.transform.Find("Label").GetComponent<TMP_Text>(); label.text = option.label;
+                if (category == 7 && !option.Fits(draft.bodyId))
+                    label.text += "\n" + RequiredBodyLabel(option) + " body required";
                 label.gameObject.SetActive(option is not AppearanceCatalog.Palette);
                 var nameBand = button.transform.Find("Name Band");
                 if (nameBand != null) nameBand.gameObject.SetActive(option is not AppearanceCatalog.Palette);
@@ -295,7 +308,7 @@ namespace DineIn.Appearance
                 if (option is not AppearanceCatalog.Palette)
                 {
                     // Single-line choices give more of the card to the image; outfits keep two readable lines.
-                    float nameHeight = option.label != null && option.label.Contains("\n") ? 35 : 22;
+                    float nameHeight = label.text != null && label.text.Contains("\n") ? 35 : 22;
                     label.rectTransform.offsetMax = new Vector2(label.rectTransform.offsetMax.x, 9 + nameHeight);
                     if (nameBand != null) ((RectTransform)nameBand).offsetMax = new Vector2(-6, 10 + nameHeight);
                     icon.rectTransform.offsetMin = new Vector2(6, 11 + nameHeight);
@@ -317,9 +330,20 @@ namespace DineIn.Appearance
             status.text = category == 7 && cells.Count <= 1 ? "No costumes owned yet. Visit Shop > Costumes." : "Changes save when you Apply.";
             LayoutRebuilder.ForceRebuildLayoutImmediate(options); scroll.verticalNormalizedPosition = 1;
         }
+        private string RequiredBodyLabel(AppearanceCatalog.Option option) => string.Join(" / ",
+            option.bodies.Select(id => AppearanceCatalog.Find(preview.Catalog.bodies, id)?.label ?? id));
         private void Choose(string id)
         {
             if (!editing) return;
+            if (category == 7)
+            {
+                var costume = AppearanceCatalog.Find(preview.Catalog.costumes, id);
+                if (costume != null && !costume.Fits(draft.bodyId))
+                {
+                    status.text = "Choose " + RequiredBodyLabel(costume) + " in Body to wear this costume.";
+                    return;
+                }
+            }
             if (SelectedId() == id && !((category == 5 || category == 6) && !string.IsNullOrEmpty(draft.costumeId))) return;
             switch (category)
             {

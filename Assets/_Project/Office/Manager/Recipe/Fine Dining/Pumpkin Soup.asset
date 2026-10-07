@@ -1,0 +1,46 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1e5d1a0d830632446bbf9c3cce255d59, type: 3}
+  m_Name: Pumpkin Soup
+  m_EditorClassIdentifier: 
+  recipeID: fine-pumpkin-soup
+  recipeName: Pumpkin Soup
+  restaurantType: 2
+  category: 0
+  availableOnMenu: 1
+  menuSortOrder: 1
+  kitchenItemType: 23
+  cookingStation: 0
+  firstCookingIngredient: {fileID: 0}
+  preparationStation: 0
+  kitchenAssemblySteps: []
+  kitchenCookingPrefab: {fileID: 0}
+  kitchenServingPrefab: {fileID: 0}
+  kitchenPreviewPrefab: {fileID: 0}
+  kitchenIngredientIcon: {fileID: 0}
+  kitchenRawColorMultiplier: {r: 1, g: 1, b: 1, a: 1}
+  sprite: {fileID: 21300000, guid: 77c3847c3bd16104b9f4b18e6bd4f8d5, type: 3}
+  servingPrefab: {fileID: 1000, guid: 5956d6b6a17241c4b703cf26348c8ef5, type: 3}
+  servingPositionOffset: {x: 0, y: 0, z: 0}
+  servingRotation: {x: 0, y: 0, z: 0}
+  servingScale: {x: 3.5, y: 3.5, z: 3.5}
+  normalizedServingTransform: 1
+  dayToUnlock: 1
+  ingredients:
+  - item: {fileID: 11400000, guid: 17da4ff069af4ea0aac74e817daf95e3, type: 2}
+    amount: 1
+  - item: {fileID: 11400000, guid: cd10000000000000000000000000000d, type: 2}
+    amount: 1
+  - item: {fileID: 11400000, guid: cd100000000000000000000000000003, type: 2}
+    amount: 1
+  sellPrice: 125
+  descriptionText: Pumpkin Soup (Fine Dining menu).

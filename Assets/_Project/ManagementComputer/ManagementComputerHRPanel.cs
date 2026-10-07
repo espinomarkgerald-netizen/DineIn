@@ -97,6 +97,7 @@ public sealed class ManagementComputerHRPanel : MonoBehaviour
         if (manager != null)
             manager.ApplicantsRefreshed -= RefreshApplicantBadge;
         manager = configuredManager;
+        manager?.EnsureEmployeesGenerated();
         editable = canEdit;
         if (manager != null)
             manager.ApplicantsRefreshed += RefreshApplicantBadge;

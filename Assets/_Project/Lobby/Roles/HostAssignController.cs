@@ -122,7 +122,7 @@ public class HostAssignController : MonoBehaviour
     {
         if (group == null || booth == null) return;
 
-        if (!booth.IsAvailableFor(group.Size))
+        if (!group.CanUseBooth(booth))
         {
             Debug.Log("[Host] Booth not available.");
             return;

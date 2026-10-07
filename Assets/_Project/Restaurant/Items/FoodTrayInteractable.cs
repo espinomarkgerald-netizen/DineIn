@@ -65,6 +65,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
     private float readySince;
     private float readySinceBeforeStaffPickup;
 
+    public void ConfigurePickupApproach(Transform approach) => pickupPoint = approach;
     public Transform StandPoint => ResolveStandPoint();
     public bool AutoReturnHome => false;
     public bool IsDeliveryPickable => mode == TrayMode.Delivery;

@@ -85,7 +85,7 @@ public class EmployeeManager : MonoBehaviour
         }
 
         generator.GenerateEmployees();
-        allEmployees = generator.employees;
+        allEmployees = new List<EmployeeData>(generator.employees);
         for (int i = 0; i < allEmployees.Count; i++)
             allEmployees[i]?.EnsureIdentity();
         int currentDay = GameFlowManager.Instance != null
@@ -113,6 +113,8 @@ public class EmployeeManager : MonoBehaviour
     public void EnsureEmployeesGenerated()
     {
         if (MultiplayerRestaurantBridge.IsObserver) return;
+        if (generator == null) generator = FindFirstObjectByType<EmployeeGenerator>();
+        if (generator == null) return; // Scene generator may not have loaded yet; do not mark an empty pool initialized.
         if (allEmployees == null)
             allEmployees = new List<EmployeeData>();
         if (allEmployees.Count == 0 && !applicantPoolsInitialized)
@@ -280,7 +282,8 @@ public class EmployeeManager : MonoBehaviour
         !EmployeeRoleCatalog.UsesFastFoodRoles ||
         (role != EmployeeRole.Host && role != EmployeeRole.Waiter));
 
-    private static bool IsRequiredRole(EmployeeRole role) => IsRoleUsedInCurrentRestaurant(role) &&
+    private static bool IsRequiredRole(EmployeeRole role) => !EmployeeRoleCatalog.UsesFineDiningRoles &&
+        IsRoleUsedInCurrentRestaurant(role) &&
         !(FastFoodProgressionSettings.Current != null && role == EmployeeRole.Waiter);
 
     public bool HasAllRequiredRolesAssigned
@@ -297,7 +300,7 @@ public class EmployeeManager : MonoBehaviour
             IReadOnlyList<EmployeeRole> kitchenRoles = EmployeeRoleCatalog.KitchenRoles;
             for (int i = 0; i < kitchenRoles.Count; i++)
             {
-                if (GetAssignedEmployee(kitchenRoles[i]) == null)
+                if (IsRequiredRole(kitchenRoles[i]) && GetAssignedEmployee(kitchenRoles[i]) == null)
                     return false;
             }
 
@@ -330,6 +333,7 @@ public class EmployeeManager : MonoBehaviour
         if (data == null)
             return;
 
+        data.employeeRosterInitialized = applicantPoolsInitialized;
         data.employees.Clear();
         data.employeeApplicantNextRefreshDay = Mathf.Max(1, applicantNextRefreshDay);
         data.employeeApplicantLastProcessedDay = Mathf.Max(0, applicantLastProcessedDay);
@@ -430,7 +434,8 @@ public class EmployeeManager : MonoBehaviour
         applicantsUnseen = data.employeeApplicantsUnseen;
         // A saved pool with missing roles (or no applicants left) is valid.
         // It must remain depleted until the configured applicant refresh day.
-        applicantPoolsInitialized = true;
+        applicantPoolsInitialized = data.employeeRosterInitialized || allEmployees.Count > 0 || !CampaignSaveStore.IsFineDining;
+        if (!applicantPoolsInitialized) EnsureEmployeesGenerated();
         RebuildRoleGroups();
 
         AssignMissingApplicantExpiryDays(loadedDay);
@@ -685,10 +690,10 @@ public class EmployeeManager : MonoBehaviour
                 95f - snapshot.paymentErrors * 20f,
             EmployeeRole.Busser =>
                 90f - snapshot.dirtyTableDelays * 18f,
-            EmployeeRole.GrillStation or EmployeeRole.FryStation or EmployeeRole.Chef =>
+            EmployeeRole.GrillStation or EmployeeRole.FryStation or EmployeeRole.Chef or EmployeeRole.SousChef =>
                 snapshot.ordersCompleted * 100f / orders -
                 snapshot.orderFailures * 7f - snapshot.stockoutRefusals * 3f,
-            EmployeeRole.FastFoodAssembler or EmployeeRole.Barista =>
+            EmployeeRole.FastFoodAssembler or EmployeeRole.Barista or EmployeeRole.Bartender =>
                 snapshot.ordersCompleted * 100f / orders -
                 snapshot.orderFailures * 6f - snapshot.wrongOrders * 5f,
             _ => 75f

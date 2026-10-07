@@ -192,7 +192,7 @@ public class GameFlowManager : MonoBehaviour
 
             currentDay = MultiplayerRestaurantBridge.IsActive ? currentDay + 1 : Mathf.Min(currentDay + 1, campaignDayLimit);
             PrepareRestaurantDay();
-            if (restaurantSceneName == "Lobby2") GameSaveManager.Instance?.RequestSave();
+            if (restaurantSceneName == "Lobby2" || restaurantSceneName == "Lobby3") GameSaveManager.Instance?.RequestSave();
             LoadRestaurantScene();
             return;
         }
@@ -553,6 +553,7 @@ public class GameFlowManager : MonoBehaviour
         data.kitchenCompleted = kitchenCompleted;
         data.campaignCompleted = campaignCompleted;
         data.fastFoodDayComplete = restaurantSceneName == "Lobby2" && restaurantSessionState == RestaurantSessionState.DayComplete;
+        data.fineDiningDayComplete = restaurantSceneName == "Lobby3" && restaurantSessionState == RestaurantSessionState.DayComplete;
     }
 
     public void ApplySaveData(GameSaveData data)
@@ -561,7 +562,8 @@ public class GameFlowManager : MonoBehaviour
             return;
 
         fastFoodServiceStarted = false;
-        financeSettledDay = data.fastFoodDayComplete && restaurantSceneName == "Lobby2" ? data.currentDay : -1;
+        financeSettledDay = (data.fastFoodDayComplete && restaurantSceneName == "Lobby2") ||
+            (data.fineDiningDayComplete && restaurantSceneName == "Lobby3") ? data.currentDay : -1;
         currentDay = MultiplayerRestaurantBridge.IsActive ? Mathf.Max(1, data.currentDay) : Mathf.Clamp(data.currentDay, 1, 30);
         currentPhase = (GamePhase)Mathf.Clamp(data.currentPhase, 0, Enum.GetValues(typeof(GamePhase)).Length - 1);
         currentDayHalf = (DayHalf)Mathf.Clamp(data.currentDayHalf, 0, Enum.GetValues(typeof(DayHalf)).Length - 1);
@@ -578,7 +580,7 @@ public class GameFlowManager : MonoBehaviour
                 : RestaurantSessionState.PreOpen;
         }
 
-        if (restaurantSceneName == "Lobby2" && data.fastFoodDayComplete)
+        if ((restaurantSceneName == "Lobby2" && data.fastFoodDayComplete) || (restaurantSceneName == "Lobby3" && data.fineDiningDayComplete))
             restaurantSessionState = RestaurantSessionState.DayComplete;
         RefreshDayText();
         NotifyDayChanged();
@@ -631,7 +633,7 @@ public class GameFlowManager : MonoBehaviour
         if (restaurantSessionState != RestaurantSessionState.DayComplete)
             return;
 
-        if (restaurantSceneName == "Lobby2" && GameSaveManager.Instance != null &&
+        if ((restaurantSceneName == "Lobby2" || restaurantSceneName == "Lobby3") && GameSaveManager.Instance != null &&
             !GameSaveManager.Instance.CommitRestaurantResults())
         {
             WarningSlideUI.Instance?.Show("Your day report could not be saved. Please try again.");
@@ -654,7 +656,7 @@ public class GameFlowManager : MonoBehaviour
 
         fastFoodServiceStarted = false;
         restaurantSessionState = RestaurantSessionState.DayComplete;
-        if (restaurantSceneName != "Lobby2") GameSaveManager.Instance?.CommitDayCheckpoint();
+        if (restaurantSceneName != "Lobby2" && restaurantSceneName != "Lobby3") GameSaveManager.Instance?.CommitDayCheckpoint();
         EndOfDayFinance();
 
         if (!campaignCompleted)
@@ -665,7 +667,7 @@ public class GameFlowManager : MonoBehaviour
 
         CasualDiningPolishManager.EnsureInstance()?.FinalizeDay(currentDay);
 
-        if (restaurantSceneName == "Lobby2") GameSaveManager.Instance?.CommitRestaurantResults();
+        if (restaurantSceneName == "Lobby2" || restaurantSceneName == "Lobby3") GameSaveManager.Instance?.CommitRestaurantResults();
         else GameSaveManager.Instance?.RequestSave();
     }
 
@@ -727,7 +729,7 @@ public class GameFlowManager : MonoBehaviour
         if (currentDay >= campaignDayLimit)
         {
             PrepareRestaurantDay();
-            if (restaurantSceneName == "Lobby2") GameSaveManager.Instance?.RequestSave();
+            if (restaurantSceneName == "Lobby2" || restaurantSceneName == "Lobby3") GameSaveManager.Instance?.RequestSave();
             LoadRestaurantScene();
         }
         else
@@ -784,7 +786,7 @@ public class GameFlowManager : MonoBehaviour
         Time.timeScale = 1f;
         PrepareRestaurantDay();
         restaurantSessionState = RestaurantSessionState.Endless;
-        if (restaurantSceneName == "Lobby2") GameSaveManager.Instance?.RequestSave();
+        if (restaurantSceneName == "Lobby2" || restaurantSceneName == "Lobby3") GameSaveManager.Instance?.RequestSave();
         LoadRestaurantScene();
     }
 

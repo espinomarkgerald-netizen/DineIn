@@ -187,6 +187,8 @@ public partial class GroupSpawner : MonoBehaviour
         }
     }
 
+    public CustomerGroup.CustomerType PickReservationCustomerType() => PickCustomerType();
+
     private CustomerGroup.CustomerType PickCustomerType()
     {
         float green = IsCustomerTypeEnabled(CustomerGroup.CustomerType.Green) ? Mathf.Max(0f, weightGreen) : 0f;
@@ -245,8 +247,12 @@ public partial class GroupSpawner : MonoBehaviour
         }
     }
 
-    public CustomerGroup SpawnGroup()
+    public CustomerGroup SpawnGroup() => SpawnGroup(0, null);
+
+    public CustomerGroup SpawnGroup(int bookedSize, string reservationId)
     {
+        var fineDining = FineDiningReservations.For(this);
+        if (fineDining != null && (lobbyLine == null || !lobbyLine.HasSpace)) return null;
         var admission = FastFoodRestaurant.For(this);
         if (admission != null && !admission.CanAdmitCustomer) return null;
 
@@ -269,10 +275,12 @@ public partial class GroupSpawner : MonoBehaviour
             return null;
         }
 
-        CustomerGroup.CustomerType type = PickCustomerType();
+        var booking = fineDining != null ? fineDining.Booking(reservationId) : null;
+        CustomerGroup.CustomerType type = booking != null && booking.customerType >= 0
+            ? (CustomerGroup.CustomerType)booking.customerType : PickCustomerType();
         float takeoutRoll = Random.value;
         var coach = RestaurantBossTips.Instance != null ? RestaurantBossTips.Instance.GetComponent<RestaurantUnlockCoach>() : null;
-        if (CampaignSaveStore.RuntimeCampaign && coach != null && coach.TryGetEncounter(this, takeoutRoll, out var introductionType))
+        if (booking == null && CampaignSaveStore.RuntimeCampaign && coach != null && coach.TryGetEncounter(this, takeoutRoll, out var introductionType))
             type = introductionType;
         var visit = NormalFastFood && (int)type >= 3 ? ProfileFor(type) : null;
         if (visit != null && visit.assistedPriorityService && (admission == null || !admission.CanAdmitAssistedCustomer)) return null;
@@ -287,6 +295,7 @@ public partial class GroupSpawner : MonoBehaviour
         bool spawnAsTakeout = admission != null
             ? admission.ShouldSpawnTakeout(takeoutRoll)
             : takeoutEnabled && takeoutQueueManager != null && takeoutRoll < takeoutSpawnChance;
+        if (fineDining != null) spawnAsTakeout = false;
         if (visit != null && visit.overrideTakeawayChance)
             spawnAsTakeout = takeoutRoll < visit.takeawayChance;
 
@@ -317,7 +326,7 @@ public partial class GroupSpawner : MonoBehaviour
             if (effectiveMaxGroupSize < 3) return null;
             effectiveMinGroupSize = 3;
         }
-        int size = Random.Range(effectiveMinGroupSize, effectiveMaxGroupSize + 1);
+        int size = bookedSize > 0 ? bookedSize : fineDining != null ? Random.Range(1, 3) : Random.Range(effectiveMinGroupSize, effectiveMaxGroupSize + 1);
 
         Debug.Log(
             $"[GroupSpawner] Routing {type} group of {size}: " +
@@ -326,6 +335,7 @@ public partial class GroupSpawner : MonoBehaviour
             this);
 
         CustomerGroup group = Instantiate(groupPrefab, spawnPoint.position, Quaternion.identity);
+        group.FineDiningReservationId = reservationId;
         group.name = $"Group_{type}_{size}";
         group.members.Clear();
         group.SetBubbleLayoutSource(this);
@@ -351,7 +361,7 @@ public partial class GroupSpawner : MonoBehaviour
 
         groupsSpawnedThisShift++;
         var fastFood = FastFoodRestaurant.For(this);
-        if (fastFood == null) GroupCreated?.Invoke(group, spawnAsTakeout);
+        if (fastFood == null && fineDining == null) GroupCreated?.Invoke(group, spawnAsTakeout);
 
         // Apply shift-scaled patience so each group gets the correct timer for this day
         if (ShiftScaler.Instance != null)
@@ -394,7 +404,15 @@ public partial class GroupSpawner : MonoBehaviour
         }
 
         bool joinedLine = lobbyLine.TryJoinLine(group);
+        if (!joinedLine && fineDining != null)
+        {
+            groupsSpawnedThisShift--;
+            group.gameObject.SetActive(false);
+            Destroy(group.gameObject);
+            return null;
+        }
         group.state = CustomerGroup.GroupState.WalkingToLobby;
+        if (fineDining != null) GroupCreated?.Invoke(group, false);
         if (joinedLine) coach?.EncounterSpawned(type);
 
         return group;

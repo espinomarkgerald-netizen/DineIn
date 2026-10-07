@@ -31,7 +31,7 @@ public sealed class MenuAvailabilityManager : MonoBehaviour
 
     public static bool IsProductAvailable(Recipe product)
     {
-        if (product == null || !product.availableOnMenu)
+        if (product == null || !product.availableOnMenu || (product.restaurantType == RestaurantType.FineDining && !product.IsUnlocked))
             return false;
 
         return Instance == null || !Instance.disabledProductIds.Contains(product.ProductId);
@@ -98,7 +98,7 @@ public sealed class MenuAvailabilityManager : MonoBehaviour
     {
         if (MultiplayerRestaurantBridge.IsActive && !MultiplayerRestaurantBridge.Committing)
             return product != null && MultiplayerRestaurantBridge.Request("menu", product.ProductId, available ? 1 : 0);
-        if (product == null || string.IsNullOrWhiteSpace(product.ProductId) || !product.availableOnMenu)
+        if (product == null || string.IsNullOrWhiteSpace(product.ProductId) || !product.availableOnMenu || (available && product.restaurantType == RestaurantType.FineDining && !product.IsUnlocked))
             return false;
 
         bool changed = available

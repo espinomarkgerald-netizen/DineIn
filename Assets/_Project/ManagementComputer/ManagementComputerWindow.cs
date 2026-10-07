@@ -36,6 +36,25 @@ public sealed class ManagementComputerWindow : MonoBehaviour
     [SerializeField, Min(0f)] private float financeVerticalPadding = 18f;
     [SerializeField, Min(0f)] private float financeRowSpacing = 2f;
 
+    [Header("Reservations embedded layout")]
+    [SerializeField, Min(0)] private float reservationBottomPadding = 16f;
+    private bool capturedReservationInsets;
+    private Vector2 standardScrollInset, standardViewportInset;
+
+    public void SetReservationLayout(bool reservations)
+    {
+        if (scrollRect == null || scrollRect.viewport == null) return;
+        var rect = (RectTransform)scrollRect.transform;
+        if (!capturedReservationInsets)
+        {
+            standardScrollInset = rect.offsetMin;
+            standardViewportInset = scrollRect.viewport.offsetMax;
+            capturedReservationInsets = true;
+        }
+        rect.offsetMin = reservations ? new Vector2(standardScrollInset.x, reservationBottomPadding) : standardScrollInset;
+        scrollRect.viewport.offsetMax = reservations ? new Vector2(0, standardViewportInset.y) : standardViewportInset;
+    }
+
     private VerticalLayoutGroup verticalLayout;
     private LayoutElement contentHeightOverride;
     private ContentSizeFitter contentSizeFitter;
@@ -324,7 +343,8 @@ public sealed class ManagementComputerWindow : MonoBehaviour
             // Menu/Restock cards apply their own size hierarchy after every
             // bind. A window-wide mobile minimum is too large for their compact
             // stock cells and can make TMP ellipsis render an empty result.
-            if (text.GetComponentInParent<ManagementComputerCatalogCardUI>() != null)
+            if (text.GetComponentInParent<ManagementComputerCatalogCardUI>() != null ||
+                text.GetComponentInParent<ManagementReservationPanel>() != null)
                 continue;
 
             bool buttonLabel = text.GetComponentInParent<Button>() != null;

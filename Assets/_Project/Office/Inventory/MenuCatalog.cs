@@ -405,7 +405,8 @@ public class MenuCatalog : ScriptableObject
 
             if (!ingredientIds.Add(ingredient.StableItemId))
                 Debug.LogError($"[MenuCatalog] Duplicate ingredient ID '{ingredient.StableItemId}'.", this);
-            if (ingredient.restaurantType != restaurantType)
+            if (ingredient.restaurantType != restaurantType &&
+                !(restaurantType == RestaurantType.FineDining && ingredient.restaurantType == RestaurantType.CasualDining))
                 Debug.LogError($"[MenuCatalog] Ingredient '{ingredient.name}' belongs to {ingredient.restaurantType}, not {restaurantType}.", this);
         }
     }

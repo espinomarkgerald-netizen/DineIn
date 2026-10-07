@@ -23,6 +23,61 @@
       "VirtualCurrencyPrices": {
         "GC": 100
       }
+    },
+    {
+      "ItemId": "red-spider-hoodie",
+      "DisplayName": "Red Spider Hoodie",
+      "Description": "Permanent costume for male and female avatars.",
+      "ItemClass": "Costume",
+      "IsStackable": false,
+      "IsTradable": false,
+      "VirtualCurrencyPrices": {
+        "GC": 200
+      }
+    },
+    {
+      "ItemId": "pink-spider-hoodie",
+      "DisplayName": "Pink Spider Hoodie",
+      "Description": "Permanent costume for male and female avatars.",
+      "ItemClass": "Costume",
+      "IsStackable": false,
+      "IsTradable": false,
+      "VirtualCurrencyPrices": {
+        "GC": 200
+      }
+    },
+    {
+      "ItemId": "bunny-cop",
+      "DisplayName": "Bunny Cop",
+      "Description": "Permanent costume for male and female avatars.",
+      "ItemClass": "Costume",
+      "IsStackable": false,
+      "IsTradable": false,
+      "VirtualCurrencyPrices": {
+        "GC": 200
+      }
+    },
+    {
+      "ItemId": "green-ogre",
+      "DisplayName": "Green Ogre",
+      "Description": "Permanent costume for male and female avatars.",
+      "ItemClass": "Costume",
+      "IsStackable": false,
+      "IsTradable": false,
+      "VirtualCurrencyPrices": {
+        "GC": 200
+      }
+    },
+    {
+      "ItemId": "bob",
+      "DisplayName": "Bob",
+      "Description": "Permanent costume for male and female avatars.",
+      "ItemClass": "Costume",
+      "IsStackable": false,
+      "IsTradable": false,
+      "VirtualCurrencyPrices": {
+        "GC": 200
+      }
     }
   ]
 }

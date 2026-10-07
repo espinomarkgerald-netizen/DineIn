@@ -1,0 +1,51 @@
+Lobby3 Fine Dining release pass — 2026-10-07
+
+Implemented in this pass
+- RestockFlowCoordinator.cs: recognizes Lobby3, captures the true source restaurant, invalidates cached rooms when their owning lobby changes, uses authored Fine Dining storage entrances, and suspends source input before loading/reactivating the stock room. Normal and failed transitions restore the prior input/audio/camera state.
+- RestockRoomController.cs: Fine Dining displays ledger-backed stock instead of the Fast Food prototype boxes; removes the prior room-toggle callback when a visit ends.
+- FineDiningReservations.cs, FineDiningReservationState.cs, ManagementComputerController.Reservations.cs: pending requests remain reviewable during service; future/current-time acceptance validates capacity, conflicts, closing and the shared remaining admission budget. Invalid decisions display reasons. Repeated acceptance is idempotent. Checkpoint behavior is preserved.
+- Fine Dining Service/Fine Dining Tray.prefab: Lobby3-specific copy of the existing tray; horizontal mesh orientation and model scale live on its child, leaving a neutral root for pickup, carrying and table placement. Lobby3 kitchen uses this prefab; shared restaurant tray unchanged.
+- All 14 Fine Dining recipe assets and nine existing serving-preview prefabs: measured bottom-centered placement and appropriate world scale. Sprite previews rotate around their base, not their center. Original menu images and food artwork retained.
+- Lobby3.unity: authored courtyard, arrival/service paths, edging, garden beds, existing trees/benches/streetlights; scene-editable materials and warm lamp settings. Preserved the restaurant's placement, rotation and scale, existing interior decorations, uniforms, HUD, outline bindings, camera limits and indoor lighting.
+- Lobby3-NavMesh.asset: rebaked after excluding moving employee colliders from the bake. These colliders had cut holes around staff homes despite the agent exclusion setting. Static restaurant collisions remain in the bake.
+- Tools/Validation/FineDiningReservationChecks.cs: focused decision/budget regression checks.
+
+Primary causes
+Restock omitted Lobby3 and retained the wrong cached restaurant/input ownership; source and target EventSystems briefly overlapped during activation. Pending reservation decisions were hidden/blocked after opening. Tray rotation was encoded on the root that carry/placement logic replaced, and food offsets/scales mixed sprite/model conventions. Employee colliders were treated as static navigation obstacles at bake time.
+
+Checks actually completed
+- Unity script compilation and Lobby3 foundation/reference/navigation validation passed.
+- 32 focused reservation logic checks passed.
+- All 14 recipes checked at four holder rotations (56 serving-pose cases), with measured bottoms at their anchors and stable world scales.
+- Protected Play Mode run with temporary staff/funds and isolated campaign storage; normal campaign writes suppressed. Real UI raycast/pointer routing and existing gameplay APIs used; no OS mouse automation or live purchases.
+- Restock checkout deducted 920 once; normal delivery/collection and hotbar world-drag placement added 20 Martini and 10 Fish Fillet units. Correct catalog/boxes, storage switching, two visits and both returns passed.
+- Final post-fix dry entry/return plus cached frozen entry/return passed with one active EventSystem, enabled pointer/click actions, one AudioListener, restored Lobby3 camera/time, and no captured warnings/errors.
+- Reservation UI passed in preparation and service: Review, Accept, Decline, duplicate confirmation, conflict rejection, Tonight, close/reopen without reroll, persistent table ID, and camera restoration.
+- One complete evening exercised normal walk-ins and a scheduled two-person party. Reservation arrived, was seated and completed; shared admission count stayed at its 16-group budget. Seating, ordering, kitchen work, serving, eating, bills/payments, departure and cleaning ran. Normal abandonment also occurred under load.
+- At 10 PM arrivals/service stopped and remaining customers resolved. Results advanced exactly once to Day 2 with fresh requests and unchanged post-results money.
+- Actual checkpoint write/restore in the isolated directory restored day, accepted booking, money and stock after deliberate temporary mutations. This was the restart API path, not a forced process crash.
+- Full-evening observer captured no errors/exceptions. Two transient duplicate-EventSystem warnings found during that run were fixed and the affected transitions then passed without warnings.
+- Runtime stock-room, served-food and night-level images inspected. Independent targeted source review found no additional actionable defect.
+- Original editor scene setup and Play settings restored, Play Mode stopped, test save overrides cleared, scenes left clean. No build, commit, push or history changes.
+
+Editable locations
+Lobby3: Fine Dining Service Bindings; Fine Dining Decorations; Fine Dining Surroundings; Fine Dining Indoor Lighting; CameraRig; Roles and kitchen workers. Existing FineDiningEveningLighting controls sunset/night and perimeter lamps. Camera view bounds and zoom remain Inspector-editable. Fine Dining Service/Fine Dining Tray and Fine Dining recipe assets hold food tuning. Existing shared prefabs and global lighting remain unchanged.
+
+Remaining release checks / presentation limits
+- Test actual touch controls, performance and lighting on the target Android device. No build/device run was performed.
+- This evening and the focused checks are evidence, not a guarantee against every timing or save failure. Lobby1/Lobby2/tutorial runtime evenings and multiplayer were not rerun; defaults/shared assets were preserved and source reviewed.
+- Nine drink/soup servings remain the project's original camera-facing sprite assets; there are no matching supplied 3D models for these items.
+- Pianist hiring/position, facing, service activity, booking bonus and positional music remain integrated. A dedicated piano-playing hand animation is still absent from the supplied assets and was not fabricated from unrelated movement clips.
+
+Evidence (project-relative)
+Temp/FineDiningRelease/restock-result.txt
+Temp/FineDiningRelease/restock-transition-final.txt
+Temp/FineDiningRelease/reservation-ui-preparation.txt
+Temp/FineDiningRelease/reservation-ui-service.txt
+Temp/FineDiningRelease/food-pose-result.txt
+Temp/FineDiningRelease/service-history.txt
+Temp/FineDiningRelease/checkpoint-result.txt
+Temp/FineDiningRelease/restock.png
+Temp/FineDiningRelease/served-food.png
+Temp/FineDiningRelease/20.png
+Prior unchanged camera/light checks: Tools/Validation/Lobby3-Camera-Lighting.txt

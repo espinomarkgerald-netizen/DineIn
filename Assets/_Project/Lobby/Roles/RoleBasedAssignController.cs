@@ -198,7 +198,7 @@ public class RoleBasedAssignController : MonoBehaviour
         if (!lineManager.IsGroupInLine(group))
             return false;
 
-        CustomerGroup front = lineManager.GetFrontOfLine();
+        CustomerGroup front = lineManager.GetNextServiceableParty();
 
         if (front == null)
         {
@@ -328,7 +328,17 @@ public class RoleBasedAssignController : MonoBehaviour
 
         if (!BoothAssignArrowManager.Instance.HasValidBooth(group))
         {
-            ShowWarning("No available tables for this group.");
+            group.ReleasePlayerReceptionTask();
+            RestaurantTaskClaim.ReleasePlayer(group);
+            ClearSelectedGroup(group);
+            var waiting = FineDiningReservations.For(group)?.waitingArea;
+            if (waiting != null && string.IsNullOrEmpty(group.FineDiningReservationId) && group.Size <= 2)
+            {
+                bool seated = waiting.Contains(group) || waiting.TryWait(group);
+                if (!seated) group.LeaveReceptionUnavailable();
+                ShowWarning(seated ? "Please wait in the reception seats." : "The reception waiting seats are full.");
+            }
+            else ShowWarning("No available tables for this group.");
             return;
         }
 
@@ -366,7 +376,7 @@ public class RoleBasedAssignController : MonoBehaviour
             return;
         }
 
-        if (!booth.IsAvailableFor(group.Size))
+        if (!group.CanUseBooth(booth))
         {
             ShowWarning("That table is not available for this group.");
             return;
@@ -379,7 +389,7 @@ public class RoleBasedAssignController : MonoBehaviour
         void CompleteAssignment()
         {
             if (group == null || booth == null || !group.CanBeSeated ||
-                !booth.IsAvailableFor(group.Size))
+                !group.CanUseBooth(booth))
             {
                 ShowWarning("That table is no longer available.");
                 if (group != null)

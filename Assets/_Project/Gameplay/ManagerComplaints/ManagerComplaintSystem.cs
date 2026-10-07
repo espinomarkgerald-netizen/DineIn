@@ -783,7 +783,7 @@ public sealed partial class ManagerComplaintSystem : MonoBehaviour
 
     private void HandleSceneLoaded(Scene scene, LoadSceneMode _)
     {
-        if (activeGroup != null && scene.name != "Lobby1")
+        if (activeGroup != null && scene.name != "Lobby1" && scene.name != "Lobby3")
             CancelActiveComplaint(false);
     }
 }

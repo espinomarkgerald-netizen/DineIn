@@ -1,7 +1,9 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Text;
+using System.Linq;
 using TMPro;
+using Unity.AI.Navigation;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -226,6 +228,8 @@ public class GameDayManager : MonoBehaviour
     }
 
     public bool ShiftRunning => shiftRunning;
+    public int OpeningHour => openingHour;
+    public int ClosingHour => closingHour;
     public bool ServiceActive => shiftRunning || closingOut;
     public float TimeRemaining => timeRemaining;
     public int HappyCustomers => happyCustomers;
@@ -311,7 +315,7 @@ public class GameDayManager : MonoBehaviour
         RefreshUI();
         SetupMoodBars(true);
 
-        if (gameObject.scene.name == "Lobby2" && GameFlowManager.Instance != null &&
+        if ((gameObject.scene.name == "Lobby2" || gameObject.scene.name == "Lobby3") && GameFlowManager.Instance != null &&
             GameFlowManager.Instance.CurrentRestaurantSessionState == GameFlowManager.RestaurantSessionState.DayComplete)
         {
             ShowResults();
@@ -611,6 +615,14 @@ public class GameDayManager : MonoBehaviour
             ShowWarning("The restaurant is not ready to open yet.");
             return;
         }
+        if (gameObject.scene.name == "Lobby3" &&
+            !gameObject.scene.GetRootGameObjects().SelectMany(root => root.GetComponentsInChildren<NavMeshSurface>())
+                .Any(surface => surface.isActiveAndEnabled && surface.navMeshData != null))
+        {
+            Debug.LogError("Lobby3 needs a baked navigation asset. Use Dine In > Fine Dining > Bake Lobby3 Navigation.", this);
+            ShowWarning("Fine Dining navigation is not ready. Bake Lobby3 navigation before opening.");
+            return;
+        }
         if (MultiplayerDayBridge.IsActive && multiplayerDayEnded) return;
         if (StartShiftInterception?.Invoke() == true || ObserveDayOnly) return;
         if (shiftRunning || closingOut)
@@ -636,7 +648,10 @@ public class GameDayManager : MonoBehaviour
         ApplyDifficultyScaling();
         ApplyTakeoutUnlock();
         ApplyCustomerTypeUnlocks();
-        if (fastFood != null)
+        var fineDining = FineDiningReservations.For(this);
+        fineDining?.EnsureDay();
+        if (fineDining != null) maxCustomersToSpawn = fineDining.GroupBudget;
+        if (fastFood != null || fineDining != null)
         {
             try { GameFlowManager.Instance.MarkRestaurantServiceStarted(); }
             catch (System.Exception error)
@@ -653,7 +668,7 @@ public class GameDayManager : MonoBehaviour
         timeRemaining = ShiftLengthSeconds;
         shiftRunning = true;
         closingOut = false;
-        if (fastFood == null) GameFlowManager.Instance?.MarkRestaurantServiceStarted();
+        if (fastFood == null && fineDining == null) GameFlowManager.Instance?.MarkRestaurantServiceStarted();
 
         SetPanelVisible(resultsPanel, false);
         SetPanelVisible(dayIntroPanel, false);
@@ -747,6 +762,17 @@ public class GameDayManager : MonoBehaviour
             float exitDeadline = Time.time + fastFood.ClosingExitSeconds;
             while (fastFood.ActiveCustomerCount > 0 && Time.time < exitDeadline) yield return null;
             fastFood.FinishClosing();
+        }
+        if (FineDiningReservations.For(this) != null)
+        {
+            foreach (var group in FindObjectsByType<CustomerGroup>(FindObjectsSortMode.None))
+                if (group.gameObject.scene == gameObject.scene) group.BeginFineDiningClosing();
+            float exitDeadline = Time.time + maxClosingGraceSeconds;
+            while (FindObjectsByType<CustomerGroup>(FindObjectsSortMode.None).Any(g => g.gameObject.scene == gameObject.scene) &&
+                   Time.time < exitDeadline) yield return new WaitForSeconds(1f);
+            foreach (var group in FindObjectsByType<CustomerGroup>(FindObjectsSortMode.None))
+                if (group.gameObject.scene == gameObject.scene) group.FinishFineDiningClosing();
+            yield return null;
         }
         closingOut = false;
         closingResultsRoutine = null;
@@ -889,8 +915,20 @@ public class GameDayManager : MonoBehaviour
         yield return WaitForCustomerArrival(1f);
         WaitForSeconds blockedSpawnWait = new WaitForSeconds(Mathf.Max(0.25f, blockedSpawnRetrySeconds));
 
+        var reservations = FineDiningReservations.For(this);
+        float nextWalkIn = Time.time;
         while (shiftRunning)
         {
+            if (reservations != null)
+            {
+                var booking = reservations.DueBooking();
+                if (booking != null) TrySpawnCustomerGroup(booking);
+                else if (Time.time >= nextWalkIn && reservations.CanAdmitWalkIn && groupsSpawnedThisShift + reservations.UnspawnedGroups < maxCustomersToSpawn
+                    && TrySpawnCustomerGroup())
+                    nextWalkIn = Time.time + Random.Range(spawnIntervalMin, spawnIntervalMax) * (IsRushHour ? rushSpawnIntervalMultiplier : 1f);
+                yield return blockedSpawnWait;
+                continue;
+            }
             bool canSpawnMoreShift = groupsSpawnedThisShift < maxCustomersToSpawn;
             bool canSpawnThisMinute = groupsSpawnedThisMinute < CurrentGroupsPerMinuteLimit;
 
@@ -926,7 +964,7 @@ public class GameDayManager : MonoBehaviour
             return;
 
         int currentDay = GameFlowManager.Instance != null ? GameFlowManager.Instance.CurrentDay : 1;
-        bool shouldEnable = FastFoodProgressionSettings.Current != null || currentDay >= takeoutUnlockDay;
+        bool shouldEnable = FineDiningReservations.For(this) == null && (FastFoodProgressionSettings.Current != null || currentDay >= takeoutUnlockDay);
 
         groupSpawner.SetTakeoutEnabled(shouldEnable);
 
@@ -984,7 +1022,7 @@ public class GameDayManager : MonoBehaviour
 
     private const float StopSpawnTimeRemainingSeconds = 15f;
 
-    private bool TrySpawnCustomerGroup()
+    private bool TrySpawnCustomerGroup(FineDiningBooking booking = null)
     {
         if (!shiftRunning)
             return false;
@@ -1020,13 +1058,15 @@ public class GameDayManager : MonoBehaviour
 
         var admission = FastFoodRestaurant.For(this);
         if (admission != null && !admission.CanAdmitCustomer) return false;
-        CustomerGroup spawnedGroup = groupSpawner.SpawnGroup();
+        CustomerGroup spawnedGroup = booking != null ? groupSpawner.SpawnGroup(booking.size, booking.id) : groupSpawner.SpawnGroup();
         if (spawnedGroup == null)
         {
             Debug.LogWarning("[GameDayManager] SpawnGroup failed.");
             return false;
         }
 
+        if (booking != null) FineDiningReservations.For(this)?.TrackSpawn(booking, spawnedGroup);
+        else FineDiningReservations.For(this)?.TrackWalkIn();
         groupsSpawnedThisShift++;
         groupsSpawnedThisMinute++;
         return true;
@@ -1084,7 +1124,7 @@ public class GameDayManager : MonoBehaviour
     public int[] CaptureFastFoodReport() => new[] { groupsSeated, ordersTaken, ordersProcessed, foodDelivered, billsDelivered, traysCleaned, paymentsCompleted, tipsEarned, happyCustomers, neutralCustomers, angryCustomers, cashErrors, groupsSpawnedThisShift };
     public void RestoreFastFoodReport(int[] stats)
     {
-        if (!FastFoodScene.Contains(gameObject.scene) || stats == null || stats.Length != 13) return;
+        if ((!FastFoodScene.Contains(gameObject.scene) && gameObject.scene.name != "Lobby3") || stats == null || stats.Length != 13) return;
         groupsSeated = Mathf.Max(0, stats[0]);
         ordersTaken = Mathf.Max(0, stats[1]);
         ordersProcessed = Mathf.Max(0, stats[2]);
@@ -1102,6 +1142,7 @@ public class GameDayManager : MonoBehaviour
 
     private void ShowResults()
     {
+        FineDiningReservations.For(this)?.FinishDay();
         bool multiplayer = MultiplayerDayBridge.IsActive;
         if (multiplayer && multiplayerDayEnded) return;
         if (multiplayer) multiplayerDayEnded = true;
@@ -1133,6 +1174,8 @@ public class GameDayManager : MonoBehaviour
         else
             PopulateStandardResults(singleRestaurantFlow, dayRevenue, targetRevenue);
 
+        if (FineDiningReservations.For(this) is { } reservations && resultsSummaryText != null)
+            resultsSummaryText.text += "\n\n" + reservations.ResultSummary;
         ConfigureResultsActions(singleRestaurantFlow);
         if (multiplayer)
         {

@@ -82,6 +82,8 @@ public class KitchenManager : MonoBehaviour
 
     [Header("Dine-In Spawn Points")]
     public Transform[] traySpawnPoints;
+    [SerializeField] private Transform outputPickupApproach;
+    public Transform OutputPickupApproach => outputPickupApproach;
     public FoodTray foodTrayPrefab;
     [Tooltip("Treat tray slots as the visual center of the tray bottom, rather than the imported mesh pivot.")]
     [SerializeField] private bool centerTrayOnOutputSlot;
@@ -90,6 +92,7 @@ public class KitchenManager : MonoBehaviour
     private FoodTray SpawnOutputTray(Transform slot)
     {
         var tray = Instantiate(foodTrayPrefab, slot.position, slot.rotation, slot);
+        if (outputPickupApproach != null) tray.GetComponent<FoodTrayInteractable>()?.ConfigurePickupApproach(outputPickupApproach);
         if (!centerTrayOnOutputSlot) return tray;
         tray.transform.localScale *= outputTrayScale;
         var renderers = tray.GetComponentsInChildren<Renderer>();
@@ -505,7 +508,9 @@ public class KitchenManager : MonoBehaviour
         bool isTakeout = group.IsTakeout;
         float startedAt = Time.time;
         float preparationSnapshot = Mathf.Max(0f, preparationDelaySeconds);
-        float cookSnapshot = Mathf.Max(0f, cookSeconds);
+        // Fine Dining staffing can change during preparation after Start has run.
+        float cookSnapshot = Mathf.Max(0f, FineDiningReservations.For(this) != null && KitchenAssignmentSaveBridge.Instance != null
+            ? KitchenAssignmentSaveBridge.Instance.GetMealSpawnTime() : cookSeconds);
         ActiveOrderForecast activeForecast = new ActiveOrderForecast
         {
             group = group,

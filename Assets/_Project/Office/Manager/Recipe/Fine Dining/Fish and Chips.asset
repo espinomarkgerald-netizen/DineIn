@@ -1,0 +1,48 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1e5d1a0d830632446bbf9c3cce255d59, type: 3}
+  m_Name: Fish and Chips
+  m_EditorClassIdentifier: 
+  recipeID: fine-fish-and-chips
+  recipeName: Fish and Chips
+  restaurantType: 2
+  category: 0
+  availableOnMenu: 1
+  menuSortOrder: 4
+  kitchenItemType: 26
+  cookingStation: 0
+  firstCookingIngredient: {fileID: 0}
+  preparationStation: 0
+  kitchenAssemblySteps: []
+  kitchenCookingPrefab: {fileID: 0}
+  kitchenServingPrefab: {fileID: 0}
+  kitchenPreviewPrefab: {fileID: 0}
+  kitchenIngredientIcon: {fileID: 0}
+  kitchenRawColorMultiplier: {r: 1, g: 1, b: 1, a: 1}
+  sprite: {fileID: 21300000, guid: ee6997f781cd74241839bd023a3c2199, type: 3}
+  servingPrefab: {fileID: 919132149155446097, guid: affbb4e2b34a440080a24084a355ebf8, type: 3}
+  servingPositionOffset: {x: -0.03389427, y: -0.045642316, z: 0.044945776}
+  servingRotation: {x: 0, y: 0, z: 0}
+  servingScale: {x: 1.5, y: 1.5, z: 1.5}
+  normalizedServingTransform: 1
+  dayToUnlock: 2
+  ingredients:
+  - item: {fileID: 11400000, guid: 3ffaab3677b044c2929a3c11834310a6, type: 2}
+    amount: 1
+  - item: {fileID: 11400000, guid: 505ce3721c6c4a44bf46d1e902e226bb, type: 2}
+    amount: 1
+  - item: {fileID: 11400000, guid: e5c0bcfcad404bc597277e0c46a60bf7, type: 2}
+    amount: 1
+  - item: {fileID: 11400000, guid: cd100000000000000000000000000006, type: 2}
+    amount: 1
+  sellPrice: 295
+  descriptionText: Fish and Chips (Fine Dining menu).

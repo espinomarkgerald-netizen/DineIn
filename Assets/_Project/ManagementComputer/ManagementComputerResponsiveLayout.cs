@@ -144,7 +144,7 @@ public sealed class ManagementComputerResponsiveLayout : MonoBehaviour
         for (int i = 0; i < buttons.Length; i++)
         {
             Button button = buttons[i];
-            if (button == null || IsDesktopAppButton(button))
+            if (button == null || IsDesktopAppButton(button) || button.GetComponentInParent<ManagementReservationPanel>() != null)
                 continue;
 
             EnforceTouchTarget(button.transform as RectTransform);
@@ -173,7 +173,8 @@ public sealed class ManagementComputerResponsiveLayout : MonoBehaviour
             // Catalog cards already own carefully fitted phone-readable type.
             // Raising every dense card label to the global body minimum can
             // leave TMP with no glyph that fits its fixed stat/status rect.
-            if (text.GetComponentInParent<ManagementComputerCatalogCardUI>() != null)
+            if (text.GetComponentInParent<ManagementComputerCatalogCardUI>() != null ||
+                text.GetComponentInParent<ManagementReservationPanel>() != null)
                 continue;
 
             bool buttonLabel = text.GetComponentInParent<Button>() != null;
@@ -182,7 +183,8 @@ public sealed class ManagementComputerResponsiveLayout : MonoBehaviour
 
         Scrollbar[] scrollbars = safeAreaRoot.GetComponentsInChildren<Scrollbar>(true);
         for (int i = 0; i < scrollbars.Length; i++)
-            EnforceScrollbarThickness(scrollbars[i]);
+            if (scrollbars[i].GetComponentInParent<ManagementReservationPanel>() == null)
+                EnforceScrollbarThickness(scrollbars[i]);
     }
 
     private void ApplyCanvasScale()

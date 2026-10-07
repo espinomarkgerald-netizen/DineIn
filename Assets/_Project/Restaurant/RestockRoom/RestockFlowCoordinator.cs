@@ -9,7 +9,7 @@ using UnityEngine.UI;
 using TMPro;
 
 /// <summary>
-/// Preserves the exact Lobby1 session while RestockScene is shown, and owns
+/// Preserves the exact restaurant session while RestockScene is shown, and owns
 /// the truck -> compact hotbar -> physical shelf handoff.
 /// </summary>
 [DefaultExecutionOrder(-480)]
@@ -43,7 +43,8 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
     public static RestockFlowCoordinator Instance { get; private set; }
     public bool IsRestockRoomOpen => roomOpen;
     public bool IsTransitioning => loading;
-    public RestockStorageType ActiveStorageRoom => requestedRoom;
+    public RestockStorageType ActiveStorageRoom => roomOpen && roomController != null
+        ? roomController.ActiveRoom : requestedRoom;
     public MenuCatalog RestaurantCatalog => MenuCatalog.ForScene(
         lobbyScene.IsValid() && lobbyScene.isLoaded
             ? lobbyScene.name
@@ -73,6 +74,7 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
     private RestockStockRoomEntrance freezerEntrance;
     private Scene lobbyScene;
     private Scene restockScene;
+    private Scene cachedRestockLobby;
     private AsyncOperation multiplayerRestockUnload;
     private readonly List<BehaviourState> lobbyBehaviourStates = new List<BehaviourState>();
     private readonly List<BehaviourState> lobbyInputModuleStates = new List<BehaviourState>();
@@ -176,7 +178,7 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
 
     private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        if (scene.name == LobbySceneName || FastFoodScene.Contains(scene) || (MultiplayerRestockBridge.IsActive
+        if (scene.name == LobbySceneName || scene.name == "Lobby3" || FastFoodScene.Contains(scene) || (MultiplayerRestockBridge.IsActive
             && scene == MultiplayerSessionManager.Instance.gameObject.scene))
         {
             lobbyScene = scene;
@@ -269,6 +271,16 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
     private void BeginRestockRoom(RestockStorageType room)
     {
         multiplayerView = MultiplayerRestockBridge.IsActive;
+        // Resolve the visible restaurant before changing the active scene. This also
+        // covers a coordinator installed after the restaurant's sceneLoaded callback.
+        Scene source = SceneManager.GetActiveScene();
+        if (source.name == LobbySceneName || source.name == "Lobby3" || FastFoodScene.Contains(source))
+            lobbyScene = source;
+        if (!lobbyScene.IsValid() || !lobbyScene.isLoaded)
+        {
+            ShowMessage("Open the stock room from a restaurant.");
+            return;
+        }
         // Acquire the transition lock before the iris begins. A second mobile tap
         // must not cancel the first close callback and leave the screen covered.
         if (!Application.CanStreamedLevelBeLoaded(RestockSceneName))
@@ -386,10 +398,14 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
             ? MultiplayerSessionManager.Instance.LocalManager?.GetComponent<ManagerPlayer>() : null;
         restockingManager?.SetExternalInputSuppressed(true);
         CaptureAndPauseLobby();
+        // Loading or reactivating a room immediately invokes EventSystem.OnEnable.
+        // Release the source first, rather than waiting until both scenes are active.
+        SuspendLobbyInputOwnership();
         if (!multiplayerView) Time.timeScale = 0f;
 
         // A cached view must never carry physical campaign boxes into a fresh room (or back).
-        if (restockScene.IsValid() && restockScene.isLoaded && cachedRestockMultiplayer != multiplayerView)
+        if (restockScene.IsValid() && restockScene.isLoaded &&
+            (cachedRestockMultiplayer != multiplayerView || cachedRestockLobby != lobbyScene))
         {
             var unload = SceneManager.UnloadSceneAsync(restockScene);
             if (unload != null) while (!unload.isDone) yield return null;
@@ -398,6 +414,7 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
             restockRootAuthoredStates.Clear();
         }
         cachedRestockMultiplayer = multiplayerView;
+        cachedRestockLobby = lobbyScene;
 
         if (!restockScene.IsValid() || !restockScene.isLoaded)
         {
@@ -407,6 +424,8 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
             if (load == null)
             {
                 RestoreLobby();
+                RestoreLobbyInputOwnership();
+                ReactivateLobbyInputModules();
                 if (!multiplayerView) Time.timeScale = previousTimeScale;
                 loading = false;
                 RevealCurrentScene();
@@ -441,6 +460,8 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
         if (!restockScene.IsValid() || !restockScene.isLoaded)
         {
             RestoreLobby();
+            RestoreLobbyInputOwnership();
+            ReactivateLobbyInputModules();
             if (!multiplayerView) Time.timeScale = previousTimeScale;
             loading = false;
             RevealCurrentScene();
@@ -734,6 +755,19 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
             }
             dryEntrance = bindings.DryStorageEntrance;
             freezerEntrance = bindings.FreezerEntrance;
+            return;
+        }
+        if (lobbyScene.name == "Lobby3")
+        {
+            foreach (var root in lobbyScene.GetRootGameObjects())
+            {
+                var bindings = root.GetComponentInChildren<FineDiningSceneBindings>(true);
+                if (bindings == null) continue;
+                dryEntrance = bindings.dryStorage;
+                freezerEntrance = bindings.freezer;
+                return;
+            }
+            Debug.LogError("[RestockFlow] Lobby3 is missing its authored storage entrances.");
             return;
         }
         if (dryEntrance == null || freezerEntrance == null)
@@ -1334,7 +1368,7 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
         return false;
     }
 
-    private void TakeRestockInputOwnership()
+    private void SuspendLobbyInputOwnership()
     {
         lobbyInputModuleStates.Clear();
         lobbyEventSystemStates.Clear();
@@ -1379,7 +1413,10 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
         // InputActionAsset and the last enabled module must own those actions.
         SetBehaviourStatesEnabled(lobbyEventSystemStates, false);
         SetBehaviourStatesEnabled(lobbyInputModuleStates, false);
+    }
 
+    private void TakeRestockInputOwnership()
+    {
         EventSystem restockSystem = null;
         GameObject[] restockSceneRoots = restockScene.GetRootGameObjects();
         for (int r = 0; r < restockSceneRoots.Length; r++)

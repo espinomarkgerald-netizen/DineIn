@@ -186,12 +186,14 @@ namespace DineIn.Appearance
                 if (creating || applied == null || applied.hairId != next.hairId || applied.hairColorId != next.hairColorId)
                     foreach (var r in hairRenderers) Tint(r, AppearanceCatalog.Find(Catalog.hairColors, next.hairColorId).color);
             }
+            if (hat != null) hat.GetComponent<HoodHairOcclusion>()?.Apply(hair);
             applied = next.Copy();
         }
         private void Replace(ref GameObject current, AppearanceCatalog.Attachment option, bool isHair)
         {
             if (current != null)
             {
+                if (!isHair) current.GetComponent<HoodHairOcclusion>()?.Restore();
                 current.SetActive(false);
                 if (Application.isPlaying) Destroy(current); else DestroyImmediate(current);
             }

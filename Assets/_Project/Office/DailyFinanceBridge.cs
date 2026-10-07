@@ -50,7 +50,7 @@ public class DailyFinanceBridge : MonoBehaviour
 
     public void ApplyRestaurantSave(int[] state)
     {
-        if (!CampaignSaveStore.IsFastFood || GameSaveManager.Instance?.IsApplyingSave != true) return;
+        if ((!CampaignSaveStore.IsFastFood && !CampaignSaveStore.IsFineDining) || GameSaveManager.Instance?.IsApplyingSave != true) return;
         ResetDay();
         if (state == null || state.Length != 6) return;
         employeeCostToday = Mathf.Max(0, state[0]); marketingCostToday = Mathf.Max(0, state[1]);

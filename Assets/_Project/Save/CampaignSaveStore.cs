@@ -21,11 +21,13 @@ public static partial class CampaignSaveStore
     // Keep the selected restaurant through additive RestockScene and menu transitions.
     public static string RestaurantScene { get; private set; } = "Lobby1";
     public static bool IsFastFood => RestaurantScene == "Lobby2";
-    public static string ResolveFileName(string casualName) => IsFastFood ? "dinein_fastfood_save.json" : casualName;
+    public static bool IsFineDining => RestaurantScene == "Lobby3";
+    public static string ResolveFileName(string casualName) => IsFastFood ? "dinein_fastfood_save.json" :
+        IsFineDining ? "dinein_finedining_save.json" : casualName;
     public static string CloudFileName => IsFastFood ? "FastFoodCampaignSave_v1.json" : "CampaignSave_v1.json";
     public static void SelectRestaurant(string sceneName)
     {
-        if (ProtectedSession || (sceneName != "Lobby1" && sceneName != "Lobby2") || RestaurantScene == sceneName) return;
+        if (ProtectedSession || (sceneName != "Lobby1" && sceneName != "Lobby2" && sceneName != "Lobby3") || RestaurantScene == sceneName) return;
         RestaurantScene = sceneName;
         NeedsReload = true;
         cachedStamp = null;

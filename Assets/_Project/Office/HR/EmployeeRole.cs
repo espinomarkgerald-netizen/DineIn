@@ -12,5 +12,8 @@ public enum EmployeeRole
     Barista,
     GrillStation,
     FryStation,
-    FastFoodAssembler
+    FastFoodAssembler,
+    SousChef,
+    Bartender,
+    Pianist
 }

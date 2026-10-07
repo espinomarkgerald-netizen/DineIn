@@ -25,7 +25,21 @@ public enum ItemTypeKitchen {
     FourSeasonsJuicePitcher,
     ChickenNuggets,
     ChickenSandwich,
-    FishFilletSandwich
+    FishFilletSandwich,
+    RibEyeSteak,
+    PumpkinSoup,
+    Lobster,
+    Lasagna,
+    FishandChips,
+    ChickenAlfredo,
+    RedWine,
+    WhiteWine,
+    SparklingWine,
+    Martini,
+    OldFashioned,
+    CitrusMocktail,
+    GrapeJuice,
+    SparklingWater
 }
 
 public class ItemIdentity : MonoBehaviour {

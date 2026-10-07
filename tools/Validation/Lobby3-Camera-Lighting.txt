@@ -1,0 +1,10 @@
+Lobby3 camera and lighting - 2026-10-07
+Changed: Assets/_Project/Camera/MainCameraController.cs; Assets/_Project/Scenes/RoleBased/Lobby3.unity.
+
+Camera: optional viewport-aware framing, enabled only in Lobby3. Existing XZ center bounds remain the default elsewhere. The visible footprint now constrains panning as zoom changes. Editable fields: MainCameraController > Viewport Bounds, View Bounds Center, View Bounds Size, and Zoom min/max. Selected gizmo displays framing rectangle. Lobby3 min=14, configured max=36, actual aspect-aware maximum=35.30695 at16:9 or33.71687 at2960x1440. Previous maximum was60. Framing measured from actual restaurant vertices, excluding the giant platform. Entire restaurant remains reachable by pan; its irregular silhouette naturally leaves some surrounding space in the overview.
+
+Lighting: scene root Fine Dining Indoor Lighting contains fourteen individually editable room lights (reception, lounge, dining, kitchen, office, storage, delivery access) and a soft warm fill. These supplement existing accents. Existing FineDiningEveningLighting sun/ambient curves remain unchanged. Sun uses realtime mode so the color/intensity progression is visible without a light bake. No shared pipeline/brightness settings were changed. Mobile pipeline allows only two additional lights per mesh, so soft fill maintains floor visibility alongside local room lighting.
+
+Checked: Unity compilation; 54 extreme pan/zoom combinations across16:9 and2960x1440; min/max limits; useful pan range; foundation and navigation validation; rendered17:00,20:00,22:00 using existing clock and inspected day/night images, including wide-aspect night. Original editor scene setup restored. No Play Mode, build, campaign service or save changes in this pass.
+
+Manual check: actual touch/scroll comfort and lighting during a populated evening on the target device. Screenshots: Temp/FineDiningCameraLighting/17.png,20.png,22.png,22-wide.png. Numerical checks: Temp/FineDiningCameraLighting/checks.txt.

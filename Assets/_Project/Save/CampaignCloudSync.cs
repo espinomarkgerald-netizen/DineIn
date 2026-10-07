@@ -59,7 +59,7 @@ public sealed class CampaignCloudSync : MonoBehaviour
     private void SceneLoaded(Scene scene, LoadSceneMode mode)
     {
         if (scene.name == "NewGameMenu" || scene.name == "NewMainMenu") Store.NeedsReload = true;
-        if (scene.name == "Lobby1" || scene.name == "Lobby2")
+        if (scene.name == "Lobby1" || scene.name == "Lobby2" || scene.name == "Lobby3")
         {
             Store.SelectRestaurant(scene.name);
             if (Store.RuntimeCampaign && GameSaveManager.Instance != null &&
@@ -183,7 +183,7 @@ public sealed class CampaignCloudSync : MonoBehaviour
             if (json != null)
             {
                 var header = Newtonsoft.Json.Linq.JObject.Parse(json);
-                if ((int?)header["version"] == 2)
+                if ((int?)header["version"] == 2 || (int?)header["version"] == 3)
                 {
                     cloud = JsonUtility.FromJson<Snapshot>(json);
                     if (!Store.ValidAccount(cloud, account)) throw new InvalidDataException("Invalid cloud account save.");
@@ -220,7 +220,7 @@ public sealed class CampaignCloudSync : MonoBehaviour
                         if (!Store.Valid(pair)) throw new InvalidDataException("Invalid legacy career save.");
                         return pair;
                     }
-                    cloud = new Snapshot { account = account, lineage = "legacy", casual = Pair(json), fastFood = Pair(fastJson),
+                    cloud = new Snapshot { account = account, lineage = "legacy", casual = Pair(json), fastFood = Pair(fastJson), fineDining = Pair(null),
                         profile = new Store.ProfileProgress { appearance = appearance } };
                     // Legacy cloud never contained roles/tutorials. Infer only completed tutorial prerequisites
                     // from an existing career; do not invent rewards or combine divergent career values.
