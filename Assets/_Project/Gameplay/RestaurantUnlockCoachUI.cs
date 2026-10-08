@@ -22,6 +22,8 @@ public sealed class RestaurantUnlockCoachUI : MonoBehaviour
     [SerializeField, Min(0f)] private float maskEntranceSeconds = .24f;
     [SerializeField] private Vector2 guideButtonSize = new Vector2(260f, 80f);
     [SerializeField, Min(0f)] private float guideButtonGap = 16f;
+    [Header("Tutorial artwork scale")]
+    [SerializeField, Min(.5f)] private float dialoguePresentationScale = 2.4f;
     private TutorialUIFocusMask mask;
     private TutorialUIAutoScroller scroller;
     private Canvas canvas;
@@ -177,6 +179,7 @@ public sealed class RestaurantUnlockCoachUI : MonoBehaviour
         IsExplaining = true;
         SetExplanationInput(true);
         Layout();
+        Canvas.ForceUpdateCanvases();
         Paginate(message);
         page = 0;
         PresentPage();
@@ -381,18 +384,18 @@ public sealed class RestaurantUnlockCoachUI : MonoBehaviour
         safeArea.anchorMax = new Vector2(safe.xMax / Screen.width, safe.yMax / Screen.height);
         safeArea.offsetMin = safeArea.offsetMax = Vector2.zero;
         // Preserve the tutorial artwork's proportions, with a safe-area fit on narrow screens.
-        float scale = Mathf.Min(1f, (safe.width / canvas.scaleFactor - safePadding * 2f) / 1050f);
-        scale = Mathf.Min(scale, (safe.height / canvas.scaleFactor - 140f) / 380f);
+        float scale = Mathf.Min(1f, (safe.width / canvas.scaleFactor - safePadding * 2f) / (1040f * dialoguePresentationScale));
+        scale = Mathf.Min(scale, (safe.height / canvas.scaleFactor - 140f) / (350f * dialoguePresentationScale));
         scale = Mathf.Max(.25f, scale);
-        dialogueRoot.localScale = dialogueScale * scale;
+        dialogueRoot.localScale = dialogueScale * (scale * dialoguePresentationScale);
         // Match the tutorial's authored bottom dialogue. Its portrait already switches sides around targets.
-        dialogueRoot.anchoredPosition = dialogueHome * scale;
+        dialogueRoot.anchoredPosition = dialogueHome * (scale * dialoguePresentationScale);
         if (customerShowcase != null)
         {
             customerShowcase.localScale = Vector3.one * scale;
             customerShowcase.anchoredPosition = new Vector2(0f, 560f * scale);
         }
-        choicesRoot.anchoredPosition = new Vector2(0f, 390f * scale + safePadding);
+        choicesRoot.anchoredPosition = new Vector2(0f, 350f * scale * dialoguePresentationScale + safePadding);
         float buttonScale = Mathf.Min(1f, (safe.width / canvas.scaleFactor - safePadding * 2f) /
             (guideButtonSize.x * 2f + guideButtonGap));
         controlsRoot.localScale = choicesRoot.localScale = Vector3.one * Mathf.Max(.25f, buttonScale);

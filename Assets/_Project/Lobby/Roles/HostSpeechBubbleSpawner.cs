@@ -68,7 +68,7 @@ public class HostSpeechBubbleSpawner : MonoBehaviour
 
         UIFollowWorldPoint follow = currentBubble.GetComponentInChildren<UIFollowWorldPoint>(true);
         if (follow != null)
-            follow.Init(hostAnchor, worldOffset, cam);
+            follow.InitAboveTarget(hostAnchor, worldOffset, cam, 12f);
 
         HostSpeechBubbleUI ui = currentBubble.GetComponentInChildren<HostSpeechBubbleUI>(true);
         if (ui != null)

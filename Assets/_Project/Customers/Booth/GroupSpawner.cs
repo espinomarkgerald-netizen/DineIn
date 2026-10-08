@@ -34,6 +34,9 @@ public partial class GroupSpawner : MonoBehaviour
     [Header("Points")]
     [SerializeField] private Transform spawnPoint;
 
+    [Tooltip("Optional authored arrival bays; normal admission and reservation limits still apply.")]
+    [SerializeField] private FineDiningUfoParking ufoParking;
+
     [Header("Lobby Line")]
     [SerializeField] private LobbyLineManager lobbyLine;
 
@@ -334,7 +337,9 @@ public partial class GroupSpawner : MonoBehaviour
             $"roll={takeoutRoll:0.000}, fastFood={admission != null}, selectedTakeout={spawnAsTakeout}.",
             this);
 
-        CustomerGroup group = Instantiate(groupPrefab, spawnPoint.position, Quaternion.identity);
+        Vector3 arrivalOrigin = spawnPoint.position;
+        int parkingBay = fineDining != null && ufoParking != null ? ufoParking.ChooseArrival(arrivalOrigin, out arrivalOrigin) : -1;
+        CustomerGroup group = Instantiate(groupPrefab, arrivalOrigin, Quaternion.identity);
         group.FineDiningReservationId = reservationId;
         group.name = $"Group_{type}_{size}";
         group.members.Clear();
@@ -349,7 +354,7 @@ public partial class GroupSpawner : MonoBehaviour
 
             CustomerAgent member = Instantiate(
                 memberPrefab,
-                spawnPoint.position + offset,
+                arrivalOrigin + offset,
                 Quaternion.identity,
                 group.transform
             );
@@ -412,7 +417,11 @@ public partial class GroupSpawner : MonoBehaviour
             return null;
         }
         group.state = CustomerGroup.GroupState.WalkingToLobby;
-        if (fineDining != null) GroupCreated?.Invoke(group, false);
+        if (fineDining != null)
+        {
+            ufoParking?.CommitArrival(parkingBay, group);
+            GroupCreated?.Invoke(group, false);
+        }
         if (joinedLine) coach?.EncounterSpawned(type);
 
         return group;

@@ -282,7 +282,7 @@ public class BillPaper : MonoBehaviour, IInteractable, ICancelableTaskTarget
 
         var follow = pickupUiInstance.GetComponentInChildren<UIFollowWorldPoint>(true);
         if (follow != null)
-            follow.Init(uiAnchor, uiOffset, Camera.main);
+            follow.InitAboveTarget(uiAnchor, uiOffset, Camera.main, 12f);
 
         var pickBtn = pickupUiInstance.GetComponentInChildren<BillPaperPickupButton>(true);
         if (pickBtn != null)

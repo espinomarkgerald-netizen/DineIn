@@ -3,6 +3,8 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
+// Follow after camera LateUpdate so camera-front bubbles cannot straddle the near clip plane.
+[DefaultExecutionOrder(12000)]
 [DisallowMultipleComponent]
 [RequireComponent(typeof(RectTransform))]
 public class UIFollowWorldPoint : MonoBehaviour
@@ -36,6 +38,14 @@ public class UIFollowWorldPoint : MonoBehaviour
     [SerializeField] private float edgeGapPixels = 8f;
     [SerializeField, Min(0f)] private float stackGapPixels = 6f;
     [SerializeField] private int stackPriority;
+
+    [Tooltip("Keep the bubble attached to its world anchor; never move it to avoid HUD or other targets.")]
+    [SerializeField] private bool stickToTarget = true;
+
+    [Header("Screen Clearance")]
+    [SerializeField] private bool avoidBubbleOverlaps = true;
+    [SerializeField, Range(0f, .3f)] private float topHudClearance = .16f;
+    [SerializeField, Range(0f, .3f)] private float bottomHudClearance = .08f;
 
     [Header("Customer Bubble Presentation")]
     [SerializeField] private bool preventSceneClipping = true;
@@ -91,6 +101,7 @@ public class UIFollowWorldPoint : MonoBehaviour
 
         if (presentationSpace == PresentationSpace.WorldSpace)
             InitializeWorldSpace();
+        WorldBubbleStackLayout.Register(this);
     }
 
     public void InitAboveTarget(
@@ -129,8 +140,7 @@ public class UIFollowWorldPoint : MonoBehaviour
         revealElapsed = 0f;
         revealProgress = 0f;
         SetVisible(false);
-        if (placeAboveTarget)
-            WorldBubbleStackLayout.Register(this);
+        WorldBubbleStackLayout.Register(this);
     }
 
     private void OnDisable()
@@ -277,7 +287,8 @@ public class UIFollowWorldPoint : MonoBehaviour
         Vector3 anchorPosition = target.position + worldOffset;
         Vector3 viewportPosition = cam.WorldToViewportPoint(anchorPosition);
 
-        if (viewportPosition.z < 0f)
+        if (viewportPosition.z < 0f || (stickToTarget &&
+            (viewportPosition.x < 0f || viewportPosition.x > 1f || viewportPosition.y < 0f || viewportPosition.y > 1f)))
         {
             SetVisible(false);
             return;
@@ -292,10 +303,19 @@ public class UIFollowWorldPoint : MonoBehaviour
         Vector3 cameraSpaceOffset = placeAboveTarget
             ? ResolveAboveTargetOffset(anchorPosition, scale)
             : ResolveStandardCameraOffset(scale);
-        Vector3 depthOffset = -cam.transform.forward * cameraDepthOffset;
+        // Camera-front bubbles already have a safe depth. Moving the anchor toward
+        // a perspective camera before projection would shift its screen position.
+        Vector3 depthOffset = placeAboveTarget && preventSceneClipping
+            ? Vector3.zero : -cam.transform.forward * cameraDepthOffset;
 
         Vector3 worldPosition = anchorPosition + cameraSpaceOffset + depthOffset;
-        if (Application.isMobilePlatform)
+        if (!stickToTarget && avoidBubbleOverlaps)
+        {
+            Vector2 correction = WorldBubbleStackLayout.GetScreenCorrection(this, cam);
+            float pixelScale = ResolveWorldUnitsPerScreenPixel(anchorPosition);
+            worldPosition += (cam.transform.right * correction.x + cam.transform.up * correction.y) * pixelScale;
+        }
+        else if (!stickToTarget && Application.isMobilePlatform)
             worldPosition = ClampWorldPositionToSafeArea(worldPosition, anchorPosition);
 
         // Canvas sorting cannot prevent walls from depth-clipping world UI.
@@ -437,6 +457,31 @@ public class UIFollowWorldPoint : MonoBehaviour
         return new Bounds(localRect.center, localRect.size);
     }
 
+    internal bool TryGetScreenRect(Camera camera, out Rect bounds, out Rect safe)
+    {
+        bounds = safe = default;
+        if (stickToTarget || !avoidBubbleOverlaps || !worldSpaceInitialized || cam != camera || target == null ||
+            !isActiveAndEnabled || taskAlpha <= .001f) return false;
+        Vector3 anchor = target.position + worldOffset;
+        Vector3 projected = camera.WorldToViewportPoint(anchor);
+        if (projected.z <= 0 || projected.x < 0 || projected.x > 1 || projected.y < 0 || projected.y > 1) return false;
+        float scale = ResolveWorldScale(anchor);
+        Vector3 offset = placeAboveTarget ? ResolveAboveTargetOffset(anchor, scale) : ResolveStandardCameraOffset(scale);
+        Vector3 pixel = camera.WorldToScreenPoint(anchor + offset);
+        Bounds visual = ResolveLocalVisualBounds();
+        float ratio = scale / Mathf.Max(.000001f, ResolveWorldUnitsPerScreenPixel(anchor));
+        Vector2 size = new Vector2(visual.size.x * Mathf.Abs(authoredScale.x), visual.size.y * Mathf.Abs(authoredScale.y)) * ratio;
+        Vector2 min = new Vector2(pixel.x + visual.min.x * authoredScale.x * ratio, pixel.y + visual.min.y * authoredScale.y * ratio);
+        bounds = new Rect(min, size);
+        safe = camera.pixelRect;
+        if (Application.isMobilePlatform)
+            safe = Rect.MinMaxRect(Mathf.Max(safe.xMin, Screen.safeArea.xMin), Mathf.Max(safe.yMin, Screen.safeArea.yMin),
+                Mathf.Min(safe.xMax, Screen.safeArea.xMax), Mathf.Min(safe.yMax, Screen.safeArea.yMax));
+        float height = safe.height;
+        safe = Rect.MinMaxRect(safe.xMin + 8, safe.yMin + height * bottomHudClearance,
+            safe.xMax - 8, safe.yMax - height * topHudClearance);
+        return size.x > 0 && size.y > 0;
+    }
     internal bool CanStackAbove(Transform followTarget)
     {
         return placeAboveTarget &&
@@ -481,18 +526,56 @@ internal static class WorldBubbleStackLayout
 {
     private static readonly List<UIFollowWorldPoint> Followers = new();
 
+    private static int layoutFrame = -1;
+    private static Camera layoutCamera;
+    private static readonly Dictionary<UIFollowWorldPoint, Vector2> Corrections = new();
+    private static readonly List<Rect> Placed = new();
+    private static readonly List<UIFollowWorldPoint> Sorted = new();
+
     public static void Register(UIFollowWorldPoint follower)
     {
         if (follower != null && !Followers.Contains(follower))
-            Followers.Add(follower);
+        { Followers.Add(follower); layoutFrame = -1; }
     }
 
     public static void Unregister(UIFollowWorldPoint follower)
     {
         if (follower != null)
-            Followers.Remove(follower);
+        { Followers.Remove(follower); layoutFrame = -1; }
     }
 
+    // One deterministic placement pass per frame; no bubble is hidden to make space.
+    public static Vector2 GetScreenCorrection(UIFollowWorldPoint follower, Camera camera)
+    {
+        if (layoutFrame != Time.frameCount || layoutCamera != camera)
+        {
+            layoutFrame = Time.frameCount; layoutCamera = camera;
+            Corrections.Clear(); Placed.Clear(); Sorted.Clear();
+            foreach (var item in Followers) if (item != null) Sorted.Add(item);
+            Sorted.Sort((a, b) => a == b ? 0 : a.SortsBefore(b) ? -1 : 1);
+            foreach (var item in Sorted)
+            {
+                if (!item.TryGetScreenRect(camera, out Rect desired, out Rect safe)) continue;
+                Rect best = desired; float bestScore = float.PositiveInfinity;
+                for (int row = 0; row < 4; row++)
+                for (int column = -2; column <= 2; column++)
+                {
+                    Rect candidate = desired;
+                    candidate.position += new Vector2(column * (desired.width + 8), row * (desired.height + 8));
+                    candidate.x = Mathf.Clamp(candidate.x, safe.xMin, Mathf.Max(safe.xMin, safe.xMax - candidate.width));
+                    candidate.y = Mathf.Clamp(candidate.y, safe.yMin, Mathf.Max(safe.yMin, safe.yMax - candidate.height));
+                    float overlap = 0;
+                    foreach (Rect placed in Placed)
+                        overlap += Mathf.Max(0, Mathf.Min(candidate.xMax + 4, placed.xMax + 4) - Mathf.Max(candidate.xMin - 4, placed.xMin - 4)) *
+                                   Mathf.Max(0, Mathf.Min(candidate.yMax + 4, placed.yMax + 4) - Mathf.Max(candidate.yMin - 4, placed.yMin - 4));
+                    float score = overlap * 10000 + (candidate.position - desired.position).sqrMagnitude;
+                    if (score < bestScore) { best = candidate; bestScore = score; }
+                }
+                Placed.Add(best); Corrections[item] = best.position - desired.position;
+            }
+        }
+        return Corrections.TryGetValue(follower, out var correction) ? correction : Vector2.zero;
+    }
     public static float GetOffsetPixels(UIFollowWorldPoint follower, Vector3 anchorPosition)
     {
         if (follower == null || follower.FollowTarget == null)

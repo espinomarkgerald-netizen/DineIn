@@ -689,7 +689,7 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
 
         var follow = uiInstance.GetComponentInChildren<UIFollowWorldPoint>(true);
         if (follow != null)
-            follow.Init(uiAnchor, Vector3.zero, Camera.main);
+            follow.InitAboveTarget(uiAnchor, Vector3.zero, Camera.main, 12f);
 
         var btn = uiInstance.GetComponentInChildren<TrayPickupUIButton>(true);
         if (btn != null)

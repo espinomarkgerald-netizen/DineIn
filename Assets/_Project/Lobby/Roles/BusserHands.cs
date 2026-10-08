@@ -36,6 +36,45 @@ public class BusserHands : MonoBehaviour
     [Tooltip("Editable point the trolley handle aligns to while this character pushes it. Falls back to Tray Hold Point.")]
     [SerializeField] private Transform trolleyGripPoint;
 
+    [Header("Tray hand alignment")]
+    [SerializeField] private bool alignHandsToTray;
+    [Tooltip("Hand contact offset from the tray's authored grips, in tray-local units.")]
+    [SerializeField] private Vector3 trayGripOffset = new Vector3(0f, -.05f, -.5f);
+    private Animator carryAnimator;
+    private Avatar carryAvatar;
+    private Transform leftUpper, leftLower, leftHand, rightUpper, rightLower, rightHand;
+    private FoodTray posedTray;
+    private FoodTrayCarryPose trayPose;
+
+    private void LateUpdate()
+    {
+        if (!alignHandsToTray || !HasTray) return;
+        if (carryAnimator == null) carryAnimator = GetComponentInChildren<Animator>();
+        if (carryAnimator == null || !carryAnimator.isHuman) return;
+        if (posedTray != holdingTray)
+        {
+            posedTray = holdingTray;
+            trayPose = holdingTray.GetComponent<FoodTrayCarryPose>();
+        }
+        if (trayPose == null || !trayPose.IsValid) return;
+        if (carryAvatar != carryAnimator.avatar || leftHand == null)
+        {
+            carryAvatar = carryAnimator.avatar;
+            leftUpper = carryAnimator.GetBoneTransform(HumanBodyBones.LeftUpperArm);
+            leftLower = carryAnimator.GetBoneTransform(HumanBodyBones.LeftLowerArm);
+            leftHand = carryAnimator.GetBoneTransform(HumanBodyBones.LeftHand);
+            rightUpper = carryAnimator.GetBoneTransform(HumanBodyBones.RightUpperArm);
+            rightLower = carryAnimator.GetBoneTransform(HumanBodyBones.RightLowerArm);
+            rightHand = carryAnimator.GetBoneTransform(HumanBodyBones.RightHand);
+        }
+        if (leftHand == null || rightHand == null) return;
+        Quaternion leftRotation = leftHand.rotation, rightRotation = rightHand.rotation;
+        Vector3 offset = holdingTray.transform.TransformVector(trayGripOffset);
+        AlienProceduralAnimation.ApplyCcdArm(leftUpper, leftLower, leftHand, trayPose.LeftGrip.position + offset, 1f, 12);
+        AlienProceduralAnimation.ApplyCcdArm(rightUpper, rightLower, rightHand, trayPose.RightGrip.position + offset, 1f, 12);
+        leftHand.rotation = leftRotation;
+        rightHand.rotation = rightRotation;
+    }
     public bool HasTray => holdingTray != null;
     public Transform TrayHoldPoint => trayHoldPoint != null ? trayHoldPoint : transform;
     public Transform TrolleyGripPoint => trolleyGripPoint != null ? trolleyGripPoint : TrayHoldPoint;

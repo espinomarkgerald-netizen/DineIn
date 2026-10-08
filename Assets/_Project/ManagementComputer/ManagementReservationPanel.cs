@@ -17,12 +17,16 @@ public sealed class ManagementReservationPanel : MonoBehaviour
     public RectTransform detailsRoot;
     public GridLayoutGroup tableGrid;
     public TMP_Text selectionHint, banner;
+    public TMP_Text tableHeading;
     public GameObject bannerRoot;
     public GameObject declineConfirmation;
     public Button cancelDecline, confirmDecline;
     public TMP_Text feedbackText;
     public Image feedbackIcon;
     public GameObject feedbackRoot;
+    [Header("Computer app styling")]
+    public bool useComputerAppStyle;
+    public Sprite computerPanelSprite;
     [Header("Existing Dine In assets")]
     public Sprite blueButton, greenButton, redButton, greyButton;
     public Sprite cardNormal, cardSelected, cardDisabled, checkmarkSprite;
@@ -73,7 +77,8 @@ public sealed class ManagementReservationPanel : MonoBehaviour
     private void OnRectTransformDimensionsChange()
     {
         if (tableGrid == null) return;
-        float width = ((RectTransform)tableGrid.transform).rect.width;
+        float width = tablesScroll != null && tablesScroll.viewport != null
+            ? tablesScroll.viewport.rect.width : ((RectTransform)tableGrid.transform).rect.width;
         if (width <= 0f) return;
         int columns = width >= wideTableThreshold ? Mathf.Max(2, wideTableColumns) : 2;
         tableGrid.constraintCount = columns;
@@ -98,8 +103,8 @@ public sealed class ManagementReservationPanel : MonoBehaviour
         if (Expired(b)) return "EXPIRED";
         switch (b.status)
         {
-            case FineDiningBookingStatus.Pending: return "AWAITING ASSIGNMENT";
-            case FineDiningBookingStatus.Confirmed: return !source.Preparing && b.arrivalMinute - source.NowMinute <= source.reminderMinutes ? "ARRIVING SOON" : "UPCOMING";
+            case FineDiningBookingStatus.Pending: return "REQUESTED";
+            case FineDiningBookingStatus.Confirmed: return source.ArrivalStatus(b);
             case FineDiningBookingStatus.Arrived: return "ARRIVED";
             case FineDiningBookingStatus.Seated: return source.IsDining(b.id) ? "DINING" : "SEATED";
             case FineDiningBookingStatus.Completed: return "COMPLETED";
@@ -111,13 +116,18 @@ public sealed class ManagementReservationPanel : MonoBehaviour
     public void RefreshData()
     {
         if (source == null || busy) return;
-        var shown = source.Bookings.Where(b => tonight ? b.status != FineDiningBookingStatus.Pending && b.status != FineDiningBookingStatus.Declined : b.status == FineDiningBookingStatus.Pending).OrderBy(b => b.arrivalMinute).ToArray();
-        requestsLabel.text = "Requests  " + source.Bookings.Count(b => b.status == FineDiningBookingStatus.Pending);
+        var shown = source.Bookings.Where(b => tonight ? b.status != FineDiningBookingStatus.Pending && b.status != FineDiningBookingStatus.Declined : b.status == FineDiningBookingStatus.Pending && !Expired(b)).OrderBy(b => b.arrivalMinute).ToArray();
+        requestsLabel.text = "Requests  " + source.Bookings.Count(b => b.status == FineDiningBookingStatus.Pending && !Expired(b));
         tonightLabel.text = "Tonight  " + source.Bookings.Count(b => b.status != FineDiningBookingStatus.Pending && b.status != FineDiningBookingStatus.Declined);
         StyleButton(requestsTab, !tonight ? blueButton : greyButton, !tonight);
         StyleButton(tonightTab, tonight ? blueButton : greyButton, tonight);
         summary.text = source.ReservedGuests + " booked guests  •  " + source.ExpectedWalkInGroups * 2 + " expected walk-ins";
-        if (!shown.Any(b => b.id == selectedId)) { selectedId = shown.FirstOrDefault()?.id; selectedTableId = null; }
+        if (!shown.Any(b => b.id == selectedId))
+        {
+            selectedId = shown.FirstOrDefault()?.id; selectedTableId = null;
+            requestsScroll.verticalNormalizedPosition = 1f;
+            tablesScroll.verticalNormalizedPosition = 1f;
+        }
         var ids = new HashSet<string>(shown.Select(b => b.id));
         foreach (var old in requests.Keys.Where(id => !ids.Contains(id)).ToArray())
         { requests[old].gameObject.SetActive(false); Destroy(requests[old].gameObject); requests.Remove(old); }
@@ -140,7 +150,7 @@ public sealed class ManagementReservationPanel : MonoBehaviour
             string status = Status(booking);
             bool arriving = status == "ARRIVING SOON" && card.status.text != status;
             card.status.text = status;
-            card.status.color = Expired(booking) ? Red : Ink;
+            card.status.color = status == "ARRIVAL DELAYED" ? new Color(.62f, .32f, .08f) : booking.status == FineDiningBookingStatus.Arrived || booking.status == FineDiningBookingStatus.Completed ? Green : Ink;
             card.SetPortraits(Portrait(booking), booking.size);
             card.SetState(booking.id == selectedId, !Expired(booking), cardNormal, cardSelected, cardDisabled);
             if (arriving) card.feedback?.PlayValueFeedback(true);
@@ -169,9 +179,10 @@ public sealed class ManagementReservationPanel : MonoBehaviour
         label = "AVAILABLE";
         if (!table.Usable) { label = !table.Unlocked ? "Unlocks Day " + table.unlockDay : "Unavailable"; return false; }
         if (table.Capacity < booking.size) { label = "Seats " + table.Capacity + " • Need " + booking.size; return false; }
-        if (table.booth.CurrentGroup != null && table.booth.CurrentGroup.FineDiningReservationId != booking.id)
+        bool arrivingNow = booking.arrivalMinute <= source.NowMinute;
+        if (arrivingNow && table.booth.CurrentGroup != null && table.booth.CurrentGroup.FineDiningReservationId != booking.id)
         { label = "Occupied"; return false; }
-        if (table.booth.IsDirty) { label = "Needs cleaning"; return false; }
+        if (arrivingNow && table.booth.IsDirty) { label = "Needs cleaning"; return false; }
         var conflict = source.Bookings.FirstOrDefault(b => b.id != booking.id && b.tableId == table.tableId && FineDiningReservationRules.ProtectsTable(b) && FineDiningReservationRules.Overlaps(Mathf.Max(booking.arrivalMinute, source.Preparing ? booking.arrivalMinute : source.NowMinute), Mathf.Max(booking.arrivalMinute, source.Preparing ? booking.arrivalMinute : source.NowMinute) + source.WindowMinutes, b.arrivalMinute, b.arrivalMinute + source.WindowMinutes));
         if (conflict != null) { label = "Reserved at " + FineDiningReservations.Clock(conflict.arrivalMinute); return false; }
         if (!source.CanAssign(booking, table, out _)) { label = "Unavailable"; return false; }
@@ -181,7 +192,7 @@ public sealed class ManagementReservationPanel : MonoBehaviour
     private void RenderDetails(FineDiningBooking booking)
     {
         selectedDetails.title.text = booking.guestName;
-        selectedDetails.details.text = FineDiningReservations.Clock(booking.arrivalMinute) + "  •  " + booking.size + (booking.size == 1 ? " guest" : " guests") + "\n" + (string.IsNullOrEmpty(booking.tableId) ? "Seating: Choose a table below" : "Assigned: " + source.TableName(booking.tableId));
+        selectedDetails.details.text = FineDiningReservations.Clock(booking.arrivalMinute) + "  •  " + booking.size + (booking.size == 1 ? " guest" : " guests") + "\n" + (string.IsNullOrEmpty(booking.tableId) ? "Not assigned yet" : "Assigned: " + source.TableName(booking.tableId));
         selectedDetails.status.text = Status(booking);
         selectedDetails.SetPortraits(Portrait(booking), booking.size);
         bool expired = Expired(booking);
@@ -192,11 +203,42 @@ public sealed class ManagementReservationPanel : MonoBehaviour
         var tableRect = (RectTransform)tablesScroll.transform;
         tableRect.offsetMax = new Vector2(tableRect.offsetMax.x, -(canAccept ? tableTopPadding : bannerTableTopPadding));
         banner.text = expired ? "RESERVATION EXPIRED\nThe requested arrival time has passed." : unavailable;
-        declineButton.gameObject.SetActive(accepting);
+        declineButton.gameObject.SetActive(accepting && !expired);
         declineButton.interactable = source.CanDeclineRequest(booking);
         StyleButton(declineButton, declineButton.interactable ? redButton : greyButton, declineButton.interactable);
-        foreach (var existing in tables.Values) existing.gameObject.SetActive(false);
-        var ordered = (source.tables ?? Array.Empty<FineDiningTable>()).Where(t => t != null && t.Owned).OrderByDescending(t => TableSelectable(booking, t, out _)).ThenBy(t => t.tableId).ToArray();
+        foreach (var existing in tables)
+            if (!(source.tables ?? Array.Empty<FineDiningTable>()).Any(t => t != null && t.Owned && t.tableId == existing.Key))
+                existing.Value.gameObject.SetActive(false);
+        var ordered = (source.tables ?? Array.Empty<FineDiningTable>()).Where(t => t != null && t.Owned).OrderByDescending(t => TableSelectable(booking, t, out _)).ThenBy(t => t.Capacity).ThenBy(t => t.tableId).ToArray();
+        bool editable = booking.status == FineDiningBookingStatus.Pending || booking.status == FineDiningBookingStatus.Confirmed || booking.status == FineDiningBookingStatus.Arrived;
+        tablesScroll.gameObject.SetActive(editable && !expired);
+        if (tableHeading != null) tableHeading.text = !editable || expired ? "VISIT STATUS" : accepting ? "2  CHOOSE A TABLE" : "TABLE ASSIGNMENT";
+        bool noSuitableTable = !ordered.Any(t => TableSelectable(booking, t, out _));
+        if (canAccept && noSuitableTable && editable)
+        {
+            bannerRoot.SetActive(true);
+            tableRect.offsetMax = new Vector2(tableRect.offsetMax.x, -bannerTableTopPadding);
+            banner.text = source.NoSeatingMessage(booking.size);
+        }
+        if (!editable)
+        {
+            bannerRoot.SetActive(true);
+            banner.text = booking.status == FineDiningBookingStatus.Completed ? "Visit completed. Thank you for taking care of this party."
+                : booking.status == FineDiningBookingStatus.Left ? "This party has departed."
+                : "This party is seated at " + source.TableName(booking.tableId) + ".";
+        }
+        else if (source.IsOnTheWay(booking.id))
+        {
+            bannerRoot.SetActive(true);
+            banner.text = "Your guests are walking to reception.";
+            tableRect.offsetMax = new Vector2(tableRect.offsetMax.x, -bannerTableTopPadding);
+        }
+        else if (booking.status == FineDiningBookingStatus.Confirmed && !source.Preparing && booking.arrivalMinute < source.NowMinute)
+        {
+            bannerRoot.SetActive(true);
+            banner.text = "Arrival delayed. Guests will enter as reception and service capacity become available.";
+            tableRect.offsetMax = new Vector2(tableRect.offsetMax.x, -bannerTableTopPadding);
+        }
         for (int i = 0; i < ordered.Length; i++)
         {
             var table = ordered[i];
@@ -209,24 +251,27 @@ public sealed class ManagementReservationPanel : MonoBehaviour
                 card.button.onClick.AddListener(() => SelectTable(target));
                 tables.Add(table.tableId, card);
             }
+            card.gameObject.SetActive(true);
             card.transform.SetSiblingIndex(i);
             bool valid = TableSelectable(booking, table, out string state);
             bool chosen = selectedTableId == table.tableId || selectedTableId == null && booking.tableId == table.tableId;
             card.title.text = table.displayName;
             card.details.text = "Seats " + table.Capacity;
-            card.status.text = chosen && valid ? "SELECTED" : state;
+            card.status.text = booking.tableId == table.tableId ? "ASSIGNED" : chosen && valid ? "SELECTED" : state;
             card.status.color = valid ? Green : Ink;
             card.preview.sprite = table.reservationPreview;
             card.preview.enabled = table.reservationPreview != null;
             card.button.interactable = valid;
-            card.buttonLabel.text = chosen && valid ? "Selected" : valid ? "Select" : "Unavailable";
-            StyleButton(card.button, valid ? chosen ? blueButton : greenButton : greyButton, valid);
+            card.buttonLabel.text = booking.tableId == table.tableId ? "Assigned" : chosen && valid ? "Selected" : valid ? "Select" : "Unavailable";
+            StyleButton(card.button, valid ? chosen ? greenButton : blueButton : greyButton, valid);
             card.SetState(chosen, valid, cardNormal, cardSelected, cardDisabled);
         }
         var selected = source.tables?.FirstOrDefault(t => t != null && t.tableId == selectedTableId);
         acceptButton.interactable = selected != null && TableSelectable(booking, selected, out _) && (accepting || booking.tableId != selected.tableId);
-        acceptLabel.text = accepting ? "Accept Reservation" : "Save Table";
-        StyleButton(acceptButton, acceptButton.interactable ? greenButton : greyButton, acceptButton.interactable);
+        acceptButton.gameObject.SetActive(acceptButton.interactable);
+        tableRect.offsetMin = new Vector2(tableRect.offsetMin.x, acceptButton.interactable ? 72f : 12f);
+        acceptLabel.text = accepting && selected != null ? "Confirm " + selected.displayName : "Save Table Change";
+        StyleButton(acceptButton, greenButton, true);
     }
 
     private void SelectTable(FineDiningTable table)
@@ -289,6 +334,7 @@ public sealed class ManagementReservationPanel : MonoBehaviour
     {
         feedbackText.text = text;
         feedbackText.color = Color.white;
+        if (useComputerAppStyle) feedbackRoot.GetComponent<Image>().color = positive ? new Color(.10f, .48f, .29f) : new Color(.66f, .22f, .28f);
         feedbackIcon.sprite = checkmarkSprite;
         feedbackIcon.gameObject.SetActive(positive);
         feedbackRoot.SetActive(true);
@@ -297,12 +343,16 @@ public sealed class ManagementReservationPanel : MonoBehaviour
         toastRoutine = StartCoroutine(HideToast());
     }
     private IEnumerator HideToast() { yield return new WaitForSecondsRealtime(2.2f); feedbackRoot.SetActive(false); toastRoutine = null; }
-    private static void StyleButton(Button button, Sprite sprite, bool whiteText)
+    private void StyleButton(Button button, Sprite sprite, bool whiteText)
     {
-        button.image.sprite = sprite;
-        button.image.color = Color.white;
+        button.image.sprite = useComputerAppStyle ? computerPanelSprite : sprite;
+        bool isTab = button == requestsTab || button == tonightTab;
+        button.image.color = !useComputerAppStyle ? Color.white
+            : sprite == greenButton ? new Color(.10f, .48f, .29f)
+            : sprite == redButton ? new Color(.66f, .22f, .28f)
+            : sprite == greyButton ? (isTab ? new Color(.12f, .27f, .42f) : new Color(.82f, .85f, .90f))
+            : new Color(.08f, .55f, .88f);
         var text = button.GetComponentInChildren<TMP_Text>();
-        if (text != null) text.color = whiteText ? Color.white : Ink;
+        if (text != null) text.color = whiteText || (useComputerAppStyle && isTab) ? Color.white : Ink;
     }
 }
-

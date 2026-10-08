@@ -884,7 +884,7 @@ internal sealed class AlienProceduralAnimation
         return (cycleIndex & 1) == 0 ? prefersRightHand : !prefersRightHand;
     }
 
-    private static void ApplyCcdArm(
+    internal static void ApplyCcdArm(
         Transform upperArm,
         Transform lowerArm,
         Transform hand,

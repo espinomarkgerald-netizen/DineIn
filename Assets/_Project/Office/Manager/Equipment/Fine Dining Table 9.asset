@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c675d5873bca1044da69f18c59bbe5d9, type: 3}
+  m_Name: Fine Dining Table 9
+  m_EditorClassIdentifier: 
+  itemID: fd_table_09
+  displayName: Fine Dining Booth 9
+  cost: 1000
+  dayToUnlock: 1
+  sprite: {fileID: 21300000, guid: f5b470080088e0646beb5969c56936a2, type: 3}
+  catalogSection: 0
+  catalogSortOrder: 9
+  description: Six-seat booth in the oak dining row. Includes its rug and table accent.
+  coachTip: 
+  coachLocation: Computer > Equipment

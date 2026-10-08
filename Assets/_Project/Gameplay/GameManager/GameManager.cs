@@ -925,7 +925,7 @@ public class GameDayManager : MonoBehaviour
                 if (booking != null) TrySpawnCustomerGroup(booking);
                 else if (Time.time >= nextWalkIn && reservations.CanAdmitWalkIn && groupsSpawnedThisShift + reservations.UnspawnedGroups < maxCustomersToSpawn
                     && TrySpawnCustomerGroup())
-                    nextWalkIn = Time.time + Random.Range(spawnIntervalMin, spawnIntervalMax) * (IsRushHour ? rushSpawnIntervalMultiplier : 1f);
+                    nextWalkIn = Time.time + Mathf.Max(reservations.WalkInIntervalSeconds, Random.Range(spawnIntervalMin, spawnIntervalMax));
                 yield return blockedSpawnWait;
                 continue;
             }
@@ -1033,7 +1033,10 @@ public class GameDayManager : MonoBehaviour
         if (groupsSpawnedThisShift >= maxCustomersToSpawn)
             return false;
 
-        if (groupsSpawnedThisMinute >= CurrentGroupsPerMinuteLimit)
+        // Confirmed reservations are scheduled by the service clock, not the
+        // random walk-in cadence (one real minute is an entire restaurant hour).
+        // Queue capacity, the shift budget and concurrent actor limits still apply.
+        if (booking == null && groupsSpawnedThisMinute >= CurrentGroupsPerMinuteLimit)
             return false;
 
         int concurrentLimit = IsRushHour
@@ -2293,3 +2296,4 @@ public class GameDayManager : MonoBehaviour
             progressBar.value = CalculateProgress01();
     }
 }
+

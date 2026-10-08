@@ -5,6 +5,7 @@ using UnityEngine.UI;
 /// <summary>Authored reservation/request card; only content and state change at runtime.</summary>
 public sealed class ManagementReservationCard : MonoBehaviour
 {
+    public bool useComputerAppStyle;
     public Button button;
     public Image frame;
     public Image preview;
@@ -30,7 +31,8 @@ public sealed class ManagementReservationCard : MonoBehaviour
 
     public void SetState(bool chosen, bool available, Sprite normal, Sprite selectedFrame, Sprite disabled)
     {
-        frame.sprite = chosen ? selectedFrame : available ? normal : disabled;
+        if (useComputerAppStyle) frame.color = chosen ? new Color(.85f,.94f,.89f) : Color.white;
+        else frame.sprite = chosen ? selectedFrame : available ? normal : disabled;
         if (visual != null) visual.alpha = available || chosen ? 1f : .65f;
         if (checkmark != null) checkmark.gameObject.SetActive(chosen);
         if (selected != chosen && feedback != null && Application.isPlaying) feedback.SetSelected(chosen);

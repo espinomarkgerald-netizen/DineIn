@@ -336,9 +336,9 @@ public class RoleBasedAssignController : MonoBehaviour
             {
                 bool seated = waiting.Contains(group) || waiting.TryWait(group);
                 if (!seated) group.LeaveReceptionUnavailable();
-                ShowWarning(seated ? "Please wait in the reception seats." : "The reception waiting seats are full.");
+                ShowWarning(seated ? "No suitable tables are available right now. Please wait in reception while a table is cleared." : "All tables and reception seats are occupied. We cannot accommodate this party at present.");
             }
-            else ShowWarning("No available tables for this group.");
+            else ShowWarning(FineDiningReservations.For(group)?.NoSeatingMessage(group.Size) ?? "No suitable tables are available right now. Please wait for a table to be cleared.");
             return;
         }
 
@@ -484,3 +484,4 @@ public class RoleBasedAssignController : MonoBehaviour
                EventSystem.current.IsPointerOverGameObject(fingerId);
     }
 }
+

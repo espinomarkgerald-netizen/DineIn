@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Courtyard Soft Sunrays
+  m_Shader: {fileID: 4800000, guid: 0243754b9ee21e743b518802b71981ae, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs: []
+    m_Ints: []
+    m_Floats:
+    - _HourFade: 1
+    - _Shadow: 0
+    m_Colors:
+    - _RoomA: {r: -11, g: -101, b: 71, a: -51}
+    - _RoomB: {r: -11, g: -52, b: 47, a: -7}
+    - _RoomC: {r: -41, g: -93, b: -10, a: -61}
+    - _SunDirection: {r: -0.9, g: -0.438, b: 0, a: 0}
+    - _Tint: {r: 1, g: 0.84, b: 0.55, a: 0.12}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1

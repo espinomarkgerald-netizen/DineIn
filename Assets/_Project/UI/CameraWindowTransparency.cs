@@ -18,6 +18,9 @@ public sealed class CameraWindowTransparency : MonoBehaviour
     [SerializeField, Min(0f)] private float playerFocusHeight = 1.5f;
     [SerializeField, Min(0f)] private float restorePadding = 1f;
 
+    [Tooltip("Also fade when the pointer is over this wall or divider.")]
+    [SerializeField] private bool fadeOnPointer;
+
     [Header("Opacity")]
     [Tooltip("Alpha while the player is nearby or obscured, in 0-255 units.")]
     [SerializeField, Range(0f, 255f)] private float fadedAlpha = 100f;
@@ -62,7 +65,10 @@ public sealed class CameraWindowTransparency : MonoBehaviour
             if (renderer == null || !renderer.enabled)
                 continue;
 
-            if (OverlapsCameraCentre(cameraToUse, renderer.bounds))
+            bool pointerOver = fadeOnPointer && !GameplayUIBlocker.IsBlocked() &&
+                cameraToUse.pixelRect.Contains(Input.mousePosition) &&
+                renderer.bounds.IntersectRay(cameraToUse.ScreenPointToRay(Input.mousePosition));
+            if (pointerOver || OverlapsCameraCentre(cameraToUse, renderer.bounds))
             {
                 shouldFade = true;
                 break;

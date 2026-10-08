@@ -26,10 +26,20 @@ public static class CampaignCloudSyncRegression
             string json = JsonUtility.ToJson(data);
             return new Store.Snapshot { save = json, checkpoint = json, hash = Store.Hash(json, json) };
         }
+        Store.Snapshot FineDiningPair()
+        {
+            var data = new GameSaveData { currentDay = 7, money = 18450 };
+            data.unlockedEquipmentIDs.Add("fine-dining-table-6");
+            data.fineDiningReservations = new FineDiningReservationSave { day = 7, groupBudget = 12 };
+            data.fineDiningReservations.bookings.Add(new FineDiningBooking { id = "saved-booking", guestName = "Robin party",
+                customerType = 2, size = 3, arrivalMinute = 1080, tableId = "table-6", status = FineDiningBookingStatus.Confirmed });
+            string saved = JsonUtility.ToJson(data);
+            return new Store.Snapshot { save = saved, checkpoint = saved, hash = Store.Hash(saved, saved) };
+        }
         Store.AccountSnapshot Snapshot(int casual, int fast)
         {
             var value = new Store.AccountSnapshot { account = "test-account-A", lineage = "test-lineage", revision = 70,
-                casual = Pair(casual, 123720), fastFood = Pair(fast, 140300), profile = new Store.ProfileProgress(),
+                casual = Pair(casual, 123720), fastFood = Pair(fast, 140300), fineDining = FineDiningPair(), profile = new Store.ProfileProgress(),
                 savedUtc = "2026-10-01T00:00:00Z", device = "test-install" };
             value.profile.tutorials[0] = value.profile.tutorials[1] = 1;
             value.profile.roles.Add(new LocalSaveManager.RoleEntry { roleId = "waiter", highestUnlockedLevel = 3 });
@@ -37,9 +47,12 @@ public static class CampaignCloudSyncRegression
             Store.Seal(value); return value;
         }
         var cloud = Snapshot(20, 12);
-        Check(Store.ValidAccount(cloud, "test-account-A"), "canonical checksum, both careers and profile validate");
+        Check(Store.ValidAccount(cloud, "test-account-A"), "canonical checksum, all three careers and profile validate");
         Check(!Store.ValidAccount(cloud, "test-account-B"), "different account payload rejected");
         string json = JsonUtility.ToJson(cloud);
+        var diningTamper = JsonUtility.FromJson<Store.AccountSnapshot>(json);
+        diningTamper.fineDining.save = Pair(99, 999999).save;
+        Check(!Store.ValidAccount(diningTamper, "test-account-A"), "Fine Dining tampering rejected");
         Check(Store.ValidAccount(JsonUtility.FromJson<Store.AccountSnapshot>(json), "test-account-A"), "serialized canonical payload round-trips");
         var tampered = JsonUtility.FromJson<Store.AccountSnapshot>(json); tampered.revision++;
         Check(!Store.ValidAccount(tampered, "test-account-A"), "metadata tampering detected");
@@ -57,9 +70,9 @@ public static class CampaignCloudSyncRegression
         Check(CampaignSyncPolicy.Decide(false, false, "corrupt", "cloud", "base") == Decision.Download, "valid cloud can recover invalid local");
         Check(CampaignSyncPolicy.Decide(false, false, "corrupt", null, null) == Decision.None, "invalid local never uploads");
         Check(CampaignSyncPolicy.Decide(true, true, "local", null, "old-cloud") == Decision.Conflict, "missing previously-synced cloud requires choice");
-        var empty = new Store.AccountSnapshot { casual = Pair(1, 5000), fastFood = Pair(1, 5000), profile = new Store.ProfileProgress() };
+        var empty = new Store.AccountSnapshot { casual = Pair(1, 5000), fastFood = Pair(1, 5000), fineDining = Pair(1, 5000), profile = new Store.ProfileProgress() };
         Store.Seal(empty);
-        Check(!Store.Meaningful(empty), "default Day 1/starter save does not create conflict");
+        Check(Store.ValidContent(empty) && !Store.Meaningful(empty), "default Day 1/starter save does not create conflict");
         Check(Store.Meaningful(cloud), "real independent restaurant progress detected");
         empty.casual.save = Pair(2, 5000).save; empty.casual.hash = Store.Hash(empty.casual.save, empty.casual.checkpoint);
         Check(Store.Meaningful(empty), "live progression detected even with a default day-start checkpoint");
@@ -90,6 +103,14 @@ public static class CampaignCloudSyncRegression
         var coldFast = JsonUtility.FromJson<GameSaveData>(File.ReadAllText(Path.Combine(directory, "dinein_fastfood_save.json")));
         Check(coldCasual.currentDay == 20 && coldFast.currentDay == 12 && coldCasual.inventoryStocks[0].stock == 12 &&
             coldCasual.unlockedRecipeIDs.Contains("recipe-test"), "offline cold read restores days, inventory and unlocks");
+        string diningPath = Path.Combine(directory, "dinein_finedining_save.json");
+        Check(File.ReadAllText(diningPath) == cloud.fineDining.save, "Fine Dining exact cloud payload restores to local career");
+        var coldDining = JsonUtility.FromJson<GameSaveData>(File.ReadAllText(diningPath));
+        var booking = coldDining.fineDiningReservations.bookings[0];
+        Check(coldDining.currentDay == 7 && coldDining.money == 18450 && coldDining.unlockedEquipmentIDs.Contains("fine-dining-table-6") &&
+            booking.id == "saved-booking" && booking.arrivalMinute == 1080 && booking.tableId == "table-6" &&
+            booking.status == FineDiningBookingStatus.Confirmed && booking.customerType == 2 && booking.size == 3,
+            "Fine Dining offline cold read preserves progression, booking, table and alien identity");
         Check(restoredProfile.tutorials[0] == 1 && restoredProfile.roles[0].highestUnlockedLevel == 3 &&
             restoredProfile.appearance == cloud.profile.appearance, "profile callback receives tutorials, role progress and appearance");
         Check(Store.ReadAccountState(directory).revision == 70, "cloud restore preserves revision without increment");

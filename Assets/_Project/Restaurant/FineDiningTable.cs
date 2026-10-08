@@ -13,6 +13,7 @@ public sealed class FineDiningTable : MonoBehaviour
     private EquipmentManager equipmentManager;
     private System.Collections.IEnumerator Start()
     {
+        SetPresentation(false); // Hide unowned decor while the campaign save loads.
         while (EquipmentManager.Instance == null || GameSaveManager.Instance != null && !GameSaveManager.Instance.HasCompletedInitialLoad) yield return null;
         equipmentManager = EquipmentManager.Instance;
         equipmentManager.PurchasesChanged += RefreshPresentation;
@@ -21,7 +22,10 @@ public sealed class FineDiningTable : MonoBehaviour
     private void OnDestroy() { if (equipmentManager != null) equipmentManager.PurchasesChanged -= RefreshPresentation; }
     public void RefreshPresentation()
     {
-        bool visible = Owned;
+        SetPresentation(Owned && Unlocked);
+    }
+    private void SetPresentation(bool visible)
+    {
         if (presentationObjects != null) foreach (var target in presentationObjects) if (target != null) target.SetActive(visible);
         if (booth != null) booth.gameObject.SetActive(visible);
     }

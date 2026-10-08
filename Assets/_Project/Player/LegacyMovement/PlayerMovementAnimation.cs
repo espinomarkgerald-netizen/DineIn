@@ -70,11 +70,10 @@ public class PlayerMovementAnimation
             return false;
 
         var hands = WaiterHands.For(owner);
-        if (hands == null) return false;
 
         // Bills and money are small hand props. Only trays use the dedicated
         // carry idle/walk animation set.
-        if (hands.HasTray)
+        if (hands != null && hands.HasTray)
             return true;
 
         BusserHands busserHands = BusserHands.For(owner);

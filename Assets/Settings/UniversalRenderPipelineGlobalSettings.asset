@@ -56,17 +56,7 @@ MonoBehaviour:
       - rid: 470607794328305664
       - rid: 215478573332169195
     m_RuntimeSettings:
-      m_List:
-      - rid: 6852985685364965378
-      - rid: 6852985685364965379
-      - rid: 6852985685364965380
-      - rid: 6852985685364965381
-      - rid: 6852985685364965384
-      - rid: 6852985685364965385
-      - rid: 6852985685364965392
-      - rid: 6852985685364965394
-      - rid: 8712630790384254976
-      - rid: 470607794328305664
+      m_List: []
   m_AssetVersion: 8
   m_ObsoleteDefaultVolumeProfile: {fileID: 0}
   m_RenderingLayerNames:
@@ -191,7 +181,7 @@ MonoBehaviour:
       type: {class: IncludeAdditionalRPAssets, ns: UnityEngine.Rendering, asm: Unity.RenderPipelines.Core.Runtime}
       data:
         m_version: 0
-        m_IncludeReferencedInScenes: 0
+        m_IncludeReferencedInScenes: 1
         m_IncludeAssetsByLabel: 0
         m_LabelToInclude: 
     - rid: 215478573332169194

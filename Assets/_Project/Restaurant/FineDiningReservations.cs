@@ -31,9 +31,9 @@ public sealed class FineDiningReservations : MonoBehaviour
     public event Action NewRequests;
     public int UnreadRequests => state.bookings.Count(b => b.status == FineDiningBookingStatus.Pending && !b.viewed && b.arrivalMinute >= NowMinute);
     public void MarkRequestsViewed() { foreach(var b in state.bookings) b.viewed = true; PersistDecision(); }
-    public int ReservationGroupTarget => Mathf.Clamp(Mathf.RoundToInt(state.groupBudget * reservationShare), 0, Mathf.Max(0, state.groupBudget - 1));
-    public int WalkInLimit => Mathf.Max(1, state.groupBudget - ReservationGroupTarget);
-    public bool CanAdmitWalkIn => state.walkInsSpawned < WalkInLimit && AvailableAdmissionGroups > 0;
+    public int ReservationGroupTarget => Mathf.Clamp(Mathf.RoundToInt(GroupBudget * reservationShare), 0, Mathf.Max(0, GroupBudget - 1));
+    public int WalkInLimit => Mathf.Max(0, GroupBudget - ReservationGroupTarget);
+    public bool CanAdmitWalkIn => state.walkInsSpawned < WalkInLimit && AvailableAdmissionGroups > 0 && HasWalkInWaitingCapacity;
     public void TrackWalkIn() { state.walkInsSpawned++; Changed?.Invoke(); }
     [Range(0f, 1f)] public float pianistBonus = .2f;
     [Min(1)] public int maximumPartySize = 4;
@@ -56,13 +56,42 @@ public sealed class FineDiningReservations : MonoBehaviour
     public int ReservedGuests => state.bookings.Where(IsAccepted).Sum(b => b.size);
     public int AcceptedGroups => state.bookings.Count(IsAccepted);
     public int UnspawnedGroups => state.bookings.Count(b => b.status == FineDiningBookingStatus.Confirmed && !parties.ContainsKey(b.id));
-    public int GroupBudget => state.groupBudget;
+    [Tooltip("Fraction of seating turnover to target, leaving room for service and cleanup.")]
+    [Range(.1f, 1f)] public float seatingUtilization = .75f;
+    [Min(1f)] public float expectedPartySize = 2.5f;
+    [Range(.1f, 1f)] public float waitingPartiesPerTable = .5f;
+    public int SeatingGroupCapacity => CalculateSeatingBudget(
+        tables == null ? Array.Empty<int>() : tables.Where(t => t != null && t.Usable).Select(t => t.Capacity),
+        ClosingMinute - OpeningMinute, WindowMinutes, seatingUtilization, expectedPartySize);
+    public static int CalculateSeatingBudget(IEnumerable<int> capacities, int serviceMinutes, int visitMinutes, float utilization, float partySize)
+    {
+        float tablesPerTurn = capacities.Where(c => c > 0).Sum(c => Mathf.Min(1f, c / Mathf.Max(1f, partySize)));
+        return Mathf.Max(0, Mathf.FloorToInt(tablesPerTurn * Mathf.FloorToInt((float)serviceMinutes / Mathf.Max(1, visitMinutes)) * Mathf.Clamp01(utilization)));
+    }
+    // Keep accepted commitments when loading an older, larger demand budget.
+    public int GroupBudget => Mathf.Max(AcceptedGroups + state.walkInsSpawned, Mathf.Min(state.groupBudget, SeatingGroupCapacity));
+    public float WalkInIntervalSeconds => dayManager == null ? 60f :
+        dayManager.ShiftLengthSeconds * Mathf.Max(0f, 1f - (float)WindowMinutes / Mathf.Max(1, ClosingMinute - OpeningMinute)) / Mathf.Max(1, WalkInLimit);
+    private bool HasWalkInWaitingCapacity
+    {
+        get
+        {
+            int usable = tables == null ? 0 : tables.Count(t => t != null && t.Usable);
+            if (usable == 0 || NowMinute + WindowMinutes > ClosingMinute) return false;
+            var queue = receptionLine != null ? receptionLine.WaitingParties : Enumerable.Empty<CustomerGroup>();
+            var seated = waitingArea != null ? waitingArea.Parties : Enumerable.Empty<CustomerGroup>();
+            return queue.Concat(seated).Where(g => g != null && g.CanBeSeated).Distinct().Count() < Mathf.Max(1, Mathf.CeilToInt(usable * waitingPartiesPerTable));
+        }
+    }
+    public string NoSeatingMessage(int partySize) => tables != null && tables.Any(t => t != null && t.Usable && t.Capacity >= partySize)
+        ? "No suitable tables are available right now. Please wait for a table to be cleared."
+        : "No purchased table can accommodate this party. Please add a table with enough seats for this party.";
     public int ProgressionAnnouncedDay => state.progressionAnnouncedDay;
     public void MarkProgressionAnnounced(int day) { state.progressionAnnouncedDay=day; PersistDecision(); }
     // A new booking reserves one remaining group, replacing a potential walk-in.
-    public int AvailableAdmissionGroups => Mathf.Max(0, state.groupBudget - UnspawnedGroups -
+    public int AvailableAdmissionGroups => Mathf.Max(0, GroupBudget - UnspawnedGroups -
         (dayManager != null && dayManager.ShiftRunning ? dayManager.GroupsSpawnedThisShift : 0));
-    public int ExpectedWalkInGroups => Mathf.Max(0, WalkInLimit - state.walkInsSpawned);
+    public int ExpectedWalkInGroups => Mathf.Min(AvailableAdmissionGroups, Mathf.Max(0, WalkInLimit - state.walkInsSpawned));
     public int ExpectedGuests => ReservedGuests + ExpectedWalkInGroups * 2;
     public string DemandSummary => $"Booked: {ReservedGuests} guests • Expected walk-ins remaining: about {ExpectedWalkInGroups * 2} guests";
 
@@ -182,6 +211,18 @@ public sealed class FineDiningReservations : MonoBehaviour
         foreach (var booking in state.bookings)
             if (booking.customerType < 0) booking.customerType = (int)spawner.PickReservationCustomerType();
         if (persist) PersistDecision();
+    }
+
+    public bool IsOnTheWay(string id) => parties.TryGetValue(id, out var group) && group != null &&
+        group.state == CustomerGroup.GroupState.WalkingToLobby;
+
+    public string ArrivalStatus(FineDiningBooking booking)
+    {
+        if (IsOnTheWay(booking.id)) return "ON THE WAY";
+        if (Preparing) return "UPCOMING";
+        int minutes = booking.arrivalMinute - NowMinute;
+        if (minutes < 0) return "ARRIVAL DELAYED";
+        return minutes <= reminderMinutes ? "ARRIVING SOON" : "UPCOMING";
     }
 
     public bool IsDining(string id) => parties.TryGetValue(id, out var group) && group != null && group.state == CustomerGroup.GroupState.Eating;
@@ -324,3 +365,6 @@ public sealed class FineDiningReservations : MonoBehaviour
         Changed?.Invoke();
     }
 }
+
+
+
