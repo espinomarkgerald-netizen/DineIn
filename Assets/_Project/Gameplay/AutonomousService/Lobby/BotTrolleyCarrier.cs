@@ -28,7 +28,7 @@ public sealed class BotTrolleyCarrier : MonoBehaviour
     [SerializeField, Min(1)] private int minimumBatchSize = 2;
     [Tooltip("Editable presentation root. Keep model scale/rotation changes here, not on the gameplay root.")]
     [SerializeField] private Transform visualRoot;
-    [Tooltip("Editable marker on the trolley handle. Runtime aligns this point to the bot's Trolley Grip Point.")]
+    [Tooltip("Editable trolley handle marker. Runtime keeps this in front of the operator on the floor.")]
     [SerializeField] private Transform holdingPoint;
     [SerializeField] private List<Transform> traySlots = new List<Transform>();
     [SerializeField] private Vector3 trayLocalPosition = Vector3.zero;
@@ -38,7 +38,7 @@ public sealed class BotTrolleyCarrier : MonoBehaviour
     [Tooltip("Local-space position relative to the bot while the trolley is being pushed. Positive Z is in front.")]
     [SerializeField] private Vector3 pushOffset = new Vector3(0f, 0f, 1.05f);
     [SerializeField] private Vector3 pushEulerAngles = Vector3.zero;
-    [Tooltip("Fine adjustment in the selected bot grip point's local space.")]
+    [Tooltip("Fine adjustment along the operator's local axes while keeping the wheels grounded.")]
     [SerializeField] private Vector3 operatorGripLocalOffset = Vector3.zero;
     [Tooltip("Zero snaps the trolley to the bot. Raise slightly for softer cart movement.")]
     [SerializeField, Min(0f)] private float followPositionSmoothTime;
@@ -77,7 +77,6 @@ public sealed class BotTrolleyCarrier : MonoBehaviour
     private AutonomousStaffBot operatorBot;
     private Transform parkingPoint;
     private Vector3 followVelocity;
-    private bool warnedAboutMissingGrip;
     private bool runtimeOwned;
 
     public EquipmentUpgradeEffect Effect => effect;
@@ -179,7 +178,6 @@ public sealed class BotTrolleyCarrier : MonoBehaviour
         }
 
         operatorBot = bot;
-        warnedAboutMissingGrip = false;
         followVelocity = Vector3.zero;
         lastFailureReason = string.Empty;
         currentState = TrolleyState.Collecting;
@@ -263,6 +261,7 @@ public sealed class BotTrolleyCarrier : MonoBehaviour
             slot,
             trayLocalPosition,
             Quaternion.Euler(trayLocalEulerAngles));
+        tray.GetComponent<FoodTrayCarryPose>()?.AlignToTrolley(slot, trayLocalPosition, trayLocalEulerAngles);
         WaiterHands.SetAllColliders(tray.gameObject, false);
         currentState = TrolleyState.Collecting;
         return true;
@@ -488,28 +487,26 @@ public sealed class BotTrolleyCarrier : MonoBehaviour
             return;
 
         Transform bot = operatorBot.transform;
-        Quaternion targetRotation = bot.rotation * Quaternion.Euler(pushEulerAngles);
-        TryResolveOperatorGripPoint(operatorBot, out Transform gripPoint);
+        // A cart has a floor frame, not an animated hand/spine frame. The old
+        // socket could face backwards and impart pitch, roll and vertical bob.
+        Quaternion targetRotation = Quaternion.Euler(0f, bot.eulerAngles.y + pushEulerAngles.y, 0f);
         Vector3 targetPosition = bot.TransformPoint(pushOffset);
-
-        if (holdingPoint != null && gripPoint != null)
+        if (holdingPoint != null)
         {
-            Quaternion holdingLocalRotation = Quaternion.Inverse(transform.rotation) * holdingPoint.rotation;
-            Quaternion desiredHoldingRotation = gripPoint.rotation * Quaternion.Euler(pushEulerAngles);
-            targetRotation = desiredHoldingRotation * Quaternion.Inverse(holdingLocalRotation);
-            Vector3 holdingLocalPosition = transform.InverseTransformPoint(holdingPoint.position);
-            Vector3 scaledHoldingOffset = Vector3.Scale(holdingLocalPosition, transform.lossyScale);
-            Vector3 targetGripPosition = gripPoint.TransformPoint(operatorGripLocalOffset);
-            targetPosition = targetGripPosition - targetRotation * scaledHoldingOffset;
+            Vector3 localForward = transform.InverseTransformDirection(holdingPoint.forward);
+            localForward.y = 0f;
+            if (localForward.sqrMagnitude > .001f)
+                targetRotation *= Quaternion.Inverse(Quaternion.LookRotation(localForward));
+            Vector3 handle = transform.InverseTransformPoint(holdingPoint.position);
+            Vector3 contact = bot.position + bot.rotation * new Vector3(0f, 0f, .7f);
+            contact += bot.rotation * operatorGripLocalOffset;
+            targetPosition = contact - targetRotation * Vector3.Scale(handle, transform.lossyScale);
         }
-        else if (!warnedAboutMissingGrip)
-        {
-            warnedAboutMissingGrip = true;
-            Debug.LogWarning(
-                $"[BotTrolleyCarrier] {name} is using Push Offset because " +
-                $"{(holdingPoint == null ? "HoldingPoint" : "the bot Trolley Grip Point")} is missing.",
-                this);
-        }
+        // Preserve the wheels' authored ground height, including on sloped floor.
+        float floor = bot.position.y;
+        if (NavMesh.SamplePosition(targetPosition + Vector3.up * (floor - targetPosition.y),
+                out var ground, .6f, NavMesh.AllAreas)) floor = ground.position.y;
+        targetPosition.y = floor + parkingPositionOffset.y;
 
         if (immediate || followPositionSmoothTime <= 0f)
         {
@@ -661,6 +658,7 @@ public sealed class BotTrolleyCarrier : MonoBehaviour
                 slot,
                 trayLocalPosition,
                 Quaternion.Euler(trayLocalEulerAngles));
+            tray.GetComponent<FoodTrayCarryPose>()?.AlignToTrolley(slot, trayLocalPosition, trayLocalEulerAngles);
         }
     }
 

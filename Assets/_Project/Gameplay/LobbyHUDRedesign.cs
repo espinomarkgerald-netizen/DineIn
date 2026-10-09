@@ -490,6 +490,8 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
 
     private static string GetReadableInteractionName(IInteractable target)
     {
+        if (target is RestockStockRoomEntrance storage)
+            return storage.StorageType == RestockStorageType.Frozen ? "Freezer Shelf" : "Dry Storage Shelf";
         if (target is ManagementComputerStation)
             return "Computer";
         if (target is CashierBoothInteractable)
@@ -574,13 +576,20 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
         return string.IsNullOrWhiteSpace(value) ? fallback : value;
     }
 
+    private static Vector3 PlayerFocusPoint(ManagerPlayer player)
+    {
+        var appearance = player.GetComponent<DineIn.Appearance.CharacterAppearance>();
+        return appearance != null && appearance.TryGetBodyBounds(out var bounds)
+            ? bounds.center : player.transform.position;
+    }
+
     private void FocusCameraOnManager()
     {
         if (MultiplayerHUDBridge.IsActive)
         {
             var player = MultiplayerHUDBridge.LocalPlayer;
             if (player != null)
-                FindFirstObjectByType<MainCameraController>()?.SetRigTargetPosition(player.transform.position, false);
+                FindFirstObjectByType<MainCameraController>()?.CenterOnWorldPoint(PlayerFocusPoint(player), false);
             return;
         }
         CameraController cameraController = FindFirstObjectByType<CameraController>();
@@ -592,7 +601,7 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
 
         MainCameraController mainCamera = FindFirstObjectByType<MainCameraController>();
         if (mainCamera != null && LocalHudPlayer != null)
-            mainCamera.SetRigTargetPosition(LocalHudPlayer.transform.position, false);
+            mainCamera.CenterOnWorldPoint(PlayerFocusPoint(LocalHudPlayer), false);
     }
 
     private void OpenComputerThroughManager()

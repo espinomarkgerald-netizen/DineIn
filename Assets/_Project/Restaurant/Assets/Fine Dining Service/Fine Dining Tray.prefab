@@ -56,7 +56,7 @@ Transform:
   m_GameObject: {fileID: 980210000000000003}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -1.15, y: 0.05, z: 0}
+  m_LocalPosition: {x: -1.05, y: 0.05, z: -0.65}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -87,7 +87,7 @@ Transform:
   m_GameObject: {fileID: 980210000000000005}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 1.15, y: 0.05, z: 0}
+  m_LocalPosition: {x: 1.05, y: 0.05, z: -0.65}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -487,6 +487,8 @@ MonoBehaviour:
   leftGrip: {fileID: 980210000000000004}
   rightGrip: {fileID: 980210000000000006}
   carryWorldScale: 1
+  staffGripOffset: {x: 0, y: 0.45, z: 0.35}
+  trolleyEulerAngles: {x: 0, y: 90, z: 0}
 --- !u!65 &2640270774423877835
 BoxCollider:
   m_ObjectHideFlags: 0

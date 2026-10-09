@@ -10,6 +10,7 @@ public sealed class HygieneDialogue : MonoBehaviour
         public GameObject root;
         public TMP_Text title, message, response, coaching;
         public Image portrait;
+        public RawImage animatedPortrait;
         public Button[] buttons;
         public TMP_Text[] labels;
     }
@@ -17,6 +18,7 @@ public sealed class HygieneDialogue : MonoBehaviour
     private View view;
     private int shownDecision = -1;
     private bool shownAuthority;
+    private AlmanacPreviewStage portraitStage;
     public RectTransform TutorialCleanControl => view != null && view.root.activeInHierarchy
         ? view.buttons[0].transform as RectTransform : null;
     public bool Initialize()
@@ -49,14 +51,15 @@ public sealed class HygieneDialogue : MonoBehaviour
         shownAuthority = authority;
         bool kitchen = state.decisionArea == HygieneArea.Kitchen;
         view.title.text = kitchen ? "KITCHEN STAFF" : "LOBBY STAFF";
+        string greeting = GreetingFor(PlayerCustomizationData.CommittedAppearance?.bodyId);
         view.message.text = kitchen
-            ? "Sir, the kitchen is getting pretty dirty but is still operational. Would you like me to clean it or keep making orders?"
-            : "Sir, the lobby needs cleaning. Could you help with one cleanup task while we keep serving?";
+            ? $"{greeting}, the kitchen is getting pretty dirty but is still operational. Would you like me to clean it or keep making orders?"
+            : $"{greeting}, the lobby needs cleaning. Could you help with one cleanup task while we keep serving?";
         if (view.response != null) view.response.text = "";
         if (view.coaching != null) view.coaching.text = authority
             ? (kitchen ? "Choose how the kitchen should continue." : "You will help with one available cleanup task.")
             : "Waiting for the host to decide...";
-        if (view.portrait != null) view.portrait.gameObject.SetActive(false);
+        ShowPortrait(kitchen);
         var settings = HygieneSettings.Current;
         string[] labels = kitchen ? new[] { $"Clean now\nPause cooking for {settings.immediateCleanSeconds:0.#} seconds", $"Clean while cooking\n{settings.whileCookingCleanSeconds:0.#} seconds; cooking takes {(settings.cleaningCookMultiplier - 1f) * 100f:0.#}% longer", $"Keep cooking\n{settings.forcedCleanSeconds:0.#}-second clean when blocked" }
             : new[] { "Help clean now", "Keep serving", "Ask staff to clean the lobby" };
@@ -74,14 +77,61 @@ public sealed class HygieneDialogue : MonoBehaviour
             button.onClick.AddListener(() => choose(id, decision));
             view.labels[i].text = labels[i];
             view.labels[i].enableAutoSizing = true;
-            view.labels[i].fontSizeMin = 12f;
+            view.labels[i].fontSizeMin = 20f;
+            view.labels[i].fontSizeMax = 26f;
+            view.labels[i].color = Color.white;
         }
     }
     public void SetVisible(bool visible)
     {
         if (canvasRoot != null) canvasRoot.SetActive(visible);
-        if (!visible) shownDecision = -1;
+        if (!visible)
+        {
+            shownDecision = -1;
+            if (view?.animatedPortrait != null) view.animatedPortrait.texture = null;
+            if (portraitStage != null) portraitStage.Hide();
+        }
     }
+    public static string GreetingFor(string bodyId) => bodyId == "female" ? "Ma'am" : bodyId == "male" ? "Sir" : "Hello";
+
+    private void ShowPortrait(bool kitchen)
+    {
+        if (view.animatedPortrait == null) return;
+        GameObject worker = null;
+        if (kitchen)
+        {
+            // Prefer the chef/lead station worker; never invent a different employee.
+            foreach (var candidate in FindObjectsByType<KitchenWorkerBot>(FindObjectsSortMode.InstanceID))
+            {
+                if (candidate.gameObject.scene != gameObject.scene || candidate.EmployeeRole == EmployeeRole.Pianist) continue;
+                if (worker == null) worker = candidate.gameObject;
+                if (candidate.EmployeeRole == EmployeeRole.Chef) { worker = candidate.gameObject; break; }
+            }
+        }
+        else
+        {
+            foreach (var candidate in FindObjectsByType<StaffRole>(FindObjectsSortMode.InstanceID))
+            {
+                if (candidate.gameObject.scene != gameObject.scene || candidate.role == StaffRole.Role.Cashier) continue;
+                if (worker == null) worker = candidate.gameObject;
+                if (candidate.role == StaffRole.Role.Busser) { worker = candidate.gameObject; break; }
+            }
+        }
+        AnimationClip idle = null;
+        var animator = worker != null ? worker.GetComponentInChildren<Animator>() : null;
+        if (animator != null && animator.runtimeAnimatorController != null)
+            foreach (var clip in animator.runtimeAnimatorController.animationClips)
+                if (clip != null && clip.name.ToLowerInvariant().Contains("idle") && !clip.name.ToLowerInvariant().Contains("carry"))
+                {
+                    idle = clip;
+                    if (!clip.name.ToLowerInvariant().Contains("happy")) break;
+                }
+        if (portraitStage == null) portraitStage = canvasRoot.AddComponent<AlmanacPreviewStage>();
+        bool shown = portraitStage.ShowStaffPortrait(worker, idle);
+        view.animatedPortrait.texture = shown ? portraitStage.Texture : null;
+        view.animatedPortrait.gameObject.SetActive(shown);
+    }
+
     private void OnDestroy()
     {
         if (canvasRoot != null)
@@ -158,6 +208,32 @@ public sealed partial class ManagerComplaintSystem
             colors.pressedColor = new Color(.7f, .85f, .7f);
             colors.disabledColor = new Color(.6f, .6f, .6f, .65f);
             button.colors = colors;
+        }
+        // Keep the existing three-choice layout, giving the face and message a
+        // clear shared header without shrinking the buttons on phone screens.
+        void HeaderRect(RectTransform rect, Vector2 position, Vector2 size)
+        {
+            rect.anchorMin = rect.anchorMax = new Vector2(0, 1);
+            rect.pivot = new Vector2(0, 1);
+            rect.anchoredPosition = position; rect.sizeDelta = size;
+        }
+        HeaderRect(view.title.rectTransform, new Vector2(244, -28), new Vector2(678, 52));
+        HeaderRect(view.message.rectTransform, new Vector2(244, -84), new Vector2(678, 112));
+        if (view.portrait != null)
+        {
+            view.portrait.gameObject.SetActive(false);
+            var face = new GameObject("Animated Staff Portrait", typeof(RectTransform), typeof(RawImage));
+            face.transform.SetParent(view.portrait.transform.parent, false);
+            view.animatedPortrait = face.GetComponent<RawImage>();
+            view.animatedPortrait.raycastTarget = false;
+            HeaderRect(view.animatedPortrait.rectTransform, new Vector2(38, -24), new Vector2(176, 176));
+        }
+        if (view.response != null) view.response.gameObject.SetActive(false);
+        foreach (var label in view.labels)
+        {
+            label.color = Color.white;
+            label.enableAutoSizing = true;
+            label.fontSizeMin = 20f; label.fontSizeMax = 26f;
         }
         return view;
     }

@@ -100,7 +100,7 @@ namespace DineIn.Appearance
             return r;
         }
 
-        public AppearanceRecipe GenerateEmployee(string employeeId)
+        public AppearanceRecipe GenerateEmployee(string employeeId, string preferredBody = null)
         {
             // FNV-1a + local PRNG: stable across sessions, never consumes UnityEngine.Random.
             uint state = 2166136261;
@@ -112,6 +112,7 @@ namespace DineIn.Appearance
                 return pool.Length == 0 ? null : pool[state % (uint)pool.Length].id;
             }
             var r = new AppearanceRecipe { bodyId = Pick(bodies) };
+            if (Find(bodies, preferredBody) != null) r.bodyId = preferredBody;
             r.skinId = Pick(skins); r.faceId = Pick(faces, r.bodyId);
             r.hairId = Pick(hairs, r.bodyId); r.hairColorId = Pick(hairColors);
             r.outfitId = Find(bodies, r.bodyId).defaults.outfitId; r.hatId = "none";

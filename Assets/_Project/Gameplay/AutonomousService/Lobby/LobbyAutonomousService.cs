@@ -21,6 +21,10 @@ public class LobbyAutonomousService : MonoBehaviour
     [SerializeField, Min(0f)] private float managerReactionSeconds = 1f;
     [SerializeField, Min(6f)] private float paymentTravelTimeoutSeconds = 20f;
 
+    [Header("Reception Workstation")]
+    [Tooltip("Optional point behind the reservation monitor. The host checks it only while handling a real arriving party.")]
+    [SerializeField] private Transform receptionWorkPoint;
+
     [Header("Customer Clearance")]
     [SerializeField, Min(1f)] private float hostCustomerClearance = 2.2f;
     [SerializeField, Min(1f)] private float takeoutWaiterClearance = 3f;
@@ -163,6 +167,8 @@ public class LobbyAutonomousService : MonoBehaviour
 
     private void ResolveSceneReferences()
     {
+        if (receptionWorkPoint == null)
+            receptionWorkPoint = FindStation(null, "Reception Monitor Work Approach");
         lineManager = FindFirstObjectByType<LobbyLineManager>();
         kitchenManager = FindFirstObjectByType<KitchenManager>();
         billManager = FindFirstObjectByType<BillManager>();
@@ -1151,6 +1157,17 @@ public class LobbyAutonomousService : MonoBehaviour
 
     private IEnumerator SeatGroup(CustomerGroup group, Booth booth)
     {
+        if (receptionWorkPoint != null)
+        {
+            yield return host.MoveTo(receptionWorkPoint);
+            if (host.LastMoveSucceeded)
+            {
+                yield return host.FaceTowards(receptionWorkPoint.position + receptionWorkPoint.forward);
+                yield return host.WorkFor(greetingSeconds);
+            }
+        }
+        if (group == null || booth == null || !group.CanBeSeated || !group.CanUseBooth(booth))
+            yield break;
         Vector3 groupCenter = GetGroupCenter(group);
         yield return host.MoveTo(GetGroupInteractionPosition(
             group,

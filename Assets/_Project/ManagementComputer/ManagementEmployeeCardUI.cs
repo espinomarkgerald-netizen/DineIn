@@ -42,6 +42,46 @@ public sealed class ManagementEmployeeCardUI : MonoBehaviour
     private Coroutine attentionRoutine;
     private Coroutine actionRoutine;
     private CanvasGroup canvasGroup;
+    private RawImage avatarPortrait;
+    private GameObject portraitSource;
+    private AnimationClip portraitIdle;
+    private AlmanacPreviewStage portraitStage;
+    private RectTransform[] portraitClips;
+    private float nextPortraitVisibilityCheck;
+
+    public void SetPortraitSource(GameObject source, AnimationClip idle)
+    {
+        portraitSource = source;
+        portraitIdle = idle;
+        var clips = new System.Collections.Generic.List<RectTransform>();
+        foreach (var mask in GetComponentsInParent<RectMask2D>()) clips.Add(mask.rectTransform);
+        foreach (var mask in GetComponentsInParent<Mask>()) clips.Add(mask.rectTransform);
+        portraitClips = clips.ToArray();
+        nextPortraitVisibilityCheck = 0;
+    }
+
+    private void Update()
+    {
+        if (portraitSource == null || Employee == null || avatarBackground == null ||
+            Time.unscaledTime < nextPortraitVisibilityCheck) return;
+        nextPortraitVisibilityCheck = Time.unscaledTime + .15f;
+        bool visible = true;
+        foreach (var clip in portraitClips)
+        {
+            if (clip == null) continue;
+            Bounds bounds = RectTransformUtility.CalculateRelativeRectTransformBounds(clip, avatarBackground.rectTransform);
+            if (!clip.rect.Overlaps(new Rect(bounds.min.x, bounds.min.y, bounds.size.x, bounds.size.y)))
+            { visible = false; break; }
+        }
+        if (visible && (portraitStage == null || portraitStage.Texture == null))
+        {
+            if (portraitStage == null) portraitStage = gameObject.AddComponent<AlmanacPreviewStage>();
+            if (portraitStage.ShowStaffPortrait(portraitSource, portraitIdle, Employee))
+                SetPortraitTexture(portraitStage.Texture);
+        }
+        if (portraitStage != null) portraitStage.SetStaffPortraitVisible(visible);
+    }
+
 
     public EmployeeData Employee { get; private set; }
     public Button PrimaryButton => primaryButton;
@@ -142,6 +182,29 @@ public sealed class ManagementEmployeeCardUI : MonoBehaviour
         ConfigureButton(primaryButton, primaryLabel, primaryAction, onPrimary, primaryEnabled);
         ConfigureButton(secondaryButton, secondaryLabel, secondaryAction, onSecondary, secondaryEnabled);
         ConfigureEmptySlotButton(employee == null ? onEmptySlot : null);
+    }
+
+    public void SetPortraitTexture(Texture portrait)
+    {
+        if (avatarBackground == null) return;
+        if (portrait != null && avatarPortrait == null)
+        {
+            var image = new GameObject("EmployeeHeadPortrait", typeof(RectTransform), typeof(RawImage));
+            image.transform.SetParent(avatarBackground.transform, false);
+            var rect = (RectTransform)image.transform;
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+            avatarPortrait = image.GetComponent<RawImage>();
+            avatarPortrait.raycastTarget = false;
+        }
+        if (avatarPortrait != null)
+        {
+            avatarPortrait.texture = portrait;
+            avatarPortrait.gameObject.SetActive(portrait != null);
+        }
+        if (avatarInitial != null) avatarInitial.gameObject.SetActive(portrait == null);
     }
 
     public void PlayAttentionBop()

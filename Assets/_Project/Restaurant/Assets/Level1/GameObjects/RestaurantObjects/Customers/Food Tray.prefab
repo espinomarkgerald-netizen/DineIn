@@ -396,6 +396,8 @@ MonoBehaviour:
   leftGrip: {fileID: 980210000000000004}
   rightGrip: {fileID: 980210000000000006}
   carryWorldScale: 160
+  staffGripOffset: {x: 0, y: 0.45, z: 0.35}
+  trolleyEulerAngles: {x: 0, y: 0, z: 0}
 --- !u!65 &2640270774423877835
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -461,6 +463,7 @@ MonoBehaviour:
   outlineMode: 0
   outlineColor: {r: 1, g: 1, b: 1, a: 1}
   outlineWidth: 4
+  targetRenderers: []
   precomputeOutline: 0
   bakeKeys: []
   bakeValues: []

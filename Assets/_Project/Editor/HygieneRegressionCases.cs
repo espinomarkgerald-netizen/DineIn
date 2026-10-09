@@ -47,6 +47,9 @@ public static class HygieneRegressionCases
             Require(view != null, "Staff dialogue must reuse valid complaint bindings.");
             Require(canvas.GetComponentsInChildren<ManagerComplaintSystem>(true).Length == 0, "Cloning presentation must not clone the complaint controller.");
             Require(view.buttons.Length == 3 && view.labels.Length == 3, "Kitchen needs three valid choices.");
+            Require(view.animatedPortrait != null && view.animatedPortrait.rectTransform.sizeDelta.x >= 176f,
+                "Hygiene report needs its large animated portrait.");
+            foreach (var label in view.labels) Require(label.color == Color.white, "Green button labels must be white.");
             foreach (var button in view.buttons)
                 Require((button.targetGraphic as Image)?.sprite == HygieneCleaningPresentation.Load().choiceButton
                     && button.transition == Selectable.Transition.ColorTint,

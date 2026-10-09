@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 
+[DefaultExecutionOrder(100)]
 public class WaiterHands : MonoBehaviour
 {
     public static WaiterHands Instance { get; private set; }
@@ -136,6 +137,21 @@ public class WaiterHands : MonoBehaviour
     {
         gripPoint = trolleyGripPoint;
         return gripPoint != null;
+    }
+
+    private Animator carryAnimator;
+    private FoodTray posedTray;
+    private FoodTrayCarryPose trayPose;
+    private void LateUpdate()
+    {
+        if (!HasTray || !holdingTray.transform.IsChildOf(TrayHoldPoint)) return;
+        if (carryAnimator == null) carryAnimator = GetComponentInChildren<Animator>();
+        if (posedTray != holdingTray)
+        {
+            posedTray = holdingTray;
+            trayPose = holdingTray.GetComponent<FoodTrayCarryPose>();
+        }
+        trayPose?.AlignStaffHands(transform, carryAnimator);
     }
 
     private void Awake()

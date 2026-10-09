@@ -41,6 +41,8 @@ public class AutonomousStaffBot : MonoBehaviour
 
     [Header("Idle Presentation")]
     [SerializeField] private bool enableIdlePresentation;
+    [Tooltip("Maximum idle turn away from the home marker's forward direction. Use a narrow angle for counter staff.")]
+    [SerializeField, Range(0f, 180f)] private float idleLookYawLimit = 180f;
     [SerializeField] private Vector2 idleLookIntervalRange = new Vector2(2.5f, 5.5f);
     [SerializeField] private Vector2 happyIdleIntervalRange = new Vector2(7f, 13f);
     [SerializeField] private float idleTurnSpeed = 4f;
@@ -362,6 +364,7 @@ public class AutonomousStaffBot : MonoBehaviour
 
     public IEnumerator MoveTo(Transform target)
     {
+        LastMoveSucceeded = false;
         if (target == null)
             yield break;
 
@@ -488,7 +491,8 @@ public class AutonomousStaffBot : MonoBehaviour
             ? sampleRadiusOverride
             : destinationSampleRadius;
 
-        if (NavMesh.SamplePosition(destination, out NavMeshHit hit, sampleRadius, NavMesh.AllAreas))
+        var filter = new NavMeshQueryFilter { agentTypeID = agent.agentTypeID, areaMask = agent.areaMask };
+        if (NavMesh.SamplePosition(destination, out NavMeshHit hit, sampleRadius, filter))
             destination = hit.position;
         else
         {
@@ -541,7 +545,7 @@ public class AutonomousStaffBot : MonoBehaviour
                 break;
             }
 
-            if (!agent.pathPending && agent.pathStatus == NavMeshPathStatus.PathInvalid)
+            if (!agent.pathPending && agent.pathStatus != NavMeshPathStatus.PathComplete)
             {
                 Debug.LogWarning($"[AutonomousStaffBot] {name} could not find a valid path.", this);
                 break;
@@ -649,13 +653,16 @@ public class AutonomousStaffBot : MonoBehaviour
                 if (direction.sqrMagnitude <= 0.04f)
                     continue;
 
+                Vector3 homeForward = (homePoint != null ? homePoint.rotation : fallbackHomeRotation) * Vector3.forward;
+                if (Vector3.Angle(homeForward, direction) > idleLookYawLimit)
+                    continue;
                 idleLookRotation = Quaternion.LookRotation(direction.normalized, Vector3.up);
                 return;
             }
         }
 
         Quaternion homeRotation = homePoint != null ? homePoint.rotation : fallbackHomeRotation;
-        idleLookRotation = homeRotation * Quaternion.Euler(0f, Random.Range(-65f, 65f), 0f);
+        idleLookRotation = homeRotation * Quaternion.Euler(0f, Random.Range(-Mathf.Min(65f, idleLookYawLimit), Mathf.Min(65f, idleLookYawLimit)), 0f);
     }
 
     private void StartHappyIdle()

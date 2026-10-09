@@ -425,6 +425,7 @@ public class EmployeeManager : MonoBehaviour
         }
 
         MigrateLegacyKitchenRoles();
+        EnsureDistinctEmployeeNames();
         int loadedDay = Mathf.Max(1, data.currentDay);
         int latestAllowedRefresh = loadedDay + Mathf.Max(1, applicantRefreshIntervalDays);
         applicantNextRefreshDay = data.employeeApplicantNextRefreshDay > 0
@@ -442,6 +443,31 @@ public class EmployeeManager : MonoBehaviour
         AutoAssignSoleHires();
 
         AssignmentsChanged?.Invoke();
+    }
+
+    private void EnsureDistinctEmployeeNames()
+    {
+        if (generator == null) generator = FindFirstObjectByType<EmployeeGenerator>();
+        var used = new List<string>();
+        // Keep the names players already know for hired employees.
+        for (int pass = 0; pass < 2; pass++)
+            foreach (EmployeeData employee in allEmployees)
+            {
+                if (employee == null || employee.hired != (pass == 0)) continue;
+                if (string.IsNullOrWhiteSpace(employee.employeeName) ||
+                    used.Exists(name => string.Equals(name, employee.employeeName, StringComparison.OrdinalIgnoreCase)))
+                    employee.employeeName = generator != null ? generator.FirstUnusedName(used) : FirstUnusedFallback(used);
+                used.Add(employee.employeeName);
+            }
+    }
+
+    private static string FirstUnusedFallback(List<string> used)
+    {
+        for (int number = 1; ; number++)
+        {
+            string name = "Staff " + number;
+            if (!used.Exists(candidate => string.Equals(candidate, name, StringComparison.OrdinalIgnoreCase))) return name;
+        }
     }
 
     private void RebuildRoleGroups()

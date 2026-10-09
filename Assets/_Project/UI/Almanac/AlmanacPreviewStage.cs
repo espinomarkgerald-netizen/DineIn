@@ -36,16 +36,24 @@ public sealed class AlmanacPreviewStage : MonoBehaviour
     private float idleLength;
     private float introductionLength;
     private float animationTime;
+    private static readonly HashSet<int> portraitSlots = new HashSet<int>();
+    private int portraitSlot = -1;
+    private bool staffPortrait;
+    private bool portraitVisible;
+    private float portraitElapsed;
+    [SerializeField, Range(8, 30)] private int portraitFramesPerSecond = 15;
+
     private readonly HashSet<int> warnedEntries = new HashSet<int>();
 
     public Texture Texture => texture;
     public int EffectiveTextureSize => Mathf.Min(SystemInfo.maxTextureSize,
-        Mathf.Clamp(Application.isMobilePlatform ? mobileTextureSize : textureSize, 512, 1536));
+        Mathf.Clamp(Application.isMobilePlatform ? mobileTextureSize : textureSize, staffPortrait ? 256 : 512, 1536));
 
     /// <summary>Variant zero is the first configured variant, or the entry's base prefab.</summary>
     public bool Show(AlmanacEntryData entry, int variant = 0)
     {
         ClearVisual();
+        staffPortrait = false;
         if (entry == null || entry.previewKind == AlmanacPreviewKind.Image)
         {
             Hide();
@@ -96,6 +104,123 @@ public sealed class AlmanacPreviewStage : MonoBehaviour
         FrameVisual(bounds, horizontalRadius, framing, entry.previewFrameFill);
         previewCamera.enabled = true;
         return true;
+    }
+
+    /// <summary>Reuse the visual-only stage for the actual on-duty staff member.</summary>
+    public bool ShowStaffPortrait(GameObject worker, AnimationClip idle, EmployeeData employee = null)
+    {
+        ClearVisual();
+        if (worker == null) { Hide(); return false; }
+        staffPortrait = true;
+        portraitVisible = true;
+        if (portraitSlot < 0)
+        {
+            portraitSlot = 0;
+            while (portraitSlots.Contains(portraitSlot)) portraitSlot++;
+            portraitSlots.Add(portraitSlot);
+        }
+        stagePosition = new Vector3(10030 + portraitSlot * 30, -10000, 10000);
+        textureSize = mobileTextureSize = 256;
+        EnsureStage();
+        turntable.localRotation = Quaternion.Euler(0, 170, 0);
+        turntable.localScale = Vector3.one;
+        modelOffset = new GameObject("Staff portrait framing");
+        modelOffset.transform.SetParent(turntable, false);
+        // HR applies a new employee recipe. Copying an already-customized worker first
+        // leaves duplicate bone paths: the Animator drives the old rig while the new
+        // face mesh is bound to the other one. Start with an empty animation root.
+        GameObject visual;
+        if (employee != null)
+        {
+            visual = new GameObject("Employee portrait", typeof(Animator));
+            visual.transform.SetParent(modelOffset.transform, false);
+        }
+        else
+            visual = CreateVisualCopy(worker, modelOffset.transform, previewLayer);
+        visual.transform.localRotation = Quaternion.identity;
+        visual.SetActive(true);
+        // Gameplay may disable an off-duty animator. The isolated preview always animates.
+        var portraitAnimator = visual.GetComponentInChildren<Animator>(true);
+        if (portraitAnimator != null) portraitAnimator.enabled = true;
+        if (employee != null)
+        {
+            visual.AddComponent<DineIn.Appearance.CharacterAppearance>();
+            DineIn.Appearance.EmployeeAppearance.Bind(
+                visual, employee, employee.role, FastFoodScene.Contains(gameObject.scene));
+            // Applying the saved recipe instantiates fresh mesh children on Default.
+            foreach (Transform part in visual.GetComponentsInChildren<Transform>(true))
+                part.gameObject.layer = previewLayer;
+        }
+        if (portraitAnimator != null)
+        {
+            portraitAnimator.enabled = true;
+            portraitAnimator.Rebind();
+            portraitAnimator.Update(0);
+        }
+        StartAnimation(visual, idle, null);
+        if (!TryGetFramingBounds(visual, out var bounds, out float radius))
+        { Hide(); return false; }
+        var head = portraitAnimator != null && portraitAnimator.isHuman
+            ? portraitAnimator.GetBoneTransform(HumanBodyBones.Head) : null;
+        if (head != null)
+        {
+            float height = bounds.size.y;
+            Vector3 center = stage.transform.InverseTransformPoint(head.position) + Vector3.up * height * .12f;
+            bounds = new Bounds(center, new Vector3(height * .62f, height * .62f, height * .5f));
+            var headMeshes = new List<Renderer>();
+            foreach (var renderer in visual.GetComponentsInChildren<Renderer>())
+                if (renderer.transform.IsChildOf(head) || renderer.name == "BodyHead" || renderer.name == "Face" || renderer.name == "Ears")
+                    headMeshes.Add(renderer);
+            if (headMeshes.Count > 0)
+            {
+                // Keep the portrait strictly head-only, including hair and role headwear.
+                foreach (var renderer in visual.GetComponentsInChildren<Renderer>())
+                    if (!headMeshes.Contains(renderer)) renderer.enabled = false;
+                var sample = new Mesh { hideFlags = HideFlags.HideAndDontSave };
+                var points = new List<Vector3>();
+                try { CaptureBounds(headMeshes.ToArray(), sample, points); }
+                finally { Dispose(sample); }
+                if (points.Count > 0)
+                {
+                    bounds = new Bounds(points[0], Vector3.zero);
+                    foreach (var point in points) bounds.Encapsulate(point);
+                    // Head-only framing, with a little room for idle motion and hair/hat edges.
+                    bounds.Expand(height * .04f);
+                }
+            }
+            radius = Mathf.Max(bounds.extents.x, bounds.extents.z);
+        }
+        if (head == null) { Hide(); return false; }
+        FrameVisual(bounds, radius, AlmanacFraming.Character, .88f);
+        previewCamera.enabled = false;
+        previewCamera.Render();
+        return true;
+    }
+
+    /// <summary>Capture one small still, so a rail of HR cards needs only one preview camera.</summary>
+    public Texture2D CapturePortraitTexture(int size = 160)
+    {
+        if (previewCamera == null || texture == null) return null;
+        int pixels = Mathf.Clamp(size, 64, 256);
+        var destination = RenderTexture.GetTemporary(pixels, pixels, 0, RenderTextureFormat.ARGB32);
+        var previous = RenderTexture.active;
+        try
+        {
+            previewCamera.Render();
+            Graphics.Blit(texture, destination);
+            RenderTexture.active = destination;
+            var portrait = new Texture2D(pixels, pixels, TextureFormat.RGBA32, false);
+            portrait.ReadPixels(new Rect(0, 0, pixels, pixels), 0, 0);
+            portrait.Apply(false, false);
+            portrait.wrapMode = TextureWrapMode.Clamp;
+            portrait.filterMode = FilterMode.Bilinear;
+            return portrait;
+        }
+        finally
+        {
+            RenderTexture.active = previous;
+            RenderTexture.ReleaseTemporary(destination);
+        }
     }
 
     private void WarnPreview(AlmanacEntryData entry, string reason)
@@ -169,6 +294,7 @@ public sealed class AlmanacPreviewStage : MonoBehaviour
             keyLight = AddLight("Preview key", new Vector3(-1.5f, 1.8f, -3), new Color(1, 0.97f, 0.91f));
             fillLight = AddLight("Preview fill", new Vector3(1.8f, 0.7f, -2.8f), new Color(0.91f, 0.96f, 1));
         }
+        stage.transform.SetPositionAndRotation(stagePosition, Quaternion.identity);
         stage.SetActive(true);
         keyLight.intensity = keyLightIntensity;
         fillLight.intensity = fillLightIntensity;
@@ -262,9 +388,24 @@ public sealed class AlmanacPreviewStage : MonoBehaviour
         return playable;
     }
 
+    public void SetStaffPortraitVisible(bool visible)
+    {
+        portraitVisible = visible;
+        if (staffPortrait && stage != null) stage.SetActive(visible);
+    }
+
     private void Update()
     {
-        if (animationGraph.IsValid()) EvaluateAnimation(Time.unscaledDeltaTime);
+        if (staffPortrait)
+        {
+            if (!portraitVisible || modelOffset == null) return;
+            portraitElapsed += Time.unscaledDeltaTime;
+            if (portraitElapsed < 1f / portraitFramesPerSecond) return;
+            if (animationGraph.IsValid()) EvaluateAnimation(portraitElapsed);
+            portraitElapsed = 0;
+            if (previewCamera != null) previewCamera.Render();
+        }
+        else if (animationGraph.IsValid()) EvaluateAnimation(Time.unscaledDeltaTime);
     }
 
     private void EvaluateAnimation(float deltaTime)
@@ -310,6 +451,8 @@ public sealed class AlmanacPreviewStage : MonoBehaviour
         turntable = null;
         previewCamera = null;
         keyLight = fillLight = null;
+        if (portraitSlot >= 0) portraitSlots.Remove(portraitSlot);
+        portraitSlot = -1;
     }
 
     private void OnDestroy() => Release();
@@ -392,8 +535,11 @@ public sealed class AlmanacPreviewStage : MonoBehaviour
     {
         foreach (var renderer in renderers)
         {
-            if (!renderer.enabled || renderer.forceRenderingOff || !renderer.gameObject.activeInHierarchy ||
-                renderer.GetComponentInParent<Canvas>() != null) continue;
+            if (!renderer.enabled || renderer.forceRenderingOff || !renderer.gameObject.activeInHierarchy) continue;
+            // The preview stage may itself live beneath an HR/report Canvas.
+            // Exclude only UI belonging to the copied model (e.g. nameplates).
+            var canvas = renderer.GetComponentInParent<Canvas>();
+            if (canvas != null && canvas.transform.IsChildOf(turntable)) continue;
             Bounds localBounds;
             if (renderer is SkinnedMeshRenderer skin && skin.sharedMesh != null)
             {

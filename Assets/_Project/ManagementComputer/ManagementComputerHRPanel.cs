@@ -36,6 +36,7 @@ public sealed class ManagementComputerHRPanel : MonoBehaviour
     private bool editable;
     private Coroutine applicantFocusRoutine;
     private Coroutine scrollRestoreRoutine;
+    private DineIn.Appearance.CharacterAppearance portraitSource;
 
     public EmployeeDepartment CurrentDepartment { get; private set; }
     public ManagementHRView CurrentView { get; private set; }
@@ -125,6 +126,35 @@ public sealed class ManagementComputerHRPanel : MonoBehaviour
         MultiplayerRestaurantBridge.StateChanged -= RefreshMultiplayerView;
         if (manager != null)
             manager.ApplicantsRefreshed -= RefreshApplicantBadge;
+    }
+
+    private void BindEmployeePortrait(ManagementEmployeeCardUI card, EmployeeData employee)
+    {
+        if (portraitSource == null)
+        {
+            var player = FindFirstObjectByType<ManagerPlayer>();
+            if (player != null && player.gameObject.scene == gameObject.scene)
+                portraitSource = player.GetComponent<DineIn.Appearance.CharacterAppearance>();
+            if (portraitSource == null)
+                foreach (var appearance in FindObjectsByType<DineIn.Appearance.CharacterAppearance>(FindObjectsSortMode.None))
+                    if (appearance.gameObject.scene == gameObject.scene)
+                    {
+                        portraitSource = appearance;
+                        break;
+                    }
+        }
+        if (portraitSource == null) return;
+        AnimationClip idle = null;
+        var animator = portraitSource.GetComponentInChildren<Animator>(true);
+        if (animator != null && animator.runtimeAnimatorController != null)
+            foreach (AnimationClip clip in animator.runtimeAnimatorController.animationClips)
+                if (clip != null && clip.name.IndexOf("idle", StringComparison.OrdinalIgnoreCase) >= 0 &&
+                    clip.name.IndexOf("carry", StringComparison.OrdinalIgnoreCase) < 0)
+                {
+                    idle = clip;
+                    if (clip.name.IndexOf("happy", StringComparison.OrdinalIgnoreCase) < 0) break;
+                }
+        card.SetPortraitSource(portraitSource.gameObject, idle);
     }
 
     private void RefreshMultiplayerView()
@@ -235,7 +265,8 @@ public sealed class ManagementComputerHRPanel : MonoBehaviour
                 RefreshCurrentView,
                 showEmployed,
                 showApplicants,
-                ShowApplicantsForRole);
+                ShowApplicantsForRole,
+                BindEmployeePortrait);
             section.GetComponent<UIRevealAnimation>()?.Play();
         }
     }

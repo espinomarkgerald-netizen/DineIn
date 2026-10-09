@@ -56,7 +56,8 @@ public sealed class ManagementHRRoleSectionUI : MonoBehaviour
         Action onRosterChanged,
         bool showEmployed = true,
         bool showApplicants = true,
-        Action<EmployeeRole> onEmptySlotSelected = null)
+        Action<EmployeeRole> onEmptySlotSelected = null,
+        Action<ManagementEmployeeCardUI, EmployeeData> portraitForEmployee = null)
     {
         Role = role;
         ResolveRailRoots();
@@ -119,6 +120,7 @@ public sealed class ManagementHRRoleSectionUI : MonoBehaviour
                         if (manager.FireEmployee(captured)) onRosterChanged?.Invoke();
                     },
                     editable);
+                portraitForEmployee?.Invoke(card, employee);
                 PlayCardReveal(card, employeeRevealIndex++);
             }
         }
@@ -152,6 +154,7 @@ public sealed class ManagementHRRoleSectionUI : MonoBehaviour
                             () => BeginApplicantReflow(card, manager, onRosterChanged));
                     },
                     editable);
+                portraitForEmployee?.Invoke(card, applicant);
                 PlayCardReveal(card, applicantRevealIndex++);
             }
         }

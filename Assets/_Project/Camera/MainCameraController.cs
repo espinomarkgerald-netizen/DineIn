@@ -195,6 +195,23 @@ public class MainCameraController : MonoBehaviour
         }
     }
 
+    public void CenterOnWorldPoint(Vector3 worldPos, bool snapInstant = false)
+    {
+        if (cam == null) cam = Camera.main;
+        if (cam == null || Mathf.Abs(cam.transform.forward.y) < .0001f)
+        {
+            SetRigTargetPosition(worldPos, snapInstant);
+            return;
+        }
+
+        // The isometric camera is offset from its rig. Move the rig by the
+        // difference between the player's feet and the screen-center ray.
+        float distanceToPlayerHeight = (worldPos.y - cam.transform.position.y) / cam.transform.forward.y;
+        Vector3 centerAtPlayerHeight = cam.transform.position + cam.transform.forward * distanceToPlayerHeight;
+        Vector3 centeredRig = transform.position + worldPos - centerAtPlayerHeight;
+        SetRigTargetPosition(centeredRig, snapInstant);
+    }
+
     public Vector3 GetRigTargetPosition()
     {
         return targetRigPos;

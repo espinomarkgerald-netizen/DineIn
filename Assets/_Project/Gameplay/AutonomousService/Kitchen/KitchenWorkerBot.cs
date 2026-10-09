@@ -7,6 +7,7 @@ using UnityEngine;
 /// KitchenManager remains the authority for timing and tray creation; this class
 /// only selects work points and delegates movement to AutonomousStaffBot.
 /// </summary>
+[DefaultExecutionOrder(11001)]
 public class KitchenWorkerBot : MonoBehaviour
 {
     [Header("Employee Assignment")]
@@ -17,6 +18,14 @@ public class KitchenWorkerBot : MonoBehaviour
     [SerializeField] private Transform homePoint;
     [SerializeField] private Transform[] workPoints;
     [SerializeField] private float waitAtPoint = 1.5f;
+    [Tooltip("Only use a registered hygiene station when it is near this worker's authored work point.")]
+    [SerializeField, Min(0f)] private float maximumStationDetour = 3f;
+
+    [Header("Order Preparation Pose")]
+    [SerializeField, Min(.3f)] private float preparationCycleSeconds = 1.1f;
+    [SerializeField, Range(.15f, .5f)] private float workSurfaceHeightFraction = .3f;
+    [SerializeField, Range(.1f, .45f)] private float workReachFraction = .28f;
+    [SerializeField, Range(.04f, .2f)] private float handSpacingFraction = .1f;
     [Tooltip("Fast Food preparation products handled at this station. Assembler accepts every order.")]
     [SerializeField] private ItemTypeKitchen[] stationProducts;
 
@@ -41,6 +50,10 @@ public class KitchenWorkerBot : MonoBehaviour
     private int currentIndex;
     private int hygieneStationIndex;
     private bool subscribed;
+    private Animator workAnimator;
+    private Avatar workAvatar;
+    private Transform leftUpper, leftLower, leftHand, rightUpper, rightLower, rightHand;
+    private float bodyHeight;
 
     public EmployeeRole EmployeeRole => employeeRole;
 
@@ -108,6 +121,10 @@ public class KitchenWorkerBot : MonoBehaviour
 
     private void LateUpdate()
     {
+        if (employeeRole != EmployeeRole.Pianist && activeOrders.Count > 0 &&
+            staffBot != null && staffBot.CurrentState == AutonomousStaffBot.StaffState.Working)
+            ApplyPreparationPose();
+
         if(performanceHands==null || performanceHands.Length==0)return;
         if(IsPerforming)
         {
@@ -116,6 +133,39 @@ public class KitchenWorkerBot : MonoBehaviour
         }
         else RestorePerformanceHands();
     }
+    private void ApplyPreparationPose()
+    {
+        if (workAnimator == null) workAnimator = GetComponentInChildren<Animator>(true);
+        if (workAnimator == null || !workAnimator.isHuman) return;
+        if (workAnimator.avatar != workAvatar || leftHand == null || rightHand == null)
+        {
+            workAvatar = workAnimator.avatar;
+            leftUpper = workAnimator.GetBoneTransform(HumanBodyBones.LeftUpperArm);
+            leftLower = workAnimator.GetBoneTransform(HumanBodyBones.LeftLowerArm);
+            leftHand = workAnimator.GetBoneTransform(HumanBodyBones.LeftHand);
+            rightUpper = workAnimator.GetBoneTransform(HumanBodyBones.RightUpperArm);
+            rightLower = workAnimator.GetBoneTransform(HumanBodyBones.RightLowerArm);
+            rightHand = workAnimator.GetBoneTransform(HumanBodyBones.RightHand);
+            var appearance = GetComponent<DineIn.Appearance.CharacterAppearance>();
+            bodyHeight = appearance != null && appearance.TryGetBodyBounds(out var bounds)
+                ? Mathf.Clamp(bounds.size.y, .7f, 5f) : 3f;
+        }
+        if (leftHand == null || rightHand == null) return;
+
+        float phase = Time.time * Mathf.PI * 2f / preparationCycleSeconds;
+        Vector3 center = transform.position + Vector3.up * bodyHeight * workSurfaceHeightFraction
+            + transform.forward * bodyHeight * workReachFraction;
+        Vector3 leftTarget = center - transform.right * bodyHeight * handSpacingFraction
+            + transform.forward * bodyHeight * (.035f * Mathf.Sin(phase));
+        Vector3 rightTarget = center + transform.right * bodyHeight * handSpacingFraction
+            + transform.forward * bodyHeight * (.035f * Mathf.Sin(phase + Mathf.PI));
+        Quaternion leftRotation = leftHand.rotation, rightRotation = rightHand.rotation;
+        AlienProceduralAnimation.ApplyCcdArm(leftUpper, leftLower, leftHand, leftTarget, 1f, 12);
+        AlienProceduralAnimation.ApplyCcdArm(rightUpper, rightLower, rightHand, rightTarget, 1f, 12);
+        leftHand.rotation = leftRotation;
+        rightHand.rotation = rightRotation;
+    }
+
     private void RestorePerformanceHands()
     {
         if(!handsPerforming)return;
@@ -156,12 +206,9 @@ public class KitchenWorkerBot : MonoBehaviour
         kitchenManager.OrderFinished += HandleOrderFinished;
         kitchenManager.OrderForecastChanged += HandleForecastChanged;
         subscribed = true;
-        if (FastFoodScene.Contains(gameObject.scene))
-        {
-            var forecasts = new List<KitchenManager.OrderForecast>();
-            kitchenManager.CopyActiveForecasts(forecasts);
-            foreach (var forecast in forecasts) HandleForecastChanged(forecast);
-        }
+        var forecasts = new List<KitchenManager.OrderForecast>();
+        kitchenManager.CopyActiveForecasts(forecasts);
+        foreach (var forecast in forecasts) HandleForecastChanged(forecast);
     }
 
     private void UnbindKitchenManager()
@@ -198,7 +245,6 @@ public class KitchenWorkerBot : MonoBehaviour
 
     private void HandleForecastChanged(KitchenManager.OrderForecast forecast)
     {
-        if (!FastFoodScene.Contains(gameObject.scene)) return;
         // Takeout orders can be accepted while paused, then released without a new OrderStarted event.
         if (forecast.State == KitchenManager.ForecastState.Cooking && !forecast.IsPaused && !forecast.AwaitingSpawn)
             HandleOrderStarted(forecast.Group, forecast.OrderNumber);
@@ -227,13 +273,15 @@ public class KitchenWorkerBot : MonoBehaviour
             Transform equipment = null;
             bool registeredStation = employeeRole != EmployeeRole.Pianist && !FastFoodScene.Contains(gameObject.scene) && HygieneManager.Instance != null && HygieneManager.Instance.TryGetWorkStation(
                 employeeRole, ref hygieneStationIndex, transform.position, out equipment, out approach);
+            if (registeredStation && Vector3.Distance(approach, target.position) > maximumStationDetour)
+                registeredStation = false;
             if (registeredStation) yield return staffBot.MoveWithin(approach, .25f, .5f, 12f);
             else yield return staffBot.MoveTo(target);
 
             if (staffBot.LastMoveSucceeded && HasWork)
             {
-                if (employeeRole == EmployeeRole.Pianist)
-                    yield return staffBot.FaceTowards(target.position + target.forward);
+                yield return staffBot.FaceTowards(registeredStation && equipment != null
+                    ? equipment.position : target.position + target.forward);
                 bool wasCleaning = HygieneManager.Instance?.State.Cleaning == true;
                 yield return staffBot.WorkFor(waitAtPoint);
                 if (!wasCleaning && activeOrders.Count > 0) HygieneManager.Instance?.RecordKitchenUse(registeredStation ? equipment : target, autonomous: true);

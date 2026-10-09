@@ -11,6 +11,21 @@ public class EmployeeGenerator : MonoBehaviour
                                                "Montefaro","Miguel","Noel","Christian",
                                                "Joseph","Aljon","Lucky"};
 
+    [Tooltip("Names that should generate female staff. Unisex names keep either body.")]
+    [SerializeField] private string[] femaleNames = { "Maria", "Nina", "Mary", "Floribel" };
+    [SerializeField] private string[] unisexNames = { "Sam", "Fumi", "Riley", "Tachu", "Montefaro", "Lucky" };
+
+    public string PreferredBodyForName(string fullName)
+    {
+        string first = (fullName ?? "").Trim().Split(' ')[0];
+        bool Matches(string value) => string.Equals(value, first, System.StringComparison.OrdinalIgnoreCase);
+        if (System.Array.Exists(femaleNames, Matches)) return "female";
+        if (System.Array.Exists(unisexNames, Matches)) return null;
+        return System.Array.Exists(names, Matches) ? "male" : null;
+    }
+
+    private static readonly string[] surnames = { "Reyes", "Santos", "Cruz", "Garcia", "Rivera", "Mendoza", "Flores", "Ramos" };
+
     [SerializeField] private int employeesPerRole = 3;
     [SerializeField] private int minStars = 1;
     [SerializeField] private int maxStars = 5;
@@ -83,16 +98,32 @@ public class EmployeeGenerator : MonoBehaviour
         return pool;
     }
 
-    /// <summary>Returns a unique name from the pool. Falls back to allowing duplicates if the pool is exhausted.</summary>
     private string PickName(List<string> usedNames)
     {
-        if (usedNames.Count >= names.Length)
-            return names[Random.Range(0, names.Length)];
-
-        string name;
-        do { name = names[Random.Range(0, names.Length)]; }
-        while (usedNames.Contains(name));
-
-        return name;
+        var available = new List<string>();
+        foreach (string name in names)
+            if (!string.IsNullOrWhiteSpace(name) && !ContainsName(usedNames, name))
+                available.Add(name);
+        return available.Count > 0 ? available[Random.Range(0, available.Count)] : FirstUnusedName(usedNames);
     }
+
+    // Also repairs older saved applicant pools without changing employee identities.
+    public string FirstUnusedName(IEnumerable<string> unavailableNames)
+    {
+        var used = new List<string>(unavailableNames ?? System.Array.Empty<string>());
+        foreach (string name in names)
+            if (!string.IsNullOrWhiteSpace(name) && !ContainsName(used, name)) return name;
+        foreach (string name in names)
+            foreach (string surname in surnames)
+            {
+                string fullName = name + " " + surname;
+                if (!string.IsNullOrWhiteSpace(name) && !ContainsName(used, fullName)) return fullName;
+            }
+        string fallback = names.Length > 0 && !string.IsNullOrWhiteSpace(names[0]) ? names[0] : "Staff";
+        for (int number = 2; ; number++)
+            if (!ContainsName(used, fallback + " " + number)) return fallback + " " + number;
+    }
+
+    private static bool ContainsName(List<string> used, string name) =>
+        used.Exists(candidate => string.Equals(candidate, name, System.StringComparison.OrdinalIgnoreCase));
 }

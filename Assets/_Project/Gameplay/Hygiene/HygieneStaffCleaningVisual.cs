@@ -10,11 +10,14 @@ public sealed class HygieneStaffCleaningVisual : MonoBehaviour
     [SerializeField] private HygieneCleaningPresentation presentation;
     [SerializeField] private Transform mopAnchor;
     [SerializeField] private Transform bucketAnchor;
-    private Transform mop, bucket, hand;
+    private Transform mop, bucket;
     private readonly Queue<Vector3> trail = new();
     private Vector3 lastTrail, previous;
     private float bodyHeight, mopHeight, bucketHeight, floorHeight;
     private bool visible;
+    private Animator cleaningAnimator;
+    private Avatar cleaningAvatar;
+    private Transform leftUpper, leftLower, leftHand, rightUpper, rightLower, rightHand;
     private int shownDay;
     private string shownRun;
     public bool IsCleaning => visible;
@@ -30,16 +33,15 @@ public sealed class HygieneStaffCleaningVisual : MonoBehaviour
         if (mop != null && bucket != null) return true;
         if (presentation == null) presentation = HygieneCleaningPresentation.Load();
         if (presentation == null || presentation.mop == null || presentation.bucket == null) return false;
-        var animator = GetComponentInChildren<Animator>(true);
-        if (animator != null && animator.isHuman) hand = animator.GetBoneTransform(HumanBodyBones.RightHand);
-        if (hand == null)
-            foreach (var child in GetComponentsInChildren<Transform>(true))
-                if (child.name == "HandHoldPoint") { hand = child; break; }
-        if (hand == null) hand = transform;
-        if (mopAnchor == null) mopAnchor = Anchor("CleaningMopAnchor", hand);
+        cleaningAnimator = GetComponentInChildren<Animator>(true);
+        CacheArms();
+        if (mopAnchor == null) mopAnchor = Anchor("CleaningMopAnchor", transform);
         if (bucketAnchor == null) bucketAnchor = Anchor("CleaningBucketAnchor", transform);
-        var skin = GetComponentInChildren<SkinnedMeshRenderer>(true);
-        bodyHeight = skin != null ? Mathf.Clamp(skin.bounds.size.y, .7f, 3f) : 1.4f;
+        // The first skin may contain only the arms. Use the complete character,
+        // otherwise modular staff receive a miniature mop and bucket.
+        var look = GetComponent<DineIn.Appearance.CharacterAppearance>();
+        bodyHeight = look != null && look.TryGetBodyBounds(out var bounds)
+            ? Mathf.Clamp(bounds.size.y, .7f, 5f) : 3f;
         mopHeight = bodyHeight * .95f; bucketHeight = bodyHeight * .45f;
         mop = CreateProp(presentation.mop, "Cleaning Mop", mopHeight);
         bucket = CreateProp(presentation.bucket, "Cleaning Bucket", bucketHeight);
@@ -118,16 +120,41 @@ public sealed class HygieneStaffCleaningVisual : MonoBehaviour
                 bucket.rotation = Quaternion.Slerp(bucket.rotation, Quaternion.LookRotation(direction), 1f - Mathf.Exp(-12f * Time.deltaTime));
             if (Vector3.Distance(bucket.position, destination) < .06f) trail.Dequeue();
         }
-        // Sweep the head across the floor. The pole points through the hand grip;
-        // walking animates the actor, while the tool follows that animated grip.
-        float sweep = Mathf.Sin(Time.time * 8f) * bodyHeight * .10f;
-        Vector3 head = Ground(now + transform.forward * bodyHeight * .24f + transform.right * (bodyHeight * .15f + sweep));
-        Vector3 grip = mopAnchor.position;
-        if (grip.y < head.y + bodyHeight * .25f) grip = now + Vector3.up * bodyHeight * .6f;
-        Vector3 shaft = grip - head;
-        mop.SetPositionAndRotation(head, Quaternion.FromToRotation(Vector3.up, shaft.normalized));
-        SetWorldScale(mop, Mathf.Clamp(shaft.magnitude / (mopHeight * .7f), .7f, 1.3f));
+        float phase = Time.time * Mathf.PI * 2f / Mathf.Max(.5f, presentation.mopCycleSeconds);
+        ApplyMoppingPose(now, phase);
+    }
+
+    private void ApplyMoppingPose(Vector3 now, float phase)
+    {
+        CacheArms();
+        float sweep = Mathf.Sin(phase) * bodyHeight * presentation.mopSweepWidth;
+        Vector3 head = Ground(now + transform.forward * bodyHeight * (.34f + .055f * Mathf.Cos(phase))
+            + transform.right * sweep);
+        Vector3 grip = now + Vector3.up * bodyHeight * .53f + transform.forward * bodyHeight * .12f;
+        Vector3 shaft = (grip - head).normalized;
+        mop.SetPositionAndRotation(head, Quaternion.FromToRotation(Vector3.up, shaft));
+        SetWorldScale(mop, 1f);
         SetWorldScale(bucket, 1f);
+        if (leftHand != null && rightHand != null)
+        {
+            Quaternion l = leftHand.rotation, r = rightHand.rotation;
+            AlienProceduralAnimation.ApplyCcdArm(rightUpper, rightLower, rightHand, head + shaft * mopHeight * .58f, 1f, 12);
+            AlienProceduralAnimation.ApplyCcdArm(leftUpper, leftLower, leftHand, head + shaft * mopHeight * .76f, 1f, 12);
+            leftHand.rotation = l; rightHand.rotation = r;
+        }
+    }
+
+    private void CacheArms()
+    {
+        if (cleaningAnimator == null || !cleaningAnimator.isHuman) return;
+        if (cleaningAvatar == cleaningAnimator.avatar && leftHand != null) return;
+        cleaningAvatar = cleaningAnimator.avatar;
+        leftUpper = cleaningAnimator.GetBoneTransform(HumanBodyBones.LeftUpperArm);
+        leftLower = cleaningAnimator.GetBoneTransform(HumanBodyBones.LeftLowerArm);
+        leftHand = cleaningAnimator.GetBoneTransform(HumanBodyBones.LeftHand);
+        rightUpper = cleaningAnimator.GetBoneTransform(HumanBodyBones.RightUpperArm);
+        rightLower = cleaningAnimator.GetBoneTransform(HumanBodyBones.RightLowerArm);
+        rightHand = cleaningAnimator.GetBoneTransform(HumanBodyBones.RightHand);
     }
 
     private Vector3 Ground(Vector3 point)

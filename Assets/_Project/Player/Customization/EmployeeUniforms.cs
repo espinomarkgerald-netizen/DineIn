@@ -31,10 +31,22 @@ namespace DineIn.Appearance
         public static void Ensure(EmployeeData employee)
         {
             if (employee == null || MultiplayerRestaurantBridge.IsObserver) return;
-            // JsonUtility can materialize an empty nested recipe for pre-customization saves.
-            if (employee.appearance != null && employee.appearance.version == 2 && !string.IsNullOrWhiteSpace(employee.appearance.bodyId)) return;
+            var generator = UnityEngine.Object.FindFirstObjectByType<EmployeeGenerator>();
+            string preferredBody = generator != null ? generator.PreferredBodyForName(employee.employeeName) : null;
+            bool valid = employee.appearance != null && employee.appearance.version == 2 &&
+                !string.IsNullOrWhiteSpace(employee.appearance.bodyId);
+            if (valid && (preferredBody == null || employee.appearance.bodyId == preferredBody)) return;
             var catalog = AppearanceCatalog.Load();
-            if (catalog != null) employee.appearance = catalog.GenerateEmployee(employee.EmployeeID);
+            if (catalog == null) return;
+            var recipe = catalog.GenerateEmployee(employee.EmployeeID, preferredBody);
+            if (valid)
+            {
+                // Correct older mismatches without changing identity, complexion or face.
+                recipe.skinId = employee.appearance.skinId;
+                recipe.faceId = employee.appearance.faceId;
+                recipe.hairColorId = employee.appearance.hairColorId;
+            }
+            employee.appearance = catalog.Validate(recipe);
         }
         public static void Bind(GameObject worker, EmployeeData employee, EmployeeRole role, bool isFastFood)
         {
