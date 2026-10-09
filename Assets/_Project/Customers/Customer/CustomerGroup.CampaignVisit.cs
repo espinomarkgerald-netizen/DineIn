@@ -52,6 +52,7 @@ public partial class CustomerGroup
 
     private void OnDisable()
     {
+        CleanupFineDiningDrinks();
         StopFamilyPlay();
         assistedServiceOwner = null;
     }

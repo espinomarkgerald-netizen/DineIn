@@ -125,6 +125,20 @@ public sealed class ManagementHRRoleSectionUI : MonoBehaviour
             }
         }
 
+        if (showEmployed && EmployeeRoleCatalog.UsesFineDiningRoles && role == EmployeeRole.Waiter)
+        {
+            if (roleSummary != null) roleSummary.text += "   •   2 ACTIVE POSITIONS";
+            for (int i = Mathf.Max(1, employed.Count); i < manager.ActiveSlotLimit(role); i++)
+            {
+                var empty = Instantiate(cardPrefab, employedContent);
+                empty.name = "Empty_Waiter_" + (i + 1);
+                UnityEngine.Events.UnityAction openApplicants = onEmptySlotSelected == null
+                    ? null : () => onEmptySlotSelected(role);
+                empty.Bind(null, manager.salaryConfig, "EMPTY WAITER POSITION", string.Empty, null, false,
+                    string.Empty, null, false, openApplicants);
+                PlayCardReveal(empty, i);
+            }
+        }
         bool hasSpace = employed.Count < manager.HiringLimit(role);
         if (showApplicants)
         {

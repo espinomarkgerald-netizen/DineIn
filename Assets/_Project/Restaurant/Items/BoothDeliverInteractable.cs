@@ -42,6 +42,7 @@ public class BoothDeliverInteractable : MonoBehaviour, IInteractable
         var mover = RoleManager.Instance != null ? RoleManager.Instance.GetActivePlayerMovement() : null;
         if (mover == null) return;
 
+        if (booth != null && booth.CurrentGroup != null && booth.CurrentGroup.HasWineRefillRequest) return;
         if (CanAttemptInteract())
             Interact(mover);
     }
@@ -53,6 +54,7 @@ public class BoothDeliverInteractable : MonoBehaviour, IInteractable
         if (RoleManager.Instance == null) return false;
         if (!RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Waiter)) return false;
 
+        if (booth != null && booth.CurrentGroup != null && booth.CurrentGroup.HasWineRefillRequest) return true;
         var hands = WaiterHands.ActivePlayerHands;
         if (hands == null || !hands.HasTray) return false;
 
@@ -86,6 +88,8 @@ public class BoothDeliverInteractable : MonoBehaviour, IInteractable
     public void Interact(PlayerMovement mover)
     {
         if (MultiplayerCustomerInteractionBridge.TryServe(booth != null ? booth.CurrentGroup : null, mover)) return;
+        if (booth != null && booth.CurrentGroup != null && booth.CurrentGroup.HasWineRefillRequest)
+        { booth.CurrentGroup.BeginWineRefill(); return; }
         if (!CanAttemptInteract()) return;
 
         var hands = WaiterHands.For(mover);

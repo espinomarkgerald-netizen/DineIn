@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -48,7 +48,8 @@ public class TabManager : MonoBehaviour
 
     private void Start()
     {
-        if (tabs.Count == 0) return;
+        // A caller may already have selected the required page before Start.
+        if (tabs.Count == 0 || currentTab != null) return;
 
         // Hide all first to avoid “ghost states”
         foreach (var tab in tabs)
@@ -74,6 +75,14 @@ public class TabManager : MonoBehaviour
         }
 
         SwitchToTab(startTab);
+    }
+
+    public void SelectContent(GameObject content)
+    {
+        if (content == null) return;
+        Tab selectedTab = tabs.Find(tab => tab.content == content);
+        if (selectedTab != null && selectedTab != currentTab)
+            SwitchToTab(selectedTab);
     }
 
     public void SwitchToTab(Tab selectedTab)

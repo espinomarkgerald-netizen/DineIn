@@ -1,0 +1,53 @@
+if (UnityEditor.EditorApplication.isPlayingOrWillChangePlaymode) throw new System.Exception("Edit Mode only");
+var scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+if (scene.name != "Lobby3" || scene.isDirty) throw new System.Exception("Expected saved Lobby3; preserve any unsaved user edits.");
+var r = UnityEngine.Object.FindFirstObjectByType<FineDiningReservations>();
+var roles = UnityEngine.Object.FindFirstObjectByType<RoleManager>();
+if (r == null || roles == null || roles.waiter == null) throw new System.Exception("Missing existing bindings");
+var source = roles.waiter;
+var existing = source.transform.parent.Find("Second Waiter");
+var originalHome = UnityEngine.GameObject.Find("WaiterHomePoint");
+var origin = originalHome != null ? originalHome.transform.position : source.transform.position;
+UnityEngine.AI.NavMeshHit hit;
+if (!UnityEngine.AI.NavMesh.SamplePosition(origin + UnityEngine.Vector3.right * 2.5f, out hit, .6f, UnityEngine.AI.NavMesh.AllAreas)) throw new System.Exception("No valid second waiter position");
+var route = new UnityEngine.AI.NavMeshPath();
+if (!UnityEngine.AI.NavMesh.CalculatePath(origin, hit.position, UnityEngine.AI.NavMesh.AllAreas, route) || route.status != UnityEngine.AI.NavMeshPathStatus.PathComplete) throw new System.Exception("Unreachable idle point");
+System.IO.Directory.CreateDirectory("tools/Validation/Lobby3CriticalBackup");
+if (!System.IO.File.Exists("tools/Validation/Lobby3CriticalBackup/Lobby3.unity")) System.IO.File.Copy(scene.path,"tools/Validation/Lobby3CriticalBackup/Lobby3.unity");
+FineDiningReceptionAuthoring.ApplyBubblePresentation(r);
+const string orderPath = "Assets/_Project/ManagementComputer/Prefabs/FineDiningOrderAlert.prefab";
+if (UnityEditor.AssetDatabase.LoadAssetAtPath<UnityEngine.GameObject>(orderPath) == null && !UnityEditor.AssetDatabase.CopyAsset("Assets/_Project/Restaurant/Assets/Customers/Icons/OrderAlertUI.prefab", orderPath)) throw new System.Exception("Cannot copy existing order bubble");
+var orderRoot = UnityEditor.PrefabUtility.LoadPrefabContents(orderPath);
+try {
+ var follow = orderRoot.GetComponentInChildren<UIFollowWorldPoint>(true);
+ var data = new UnityEditor.SerializedObject(follow);
+ data.FindProperty("visualScale").floatValue = 1.4f;
+ data.ApplyModifiedPropertiesWithoutUndo();
+ UnityEditor.PrefabUtility.SaveAsPrefabAsset(orderRoot, orderPath);
+} finally { UnityEditor.PrefabUtility.UnloadPrefabContents(orderRoot); }
+r.orderRequestBubblePrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<UnityEngine.GameObject>(orderPath);
+r.wineRefillChance = 1f;
+UnityEditor.EditorUtility.SetDirty(r);
+var controllerNode = r.transform.Find("Second Waiter Service");
+if (controllerNode == null) { var go = new UnityEngine.GameObject("Second Waiter Service"); UnityEditor.Undo.RegisterCreatedObjectUndo(go,"Add second waiter service"); go.transform.SetParent(r.transform,false); controllerNode = go.transform; }
+var home = controllerNode.Find("Second Waiter Home");
+if (home == null) { var go = new UnityEngine.GameObject("Second Waiter Home"); UnityEditor.Undo.RegisterCreatedObjectUndo(go,"Add second waiter idle point"); go.transform.SetParent(controllerNode,false); home = go.transform; home.position = hit.position; home.rotation = source.transform.rotation; }
+UnityEngine.GameObject actor;
+if (existing == null) { actor = UnityEngine.Object.Instantiate(source, source.transform.parent); actor.name = "Second Waiter"; UnityEditor.Undo.RegisterCreatedObjectUndo(actor,"Add second waiter character"); actor.transform.position = home.position; foreach(var view in actor.GetComponentsInChildren<Photon.Pun.PhotonView>(true)) view.ViewID = 0; } else actor = existing.gameObject;
+var move = actor.GetComponent<PlayerMovement>(); if(move != null) move.enabled = false;
+var setup = actor.GetComponent<PlayerSetup>(); if(setup != null) setup.enabled = false;
+var assign = actor.GetComponent<RoleBasedAssignController>(); if(assign != null) assign.enabled = false;
+var hands = actor.GetComponent<WaiterHands>(); if(hands == null) throw new System.Exception("Waiter clone must retain hands"); hands.enabled = true;
+var bot = actor.GetComponent<AutonomousStaffBot>(); if(bot == null) bot = UnityEditor.Undo.AddComponent<AutonomousStaffBot>(actor);
+var botData = new UnityEditor.SerializedObject(bot); botData.FindProperty("homePoint").objectReferenceValue = home; botData.ApplyModifiedPropertiesWithoutUndo();
+actor.SetActive(false);
+var service = controllerNode.GetComponent<LobbyAutonomousService>(); if(service == null) service = UnityEditor.Undo.AddComponent<LobbyAutonomousService>(controllerNode.gameObject);
+var serviceData = new UnityEditor.SerializedObject(service);
+serviceData.FindProperty("waiterOnly").boolValue = true;
+serviceData.FindProperty("waiterActor").objectReferenceValue = actor;
+serviceData.FindProperty("waiterIdlePoint").objectReferenceValue = home;
+serviceData.ApplyModifiedPropertiesWithoutUndo();
+UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(scene);
+UnityEditor.AssetDatabase.SaveAssets();
+if (!UnityEditor.SceneManagement.EditorSceneManager.SaveScene(scene)) throw new System.Exception("Scene save failed");
+return new {scene=scene.path, secondWaiter=actor.name, active=actor.activeSelf, idle=home.position.ToString(), normalBubble=orderPath, optionalChance=r.additionalDrinkChance, eligibleWineRefillChance=r.wineRefillChance, playing=UnityEditor.EditorApplication.isPlaying};

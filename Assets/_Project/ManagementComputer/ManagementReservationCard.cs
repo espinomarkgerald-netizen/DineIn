@@ -15,6 +15,8 @@ public sealed class ManagementReservationCard : MonoBehaviour
     public TMP_Text status;
     public TMP_Text buttonLabel;
     public Image checkmark;
+    public UnityEngine.UI.Outline selectionOutline;
+    public Image selectionAccent;
     public CanvasGroup visual;
     public ManagementItemCardFeedback feedback;
     private bool selected;
@@ -25,14 +27,16 @@ public sealed class ManagementReservationCard : MonoBehaviour
         for (int i = 0; i < portraits.Length; i++)
         {
             portraits[i].sprite = sprite;
-            portraits[i].gameObject.SetActive(sprite != null && i < count);
+            portraits[i].gameObject.SetActive(sprite != null && i < count && (!useComputerAppStyle || i == 0));
         }
     }
 
     public void SetState(bool chosen, bool available, Sprite normal, Sprite selectedFrame, Sprite disabled)
     {
-        if (useComputerAppStyle) frame.color = chosen ? new Color(.85f,.94f,.89f) : Color.white;
+        if (useComputerAppStyle) frame.color = chosen ? (preview != null ? new Color(.83f,.94f,.87f) : new Color(.78f,.89f,.98f)) : Color.white;
         else frame.sprite = chosen ? selectedFrame : available ? normal : disabled;
+        if (selectionOutline != null) selectionOutline.enabled = chosen;
+        if (selectionAccent != null) selectionAccent.color = chosen ? new Color(.10f,.58f,.32f) : new Color(.08f,.55f,.88f);
         if (visual != null) visual.alpha = available || chosen ? 1f : .65f;
         if (checkmark != null) checkmark.gameObject.SetActive(chosen);
         if (selected != chosen && feedback != null && Application.isPlaying) feedback.SetSelected(chosen);

@@ -1446,8 +1446,8 @@ public sealed partial class ManagementComputerController : MonoBehaviour, IPoint
         }
         else
         {
-            appWindow.SetMessage("✓ READY TO OPEN");
-            appWindow.SetFooter("START SHIFT  ✓", StartShiftConfirmed);
+            appWindow.SetMessage("READY TO OPEN");
+            appWindow.SetFooter("START SHIFT", StartShiftConfirmed);
         }
 
         appWindow.RefreshContentLayout();
@@ -1520,7 +1520,7 @@ public sealed partial class ManagementComputerController : MonoBehaviour, IPoint
             everyRoleCovered = missingRoles.Count == 0;
         }
         string staffDetails = everyRoleCovered
-            ? (CampaignSaveStore.IsFastFood ? "CASHIER  ✓   BUSSER  ✓   CHEF  ✓   BARISTA  ✓" : "HOST  ✓   WAITER  ✓   CASHIER  ✓   BUSSER  ✓   CHEF  ✓   BARISTA  ✓")
+            ? (CampaignSaveStore.IsFastFood ? "CASHIER   BUSSER   CHEF   BARISTA" : "HOST   WAITER   CASHIER   BUSSER   CHEF   BARISTA")
             : missingRoles.Count > 0
                 ? "MISSING: " + string.Join("  •  ", missingRoles.ConvertAll(EmployeeRoleCatalog.DisplayName)).ToUpperInvariant()
                 : "NO ACTIVE EMPLOYEES";
@@ -1608,7 +1608,7 @@ public sealed partial class ManagementComputerController : MonoBehaviour, IPoint
         string stockDetails = uncovered > 0
             ? uncovered + " LOW   •   " + coveredByIncoming + " COVERED BY DELIVERY"
             : coveredByIncoming > 0
-                ? "✓ ALL COVERED   •   → " + coveredByIncoming + " INCOMING"
+                ? "ALL COVERED   •   → " + coveredByIncoming + " INCOMING"
                 : ingredientCount + " INGREDIENTS COVERED";
         AddChecklistEntry(
             snapshot,

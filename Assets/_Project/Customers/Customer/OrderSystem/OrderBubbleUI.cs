@@ -9,6 +9,7 @@ public class OrderBubbleUI : MonoBehaviour
     [SerializeField] private TMPro.TMP_Text greetingLabel;
     [SerializeField] private string[] fastFoodGreetings = { "Hi!", "Hello!", "Hey there!" };
     private string authoredGreeting;
+    [SerializeField] private TMPro.TMP_Text optionalDrinkLabel;
 
     [Header("Legacy UI Refs (optional)")]
     public Image foodImage;
@@ -92,7 +93,7 @@ public class OrderBubbleUI : MonoBehaviour
             images[i].enabled = true;
 
         if (patienceSlider != null)
-            patienceSlider.gameObject.SetActive(true);
+            patienceSlider.gameObject.SetActive(group == null || !group.HasFineDiningDrinkEvent);
     }
 
     public void Init(CustomerGroup g)
@@ -129,6 +130,23 @@ public class OrderBubbleUI : MonoBehaviour
         if (drinkImage != null)
             drinkImage.enabled = false;
 
+        bool drinks = group != null && group.HasFineDiningDrinkEvent;
+        if (optionalDrinkLabel != null)
+        {
+            optionalDrinkLabel.gameObject.SetActive(drinks);
+            optionalDrinkLabel.text = drinks && group.HasWineRefillRequest ? "POUR WINE" : "DRINK";
+        }
+        if (greetingLabel != null) greetingLabel.gameObject.SetActive(!drinks);
+        if (drinks)
+        {
+            if (patienceSlider != null) patienceSlider.gameObject.SetActive(false);
+            if (drinkImage != null)
+            {
+                drinkImage.sprite = group.RequestedFineDiningDrink != null ? group.RequestedFineDiningDrink.sprite : null;
+                drinkImage.enabled = drinkImage.sprite != null;
+                drinkImage.preserveAspect = true;
+            }
+        }
         if (openButton != null && group != null)
             PlayerTaskBubbleFocus.Bind(openButton.gameObject, group);
     }
@@ -136,6 +154,8 @@ public class OrderBubbleUI : MonoBehaviour
     public void SetPatience(float normalized)
     {
         if (patienceSlider == null) return;
+        if (group != null && group.HasFineDiningDrinkEvent)
+        { patienceSlider.gameObject.SetActive(false); return; }
 
         normalized = Mathf.Clamp01(normalized);
         patienceSlider.value = normalized;
@@ -180,6 +200,8 @@ public class OrderBubbleUI : MonoBehaviour
             Debug.Log("[OrderBubbleUI] Blocked by other gameplay UI.");
             return;
         }
+
+        if (group.HasWineRefillRequest) { group.BeginWineRefill(); return; }
 
         if (!IsReadyForPlayerOrder(out string stateWarning))
         {

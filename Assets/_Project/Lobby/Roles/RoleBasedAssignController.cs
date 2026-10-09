@@ -198,6 +198,11 @@ public class RoleBasedAssignController : MonoBehaviour
         if (!lineManager.IsGroupInLine(group))
             return false;
 
+        // Manual selection must not use the bot filter: it excludes our own claim.
+        if (FineDiningReservations.For(this) != null)
+            return group.CanBeSeated && !RestaurantTaskClaim.IsClaimedByBot(group) &&
+                !group.IsReceptionClaimedByBot;
+
         CustomerGroup front = lineManager.GetNextServiceableParty();
 
         if (front == null)
@@ -354,7 +359,8 @@ public class RoleBasedAssignController : MonoBehaviour
         if (!TutorialCustomerFlowBridge.AllowsBoothAssignment(group, booth)) return;
         if (group == null || booth == null) return;
 
-        if (!group.CanBeSeated)
+        if (!group.CanBeSeated || !RestaurantTaskClaim.IsClaimedByPlayer(group) ||
+            group.IsReceptionClaimedByBot)
         {
             ShowWarning("This group is already leaving.");
             group.ReleasePlayerReceptionTask();
@@ -389,6 +395,7 @@ public class RoleBasedAssignController : MonoBehaviour
         void CompleteAssignment()
         {
             if (group == null || booth == null || !group.CanBeSeated ||
+                !RestaurantTaskClaim.IsClaimedByPlayer(group) || group.IsReceptionClaimedByBot ||
                 !group.CanUseBooth(booth))
             {
                 ShowWarning("That table is no longer available.");

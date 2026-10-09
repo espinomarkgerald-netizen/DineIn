@@ -1,0 +1,1 @@
+PASS: 12 actual hand attachment/carry-preservation/cancel checks. World preview saved.

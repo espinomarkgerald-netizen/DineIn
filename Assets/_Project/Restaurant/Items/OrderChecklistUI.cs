@@ -98,6 +98,10 @@ public class OrderChecklistUI : MonoBehaviour
     [SerializeField] private Vector2 menuViewportSize = new Vector2(690f, 638f);
     [SerializeField] private Vector2 menuViewportPosition = new Vector2(-1f, -8f);
 
+    [SerializeField, Min(0f)] private float informationSectionGap = 18f;
+    [SerializeField, Min(0f)] private float fineDiningTopClearance = 72f;
+    private int requestedDisplayCount;
+    private int availableDisplayCount;
     private TMP_FontAsset notepadFont;
     private NotepadMenuEntryUI reviewFocusEntry;
 
@@ -109,6 +113,8 @@ public class OrderChecklistUI : MonoBehaviour
 
     private MenuCatalog catalog;
     private CustomerGroup group;
+    private bool DrinksOnly => group != null && group.IsFineDiningAdditionalDrinkOrder;
+    private TabManager drinkRequestTabManager;
     private Coroutine typingRoutine;
     private bool unlockEventSubscribed;
     private LobbyStockBridge subscribedStockBridge;
@@ -322,7 +328,8 @@ public class OrderChecklistUI : MonoBehaviour
         const float margin = 24f;
         min = Vector2.Max(min, root.rect.min) + Vector2.one * margin;
         max = Vector2.Min(max, root.rect.max) - Vector2.one * margin;
-        Rect left = NotepadBounds(root, customerInformationRoot, false);
+        if (FineDiningReservations.For(this) != null) max.y -= fineDiningTopClearance;
+        Rect left = NotepadBounds(root, customerInformationRoot, true);
         Rect right = NotepadBounds(root, responsiveMenuRoot, true);
         float available = max.x - min.x;
         if (available <= 0f || max.y <= min.y) return;
@@ -333,7 +340,7 @@ public class OrderChecklistUI : MonoBehaviour
             (max.y - min.y) / Mathf.Max(1f, Mathf.Max(left.height, right.height)));
         customerInformationRoot.localScale *= fit;
         responsiveMenuRoot.localScale *= fit;
-        left = NotepadBounds(root, customerInformationRoot, false);
+        left = NotepadBounds(root, customerInformationRoot, true);
         right = NotepadBounds(root, responsiveMenuRoot, true);
         float rightX = Mathf.Clamp(right.xMin, min.x + left.width + gap, max.x - right.width);
         float leftX = Mathf.Clamp(left.xMin, min.x, rightX - gap - left.width);
@@ -534,13 +541,21 @@ public class OrderChecklistUI : MonoBehaviour
                 customerMessageSize + new Vector2(0f, 20f));
         }
 
+        float requestedHeight = Mathf.Max(requestedOrderAreaSize.y,
+            Mathf.CeilToInt(requestedDisplayCount / 3f) * 96f - 8f + 4f);
+        float requestedTop = requestedOrderAreaPosition.y + requestedOrderAreaSize.y * .5f;
+        float headingTop = requestedTop - requestedHeight - informationSectionGap;
+        float stockHeight = Mathf.Max(availabilityAreaSize.y,
+            Mathf.CeilToInt(availableDisplayCount / 2f) * 48f - 6f);
+        float stockTop = headingTop - 36f - informationSectionGap;
+        // Fit the actual section bounds, including added rows, without reserving empty space above them.
         if (requestedIconsRoot != null)
         {
             ParentToCustomerInformationArea(requestedIconsRoot);
             ConfigureRuntimeRect(requestedIconsRoot,
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                new Vector2(0.5f, 0.5f), requestedOrderAreaPosition,
-                requestedOrderAreaSize);
+                new Vector2(0.5f, 0.5f), new Vector2(requestedOrderAreaPosition.x, requestedTop - requestedHeight * .5f),
+                new Vector2(requestedOrderAreaSize.x, requestedHeight));
         }
 
         if (availableItemsRoot != null)
@@ -548,8 +563,8 @@ public class OrderChecklistUI : MonoBehaviour
             ParentToCustomerInformationArea(availableItemsRoot);
             ConfigureRuntimeRect(availableItemsRoot,
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                new Vector2(0.5f, 0.5f), availabilityAreaPosition,
-                availabilityAreaSize);
+                new Vector2(0.5f, 0.5f), new Vector2(availabilityAreaPosition.x, stockTop - stockHeight * .5f),
+                new Vector2(availabilityAreaSize.x, stockHeight));
         }
 
         TMP_Text availabilityHeading = FindText("Products Availability:");
@@ -559,7 +574,7 @@ public class OrderChecklistUI : MonoBehaviour
             ParentToCustomerInformationArea(headingRect);
             ConfigureRuntimeRect(headingRect,
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                new Vector2(0.5f, 0.5f), new Vector2(0f, -168f),
+                new Vector2(0.5f, 0.5f), new Vector2(0f, headingTop - 18f),
                 new Vector2(700f, 36f));
             availabilityHeading.alignment = TextAlignmentOptions.MidlineLeft;
             availabilityHeading.textWrappingMode = TextWrappingModes.Normal;
@@ -694,6 +709,10 @@ public class OrderChecklistUI : MonoBehaviour
         transform.SetAsLastSibling();
 
         ResolveUIReferences();
+        // Only the Fine Dining extra-drink flow overrides legacy tab startup.
+        // Keep this reference so a later normal order also restores Food's tab style.
+        if (DrinksOnly && drinkRequestTabManager == null && drinkTabButton != null)
+            drinkRequestTabManager = drinkTabButton.GetComponentInParent<TabManager>(true);
         ResolveNotepadFont();
         RebuildMenu();
         ResetSelection();
@@ -961,12 +980,15 @@ public class OrderChecklistUI : MonoBehaviour
         if (confirmButton != null)
             confirmButton.interactable = true;
 
-        List<Recipe> foods = catalog.GetProducts(MenuProductCategory.Food, false);
-        List<MenuBundle> bundles = catalog.GetFoodBundles(false);
+        List<Recipe> foods = DrinksOnly ? new List<Recipe>() : catalog.GetProducts(MenuProductCategory.Food, false);
+        List<MenuBundle> bundles = DrinksOnly ? new List<MenuBundle>() : catalog.GetFoodBundles(false);
         List<Recipe> drinks = catalog.GetProducts(MenuProductCategory.Drink, false);
 
+        if (foodTabButton != null) foodTabButton.gameObject.SetActive(!DrinksOnly);
         if (drinkTabButton != null)
+        {
             drinkTabButton.gameObject.SetActive(drinks.Count > 0);
+        }
 
         for (int i = 0; i < foods.Count; i++)
             CreateProductEntry(foodContentRoot, foods[i]);
@@ -980,7 +1002,7 @@ public class OrderChecklistUI : MonoBehaviour
         FinalizeMenuLayout(foodContentRoot, foodScrollRect);
         FinalizeMenuLayout(drinkContentRoot, drinkScrollRect);
 
-        RebuildAvailableItems(foods);
+        RebuildAvailableItems(DrinksOnly ? drinks : foods);
         RefreshMenuAvailability();
         Canvas.ForceUpdateCanvases();
         AlignMenuScrollbars();
@@ -1044,6 +1066,11 @@ public class OrderChecklistUI : MonoBehaviour
 
     private void ShowFoodTab()
     {
+        // Open, menu rebuild and mismatch feedback all enter through this method.
+        // A drink request must never reveal a stale food/bundle page.
+        if (DrinksOnly) { ShowDrinkTab(); return; }
+        if (drinkRequestTabManager != null)
+            drinkRequestTabManager.SelectContent(foodPanel);
         if (foodTabButton == null && drinkTabButton == null)
         {
             if (foodPanel != null)
@@ -1063,6 +1090,8 @@ public class OrderChecklistUI : MonoBehaviour
 
     private void ShowDrinkTab()
     {
+        if (drinkRequestTabManager != null)
+            drinkRequestTabManager.SelectContent(drinkPanel);
         if (foodPanel != null && foodPanel != drinkPanel)
             foodPanel.SetActive(false);
         if (drinkPanel != null)
@@ -1117,7 +1146,7 @@ public class OrderChecklistUI : MonoBehaviour
     {
         RefreshMenuAvailability();
         if (catalog != null)
-            RebuildAvailableItems(catalog.GetProducts(MenuProductCategory.Food, false));
+            RebuildAvailableItems(catalog.GetProducts(DrinksOnly ? MenuProductCategory.Drink : MenuProductCategory.Food, false));
     }
 
     private void LoadRequestedOrder()
@@ -1348,8 +1377,10 @@ public class OrderChecklistUI : MonoBehaviour
             }
         }
 
+        requestedDisplayCount = displayLines.Count;
         for (int i = 0; i < displayLines.Count; i++)
             CreateRequestedOrderLine(displayLines[i]);
+        RefreshResponsiveLayout();
     }
 
     private void CreateRequestedOrderLine(CustomerGroup.OrderLine line)
@@ -1459,6 +1490,7 @@ public class OrderChecklistUI : MonoBehaviour
         layout.spacing = new Vector2(horizontalSpacing, 6f);
         layout.padding = new RectOffset(0, 0, 0, 0);
 
+        availableDisplayCount = 0;
         for (int i = 0; i < foods.Count; i++)
         {
             Recipe product = foods[i];
@@ -1469,6 +1501,7 @@ public class OrderChecklistUI : MonoBehaviour
                 ? LobbyStockBridge.Instance.GetProductStock(product)
                 : 0;
 
+            availableDisplayCount++;
             GameObject item = new GameObject($"Stock - {product.DisplayName}",
                 typeof(RectTransform), typeof(LayoutElement));
             item.layer = availableItemsRoot.gameObject.layer;
@@ -1493,6 +1526,7 @@ public class OrderChecklistUI : MonoBehaviour
             text.overflowMode = TextOverflowModes.Ellipsis;
             text.text = $"{product.DisplayName}: {Mathf.Max(0, stock)}";
         }
+        RefreshResponsiveLayout();
     }
 
     private void CheckOrder()
@@ -1689,7 +1723,7 @@ public class OrderChecklistUI : MonoBehaviour
         else
         {
             ProcessingBillIndicatorUI.Instance?.ShowForSeconds(
-                "Order Sent to Kitchen", 2f);
+                DrinksOnly ? "Drinks Sent to Bar" : "Order Sent to Kitchen", 2f);
         }
 
         TutorialManager.Instance?.OnOrderConfirmed(group);
@@ -1730,6 +1764,12 @@ public class OrderChecklistUI : MonoBehaviour
             if (entry == null || lineQuantity <= 0)
                 continue;
 
+            if (DrinksOnly && (entry.Kind == NotepadMenuEntryUI.EntryKind.Bundle ||
+                entry.Product == null || entry.Product.category != MenuProductCategory.Drink))
+            {
+                ShowWarning("This request is for drinks only.");
+                return false;
+            }
             CustomerGroup.OrderLine line = new CustomerGroup.OrderLine();
             List<Recipe> lineProducts = new List<Recipe>();
 
@@ -1793,7 +1833,7 @@ public class OrderChecklistUI : MonoBehaviour
         bool hasSpecificRequestedOrder =
             requestedOrderLines.Count > 0 || requestedProducts.Count > 0;
 
-        if (!hasSpecificRequestedOrder)
+        if (!hasSpecificRequestedOrder && !DrinksOnly)
         {
             int expectedMeals = Mathf.Max(1, group != null ? group.Size : 1);
             if (mealCount != expectedMeals)

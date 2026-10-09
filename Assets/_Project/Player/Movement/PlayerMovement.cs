@@ -301,6 +301,15 @@ public class PlayerMovement : MonoBehaviour
         for (int i = 0; i < hits.Length; i++)
         {
             var hit = hits[i];
+            // Fine Dining refill requests belong to the party, not an item on the
+            // table. Clicking the requesting customer uses the same bubble flow.
+            var requestingParty = hit.collider.GetComponentInParent<CustomerGroup>();
+            if (requestingParty != null && requestingParty.HasWineRefillRequest &&
+                TutorialCustomerFlowBridge.AllowsWorldInteraction(requestingParty.transform))
+            {
+                requestingParty.BeginWineRefill();
+                return;
+            }
             var interactables = hit.collider.GetComponentsInParent<IInteractable>(true);
             if (interactables == null || interactables.Length == 0) continue;
 

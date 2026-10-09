@@ -86,7 +86,7 @@ public static class FineDiningReservationUIAuthoring
             card.portraits=new UnityEngine.UI.Image[4];
             for(int n=3;n>=0;n--){var pic=Image("GuestPortrait"+n,i.transform,null);pic.type=UnityEngine.UI.Image.Type.Simple;pic.preserveAspect=true;Box(pic.rectTransform,n==0?20:18+(n-1)*27,n==0?15:82,n==0?80:41,n==0?80:47);card.portraits[n]=pic;}
             card.title=Text("PartyName",i.transform,"Taylor party",detail?29:25,true);Place(card.title.rectTransform,new Vector2(0,1),Vector2.one,new Vector2(122,-48),new Vector2(-16,-14));
-            card.details=Text("Details",i.transform,"5:00 PM • 4 guests",22);Place(card.details.rectTransform,new Vector2(0,1),Vector2.one,new Vector2(122,-102),new Vector2(-14,-48));
+            card.details=Text("Details",i.transform,"5:00 PM \u2022 4 guests",22);Place(card.details.rectTransform,new Vector2(0,1),Vector2.one,new Vector2(122,-102),new Vector2(-14,-48));
             card.status=Text("Status",i.transform,"AWAITING ASSIGNMENT",18,true);Place(card.status.rectTransform,new Vector2(0,1),Vector2.one,new Vector2(122,-132),new Vector2(-14,-104));
             if(!detail){card.button=i.gameObject.AddComponent<UnityEngine.UI.Button>();card.button.targetGraphic=i;i.raycastTarget=true;}
         }
@@ -129,7 +129,7 @@ public static class FineDiningReservationUIAuthoring
             p.banner=Text("Message",banner.transform,"Choose a table, then confirm below.",19,true);Fill(p.banner.rectTransform,5);p.banner.alignment=TextAlignmentOptions.Center;p.bannerRoot.SetActive(false);
             p.acceptButton=Button("AcceptReservation",p.detailsRoot,"Accept Reservation","Grey");Place((RectTransform)p.acceptButton.transform,Vector2.zero,new Vector2(1,0),new Vector2(12,4),new Vector2(-12,59));p.acceptButton.interactable=false;p.acceptLabel=p.acceptButton.GetComponentInChildren<TMP_Text>();
             p.backButton=Button("Back",root,"Back","Blue");Place((RectTransform)p.backButton.transform,Vector2.zero,Vector2.zero,new Vector2(12,5),new Vector2(185,59));
-            p.summary=Text("DemandSummary",root,"Booked guests • Expected walk-ins",22);Place(p.summary.rectTransform,Vector2.zero,new Vector2(1,0),new Vector2(208,8),new Vector2(-12,54));
+            p.summary=Text("DemandSummary",root,"Booked guests \u2022 Expected walk-ins",22);Place(p.summary.rectTransform,Vector2.zero,new Vector2(1,0),new Vector2(208,8),new Vector2(-12,54));
             var toast=Image("Feedback",root,Sprite("Blue","button_rectangle_depth_flat"));Place(toast.rectTransform,new Vector2(.5f,0),new Vector2(.5f,0),new Vector2(-280,8),new Vector2(280,84));p.feedbackRoot=toast.gameObject;toast.gameObject.AddComponent<UIRevealAnimation>();
             p.feedbackIcon=Image("Check",toast.transform,p.checkmarkSprite);Box(p.feedbackIcon.rectTransform,21,23,30,30);
             p.feedbackText=Text("Result",toast.transform,"Reservation Confirmed",25,true);Fill(p.feedbackText.rectTransform,12);p.feedbackText.rectTransform.offsetMin=new Vector2(64,14);p.feedbackText.rectTransform.offsetMax=new Vector2(-22,-14);p.feedbackText.color=Color.white;p.feedbackText.fontStyle=FontStyles.Bold;p.feedbackRoot.SetActive(false);
@@ -197,6 +197,148 @@ public static class FineDiningReservationUIAuthoring
             PrefabUtility.SaveAsPrefabAsset(root,path);
         }
         finally{PrefabUtility.UnloadPrefabContents(root);}
+    }
+
+    // Updates only the shared prefab. Never saves the currently open gameplay scene.
+    [MenuItem("Dine In/Fine Dining/Apply Reservations Staff Window Style")]
+    public static void ApplyStaffWindowStyle()
+    {
+        if (EditorApplication.isPlayingOrWillChangePlaymode) throw new InvalidOperationException("Use Edit Mode.");
+        string path = Root + "/ManagementReservationsPanel.prefab";
+        var root = PrefabUtility.LoadPrefabContents(path);
+        try
+        {
+            var p = root.GetComponent<ManagementReservationPanel>();
+            var employee = AssetDatabase.LoadAssetAtPath<GameObject>(Root + "/ManagementEmployeeCard.prefab");
+            var panelSprite = employee.GetComponent<UnityEngine.UI.Image>().sprite;
+            var displayFont = employee.transform.Find("EmployeeName").GetComponent<TMP_Text>().font;
+            p.useComputerAppStyle = true;
+            p.computerPanelSprite = panelSprite;
+            p.blueButton = Sprite("Blue", "button_rectangle_depth_gloss");
+            p.greenButton = AssetDatabase.LoadAssetAtPath<Sprite>(Art + "Green/Double/button_rectangle_gloss.png");
+            p.redButton = AssetDatabase.LoadAssetAtPath<Sprite>(Art + "Red/Double/button_rectangle_gloss.png");
+            p.greyButton = Sprite("Grey", "button_rectangle_depth_gloss");
+            p.tableCardHeight = 214f;
+            p.wideTableThreshold = 850f;
+            p.wideTableColumns = 3;
+            p.tableTopPadding = 148f;
+            p.bannerTableTopPadding = 214f;
+            foreach (var text in root.GetComponentsInChildren<TMP_Text>(true))
+            {
+                if (text.font != null && text.font.name.Contains("Anton")) text.font = displayFont;
+                text.raycastTarget = false;
+            }
+            var tabs = (RectTransform)root.transform.Find("Tabs");
+            Place(tabs, new Vector2(0, 1), Vector2.one, new Vector2(12, -68), new Vector2(-12, -8));
+            Box((RectTransform)p.requestsTab.transform, 0, 0, 216, 60);
+            Box((RectTransform)p.tonightTab.transform, 230, 0, 216, 60);
+            p.requestsLabel.fontSize = p.tonightLabel.fontSize = 21;
+            p.requestsLabel.text = "REQUESTS (0)"; p.tonightLabel.text = "TONIGHT (0)";
+            var left = (RectTransform)root.transform.Find("PartyListPanel");
+            var right = (RectTransform)root.transform.Find("ReservationDetailPanel");
+            Place(left, Vector2.zero, new Vector2(.35f, 1), new Vector2(12, 66), new Vector2(-8, -88));
+            Place(right, new Vector2(.35f, 0), Vector2.one, new Vector2(8, 66), new Vector2(-12, -88));
+            foreach (var section in new[] { left, right })
+            {
+                var bg = section.GetComponent<UnityEngine.UI.Image>();
+                bg.sprite = panelSprite; bg.fillCenter = true; bg.color = new Color(.84f, .89f, .94f);
+                section.Find("ReadingSurface").gameObject.SetActive(false);
+            }
+            var heading = left.Find("Heading").GetComponent<TMP_Text>();
+            heading.text = "1  SELECT A PARTY"; heading.fontSize = 22;
+            Place((RectTransform)p.requestsScroll.transform, Vector2.zero, Vector2.one, new Vector2(8, 10), new Vector2(-8, -46));
+            p.requestsScroll.content.GetComponent<VerticalLayoutGroup>().spacing = 10;
+            var requestHeight = p.requestTemplate.GetComponent<LayoutElement>();
+            requestHeight.minHeight = requestHeight.preferredHeight = 150;
+            foreach (var card in new[] { p.requestTemplate, p.selectedDetails, p.tableTemplate })
+            {
+                card.useComputerAppStyle = true;
+                card.frame.sprite = panelSprite; card.frame.fillCenter = true; card.frame.color = Color.white;
+                card.transform.Find("ReadingSurface").gameObject.SetActive(false);
+                var accent = card.transform.Find("RoleAccent")?.GetComponent<UnityEngine.UI.Image>();
+                if (accent == null) accent = Image("RoleAccent", card.transform, panelSprite);
+                accent.color = new Color(.08f, .55f, .88f);
+                Place(accent.rectTransform, new Vector2(0, 1), Vector2.one, new Vector2(0, -6), Vector2.zero);
+                card.checkmark.sprite = Sprite("Blue", "icon_checkmark");
+                foreach (var text in new[] { card.title, card.details, card.status }) text.enableAutoSizing = false;
+            }
+            foreach (var card in new[] { p.requestTemplate, p.selectedDetails })
+            {
+                bool detail = card == p.selectedDetails;
+                float size = detail ? 76 : 104;
+                var backing = card.transform.Find("PortraitBacking").GetComponent<UnityEngine.UI.Image>();
+                backing.gameObject.SetActive(true); backing.sprite = panelSprite; backing.fillCenter = true; backing.enabled = true;
+                backing.color = new Color(.60f, .84f, .96f);
+                Box(backing.rectTransform, 14, 18, size, size);
+                Box(card.portraits[0].rectTransform, 20, 24, size - 12, size - 12);
+                for (int i = 1; i < card.portraits.Length; i++) card.portraits[i].gameObject.SetActive(false);
+                float x = detail ? 104 : 132;
+                float end = detail ? -166 : -38;
+                Place(card.title.rectTransform, new Vector2(0, 1), Vector2.one, new Vector2(x, -54), new Vector2(end, -14));
+                card.title.fontSize = detail ? 27 : 26;
+                card.title.overflowMode = TextOverflowModes.Ellipsis; card.title.textWrappingMode = TextWrappingModes.NoWrap;
+                Place(card.details.rectTransform, new Vector2(0, 1), Vector2.one, new Vector2(x, detail ? -78 : -109), new Vector2(-14, -55));
+                card.details.fontSize = 20;
+                Place(card.status.rectTransform, new Vector2(0, 1), Vector2.one, new Vector2(x, detail ? -103 : -139), new Vector2(-14, detail ? -79 : -111));
+                card.status.fontSize = 17;
+            }
+            Place((RectTransform)p.selectedDetails.transform, new Vector2(0, 1), Vector2.one, new Vector2(0, -110), Vector2.zero);
+            p.selectedDetails.frame.color = new Color(.94f, .97f, 1f);
+            p.declineButton.transform.SetParent(p.selectedDetails.transform, false);
+            Place((RectTransform)p.declineButton.transform, new Vector2(1, .5f), new Vector2(1, .5f), new Vector2(-152, -21), new Vector2(-12, 21));
+            p.selectedDetails.details.rectTransform.offsetMax = new Vector2(-166, -55);
+            p.declineButton.GetComponentInChildren<TMP_Text>().text = "Decline";
+            p.tableHeading = p.detailsRoot.Find("ChooseTable").GetComponent<TMP_Text>();
+            Place(p.tableHeading.rectTransform, new Vector2(0, 1), Vector2.one, new Vector2(8, -145), new Vector2(-8, -112));
+            p.tableHeading.fontSize = 22;
+            Place((RectTransform)p.bannerRoot.transform, new Vector2(0, 1), Vector2.one, new Vector2(6, -210), new Vector2(-6, -148));
+            p.banner.fontSize = 19;
+            Place((RectTransform)p.tablesScroll.transform, Vector2.zero, Vector2.one, new Vector2(0, 12), new Vector2(-2, -148));
+            p.tableGrid.padding = new RectOffset(6, 6, 6, 6); p.tableGrid.spacing = new Vector2(12, 12);
+            var table = p.tableTemplate;
+            Place(table.preview.rectTransform, new Vector2(0, 1), Vector2.one, new Vector2(12, -90), new Vector2(-12, -12));
+            Place(table.title.rectTransform, new Vector2(0, 1), Vector2.one, new Vector2(12, -122), new Vector2(-92, -92));
+            table.title.fontSize = 23;
+            Place(table.details.rectTransform, Vector2.one, Vector2.one, new Vector2(-90, -122), new Vector2(-12, -92));
+            table.details.fontSize = 19; table.details.alignment = TextAlignmentOptions.MidlineRight;
+            Place(table.status.rectTransform, new Vector2(0, 1), Vector2.one, new Vector2(12, -160), new Vector2(-12, -123));
+            table.status.fontSize = 17;
+            Place((RectTransform)table.button.transform, Vector2.zero, new Vector2(1, 0), new Vector2(12, 10), new Vector2(-12, 52));
+            table.buttonLabel.fontSize = 20;
+            Place((RectTransform)p.feedbackRoot.transform, new Vector2(0, 1), Vector2.one, new Vector2(480, -68), new Vector2(-12, -8));
+            p.feedbackText.fontSize = 22;
+            p.feedbackRoot.GetComponent<UnityEngine.UI.Image>().raycastTarget = false;
+            p.feedbackRoot.GetComponent<UnityEngine.UI.Image>().enabled = false;
+            p.feedbackIcon.gameObject.SetActive(false);
+            Place((RectTransform)p.backButton.transform, Vector2.zero, Vector2.zero, new Vector2(12, 6), new Vector2(168, 56));
+            Place(p.summary.rectTransform, Vector2.zero, new Vector2(1, 0), new Vector2(186, 8), new Vector2(-12, 54));
+            p.summary.fontSize = 20;
+            foreach (var button in new[] { p.acceptButton, p.declineButton, p.cancelDecline, p.confirmDecline, p.backButton, table.button })
+            {
+                button.image.sprite = button == p.acceptButton ? p.greenButton : button == p.declineButton || button == p.confirmDecline ? p.redButton : p.blueButton;
+                button.image.color = Color.white;
+                var label = button.GetComponentInChildren<TMP_Text>(); label.color = Color.white; label.font = displayFont;
+                Fill(label.rectTransform); label.rectTransform.offsetMin = new Vector2(8, 2); label.rectTransform.offsetMax = new Vector2(-8, -2);
+                label.fontSize = button == p.acceptButton ? 24 : 20;
+            }
+            table.checkmark.sprite = Sprite("Green", "icon_checkmark");
+            table.selectionAccent = table.transform.Find("RoleAccent").GetComponent<UnityEngine.UI.Image>();
+            table.selectionOutline = table.GetComponent<UnityEngine.UI.Outline>();
+            if (table.selectionOutline == null) table.selectionOutline = table.gameObject.AddComponent<UnityEngine.UI.Outline>();
+            table.selectionOutline.effectColor = new Color(.10f, .58f, .32f);
+            table.selectionOutline.effectDistance = new Vector2(2, -2);
+            table.selectionOutline.enabled = false;
+            p.cancelDecline.image.sprite = p.greenButton;
+            p.cancelDecline.image.type = p.confirmDecline.image.type = UnityEngine.UI.Image.Type.Sliced;
+            p.cancelDecline.GetComponentInChildren<TMP_Text>().text = "Back";
+            if (p.declineConfirmation.GetComponent<UIRevealAnimation>() == null)
+                p.declineConfirmation.AddComponent<UIRevealAnimation>();
+            p.acceptLabel.text = "Confirm Reservation";
+            p.acceptButton.gameObject.SetActive(false);
+            p.feedbackRoot.SetActive(false);
+            PrefabUtility.SaveAsPrefabAsset(root, path);
+        }
+        finally { PrefabUtility.UnloadPrefabContents(root); }
     }
 
     [MenuItem("Dine In/Fine Dining/Capture Reservation Table Previews")]

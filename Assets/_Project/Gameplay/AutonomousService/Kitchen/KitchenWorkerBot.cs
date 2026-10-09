@@ -226,6 +226,8 @@ public class KitchenWorkerBot : MonoBehaviour
 
     private void HandleOrderStarted(CustomerGroup group, int orderNumber)
     {
+        if (FineDiningReservations.For(this) != null && group != null && group.IsFineDiningAdditionalDrinkOrder
+            && employeeRole != EmployeeRole.Bartender) return;
         if (FastFoodScene.Contains(gameObject.scene) && employeeRole != EmployeeRole.FastFoodAssembler)
         {
             if (group == null || group.currentOrder == null || stationProducts == null) return;

@@ -1,0 +1,3 @@
+PASS: 239 isolated Fine Dining demand/schedule checks. No Play Mode or campaign save was used.
+PASS: 7 isolated drink billing/cancel checks. Stock, UI and live pouring were not run.
+PASS authored references, distinct standing positions, and complete reception NavMesh paths.

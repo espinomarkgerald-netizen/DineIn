@@ -1,0 +1,1 @@
+PASS: 21 real preparation/delivery checks in 7.5 seconds. Real stock withdrawal, timed bar output, carry/delivery, meal continuation, once-only billing and tray/glass replacement passed.

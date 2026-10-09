@@ -923,7 +923,7 @@ public class GameDayManager : MonoBehaviour
             {
                 var booking = reservations.DueBooking();
                 if (booking != null) TrySpawnCustomerGroup(booking);
-                else if (Time.time >= nextWalkIn && reservations.CanAdmitWalkIn && groupsSpawnedThisShift + reservations.UnspawnedGroups < maxCustomersToSpawn
+                else if (Time.time >= nextWalkIn && reservations.CanAdmitWalkIn && groupsSpawnedThisShift + reservations.UnspawnedGroups < reservations.GroupBudget
                     && TrySpawnCustomerGroup())
                     nextWalkIn = Time.time + Mathf.Max(reservations.WalkInIntervalSeconds, Random.Range(spawnIntervalMin, spawnIntervalMax));
                 yield return blockedSpawnWait;
@@ -1027,10 +1027,13 @@ public class GameDayManager : MonoBehaviour
         if (!shiftRunning)
             return false;
 
-        if (timeRemaining <= StopSpawnTimeRemainingSeconds)
+        // Already accepted Fine Dining reservations are commitments, not new demand.
+        var fineDining = FineDiningReservations.For(this);
+        bool committedArrival = booking != null && fineDining != null;
+        if (!committedArrival && timeRemaining <= StopSpawnTimeRemainingSeconds)
             return false;
 
-        if (groupsSpawnedThisShift >= maxCustomersToSpawn)
+        if (groupsSpawnedThisShift >= (fineDining != null ? fineDining.GroupBudget : maxCustomersToSpawn))
             return false;
 
         // Confirmed reservations are scheduled by the service clock, not the
@@ -1068,8 +1071,6 @@ public class GameDayManager : MonoBehaviour
             return false;
         }
 
-        if (booking != null) FineDiningReservations.For(this)?.TrackSpawn(booking, spawnedGroup);
-        else FineDiningReservations.For(this)?.TrackWalkIn();
         groupsSpawnedThisShift++;
         groupsSpawnedThisMinute++;
         return true;

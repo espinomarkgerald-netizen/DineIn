@@ -35,7 +35,7 @@ public class EmployeeManager : MonoBehaviour
     public int MaxHiredPerRole => maxHiredPerRole;
     public int HiringLimit(EmployeeRole role) =>
         StaffHiringProgressionSettings.Limit(role, maxHiredPerRole, GetHiredCount(role));
-    public int ActiveSlotLimit(EmployeeRole role) => EmployeeRoleCatalog.UsesFastFoodRoles &&
+    public int ActiveSlotLimit(EmployeeRole role) => EmployeeRoleCatalog.UsesFineDiningRoles && role == EmployeeRole.Waiter ? 2 : EmployeeRoleCatalog.UsesFastFoodRoles &&
         (role == EmployeeRole.Busser &&
             (StaffHiringProgressionSettings.CurrentDay >= StaffHiringProgressionSettings.UnlockDay(role) || GetHiredCount(role) > 1) ||
          role == EmployeeRole.Cashier && FastFoodProgressionSettings.HasSecondCashier) ? 2 : 1;
@@ -529,6 +529,8 @@ public class EmployeeManager : MonoBehaviour
 
         foreach (var emp in allEmployees)
         {
+            // Keep valid Fine Dining waiter choices across days; an empty second post stays empty.
+            if (EmployeeRoleCatalog.UsesFineDiningRoles && emp.hired && emp.role == EmployeeRole.Waiter) continue;
             emp.assigned         = false;
             emp.assignedSlot     = null;
             emp.assignedSlotName = string.Empty;
@@ -572,7 +574,7 @@ public class EmployeeManager : MonoBehaviour
                 continue;
 
             count++;
-            if (count > ActiveSlotLimit(role))
+            if (count > (EmployeeRoleCatalog.UsesFineDiningRoles && role == EmployeeRole.Waiter ? 1 : ActiveSlotLimit(role)))
                 return;
         }
 

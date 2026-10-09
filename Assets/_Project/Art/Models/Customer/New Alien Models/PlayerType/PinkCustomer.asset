@@ -33,8 +33,8 @@ MonoBehaviour:
   openingMessages:
   - Please be quick with us and I'll give you tip.
   - Don't keep us waiting and I'll give you tip.
-  orderPatienceMultiplier: 3
-  linePatienceMultiplier: 3
+  orderPatienceMultiplier: 2.5
+  linePatienceMultiplier: 2.5
   eatDurationMultiplier: 1
   tipAmount: 100
   isMessy: 0

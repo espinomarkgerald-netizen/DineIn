@@ -389,6 +389,21 @@ public class FoodTray : MonoBehaviour
         }
     }
 
+    // Replace the served glass on the existing meal tray, rather than stacking a second tray.
+    public void ReplaceDrinkVisual(Recipe product)
+    {
+        if (product == null || product.category != MenuProductCategory.Drink || drinkAnchor == null) return;
+        if (spawnedDrink != null) Destroy(spawnedDrink);
+        spawnedDrink = null;
+        hasDrink = true;
+        deliveredDrink = ToLegacyDrinkType(product);
+        if (product.servingPrefab != null)
+        {
+            spawnedDrink = Instantiate(product.servingPrefab, drinkAnchor);
+            ApplyServingTransform(spawnedDrink.transform, product);
+        }
+    }
+
     private GameObject GetFoodPrefab(CustomerGroup.FoodType food)
     {
         switch (food)

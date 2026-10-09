@@ -214,7 +214,7 @@ public sealed class ManagementComputerRowUI : MonoBehaviour
                 panel = new Color(1f, 0.86f, 0.84f, 1f);
                 break;
             default:
-                symbol = "✓";
+                symbol = "+";
                 accent = new Color(0.08f, 0.55f, 0.30f, 1f);
                 panel = new Color(0.84f, 0.96f, 0.88f, 1f);
                 break;

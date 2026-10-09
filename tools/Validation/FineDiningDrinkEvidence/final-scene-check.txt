@@ -1,0 +1,1 @@
+PASS authored references, distinct standing positions, and complete reception NavMesh paths.; bottle hand pose, two bar outputs, inactive wine UI and final Lobby3 scene saved. Play Mode off; save guard=False; compilation failed=False

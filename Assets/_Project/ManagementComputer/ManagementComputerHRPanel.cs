@@ -180,7 +180,9 @@ public sealed class ManagementComputerHRPanel : MonoBehaviour
                 : EmployeeRoleCatalog.UsesFastFoodRoles ? "Grill Station, Fry Station and Assembler" : "Kitchen staffing is limited to Chef and Barista") +
                 (EmployeeRoleCatalog.UsesFastFoodRoles && lobby
                     ? " • Lobby #1 clears; Lobby #2 delivers. Register 2 supports Cashier #2."
-                    : " • Choose one active employee per role");
+                    : EmployeeRoleCatalog.UsesFineDiningRoles && lobby
+                        ? " • Assign up to two waiters; one employee for each other role."
+                        : " • Choose one active employee per role");
         SetTabVisual(lobbyTab, lobbyTabLabel, lobby);
         SetTabVisual(kitchenTab, kitchenTabLabel, !lobby);
         SetTabVisual(applicantsTab, applicantsTabLabel, false);

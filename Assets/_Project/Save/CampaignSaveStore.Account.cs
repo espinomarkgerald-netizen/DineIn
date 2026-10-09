@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
@@ -275,7 +275,8 @@ public static partial class CampaignSaveStore
                 var data = JsonUtility.FromJson<GameSaveData>(json);
                 if (data.currentDay > 1 || data.money != 5000 || data.campaignCompleted || data.lobbyCompleted || data.kitchenCompleted ||
                     data.financeHistory?.Count > 0 || data.moneyTransactions?.Count > 0 || data.purchasedEquipmentIDs?.Count > 0 ||
-                    data.campaignCreditReceipts?.Count > 0 || data.restockOrders?.Count > 0 || data.fastFoodDayComplete) return true;
+                    data.campaignCreditReceipts?.Count > 0 || data.restockOrders?.Count > 0 || data.fastFoodDayComplete ||
+                    data.fineDiningDayComplete) return true;
             }
         }
         foreach (int flag in value.profile.tutorials) if (flag > 0) return true;

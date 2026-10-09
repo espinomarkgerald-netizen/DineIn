@@ -215,6 +215,10 @@ public class LobbyTaskTracker : MonoBehaviour
             int number = groupTarget.currentOrderNumber;
             string table = number > 0 ? "TABLE " + number : "CUSTOMER GROUP";
 
+            if (groupTarget.HasWineRefillRequest)
+                return new TaskInfo("wine_refill_" + groupTarget.GetInstanceID(),
+                    "POUR WINE", "APPROACH THE TABLE, THEN DRAG THE BOTTLE OVER THE GLASS", groupTarget);
+
             if (!groupTarget.hasBeenGreeted)
             {
                 return new TaskInfo(

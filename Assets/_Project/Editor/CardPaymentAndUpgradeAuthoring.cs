@@ -1070,7 +1070,7 @@ public static class CardPaymentAndUpgradeAuthoring
             RectTransform safe = GetOrCreateRect("SafeAreaContent", root.transform);
             Stretch(safe);
             RectTransform panel = GetOrCreateRect("BluePanel", safe);
-            Center(panel, new Vector2(720f, 560f), Vector2.zero);
+            Center(panel, new Vector2(720f, 520f), Vector2.zero);
             Image panelImage = GetOrAddComponent<Image>(panel.gameObject);
             panelImage.sprite = AssetDatabase.LoadAssetAtPath<Sprite>(
                 "Assets/_Project/MainMenu/Assets/Buttons/Frames/9Sliced.png");
@@ -1079,7 +1079,7 @@ public static class CardPaymentAndUpgradeAuthoring
 
             TMP_Text heading = GetOrCreateText(
                 "Heading", panel, "NEW UNLOCK!", 44f, TextAlignmentOptions.Center);
-            Center(heading.rectTransform, new Vector2(480f, 64f), new Vector2(-30f, 218f));
+            Center(heading.rectTransform, new Vector2(480f, 64f), new Vector2(-30f, 198f));
             heading.fontStyle = FontStyles.Bold;
 
             RectTransform iconRect = GetOrCreateRect("UnlockIcon", panel);
@@ -1104,14 +1104,14 @@ public static class CardPaymentAndUpgradeAuthoring
 
             TMP_Text location = GetOrCreateText(
                 "Location", panel, "AVAILABLE IN THE COMPUTER", 21f, TextAlignmentOptions.Center);
-            Center(location.rectTransform, new Vector2(620f, 64f), new Vector2(0f, -133f));
+            Center(location.rectTransform, new Vector2(620f, 64f), new Vector2(0f, -122f));
             location.enableAutoSizing = true;
             location.fontSizeMin = 18f;
             location.fontSizeMax = 21f;
             location.color = new Color(0.78f, 0.93f, 1f, 1f);
 
             Button continueButton = CreateButton(
-                "ContinueButton", panel, "CONTINUE", new Vector2(280f, 72f), new Vector2(0f, -220f),
+                "ContinueButton", panel, "CONTINUE", new Vector2(280f, 84f), new Vector2(0f, -200f),
                 "Assets/_Project/MainMenu/NewDesign/UI Elements/PNG/Green/Default/button_rectangle_depth_flat.png");
             Button close = CreateIconButton(
                 "CloseButton", panel, new Vector2(84f, 84f), new Vector2(-20f, -20f),

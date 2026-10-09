@@ -29,10 +29,10 @@ MonoBehaviour:
   kitchenIngredientIcon: {fileID: 0}
   kitchenRawColorMultiplier: {r: 1, g: 1, b: 1, a: 1}
   sprite: {fileID: 21300000, guid: e9933beaa62b45359c07db471bc920ea, type: 3}
-  servingPrefab: {fileID: 1000, guid: 0e54cc0c094c436a9a076bdd649d84e5, type: 3}
+  servingPrefab: {fileID: 7390046108136008134, guid: a00c104b94fcf7f4fae2b9b7f23f174d, type: 3}
   servingPositionOffset: {x: 0, y: 0, z: 0}
   servingRotation: {x: 0, y: 0, z: 0}
-  servingScale: {x: 2.6, y: 2.6, z: 2.6}
+  servingScale: {x: 1, y: 1, z: 1}
   normalizedServingTransform: 1
   dayToUnlock: 3
   ingredients:

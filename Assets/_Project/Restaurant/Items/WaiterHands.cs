@@ -160,14 +160,14 @@ public class WaiterHands : MonoBehaviour
         Debug.Log($"[WaiterHands] Awake on {name} id={GetInstanceID()}");
 
         bool belongsToManager = GetComponent<ManagerPlayer>() != null;
-        if (!belongsToManager && Instance != null && Instance != this)
+        if (!belongsToManager && Instance != null && Instance != this && FineDiningReservations.For(this) == null)
         {
             Debug.LogWarning($"[WaiterHands] Duplicate staff instance ignored on {name}.", this);
             enabled = false;
             return;
         }
 
-        if (!belongsToManager)
+        if (!belongsToManager && Instance == null)
             Instance = this;
 
         holdingTray = null;

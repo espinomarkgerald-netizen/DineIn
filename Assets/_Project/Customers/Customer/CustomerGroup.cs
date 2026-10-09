@@ -805,6 +805,7 @@ public partial class CustomerGroup : MonoBehaviour
         gameObject.activeInHierarchy &&
         !IsTakeout &&
         !managerComplaintPending &&
+        !HasFineDiningDrinkEvent &&
         !leavingRoutineStarted &&
         assignedBooth != null &&
         members != null &&
@@ -879,10 +880,12 @@ public partial class CustomerGroup : MonoBehaviour
 
     private void OnDestroy()
     {
+        CleanupFineDiningDrinks();
         HygieneManager.Instance?.ForgetCustomer(this);
         RestaurantTaskClaim.Complete(this);
         NotifyLeftLineIfNeeded();
         ClearLinePatienceUI();
+        ClearFineDiningReceptionIndicator();
         CleanupOnLeave();
     }
 
@@ -898,6 +901,7 @@ public partial class CustomerGroup : MonoBehaviour
         if (state == GroupState.ReadyToOrder && !hasConfirmedOrder) HandleGlobalStockout();
         TickStockWait();
         UpdateLinePatience();
+        RefreshFineDiningReceptionIndicator();
     }
 
     private void SetState(GroupState newState)
@@ -906,6 +910,8 @@ public partial class CustomerGroup : MonoBehaviour
             newState == GroupState.UnhappyLeft || newState == GroupState.Leaving)) return;
         if (state == newState) return;
 
+        if (HasFineDiningDrinkEvent && (newState == GroupState.Leaving || newState == GroupState.AngryLeft || newState == GroupState.UnhappyLeft))
+            CleanupFineDiningDrinks();
         bool eatingVisualChanged =
             (state == GroupState.Eating) != (newState == GroupState.Eating);
         state = newState;
@@ -960,7 +966,11 @@ public partial class CustomerGroup : MonoBehaviour
             }
 
             member.SetProceduralGroupContext(i, memberCount, partner);
-            member.SetProceduralServiceState(visualState);
+            bool enjoyingMeal = IsFineDiningAdditionalDrinkOrder && i > 0;
+            member.SetProceduralServiceState(HasWineRefillRequest && i == 0 ? CustomerProceduralState.RequestOrder
+                : enjoyingMeal ? CustomerProceduralState.Eating : visualState);
+            if (HasWineRefillRequest && i == 0) member.SetEating(false);
+            else if (enjoyingMeal) member.SetEating(true, fineDiningMealTray, i);
         }
     }
 
@@ -1103,6 +1113,7 @@ public partial class CustomerGroup : MonoBehaviour
     public void SetSelected(bool selected)
     {
         isSelected = selected;
+        RefreshFineDiningReceptionIndicator();
         if (selectionVisual != null)
             selectionVisual.SetActive(selected);
     }
@@ -1134,6 +1145,10 @@ public partial class CustomerGroup : MonoBehaviour
     {
         if (assignedBooth == null)
             yield break;
+
+        if (receptionEscortLeader != null)
+            yield return FollowReceptionEscort();
+        if (assignedBooth == null || state != GroupState.WalkingToBooth) yield break;
 
         Vector3 approachCenter = assignedBooth.GetCustomerApproachPosition();
         Vector3 towardBooth = assignedBooth.transform.position - approachCenter;
@@ -1312,6 +1327,7 @@ public partial class CustomerGroup : MonoBehaviour
 
         while (state == GroupState.ReadyToOrder)
         {
+            if (HasFineDiningDrinkEvent) yield break;
             if (HandleGlobalStockout()) yield break;
             if (!isOrderPaused && !ReceivingAssistedService)
             {
@@ -1776,7 +1792,11 @@ public partial class CustomerGroup : MonoBehaviour
     private void SpawnOrderBubble()
     {
         if (MultiplayerDayBridge.IsActive && orderBubbleInstance != null) return;
-        if (orderBubblePrefab == null)
+        var drinkSettings = FineDiningReservations.For(this);
+        var bubblePrefab = HasFineDiningDrinkEvent && drinkSettings != null && drinkSettings.drinkRequestBubblePrefab != null
+            ? drinkSettings.drinkRequestBubblePrefab : drinkSettings != null && drinkSettings.orderRequestBubblePrefab != null
+                ? drinkSettings.orderRequestBubblePrefab : orderBubblePrefab;
+        if (bubblePrefab == null)
         {
             Debug.LogWarning($"[CustomerGroup] orderBubblePrefab missing on {name}");
             return;
@@ -1785,7 +1805,7 @@ public partial class CustomerGroup : MonoBehaviour
         ClearOrderBubble();
         if (FastFood?.StationFor(this)?.IsKiosk == true) return;
 
-        orderBubbleInstance = MultiplayerTaskPresentation.Acquire(orderBubblePrefab, MultiplayerBubbleTaskId("Order"));
+        orderBubbleInstance = MultiplayerTaskPresentation.Acquire(bubblePrefab, MultiplayerBubbleTaskId("Order"));
         orderBubbleInstance.name = $"{name}_OrderBubble";
         orderBubbleInstance.SetActive(true);
         orderBubbleInstance.transform.SetAsLastSibling();
@@ -1813,6 +1833,8 @@ public partial class CustomerGroup : MonoBehaviour
         if (follow != null)
         {
             ConfigureCustomerBubble(follow);
+            if (HasFineDiningDrinkEvent && members.Count > 0 && members[0] != null)
+                follow.target = members[0].HeadAnchor != null ? members[0].HeadAnchor : members[0].transform;
         }
         else
         {
@@ -1869,6 +1891,7 @@ public partial class CustomerGroup : MonoBehaviour
                 Debug.LogWarning(
                     $"[CustomerGroup] Automated order for {name} could not reserve its full quantity from stock.",
                     this);
+                if (IsFineDiningAdditionalDrinkOrder) { FinishFineDiningDrinks(false); return false; }
                 WarnAndLeaveForMissingStock();
                 return false;
             }
@@ -1948,7 +1971,7 @@ public partial class CustomerGroup : MonoBehaviour
         SetState(GroupState.OrderTaken);
         ClearOrderBubble();
 
-        if (!waitingForRemake)
+        if (!waitingForRemake && !IsFineDiningAdditionalDrinkOrder)
             GameDayManager.Instance?.RegisterOrderTaken();
 
         bool prepaidRemake = waitingForRemake && FastFood != null && FastFoodPaid;
@@ -2039,6 +2062,7 @@ public partial class CustomerGroup : MonoBehaviour
         if (state != GroupState.OrderTaken || !hasConfirmedOrder || isPlayerReviewingOrder)
             return;
 
+        if (ReceiveFineDiningDrinks(deliveredContents, sourceTray)) return;
         bool isCorrectOrder = IsCorrectDeliveredOrder(deliveredContents);
         bool isBurntFood = sourceTray != null && sourceTray.ContainsBurntFood;
         if (!isBurntFood && deliveredContents != null)
@@ -2496,8 +2520,9 @@ public partial class CustomerGroup : MonoBehaviour
             yield break;
         }
         BeginFamilyPlay();
-        yield return new WaitForSeconds(eat);
+        yield return FineDiningMeal(eat);
         StopFamilyPlay();
+        if (leavingRoutineStarted || state != GroupState.Eating) yield break;
 
         eatingRoutine = null;
         ClearEatingBubble();
@@ -2623,7 +2648,9 @@ public partial class CustomerGroup : MonoBehaviour
 
     internal void PresentReservationArrival(string guestName, int arrivalMinute)
     {
-        ShowThought(new[] { guestName + " • " + FineDiningReservations.Clock(arrivalMinute) }, happyFaceSprite);
+        reservationGuestName = guestName;
+        reservationArrivalMinute = arrivalMinute;
+        RefreshFineDiningReceptionIndicator();
     }
 
     internal void BeginFineDiningClosing()
@@ -3210,7 +3237,7 @@ public partial class CustomerGroup : MonoBehaviour
 
     public void RestoreOrderBubbleIfWaiting()
     {
-        if (state == GroupState.ReadyToOrder && orderBubbleInstance == null)
+        if ((state == GroupState.ReadyToOrder || HasWineRefillRequest) && orderBubbleInstance == null)
             SpawnOrderBubble();
     }
 
@@ -3472,7 +3499,13 @@ public partial class CustomerGroup : MonoBehaviour
     private void UpdateLinePatience()
     {
         if (!CanDecideCustomerOutcome) return;
-        if (FineDiningReservations.For(this)?.WaitForBookedTime(this) == true) return;
+        if (HasProtectedReservationReception)
+        {
+            // A booking is a seating commitment, not a reception patience challenge.
+            ClearLinePatienceUI();
+            SetMembersProceduralPatience(1f);
+            return;
+        }
         if (WaitingForStock) { ShowStockWaitPatience(); return; }
         if (debugForceShowLinePatience)
         {
@@ -3510,7 +3543,10 @@ public partial class CustomerGroup : MonoBehaviour
 
         float baseDrain = hasBeenGreeted ? greetedLinePatienceDrainMultiplier : 1f;
         float typeMult = Profile != null ? Mathf.Max(0.01f, Profile.linePatienceMultiplier) : 1f;
-        linePatienceRemaining -= Time.deltaTime * baseDrain * typeMult;
+        var fineDining = FineDiningReservations.For(this);
+        float receptionMultiplier = fineDining != null
+            ? Mathf.Max(1f, fineDining.walkInReceptionPatienceMultiplier) : 1f;
+        linePatienceRemaining -= Time.deltaTime * baseDrain * typeMult / receptionMultiplier;
 
         float normalized = Mathf.Clamp01(linePatienceRemaining / Mathf.Max(1f, linePatienceSeconds));
 
@@ -3529,6 +3565,7 @@ public partial class CustomerGroup : MonoBehaviour
 
     private bool CanUseLinePatience()
     {
+        if (HasProtectedReservationReception) return false;
         if (RequiresAssistedService && FastFood != null && !FastFoodPaid)
             return !linePatienceExpired && !ReceivingAssistedService && !IsPlayerReviewingOrder &&
                 state == GroupState.Waiting && CurrentTakeoutQueueState == TakeoutQueueState.WaitingInQueue;
@@ -3627,7 +3664,7 @@ public partial class CustomerGroup : MonoBehaviour
 
     private void HandleLinePatienceExpired()
     {
-        if (!CanDecideCustomerOutcome || leavingRoutineStarted || hasBeenAssigned || state != GroupState.Waiting) return;
+        if (!CanDecideCustomerOutcome || leavingRoutineStarted || hasBeenAssigned || HasProtectedReservationReception || state != GroupState.Waiting) return;
         StopLinePatience();
 
         CasualDiningPolishManager.EnsureInstance().RegisterIncident(

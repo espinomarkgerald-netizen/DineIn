@@ -1,0 +1,140 @@
+Dine In - Lobby3 Fine Dining Rebalance and Drink Service
+Implementation and verification handoff, 2026-10-09
+
+STATUS
+Implemented and saved in the main project. The main Unity editor is back in Edit Mode.
+No campaign progress was saved by the diagnostic sessions. The temporary persistence
+suspension is cleared. No Fine Dining tutorial was created. No Git operations were used.
+This is focused feature validation, not a claim that the entire game is bug-free.
+
+SYSTEMS IMPLEMENTED
+- Fine Dining demand grows with progression, usable table capacity, staff service capacity,
+  remaining evening time, accepted bookings and estimated meal/drink workload.
+- Reservations dominate daily demand; walk-ins are limited to one or two guests.
+  Arrival spacing and table occupancy windows prevent overlapping new bookings.
+  Existing accepted reservation identities, table assignments and times are retained.
+- Reserved parties have no reception patience countdown. Fine Dining walk-ins drain
+  reception patience at half the ordinary rate. Earlier restaurants retain their behavior.
+- Existing reception chairs are claimed, approached and occupied using customer seating
+  animation. Larger parties can use distinct authored standing positions. Chairs release
+  when escorting begins; guests begin following the receptionist before table arrival.
+- One compact reservation marker per party; details show on selection/handling.
+- Fine Dining eating is 1.5 times ordinary eating; other task durations are unchanged.
+- Optional once-per-meal drink requests reuse the notepad, menu, inventory, kitchen,
+  bar output slots, pickup/delivery and final bill. Only served drinks add a bill line.
+  Cancelled, unavailable or failed optional service restores the original meal identity.
+- Wine refill equips a temporary bottle, preserves carried items, opens the existing-style
+  animated blue UI, supports mouse/touch drag and fill, then completes or returns for retry.
+- Finished transparent wine sprites, stream/splash feedback, success pop and existing audio.
+  Wine glasses use the tray's existing serving placement and cleanup flow.
+
+DEFAULT BALANCE / INSPECTOR SETTINGS
+FineDiningReservations on the Lobby3 scene:
+- Early 6-8, mid 9-14, late 15-20 groups; 20 is a cap for new demand, not a quota.
+- Mid tier starts at day 6 with at least 4 usable tables; late at day 15 with at least 7.
+- Reservation share 85%; new requests available through 8 PM.
+- Minimum arrival spacing 10 in-game minutes; large-party spacing 20 minutes.
+- Expected capacity occupation 85 in-game minutes including extra eating/drink/cleanup work.
+- Reserved reception patience disabled; walk-in patience multiplier 2.
+- Eating multiplier 1.5; extra-drink event chance 50%, trigger after 35% of meal duration,
+  optional request window 75 seconds. Maximum one event per group.
+- Refill choice chance 50% when eligible; currently Red Wine must already be in the meal,
+  unlocked, enabled on the menu and in stock. Other eligible events request an extra drink.
+- Editable recipe list, bottle/indicator prefabs, hand offset/rotation/scale.
+FineDiningWaitingArea: existing 8 chair bindings, 10 distinct standing anchors, following spacing.
+KitchenManager: 2 editable bar tray slots, bar pickup approach and bar-only tray scale 0.55.
+WinePouringUI prefab: sprites, stage, pointer capture radius, bottle tilt, smoothing,
+initial/target fill, timing and completion feedback. Defaults include 2.4-second pouring,
+78% target fill, 65-degree tilt and approximately 0.15-0.3-second feedback transitions.
+
+BUGS FOUND AND FIXED DURING VERIFICATION
+- The existing TabManager.Start reset an explicitly opened drink request to Food on the
+  next frame. Explicit tab selection now survives startup, preserves the tab styling,
+  and ordinary orders restore Food. Removed the wrapping DRINKS ONLY caption override.
+- Full-size neighboring bar trays touched; bar-only scale/centering now separates them.
+- The animated paper holder tilted the equipped bottle toward the shoulder after carrying
+  animation updated. WineBottleCarryPose now follows the actual hand after arm posing and
+  keeps the bottle upright; carry ownership remains with the existing hands system.
+- Corrected invalid metadata and missing preparation-fixture dependencies in the new
+  reception diagnostic before running it. These were test-helper issues.
+
+CHECKS ACTUALLY RUN
+- Unity source compilation passed; final compilationFailed=False. Existing compiler warnings
+  remain. The only new runtime console error in the final session was Unity Remote/ADB
+  reporting no connected Android device or emulator, not a gameplay exception.
+- 32 standalone reservation/acceptance/save checks passed.
+- 239 isolated demand/schedule checks passed.
+- 7 isolated drink billing/cancellation checks passed.
+- 10 protected Play Mode stock/billing/notepad/bar-binding checks passed, including restored
+  normal Food choices. Separate later-frame assertion verified Drinks stays visible.
+- 21 real timed preparation/delivery checks passed in 7.5 seconds: stock withdrawal,
+  kitchen preparation, bar output, tray pickup/delivery, meal continuation, bill append,
+  duplicate protection and glass/tray replacement. The diagnostic invoked the existing
+  carry/delivery APIs with temporary waiter hands; it was not a complete autonomous shift.
+- 17 real reception checks passed: no reservation patience drain, half-rate walk-in drain,
+  exclusive chair ownership, real NavMesh movement, actual sitting animator state, standing,
+  chair release/reuse and guests following before their receptionist reached the table.
+  A real Host bot and one real booth were enabled transiently in the protected preparation
+  fixture; ownership, actor settings and scene state were restored afterward.
+- 12 actual held-prop/cancellation checks passed, including assertions after animation
+  updated: hand attachment, upright orientation, carried-tray identity and renderer restoration,
+  retryable cancellation, no charge and prop cleanup. A disposable unlocked copy of Red Wine
+  was used because the protected fresh-day session does not unlock wine; progression unchanged.
+- Wine UI live mouse/touch-event simulation passed: drag fills; release stops; Back cancels
+  once; reopening works; touch reaches target, returns the bottle and closes once.
+- Inspected actual rendered wine layouts at 1920x1080, 2960x1440 and 1280x720, plus visible
+  drinks-only notepad controls, separated bar output trays and the settled character-held bottle.
+- Authored references, distinct reception standing positions and complete NavMesh paths passed.
+  Final Lobby3 scene and bottle prefab saved; Wine UI starts inactive; save guard cleared.
+
+NOT RUN / REMAINING RELEASE CHECKS
+- Physical Android device input, device performance and Android build: no device connected.
+- Fresh one/two-day full-shift simulation of this final change set.
+- Live cloud upload/download or a real account round-trip. Data compatibility checks ran;
+  protected runtime tests intentionally did not write local or cloud campaign progress.
+- Full regression playthrough of Lobby1, Lobby2, tutorials or multiplayer variants.
+  New drink gameplay is guarded to single-player Fine Dining; no multiplayer/tutorial rollout.
+Recommended manual smoke test: on a wine-unlocked campaign, serve a complete normal shift,
+record an additional drink through the notepad, deliver from the bar, cancel/retry a refill
+while carrying an item, finish the shift, then reopen the save on the target device.
+No known blocking failure remained in the tested new flows. These unrun release checks
+are still needed before calling the whole level/device release finished.
+
+MAIN FILES / ASSETS CHANGED (relative to the inner DineIn project)
+Assets/_Project/Scenes/RoleBased/Lobby3.unity
+Assets/_Project/Restaurant/FineDiningReservations.cs
+Assets/_Project/Restaurant/FineDiningWaitingArea.cs
+Assets/_Project/Customers/Customer/CustomerGroup.cs
+Assets/_Project/Customers/Customer/CustomerGroup.FineDiningReception.cs
+Assets/_Project/Customers/Customer/CustomerGroup.FineDiningDrinks.cs
+Assets/_Project/Customers/Customer/CustomerGroup.Stockout.cs
+Assets/_Project/Customers/Customer/CustomerGroup.CampaignVisit.cs
+Assets/_Project/Customers/Customer/OrderSystem/OrderBubbleUI.cs
+Assets/_Project/Gameplay/GameManager/GameManager.cs
+Assets/_Project/Gameplay/AutonomousService/Lobby/LobbyAutonomousService.cs
+Assets/_Project/Gameplay/AutonomousService/Kitchen/KitchenWorkerBot.cs
+Assets/_Project/Restaurant/Items/OrderChecklistUI.cs
+Assets/_Project/MainMenu/TabsManager.cs
+Assets/_Project/Restaurant/Items/KitchenManager.cs
+Assets/_Project/Restaurant/Items/FoodTray.cs
+Assets/_Project/Restaurant/Items/WinePouringUI.cs
+Assets/_Project/Restaurant/Items/WinePouringBottleDrag.cs
+Assets/_Project/Restaurant/Items/WineBottleCarryPose.cs
+Assets/_Project/Resources/UI/WinePouringUI.prefab
+Assets/_Project/Art/Icons/GameIcons/WinePouring/ (transparent sprites/source atlas)
+Assets/_Project/Restaurant/Assets/Fine Dining Drink Service/ (world models/materials/prefabs)
+Assets/_Project/Office/Manager/Recipe/Fine Dining/Red Wine.asset
+Assets/_Project/ManagementComputer/Prefabs/FineDiningReservationIndicator.prefab
+Assets/_Project/ManagementComputer/Prefabs/FineDiningDrinkRequest.prefab
+Assets/_Project/Editor/FineDiningDemandRegression.cs
+Assets/_Project/Editor/FineDiningReceptionAuthoring.cs
+Assets/_Project/Editor/FineDiningReceptionRegression.cs
+Assets/_Project/Editor/FineDiningDrinkAuthoring.cs
+Assets/_Project/Editor/FineDiningDrinkRegression.cs
+Assets/_Project/Editor/WinePouringUIAuthoring.cs
+Associated Unity .meta files and tools/Validation/FineDiningReservationChecks.cs.
+
+EVIDENCE
+See tools/Validation/FineDiningDrinkEvidence/ for captured UI/world previews and exact
+focused test result logs. The preview notepad uses a disposable party fixture; it verifies
+menu filtering/controls, not the procedural portrait of a real campaign customer.

@@ -1,0 +1,63 @@
+Lobby3 critical fixes — implementation handoff
+
+Implemented in the existing project and saved Lobby3. No Play Mode was entered.
+
+Fixes
+- Arrivals: all Fine Dining physical spawn paths check the service clock, booked time, arrival spacing, reception capacity and daily budget. Accepted bookings no longer bypass the hard cap of 20. Booking IDs, times and assigned tables are preserved. Spawn tracking occurs at the successful physical spawn, preventing duplicate reservations. Fine Dining no longer uses the spawner's independent automatic timer.
+- Reception: manual selection no longer uses the bot-only filter that rejected a player-owned party. Seating rechecks ownership before committing. Canceled, inactive and completed claims clear reception ownership; interrupted escorts release their leader.
+- Bubbles: dedicated Fine Dining order asset at 1.4x visual scale; reservation frame 76x84; drink/refill frame 88x100 with a DRINK/REFILL caption. Existing mobile scaling remains. The greet action temporarily replaces the reservation marker to avoid two main reception bubbles.
+- Optional drinks: normal order patience is stopped/excluded, patience UI stays hidden, and optional service can end without an unhappy departure or an extra charge. Maximum service time is editable (180 seconds). Canceled prepared drinks release their counter, hands/trolley and claims. The meal and original order identity are restored before the normal bill flow.
+- Wine: eligibility matches stocked, unlocked, served wine by product ID. The overall optional-event chance remains 50%; an eligible wine party now chooses a refill within that event. Both the refill bubble and an explicit table click route into the existing WinePouringUI. Existing art, pouring bindings and carried-item restoration are retained.
+- Second waiter: two active Fine Dining waiter slots, using another configured instance of the existing service routines. Scene contains an inactive cloned waiter with the existing hands, appearance and uniform setup. Shared task and trolley claims prevent simultaneous ownership. No new employee is generated or silently hired. Existing saved waiter assignments persist across days.
+- Notepad: order rows determine the request section height; availability heading and stock rows move below it. Both columns fit their actual content bounds, with top clearance from the Fine Dining HUD.
+
+Checks actually performed
+- Source/control-flow and reference inspection.
+- Unity script compilation completed; compilationFailed=false, compiling=false.
+- Edit Mode read-back: Lobby3 saved, second actor inactive, hands enabled, no missing script on the new actor, service actor/idle references assigned.
+- Existing baked NavMesh reports a complete path to the second idle point: (2.29, 0.56, -83.95).
+- Bubble dimensions, dedicated order prefab, Red Wine recipe, bottle prefab and WinePouringUI references inspected. Wine UI retains bottle/mouth/glass/liquid/stream/splash/success/back-button bindings.
+- One console error is the Pipeline authoring command's 5-second timeout, not a C# compile error. Read-back confirmed that authoring and scene saving completed; mutation was not blindly repeated.
+
+NOT RUN
+Play Mode, gameplay simulations, automated gameplay tests, full shifts, builds, desktop interaction, and runtime visual checks. Playability/tutorial readiness is not certified by these static checks.
+
+Manual checklist
+1. Start service with reservations at several times. Verify arrivals are paced, never early, not duplicated, and total arrivals stay <=20. Existing overbooked saves above 20 retain their bookings but cannot admit all of them in that day.
+2. Greet/seat manually, cancel while moving, then let the receptionist continue. Repeat while the receptionist is occupied; check one owner and prompt following.
+3. At normal zoom and Android aspect ratio, check reservation/order/drink/refill bubbles, then a notepad order containing at least 7 distinct items. Check all stock rows and the pause-button clearance.
+4. Hire and activate waiter #2. Verify separate orders/deliveries, trolley sharing, REST/FIRE, payroll and save/reload; confirm an empty post stays empty when no second waiter is assigned.
+5. Serve unlocked, stocked Red Wine. When a REFILL event occurs, click its bubble/table, pour, cancel/retry, and confirm carried items return and billing happens once. The optional event is random, not guaranteed for every group.
+6. Leave an optional drink unattended, then check dining resumes and payment is reachable without an unhappy departure. Also check successful extra-drink service and a stockout during the request.
+
+Changed source files (under Assets/_Project)
+Restaurant/FineDiningReservations.cs
+Customers/Booth/GroupSpawner.cs
+Gameplay/GameManager/GameManager.cs
+Lobby/Roles/RoleBasedAssignController.cs
+Gameplay/AutonomousService/Core/RestaurantTaskClaim.cs
+Restaurant/Items/OrderChecklistUI.cs
+Customers/Customer/CustomerGroup.FineDiningDrinks.cs
+Customers/Customer/CustomerGroup.cs
+Customers/Customer/OrderSystem/OrderBubbleUI.cs
+Restaurant/Items/BoothDeliverInteractable.cs
+Gameplay/AutonomousService/Lobby/LobbyAutonomousService.cs
+Gameplay/AutonomousService/Lobby/BotTrolleyCarrier.cs
+Gameplay/Hygiene/HygieneManager.Actions.cs
+Office/HR/EmployeeManager.cs
+Restaurant/Items/WaiterHands.cs
+ManagementComputer/ManagementComputerHRPanel.cs
+ManagementComputer/ManagementHRRoleSectionUI.cs
+Customers/CustomerGreetBubbleSpawner.cs
+Customers/Customer/CustomerGroup.FineDiningReception.cs
+Editor/FineDiningReceptionAuthoring.cs
+Restaurant/Items/KitchenManager.cs
+
+Scene/assets
+Assets/_Project/Scenes/RoleBased/Lobby3.unity
+Assets/_Project/ManagementComputer/Prefabs/FineDiningReservationIndicator.prefab
+Assets/_Project/ManagementComputer/Prefabs/FineDiningDrinkRequest.prefab
+Assets/_Project/ManagementComputer/Prefabs/FineDiningOrderAlert.prefab (new, with Unity-generated meta)
+
+Authoring record: tools/Validation/Lobby3CriticalAuthoring.cs.txt
+Pre-authoring scene backup: tools/Validation/Lobby3CriticalBackup/Lobby3.unity

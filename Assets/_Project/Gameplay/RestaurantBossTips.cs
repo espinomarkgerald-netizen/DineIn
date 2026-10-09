@@ -40,7 +40,6 @@ public sealed class RestaurantBossTips : MonoBehaviour
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
         DontDestroyOnLoad(gameObject);
-        dialogue?.HideDialogue();
         unlockCoach = gameObject.AddComponent<RestaurantUnlockCoach>();
     }
     private void OnDestroy() { if (Instance == this) Instance = null; }

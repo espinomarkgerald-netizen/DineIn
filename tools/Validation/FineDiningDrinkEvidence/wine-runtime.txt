@@ -1,0 +1,1 @@
+PASS: live mouse drag filled; release stopped; Back cancelled once; reopened; touch id 0 reached target, returned bottle and closed once within 4s. No customer stock/billing was exercised.

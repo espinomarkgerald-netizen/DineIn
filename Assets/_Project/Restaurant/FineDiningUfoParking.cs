@@ -18,7 +18,7 @@ public sealed class FineDiningUfoParking : MonoBehaviour
     [Range(0, 1)] public float arrivalChance = .65f;
     [Min(1)] public float flightSeconds = 5f;
     [Min(1)] public float returnInterval = 18f;
-    private readonly NavMeshPath route = new NavMeshPath();
+    private NavMeshPath route;
 
     private void OnEnable()
     {
@@ -80,6 +80,7 @@ public sealed class FineDiningUfoParking : MonoBehaviour
     {
         origin = fallback;
         if (!isActiveAndEnabled || MultiplayerDayBridge.IsActive || bays == null || Random.value > arrivalChance) return -1;
+        if (route == null) route = new NavMeshPath();
         for (int i = 0; i < bays.Length; i++)
         {
             var bay = bays[i];

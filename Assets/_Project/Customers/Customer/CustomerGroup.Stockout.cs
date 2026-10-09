@@ -10,6 +10,7 @@ public partial class CustomerGroup
     // Called only for orders which have not consumed ingredients or entered the kitchen.
     public bool HandleGlobalStockout()
     {
+        if (IsFineDiningAdditionalDrinkOrder) return HandleFineDiningDrinkStockout();
         if (!CanDecideCustomerOutcome || leavingRoutineStarted || hasConfirmedOrder || RestaurantStockout.Shortage == 0)
             return false;
         if (WaitingForStock) return true;

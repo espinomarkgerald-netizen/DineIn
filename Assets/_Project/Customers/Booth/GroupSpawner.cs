@@ -105,7 +105,8 @@ public partial class GroupSpawner : MonoBehaviour
     private void Update()
     {
         if (SpawnPermission != null && !SpawnPermission()) return;
-        if (!autoSpawn)
+        // Fine Dining arrivals have a single clock owner, including walk-ins.
+        if (!autoSpawn || FineDiningReservations.For(this) != null)
             return;
 
         // Respect the shift cap when it has been set (> 0)
@@ -255,7 +256,8 @@ public partial class GroupSpawner : MonoBehaviour
     public CustomerGroup SpawnGroup(int bookedSize, string reservationId)
     {
         var fineDining = FineDiningReservations.For(this);
-        if (fineDining != null && (lobbyLine == null || !lobbyLine.HasSpace)) return null;
+        if (fineDining != null && (lobbyLine == null || !lobbyLine.HasSpace ||
+            groupsSpawnedThisShift >= fineDining.GroupBudget || !fineDining.CanSpawnArrival(reservationId))) return null;
         var admission = FastFoodRestaurant.For(this);
         if (admission != null && !admission.CanAdmitCustomer) return null;
 
@@ -419,6 +421,8 @@ public partial class GroupSpawner : MonoBehaviour
         group.state = CustomerGroup.GroupState.WalkingToLobby;
         if (fineDining != null)
         {
+            if (booking != null) fineDining.TrackSpawn(booking, group);
+            else fineDining.TrackWalkIn();
             ufoParking?.CommitArrival(parkingBay, group);
             GroupCreated?.Invoke(group, false);
         }

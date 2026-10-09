@@ -101,7 +101,7 @@ public sealed partial class HygieneManager
     private string HandleCleaningRequest(string operation, string target)
     {
         if (!CanRecordActivity) return "Cleaning is available during service.";
-        if (lobbyService == null) lobbyService = FindFirstObjectByType<LobbyAutonomousService>();
+        if (lobbyService == null) lobbyService = LobbyAutonomousService.FindPrimary();
         if (operation == "lobby")
         {
             if (State.lobbyCleaningRequested) return "Staff are already cleaning the lobby.";
@@ -134,7 +134,7 @@ public sealed partial class HygieneManager
     private void CaptureFloorRoute()
     {
         if (State.lobbyCleaningRequested) return;
-        if (lobbyService == null) lobbyService = FindFirstObjectByType<LobbyAutonomousService>();
+        if (lobbyService == null) lobbyService = LobbyAutonomousService.FindPrimary();
         if (lobbyService == null || !lobbyService.HasCleaningStaff)
         { WarningSlideUI.Instance?.Show("Assign a busser before requesting staff cleaning."); return; }
         HygieneCleaningRoute.Capture(State, lobbyService.CleaningStaffPosition);

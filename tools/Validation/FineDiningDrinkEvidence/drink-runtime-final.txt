@@ -1,0 +1,1 @@
+PASS: 10 no-save runtime stock/billing/notepad/bar-binding checks. Mouse/touch pouring and autonomous delivery are not tested by this helper.

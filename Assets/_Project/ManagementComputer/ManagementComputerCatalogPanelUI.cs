@@ -837,7 +837,7 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
             {
                 extraOrderArmedItem = item;
                 SetMessage(
-                    "✓ " + item.displayName.ToUpperInvariant() + " COVERED   →   " +
+                    item.displayName.ToUpperInvariant() + " COVERED   →   " +
                     projection.PendingContainers + " BOX" +
                     (projection.PendingContainers == 1 ? string.Empty : "ES") +
                     " " + projection.GetDeliveryStageLabel() +

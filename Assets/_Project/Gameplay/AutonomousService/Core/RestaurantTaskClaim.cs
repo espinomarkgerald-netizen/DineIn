@@ -105,6 +105,7 @@ public static class RestaurantTaskClaim
             return false;
 
         Entry entry = GetOrCreate(target);
+        RemoveInactiveMultiplayerOwner(entry);
         if (target is CustomerGroup customerGroup && customerGroup.IsReceptionClaimedByBot)
             return false;
         if (entry.botOwner != null)
@@ -143,6 +144,7 @@ public static class RestaurantTaskClaim
         if (target == null)
             return;
 
+        if (target is CustomerGroup group) group.ReleasePlayerReceptionTask();
         if (Entries.TryGetValue(target.GetInstanceID(), out Entry entry))
             entry.playerClaimUntil = Time.time;
 
@@ -164,7 +166,7 @@ public static class RestaurantTaskClaim
         {
             entry.botOwner = null;
             entry.multiplayerTaskId = null;
-            if (MultiplayerActive && target is CustomerGroup group) group.ReleaseBotReceptionTask();
+            if (target is CustomerGroup group) group.ReleaseBotReceptionTask();
         }
     }
 
@@ -178,6 +180,7 @@ public static class RestaurantTaskClaim
                 activePlayerTarget = null;
                 PlayerTaskChanged?.Invoke();
             }
+            if (target is CustomerGroup group) group.CompleteReceptionTask();
             Entries.Remove(target.GetInstanceID());
         }
     }

@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 using System;
 using System.IO;
 using System.Reflection;
@@ -73,6 +73,14 @@ public static class CampaignCloudSyncRegression
         var empty = new Store.AccountSnapshot { casual = Pair(1, 5000), fastFood = Pair(1, 5000), fineDining = Pair(1, 5000), profile = new Store.ProfileProgress() };
         Store.Seal(empty);
         Check(Store.ValidContent(empty) && !Store.Meaningful(empty), "default Day 1/starter save does not create conflict");
+        var completedFirstDay = JsonUtility.FromJson<Store.AccountSnapshot>(JsonUtility.ToJson(empty));
+        var completedDining = JsonUtility.FromJson<GameSaveData>(completedFirstDay.fineDining.save);
+        completedDining.fineDiningDayComplete = true;
+        completedFirstDay.fineDining.save = JsonUtility.ToJson(completedDining);
+        completedFirstDay.fineDining.hash = Store.Hash(completedFirstDay.fineDining.save, completedFirstDay.fineDining.checkpoint);
+        Store.Seal(completedFirstDay);
+        Check(Store.ValidContent(completedFirstDay) && Store.Meaningful(completedFirstDay),
+            "Fine Dining Day 1 completion uploads with an otherwise default save");
         Check(Store.Meaningful(cloud), "real independent restaurant progress detected");
         empty.casual.save = Pair(2, 5000).save; empty.casual.hash = Store.Hash(empty.casual.save, empty.casual.checkpoint);
         Check(Store.Meaningful(empty), "live progression detected even with a default day-start checkpoint");

@@ -84,17 +84,30 @@ public class KitchenManager : MonoBehaviour
     public Transform[] traySpawnPoints;
     [SerializeField] private Transform outputPickupApproach;
     public Transform OutputPickupApproach => outputPickupApproach;
+    [Header("Fine Dining additional drinks — bar output")]
+    public Transform[] drinkTraySpawnPoints = Array.Empty<Transform>();
+    public Transform drinkPickupApproach;
+    [Range(.25f, 1f)] public float drinkTrayScale = .55f;
     public FoodTray foodTrayPrefab;
+
+    private bool UsesDrinkOutput(CustomerGroup group) => group != null && group.IsFineDiningAdditionalDrinkOrder &&
+        FineDiningReservations.For(this) != null && group.gameObject.scene == gameObject.scene;
+    private Transform[] DineInSpawnPointsFor(CustomerGroup group) => UsesDrinkOutput(group) ? drinkTraySpawnPoints : traySpawnPoints;
+    public Transform GetOutputPickupApproach(CustomerGroup group) => UsesDrinkOutput(group) ? drinkPickupApproach : outputPickupApproach;
+    public bool HasDrinkServiceOutput => drinkPickupApproach != null && drinkTraySpawnPoints != null &&
+        Array.Exists(drinkTraySpawnPoints, point => point != null);
     [Tooltip("Treat tray slots as the visual center of the tray bottom, rather than the imported mesh pivot.")]
     [SerializeField] private bool centerTrayOnOutputSlot;
     [SerializeField, Range(.1f, 1f)] private float outputTrayScale = 1f;
 
-    private FoodTray SpawnOutputTray(Transform slot)
+    private FoodTray SpawnOutputTray(Transform slot, CustomerGroup group)
     {
         var tray = Instantiate(foodTrayPrefab, slot.position, slot.rotation, slot);
-        if (outputPickupApproach != null) tray.GetComponent<FoodTrayInteractable>()?.ConfigurePickupApproach(outputPickupApproach);
-        if (!centerTrayOnOutputSlot) return tray;
-        tray.transform.localScale *= outputTrayScale;
+        var approach = GetOutputPickupApproach(group);
+        if (approach != null) tray.GetComponent<FoodTrayInteractable>()?.ConfigurePickupApproach(approach);
+        bool barOutput = UsesDrinkOutput(group);
+        if (!centerTrayOnOutputSlot && !barOutput) return tray;
+        tray.transform.localScale *= barOutput ? drinkTrayScale : outputTrayScale;
         var renderers = tray.GetComponentsInChildren<Renderer>();
         if (renderers.Length == 0) return tray;
         var bounds = renderers[0].bounds;
@@ -186,13 +199,33 @@ public class KitchenManager : MonoBehaviour
         return true;
     }
 
+    public void CancelOptionalDrink(CustomerGroup group, int orderNumber)
+    {
+        if (group == null || !group.IsFineDiningAdditionalDrinkOrder || group.currentOrderNumber != orderNumber) return;
+        CompleteForecast(orderNumber, ForecastState.Canceled);
+        if (preparedResults.TryGetValue(orderNumber, out var tray) && tray != null && tray.TargetGroup == group)
+        {
+            foreach (var trolley in FindObjectsByType<BotTrolleyCarrier>(FindObjectsSortMode.None))
+                if (trolley.Contains(tray)) trolley.TryReleaseForRetry(tray, trolley.transform.position);
+            foreach (var hands in FindObjectsByType<WaiterHands>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+                if (hands.holdingTray == tray) { tray.NetworkCarryLocked = false; hands.ClearTray(); }
+            RestaurantTaskClaim.Complete(tray);
+            tray.gameObject.SetActive(false);
+            Destroy(tray.gameObject);
+        }
+        preparedResults.Remove(orderNumber);
+        preparedSlots.Remove(orderNumber);
+        completedOrders.Remove(orderNumber);
+    }
+
     public bool TryGetPreparedTray(int orderNumber, out FoodTray tray)
     {
         tray = null;
-        if (!preparedResults.TryGetValue(orderNumber, out var result) || result == null
-            || !preparedSlots.TryGetValue(orderNumber, out int slot) || traySpawnPoints == null
-            || slot < 0 || slot >= traySpawnPoints.Length || traySpawnPoints[slot] == null
-            || result.transform.parent != traySpawnPoints[slot] || result.orderNumber != orderNumber
+        if (!preparedResults.TryGetValue(orderNumber, out var result) || result == null) return false;
+        var slots = DineInSpawnPointsFor(result.TargetGroup);
+        if (!preparedSlots.TryGetValue(orderNumber, out int slot) || slots == null
+            || slot < 0 || slot >= slots.Length || slots[slot] == null
+            || result.transform.parent != slots[slot] || result.orderNumber != orderNumber
             || result.TargetGroup == null || !result.TargetGroup.HasConfirmedOrder
             || result.TargetGroup.currentOrderNumber != orderNumber
             || result.TargetGroup.state != CustomerGroup.GroupState.OrderTaken) return false;
@@ -261,7 +294,7 @@ public class KitchenManager : MonoBehaviour
         var slot = traySpawnPoints[slotIndex];
         // Never choose an alternative slot on observers.
         if (slot.GetComponentInChildren<FoodTray>() != null) return;
-        var tray = SpawnOutputTray(slot);
+        var tray = SpawnOutputTray(slot, group);
         tray.Init(group, preserveOrderSnapshot: true);
         BlockPreparedPickup(tray);
         preparedResults[order] = tray;
@@ -414,9 +447,11 @@ public class KitchenManager : MonoBehaviour
     public bool CanStartReviewedOrder(CustomerGroup group)
     {
         if (!isActiveAndEnabled || MultiplayerRestaurantBridge.IsObserver || group == null
-            || group.IsNetworkObserver || foodTrayPrefab == null || traySpawnPoints == null) return false;
+            || group.IsNetworkObserver || foodTrayPrefab == null) return false;
+        var slots = DineInSpawnPointsFor(group);
+        if (slots == null || UsesDrinkOutput(group) && !HasDrinkServiceOutput) return false;
         bool hasSlot = false;
-        foreach (var slot in traySpawnPoints) if (slot != null) { hasSlot = true; break; }
+        foreach (var slot in slots) if (slot != null) { hasSlot = true; break; }
         return hasSlot && (group.IsWaitingForRemake() || CanAcceptOrderNumber(group.currentOrderNumber));
     }
 
@@ -472,6 +507,11 @@ public class KitchenManager : MonoBehaviour
             return false;
         }
 
+        if (UsesDrinkOutput(group) && !HasDrinkServiceOutput)
+        {
+            Debug.LogError("[KitchenManager] Additional drinks need authored bar tray slots and a pickup approach.", this);
+            return false;
+        }
         int orderNo = group.currentOrderNumber;
         if (orderNo < 0)
         {
@@ -626,7 +666,7 @@ public class KitchenManager : MonoBehaviour
                 yield return null;
             }
 
-            Transform[] targetSlots = isTakeout ? takeoutSpawnPoints : traySpawnPoints;
+            Transform[] targetSlots = isTakeout ? takeoutSpawnPoints : DineInSpawnPointsFor(group);
 
             if (targetSlots == null || targetSlots.Length == 0)
             {
@@ -726,13 +766,13 @@ public class KitchenManager : MonoBehaviour
             }
             else
             {
-                FoodTray tray = SpawnOutputTray(freeSlot);
+                FoodTray tray = SpawnOutputTray(freeSlot, group);
                 tray.Init(group, preserveOrderSnapshot: resumeAtSpawn);
                 // The normal kitchen path is also the multiplayer source of truth.
                 // Every completed output must be discoverable by pickup validation
                 // and replication, including human orders for bot-seated customers.
                 preparedResults[orderNo] = tray;
-                preparedSlots[orderNo] = Array.IndexOf(traySpawnPoints, freeSlot);
+                preparedSlots[orderNo] = Array.IndexOf(targetSlots, freeSlot);
 
                 FoodTrayInteractable it = tray.GetComponent<FoodTrayInteractable>();
                 if (resumeAtSpawn)

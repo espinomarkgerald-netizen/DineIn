@@ -1,0 +1,1 @@
+PASS: Drinks page remains visible after startup; Food hidden; caption=Drinks

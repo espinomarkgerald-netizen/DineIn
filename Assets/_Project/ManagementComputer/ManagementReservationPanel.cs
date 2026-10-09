@@ -38,6 +38,7 @@ public sealed class ManagementReservationPanel : MonoBehaviour
     [Min(0)] public float tableTopPadding = 184f;
     [Min(0)] public float bannerTableTopPadding = 250f;
     [Range(.12f, .25f)] public float feedbackDuration = .18f;
+    [Range(.15f, .6f)] public float declineFeedbackDuration = .35f;
 
     private FineDiningReservations source;
     private string selectedId, selectedTableId;
@@ -117,13 +118,14 @@ public sealed class ManagementReservationPanel : MonoBehaviour
     {
         if (source == null || busy) return;
         var shown = source.Bookings.Where(b => tonight ? b.status != FineDiningBookingStatus.Pending && b.status != FineDiningBookingStatus.Declined : b.status == FineDiningBookingStatus.Pending && !Expired(b)).OrderBy(b => b.arrivalMinute).ToArray();
-        requestsLabel.text = "Requests  " + source.Bookings.Count(b => b.status == FineDiningBookingStatus.Pending && !Expired(b));
-        tonightLabel.text = "Tonight  " + source.Bookings.Count(b => b.status != FineDiningBookingStatus.Pending && b.status != FineDiningBookingStatus.Declined);
+        requestsLabel.text = "REQUESTS (" + source.Bookings.Count(b => b.status == FineDiningBookingStatus.Pending && !Expired(b)) + ")";
+        tonightLabel.text = "TONIGHT (" + source.Bookings.Count(b => b.status != FineDiningBookingStatus.Pending && b.status != FineDiningBookingStatus.Declined) + ")";
         StyleButton(requestsTab, !tonight ? blueButton : greyButton, !tonight);
         StyleButton(tonightTab, tonight ? blueButton : greyButton, tonight);
-        summary.text = source.ReservedGuests + " booked guests  •  " + source.ExpectedWalkInGroups * 2 + " expected walk-ins";
+        summary.text = source.ReservedGuests + " booked guests  \u2022  " + source.ExpectedWalkInGroups * 2 + " expected walk-ins";
         if (!shown.Any(b => b.id == selectedId))
         {
+            declineConfirmation.SetActive(false);
             selectedId = shown.FirstOrDefault()?.id; selectedTableId = null;
             requestsScroll.verticalNormalizedPosition = 1f;
             tablesScroll.verticalNormalizedPosition = 1f;
@@ -146,7 +148,7 @@ public sealed class ManagementReservationPanel : MonoBehaviour
             card.gameObject.SetActive(true);
             card.transform.SetSiblingIndex(i);
             card.title.text = booking.guestName;
-            card.details.text = FineDiningReservations.Clock(booking.arrivalMinute) + "  •  " + booking.size + (booking.size == 1 ? " guest" : " guests") + (tonight ? "\n" + source.TableName(booking.tableId) : "");
+            card.details.text = FineDiningReservations.Clock(booking.arrivalMinute) + "  \u2022  " + booking.size + (booking.size == 1 ? " guest" : " guests") + (tonight && !string.IsNullOrEmpty(booking.tableId) ? "\n" + source.TableName(booking.tableId) : "");
             string status = Status(booking);
             bool arriving = status == "ARRIVING SOON" && card.status.text != status;
             card.status.text = status;
@@ -178,7 +180,7 @@ public sealed class ManagementReservationPanel : MonoBehaviour
     {
         label = "AVAILABLE";
         if (!table.Usable) { label = !table.Unlocked ? "Unlocks Day " + table.unlockDay : "Unavailable"; return false; }
-        if (table.Capacity < booking.size) { label = "Seats " + table.Capacity + " • Need " + booking.size; return false; }
+        if (table.Capacity < booking.size) { label = "Seats " + table.Capacity + " \u2022 Need " + booking.size; return false; }
         bool arrivingNow = booking.arrivalMinute <= source.NowMinute;
         if (arrivingNow && table.booth.CurrentGroup != null && table.booth.CurrentGroup.FineDiningReservationId != booking.id)
         { label = "Occupied"; return false; }
@@ -192,8 +194,9 @@ public sealed class ManagementReservationPanel : MonoBehaviour
     private void RenderDetails(FineDiningBooking booking)
     {
         selectedDetails.title.text = booking.guestName;
-        selectedDetails.details.text = FineDiningReservations.Clock(booking.arrivalMinute) + "  •  " + booking.size + (booking.size == 1 ? " guest" : " guests") + "\n" + (string.IsNullOrEmpty(booking.tableId) ? "Not assigned yet" : "Assigned: " + source.TableName(booking.tableId));
-        selectedDetails.status.text = Status(booking);
+        selectedDetails.details.text = FineDiningReservations.Clock(booking.arrivalMinute) + "  \u2022  " + booking.size + (booking.size == 1 ? " guest" : " guests");
+        selectedDetails.status.text = Status(booking) + "  \u2022  " + (string.IsNullOrEmpty(booking.tableId) ? "Choose a table below" : source.TableName(booking.tableId));
+        selectedDetails.status.color = Ink;
         selectedDetails.SetPortraits(Portrait(booking), booking.size);
         bool expired = Expired(booking);
         bool accepting = booking.status == FineDiningBookingStatus.Pending;
@@ -205,6 +208,7 @@ public sealed class ManagementReservationPanel : MonoBehaviour
         banner.text = expired ? "RESERVATION EXPIRED\nThe requested arrival time has passed." : unavailable;
         declineButton.gameObject.SetActive(accepting && !expired);
         declineButton.interactable = source.CanDeclineRequest(booking);
+        if (!declineButton.gameObject.activeSelf || !declineButton.interactable) declineConfirmation.SetActive(false);
         StyleButton(declineButton, declineButton.interactable ? redButton : greyButton, declineButton.interactable);
         foreach (var existing in tables)
             if (!(source.tables ?? Array.Empty<FineDiningTable>()).Any(t => t != null && t.Owned && t.tableId == existing.Key))
@@ -258,7 +262,7 @@ public sealed class ManagementReservationPanel : MonoBehaviour
             card.title.text = table.displayName;
             card.details.text = "Seats " + table.Capacity;
             card.status.text = booking.tableId == table.tableId ? "ASSIGNED" : chosen && valid ? "SELECTED" : state;
-            card.status.color = valid ? Green : Ink;
+            card.status.color = booking.tableId == table.tableId ? Green : chosen && valid ? Green : Ink;
             card.preview.sprite = table.reservationPreview;
             card.preview.enabled = table.reservationPreview != null;
             card.button.interactable = valid;
@@ -270,7 +274,7 @@ public sealed class ManagementReservationPanel : MonoBehaviour
         acceptButton.interactable = selected != null && TableSelectable(booking, selected, out _) && (accepting || booking.tableId != selected.tableId);
         acceptButton.gameObject.SetActive(acceptButton.interactable);
         tableRect.offsetMin = new Vector2(tableRect.offsetMin.x, acceptButton.interactable ? 72f : 12f);
-        acceptLabel.text = accepting && selected != null ? "Confirm " + selected.displayName : "Save Table Change";
+        acceptLabel.text = accepting ? "Confirm Reservation" : "Save Table Change";
         StyleButton(acceptButton, greenButton, true);
     }
 
@@ -319,10 +323,20 @@ public sealed class ManagementReservationPanel : MonoBehaviour
             card.status.text = declined ? "DECLINED" : "CONFIRMED";
             card.status.color = declined ? Red : Green;
         }
-        float duration = LevelOneUIAccessibility.ReducedMotion ? 0f : feedbackDuration;
+        if (declined && card != null)
+        {
+            card.frame.color = new Color(1f, .83f, .84f);
+            if (card.checkmark != null) card.checkmark.gameObject.SetActive(false);
+            selectedDetails.status.text = "DECLINED";
+            selectedDetails.status.color = Red;
+            declineButton.interactable = false;
+        }
+        float duration = LevelOneUIAccessibility.ReducedMotion ? 0f : declined ? declineFeedbackDuration : feedbackDuration;
+        Vector3 originalScale = card != null ? card.transform.localScale : Vector3.one;
         for (float t = 0; t < duration; t += Time.unscaledDeltaTime)
         {
             if (card != null && card.visual != null) card.visual.alpha = 1f - .8f * t / duration;
+            if (declined && card != null) card.transform.localScale = originalScale * Mathf.Lerp(1f, .96f, t / duration);
             yield return null;
         }
         busy = false;
@@ -332,11 +346,13 @@ public sealed class ManagementReservationPanel : MonoBehaviour
 
     private void Toast(string text, bool positive)
     {
+        // Selection and booking status already confirm successful actions.
+        // Keep failures readable without the decorative notification bar.
+        if (positive) { feedbackRoot.SetActive(false); return; }
         feedbackText.text = text;
-        feedbackText.color = Color.white;
-        if (useComputerAppStyle) feedbackRoot.GetComponent<Image>().color = positive ? new Color(.10f, .48f, .29f) : new Color(.66f, .22f, .28f);
-        feedbackIcon.sprite = checkmarkSprite;
-        feedbackIcon.gameObject.SetActive(positive);
+        feedbackText.color = Red;
+        feedbackRoot.GetComponent<Image>().enabled = false;
+        feedbackIcon.gameObject.SetActive(false);
         feedbackRoot.SetActive(true);
         feedbackRoot.GetComponent<UIRevealAnimation>()?.Play();
         if (toastRoutine != null) StopCoroutine(toastRoutine);
@@ -345,13 +361,11 @@ public sealed class ManagementReservationPanel : MonoBehaviour
     private IEnumerator HideToast() { yield return new WaitForSecondsRealtime(2.2f); feedbackRoot.SetActive(false); toastRoutine = null; }
     private void StyleButton(Button button, Sprite sprite, bool whiteText)
     {
-        button.image.sprite = useComputerAppStyle ? computerPanelSprite : sprite;
         bool isTab = button == requestsTab || button == tonightTab;
-        button.image.color = !useComputerAppStyle ? Color.white
-            : sprite == greenButton ? new Color(.10f, .48f, .29f)
-            : sprite == redButton ? new Color(.66f, .22f, .28f)
-            : sprite == greyButton ? (isTab ? new Color(.12f, .27f, .42f) : new Color(.82f, .85f, .90f))
-            : new Color(.08f, .55f, .88f);
+        button.image.sprite = useComputerAppStyle && isTab ? computerPanelSprite : sprite;
+        button.image.color = useComputerAppStyle && isTab
+            ? sprite == greyButton ? new Color(.12f, .27f, .42f) : new Color(.08f, .55f, .88f)
+            : Color.white;
         var text = button.GetComponentInChildren<TMP_Text>();
         if (text != null) text.color = whiteText || (useComputerAppStyle && isTab) ? Color.white : Ink;
     }

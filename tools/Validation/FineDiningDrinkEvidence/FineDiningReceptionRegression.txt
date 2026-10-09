@@ -1,0 +1,20 @@
+PASS An unlocked empty table is available for the focused escort test.
+PASS Accepted guests have no reception patience drain or patience bar.
+PASS Reception unavailability preserves the booked party, identity, and assigned table.
+PASS The real Fine Dining walk-in update drains patience at half the normal rate.
+PASS A reserved couple can claim existing waiting chairs.
+PASS Both waiting chairs are claimed before customers move.
+PASS A second party cannot claim occupied chairs and is not ejected when seating is full.
+PASS The reserved couple walks along real NavMesh paths and sits in the waiting chairs.
+PASS Seated party members occupy distinct physical chair positions.
+PASS Existing customer animator receives its sitting state.
+PASS Existing customer animator receives its sitting state.
+PASS The receptionist starts assignment and escort while the party is still at reception.
+PASS Escort begins before the receptionist reaches the dining table.
+PASS Beginning the escort releases waiting chairs and stands both guests.
+PASS Guests visibly begin following while their receptionist is still en route.
+PASS The released waiting chairs are available to the next party.
+PASS Waiting-place release clears all chair occupancy.
+PASS: 17 focused runtime reception checks.
+Transient fixtures removed; prior booking state, staff position, component settings, and persistence policy restored.
+PASS: 17 focused runtime reception checks.

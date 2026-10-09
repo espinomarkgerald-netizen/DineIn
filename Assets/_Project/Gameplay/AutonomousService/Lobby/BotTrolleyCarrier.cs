@@ -90,6 +90,7 @@ public sealed class BotTrolleyCarrier : MonoBehaviour
     public bool HasRenderableVisual => ResolveVisualRenderers().Length > 0;
     public bool IsConfigured => string.IsNullOrEmpty(ConfigurationProblem);
     public bool IsInUse => operatorBot != null;
+    public bool IsOperatedBy(AutonomousStaffBot bot) => bot != null && operatorBot == bot;
     public bool IsRuntimeOwned => runtimeOwned;
     public Vector3 ParkingPosition => ResolveParkingPosition();
     public IReadOnlyList<FoodTray> Trays => trays;

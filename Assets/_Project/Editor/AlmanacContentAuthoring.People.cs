@@ -22,7 +22,7 @@ public static partial class AlmanacContentAuthoring
             "Assets/_Project/Art/Models/Customer/Old Alien Models/GreenCustomer.prefab", new[] { "restaurant-casual-dining", "staff-waiter" });
         PeopleCustomer("customer-vip", "VIP Customer", "PinkCustomer", "Pink guest · prompt service matters",
             "These pink guests expect prompt attention. A happy visit earns an extra tip, but their patience drains faster while waiting in line or for an order.",
-            "Line and order patience drain 3× as fast.\nHappy payment adds a 100 bonus tip.\nCasual Dining: Day 5. Fast Food: Day 1.",
+            "Line and order patience drain 2.5× as fast.\nHappy payment adds a 100 bonus tip.\nCasual Dining: Day 5. Fast Food: Day 1.",
             "Assets/_Project/Art/Models/Customer/Old Alien Models/PinkCustomer.prefab", new[] { "staff-host", "staff-waiter", "staff-cashier" });
         PeopleCustomer("customer-messy", "Messy Customer", "BlueCustomer", "Blue guest · take time to tidy",
             "Blue guests take their time over a meal and tend to leave a mess. Keep a table available for the next party by sending the busser after they finish.",

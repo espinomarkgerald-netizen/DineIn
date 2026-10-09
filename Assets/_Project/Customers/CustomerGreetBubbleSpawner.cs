@@ -6,6 +6,7 @@ public class CustomerGreetBubbleSpawner : MonoBehaviour
 
     [SerializeField] private GameObject greetBubblePrefab;
 
+    public bool IsShowingFor(CustomerGroup group) => currentGroup == group && currentBubble != null && currentBubble.activeInHierarchy;
     private GameObject currentBubble;
     private CustomerGroup currentGroup;
     private Camera currentCamera;

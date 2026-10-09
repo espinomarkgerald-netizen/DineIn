@@ -21,7 +21,7 @@ MonoBehaviour:
   searchAliases: 
   description: These pink guests expect prompt attention. A happy visit earns an
     extra tip, but their patience drains faster while waiting in line or for an order.
-  gameplayNotes: "Line and order patience drain 3\xD7 as fast.\nHappy payment adds
+  gameplayNotes: "Line and order patience drain 2.5\xD7 as fast.\nHappy payment adds
     a 100 bonus tip.\nCasual Dining: Day 5. Fast Food: Day 1."
   bossNote: 
   relatedIds:

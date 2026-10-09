@@ -65,6 +65,18 @@ public class LobbyAutonomousService : MonoBehaviour
     [Tooltip("After an unreachable trolley route, temporarily use normal single-tray service before trying the trolley again. This prevents a moved parking point from blocking the role.")]
     [SerializeField, Min(0.5f)] private float trolleyRouteRetrySeconds = 4f;
 
+    [Header("Additional Fine Dining waiter")]
+    [Tooltip("Run only the existing waiter routines for the second employee slot.")]
+    [SerializeField] private bool waiterOnly;
+    [SerializeField] private GameObject waiterActor;
+    [SerializeField] private Transform waiterIdlePoint;
+    public static LobbyAutonomousService FindPrimary()
+    {
+        foreach (var service in FindObjectsByType<LobbyAutonomousService>(FindObjectsSortMode.None))
+            if (!service.waiterOnly) return service;
+        return null;
+    }
+    private LobbyAutonomousService primaryService;
     private AutonomousStaffBot host;
     private AutonomousStaffBot waiter;
     private AutonomousStaffBot cashier;
@@ -114,14 +126,14 @@ public class LobbyAutonomousService : MonoBehaviour
     private void Awake()
     {
         roleManager = FindFirstObjectByType<RoleManager>(FindObjectsInactive.Include);
-        DisableManualRoleControl();
+        if (!waiterOnly) DisableManualRoleControl();
     }
 
     private IEnumerator Start()
     {
         // This component is added during GameDayManager.Awake. Repeat the shutdown
         // after every scene Awake has run so RoleManager cannot re-enable controls.
-        DisableManualRoleControl();
+        if (!waiterOnly) DisableManualRoleControl();
 
         // Equipment purchases are save-backed. Do not decide that a trolley is
         // unpurchased during the one-frame bootstrap window before save apply.
@@ -155,7 +167,7 @@ public class LobbyAutonomousService : MonoBehaviour
         if (equipmentManager != null)
             equipmentManager.PurchasesChanged -= OnEquipmentPurchased;
 
-        if (takeoutFlow != null)
+        if (!waiterOnly && takeoutFlow != null)
             takeoutFlow.SetAutomatedService(false);
 
         CancelActiveTrolleyBatch(waiterTrolley, waiter, activeWaiterTrolleyBatch);
@@ -176,7 +188,7 @@ public class LobbyAutonomousService : MonoBehaviour
         sink = FindFirstObjectByType<SinkInteractable>();
         cashierRegister = FindFirstObjectByType<CashierRegisterUI>(FindObjectsInactive.Include);
         hostObject = ResolveRoleObject(roleManager != null ? roleManager.host : null, "Host");
-        waiterObject = ResolveRoleObject(roleManager != null ? roleManager.waiter : null, "Waiter");
+        waiterObject = waiterOnly ? waiterActor : ResolveRoleObject(roleManager != null ? roleManager.waiter : null, "Waiter");
         cashierObject = ResolveRoleObject(roleManager != null ? roleManager.cashier : null, "Cashier");
         busserObject = ResolveRoleObject(roleManager != null ? roleManager.busser : null, "Busser");
         kitchenWorkers = FindObjectsByType<KitchenWorkerBot>(
@@ -184,9 +196,14 @@ public class LobbyAutonomousService : MonoBehaviour
             FindObjectsSortMode.None);
 
         CashierBoothInteractable cashierBooth = FindFirstObjectByType<CashierBoothInteractable>();
-        cashierStation = cashierBooth != null
-            ? cashierBooth.StandPoint
-            : FindStation(cashierObject != null ? cashierObject.transform : null, "CashierStation");
+        Transform fineDiningCashierApproach = FineDiningReservations.For(this) != null
+            ? FindStation(null, "Cashier Desk Approach")
+            : null;
+        cashierStation = fineDiningCashierApproach != null
+            ? fineDiningCashierApproach
+            : cashierBooth != null
+                ? cashierBooth.StandPoint
+                : FindStation(cashierObject != null ? cashierObject.transform : null, "CashierStation");
         var fastFood = fastFoodRestaurant = FastFoodRestaurant.For(this);
         if (fastFood != null && fastFood.CashierApproach != null) cashierStation = fastFood.CashierApproach;
         var bindings = fastFood != null ? fastFood.GetComponent<FastFoodLobbyAuthoring>() : null;
@@ -246,12 +263,33 @@ public class LobbyAutonomousService : MonoBehaviour
 
     private EmployeeData DeliveryEmployee => employeeManager == null ? null :
         fastFoodRestaurant != null ? employeeManager.GetAssignedEmployee(EmployeeRole.Busser, 1) :
-        employeeManager.GetAssignedEmployee(EmployeeRole.Waiter);
+        employeeManager.GetAssignedEmployee(EmployeeRole.Waiter, waiterOnly ? 1 : 0);
 
     private void RefreshStaffAssignments()
     {
         BindEmployeeAssignments();
         BindEquipmentPurchases();
+
+        if (waiterOnly)
+        {
+            var employee = FineDiningReservations.For(this) != null ? DeliveryEmployee : null;
+            if (employee != null && !employee.hired) employee = null;
+            if (MultiplayerServiceStaffBridge.CanSimulate)
+            {
+                if (employee == null && waiter != null)
+                    CancelActiveTrolleyBatch(waiterTrolley, waiter, activeWaiterTrolleyBatch);
+                SetRoleObjectActive(waiterObject, employee != null);
+                waiter = employee != null && waiterObject != null
+                    ? AddBot(waiterObject, waiterIdlePoint, waiterAvoidancePriority + 1) : null;
+                waiter?.ConfigurePerformance(employee);
+                waiterHands = waiter != null ? waiter.GetComponent<WaiterHands>() : null;
+                if (primaryService == null) primaryService = FindPrimary();
+                waiterTrolley = primaryService != null ? primaryService.waiterTrolley : null;
+                ConfigureIdlePresentation();
+            }
+            DineIn.Appearance.EmployeeAppearance.Bind(waiterObject, employee, EmployeeRole.Waiter, false);
+            return;
+        }
 
         if (MultiplayerServiceStaffBridge.CanSimulate)
         {
@@ -390,7 +428,8 @@ public class LobbyAutonomousService : MonoBehaviour
         // A purchased trolley is a physical restaurant upgrade, so keep it
         // visible at its editable parking point even when that role is not
         // currently staffed. Task batching still requires an active bot.
-        if (existing != null && (roleObject == null || !roleObject.activeSelf) && existing.IsInUse)
+        if (existing != null && (roleObject == null || !roleObject.activeSelf) && existing.IsInUse &&
+            existing.IsOperatedBy(roleObject != null ? roleObject.GetComponent<AutonomousStaffBot>() : null))
         {
             existing.ReleaseAllForRetry(existing.transform.position);
             existing.EndUse(true);
@@ -636,7 +675,8 @@ public class LobbyAutonomousService : MonoBehaviour
             if (MultiplayerServiceStaffBridge.CanSimulate && GameDayManager.Instance != null && GameDayManager.Instance.ServiceActive)
             {
                 RefreshSceneQueryCache(false);
-                if (fastFoodRestaurant != null)
+                if (waiterOnly) TryStartWaiterTask();
+                else if (fastFoodRestaurant != null)
                 {
                     ReportFastFoodStaffReadiness();
                     TryStartFastFoodCashierTask();
@@ -653,7 +693,7 @@ public class LobbyAutonomousService : MonoBehaviour
                     }
                 }
                 else { TryStartHostTask(); TryStartWaiterTask(); }
-                TryStartBusserTask();
+                if (!waiterOnly) TryStartBusserTask();
             }
 
             yield return wait;
@@ -770,6 +810,11 @@ public class LobbyAutonomousService : MonoBehaviour
 
     private void TryStartWaiterTask()
     {
+        if (waiterOnly)
+        {
+            if (primaryService == null) primaryService = FindPrimary();
+            waiterTrolley = primaryService != null ? primaryService.waiterTrolley : null;
+        }
         WaiterHands hands = waiterHands;
         if (waiter == null || waiter.IsBusy || hands == null)
             return;
@@ -937,6 +982,7 @@ public class LobbyAutonomousService : MonoBehaviour
 
         if (waiter == null || waiterTrolley == null || !waiterTrolley.IsConfigured ||
             waiterTrolley.IsInUse || waiterTrolley.Count > 0 ||
+            !RestaurantTaskClaim.CanBotStart(waiterTrolley, 0f) ||
             !AreWaiterHandsFree(waiterHands))
             return false;
 
@@ -984,6 +1030,8 @@ public class LobbyAutonomousService : MonoBehaviour
         if (batch.Count == 0)
             return false;
 
+        if (!RestaurantTaskClaim.TryClaimBot(waiterTrolley, waiter, 0f))
+        { ReleaseBatchClaims(batch, waiter); return false; }
         TrackActiveBatch(activeWaiterTrolleyBatch, batch);
         waiterTrolley.SetReserved();
         waiter.StartTask(DeliverFoodBatch(batch));
@@ -1183,6 +1231,24 @@ public class LobbyAutonomousService : MonoBehaviour
         if (group == null || booth == null || !group.CanBeSeated || !group.CanUseBooth(booth))
             yield break;
 
+        if (FineDiningReservations.For(this) != null)
+        {
+            // Reserve the table and release waiting chairs before the host starts walking.
+            // The group's own seating coroutine follows this host, then handles the table seats.
+            if (!group.BeginReceptionEscort(booth, host.transform)) yield break;
+            while (group != null && group.ReceptionStandTransitionPending) yield return null;
+            try
+            {
+                yield return host.MoveTo(booth.GetNavigableApproachPosition());
+            }
+            finally
+            {
+                if (group != null) group.FinishReceptionEscort();
+            }
+            if (group != null) yield return host.FaceTowards(GetGroupCenter(group));
+            yield break;
+        }
+
         yield return host.MoveTo(booth.GetNavigableApproachPosition());
         yield return host.FaceTowards(GetGroupCenter(group));
         yield return host.WorkFor(greetingSeconds);
@@ -1235,8 +1301,8 @@ public class LobbyAutonomousService : MonoBehaviour
         }
         finally
         {
-            if (MultiplayerDayBridge.IsActive)
-                RestaurantTaskClaim.ReleaseBot(group, owner, generation);
+            RestaurantTaskClaim.ReleaseBot(group, owner, generation);
+            if (group != null) group.FinishReceptionEscort();
         }
 
         if (MultiplayerDayBridge.IsActive && owner.JobGeneration != generation) yield break;
@@ -1566,8 +1632,8 @@ public class LobbyAutonomousService : MonoBehaviour
         {
             yield return waiter.MoveWithin(
                 group.FastFood != null && group.FastFood.PickupApproach != null
-                    ? group.FastFood.PickupApproach.position : kitchenManager != null && kitchenManager.OutputPickupApproach != null
-                        ? kitchenManager.OutputPickupApproach.position : tray.transform.position,
+                    ? group.FastFood.PickupApproach.position : kitchenManager != null && kitchenManager.GetOutputPickupApproach(group) != null
+                        ? kitchenManager.GetOutputPickupApproach(group).position : tray.transform.position,
                 pickupServiceDistance,
                 2f);
             if (!waiter.LastMoveSucceeded)
@@ -1676,8 +1742,8 @@ public class LobbyAutonomousService : MonoBehaviour
 
             waiter.SetApproachingTarget(tray);
             yield return waiter.MoveWithin(tray.TargetGroup?.FastFood?.PickupApproach != null
-                ? tray.TargetGroup.FastFood.PickupApproach.position : kitchenManager != null && kitchenManager.OutputPickupApproach != null
-                    ? kitchenManager.OutputPickupApproach.position : tray.transform.position,
+                ? tray.TargetGroup.FastFood.PickupApproach.position : kitchenManager != null && kitchenManager.GetOutputPickupApproach(tray.TargetGroup) != null
+                    ? kitchenManager.GetOutputPickupApproach(tray.TargetGroup).position : tray.transform.position,
                 pickupServiceDistance, 2f);
             FoodTrayInteractable interactable = tray != null
                 ? tray.GetComponent<FoodTrayInteractable>()
@@ -1747,6 +1813,7 @@ public class LobbyAutonomousService : MonoBehaviour
         trolley.SetReturning();
         yield return ReturnTrolleyToParking(trolley, waiter);
         activeWaiterTrolleyBatch.Clear();
+        RestaurantTaskClaim.ReleaseBot(trolley, waiter);
     }
 
     private IEnumerator CleanTrayBatchAtSink(List<FoodTray> batch, List<Booth> cleanupBooths)
@@ -2222,7 +2289,8 @@ public class LobbyAutonomousService : MonoBehaviour
         AutonomousStaffBot owner,
         List<FoodTray> batch)
     {
-        if (trolley != null)
+        if (trolley != null && owner != null && (trolley.IsOperatedBy(owner) ||
+            !trolley.IsInUse && RestaurantTaskClaim.IsClaimedByBot(trolley, owner)))
         {
             Vector3 releasePosition = owner != null
                 ? owner.transform.position
@@ -2231,6 +2299,7 @@ public class LobbyAutonomousService : MonoBehaviour
             trolley.EndUse(true);
         }
 
+        RestaurantTaskClaim.ReleaseBot(trolley, owner);
         ReleaseBatchClaims(batch, owner);
         batch.Clear();
     }
@@ -2241,7 +2310,8 @@ public class LobbyAutonomousService : MonoBehaviour
         string reason)
     {
         trolley?.SetFailure(reason);
-        if (trolley != null && trolley.IsInUse)
+        RestaurantTaskClaim.ReleaseBot(trolley, waiter);
+        if (trolley != null && trolley.IsOperatedBy(waiter))
             trolley.EndUse(true);
         ReleaseBatchClaims(batch, waiter);
         activeWaiterTrolleyBatch.Clear();
@@ -2868,7 +2938,7 @@ public class LobbyAutonomousService : MonoBehaviour
         BotTrolleyCarrier trolley,
         AutonomousStaffBot owner)
     {
-        if (trolley == null)
+        if (trolley == null || owner == null || !trolley.IsOperatedBy(owner))
             return;
 
         Vector3 releasePosition = owner != null
