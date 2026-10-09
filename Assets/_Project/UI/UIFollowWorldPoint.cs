@@ -69,6 +69,46 @@ public class UIFollowWorldPoint : MonoBehaviour
     private Graphic[] visualGraphics;
     private readonly Vector3[] graphicWorldCorners = new Vector3[4];
 
+    private FineDiningReservations fineDiningSizing;
+    private float fineDiningFrameWidth;
+
+    // Explicit opt-in from customer/service bubbles; other levels and HUDs retain their settings.
+    public void ConfigureFineDiningSizing(FineDiningReservations settings)
+    {
+        if (settings == null || settings.gameObject.scene.name != "Lobby3") return;
+        var button = GetComponentInChildren<Selectable>(true);
+        Graphic frame = button != null ? button.targetGraphic : GetComponent<Image>();
+        if (rect == null) rect = GetComponent<RectTransform>();
+        if (frame == null)
+        {
+            // Non-clickable service indicators may put a small icon before the frame.
+            float largestWidth = 0f;
+            foreach (var image in GetComponentsInChildren<Image>(true))
+            {
+                image.rectTransform.GetWorldCorners(graphicWorldCorners);
+                float candidateWidth = Mathf.Abs(rect.InverseTransformPoint(graphicWorldCorners[2]).x -
+                    rect.InverseTransformPoint(graphicWorldCorners[0]).x);
+                if (candidateWidth <= largestWidth) continue;
+                largestWidth = candidateWidth;
+                frame = image;
+            }
+        }
+        if (frame == null) return;
+        frame.rectTransform.GetWorldCorners(graphicWorldCorners);
+        float width = Mathf.Abs(rect.InverseTransformPoint(graphicWorldCorners[2]).x -
+                               rect.InverseTransformPoint(graphicWorldCorners[0]).x);
+        if (width <= .001f) return;
+        fineDiningSizing = settings;
+        fineDiningFrameWidth = width * Mathf.Abs(authoredScale.x);
+        KeepAttachedToTarget();
+        if (Application.isMobilePlatform && button != null)
+        {
+            float padding = settings.customerBubbleTouchPadding * frame.rectTransform.rect.width /
+                Mathf.Max(1f, settings.customerBubbleWidth);
+            frame.raycastPadding = new Vector4(-padding, -padding, -padding, -padding);
+        }
+    }
+
     public bool IsWorldSpace => worldSpaceInitialized;
     public void KeepAttachedToTarget()
     {
@@ -372,7 +412,10 @@ public class UIFollowWorldPoint : MonoBehaviour
         Bounds visualBounds = ResolveLocalVisualBounds();
         float stackOffsetPixels = WorldBubbleStackLayout.GetOffsetPixels(this, anchorPosition);
         float lowerEdgeWorld = visualBounds.min.y * authoredScale.y * scale;
-        float verticalPixels = edgeGapPixels + stackOffsetPixels + screenOffset.y;
+        float gap = fineDiningSizing != null
+            ? fineDiningSizing.customerBubbleVerticalGap * Mathf.Max(1, cam.pixelHeight) / 1080f
+            : edgeGapPixels;
+        float verticalPixels = gap + stackOffsetPixels + screenOffset.y;
         float verticalWorld = verticalPixels * unitsPerPixel - lowerEdgeWorld;
         float horizontalWorld = screenOffset.x * unitsPerPixel;
 
@@ -381,6 +424,13 @@ public class UIFollowWorldPoint : MonoBehaviour
 
     private float ResolveWorldScale(Vector3 anchorPosition)
     {
+        if (fineDiningSizing != null && fineDiningFrameWidth > .001f)
+        {
+            // Cancel camera zoom once; do not also apply canvas, mobile, or HUD scale.
+            float viewportScale = Mathf.Max(1, cam != null ? cam.pixelHeight : Screen.height) / 1080f;
+            return ResolveWorldUnitsPerScreenPixel(anchorPosition) *
+                fineDiningSizing.customerBubbleWidth * viewportScale / fineDiningFrameWidth;
+        }
         float platformScale = (Application.isMobilePlatform ? mobileVisualScale : 1f) * DineIn.NewMenu.SettingsManager.UIScaleMultiplier;
         if (!preserveScreenSize)
             return worldUnitsPerUiUnit * visualScale * platformScale;

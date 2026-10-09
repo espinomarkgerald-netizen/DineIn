@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 public class BillPaper : MonoBehaviour, IInteractable, ICancelableTaskTarget
 {
@@ -287,7 +287,10 @@ public class BillPaper : MonoBehaviour, IInteractable, ICancelableTaskTarget
 
         var follow = pickupUiInstance.GetComponentInChildren<UIFollowWorldPoint>(true);
         if (follow != null)
+        {
             follow.InitAboveTarget(uiAnchor, uiOffset, Camera.main, 12f);
+            follow.ConfigureFineDiningSizing(FineDiningReservations.For(this));
+        }
 
         var pickBtn = pickupUiInstance.GetComponentInChildren<BillPaperPickupButton>(true);
         if (pickBtn != null)

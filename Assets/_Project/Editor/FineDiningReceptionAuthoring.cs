@@ -201,6 +201,7 @@ public static class FineDiningReceptionAuthoring
             label.raycastTarget = false;
             label.text = "";
             details.gameObject.SetActive(false);
+            ApplyDefaultCustomerBubbleSizing(root);
             return PrefabUtility.SaveAsPrefabAsset(root, ReservationIndicatorPath);
         }
         finally { ClosePrefab(root); }
@@ -245,9 +246,41 @@ public static class FineDiningReceptionAuthoring
             serialized.FindProperty("patienceSlider").objectReferenceValue = null;
             serialized.FindProperty("greetingLabel").objectReferenceValue = null;
             serialized.ApplyModifiedPropertiesWithoutUndo();
+            ApplyDefaultCustomerBubbleSizing(root);
             return PrefabUtility.SaveAsPrefabAsset(root, DrinkRequestPath);
         }
         finally { ClosePrefab(root); }
+    }
+
+    private static void ApplyDefaultCustomerBubbleSizing(GameObject root)
+    {
+        // Use the established Lobby1/2 seating bubble, including Android and zoom scaling.
+        var reference = AssetDatabase.LoadAssetAtPath<GameObject>(
+            "Assets/_Project/UI/Assets/Legacy/Bubbles/CustomerGreetBubble.prefab");
+        var frame = (RectTransform)reference.GetComponentInChildren<Button>(true).targetGraphic.transform;
+        var rect = (RectTransform)root.transform;
+        Vector2 ratio = new Vector2(frame.rect.width / rect.rect.width, frame.rect.height / rect.rect.height);
+        foreach (var child in root.GetComponentsInChildren<RectTransform>(true))
+        {
+            if (child == rect) continue;
+            child.sizeDelta = Vector2.Scale(child.sizeDelta, ratio);
+            child.anchoredPosition = Vector2.Scale(child.anchoredPosition, ratio);
+        }
+        float textRatio = Mathf.Min(ratio.x, ratio.y);
+        foreach (var label in root.GetComponentsInChildren<TMP_Text>(true))
+        {
+            label.fontSize *= textRatio;
+            label.fontSizeMin *= textRatio;
+            label.fontSizeMax *= textRatio;
+        }
+        rect.sizeDelta = frame.rect.size;
+        rect.localScale = reference.transform.localScale;
+        var source = new SerializedObject(reference.GetComponentInChildren<UIFollowWorldPoint>(true));
+        var destination = new SerializedObject(root.GetComponent<UIFollowWorldPoint>());
+        foreach (string field in new[] { "presentationSpace", "preserveScreenSize", "worldUnitsPerUiUnit",
+            "visualScale", "mobileVisualScale", "mobileSafeAreaPadding", "dynamicPixelsPerUnit" })
+            destination.CopyFromSerializedProperty(source.FindProperty(field));
+        destination.ApplyModifiedPropertiesWithoutUndo();
     }
 
     private static GameObject OpenPrefab(string path, string name)

@@ -98,7 +98,6 @@ public class CustomerGreetBubbleSpawner : MonoBehaviour
             // bubble in the stack; any other group status bubbles are laid out
             // above it with a readable gap instead of overlapping it.
             follow.enabled = true;
-            if (FineDiningReservations.For(group) != null) follow.KeepAttachedToTarget();
             follow.InitAboveTarget(
                 group.UIAnchor,
                 Vector3.zero,
@@ -106,6 +105,7 @@ public class CustomerGreetBubbleSpawner : MonoBehaviour
                 10f,
                 -10,
                 10f);
+            follow.ConfigureFineDiningSizing(FineDiningReservations.For(group));
         }
         else
         {

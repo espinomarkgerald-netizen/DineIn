@@ -1033,7 +1033,7 @@ public partial class CustomerGroup : MonoBehaviour
             stackPriority,
             bubbleStackGapPixels);
 
-        if (FineDiningReservations.For(this) != null) follow.KeepAttachedToTarget();
+        if (FineDiningReservations.For(this) != null) follow.ConfigureFineDiningSizing(FineDiningReservations.For(this));
         TrackCustomerBubble(follow);
     }
 

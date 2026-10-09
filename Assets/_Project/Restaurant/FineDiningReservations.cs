@@ -56,6 +56,10 @@ public sealed class FineDiningReservations : MonoBehaviour
     [Tooltip("Maximum optional service time before dining resumes without a penalty or extra charge.")]
     [Min(30f)] public float additionalDrinkMaximumServiceSeconds = 180f;
     [Range(0f, 1f)] public float wineRefillChance = 1f;
+    [Header("Lobby3 customer bubble sizing (pixels at 1080 viewport height)")]
+    [Min(48f)] public float customerBubbleWidth = 160f;
+    [Min(0f)] public float customerBubbleVerticalGap = 10f;
+    [Min(0f)] public float customerBubbleTouchPadding = 12f;
     [Header("Additional drink presentation")]
     public GameObject orderRequestBubblePrefab;
     public GameObject drinkRequestBubblePrefab;
@@ -180,7 +184,7 @@ public sealed class FineDiningReservations : MonoBehaviour
         (dayManager != null && dayManager.ShiftRunning ? dayManager.GroupsSpawnedThisShift : 0));
     public int ExpectedWalkInGroups => Mathf.Min(AvailableAdmissionGroups, Mathf.Max(0, WalkInLimit - state.walkInsSpawned));
     public int ExpectedGuests => ReservedGuests + ExpectedWalkInGroups * 2;
-    public string DemandSummary => $"Booked: {ReservedGuests} guests ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ Expected walk-ins remaining: about {ExpectedWalkInGroups * 2} guests";
+    public string DemandSummary => $"Booked guests: {ReservedGuests}\nExpected walk-ins: {ExpectedWalkInGroups * 2}\nExpected total guests: {ExpectedGuests}";
 
     private static bool IsAccepted(FineDiningBooking b) => b.status != FineDiningBookingStatus.Pending && b.status != FineDiningBookingStatus.Declined;
     private void Awake() { Instance = this; }
