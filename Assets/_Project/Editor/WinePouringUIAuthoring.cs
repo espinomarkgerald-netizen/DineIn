@@ -83,7 +83,7 @@ public static class WinePouringUIAuthoring
             ui.splash.gameObject.SetActive(false);
 
             var backImage = Picture("Back", ui.safeArea, AssetDatabase.LoadAssetAtPath<Sprite>(
-                Buttons + "Blue/Double/button_rectangle_gloss.png"), Vector2.zero, new Vector2(210f, 76f));
+                Buttons + "Blue/Double/button_rectangle_gloss.png"), Vector2.zero, new Vector2(140f, 48f));
             backImage.type = UnityEngine.UI.Image.Type.Sliced;
             backImage.raycastTarget = true;
             backImage.rectTransform.anchorMin = backImage.rectTransform.anchorMax = Vector2.zero;
@@ -94,7 +94,7 @@ public static class WinePouringUIAuthoring
             var navigation = ui.backButton.navigation;
             navigation.mode = UnityEngine.UI.Navigation.Mode.None;
             ui.backButton.navigation = navigation;
-            var backLabel = Label("Label", backImage.transform, "Back", font, 30f);
+            var backLabel = Label("Label", backImage.transform, "Back", font, 22f);
             backLabel.color = Color.white;
             Fill(backLabel.rectTransform);
             ui.feedbackAudio = root.AddComponent<AudioSource>();

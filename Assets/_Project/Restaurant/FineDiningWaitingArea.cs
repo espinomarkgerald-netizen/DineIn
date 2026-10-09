@@ -34,6 +34,17 @@ public sealed class FineDiningWaitingArea : MonoBehaviour
     public IEnumerable<CustomerGroup> Parties => occupants.Keys;
     public bool Contains(CustomerGroup group) => group != null && occupants.ContainsKey(group);
 
+    public bool IsSettled(CustomerGroup group)
+    {
+        if (group == null || !occupants.TryGetValue(group, out var places) || places.Length != group.members.Count) return false;
+        for (int i = 0; i < places.Length; i++)
+        {
+            var member = group.members[i];
+            if (member == null || (places[i].chair != null ? !member.IsSeated : !member.HasArrived(places[i].destination))) return false;
+        }
+        return true;
+    }
+
     private void Update()
     {
         if (Time.time < nextCheck || reservations == null || receptionLine == null) return;
@@ -62,7 +73,7 @@ public sealed class FineDiningWaitingArea : MonoBehaviour
         {
             if (group == null || group.state != CustomerGroup.GroupState.Waiting || !group.CanBeSeated ||
                 group.CurrentReceptionTaskOwner != CustomerGroup.ReceptionTaskOwner.None ||
-                !RestaurantTaskClaim.CanBotStart(group, 0f)) continue;
+                RestaurantTaskClaim.IsClaimedByPlayer(group) || RestaurantTaskClaim.IsClaimedByBot(group)) continue;
             // The host may be busy even if a table is free. Guests can use chairs until the escort starts.
             // With no free waiting places they keep their existing, spaced reception-line positions.
             TryWait(group);

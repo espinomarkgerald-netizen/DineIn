@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.EventSystems;
 
@@ -199,8 +199,8 @@ public class RoleBasedAssignController : MonoBehaviour
             return false;
 
         // Manual selection must not use the bot filter: it excludes our own claim.
-        if (FineDiningReservations.For(this) != null)
-            return group.CanBeSeated && !RestaurantTaskClaim.IsClaimedByBot(group) &&
+        if (FineDiningReservations.For(group) != null)
+            return group.CanBeSeated && group.ReadyForReceptionInteraction && !RestaurantTaskClaim.IsClaimedByBot(group) &&
                 !group.IsReceptionClaimedByBot;
 
         CustomerGroup front = lineManager.GetNextServiceableParty();
@@ -349,6 +349,7 @@ public class RoleBasedAssignController : MonoBehaviour
 
         SelectGroup(group);
         BoothAssignArrowManager.Instance.ShowValidBooths(group);
+        CustomerGreetBubbleSpawner.Instance?.SetVisibleAndRefresh(group, false);
 
         Debug.Log($"Ready to assign table for: {group.name}");
     }

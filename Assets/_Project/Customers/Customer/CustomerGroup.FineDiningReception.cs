@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using UnityEngine;
 using TMPro;
 
@@ -15,6 +15,9 @@ public partial class CustomerGroup
     private bool HasProtectedReservationReception =>
         !hasBeenAssigned && !string.IsNullOrEmpty(FineDiningReservationId) &&
         FineDiningReservations.For(this) != null;
+
+    public bool ReadyForReceptionInteraction => !HasProtectedReservationReception ||
+        FineDiningReservations.For(this)?.waitingArea?.IsSettled(this) == true;
 
     public bool ReceptionStandTransitionPending => Time.time < receptionStandUntil;
 
@@ -72,9 +75,16 @@ public partial class CustomerGroup
 
     private void RefreshFineDiningReceptionIndicator()
     {
-        if (!HasProtectedReservationReception || !CanBeSeated)
+        if (!HasProtectedReservationReception || !CanBeSeated || !ReadyForReceptionInteraction ||
+            !members.Exists(member => member != null && member.IsSeated))
         {
             ClearFineDiningReceptionIndicator();
+            return;
+        }
+        // The table arrow replaces the reception marker, including direct marker clicks.
+        if (BoothAssignArrowManager.Instance != null && BoothAssignArrowManager.Instance.IsSelectingFor(this))
+        {
+            if (reservationIndicatorInstance != null) reservationIndicatorInstance.SetActive(false);
             return;
         }
         if (reservationIndicatorInstance == null)
@@ -83,6 +93,7 @@ public partial class CustomerGroup
             if (prefab == null) return;
             reservationIndicatorInstance = Instantiate(prefab);
             reservationIndicatorInstance.name = name + "_Reservation";
+            reservationIndicatorInstance.GetComponent<CustomerGreetBubbleUI>()?.Init(this);
             var follow = reservationIndicatorInstance.GetComponentInChildren<UIFollowWorldPoint>(true);
             if (follow != null) ConfigureCustomerBubble(follow);
             var details = reservationIndicatorInstance.transform.Find("Details");

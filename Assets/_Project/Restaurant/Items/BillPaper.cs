@@ -252,12 +252,17 @@ public class BillPaper : MonoBehaviour, IInteractable, ICancelableTaskTarget
         }
     }
 
+    public void NotifyHeld()
+    {
+        if (!IsHeldByAnyWaiter()) return;
+        isPickedUp = true;
+        pickupRequested = false;
+        ClearPickupUI();
+    }
+
     private bool IsHeldByAnyWaiter()
     {
-        if (MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer)
-            return IsHeldBy(GetComponentInParent<WaiterHands>(true));
-        return IsHeldBy(WaiterHands.ActivePlayerHands) ||
-               IsHeldBy(WaiterHands.Instance);
+        return IsHeldBy(GetComponentInParent<WaiterHands>(true));
     }
 
     private bool IsHeldBy(WaiterHands hands)

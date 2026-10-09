@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 public class BoothAssignArrowManager : MonoBehaviour
@@ -17,6 +17,9 @@ public class BoothAssignArrowManager : MonoBehaviour
     private GameObject activeArrow;
     private GameObject activeAnchor;
     private Booth activeSuggestedBooth;
+    private CustomerGroup activeSelectionGroup;
+    public bool IsSelectingFor(CustomerGroup group) => group != null &&
+        activeSelectionGroup == group && activeArrow != null;
     private Booth[] booths;
     public Booth ActiveSuggestedBooth => activeSuggestedBooth;
 
@@ -54,6 +57,7 @@ public class BoothAssignArrowManager : MonoBehaviour
             return;
 
         SpawnArrowForBooth(bestBooth, cam);
+        if (activeArrow != null) activeSelectionGroup = group;
     }
 
     public bool HasValidBooth(CustomerGroup group)
@@ -87,6 +91,7 @@ public class BoothAssignArrowManager : MonoBehaviour
             activeAnchor = null;
         }
         activeSuggestedBooth = null;
+        activeSelectionGroup = null;
     }
 
     private void SpawnArrowForBooth(Booth booth, Camera cam)

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -525,7 +525,7 @@ public sealed class FineDiningReservations : MonoBehaviour
         return true;
     }
     public CustomerGroup NextReceptionParty(IEnumerable<CustomerGroup> waiting) => waiting.Concat(waitingArea != null ? waitingArea.Parties : Enumerable.Empty<CustomerGroup>()).Distinct().Where(g => g != null &&
-        g.state == CustomerGroup.GroupState.Waiting && g.CanBeSeated && RestaurantTaskClaim.CanBotStart(g, 0f) && FindTable(g) != null)
+        g.state == CustomerGroup.GroupState.Waiting && g.CanBeSeated && g.ReadyForReceptionInteraction && RestaurantTaskClaim.CanBotStart(g, 0f) && FindTable(g) != null)
         .OrderBy(g => Booking(g.FineDiningReservationId) == null ? 1 : 0)
         .ThenBy(g => Booking(g.FineDiningReservationId)?.arrivalMinute ?? int.MaxValue).FirstOrDefault();
 
@@ -537,7 +537,7 @@ public sealed class FineDiningReservations : MonoBehaviour
         state.finalized = true;
         Changed?.Invoke();
     }
-    public string ResultSummary => $"Reservations: {AcceptedGroups} booked ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ {state.bookings.Count(b => b.seatedOnTime)} on time ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ {state.bookings.Count(b => b.status == FineDiningBookingStatus.Left)} unserved";
+    public string ResultSummary => $"Reservations: {AcceptedGroups} booked\n{state.bookings.Count(b => b.seatedOnTime)} on time / {state.bookings.Count(b => b.status == FineDiningBookingStatus.Left)} unserved";
     public void FillSaveData(GameSaveData data) => data.fineDiningReservations = JsonUtility.FromJson<FineDiningReservationSave>(JsonUtility.ToJson(state));
     public void ApplySaveData(GameSaveData data)
     {

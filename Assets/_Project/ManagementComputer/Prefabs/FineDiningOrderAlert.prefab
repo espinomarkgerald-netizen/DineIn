@@ -734,7 +734,7 @@ MonoBehaviour:
   stackGapPixels: 6
   stackPriority: 0
   stickToTarget: 1
-  avoidBubbleOverlaps: 1
+  avoidBubbleOverlaps: 0
   topHudClearance: 0.16
   bottomHudClearance: 0.08
   preventSceneClipping: 1

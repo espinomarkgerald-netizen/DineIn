@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -70,6 +70,11 @@ public class UIFollowWorldPoint : MonoBehaviour
     private readonly Vector3[] graphicWorldCorners = new Vector3[4];
 
     public bool IsWorldSpace => worldSpaceInitialized;
+    public void KeepAttachedToTarget()
+    {
+        stickToTarget = true;
+        avoidBubbleOverlaps = false;
+    }
     private float taskAlpha = 1f;
     private bool taskInteractable = true;
     public void SetTaskFocus(float alpha, bool interactable)

@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
@@ -19,6 +19,7 @@ public class CustomerGreetBubbleUI : MonoBehaviour
     public void Init(CustomerGroup g)
     {
         group = g;
+        if (button == null) button = GetComponent<Button>();
 
         if (button != null)
         {
@@ -49,7 +50,7 @@ public class CustomerGreetBubbleUI : MonoBehaviour
 
     private void OnClick()
     {
-        if (group == null) return;
+        if (group == null || !group.ReadyForReceptionInteraction) return;
         var session = MultiplayerSessionManager.Instance;
         if (session != null && session.IsMultiplayerSession)
         {

@@ -1,4 +1,4 @@
-#if UNITY_EDITOR
+﻿#if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -169,7 +169,9 @@ public static class FineDiningReceptionAuthoring
         GameObject root = OpenPrefab(ReservationIndicatorPath, "FineDiningReservationIndicator");
         try
         {
-            ConfigureRoot(root, new Vector2(152, 168), false);
+            ConfigureRoot(root, new Vector2(152, 168), true);
+            Ensure<Button>(root).targetGraphic = root.GetComponent<Image>();
+            Ensure<CustomerGreetBubbleUI>(root);
             var icon = EnsureImage(root.transform, "TableIcon", LoadSprite(TableArt), new Vector2(100, 100), new Vector2(0, 14));
             icon.preserveAspect = true;
             var details = EnsureRect(root.transform, "Details");
@@ -192,6 +194,9 @@ public static class FineDiningReceptionAuthoring
             label.fontSize = 22;
             label.color = new Color(.08f, .2f, .28f);
             label.alignment = TextAlignmentOptions.MidlineLeft;
+            label.enableAutoSizing = true;
+            label.fontSizeMin = 16; label.fontSizeMax = 22;
+            label.textWrappingMode = TextWrappingModes.Normal;
             label.overflowMode = TextOverflowModes.Ellipsis;
             label.raycastTarget = false;
             label.text = "";
@@ -217,15 +222,18 @@ public static class FineDiningReceptionAuthoring
             button.colors = colors;
             var drink = AssetDatabase.LoadAssetAtPath<Recipe>("Assets/_Project/Office/Manager/Recipe/Fine Dining/Sparkling Water.asset");
             if (drink == null || drink.sprite == null) throw new InvalidOperationException("The existing drink recipe preview is missing.");
-            var icon = EnsureImage(root.transform, "DrinkIcon", drink.sprite, new Vector2(108, 116), new Vector2(0, 26));
+            var icon = EnsureImage(root.transform, "DrinkIcon", drink.sprite, new Vector2(88, 92), new Vector2(0, 34));
             icon.preserveAspect = true;
             var captionRect = EnsureRect(root.transform, "RequestKind");
             captionRect.anchorMin = captionRect.anchorMax = captionRect.pivot = new Vector2(.5f, .5f);
-            captionRect.sizeDelta = new Vector2(160, 36);
-            captionRect.anchoredPosition = new Vector2(0, -48);
+            captionRect.sizeDelta = new Vector2(136, 30);
+            captionRect.anchoredPosition = new Vector2(0, -28);
             var caption = Ensure<TextMeshProUGUI>(captionRect.gameObject);
             caption.font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(RegularFont);
-            caption.fontSize = 24; caption.fontStyle = FontStyles.Bold;
+            caption.fontSize = 22; caption.fontStyle = FontStyles.Bold;
+            caption.enableAutoSizing = true; caption.fontSizeMin = 18; caption.fontSizeMax = 22;
+            caption.textWrappingMode = TextWrappingModes.NoWrap;
+            caption.overflowMode = TextOverflowModes.Ellipsis;
             caption.alignment = TextAlignmentOptions.Center;
             caption.color = new Color(.08f, .2f, .28f); caption.raycastTarget = false;
             caption.text = "DRINK";
@@ -264,7 +272,10 @@ public static class FineDiningReceptionAuthoring
         image.raycastTarget = interactive;
         var canvas = Ensure<Canvas>(root); canvas.renderMode = RenderMode.WorldSpace; canvas.sortingOrder = 100;
         var group = Ensure<CanvasGroup>(root); group.interactable = interactive; group.blocksRaycasts = interactive;
-        Ensure<UIFollowWorldPoint>(root);
+        var follow = new SerializedObject(Ensure<UIFollowWorldPoint>(root));
+        follow.FindProperty("stickToTarget").boolValue = true;
+        follow.FindProperty("avoidBubbleOverlaps").boolValue = false;
+        follow.ApplyModifiedPropertiesWithoutUndo();
         if (interactive) Ensure<GraphicRaycaster>(root);
     }
 

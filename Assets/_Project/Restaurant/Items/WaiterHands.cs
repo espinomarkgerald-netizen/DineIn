@@ -305,6 +305,7 @@ public class WaiterHands : MonoBehaviour
         heldBillPaper = paper;
         AttachKeepingWorldScale(paper.transform, BillHoldPoint, Vector3.zero, Quaternion.identity);
         SetAllColliders(paper.gameObject, false);
+        paper.NotifyHeld();
         RefreshBillHeldVisual();
         NotifyHandsChanged();
     }

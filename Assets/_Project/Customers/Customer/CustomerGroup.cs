@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using TMPro;
@@ -1033,6 +1033,7 @@ public partial class CustomerGroup : MonoBehaviour
             stackPriority,
             bubbleStackGapPixels);
 
+        if (FineDiningReservations.For(this) != null) follow.KeepAttachedToTarget();
         TrackCustomerBubble(follow);
     }
 
@@ -1813,7 +1814,8 @@ public partial class CustomerGroup : MonoBehaviour
         RectTransform rootRect = orderBubbleInstance.GetComponent<RectTransform>();
         if (rootRect != null)
         {
-            rootRect.localScale = Vector3.one;
+            // Preserve the prefab size; forcing one enlarged the waiter alert.
+            rootRect.localScale = bubblePrefab.transform.localScale;
             rootRect.anchoredPosition3D = Vector3.zero;
         }
 
@@ -1833,8 +1835,7 @@ public partial class CustomerGroup : MonoBehaviour
         if (follow != null)
         {
             ConfigureCustomerBubble(follow);
-            if (HasFineDiningDrinkEvent && members.Count > 0 && members[0] != null)
-                follow.target = members[0].HeadAnchor != null ? members[0].HeadAnchor : members[0].transform;
+            // Drink requests share the table anchor with the other service bubbles.
         }
         else
         {

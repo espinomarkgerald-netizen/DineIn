@@ -212,7 +212,7 @@ public partial class CustomerGroup
         if (settings == null || hands == null || ui == null || settings.wineBottlePrefab == null || ui.IsOpen)
         {
             WarningSlideUI.Instance?.Show(ui != null && ui.IsOpen
-                ? "Finish the current pour first." : "Wine service is unavailable: please check the table's wine UI and bottle setup.");
+                ? "Finish the current pour first." : "Wine pouring is unavailable right now.");
             ReleaseWineRefill(); return;
         }
         if (fineDiningDrink == null || LobbyStockBridge.Instance == null || !LobbyStockBridge.Instance.HasProductStock(fineDiningDrink))
@@ -232,7 +232,7 @@ public partial class CustomerGroup
         activeWineUI = ui;
         if (!ui.Open(CompleteWineRefill, ReleaseWineRefill))
         {
-            WarningSlideUI.Instance?.Show("The wine pouring panel could not open. Please check its UI bindings.");
+            WarningSlideUI.Instance?.Show("The wine pouring panel could not open.");
             ReleaseWineRefill();
         }
     }

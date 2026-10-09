@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 public class CustomerGreetBubbleSpawner : MonoBehaviour
 {
@@ -6,7 +6,8 @@ public class CustomerGreetBubbleSpawner : MonoBehaviour
 
     [SerializeField] private GameObject greetBubblePrefab;
 
-    public bool IsShowingFor(CustomerGroup group) => currentGroup == group && currentBubble != null && currentBubble.activeInHierarchy;
+    // Keep the passive marker hidden while this action is hidden for movement or table selection.
+    public bool IsShowingFor(CustomerGroup group) => currentGroup == group && currentBubble != null;
     private GameObject currentBubble;
     private CustomerGroup currentGroup;
     private Camera currentCamera;
@@ -47,6 +48,8 @@ public class CustomerGreetBubbleSpawner : MonoBehaviour
 
     public void Show(CustomerGroup group, Camera cam)
     {
+        if (group != null && !group.ReadyForReceptionInteraction) return;
+        if (BoothAssignArrowManager.Instance != null && BoothAssignArrowManager.Instance.IsSelectingFor(group)) return;
         if (MultiplayerDayBridge.IsActive)
         {
             if (MultiplayerCustomerInteractionBridge.IsGreetingActionHidden(group)) return;
@@ -95,6 +98,7 @@ public class CustomerGreetBubbleSpawner : MonoBehaviour
             // bubble in the stack; any other group status bubbles are laid out
             // above it with a readable gap instead of overlapping it.
             follow.enabled = true;
+            if (FineDiningReservations.For(group) != null) follow.KeepAttachedToTarget();
             follow.InitAboveTarget(
                 group.UIAnchor,
                 Vector3.zero,
