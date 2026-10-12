@@ -113,3 +113,33 @@ These checks have not been run. Use external test devices/CI and a non-productio
 The initial implementation made PlayFab–Photon custom authentication mandatory before connecting. This introduced a new dashboard dependency into the existing working room path. The correction restores standard Photon connection by default while retaining mandatory PlayFab sign-in, makes custom authentication opt-in, reports connection failures immediately, and lets the menu submit pending room requests when the connection becomes ready even if a callback was missed. The connection's protocol version is set on a runtime AppSettings copy because the installed PUN SDK overwrites GameVersion inside ConnectUsingSettings. Token callbacks from expired attempts cannot start a later connection. Source review only; no Unity or connection test was launched for this correction.
 
 Code and backend/setup artifacts are provided. Local runtime testing was intentionally not performed. Backend deployment/configuration, compilation and the external acceptance matrix are outstanding release gates. Do not describe this mode as fully verified until those gates pass.
+
+## Fine Dining extension (2026-10-12)
+
+`Assets/_Project/Scenes/RoleBased/Lobby3 Multiplayer.unity` is a separate copy of the saved Lobby3 restaurant. The source Lobby3 scene is unchanged. The new scene is registered in the global build list, all three existing Android/Windows override profiles, the Fine Dining catalog and the multiplayer menu. It uses four participant spawn anchors, the existing manager network prefab, the existing staff roster including Second Waiter, and the shared ready/social UI. The offline manager and role-switching root are inactive.
+
+The current destination is `Lobby3 Multiplayer`, restaurant `FineDining`, rules `finedining-session-1`, and shared protocol `shared-session-21`. Current guest return policy keeps the reserved participant slot while the original host's run is alive; the historical 90-second expiry descriptions above do not describe this implementation. Host loss still ends the run without migration.
+
+| Area | Fine Dining implementation |
+| --- | --- |
+| Session | `FineDiningMultiplayerSession.cs` binds the existing shared systems and requires the reservation/service baseline before returning player control. |
+| Bookings | `FineDiningReservations.Multiplayer.cs` projects the host schedule, spawned party identities and admission capacity. Assign/decline requests in `MultiplayerFineDiningService.cs` carry booking revisions and receive explicit host results before UI success feedback. |
+| Reception | Host simulation owns greeting, waiting chairs, available-table checks and seating. Guests receive reception readiness and seating availability with customer state. |
+| Meals and bar | `CustomerGroup.FineDiningNetwork.cs` preserves the primary meal while an extra drink order is processed. Bar trays retain their authored output slot and pickup approach across projection/recovery. |
+| Pouring | One human task owner approaches the table and receives a host grant. The existing water/wine UI remains local. The host validates the live request, claim, position, hands, elapsed service and stock, then applies consumption, charges and tips once. Retried commits return their prior result. Cancellation/owner loss releases the task. |
+| Economy | Room restaurant identity selects the existing Fine Dining starting funds, catalog and quota calculations without replacing the selected career. Unlock progression runs on the host. Career runtime and ingredients are restored on exit with persistence suspended. |
+| Presentation | Existing Fine Dining bubble sizing/focus, uniforms, storage entrances and pouring artwork are reused. Tutorial startup remains restricted to the tutorial scene. |
+| Results | Backend source adds `FineDiningLongestRunV2`, `FineDiningLastRunV2` and `FDRun2Receipt` keys. CloudScript publication and statistic configuration remain external requirements in `Backend/PlayFab/README.md`. |
+
+Existing Inspector settings remain the tuning source. `FineDiningReservations` additionally exposes `groupsPerAdditionalPlayer` (2.5); `MultiplayerFineDiningService` exposes its reservation/UI references and confirmation timeout (8 seconds). Bubble sizing, service timing, drink probabilities and tips retain the existing Fine Dining settings.
+
+Static scene validation checked unique local IDs, reference resolution, typed session bindings, catalog/build registration and the unchanged source scene. `FineDiningMultiplayerAuthoring.cs` provides an optional Editor reference validator and repeat-safe scene authoring command; it was not executed during this offline implementation. No Unity Editor, Play Mode, gameplay tests, simulations, standalone builds or desktop/device playtesting were run.
+
+Before release, manually check these Fine Dining cases with at least two devices:
+
+- Create/join Fine Dining, prepare Day 1, start together and advance a shared report into Day 2.
+- Race two players assigning/declining one booking; greet and seat reserved parties, including the no-suitable-table case.
+- Complete a meal, extra bar drink, water/wine pour and cash/card payment from a guest; verify the meal remains correct and stock, bill and tip change once.
+- Disconnect/rejoin while approaching, carrying a bar tray and pouring; verify restored party identity, task ownership and shared totals before input returns.
+- Leave the room and verify career inventory, unlocks and money remain unchanged; start a fresh multiplayer run and verify fresh Day 1 state.
+- Verify Android bubble/touch layout and four-player traffic separately; publish/configure the backend before expecting account result synchronization.

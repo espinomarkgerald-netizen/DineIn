@@ -274,7 +274,8 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
         // Resolve the visible restaurant before changing the active scene. This also
         // covers a coordinator installed after the restaurant's sceneLoaded callback.
         Scene source = SceneManager.GetActiveScene();
-        if (source.name == LobbySceneName || source.name == "Lobby3" || FastFoodScene.Contains(source))
+        if (source.name == LobbySceneName || source.name == FineDiningScene.Career ||
+            source.name == FineDiningScene.Multiplayer || FastFoodScene.Contains(source))
             lobbyScene = source;
         if (!lobbyScene.IsValid() || !lobbyScene.isLoaded)
         {
@@ -757,7 +758,7 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
             freezerEntrance = bindings.FreezerEntrance;
             return;
         }
-        if (lobbyScene.name == "Lobby3")
+        if (lobbyScene.name == FineDiningScene.Career || lobbyScene.name == FineDiningScene.Multiplayer)
         {
             foreach (var root in lobbyScene.GetRootGameObjects())
             {

@@ -58,7 +58,8 @@ namespace DineIn.Appearance
             if (casual == null) casual = Resources.Load<EmployeeUniforms>("CasualEmployeeUniforms");
             if (fastFood == null) fastFood = Resources.Load<EmployeeUniforms>("FastFoodEmployeeUniforms");
             if (fineDining == null) fineDining = Resources.Load<EmployeeUniforms>("FineDiningEmployeeUniforms");
-            var uniforms = worker.scene.name == "Lobby3" && fineDining != null ? fineDining : isFastFood ? fastFood : casual;
+            bool isFineDining = worker.scene.name == FineDiningScene.Career || worker.scene.name == FineDiningScene.Multiplayer;
+            var uniforms = isFineDining && fineDining != null ? fineDining : isFastFood ? fastFood : casual;
             look.Apply(uniforms != null ? uniforms.Apply(employee.appearance, role, look.Catalog) : employee.appearance);
         }
     }
