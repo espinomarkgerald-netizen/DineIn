@@ -17,9 +17,18 @@ public partial class CustomerGroup
         FineDiningReservations.For(this) != null;
 
     public bool ReadyForReceptionInteraction => !HasProtectedReservationReception ||
-        FineDiningReservations.For(this)?.waitingArea?.IsSettled(this) == true;
+        FineDiningReceptionSettled;
 
     public bool ReceptionStandTransitionPending => Time.time < receptionStandUntil;
+
+    public bool ReservedSeatingActionAvailable => !HasProtectedReservationReception || !hasBeenGreeted ||
+        (IsNetworkObserver ? FineDiningSeatingAvailable :
+        BoothAssignArrowManager.Instance != null && BoothAssignArrowManager.Instance.HasValidBooth(this));
+
+    // Presentation reads the existing timers; it never changes customer patience.
+    public float FineDiningBubblePatience01 => state == GroupState.ReadyToOrder && !HasFineDiningDrinkEvent &&
+        ordinaryOrderPatience > 0f ? Mathf.Clamp01(ordinaryOrderRemaining / ordinaryOrderPatience)
+        : QueuePatienceVisible ? QueuePatience01 : 1f;
 
     /// <summary>Only the autonomous Fine Dining host uses this; player seating still calls AssignToBooth.</summary>
     public bool BeginReceptionEscort(Booth booth, Transform leader)
@@ -76,9 +85,19 @@ public partial class CustomerGroup
     private void RefreshFineDiningReceptionIndicator()
     {
         if (!HasProtectedReservationReception || !CanBeSeated || !ReadyForReceptionInteraction ||
-            !members.Exists(member => member != null && member.IsSeated))
+            !(IsNetworkObserver ? FineDiningReceptionSettled : members.Exists(member => member != null && member.IsSeated)))
         {
             ClearFineDiningReceptionIndicator();
+            return;
+        }
+        if (!ReservedSeatingActionAvailable)
+        {
+            if (reservationIndicatorInstance != null) reservationIndicatorInstance.SetActive(false);
+            if (IsReceptionClaimedByPlayer)
+            {
+                ReleasePlayerReceptionTask();
+                RestaurantTaskClaim.ReleasePlayer(this);
+            }
             return;
         }
         // The table arrow replaces the reception marker, including direct marker clicks.

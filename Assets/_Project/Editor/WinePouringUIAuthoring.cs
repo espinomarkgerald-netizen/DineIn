@@ -39,6 +39,8 @@ public static class WinePouringUIAuthoring
             scrollSettings.ApplyModifiedPropertiesWithoutUndo();
             var ui = root.AddComponent<WinePouringUI>();
             ui.panelGroup = root.GetComponent<CanvasGroup>();
+            ui.waterPitcherSprite = Load("WaterPitcher");
+            ui.waterFillSprite = Load("WaterFill");
             ui.safeArea = Rect("SafeArea", root.transform, Vector2.zero, Vector2.zero);
             Fill(ui.safeArea);
             ui.stage = Rect("PouringStage", ui.safeArea, Vector2.zero, ui.authoredStageSize);

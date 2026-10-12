@@ -402,6 +402,15 @@ public class InventoryManager : MonoBehaviour
         return true;
     }
 
+    // Rebind ingredient metadata before restoring a restaurant save. This does
+    // not grant starter stock, clear saved batches, or change the stock ledger.
+    public void BindCatalogItems(MenuCatalog catalog)
+    {
+        if (catalog == null || (items != null && items.SequenceEqual(catalog.Ingredients)))
+            return;
+        items = new List<ItemData>(catalog.Ingredients);
+    }
+
     public void ConfigureItems(List<ItemData> configuredItems, bool grantStarterStock = true)
     {
         items = configuredItems != null ? new List<ItemData>(configuredItems) : new List<ItemData>();

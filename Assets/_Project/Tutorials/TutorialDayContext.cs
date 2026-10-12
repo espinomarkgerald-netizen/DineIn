@@ -22,7 +22,7 @@ public sealed class TutorialDayContext : MonoBehaviour
     private List<Equipment> authoredEquipment;
     private GameSaveData originalRuntimeState;
     private ObjectiveSnapshot originalObjectives;
-    private int[] originalFastFoodFinance, originalFastFoodRevenue;
+    private int[] originalRestaurantFinance, originalRestaurantRevenue;
     private GameSaveManager saveManager;
     private bool originalAutoLoad;
     private bool originalAutoSaveOnPause;
@@ -35,6 +35,12 @@ public sealed class TutorialDayContext : MonoBehaviour
     private bool restored;
     public bool IsReady => !restored && runtimeIsolated && tutorialCatalog != null;
     public MenuCatalog Catalog => tutorialCatalog;
+    public bool IsFineDiningStaffReady => IsReady && gameObject.scene.name == FineDiningScene.Tutorial &&
+        EmployeeManager.Instance != null && EmployeeManager.Instance.GetAssignedEmployee(EmployeeRole.Bartender) != null &&
+        EmployeeManager.Instance.GetAssignedEmployee(EmployeeRole.Host) != null &&
+        EmployeeManager.Instance.GetAssignedEmployee(EmployeeRole.Cashier) != null;
+    private bool IsRestaurantTutorial => gameObject.scene.name == FastFoodScene.Tutorial ||
+        gameObject.scene.name == FineDiningScene.Tutorial;
 #if UNITY_EDITOR
     private bool editorExitingPlayMode;
 #endif
@@ -122,11 +128,11 @@ public sealed class TutorialDayContext : MonoBehaviour
     {
         PrepareSaveIsolation();
         originalRuntimeState = CaptureRuntimeState();
-        if (gameObject.scene.name == FastFoodScene.Tutorial)
+        if (IsRestaurantTutorial)
         {
-            originalFastFoodFinance = DailyFinanceBridge.Instance?.CaptureNetworkState();
+            originalRestaurantFinance = DailyFinanceBridge.Instance?.CaptureNetworkState();
             var revenue = DailyRevenueTracker.Instance;
-            if (revenue != null) originalFastFoodRevenue = new[] { revenue.OrdersCompleted, revenue.OrdersFailed, revenue.IngredientCost };
+            if (revenue != null) originalRestaurantRevenue = new[] { revenue.OrdersCompleted, revenue.OrdersFailed, revenue.IngredientCost };
         }
         originalObjectives = CaptureObjectives();
 
@@ -157,16 +163,17 @@ public sealed class TutorialDayContext : MonoBehaviour
         }
 
         ApplyRuntimeState(BuildFreshTutorialState());
-        if (gameObject.scene.name == FastFoodScene.Tutorial)
+        if (IsRestaurantTutorial)
         { DailyFinanceBridge.Instance?.ResetDay(); DailyRevenueTracker.Instance?.ResetForNewDay(); }
         DailyObjectiveManager.Instance?.ResetForNewRun();
         runtimeIsolated = true;
         GetComponent<TutorialStaffSpawnGate>()?.RefreshStaffAppearance();
-        Debug.Log("[Tutorial Day] Fresh isolated session applied: Day 1, P5000, 50% approval, empty stock/orders, fresh staff and menu state.", this);
+        Debug.Log("[Tutorial Day] Fresh isolated session applied: Day 1, 50% approval, empty stock/orders, fresh staff and menu state.", this);
     }
 
-    private static GameSaveData BuildFreshTutorialState()
+    private GameSaveData BuildFreshTutorialState()
     {
+        int trainingMoney = gameObject.scene.name == FineDiningScene.Tutorial ? 30000 : 5000;
         GameSaveData data = new GameSaveData
         {
             currentDay = 1,
@@ -175,12 +182,12 @@ public sealed class TutorialDayContext : MonoBehaviour
             lobbyCompleted = false,
             kitchenCompleted = false,
             campaignCompleted = false,
-            money = 5000,
+            money = trainingMoney,
             approval = 50,
             polishPreparedDay = 0,
             polishLastFinalizedDay = 0,
             polishDayStartApproval = 50,
-            polishDayStartMoney = 5000,
+            polishDayStartMoney = trainingMoney,
             restaurantRatingScore = 60,
             employeeApplicantNextRefreshDay = 3,
             employeeApplicantLastProcessedDay = 1,
@@ -192,7 +199,19 @@ public sealed class TutorialDayContext : MonoBehaviour
         AddTutorialApplicant(data, "tutorial-cashier", "Iris", EmployeeRole.Cashier);
         AddTutorialApplicant(data, "tutorial-busser", "Pax", EmployeeRole.Busser);
         AddTutorialApplicant(data, "tutorial-chef", "Sora", EmployeeRole.Chef);
-        AddTutorialApplicant(data, "tutorial-barista", "Lumi", EmployeeRole.Barista);
+        if (gameObject.scene.name == FineDiningScene.Tutorial)
+        {
+            AddTutorialApplicant(data, "tutorial-sous-chef", "Aster", EmployeeRole.SousChef);
+            AddTutorialApplicant(data, "tutorial-bartender", "Lumi", EmployeeRole.Bartender);
+            AddTutorialApplicant(data, "tutorial-pianist", "Lyra", EmployeeRole.Pianist);
+            data.employeeRosterInitialized = true;
+            foreach (EmployeeSaveEntry employee in data.employees)
+            {
+                employee.hired = employee.assigned = true;
+                employee.applicantAvailableUntilDay = 0;
+            }
+        }
+        else AddTutorialApplicant(data, "tutorial-barista", "Lumi", EmployeeRole.Barista);
         return data;
     }
 
@@ -243,17 +262,29 @@ public sealed class TutorialDayContext : MonoBehaviour
     public void ReleaseFastFoodSession()
     {
         if (gameObject.scene.name != FastFoodScene.Tutorial || restored) return;
+        ReleaseRestaurantSession();
+    }
+
+    /// <summary>Restores the original runtime before normal Fine Dining initialization.</summary>
+    public void ReleaseFineDiningSession()
+    {
+        if (gameObject.scene.name != FineDiningScene.Tutorial || restored) return;
+        ReleaseRestaurantSession();
+    }
+
+    private void ReleaseRestaurantSession()
+    {
         restored = true;
         RestoreAuthoredRuntimeAssets();
         if (runtimeIsolated)
         {
             ApplyRuntimeState(originalRuntimeState);
             RestoreObjectives(originalObjectives);
-            RestoreFastFoodAccounting();
+            RestoreRestaurantAccounting();
         }
         runtimeIsolated = false;
         RestoreSaveManager(false);
-        // The normal Lobby2 entry path loads the existing career (or fresh defaults).
+        // The normal restaurant entry loads the existing career (or fresh defaults).
         // Never serialize this disposable exercise as a career.
         CampaignSaveStore.NeedsReload = true;
         DestroyRuntimeClones();
@@ -306,15 +337,15 @@ public sealed class TutorialDayContext : MonoBehaviour
         SetInstanceField(saveManager, "autoSaveOnQuit", originalAutoSaveOnQuit);
     }
 
-    private void RestoreFastFoodAccounting()
+    private void RestoreRestaurantAccounting()
     {
-        if (gameObject.scene.name != FastFoodScene.Tutorial) return;
-        DailyFinanceBridge.Instance?.ApplyRestaurantSave(originalFastFoodFinance);
+        if (!IsRestaurantTutorial) return;
+        DailyFinanceBridge.Instance?.ApplyRestaurantSave(originalRestaurantFinance);
         var revenue = DailyRevenueTracker.Instance;
-        if (revenue == null || originalFastFoodRevenue == null) return;
-        SetInstanceField(revenue, "<OrdersCompleted>k__BackingField", originalFastFoodRevenue[0]);
-        SetInstanceField(revenue, "<OrdersFailed>k__BackingField", originalFastFoodRevenue[1]);
-        SetInstanceField(revenue, "<IngredientCost>k__BackingField", originalFastFoodRevenue[2]);
+        if (revenue == null || originalRestaurantRevenue == null) return;
+        SetInstanceField(revenue, "<OrdersCompleted>k__BackingField", originalRestaurantRevenue[0]);
+        SetInstanceField(revenue, "<OrdersFailed>k__BackingField", originalRestaurantRevenue[1]);
+        SetInstanceField(revenue, "<IngredientCost>k__BackingField", originalRestaurantRevenue[2]);
     }
 
     private static GameSaveData CaptureRuntimeState()
@@ -332,6 +363,7 @@ public sealed class TutorialDayContext : MonoBehaviour
         RestockOrderManager.Instance?.FillSaveData(data);
         CasualDiningPolishManager.EnsureInstance()?.FillSaveData(data);
         ManagerComplaintSystem.EnsureInstance()?.FillSaveData(data);
+        FineDiningReservations.Instance?.FillSaveData(data);
         return data;
     }
 
@@ -350,6 +382,7 @@ public sealed class TutorialDayContext : MonoBehaviour
         ManagerComplaintSystem.EnsureInstance()?.ApplySaveData(data);
         MoneyManager.Instance?.ApplySaveData(data);
         AlienApprovalManager.Instance?.ApplySaveData(data);
+        FineDiningReservations.Instance?.ApplySaveData(data);
     }
 
     private static ObjectiveSnapshot CaptureObjectives()
@@ -512,7 +545,7 @@ public sealed class TutorialDayContext : MonoBehaviour
         {
             ApplyRuntimeState(originalRuntimeState);
             RestoreObjectives(originalObjectives);
-            RestoreFastFoodAccounting();
+            RestoreRestaurantAccounting();
         }
 
         RestoreSaveManager(restoreLiveRuntime);

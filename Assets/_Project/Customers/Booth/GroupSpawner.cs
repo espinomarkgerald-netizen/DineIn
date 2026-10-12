@@ -253,15 +253,27 @@ public partial class GroupSpawner : MonoBehaviour
 
     public CustomerGroup SpawnGroup() => SpawnGroup(0, null);
 
-    public CustomerGroup SpawnGroup(int bookedSize, string reservationId)
+    public CustomerGroup SpawnGroup(int bookedSize, string reservationId) => SpawnGroup(bookedSize, reservationId, false);
+
+    /// <summary>Uses the normal customer creation and seating path for an explicitly staged tutorial lesson.</summary>
+    public CustomerGroup SpawnTutorialFineDiningGroup(int size, string reservationId = null)
+    {
+        var reservations = FineDiningReservations.For(this);
+        if (gameObject.scene.name != "Lobby3Tutorial" || size < 1 || reservations == null ||
+            !reservations.CanSpawnTutorialArrival(reservationId)) return null;
+        var booking = reservations.Booking(reservationId);
+        return SpawnGroup(booking != null ? booking.size : size, reservationId, true);
+    }
+
+    private CustomerGroup SpawnGroup(int bookedSize, string reservationId, bool tutorialLesson)
     {
         var fineDining = FineDiningReservations.For(this);
-        if (fineDining != null && (lobbyLine == null || !lobbyLine.HasSpace ||
+        if (fineDining != null && !tutorialLesson && (lobbyLine == null || !lobbyLine.HasSpace ||
             groupsSpawnedThisShift >= fineDining.GroupBudget || !fineDining.CanSpawnArrival(reservationId))) return null;
         var admission = FastFoodRestaurant.For(this);
         if (admission != null && !admission.CanAdmitCustomer) return null;
 
-        if (SpawnPermission != null && !SpawnPermission()) return null;
+        if (!tutorialLesson && SpawnPermission != null && !SpawnPermission()) return null;
         if (groupPrefab == null)
         {
             Debug.LogWarning("[GroupSpawner] groupPrefab is not assigned.");
@@ -281,8 +293,9 @@ public partial class GroupSpawner : MonoBehaviour
         }
 
         var booking = fineDining != null ? fineDining.Booking(reservationId) : null;
+        bool preparedTutorialDiner = tutorialLesson && booking == null;
         CustomerGroup.CustomerType type = booking != null && booking.customerType >= 0
-            ? (CustomerGroup.CustomerType)booking.customerType : PickCustomerType();
+            ? (CustomerGroup.CustomerType)booking.customerType : tutorialLesson ? CustomerGroup.CustomerType.Green : PickCustomerType();
         float takeoutRoll = Random.value;
         var coach = RestaurantBossTips.Instance != null ? RestaurantBossTips.Instance.GetComponent<RestaurantUnlockCoach>() : null;
         if (booking == null && CampaignSaveStore.RuntimeCampaign && coach != null && coach.TryGetEncounter(this, takeoutRoll, out var introductionType))
@@ -340,8 +353,9 @@ public partial class GroupSpawner : MonoBehaviour
             this);
 
         Vector3 arrivalOrigin = spawnPoint.position;
-        int parkingBay = fineDining != null && ufoParking != null ? ufoParking.ChooseArrival(arrivalOrigin, out arrivalOrigin) : -1;
+        int parkingBay = !preparedTutorialDiner && fineDining != null && ufoParking != null ? ufoParking.ChooseArrival(arrivalOrigin, out arrivalOrigin) : -1;
         CustomerGroup group = Instantiate(groupPrefab, arrivalOrigin, Quaternion.identity);
+        if (tutorialLesson) group.SetFineDiningTutorialProtection(true);
         group.FineDiningReservationId = reservationId;
         group.name = $"Group_{type}_{size}";
         group.members.Clear();
@@ -367,6 +381,12 @@ public partial class GroupSpawner : MonoBehaviour
         group.ConfigureCampaignMembers();
 
         groupsSpawnedThisShift++;
+        if (preparedTutorialDiner)
+        {
+            // The bridge places this diner at an authored table immediately; never enqueue a later arrival walk.
+            GroupCreated?.Invoke(group, false);
+            return group;
+        }
         var fastFood = FastFoodRestaurant.For(this);
         if (fastFood == null && fineDining == null) GroupCreated?.Invoke(group, spawnAsTakeout);
 

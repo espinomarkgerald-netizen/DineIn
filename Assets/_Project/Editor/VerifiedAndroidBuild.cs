@@ -27,7 +27,10 @@ public static class VerifiedAndroidBuild
         "Assets/_Project/Scenes/TutorialScenes/Lobby1Tutorial.unity",
         "Assets/_Project/Scenes/RoleBased/Lobby1 Multiplayer.unity",
         "Assets/_Project/Scenes/RoleBased/Lobby2.unity",
-        "Assets/_Project/Scenes/RoleBased/Lobby2Tutorial.unity"
+        "Assets/_Project/Scenes/RoleBased/Lobby2Tutorial.unity",
+        "Assets/_Project/Scenes/RoleBased/Lobby2 Multiplayer.unity",
+        "Assets/_Project/Scenes/RoleBased/Lobby3.unity",
+        "Assets/_Project/Scenes/RoleBased/Lobby3 Multiplayer.unity"
     };
 
     [MenuItem("Tools/Dine In/Build Verified Android APK")]

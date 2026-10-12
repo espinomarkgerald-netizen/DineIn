@@ -38,11 +38,11 @@ MonoBehaviour:
   ingredients:
   - item: {fileID: 11400000, guid: d84de0e7040149468ba827cdc6dc4ef5, type: 2}
     amount: 1
-  - item: {fileID: 11400000, guid: cd100000000000000000000000000003, type: 2}
+  - item: {fileID: 11400000, guid: b73a3ee5f0d34c02ac069f50db8a7367, type: 2}
     amount: 1
-  - item: {fileID: 11400000, guid: cd100000000000000000000000000006, type: 2}
+  - item: {fileID: 11400000, guid: 548d4664b71949feac0383a2bb306183, type: 2}
     amount: 1
-  - item: {fileID: 11400000, guid: cd100000000000000000000000000009, type: 2}
+  - item: {fileID: 11400000, guid: 2dfa529f2de246bda6d98759825ead01, type: 2}
     amount: 1
-  sellPrice: 220
+  sellPrice: 2800
   descriptionText: Rib-Eye Steak (Fine Dining menu).

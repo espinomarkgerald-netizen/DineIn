@@ -688,6 +688,8 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
     {
         var session = MultiplayerSessionManager.Instance;
         if (session == null || !session.IsMultiplayerSession) return false;
+        if (group != null && group.HasWineRefillRequest && session.RestaurantType == "FineDining")
+        { group.BeginWineRefill(); return true; }
         var bridge = session.GetComponent<MultiplayerCustomerInteractionBridge>();
         var customer = group != null ? group.GetComponentInParent<MultiplayerCustomerSpawn>() : null;
         if (bridge == null || customer == null || session.LocalManager == null
@@ -866,7 +868,9 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
             if (!claims.IsClaimedBy(id, actor) || claims.GetLease(id) != lease || lease <= 0
                 || !session.TryGetManager(actor, out var manager) || group == null || group.IsNetworkObserver
                 || group.state != CustomerGroup.GroupState.Waiting || !group.CanBeGreeted()
-                || line == null || line.GetFrontOfLine() != group) break;
+                || !(FineDiningReservations.For(group) is { } reservations
+                    ? group.ReadyForReceptionInteraction && reservations.FindTable(group) != null
+                    : line != null && line.GetFrontOfLine() == group)) break;
             var position = NetworkPlayerMovementSync.AuthorityPosition(manager);
             var stand = CustomerGreetBubbleUI.FindClosestCustomer(group, position);
             if (stand == null) break;
@@ -990,6 +994,7 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
         if (group == null || !group.CanBeSeated || booth == null || !booth.gameObject.activeInHierarchy
             || booth.CurrentGroup != null || booth.seats == null || booth.seats.Count < group.Size
             || !booth.IsAvailableFor(group.Size)
+            || !group.CanUseBooth(booth)
             || (booth.approachPoint != null && !booth.approachPoint.gameObject.activeInHierarchy)) return false;
         for (int i = 0; i < group.Size; i++)
         {
@@ -1035,8 +1040,9 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
             && lease > 0 && claims.GetLease(id) == lease
             && group != null && !group.IsNetworkObserver && group.hasBeenGreeted && !group.HasBeenAssigned
             && group.state == CustomerGroup.GroupState.Waiting && group.CanBeSeated
-            && line != null && line.GetFrontOfLine() == group
-            && booth != null && booth.IsAvailableFor(group.Size);
+            && (FineDiningReservations.For(group) != null ? group.ReadyForReceptionInteraction
+                : line != null && line.GetFrontOfLine() == group)
+            && booth != null && IsValidSeatBooth(group, booth);
         if (accepted)
         {
             for (int i = 0; i < group.Size; i++)
@@ -1046,6 +1052,10 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
         {
             group.PauseAfterSeating = true;
             group.AssignToBooth(booth);
+            accepted = group.HasBeenAssigned && group.assignedBooth == booth;
+        }
+        if (accepted)
+        {
             group.CompleteReceptionTask();
             RestaurantTaskClaim.Complete(group);
             customer.PublishAssignment();

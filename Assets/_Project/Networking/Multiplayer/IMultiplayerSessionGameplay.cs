@@ -6,6 +6,7 @@ public interface IMultiplayerSessionGameplay
     void InitializeSession();
     void RequestRestoration();
     void ParticipantReturned();
+    void ParticipantUnavailable(int actor);
     void ConnectionLost();
     void SuspendSession(bool ended);
 }

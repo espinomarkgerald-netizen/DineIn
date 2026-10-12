@@ -113,6 +113,7 @@ public class OrderChecklistUI : MonoBehaviour
 
     private MenuCatalog catalog;
     private CustomerGroup group;
+    public CustomerGroup ReviewedGroup => gameObject.activeInHierarchy ? group : null;
     private bool DrinksOnly => group != null && group.IsFineDiningAdditionalDrinkOrder;
     private TabManager drinkRequestTabManager;
     private Coroutine typingRoutine;

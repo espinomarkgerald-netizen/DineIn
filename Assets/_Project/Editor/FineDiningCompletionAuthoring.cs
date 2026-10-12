@@ -50,8 +50,8 @@ public static class FineDiningCompletionAuthoring
             return new FineDiningWaitingArea.Seat{seat=seat,approach=approach};}).ToArray();
         var progression=Ensure<FineDiningProgression>(root.gameObject);
         progression.tables=reservations.tables;
-        progression.recipes=AssetDatabase.FindAssets("t:Recipe",new[]{"Assets/_Project/Office/Manager/Recipe/Fine Dining"}).Select(g=>AssetDatabase.LoadAssetAtPath<Recipe>(AssetDatabase.GUIDToAssetPath(g))).ToArray();
-        string[][] menu={new[]{"Pumpkin Soup","Chicken Alfredo","Sparkling Water","Grape Juice"},new[]{"Fish and Chips","Citrus Mocktail"},new[]{"Lasagna","Red Wine"},new[]{"Rib-Eye Steak","White Wine"},new[]{"Lobster","Martini"},new[]{"Old Fashioned","Sparkling Wine"}};
+        progression.recipes=MenuCatalog.ForScene("Lobby3").Products.Where(r=>r!=null && r.availableOnMenu).ToArray();
+        string[][] menu={new[]{"Pumpkin Soup","Chicken Alfredo","Sparkling Water","Grape Juice"},new[]{"Fish and Chips","Citrus Mocktail"},new[]{"Lasagna","Red Wine"},new[]{"Rib-Eye Steak","White Wine"},new[]{"Lobster","Martini"},new[]{"Old Fashioned"}};
         foreach(var recipe in progression.recipes){int day=Array.FindIndex(menu,row=>row.Contains(recipe.recipeName))+1;if(day<1)throw new Exception("Missing recipe progression: "+recipe.name);recipe.dayToUnlock=day;EditorUtility.SetDirty(recipe);}
         ConfigureCashier(bindings);
         ConfigureNotification(reservations);
@@ -59,7 +59,7 @@ public static class FineDiningCompletionAuthoring
         ConfigureEnvironment(bindings);
         EditorUtility.SetDirty(reservations);EditorUtility.SetDirty(waiting);EditorUtility.SetDirty(progression);
         EditorSceneManager.MarkSceneDirty(scene);AssetDatabase.SaveAssets();EditorSceneManager.SaveScene(scene);
-        Debug.Log("[FineDining] Completion configuration saved: "+waiting.seats.Length+" physical waiting seats, 14 progressive recipes, 8 progressive tables.");
+        Debug.Log("[FineDining] Completion configuration saved: "+waiting.seats.Length+" physical waiting seats, "+progression.recipes.Length+" progressive recipes, 8 progressive tables.");
     }
     private static void ConfigureCashier(FineDiningSceneBindings bindings)
     {

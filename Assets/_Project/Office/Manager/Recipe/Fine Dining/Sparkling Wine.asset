@@ -16,7 +16,7 @@ MonoBehaviour:
   recipeName: Sparkling Wine
   restaurantType: 2
   category: 1
-  availableOnMenu: 1
+  availableOnMenu: 0
   menuSortOrder: 2
   kitchenItemType: 30
   cookingStation: 0

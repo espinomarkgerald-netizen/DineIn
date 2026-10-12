@@ -68,6 +68,7 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
     private const string RestaurantKey = MultiplayerDestinations.RestaurantKey;
     [SerializeField] private string gameplayScene = MultiplayerDestinations.CasualScene;
     [SerializeField] private string fastFoodGameplayScene = MultiplayerDestinations.FastFoodScene;
+    [SerializeField] private string fineDiningGameplayScene = MultiplayerDestinations.FineDiningScene;
     private string pendingRestaurant;
     private int lastLevelSelectIndex = -1;
     private string RoomRestaurant => PhotonNetwork.CurrentRoom?.CustomProperties[RestaurantKey] as string;
@@ -81,6 +82,11 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
     {
         PhotonNetwork.AutomaticallySyncScene = PhotonNetwork.CurrentRoom == null;
         PhotonBootstrap.ConnectionFailed += OnConnectionFailed;
+        if (restaurantDropdown != null && restaurantDropdown.options.Count == 2)
+        {
+            restaurantDropdown.options.Add(new TMP_Dropdown.OptionData("Fine Dining"));
+            restaurantDropdown.RefreshShownValue();
+        }
         int selectedCapacity = Mathf.Clamp(partySizeDropdown.value, 0, 2);
         partySizeDropdown.ClearOptions();
         partySizeDropdown.AddOptions(new System.Collections.Generic.List<string> {
@@ -122,7 +128,7 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
     // Level Select and the existing dropdown use the same authored order, not enum ordinals
     // (RestaurantType.FastFood is 0) or localized/decorative option labels.
     private static string RestaurantForSelection(int index) => index == 0 ? nameof(RestaurantType.CasualDining)
-        : index == 1 ? nameof(RestaurantType.FastFood) : null;
+        : index == 1 ? nameof(RestaurantType.FastFood) : index == 2 ? nameof(RestaurantType.FineDining) : null;
 
     public bool TrySelectRestaurant(int index, out string error)
     {
@@ -130,7 +136,7 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
         // Existing rooms and in-flight requests own their destination.
         if (busy || starting || PhotonNetwork.InRoom) return true;
         if (!MultiplayerDestinations.TryGet(RestaurantForSelection(index), out _, out _))
-        { error = "Choose Casual Dining or Fast Food. Fine Dining is not available yet."; return false; }
+        { error = "Choose Casual Dining, Fast Food or Fine Dining."; return false; }
         if (restaurantDropdown == null || restaurantDropdown.options.Count <= index)
         { error = "The multiplayer restaurant selector is not configured correctly."; return false; }
         // Reopening the panel must retain an explicit choice made in its dropdown.
@@ -151,10 +157,12 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
         pendingRestaurant = RestaurantForSelection(restaurantDropdown.value);
         if (!MultiplayerDestinations.TryGet(pendingRestaurant, out var scene, out _))
         {
-            SetStatus("Choose Casual Dining or Fast Food. Fine Dining is not available yet.");
+            SetStatus("Choose Casual Dining, Fast Food or Fine Dining.");
             return;
         }
-        if (scene != (pendingRestaurant == nameof(RestaurantType.FastFood) ? fastFoodGameplayScene : gameplayScene))
+        string configuredScene = pendingRestaurant == nameof(RestaurantType.FineDining) ? fineDiningGameplayScene
+            : pendingRestaurant == nameof(RestaurantType.FastFood) ? fastFoodGameplayScene : gameplayScene;
+        if (scene != configuredScene)
         { SetStatus("The selected restaurant's multiplayer scene is configured incorrectly."); return; }
         if (!Application.CanStreamedLevelBeLoaded(scene))
         { SetStatus("The selected restaurant's multiplayer scene is missing from this build."); return; }

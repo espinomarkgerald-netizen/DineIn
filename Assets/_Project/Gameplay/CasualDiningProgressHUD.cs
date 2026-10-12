@@ -316,7 +316,7 @@ public sealed partial class CasualDiningProgressHUD : MonoBehaviour
         // RestockScene is loaded additively while Lobby1 remains loaded. Checking
         // all loaded scenes therefore leaks this gameplay HUD into both restock rooms.
         // The active scene is authoritative: only normal Lobby gameplay may show it.
-        supportedSceneVisible = SceneManager.GetActiveScene().name == supportedScene || SceneManager.GetActiveScene().name == "Lobby3" || MultiplayerHUDBridge.IsActive
+        supportedSceneVisible = SceneManager.GetActiveScene().name == supportedScene || FineDiningScene.Contains(SceneManager.GetActiveScene()) || MultiplayerHUDBridge.IsActive
             || HygieneManager.Instance != null && HygieneManager.Instance.gameObject.scene == SceneManager.GetActiveScene();
         if (hudCanvas != null) hudCanvas.enabled = supportedSceneVisible;
         if (supportedSceneVisible) HideLegacyProgressBars();

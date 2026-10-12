@@ -116,7 +116,7 @@ public class MenuCatalog : ScriptableObject
     // Additive storage scenes belong to their loaded restaurant, not the fallback catalog.
     // Preserve the isolated tutorial catalog while its explicit override is active.
     public static MenuCatalog ForScene(string sceneName) =>
-        hasRestaurantOverride || FastFoodTutorialBridge.Active ? Default : ResolveActiveCatalog(sceneName);
+        hasRestaurantOverride || FastFoodTutorialBridge.Active || FineDiningTutorialBridge.Active ? Default : ResolveActiveCatalog(sceneName);
 
     public static void SetActiveRestaurantType(RestaurantType type)
     {
@@ -139,6 +139,7 @@ public class MenuCatalog : ScriptableObject
 
     private static MenuCatalog ResolveActiveCatalog(string sceneName)
     {
+        if (sceneName == FineDiningScene.Tutorial) sceneName = FineDiningScene.Career;
         MenuCatalog[] catalogs = Resources.LoadAll<MenuCatalog>(string.Empty);
         if (hasRestaurantOverride)
         {

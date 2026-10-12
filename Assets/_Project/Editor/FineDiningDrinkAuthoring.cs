@@ -25,7 +25,10 @@ public static class FineDiningDrinkAuthoring
         settings.wineBottleHandScale = Vector3.one;
         var wine = AssetDatabase.LoadAssetAtPath<Recipe>("Assets/_Project/Office/Manager/Recipe/Fine Dining/Red Wine.asset");
         if (wine == null) throw new InvalidOperationException("Red Wine recipe missing.");
-        settings.wineRefillProducts = new[] { wine };
+        var whiteWine = AssetDatabase.LoadAssetAtPath<Recipe>("Assets/_Project/Office/Manager/Recipe/Fine Dining/White Wine.asset");
+        settings.wineRefillProducts = new[] { wine, whiteWine };
+        settings.waterPourProduct = AssetDatabase.LoadAssetAtPath<Recipe>("Assets/_Project/Office/Manager/Recipe/Fine Dining/Sparkling Water.asset");
+        settings.waterPitcherIcon = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/_Project/Art/Icons/GameIcons/WinePouring/WaterPitcher.png");
         wine.servingPrefab = CreateGlass();
         wine.normalizedServingTransform = true;
         wine.servingScale = Vector3.one;
@@ -57,7 +60,7 @@ public static class FineDiningDrinkAuthoring
         EditorUtility.SetDirty(kitchen); EditorUtility.SetDirty(settings);
         AssetDatabase.SaveAssets();
         EditorSceneManager.MarkSceneDirty(scene);
-        return "Bound two bar drink outputs, reachable pickup, reusable bottle/glass models, Red Wine refill recipe, and WinePouringUI. Scene not saved.";
+        return "Bound bar drink outputs, reachable pickup, wine refills, water pitcher service, and WinePouringUI. Scene not saved.";
     }
 
     static Transform Child(Transform parent, string name)

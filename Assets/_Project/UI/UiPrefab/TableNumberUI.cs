@@ -15,6 +15,8 @@ public class TableNumberUI : MonoBehaviour
         networkCustomer = value != null ? value.GetComponentInParent<MultiplayerCustomerSpawn>() : null;
         var session = MultiplayerSessionManager.Instance;
         multiplayerGuidance = networkCustomer != null || (session != null && session.IsMultiplayerSession);
+        if (FineDiningReservations.For(value) != null)
+            PlayerTaskBubbleFocus.Bind(gameObject, value, true);
     }
 
     private void LateUpdate()

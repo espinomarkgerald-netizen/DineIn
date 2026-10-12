@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -64,6 +64,10 @@ public class LobbyAutonomousService : MonoBehaviour
     [SerializeField, Min(0f)] private float busserOpportunisticDetourDistance = 6f;
     [Tooltip("After an unreachable trolley route, temporarily use normal single-tray service before trying the trolley again. This prevents a moved parking point from blocking the role.")]
     [SerializeField, Min(0.5f)] private float trolleyRouteRetrySeconds = 4f;
+
+    [Header("Fine Dining waiter task flow")]
+    [Tooltip("Both Lobby3 waiters finish ready service work before returning home. New claimed jobs interrupt idle home travel.")]
+    [SerializeField] private bool chainFineDiningWaiterTasks = true;
 
     [Header("Additional Fine Dining waiter")]
     [Tooltip("Run only the existing waiter routines for the second employee slot.")]
@@ -282,6 +286,7 @@ public class LobbyAutonomousService : MonoBehaviour
                 waiter = employee != null && waiterObject != null
                     ? AddBot(waiterObject, waiterIdlePoint, waiterAvoidancePriority + 1) : null;
                 waiter?.ConfigurePerformance(employee);
+                waiter?.ConfigureAutomaticHomeReturn(!chainFineDiningWaiterTasks || !FineDiningScene.Contains(gameObject.scene) || FineDiningReservations.For(this) == null);
                 waiterHands = waiter != null ? waiter.GetComponent<WaiterHands>() : null;
                 if (primaryService == null) primaryService = FindPrimary();
                 waiterTrolley = primaryService != null ? primaryService.waiterTrolley : null;
@@ -321,6 +326,7 @@ public class LobbyAutonomousService : MonoBehaviour
         }
         else waiter = ConfigureLobbyBot(waiterObject, EmployeeRole.Waiter,
             FindStation(null, "WaiterHomePoint"), waiterAvoidancePriority);
+        waiter?.ConfigureAutomaticHomeReturn(!chainFineDiningWaiterTasks || !FineDiningScene.Contains(gameObject.scene) || FineDiningReservations.For(this) == null);
         busser = ConfigureLobbyBot(
             busserObject,
             EmployeeRole.Busser,
@@ -675,7 +681,7 @@ public class LobbyAutonomousService : MonoBehaviour
             if (MultiplayerServiceStaffBridge.CanSimulate && GameDayManager.Instance != null && GameDayManager.Instance.ServiceActive)
             {
                 RefreshSceneQueryCache(false);
-                if (waiterOnly) TryStartWaiterTask();
+                if (waiterOnly) DispatchWaiterWork();
                 else if (fastFoodRestaurant != null)
                 {
                     ReportFastFoodStaffReadiness();
@@ -692,7 +698,7 @@ public class LobbyAutonomousService : MonoBehaviour
                             TryStartClaimedTask(waiter, requestedTray, DeliverFood(requestedTray));
                     }
                 }
-                else { TryStartHostTask(); TryStartWaiterTask(); }
+                else { TryStartHostTask(); DispatchWaiterWork(); }
                 if (!waiterOnly) TryStartBusserTask();
             }
 
@@ -808,7 +814,30 @@ public class LobbyAutonomousService : MonoBehaviour
         }
     }
 
-    private void TryStartWaiterTask()
+    private void DispatchWaiterWork()
+    {
+        if (!TryStartWaiterTask() && waiter != null && waiter.DefersHomeReturn)
+            waiter.ReturnHomeWhenIdle();
+    }
+
+    private bool HasPendingWaiterWork()
+    {
+        // A ready job inside the existing player response window is pending, even
+        // though the normal selectors cannot claim it yet. Cooking alone is not ready work.
+        foreach (var group in cachedGroups)
+        {
+            if (group == null || group.IsTakeout || group.IsPlayerReviewingOrder ||
+                RestaurantTaskClaim.IsClaimedByPlayer(group) || RestaurantTaskClaim.IsClaimedByBot(group)) continue;
+            if (group.state == CustomerGroup.GroupState.ReadyToOrder ||
+                (group.state == CustomerGroup.GroupState.NeedsBill && !group.HasReceivedBill)) return true;
+        }
+        foreach (var tray in cachedFoodTrays)
+            if (IsDeliveryTrayReady(tray) && !RestaurantTaskClaim.IsClaimedByPlayer(tray) &&
+                !RestaurantTaskClaim.IsClaimedByBot(tray)) return true;
+        return false;
+    }
+
+    private bool TryStartWaiterTask()
     {
         if (waiterOnly)
         {
@@ -817,18 +846,18 @@ public class LobbyAutonomousService : MonoBehaviour
         }
         WaiterHands hands = waiterHands;
         if (waiter == null || waiter.IsBusy || hands == null)
-            return;
+            return true;
 
         if (hands.HasMoney)
         {
             waiter.StartTask(CompleteHeldPaymentAtCashier(hands));
-            return;
+            return true;
         }
 
         if (TakeoutBagInteractable.HasHeldBag)
         {
             waiter.StartTask(DeliverTakeoutBag(TakeoutBagInteractable.HeldBag));
-            return;
+            return true;
         }
 
         if (hands.HasTicket)
@@ -845,7 +874,7 @@ public class LobbyAutonomousService : MonoBehaviour
                 waiter.SetCarrying(false);
             }
 
-            return;
+            return true;
         }
 
         if (hands.HasTray)
@@ -854,7 +883,7 @@ public class LobbyAutonomousService : MonoBehaviour
                 TryStartClaimedTask(waiter, hands.holdingTray, DeliverFood(hands.holdingTray));
             else
                 waiter.StartTask(DeliverFood(hands.holdingTray));
-            return;
+            return true;
         }
 
         if (hands.HasBill)
@@ -873,11 +902,11 @@ public class LobbyAutonomousService : MonoBehaviour
                 waiter.SetCarrying(false);
             }
 
-            return;
+            return true;
         }
 
         if (!AreWaiterHandsFree(hands))
-            return;
+            return true;
 
         // A seated group that has already finished its meal should not be
         // starved by newly arriving takeout work, orders, or prepared trays.
@@ -890,47 +919,47 @@ public class LobbyAutonomousService : MonoBehaviour
             // A pending payment has the highest waiter priority. During the
             // manager's short reaction window, reserve the waiter instead of
             // starting a lower-priority order that can starve this payment.
-            return;
+            return true;
         }
 
         TakeoutBagInteractable takeoutBag = FindReadyTakeoutBag();
         if (takeoutBag != null &&
             TryStartClaimedTask(waiter, takeoutBag, DeliverTakeoutBag(takeoutBag)))
         {
-            return;
+            return true;
         }
 
         CustomerGroup takeoutPaymentGroup = FindTakeoutPaymentTarget();
         if (takeoutPaymentGroup != null &&
             TryStartClaimedTask(waiter, takeoutPaymentGroup, CompleteTakeoutPaymentAtCashier(takeoutPaymentGroup)))
         {
-            return;
+            return true;
         }
 
         if (TryStartWaiterTrolleyBatch())
-            return;
+            return true;
 
         FoodTray readyTray = FindReadyDeliveryTray();
         if (ShouldWaitForWaiterTrolleyBatch(readyTray))
-            return;
+            return true;
         if (readyTray != null &&
             TryStartClaimedTask(waiter, readyTray, DeliverFood(readyTray)))
         {
-            return;
+            return true;
         }
 
         CustomerGroup billGroup = FindBillDeliveryTarget();
         if (billGroup != null &&
             TryStartClaimedTask(waiter, billGroup, DeliverBill(billGroup)))
         {
-            return;
+            return true;
         }
 
         CustomerGroup takeoutOrderGroup = FindTakeoutOrderTarget();
         if (takeoutOrderGroup != null &&
             TryStartClaimedTask(waiter, takeoutOrderGroup, TakeTakeoutOrder(takeoutOrderGroup)))
         {
-            return;
+            return true;
         }
 
         CustomerGroup orderGroup = FindGroupInState(CustomerGroup.GroupState.ReadyToOrder);
@@ -940,6 +969,8 @@ public class LobbyAutonomousService : MonoBehaviour
             SetTaskUiClaimed(orderGroup, true);
             waiter.StartTask(RunClaimedTask(orderGroup, waiter, TakeOrder(orderGroup)));
         }
+
+        return orderGroup != null || (waiter.DefersHomeReturn && HasPendingWaiterWork());
     }
 
     private void TryStartBusserTask()

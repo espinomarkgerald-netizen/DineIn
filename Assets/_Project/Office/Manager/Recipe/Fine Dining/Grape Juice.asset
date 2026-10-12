@@ -38,5 +38,5 @@ MonoBehaviour:
   ingredients:
   - item: {fileID: 11400000, guid: 946373b37e4348129ab039b0ac90b11a, type: 2}
     amount: 1
-  sellPrice: 90
+  sellPrice: 300
   descriptionText: Grape Juice (Fine Dining menu).

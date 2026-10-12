@@ -12,7 +12,7 @@ using Hashtable = ExitGames.Client.Photon.Hashtable;
 public partial class MultiplayerSessionManager : MonoBehaviourPunCallbacks
 {
     public const string SceneName = "Lobby1 Multiplayer", RunKey = "restaurant.run.v2";
-    public const string ProtocolKey = "restaurant.protocol", Protocol = "shared-session-20";
+    public const string ProtocolKey = "restaurant.protocol", Protocol = "shared-session-21";
     public const string ResultRulesVersion = "casual-session-2";
     public const string ReadyKey = "restaurant.ready", LoadedKey = "restaurant.loaded";
     public const int RejoinSeconds = 90;
@@ -235,6 +235,7 @@ public partial class MultiplayerSessionManager : MonoBehaviourPunCallbacks
         if (run == null || Ended) return;
         if (player.ActorNumber == run.hostActor) { EndLocal("HostDisconnected"); return; }
         if (!IsAuthority) return;
+        gameplay?.ParticipantUnavailable(player.ActorNumber);
         var p = run.participants.Find(value => value.actor == player.ActorNumber);
         if (p == null || p.departed) return;
         p.loadEpoch++;

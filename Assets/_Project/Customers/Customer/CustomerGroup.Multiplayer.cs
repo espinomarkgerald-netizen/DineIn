@@ -47,13 +47,15 @@ public partial class CustomerGroup
     public void ReconcileMultiplayerBubbles(MultiplayerCustomerSpawn customer)
     {
         if (customer == null) return;
-        bool order = (!IsTakeout || FastFood != null) && state == GroupState.ReadyToOrder && !HasConfirmedOrder;
+        if (IsNetworkObserver && FineDiningReservations.For(this) != null) RefreshFineDiningReceptionIndicator();
+        bool pour = HasWineRefillRequest && state == GroupState.Eating && !MultiplayerPaymentComplete;
+        bool order = pour || (!IsTakeout || FastFood != null) && state == GroupState.ReadyToOrder && !HasConfirmedOrder;
         bool bill = FastFood == null && !IsTakeout && state == GroupState.NeedsBill && !HasReceivedBill && !MultiplayerPaymentComplete;
         if (order) { if (orderBubbleInstance == null) SpawnOrderBubble(); }
         else ClearOrderBubble();
         if (bill) { if (billBubbleInstance == null) SpawnBillBubble(); }
         else ClearBillBubble();
-        MultiplayerTaskPresentation.Bind(orderBubbleInstance, $"Customer:{customer.photonView.ViewID}:Order");
+        MultiplayerTaskPresentation.Bind(orderBubbleInstance, $"Customer:{customer.photonView.ViewID}:{(pour ? "Pour" : "Order")}");
         MultiplayerTaskPresentation.Bind(billBubbleInstance, $"Customer:{customer.photonView.ViewID}:Bill");
         var money = MultiplayerWorldRegistry.MoneyFor(this);
         if (money == null || money.IsPickedUp || MultiplayerPaymentComplete) ClearMoneyBubble();

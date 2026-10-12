@@ -2069,6 +2069,7 @@ MonoBehaviour:
   reactionDelayRange: {x: 0.1, y: 0.35}
   workTimeVariance: 0.15
   homePoint: {fileID: 0}
+  returnHomeAfterTask: 1
   enableIdlePresentation: 0
   idleLookYawLimit: 180
   idleLookIntervalRange: {x: 2.5, y: 5.5}
@@ -41311,6 +41312,7 @@ MonoBehaviour:
   reactionDelayRange: {x: 0.1, y: 0.35}
   workTimeVariance: 0.15
   homePoint: {fileID: 485935952}
+  returnHomeAfterTask: 1
   enableIdlePresentation: 0
   idleLookYawLimit: 180
   idleLookIntervalRange: {x: 2.5, y: 5.5}
@@ -63002,6 +63004,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   startingMoney: 5000
+  fineDiningStartingMoney: 30000
   transactionLog: []
   dailyTransactions: []
   completedFinanceHistory: []
@@ -79461,6 +79464,7 @@ MonoBehaviour:
   reactionDelayRange: {x: 0.1, y: 0.35}
   workTimeVariance: 0.15
   homePoint: {fileID: 925000000000000079}
+  returnHomeAfterTask: 1
   enableIdlePresentation: 1
   idleLookYawLimit: 20
   idleLookIntervalRange: {x: 2.5, y: 5.5}
@@ -115767,6 +115771,7 @@ MonoBehaviour:
   reactionDelayRange: {x: 0.1, y: 0.35}
   workTimeVariance: 0.15
   homePoint: {fileID: 0}
+  returnHomeAfterTask: 1
   enableIdlePresentation: 0
   idleLookYawLimit: 25
   idleLookIntervalRange: {x: 2.5, y: 5.5}
@@ -147618,6 +147623,7 @@ MonoBehaviour:
   busserBundleSingleDirtyBooth: 1
   busserOpportunisticDetourDistance: 6
   trolleyRouteRetrySeconds: 4
+  chainFineDiningWaiterTasks: 1
   waiterOnly: 1
   waiterActor: {fileID: 517721679}
   waiterIdlePoint: {fileID: 485935952}
@@ -176242,6 +176248,7 @@ MonoBehaviour:
   reactionDelayRange: {x: 0.1, y: 0.35}
   workTimeVariance: 0.15
   homePoint: {fileID: 0}
+  returnHomeAfterTask: 1
   enableIdlePresentation: 0
   idleLookYawLimit: 180
   idleLookIntervalRange: {x: 2.5, y: 5.5}
@@ -193036,6 +193043,7 @@ MonoBehaviour:
   reactionDelayRange: {x: 0.1, y: 0.35}
   workTimeVariance: 0.15
   homePoint: {fileID: 0}
+  returnHomeAfterTask: 1
   enableIdlePresentation: 0
   idleLookYawLimit: 180
   idleLookIntervalRange: {x: 2.5, y: 5.5}
@@ -209097,16 +209105,26 @@ MonoBehaviour:
   additionalDrinkWorkMinutes: 10
   walkInReceptionPatienceMultiplier: 2
   eatingDurationMultiplier: 1.5
-  additionalDrinkChance: 0.5
+  additionalDrinkChance: 0.85
   additionalDrinkTriggerFraction: 0.35
   additionalDrinkServiceSeconds: 75
   additionalDrinkMaximumServiceSeconds: 180
   wineRefillChance: 1
+  customerBubbleWidth: 160
+  customerBubbleVerticalGap: 10
+  customerBubbleTouchPadding: 12
+  maxExpandedCustomerBubbles: 3
+  compactCustomerBubbleScale: 0.55
+  urgentCustomerBubblePatience: 0.3
   orderRequestBubblePrefab: {fileID: 7532560820528851561, guid: 6b2e7326754a12e4e90b01048a79af21, type: 3}
   drinkRequestBubblePrefab: {fileID: 8771599639474561975, guid: 47fe230a9812dbe47ad5f4d56e68b50b, type: 3}
   wineBottlePrefab: {fileID: 5831873573352168414, guid: 1d6083fb19189a449a2c522f4f3b5826, type: 3}
   wineRefillProducts:
   - {fileID: 11400000, guid: ccc279ca65984ce7ba9aabc4e9db81c3, type: 2}
+  - {fileID: 11400000, guid: 63b0e358473b49799a425afd93acf75d, type: 2}
+  waterPourProduct: {fileID: 11400000, guid: 306a07cfbcea4457bc65ae5b0347f4c0, type: 2}
+  waterPitcherIcon: {fileID: 21300000, guid: 76b9e37162314acb863b958e73be5bdd, type: 3}
+  pourServiceTipRange: {x: 500, y: 1000}
   wineBottleHandOffset: {x: 0, y: 0.04, z: 0}
   wineBottleHandRotation: {x: 0, y: 0, z: 0}
   wineBottleHandScale: {x: 1, y: 1, z: 1}
@@ -210118,7 +210136,6 @@ MonoBehaviour:
   - {fileID: 11400000, guid: ccc279ca65984ce7ba9aabc4e9db81c3, type: 2}
   - {fileID: 11400000, guid: 01a4465fb4ee40c1843310b6d7cfbf4e, type: 2}
   - {fileID: 11400000, guid: 306a07cfbcea4457bc65ae5b0347f4c0, type: 2}
-  - {fileID: 11400000, guid: 1c42bf21189447a69bf7af64eaafabb9, type: 2}
   - {fileID: 11400000, guid: 63b0e358473b49799a425afd93acf75d, type: 2}
   tables:
   - {fileID: 925000000000000009}

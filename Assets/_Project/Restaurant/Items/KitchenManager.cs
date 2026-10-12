@@ -179,11 +179,12 @@ public class KitchenManager : MonoBehaviour
 
     public bool ReturnDisconnectedTray(CustomerGroup group)
     {
-        if (MultiplayerRestaurantBridge.IsObserver || group == null || traySpawnPoints == null
+        var slots = DineInSpawnPointsFor(group);
+        if (MultiplayerRestaurantBridge.IsObserver || group == null || slots == null
             || group.state != CustomerGroup.GroupState.OrderTaken) return false;
         int slot = -1;
-        for (int i = 0; i < traySpawnPoints.Length; i++)
-            if (traySpawnPoints[i] != null && traySpawnPoints[i].GetComponentInChildren<FoodTray>(true) == null) { slot = i; break; }
+        for (int i = 0; i < slots.Length; i++)
+            if (slots[i] != null && slots[i].GetComponentInChildren<FoodTray>(true) == null) { slot = i; break; }
         if (slot < 0) return false;
         PresentCarriedTray(group, null); // Recover the exact preserved output, without consuming stock again.
         var tray = GetPreparedResult(group.currentOrderNumber);
@@ -192,9 +193,10 @@ public class KitchenManager : MonoBehaviour
             if (hands.holdingTray == tray) hands.holdingTray = null;
         tray.NetworkCarryLocked = false;
         tray.gameObject.SetActive(true);
-        WaiterHands.AttachKeepingWorldScale(tray.transform, traySpawnPoints[slot], Vector3.zero, Quaternion.identity);
+        WaiterHands.AttachKeepingWorldScale(tray.transform, slots[slot], Vector3.zero, Quaternion.identity);
         WaiterHands.SetAllColliders(tray.gameObject, true);
         preparedSlots[group.currentOrderNumber] = slot;
+        tray.GetComponent<FoodTrayInteractable>()?.ConfigurePickupApproach(GetOutputPickupApproach(group));
         tray.GetComponent<FoodTrayInteractable>()?.RestoreAfterStaffPickup();
         return true;
     }
@@ -286,12 +288,13 @@ public class KitchenManager : MonoBehaviour
 
     public void PresentPreparedResult(CustomerGroup group, int slotIndex)
     {
+        var slots = DineInSpawnPointsFor(group);
         if (group == null || !group.IsNetworkObserver || !group.HasConfirmedOrder || group.IsTakeout
-            || traySpawnPoints == null || slotIndex < 0 || slotIndex >= traySpawnPoints.Length
-            || traySpawnPoints[slotIndex] == null || foodTrayPrefab == null || MenuCatalog.Default == null) return;
+            || slots == null || slotIndex < 0 || slotIndex >= slots.Length
+            || slots[slotIndex] == null || foodTrayPrefab == null || MenuCatalog.Default == null) return;
         int order = group.currentOrderNumber;
         if (preparedResults.TryGetValue(order, out var existing) && existing != null) return;
-        var slot = traySpawnPoints[slotIndex];
+        var slot = slots[slotIndex];
         // Never choose an alternative slot on observers.
         if (slot.GetComponentInChildren<FoodTray>() != null) return;
         var tray = SpawnOutputTray(slot, group);

@@ -128,7 +128,8 @@ public class MultiplayerTaskClaims : MonoBehaviourPunCallbacks, IOnEventCallback
     private static bool IsHumanTask(string id) => id != null &&
         ((id.StartsWith("Customer:", StringComparison.Ordinal) &&
             (id.EndsWith(":GreetSeat", StringComparison.Ordinal) || id.EndsWith(":Order", StringComparison.Ordinal)
-                || id.EndsWith(":Bill", StringComparison.Ordinal) || id.EndsWith(":Payment", StringComparison.Ordinal)))
+                || id.EndsWith(":Bill", StringComparison.Ordinal) || id.EndsWith(":Payment", StringComparison.Ordinal)
+                || id.EndsWith(":Pour", StringComparison.Ordinal)))
         || (id.StartsWith("Order:", StringComparison.Ordinal) && (id.EndsWith(":Pickup", StringComparison.Ordinal) || id.EndsWith(":Cleanup", StringComparison.Ordinal)))
         || (id.StartsWith("Booth:", StringComparison.Ordinal) && id.EndsWith(":Cleanup", StringComparison.Ordinal)));
     public bool Release(string taskId)
@@ -258,6 +259,17 @@ public class MultiplayerTaskClaims : MonoBehaviourPunCallbacks, IOnEventCallback
                 && !customer.Group.IsNetworkObserver && (customer.Group.FastFood != null
                     ? customer.Group.FastFood.CanReviewCounterOrder(customer.Group) : customer.Group.HasBeenAssigned)
                 && customer.Group.state == CustomerGroup.GroupState.ReadyToOrder && !customer.Group.HasConfirmedOrder;
+        }
+        if (acquire && taskId.StartsWith("Customer:", StringComparison.Ordinal)
+            && taskId.EndsWith(":Pour", StringComparison.Ordinal))
+        {
+            var parts = taskId.Split(':');
+            var group = parts.Length == 3 && int.TryParse(parts[1], out int view)
+                ? MultiplayerServiceActions.Resolve(view) : null;
+            accepted &= session.RestaurantType == "FineDining" && session.TryGetManager(actor, out _)
+                && group != null && !group.IsNetworkObserver && group.HasBeenAssigned
+                && group.state == CustomerGroup.GroupState.Eating && group.HasWineRefillRequest
+                && group.RequestedFineDiningDrink != null;
         }
         if (acquire && taskId.StartsWith("Customer:", StringComparison.Ordinal)
             && taskId.EndsWith(":Bill", StringComparison.Ordinal))
@@ -561,6 +573,7 @@ public class MultiplayerTaskClaims : MonoBehaviourPunCallbacks, IOnEventCallback
                 var group = MultiplayerServiceActions.Resolve(view);
                 valid = group != null && (parts[2] == "GreetSeat" ? !group.HasBeenAssigned && group.CanBeSeated
                     : parts[2] == "Order" ? group.state == CustomerGroup.GroupState.ReadyToOrder && !group.HasConfirmedOrder
+                    : parts[2] == "Pour" ? group.state == CustomerGroup.GroupState.Eating && group.HasWineRefillRequest
                     : parts[2] == "Payment" ? (group.FastFood != null ? group.FastFood.CanSettle(group)
                         : !group.MultiplayerPaymentComplete && MultiplayerWorldRegistry.MoneyFor(group) != null)
                     : group.state == CustomerGroup.GroupState.NeedsBill && !group.HasReceivedBill);

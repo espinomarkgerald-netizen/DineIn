@@ -56,6 +56,7 @@ public partial class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiat
         if (simulating || session == null || !session.IsMultiplayerSession || Group == null
             || info.Sender != PhotonNetwork.MasterClient
             || (phase != CustomerGroup.GroupState.Eating && phase != CustomerGroup.GroupState.NeedsBill)) return;
+        if (!eatingStarted || EatingStartedAt != startedAt) eatingComplete = false;
         eatingStarted = true;
         EatingStartedAt = startedAt;
         EatingDuration = duration;
@@ -168,6 +169,8 @@ public partial class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiat
         {
             Group = Instantiate(groupPrefab, transform.position, transform.rotation, transform);
             Group.members.Clear();
+            Group.FineDiningReservationId = data.Length > 5 ? data[5] as string : null;
+            Group.SetBubbleLayoutSource(GroupSpawner.Instance);
             Group.SetCustomerType(type);
             var visit = data.Length > 3 && (bool)data[3] ? bridge?.ProfileFor(type) : null;
             Group.ConfigureCampaignVisit(visit);
@@ -294,16 +297,22 @@ public partial class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiat
             if (Group.PauseAfterSeating && Group.state == CustomerGroup.GroupState.Seated)
                 Group.ResumePausedOrderReadiness();
             if (Group.state == CustomerGroup.GroupState.ReadyToOrder && Group.PauseAfterSeating) Group.GeneratePausedOrderOnce();
-            if (Group.currentOrderNumber >= 0 && Group.currentOrder != null && Group.currentOrder.lines.Count > 0
-                && (generatedOrderJson == null || generatedOrderNumber != Group.currentOrderNumber))
+            if (Group.currentOrderNumber >= 0 && Group.currentOrder != null && Group.currentOrder.lines.Count > 0)
             {
-                generatedOrderJson = JsonUtility.ToJson(Group.currentOrder);
-                generatedOrderNumber = Group.currentOrderNumber;
-                generatedLegacyChoices = new[] { (int)Group.chosenFood, (int)Group.chosenDrink,
-                    (int)Group.confirmedFood, (int)Group.confirmedDrink };
+                // Pour service can add a billed line without allocating a new meal number.
+                if (generatedOrderJson == null || generatedOrderNumber != Group.currentOrderNumber ||
+                    FineDiningReservations.For(Group) != null)
+                {
+                    generatedOrderJson = JsonUtility.ToJson(Group.currentOrder);
+                    generatedOrderNumber = Group.currentOrderNumber;
+                    generatedLegacyChoices = new[] { (int)Group.chosenFood, (int)Group.chosenDrink,
+                        (int)Group.confirmedFood, (int)Group.confirmedDrink };
+                }
             }
             ReadyForInteraction = !serviceStarted && Group.state == CustomerGroup.GroupState.Waiting
-                && interactionLine != null && interactionLine.GetFrontOfLine() == Group && Group.CanBeGreeted();
+                && Group.CanBeGreeted() && (FineDiningReservations.For(Group) is { } fineReception
+                    ? Group.ReadyForReceptionInteraction && fineReception.FindTable(Group) != null
+                    : interactionLine != null && interactionLine.GetFrontOfLine() == Group);
             if ((Group.HasBeenAssigned || Group.FastFood != null) && (Time.unscaledTime >= nextSnapshot || phase != Group.state))
             {
                 phase = Group.state;
@@ -374,7 +383,7 @@ public partial class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiat
     {
         if (session == null || !session.IsMultiplayerSession || simulating || Group == null
             || !Group.IsNetworkObserver || info.Sender != PhotonNetwork.MasterClient
-            || (generatedOrderJson != null && generatedOrderNumber == orderNumber) || string.IsNullOrEmpty(json)
+            || (generatedOrderJson == json && generatedOrderNumber == orderNumber) || string.IsNullOrEmpty(json)
             || legacyChoices == null || legacyChoices.Length != 4) return;
         var order = JsonUtility.FromJson<CustomerGroup.SimpleOrder>(json);
         if (order == null || order.lines == null || order.productIds == null || order.contents == null) return;
@@ -382,7 +391,8 @@ public partial class MultiplayerCustomerSpawn : MonoBehaviourPun, IPunInstantiat
         // when needed; resolving here would replace authoritative prices with local prices.
         Group.currentOrder = order;
         Group.ResetObservedOrder(orderNumber);
-        eatingStarted = false; eatingComplete = false;
+        if (FineDiningReservations.For(Group) == null)
+        { eatingStarted = false; eatingComplete = false; }
         Group.currentOrderNumber = orderNumber;
         Group.chosenFood = (CustomerGroup.FoodType)legacyChoices[0];
         Group.chosenDrink = (CustomerGroup.DrinkType)legacyChoices[1];

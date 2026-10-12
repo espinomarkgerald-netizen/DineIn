@@ -38,5 +38,5 @@ MonoBehaviour:
   ingredients:
   - item: {fileID: 11400000, guid: 4b0e9be582d441faa0c3635e43b14ca5, type: 2}
     amount: 1
-  sellPrice: 65
+  sellPrice: 650
   descriptionText: White Wine (Fine Dining menu).

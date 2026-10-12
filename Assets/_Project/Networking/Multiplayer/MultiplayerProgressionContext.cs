@@ -13,7 +13,9 @@ public sealed class MultiplayerProgressionContext : MonoBehaviour
     private Func<bool> previousPersistenceGuard;
     private bool isolated;
     private bool restoring;
+    private bool useRoomRestaurant;
     public static bool RestorationInProgress => instance != null && instance.restoring;
+    public static bool UsesRoomRestaurant => IsActive && instance.useRoomRestaurant;
     private DailyObjectiveManager.NetworkState careerObjectives;
     private int[] careerFinance;
     private bool initialLoadWasComplete;
@@ -45,7 +47,6 @@ public sealed class MultiplayerProgressionContext : MonoBehaviour
             enabled = false;
             return;
         }
-        MenuCatalog.SetActiveRestaurantType(type);
         // Capture loaded career runtime only for restoration; never use it to seed the session.
         initialLoadWasComplete = saves.InitialLoadCompletedWithoutOverride;
         careerPhase = GameFlowManager.Instance != null ? GameFlowManager.Instance.CurrentRestaurantSessionState
@@ -55,6 +56,8 @@ public sealed class MultiplayerProgressionContext : MonoBehaviour
         careerFinance = DailyFinanceBridge.Instance?.CaptureNetworkState();
         if (InventoryManager.Instance != null && InventoryManager.Instance.Items != null)
             careerItems = new List<ItemData>(InventoryManager.Instance.Items);
+        MenuCatalog.SetActiveRestaurantType(type);
+        useRoomRestaurant = true;
         if (MenuCatalog.Default == null || MenuCatalog.Default.RestaurantType != type)
         {
             Debug.LogError("[Multiplayer] Room restaurant catalog is unavailable.");
@@ -68,7 +71,8 @@ public sealed class MultiplayerProgressionContext : MonoBehaviour
     {
         if (prepared || !IsActive || saves == null || Catalog == null) return;
         // GameSaveData carries the same new-restaurant defaults: Day 1, money and approval.
-        saves.ApplyTemporaryRuntimeState(new GameSaveData());
+        int startingMoney = MoneyManager.DefaultStartingMoney;
+        saves.ApplyTemporaryRuntimeState(new GameSaveData { money = startingMoney, polishDayStartMoney = startingMoney });
         // Fresh temporary HR needs applicants; persisted empty Campaign pools remain valid.
         var employees = EmployeeManager.Instance;
         if (MultiplayerSessionManager.Instance.IsAuthority && employees != null && employees.allEmployees.Count == 0)
@@ -87,12 +91,13 @@ public sealed class MultiplayerProgressionContext : MonoBehaviour
         if (instance != this) return;
         restoring = true;
         // Keep all writes and wallet callbacks suspended throughout restoration.
+        // Clear the room catalog first so restored career stock keeps its own item metadata.
+        MenuCatalog.ClearActiveRestaurantOverride();
         if (careerItems != null) InventoryManager.Instance?.ConfigureItems(careerItems);
         if (saves != null && careerRuntime != null) saves.ApplyTemporaryRuntimeState(careerRuntime);
         DailyObjectiveManager.Instance?.ApplyNetworkState(careerObjectives);
         DailyFinanceBridge.Instance?.RestoreTemporaryState(careerFinance);
         GameFlowManager.Instance?.RestoreTemporaryRestaurantPhase(careerPhase);
-        MenuCatalog.ClearActiveRestaurantOverride();
         isolated = false;
         GameSaveManager.PersistenceSuspended = previousPersistenceGuard;
         instance = null;

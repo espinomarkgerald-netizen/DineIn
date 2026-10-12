@@ -526,6 +526,7 @@ public partial class CustomerGroup : MonoBehaviour
         firstDeliveryCompleted = true;
         if (FastFood != null) deliveredFastFoodOrder = currentOrderNumber;
         activeFoodTray = tray;
+        PresentFineDiningServedDrink(tray);
         state = GroupState.Eating;
         assignedBooth?.ClearMenuBook();
         ClearTableNumber();
@@ -802,6 +803,7 @@ public partial class CustomerGroup : MonoBehaviour
     }
     public bool CanReceiveManagerComplaint =>
         CanDecideCustomerOutcome &&
+        !TrainingGroupProtected &&
         gameObject.activeInHierarchy &&
         !IsTakeout &&
         !managerComplaintPending &&
@@ -1330,7 +1332,7 @@ public partial class CustomerGroup : MonoBehaviour
         {
             if (HasFineDiningDrinkEvent) yield break;
             if (HandleGlobalStockout()) yield break;
-            if (!isOrderPaused && !ReceivingAssistedService)
+            if (!isOrderPaused && !ReceivingAssistedService && !TrainingGroupProtected)
             {
                 float mult = Profile != null
                     ? Mathf.Max(0.01f, Profile.orderPatienceMultiplier)
@@ -1806,7 +1808,7 @@ public partial class CustomerGroup : MonoBehaviour
         ClearOrderBubble();
         if (FastFood?.StationFor(this)?.IsKiosk == true) return;
 
-        orderBubbleInstance = MultiplayerTaskPresentation.Acquire(bubblePrefab, MultiplayerBubbleTaskId("Order"));
+        orderBubbleInstance = MultiplayerTaskPresentation.Acquire(bubblePrefab, MultiplayerBubbleTaskId(HasWineRefillRequest ? "Pour" : "Order"));
         orderBubbleInstance.name = $"{name}_OrderBubble";
         orderBubbleInstance.SetActive(true);
         orderBubbleInstance.transform.SetAsLastSibling();
@@ -2058,12 +2060,12 @@ public partial class CustomerGroup : MonoBehaviour
         FoodTray sourceTray = null)
     {
         if (!CanDecideCustomerOutcome) return;
-        if (MultiplayerRestaurantBridge.IsActive)
-        { PauseBeforeEating = true; MultiplayerEatingStarted = false; MultiplayerEatingComplete = false; }
         if (state != GroupState.OrderTaken || !hasConfirmedOrder || isPlayerReviewingOrder)
             return;
 
         if (ReceiveFineDiningDrinks(deliveredContents, sourceTray)) return;
+        if (MultiplayerRestaurantBridge.IsActive)
+        { PauseBeforeEating = true; MultiplayerEatingStarted = false; MultiplayerEatingComplete = false; }
         bool isCorrectOrder = IsCorrectDeliveredOrder(deliveredContents);
         bool isBurntFood = sourceTray != null && sourceTray.ContainsBurntFood;
         if (!isBurntFood && deliveredContents != null)
@@ -2503,8 +2505,14 @@ public partial class CustomerGroup : MonoBehaviour
         if (multiplayerOnly)
         {
             MultiplayerEatingStartedAt = Photon.Pun.PhotonNetwork.Time;
-            MultiplayerEatingDuration = eat;
-            while (Photon.Pun.PhotonNetwork.Time < MultiplayerEatingStartedAt + eat)
+            var fineDining = IsFineDiningMultiplayer ? FineDiningReservations.For(this) : null;
+            MultiplayerEatingDuration = fineDining != null ? eat * Mathf.Max(1f, fineDining.eatingDurationMultiplier) : eat;
+            if (fineDining != null)
+            {
+                yield return FineDiningMeal(eat);
+                if (leavingRoutineStarted || state != GroupState.Eating) yield break;
+            }
+            else while (Photon.Pun.PhotonNetwork.Time < MultiplayerEatingStartedAt + eat)
             {
                 var session = MultiplayerSessionManager.Instance;
                 if (session == null || !session.IsAuthority) yield break;
@@ -2929,7 +2937,7 @@ public partial class CustomerGroup : MonoBehaviour
             ui.Init(this);
     }
 
-    public bool CanShowHygieneFeedback => state == GroupState.Eating && assignedBooth != null
+    public bool CanShowHygieneFeedback => !TrainingGroupProtected && state == GroupState.Eating && assignedBooth != null
         && (!PauseBeforeEating || MultiplayerEatingStarted && !MultiplayerEatingComplete)
         && !ComplaintPending && thoughtBubbleInstance == null && thoughtBubblePrefab != null;
     public void PresentHygieneFeedback(bool positive)
@@ -3500,7 +3508,7 @@ public partial class CustomerGroup : MonoBehaviour
     private void UpdateLinePatience()
     {
         if (!CanDecideCustomerOutcome) return;
-        if (HasProtectedReservationReception)
+        if (HasProtectedReservationReception || TrainingGroupProtected)
         {
             // A booking is a seating commitment, not a reception patience challenge.
             ClearLinePatienceUI();

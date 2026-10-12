@@ -38,11 +38,11 @@ MonoBehaviour:
   ingredients:
   - item: {fileID: 11400000, guid: 47eba3479be44462883a582d5f034f75, type: 2}
     amount: 1
-  - item: {fileID: 11400000, guid: cd10000000000000000000000000000b, type: 2}
+  - item: {fileID: 11400000, guid: 5772fbc2d4c74783a4666166550afdd5, type: 2}
     amount: 1
   - item: {fileID: 11400000, guid: 5d269b4d95b34fbab71a0a3d475139f1, type: 2}
     amount: 1
-  - item: {fileID: 11400000, guid: cd100000000000000000000000000003, type: 2}
+  - item: {fileID: 11400000, guid: b73a3ee5f0d34c02ac069f50db8a7367, type: 2}
     amount: 1
-  sellPrice: 245
+  sellPrice: 1400
   descriptionText: Lasagna (Fine Dining menu).

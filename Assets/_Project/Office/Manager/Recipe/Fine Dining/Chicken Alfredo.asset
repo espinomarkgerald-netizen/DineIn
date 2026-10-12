@@ -36,7 +36,7 @@ MonoBehaviour:
   normalizedServingTransform: 1
   dayToUnlock: 1
   ingredients:
-  - item: {fileID: 11400000, guid: cd100000000000000000000000000001, type: 2}
+  - item: {fileID: 11400000, guid: e1c90490401f4c7d92f35cb81f14d373, type: 2}
     amount: 1
   - item: {fileID: 11400000, guid: dc80153e2f2947859326a68afe917b3e, type: 2}
     amount: 1
@@ -44,5 +44,5 @@ MonoBehaviour:
     amount: 1
   - item: {fileID: 11400000, guid: 9f73f132ad534e858ca6b4aa5735317d, type: 2}
     amount: 1
-  sellPrice: 245
+  sellPrice: 1450
   descriptionText: Chicken Alfredo (Fine Dining menu).

@@ -7,6 +7,8 @@
             receipt: "CDRun2Receipt", rules: "casual-session-2", scene: "Lobby1 Multiplayer" };
         if (restaurant === "FastFood") return { stat: "FastFoodLongestRunV2", last: "FastFoodLastRunV2",
             receipt: "FFRun2Receipt", rules: "fastfood-session-2", scene: "Lobby2 Multiplayer" };
+        if (restaurant === "FineDining") return { stat: "FineDiningLongestRunV2", last: "FineDiningLastRunV2",
+            receipt: "FDRun2Receipt", rules: "finedining-session-1", scene: "Lobby3 Multiplayer" };
         return null;
     }
     function fail(message) { return { accepted: false, message: message }; }

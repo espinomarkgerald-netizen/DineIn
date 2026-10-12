@@ -8,7 +8,12 @@ public partial class CustomerGroup
     public bool HasWineRefillRequest { get; private set; }
     public bool HasFineDiningDrinkEvent => IsFineDiningAdditionalDrinkOrder || HasWineRefillRequest;
     public Recipe RequestedFineDiningDrink => fineDiningDrink;
+    public bool IsWaterPourRequest => HasWineRefillRequest && fineDiningDrink != null &&
+        FineDiningReservations.For(this)?.waterPourProduct?.ProductId == fineDiningDrink.ProductId;
+    public Sprite FineDiningDrinkRequestIcon => IsWaterPourRequest && FineDiningReservations.For(this)?.waterPitcherIcon != null
+        ? FineDiningReservations.For(this).waterPitcherIcon : fineDiningDrink != null ? fineDiningDrink.sprite : null;
     private bool fineDiningDrinkEventUsed;
+    private bool fineDiningPourTipAwarded;
     private Recipe fineDiningDrink;
     private SimpleOrder fineDiningMeal, fineDiningSubmittedMeal;
     private int fineDiningMealNumber;
@@ -20,8 +25,10 @@ public partial class CustomerGroup
 
     private IEnumerator FineDiningMeal(float ordinarySeconds)
     {
+        // Guided diners wait for the bridge to introduce their request. No random roll or timeout.
+        while (TrainingGroupProtected && !leavingRoutineStarted) yield return null;
         var settings = FineDiningReservations.For(this);
-        if (settings == null || MultiplayerRestaurantBridge.IsActive)
+        if (settings == null || MultiplayerRestaurantBridge.IsActive && !IsFineDiningMultiplayer)
         { yield return new WaitForSeconds(ordinarySeconds); yield break; }
         float duration = ordinarySeconds * Mathf.Max(1f, settings.eatingDurationMultiplier);
         float firstPart = duration * Mathf.Clamp01(settings.additionalDrinkTriggerFraction);
@@ -50,13 +57,18 @@ public partial class CustomerGroup
                 {
                     var refills = available.FindAll(product => System.Array.Exists(settings.wineRefillProducts, wine => wine != null && wine.ProductId == product.ProductId)
                         && currentOrder != null && currentOrder.ResolveProducts().Exists(served => served != null && served.ProductId == product.ProductId));
-                    bool refill = refills.Count > 0 && settings.wineBottlePrefab != null
-                        && FindFirstObjectByType<WinePouringUI>(FindObjectsInactive.Include) != null
+                    Recipe pourProduct = refills.Count > 0 ? refills[Random.Range(0, refills.Count)]
+                        : available.Find(product => settings.waterPourProduct != null && product.ProductId == settings.waterPourProduct.ProductId);
+                    bool waterPour = pourProduct != null && settings.waterPourProduct != null
+                        && pourProduct.ProductId == settings.waterPourProduct.ProductId;
+                    bool refill = pourProduct != null && (waterPour || settings.wineBottlePrefab != null)
+                        && settings.PourUI != null && (!waterPour || settings.PourUI.SupportsWaterService)
                         && Random.value < settings.wineRefillChance;
                     fineDiningDrinkKitchen = FindFirstObjectByType<KitchenManager>();
                     if (!refill && (fineDiningDrinkKitchen == null || !fineDiningDrinkKitchen.HasDrinkServiceOutput))
                     { yield return new WaitForSeconds(Mathf.Max(0f, remainingMeal)); yield break; }
-                    fineDiningDrink = refill ? refills[Random.Range(0, refills.Count)] : available[Random.Range(0, available.Count)];
+                    fineDiningDrink = refill ? pourProduct : available[Random.Range(0, available.Count)];
+                    fineDiningServiceGeneration++;
                     if (refill) { HasWineRefillRequest = true; ClearEatingBubble(); ClearTableNumber(); RefreshMemberProceduralState(); }
                     else BeginAdditionalDrinkOrder();
                     SpawnOrderBubble();
@@ -66,12 +78,15 @@ public partial class CustomerGroup
                     {
                         // An ignored optional request ends peacefully; it never causes an unhappy departure.
                         // Give accepted service a generous bound so a lost ticket cannot block payment forever.
-                        if (activeWineUI == null)
+                        fineDiningRequestRemaining = remaining;
+                        fineDiningServiceRemaining = serviceRemaining;
+                        if (activeWineUI == null && !fineDiningMultiplayerPourActive)
                         {
                             serviceRemaining -= Time.deltaTime;
                             if (!hasConfirmedOrder || HasWineRefillRequest)
                             {
-                                if (!RestaurantTaskClaim.IsClaimedByPlayer(this) && !RestaurantTaskClaim.IsClaimedByBot(this))
+                                if (!RestaurantTaskClaim.IsClaimedByPlayer(this) && !RestaurantTaskClaim.IsClaimedByBot(this) &&
+                                    !HasMultiplayerFineDiningClaim())
                                     remaining -= Time.deltaTime;
                             }
                             if (remaining <= 0f || serviceRemaining <= 0f)
@@ -144,7 +159,7 @@ public partial class CustomerGroup
         ClearOrderBubble(); ClearTableNumber();
         OrderChecklistUI.Instance?.DismissUnavailableOrder(this);
         if (!served) CancelOutstandingGroupTask();
-        RestaurantTaskClaim.Complete(this);
+        if (!fineDiningNetworkCommitInProgress) RestaurantTaskClaim.Complete(this);
         RestoreRefillProp();
         if (activeWineUI != null) activeWineUI.CloseWithoutResult();
         activeWineUI = null;
@@ -157,6 +172,7 @@ public partial class CustomerGroup
         }
         if (served && currentOrder != null && fineDiningDrink != null)
         {
+            fineDiningServedDrink = fineDiningDrink;
             currentOrder.ResolveProducts();
             var lines = new List<OrderLine>();
             if (currentOrder.lines != null) foreach (var line in currentOrder.lines) if (line != null) lines.Add(line.Clone());
@@ -165,6 +181,8 @@ public partial class CustomerGroup
             if (!order && activeFoodTray != null) activeFoodTray.ReplaceDrinkVisual(fineDiningDrink);
         }
         IsFineDiningAdditionalDrinkOrder = HasWineRefillRequest = false;
+        fineDiningMultiplayerPourActive = false;
+        fineDiningRequestRemaining = fineDiningServiceRemaining = 0f;
         hasConfirmedOrder = true;
         isPlayerReviewingOrder = isOrderPaused = false;
         if (!leavingRoutineStarted && state != GroupState.Leaving && state != GroupState.AngryLeft && state != GroupState.UnhappyLeft)
@@ -176,6 +194,7 @@ public partial class CustomerGroup
         fineDiningMeal = fineDiningSubmittedMeal = null;
         fineDiningMealTray = null;
         fineDiningDrink = null;
+        FineDiningDrinkServiceFinished?.Invoke(this, served, !order);
     }
 
     private bool HandleFineDiningDrinkStockout()
@@ -189,14 +208,15 @@ public partial class CustomerGroup
 
     public void BeginWineRefill()
     {
+        if (IsFineDiningMultiplayer) { MultiplayerFineDiningService.RequestPour(this); return; }
         if (!HasWineRefillRequest || RoleManager.Instance == null
             || !RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Waiter)
             || GameplayUIBlocker.IsBlockedExcept(orderBubbleInstance)) return;
         var mover = RoleManager.Instance.GetActivePlayerMovement();
         if (mover == null || assignedBooth == null || assignedBooth.approachPoint == null)
-        { WarningSlideUI.Instance?.Show("This table has no reachable wine service point."); return; }
+        { WarningSlideUI.Instance?.Show("This table has no reachable drink service point."); return; }
         if (!RestaurantTaskClaim.TryClaimPlayer(this))
-        { WarningSlideUI.Instance?.Show("Finish your current task before pouring wine."); return; }
+        { WarningSlideUI.Instance?.Show("Finish your current task before pouring a drink."); return; }
         SetOrderTaskClaimedByStaff(true);
         mover.UI_MoveToAction(assignedBooth.approachPoint, 2.75f,
             () => OpenWineRefill(mover), ReleaseWineRefill);
@@ -208,11 +228,11 @@ public partial class CustomerGroup
         { ReleaseWineRefill(); return; }
         var settings = FineDiningReservations.For(this);
         var hands = WaiterHands.For(mover);
-        var ui = FindFirstObjectByType<WinePouringUI>(FindObjectsInactive.Include);
-        if (settings == null || hands == null || ui == null || settings.wineBottlePrefab == null || ui.IsOpen)
+        var ui = settings != null ? settings.PourUI : null;
+        if (settings == null || hands == null || ui == null || (!IsWaterPourRequest && settings.wineBottlePrefab == null) || ui.IsOpen)
         {
             WarningSlideUI.Instance?.Show(ui != null && ui.IsOpen
-                ? "Finish the current pour first." : "Wine pouring is unavailable right now.");
+                ? "Finish the current pour first." : "Drink pouring is unavailable right now.");
             ReleaseWineRefill(); return;
         }
         if (fineDiningDrink == null || LobbyStockBridge.Instance == null || !LobbyStockBridge.Instance.HasProductStock(fineDiningDrink))
@@ -220,19 +240,22 @@ public partial class CustomerGroup
         // Preserve each carried renderer exactly; inventory ownership/parents never change.
         HideCarriedRenderers(hands.TrayHoldPoint);
         HideCarriedRenderers(hands.BillHoldPoint);
-        refillBottle = Instantiate(settings.wineBottlePrefab);
-        WaiterHands.SetAllColliders(refillBottle, false);
-        foreach (var body in refillBottle.GetComponentsInChildren<Rigidbody>()) body.isKinematic = true;
-        WaiterHands.AttachKeepingWorldScale(refillBottle.transform, hands.BillHoldPoint,
-            settings.wineBottleHandOffset, Quaternion.Euler(settings.wineBottleHandRotation));
-        refillBottle.transform.localScale = Vector3.Scale(refillBottle.transform.localScale, settings.wineBottleHandScale);
-        var pose = refillBottle.GetComponent<WineBottleCarryPose>();
-        if (pose == null) pose = refillBottle.AddComponent<WineBottleCarryPose>();
-        pose.Bind(mover.transform, hands.BillHoldPoint, settings.wineBottleHandOffset, settings.wineBottleHandRotation);
-        activeWineUI = ui;
-        if (!ui.Open(CompleteWineRefill, ReleaseWineRefill))
+        if (!IsWaterPourRequest)
         {
-            WarningSlideUI.Instance?.Show("The wine pouring panel could not open.");
+            refillBottle = Instantiate(settings.wineBottlePrefab);
+            WaiterHands.SetAllColliders(refillBottle, false);
+            foreach (var body in refillBottle.GetComponentsInChildren<Rigidbody>()) body.isKinematic = true;
+            WaiterHands.AttachKeepingWorldScale(refillBottle.transform, hands.BillHoldPoint,
+                settings.wineBottleHandOffset, Quaternion.Euler(settings.wineBottleHandRotation));
+            refillBottle.transform.localScale = Vector3.Scale(refillBottle.transform.localScale, settings.wineBottleHandScale);
+            var pose = refillBottle.GetComponent<WineBottleCarryPose>();
+            if (pose == null) pose = refillBottle.AddComponent<WineBottleCarryPose>();
+            pose.Bind(mover.transform, hands.BillHoldPoint, settings.wineBottleHandOffset, settings.wineBottleHandRotation);
+        }
+        activeWineUI = ui;
+        if (!ui.Open(IsWaterPourRequest, CompleteWineRefill, ReleaseWineRefill))
+        {
+            WarningSlideUI.Instance?.Show("The pouring panel could not open.");
             ReleaseWineRefill();
         }
     }
@@ -242,10 +265,33 @@ public partial class CustomerGroup
         activeWineUI = null;
         if (!HasWineRefillRequest || fineDiningDrink == null || leavingRoutineStarted)
         { ReleaseWineRefill(); return; }
+        CompleteFineDiningPour(out _);
+    }
+
+    private bool CompleteFineDiningPour(out int awardedTip)
+    {
+        awardedTip = 0;
         bool served = LobbyStockBridge.Instance != null && LobbyStockBridge.Instance.TryUseOrderStock(
             new[] { fineDiningDrink }, () => HasWineRefillRequest && state == GroupState.Eating && !leavingRoutineStarted);
         if (!served) WarningSlideUI.Instance?.Show("That drink is no longer in stock. No charge was added.");
+        if (served && !fineDiningPourTipAwarded && GameDayManager.Instance != null && GameDayManager.Instance.ServiceActive)
+        {
+            var settings = FineDiningReservations.For(this);
+            Vector2Int range = settings != null ? settings.pourServiceTipRange : Vector2Int.zero;
+            int minimum = Mathf.Clamp(range.x, 0, int.MaxValue - 1);
+            int maximum = Mathf.Clamp(range.y, minimum, int.MaxValue - 1);
+            int tip = Random.Range(minimum, maximum + 1);
+            fineDiningPourTipAwarded = true;
+            fineDiningLastPourTip = awardedTip = tip;
+            if (tip > 0)
+            {
+                GameDayManager.Instance.RegisterTip(tip);
+                SpawnTipPopup(tip);
+            }
+            ShowCustomThought("Thank you for the lovely service!", happyFaceSprite);
+        }
         FinishFineDiningDrinks(served);
+        return served;
     }
 
     private void ReleaseWineRefill()
@@ -288,6 +334,7 @@ public partial class CustomerGroup
         RestoreRefillProp();
         if (HasFineDiningDrinkEvent) RestaurantTaskClaim.Complete(this);
         IsFineDiningAdditionalDrinkOrder = HasWineRefillRequest = false;
+        fineDiningMultiplayerPourActive = false;
     }
 }
 

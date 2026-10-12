@@ -32,6 +32,12 @@ public partial class MultiplayerRestaurantBridge : IMultiplayerSessionGameplay
         Publish(true);
         GetComponent<MultiplayerDayBridge>()?.PublishNow();
     }
+    public virtual void ParticipantUnavailable(int actor)
+    {
+        if (session?.IsAuthority != true) return;
+        GetComponent<MultiplayerTaskClaims>()?.ReleaseActorOnAuthority(actor);
+        GetComponent<MultiplayerRestockBridge>()?.ParticipantUnavailable(actor);
+    }
     public virtual void ConnectionLost() => GameDayManager.Instance?.PrepareNextMultiplayerDay();
     public virtual void SuspendSession(bool ended)
     {

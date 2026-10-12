@@ -65,14 +65,13 @@ public sealed class FastFoodMultiplayerSession : MultiplayerRestaurantBridge
         cookingBridge.PublishNow();
         HygieneManager.Instance?.RefreshMultiplayerState();
     }
-    public void ParticipantUnavailable(int actor)
+    public override void ParticipantUnavailable(int actor)
     {
         if (!configured || !session.IsAuthority) return;
         taskClaims.ReleaseActorOnAuthority(actor);
         restockBridge.ParticipantUnavailable(actor);
         cookingBridge.ParticipantUnavailable(actor);
     }
-    public override void OnPlayerLeftRoom(Player otherPlayer) => ParticipantUnavailable(otherPlayer.ActorNumber);
     public override void ConnectionLost()
     {
         if (!configured) return;

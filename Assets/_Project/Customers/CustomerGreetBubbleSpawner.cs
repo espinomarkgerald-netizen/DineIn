@@ -11,6 +11,8 @@ public class CustomerGreetBubbleSpawner : MonoBehaviour
     private GameObject currentBubble;
     private CustomerGroup currentGroup;
     private Camera currentCamera;
+    private bool requestedVisible;
+    private CustomerGreetBubbleUI currentUI;
 
     private void Awake()
     {
@@ -19,6 +21,7 @@ public class CustomerGreetBubbleSpawner : MonoBehaviour
 
     private void LateUpdate()
     {
+        RefreshReservedVisibility();
         var session = MultiplayerSessionManager.Instance;
         if (session == null || !session.IsMultiplayerSession) return;
 
@@ -41,14 +44,15 @@ public class CustomerGreetBubbleSpawner : MonoBehaviour
             Show(visibleGroup, Camera.main);
         else
         {
-            currentBubble.SetActive(true);
-            currentBubble.GetComponentInChildren<CustomerGreetBubbleUI>(true)?.Refresh();
+            currentBubble.SetActive(FineDiningReservations.For(currentGroup) != null ? CanShowCurrent() : true);
+            currentUI?.Refresh();
         }
     }
 
     public void Show(CustomerGroup group, Camera cam)
     {
         if (group != null && !group.ReadyForReceptionInteraction) return;
+        if (group != null && !group.ReservedSeatingActionAvailable) return;
         if (BoothAssignArrowManager.Instance != null && BoothAssignArrowManager.Instance.IsSelectingFor(group)) return;
         if (MultiplayerDayBridge.IsActive)
         {
@@ -74,6 +78,7 @@ public class CustomerGreetBubbleSpawner : MonoBehaviour
 
         currentGroup = group;
         currentCamera = cam;
+        requestedVisible = true;
         currentGroup.OnGroupLeftLine -= HandleCurrentGroupLeftLine;
         currentGroup.OnGroupLeftLine += HandleCurrentGroupLeftLine;
 
@@ -113,6 +118,7 @@ public class CustomerGreetBubbleSpawner : MonoBehaviour
         }
 
         var ui = currentBubble.GetComponentInChildren<CustomerGreetBubbleUI>(true);
+        currentUI = ui;
         if (ui != null)
         {
             ui.Init(group);
@@ -143,8 +149,10 @@ public class CustomerGreetBubbleSpawner : MonoBehaviour
             return;
         }
 
-        currentBubble.SetActive(visible);
-        if (!visible) return;
+        requestedVisible = visible;
+        bool show = visible && CanShowCurrent();
+        currentBubble.SetActive(show);
+        if (!show) return;
 
         CustomerGreetBubbleUI ui =
             currentBubble.GetComponentInChildren<CustomerGreetBubbleUI>(true);
@@ -152,6 +160,23 @@ public class CustomerGreetBubbleSpawner : MonoBehaviour
             ui.Init(group);
 
         Canvas.ForceUpdateCanvases();
+    }
+
+    private bool CanShowCurrent()
+    {
+        if (!requestedVisible || currentGroup == null) return false;
+        if (FineDiningReservations.For(currentGroup) == null) return true;
+        return currentGroup.CanBeSeated && currentGroup.ReadyForReceptionInteraction &&
+            currentGroup.ReservedSeatingActionAvailable &&
+            (BoothAssignArrowManager.Instance == null || !BoothAssignArrowManager.Instance.IsSelectingFor(currentGroup));
+    }
+
+    private void RefreshReservedVisibility()
+    {
+        if (currentBubble == null || currentGroup == null || FineDiningReservations.For(currentGroup) == null) return;
+        bool show = CanShowCurrent();
+        if (currentBubble.activeSelf != show) currentBubble.SetActive(show);
+        if (show) currentUI?.Refresh();
     }
 
     public void Hide()
@@ -171,6 +196,8 @@ public class CustomerGreetBubbleSpawner : MonoBehaviour
         }
 
         currentGroup = null;
+        currentUI = null;
+        requestedVisible = false;
     }
 
     private void HandleCurrentGroupLeftLine(CustomerGroup group)

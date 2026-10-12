@@ -96,6 +96,9 @@ public sealed partial class MultiplayerObjectBridge : MonoBehaviour, Photon.Real
         if (kitchen != null && kitchen.traySpawnPoints != null)
             for (int i = 0; i < kitchen.traySpawnPoints.Length; i++)
                 if (kitchen.traySpawnPoints[i] != null && tray.transform.parent == kitchen.traySpawnPoints[i]) return "kitchen:" + i;
+        if (kitchen != null && kitchen.drinkTraySpawnPoints != null)
+            for (int i = 0; i < kitchen.drinkTraySpawnPoints.Length; i++)
+                if (kitchen.drinkTraySpawnPoints[i] != null && tray.transform.parent == kitchen.drinkTraySpawnPoints[i]) return "bar:" + i;
         return string.Empty;
     }
     private void Publish()
@@ -215,6 +218,9 @@ public sealed partial class MultiplayerObjectBridge : MonoBehaviour, Photon.Real
             else if (state.parent.StartsWith("kitchen:") && int.TryParse(state.parent.Substring(8), out int slotIndex)
                 && kitchen.traySpawnPoints != null && slotIndex >= 0 && slotIndex < kitchen.traySpawnPoints.Length)
             { preparedSlot = slotIndex; parent = kitchen.traySpawnPoints[slotIndex]; }
+            else if (state.parent.StartsWith("bar:") && int.TryParse(state.parent.Substring(4), out int drinkSlot)
+                && kitchen.drinkTraySpawnPoints != null && drinkSlot >= 0 && drinkSlot < kitchen.drinkTraySpawnPoints.Length)
+            { preparedSlot = drinkSlot; parent = kitchen.drinkTraySpawnPoints[drinkSlot]; }
             else if (state.parent.StartsWith("trolley:"))
             {
                 string[] parts = state.parent.Split(':');
@@ -240,6 +246,9 @@ public sealed partial class MultiplayerObjectBridge : MonoBehaviour, Photon.Real
                     Mathf.Abs(scale.z) > .00001f ? state.worldScale.z / scale.z : 1f);
             }
             kitchen.RegisterObservedTray(tray, preparedSlot);
+            if (preparedSlot >= 0 && tray.TargetGroup != null)
+                tray.GetComponent<FoodTrayInteractable>()?.ConfigurePickupApproach(state.parent.StartsWith("bar:")
+                    ? kitchen.drinkPickupApproach : kitchen.GetOutputPickupApproach(tray.TargetGroup));
             if (state.parent.StartsWith("booth:") && tray.TargetGroup != null && tray.TargetGroup.state == CustomerGroup.GroupState.Eating)
                 tray.TargetGroup.PresentObservedServed(tray);
             var pickup = tray.GetComponent<FoodTrayInteractable>();

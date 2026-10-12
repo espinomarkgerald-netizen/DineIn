@@ -10,13 +10,17 @@ public sealed class FineDiningProgression : MonoBehaviour
     private float nextCheck;
     private void Update()
     {
+        // The host advances room unlocks; guests receive them in the shared management state.
+        if (gameObject.scene.name == FineDiningScene.Multiplayer
+            && (!FineDiningMultiplayerSession.IsAuthority || !MultiplayerProgressionContext.Ready)) return;
         if(Time.unscaledTime<nextCheck || GameSaveManager.Instance==null || !GameSaveManager.Instance.HasCompletedInitialLoad || GameSaveManager.Instance.IsApplyingSave)return;
         nextCheck=Time.unscaledTime+1f;
         int day=GameFlowManager.Instance!=null?GameFlowManager.Instance.CurrentDay:1;
         if(day==lastDay)return;
         var reservations=FineDiningReservations.For(this);reservations?.EnsureDay();
         int announced=reservations!=null?reservations.ProgressionAnnouncedDay:0;
-        foreach(var recipe in recipes.Where(r=>r!=null && r.dayToUnlock<=day))
+        var activeRecipes = MenuCatalog.ForScene(gameObject.scene.name)?.Products;
+        foreach(var recipe in (activeRecipes ?? recipes).Where(r=>r!=null && r.availableOnMenu && r.dayToUnlock<=day))
         {
             if(UnlockManager.Instance!=null && !UnlockManager.Instance.IsRecipeUnlocked(recipe.recipeID))
             {

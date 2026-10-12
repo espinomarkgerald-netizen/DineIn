@@ -94,7 +94,7 @@ public class KitchenWorkerBot : MonoBehaviour
         if (employeeRole == EmployeeRole.Pianist)
         {
             if (musicNotes != null) { if(IsPerforming && !musicNotes.isPlaying)musicNotes.Play(); else if(!IsPerforming && musicNotes.isPlaying)musicNotes.Stop(); }
-            if(IsPerforming && Time.time >= nextMusicReaction)
+            if(!MultiplayerRestaurantBridge.IsObserver && IsPerforming && Time.time >= nextMusicReaction)
             {
                 nextMusicReaction=Time.time+reactionInterval;
                 var groups=FindObjectsByType<CustomerGroup>(FindObjectsSortMode.None);

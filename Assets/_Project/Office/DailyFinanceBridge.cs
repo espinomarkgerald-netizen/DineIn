@@ -26,6 +26,13 @@ public class DailyFinanceBridge : MonoBehaviour
     [Tooltip("Growth applied after the difficulty ceiling. Keep this low because customer volume stops scaling.")]
     [SerializeField, Range(0f, 0.1f)] private float postCeilingQuotaGrowth = 0.04f;
 
+    [Header("Fine Dining Sales Quota")]
+    [Tooltip("Share of the booked and walk-in meal forecast required for Lobby3 sales. Optional pouring tips are not required.")]
+    [SerializeField, Range(0.1f, 1f)] private float fineDiningSalesForecastShare = 0.65f;
+    [SerializeField, Min(1)] private int fineDiningQuotaRounding = 500;
+    private bool fineDiningQuotaLocked;
+    private int fineDiningQuotaBaseline;
+
     public int EmployeeCostToday => employeeCostToday;
     public int MarketingCostToday => marketingCostToday;
     public int BillsCostToday => billsCostToday;
@@ -50,12 +57,18 @@ public class DailyFinanceBridge : MonoBehaviour
 
     public void ApplyRestaurantSave(int[] state)
     {
-        if ((!CampaignSaveStore.IsFastFood && !CampaignSaveStore.IsFineDining) || GameSaveManager.Instance?.IsApplyingSave != true) return;
+        if ((!CampaignSaveStore.RuntimeIsFastFood && !CampaignSaveStore.RuntimeIsFineDining) || GameSaveManager.Instance?.IsApplyingSave != true) return;
         ResetDay();
         if (state == null || state.Length != 6) return;
         employeeCostToday = Mathf.Max(0, state[0]); marketingCostToday = Mathf.Max(0, state[1]);
         billsCostToday = Mathf.Max(0, state[2]); ingredientCostToday = Mathf.Max(0, state[3]);
         totalRequiredEarningsToday = Mathf.Max(0, state[4]); earnedToday = Mathf.Max(0, state[5]);
+        if (CampaignSaveStore.RuntimeIsFineDining)
+        {
+            // The saved target belongs to this day, even when authored prices change.
+            fineDiningQuotaBaseline = totalRequiredEarningsToday;
+            fineDiningQuotaLocked = true;
+        }
     }
 
     private void Awake()
@@ -76,9 +89,20 @@ public class DailyFinanceBridge : MonoBehaviour
         marketingCostToday = 0;
         billsCostToday = 0;
         ingredientCostToday = 0;
+        fineDiningQuotaLocked = false;
+        fineDiningQuotaBaseline = 0;
 
         totalRequiredEarningsToday = CalculateSalesQuota();
         earnedToday = 0;
+    }
+
+    public void BeginFineDiningService()
+    {
+        if (!CampaignSaveStore.RuntimeIsFineDining || fineDiningQuotaLocked)
+            return;
+        fineDiningQuotaBaseline = CalculateSalesQuota();
+        fineDiningQuotaLocked = true;
+        RefreshRequiredEarnings();
     }
 
     public void SetDailyCosts(int employeeCost, int marketingCost, int billsCost, int ingredientCost)
@@ -162,6 +186,42 @@ public class DailyFinanceBridge : MonoBehaviour
         int day = GameFlowManager.Instance != null
             ? Mathf.Max(1, GameFlowManager.Instance.ProgressionDay)
             : 1;
+
+        if (CampaignSaveStore.RuntimeIsFineDining)
+        {
+            if (fineDiningQuotaLocked)
+                return fineDiningQuotaBaseline;
+            FineDiningReservations dining = FineDiningReservations.Instance;
+            MenuCatalog catalog = MenuCatalog.ForScene("Lobby3");
+            if (dining != null && catalog != null && catalog.RestaurantType == RestaurantType.FineDining)
+            {
+                float foodTotal = 0f, drinkTotal = 0f;
+                int foodCount = 0, drinkCount = 0;
+                foreach (Recipe product in catalog.Products)
+                {
+                    if (product == null || product.dayToUnlock > day ||
+                        !MenuAvailabilityManager.IsProductAvailable(product))
+                        continue;
+                    // Use authored defaults so a manual price edit cannot raise its own goal.
+                    if (product.category == MenuProductCategory.Food)
+                    {
+                        foodTotal += Mathf.Max(0, product.sellPrice);
+                        foodCount++;
+                    }
+                    else
+                    {
+                        drinkTotal += Mathf.Max(0, product.sellPrice);
+                        drinkCount++;
+                    }
+                }
+                float averageMeal = (foodCount > 0 ? foodTotal / foodCount : 0f) +
+                                    (drinkCount > 0 ? drinkTotal / drinkCount : 0f);
+                float target = Mathf.Max(0, dining.ExpectedGuests) * averageMeal *
+                               Mathf.Clamp01(fineDiningSalesForecastShare);
+                int rounding = Mathf.Max(1, fineDiningQuotaRounding);
+                return Mathf.CeilToInt(target / rounding) * rounding;
+            }
+        }
 
         var fastFood = FastFoodProgressionSettings.Current;
         if (fastFood != null)

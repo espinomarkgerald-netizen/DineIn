@@ -8,6 +8,10 @@ public class MoneyManager : MonoBehaviour
 
     [Header("Finance Setup")]
     [SerializeField] private int startingMoney = 5000;
+    [SerializeField, Min(0)] private int fineDiningStartingMoney = 30000;
+    public static int DefaultStartingMoney => Instance != null
+        ? Mathf.Max(0, CampaignSaveStore.RuntimeIsFineDining ? Instance.fineDiningStartingMoney : Instance.startingMoney)
+        : CampaignSaveStore.RuntimeIsFineDining ? 30000 : 5000;
     public int Money { get; private set; }
 
     [Header("Optional Inspector Debug")]
@@ -34,7 +38,7 @@ public class MoneyManager : MonoBehaviour
 
         if (!initialized)
         {
-            Money = Mathf.Max(0, startingMoney);
+            Money = DefaultStartingMoney;
             initialized = true;
             Debug.Log("[MoneyManager] Awake default money = " + Money);
         }
@@ -192,7 +196,7 @@ public class MoneyManager : MonoBehaviour
 
     public void ResetToStartingMoney()
     {
-        SetMoney(startingMoney, "Bankruptcy Reset");
+        SetMoney(DefaultStartingMoney, "Bankruptcy Reset");
     }
 
     public void ResetFinanceHistory()

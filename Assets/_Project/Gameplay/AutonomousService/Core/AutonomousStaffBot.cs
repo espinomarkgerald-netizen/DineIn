@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -16,7 +16,8 @@ public class AutonomousStaffBot : MonoBehaviour
         Reacting,
         MovingToTask,
         Working,
-        ReturningHome
+        ReturningHome,
+        IdleAwaitingTask
     }
 
     [Header("Movement")]
@@ -38,6 +39,8 @@ public class AutonomousStaffBot : MonoBehaviour
 
     [Header("Home")]
     [SerializeField] private Transform homePoint;
+    [Tooltip("Return after each job. Fine Dining waiters let their service scheduler return them only when the queue is empty.")]
+    [SerializeField] private bool returnHomeAfterTask = true;
 
     [Header("Idle Presentation")]
     [SerializeField] private bool enableIdlePresentation;
@@ -51,6 +54,7 @@ public class AutonomousStaffBot : MonoBehaviour
     private NavMeshAgent agent;
     private Animator animator;
     private Coroutine activeTask;
+    private Coroutine idleHomeReturn;
     private bool carrying;
     private bool usingTrolley;
     private Vector3 fallbackHomePosition;
@@ -73,6 +77,8 @@ public class AutonomousStaffBot : MonoBehaviour
     private static readonly int HappyIdleStateHash = Animator.StringToHash("Base Layer.Happy Idle");
 
     public bool IsBusy => activeTask != null;
+    public bool DefersHomeReturn => !returnHomeAfterTask;
+    public void ConfigureAutomaticHomeReturn(bool enabled) => returnHomeAfterTask = enabled;
     public long JobGeneration { get; private set; }
     public bool JobCommitted { get; private set; }
     public readonly MultiplayerWorkTiming WorkTiming = new();
@@ -194,6 +200,7 @@ public class AutonomousStaffBot : MonoBehaviour
 
     private void OnDisable()
     {
+        StopIdleHomeReturn();
         WorkTiming.Clear();
         approachGeneration++;
         RestaurantTaskClaim.ReleaseJob(this, JobGeneration);
@@ -282,6 +289,8 @@ public class AutonomousStaffBot : MonoBehaviour
         if (task == null || IsBusy)
             return;
 
+        // The coordinator has already claimed the next job. Only idle travel is interrupted.
+        StopIdleHomeReturn();
         StopHappyIdle();
         JobGeneration++;
         JobCommitted = false;
@@ -292,8 +301,37 @@ public class AutonomousStaffBot : MonoBehaviour
     public void ReturnHomeWhenIdle()
     {
         if (IsBusy || !isActiveAndEnabled) return;
+        if (!returnHomeAfterTask)
+        {
+            if (idleHomeReturn != null || HasCommittedItem || usingTrolley) return;
+            Vector3 home = homePoint != null ? homePoint.position : fallbackHomePosition;
+            Vector3 offset = home - transform.position;
+            offset.y = 0f;
+            if (CurrentState == StaffState.IdleAtHome && offset.sqrMagnitude <= arrivalDistance * arrivalDistance) return;
+            StopHappyIdle();
+            idleHomeReturn = StartCoroutine(ReturnHomeWithoutWork());
+            return;
+        }
         StopHappyIdle();
         activeTask = StartCoroutine(ReturnHomeOnly());
+    }
+
+    private void StopIdleHomeReturn()
+    {
+        if (idleHomeReturn == null) return;
+        StopCoroutine(idleHomeReturn);
+        idleHomeReturn = null;
+        approachGeneration++;
+        StopAgent();
+        CurrentState = StaffState.IdleAwaitingTask;
+    }
+
+    private IEnumerator ReturnHomeWithoutWork()
+    {
+        // Assign the handle before a job can interrupt this trip, even when already home.
+        yield return null;
+        try { yield return ReturnHome(); }
+        finally { idleHomeReturn = null; }
     }
 
     private IEnumerator ReturnHomeOnly()
@@ -729,7 +767,7 @@ public class AutonomousStaffBot : MonoBehaviour
             {
                 if (pending.Count == 0)
                 {
-                    if (returningHome) break;
+                    if (returningHome || !returnHomeAfterTask) break;
                     RestaurantTaskClaim.ReleaseJob(this, JobGeneration);
                     ApproachingTarget = null;
                     pending.Push(ReturnHome());
@@ -752,7 +790,7 @@ public class AutonomousStaffBot : MonoBehaviour
             ApproachingTarget = null;
             activeTask = null;
             StopAgent();
-            CurrentState = StaffState.IdleAtHome;
+            CurrentState = returnHomeAfterTask ? StaffState.IdleAtHome : StaffState.IdleAwaitingTask;
         }
     }
 }

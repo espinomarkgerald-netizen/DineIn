@@ -134,7 +134,8 @@ public class OrderBubbleUI : MonoBehaviour
         if (optionalDrinkLabel != null)
         {
             optionalDrinkLabel.gameObject.SetActive(drinks);
-            optionalDrinkLabel.text = drinks && group.HasWineRefillRequest ? "POUR WINE" : "DRINK";
+            optionalDrinkLabel.text = drinks && group.HasWineRefillRequest
+                ? group.IsWaterPourRequest ? "POUR WATER" : "POUR WINE" : "DRINK";
         }
         if (greetingLabel != null) greetingLabel.gameObject.SetActive(!drinks);
         if (drinks)
@@ -142,7 +143,7 @@ public class OrderBubbleUI : MonoBehaviour
             if (patienceSlider != null) patienceSlider.gameObject.SetActive(false);
             if (drinkImage != null)
             {
-                drinkImage.sprite = group.RequestedFineDiningDrink != null ? group.RequestedFineDiningDrink.sprite : null;
+                drinkImage.sprite = group.FineDiningDrinkRequestIcon;
                 drinkImage.enabled = drinkImage.sprite != null;
                 drinkImage.preserveAspect = true;
             }

@@ -29,7 +29,8 @@ public static class EmployeeRoleCatalog
     private static readonly EmployeeRole[] FineDiningLobbyRoles =
         { EmployeeRole.Host, EmployeeRole.Waiter, EmployeeRole.Cashier, EmployeeRole.Busser, EmployeeRole.Pianist };
     public static IReadOnlyList<EmployeeRole> LobbyRoles => UsesFineDiningRoles ? FineDiningLobbyRoles : LobbyRoleArray;
-    public static bool UsesFineDiningRoles => CampaignSaveStore.IsFineDining && !CampaignSaveStore.ProtectedSession;
+    public static bool UsesFineDiningRoles => FineDiningTutorialBridge.Active ||
+        CampaignSaveStore.IsFineDining && !CampaignSaveStore.ProtectedSession;
     public static bool UsesFastFoodRoles => FastFoodMultiplayerSession.IsActive || CampaignSaveStore.IsFastFood && !CampaignSaveStore.ProtectedSession;
     private static readonly EmployeeRole[] FastFoodKitchenRoles =
         { EmployeeRole.GrillStation, EmployeeRole.FryStation, EmployeeRole.FastFoodAssembler };

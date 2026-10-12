@@ -38,13 +38,13 @@ MonoBehaviour:
   ingredients:
   - item: {fileID: 11400000, guid: a78aab82537d4cf0819211283bf2b5c9, type: 2}
     amount: 1
-  - item: {fileID: 11400000, guid: cd10000000000000000000000000000c, type: 2}
+  - item: {fileID: 11400000, guid: 036ffec8b93d4d0a814ed81e2da8b97a, type: 2}
     amount: 1
-  - item: {fileID: 11400000, guid: cd100000000000000000000000000009, type: 2}
+  - item: {fileID: 11400000, guid: 2dfa529f2de246bda6d98759825ead01, type: 2}
     amount: 1
-  - item: {fileID: 11400000, guid: cd100000000000000000000000000008, type: 2}
+  - item: {fileID: 11400000, guid: 5d5ae006bee74e1880e0f74d3adeaa73, type: 2}
     amount: 1
-  - item: {fileID: 11400000, guid: cd100000000000000000000000000003, type: 2}
+  - item: {fileID: 11400000, guid: b73a3ee5f0d34c02ac069f50db8a7367, type: 2}
     amount: 1
-  sellPrice: 285
+  sellPrice: 3000
   descriptionText: Lobster (Fine Dining menu).

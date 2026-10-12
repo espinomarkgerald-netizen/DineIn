@@ -38,5 +38,5 @@ MonoBehaviour:
   ingredients:
   - item: {fileID: 11400000, guid: f1d6d97c31444994916a4de3a6700eef, type: 2}
     amount: 1
-  sellPrice: 70
+  sellPrice: 600
   descriptionText: Old Fashioned (Fine Dining menu).

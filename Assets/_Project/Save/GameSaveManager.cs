@@ -243,7 +243,7 @@ public class GameSaveManager : MonoBehaviour
     private GameSaveData CaptureCurrentData()
     {
         GameSaveData data = new GameSaveData();
-        if (CampaignSaveStore.IsFineDining) FineDiningReservations.Instance?.FillSaveData(data);
+        if (CampaignSaveStore.RuntimeIsFineDining) FineDiningReservations.Instance?.FillSaveData(data);
         GameSaveData previous = IsPersistenceSuspended ? null : ReadSaveData(SavePath);
         if (previous?.campaignCreditReceipts != null)
             data.campaignCreditReceipts = previous.campaignCreditReceipts;
@@ -280,7 +280,7 @@ public class GameSaveManager : MonoBehaviour
 
         CasualDiningPolishManager.EnsureInstance()?.FillSaveData(data);
         ManagerComplaintSystem.EnsureInstance()?.FillSaveData(data);
-        if (CampaignSaveStore.IsFastFood)
+        if (CampaignSaveStore.RuntimeIsFastFood)
         {
             DailyObjectiveManager.Instance?.FillSaveData(data);
             FastFoodCookingController.Instance?.FillSaveData(data);
@@ -288,7 +288,7 @@ public class GameSaveManager : MonoBehaviour
             if (data.fastFoodDayComplete) data.fastFoodDayStats = GameDayManager.Instance?.CaptureFastFoodReport();
         }
 
-        if (CampaignSaveStore.IsFineDining)
+        if (CampaignSaveStore.RuntimeIsFineDining)
         {
             DailyObjectiveManager.Instance?.FillSaveData(data);
             data.fineDiningFinance = DailyFinanceBridge.Instance?.CaptureNetworkState();
@@ -357,7 +357,8 @@ public class GameSaveManager : MonoBehaviour
             Debug.Log("[GameSaveManager] No save file found — using defaults.");
             if (CampaignSaveStore.IsFastFood || CampaignSaveStore.IsFineDining || profileChanged)
             {
-                ApplySaveData(new GameSaveData(), false, false);
+                int startingBalance = MoneyManager.DefaultStartingMoney;
+                ApplySaveData(new GameSaveData { money = startingBalance, polishDayStartMoney = startingBalance }, false, false);
                 EmployeeManager.Instance?.PrepareFreshRestaurantRoster();
                 RequestSave();
             }
@@ -427,6 +428,7 @@ public class GameSaveManager : MonoBehaviour
 
             if (InventoryManager.Instance != null)
             {
+                InventoryManager.Instance.BindCatalogItems(MenuCatalog.ForScene(CampaignSaveStore.ActiveRestaurantScene));
                 InventoryManager.Instance.ApplySaveData(data);
                 if (migrateFiniteInventory && !MultiplayerProgressionContext.IsActive)
                     InventoryManager.Instance.EnsureStarterStockForFiniteInventory();
@@ -448,7 +450,7 @@ public class GameSaveManager : MonoBehaviour
 
             CasualDiningPolishManager.EnsureInstance()?.ApplySaveData(data);
             ManagerComplaintSystem.EnsureInstance()?.ApplySaveData(data);
-            if (CampaignSaveStore.IsFastFood)
+            if (CampaignSaveStore.RuntimeIsFastFood)
             {
                 DailyObjectiveManager.Instance?.ApplySaveData(data);
                 FastFoodCookingController.ForScene()?.ApplySaveData(data);
@@ -458,7 +460,7 @@ public class GameSaveManager : MonoBehaviour
                 if (data.fastFoodDayComplete) GameDayManager.Instance?.RestoreFastFoodReport(data.fastFoodDayStats);
             }
 
-            if (CampaignSaveStore.IsFineDining)
+            if (CampaignSaveStore.RuntimeIsFineDining)
             {
                 DailyObjectiveManager.Instance?.ApplySaveData(data);
                 FinanceManager.Instance?.ResetDailyExpenses();
@@ -479,7 +481,7 @@ public class GameSaveManager : MonoBehaviour
 
             if (GameFlowManager.Instance != null)
                 GameFlowManager.Instance.ApplySaveData(data);
-            if (CampaignSaveStore.IsFineDining) FineDiningReservations.Instance?.ApplySaveData(data);
+            if (CampaignSaveStore.RuntimeIsFineDining) FineDiningReservations.Instance?.ApplySaveData(data);
         }
         finally
         {

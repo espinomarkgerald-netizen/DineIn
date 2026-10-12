@@ -154,7 +154,8 @@ public class TutorialDialogueUI : MonoBehaviour
     private RectTransform portraitPlacement;
     private Vector2 dialogueHome;
     private bool fastFoodPoseChosen;
-    private bool StableFastFoodPlacement => avoidFocusOverlap && gameObject.scene.name == FastFoodScene.Tutorial;
+    private bool StableFastFoodPlacement => avoidFocusOverlap &&
+        (gameObject.scene.name == FastFoodScene.Tutorial || gameObject.scene.name == FineDiningScene.Tutorial);
     public Func<Vector2, bool> CanAdvanceAt { get; set; }
     public TMP_Text BodyText => bodyText;
 
@@ -694,7 +695,7 @@ public class TutorialDialogueUI : MonoBehaviour
 
     private void OnNextPressed()
     {
-        if (LobbyPauseMenu.BlocksTutorialInput) return;
+        if (LobbyPauseMenu.BlocksTutorialInput || FineDiningTutorialBridge.Instance?.BlocksDialogueInput == true) return;
         if (polishedLobby)
         {
             if (!IsVisible || manualNextAction == null) return;
@@ -781,6 +782,11 @@ public class TutorialDialogueUI : MonoBehaviour
 
     private void UpdateDialogueTap()
     {
+        if (FineDiningTutorialBridge.Instance?.BlocksDialogueInput == true)
+        {
+            pointerReleased = false;
+            return;
+        }
         bool manual = IsVisible && manualNextAction != null;
         if (continuePrompt != null) continuePrompt.transform.parent.gameObject.SetActive(manual && !isTyping);
         if (!manual) { pointerReleased = false; return; }

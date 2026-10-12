@@ -60,6 +60,16 @@ public static class MultiplayerActorActivity
             else if (task != null)
             {
                 value.phase = Phase.Working;
+                if (task.EndsWith(":Pour", System.StringComparison.Ordinal))
+                {
+                    var parts = task.Split(':');
+                    bool pouring = parts.Length == 3 && int.TryParse(parts[1], out int customerView)
+                        && MultiplayerFineDiningService.Active?.IsPouringFor(customerView, view.OwnerActorNr) == true;
+                    value.phase = pouring ? Phase.Working : Phase.Approaching;
+                    value.action = pouring ? "Pour the customer's drink" : "Approach the drink service";
+                    value.detail = pouring ? "Finish the pour or use Back to cancel." : "Continue to the selected table.";
+                    return value;
+                }
                 value.action = task.EndsWith(":Bill") ? "Continue bill service"
                     : task.EndsWith(":Payment") ? "Complete customer payment"
                     : task.EndsWith(":GreetSeat") ? "Choose a table"

@@ -437,6 +437,7 @@ public class GameFlowManager : MonoBehaviour
 
         // Preparation choices must persist normally. The rollback checkpoint is
         // captured only when service begins, after those choices are complete.
+        DailyFinanceBridge.Instance?.BeginFineDiningService();
         GameSaveManager.Instance?.CaptureDayStartCheckpoint();
         fastFoodServiceStarted = restaurantSceneName == "Lobby2";
         restaurantSessionState = campaignCompleted

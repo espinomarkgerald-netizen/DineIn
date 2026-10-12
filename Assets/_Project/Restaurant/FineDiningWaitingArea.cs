@@ -47,6 +47,7 @@ public sealed class FineDiningWaitingArea : MonoBehaviour
 
     private void Update()
     {
+        if (gameObject.scene.name == FineDiningScene.Multiplayer && !FineDiningMultiplayerSession.IsAuthority) return;
         if (Time.time < nextCheck || reservations == null || receptionLine == null) return;
         nextCheck = Time.time + checkIntervalSeconds;
         foreach (var pair in occupants.ToArray())
@@ -82,6 +83,8 @@ public sealed class FineDiningWaitingArea : MonoBehaviour
 
     public bool TryWait(CustomerGroup group)
     {
+        if (group != null && group.IsNetworkObserver) return false;
+        if (gameObject.scene.name == FineDiningScene.Multiplayer && !FineDiningMultiplayerSession.IsAuthority) return false;
         if (group == null || !group.gameObject.activeInHierarchy || !group.CanBeSeated || group.Size < 1 || Contains(group)) return false;
         var occupiedPlaces = occupants.Values.SelectMany(v => v).ToArray();
         var used = new HashSet<Transform>(occupiedPlaces.Select(p => p.anchor));

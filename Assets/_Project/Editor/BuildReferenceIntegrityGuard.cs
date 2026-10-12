@@ -168,7 +168,7 @@ internal sealed class BuildReferenceIntegrityGuard : IPreprocessBuildWithReport
     private static void ValidatePresentation(List<string> problems)
     {
         var scenes = EffectiveScenes();
-        foreach (string required in new[] { "Bootstrap", "NewMainMenu", "NewGameMenu", "Lobby1", "Lobby1Tutorial", "Lobby1 Multiplayer", "Lobby2", "RestockScene" })
+        foreach (string required in new[] { "Bootstrap", "NewMainMenu", "NewGameMenu", "Lobby1", "Lobby1Tutorial", "Lobby1 Multiplayer", "Lobby2", "Lobby2 Multiplayer", "Lobby3", "Lobby3 Multiplayer", "RestockScene" })
             if (!Array.Exists(scenes, s => s.enabled && Path.GetFileNameWithoutExtension(s.path) == required))
                 problems.Add("Active build scene list is missing " + required + ". Campaign/menu routing requires it.");
         foreach (string path in new[] { LobbyPauseMenuPrefabInstaller.PrefabPath, "Assets/_Project/Resources/UI/LobbyHUD.prefab" })

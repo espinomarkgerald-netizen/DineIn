@@ -2,14 +2,15 @@
 public static class MultiplayerDestinations
 {
     public const string RestaurantKey = "RestaurantType", SceneKey = "restaurant.scene";
-    public const string CasualScene = "Lobby1 Multiplayer", FastFoodScene = "Lobby2 Multiplayer";
-    public const string CasualRules = "casual-session-2", FastFoodRules = "fastfood-session-2";
+    public const string CasualScene = "Lobby1 Multiplayer", FastFoodScene = "Lobby2 Multiplayer", FineDiningScene = "Lobby3 Multiplayer";
+    public const string CasualRules = "casual-session-2", FastFoodRules = "fastfood-session-2", FineDiningRules = "finedining-session-1";
 
     public static bool TryGet(string restaurant, out string sceneName, out string rulesVersion)
     {
         sceneName = rulesVersion = null;
         if (restaurant == "CasualDining") { sceneName = CasualScene; rulesVersion = CasualRules; return true; }
         if (restaurant == "FastFood") { sceneName = FastFoodScene; rulesVersion = FastFoodRules; return true; }
+        if (restaurant == "FineDining") { sceneName = FineDiningScene; rulesVersion = FineDiningRules; return true; }
         return false;
     }
 

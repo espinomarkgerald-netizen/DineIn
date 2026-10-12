@@ -27,6 +27,13 @@ public sealed class WinePouringUI : MonoBehaviour
     public TMP_Text instruction;
     public UnityEngine.UI.Button backButton;
 
+    [Header("Water service artwork")]
+    public Sprite waterPitcherSprite;
+    public Sprite waterFillSprite;
+    public Vector2 waterPitcherSize = new Vector2(430f, 430f);
+    public Vector2 waterPitcherMouthAnchor = new Vector2(.17f, .84f);
+    public Color waterStreamColor = new Color(.6f, .85f, 1f, .85f);
+
     [Header("Forgiving pouring interaction")]
     [Range(30f, 100f)] public float pourTiltDegrees = 65f;
     [Min(10f)] public float captureRadius = 185f;
@@ -62,8 +69,16 @@ public sealed class WinePouringUI : MonoBehaviour
     private float splashTime;
     private Vector2 screenSize;
     private Rect lastSafeArea;
+    private bool waterService;
+    private UnityEngine.UI.Image containerImage;
+    private Sprite wineBottleSprite, wineFillSprite, wineStreamSprite, wineSplashSprite;
+    private Vector2 wineBottleSize, wineMouthAnchor;
+    private Color wineStreamColor;
+    private TMP_Text title;
 
     public bool IsOpen => open && gameObject.activeInHierarchy;
+    public bool IsDragging => IsOpen && dragging;
+    public bool SupportsWaterService => waterPitcherSprite != null && waterFillSprite != null;
     public float CurrentFill => fill;
 
     private void Awake()
@@ -82,15 +97,40 @@ public sealed class WinePouringUI : MonoBehaviour
         {
             restPosition = bottle.localPosition;
             restRotation = bottle.localRotation;
+            containerImage = bottle.GetComponent<UnityEngine.UI.Image>();
+            wineBottleSprite = containerImage != null ? containerImage.sprite : null;
+            wineBottleSize = bottle.sizeDelta;
         }
+        if (bottleMouth != null) wineMouthAnchor = bottleMouth.anchorMin;
+        wineFillSprite = liquid != null ? liquid.sprite : null;
+        wineStreamSprite = stream != null ? stream.sprite : null;
+        wineStreamColor = stream != null ? stream.color : Color.white;
+        wineSplashSprite = splash != null ? splash.sprite : null;
+        if (safeArea != null) title = safeArea.Find("Title")?.GetComponent<TMP_Text>();
         if (backButton != null) backButton.onClick.AddListener(Cancel);
     }
 
     public bool Open(Action onSuccess, Action onCancel)
+        => Open(false, onSuccess, onCancel);
+
+    public bool Open(bool pourWater, Action onSuccess, Action onCancel)
     {
         Initialize();
         if (open || stage == null || bottle == null || bottleMouth == null ||
             glassOpening == null || liquid == null || panelGroup == null) return false;
+        if (pourWater && !SupportsWaterService) return false;
+        waterService = pourWater;
+        if (containerImage != null) containerImage.sprite = waterService ? waterPitcherSprite : wineBottleSprite;
+        bottle.sizeDelta = waterService ? waterPitcherSize : wineBottleSize;
+        bottleMouth.anchorMin = bottleMouth.anchorMax = waterService ? waterPitcherMouthAnchor : wineMouthAnchor;
+        liquid.sprite = waterService ? waterFillSprite : wineFillSprite;
+        if (stream != null)
+        {
+            stream.sprite = waterService ? null : wineStreamSprite;
+            stream.color = waterService ? waterStreamColor : wineStreamColor;
+        }
+        if (splash != null) splash.sprite = waterService ? waterFillSprite : wineSplashSprite;
+        if (title != null) title.text = waterService ? "WATER SERVICE" : "WINE REFILL";
         succeeded = onSuccess;
         cancelled = onCancel;
         open = true;
@@ -107,7 +147,7 @@ public sealed class WinePouringUI : MonoBehaviour
         bottle.localRotation = restRotation;
         if (successMark != null) successMark.gameObject.SetActive(false);
         if (targetMarker != null) targetMarker.gameObject.SetActive(true);
-        if (instruction != null) instruction.text = "Drag the bottle over the glass";
+        if (instruction != null) instruction.text = waterService ? "Drag the pitcher over the glass" : "Drag the bottle over the glass";
         SetPourVisible(false);
         SetVisible(true);
         transform.SetAsLastSibling();
@@ -202,7 +242,7 @@ public sealed class WinePouringUI : MonoBehaviour
             Quaternion.Angle(bottle.localRotation, tilt) < 14f;
         SetPourVisible(pouring);
         if (instruction != null)
-            instruction.text = pouring ? "Hold to fill" : "Drag the bottle over the glass";
+            instruction.text = pouring ? "Hold to fill" : waterService ? "Drag the pitcher over the glass" : "Drag the bottle over the glass";
         if (!pouring) return;
 
         fill = Mathf.MoveTowards(fill, targetFill, dt * Mathf.Max(0.01f, targetFill - Mathf.Min(initialFill, targetFill * 0.5f)) / Mathf.Max(0.25f, pourSeconds));
@@ -235,7 +275,7 @@ public sealed class WinePouringUI : MonoBehaviour
         {
             splash.rectTransform.localPosition = end;
             splashTime += dt;
-            if (splashFrames != null && splashFrames.Length > 0)
+            if (!waterService && splashFrames != null && splashFrames.Length > 0)
                 splash.sprite = splashFrames[(int)(splashTime / Mathf.Max(0.01f, splashFrameSeconds)) % splashFrames.Length];
         }
     }

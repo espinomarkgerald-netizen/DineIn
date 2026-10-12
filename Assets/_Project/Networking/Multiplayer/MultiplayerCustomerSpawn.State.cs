@@ -18,6 +18,7 @@ public partial class MultiplayerCustomerSpawn
         public bool waitingForStock;
         public bool isFastFood;
         public CustomerGroup.FastFoodNetworkState fastFood;
+        public CustomerGroup.FineDiningNetworkState fineDining;
         public int takeoutQueue;
         public float stockWaitRemaining;
         public double eatingAt;
@@ -62,7 +63,8 @@ public partial class MultiplayerCustomerSpawn
             eatingAt = Group.MultiplayerEatingStartedAt, eatingDuration = Group.MultiplayerEatingDuration,
             eatingComplete = Group.MultiplayerEatingComplete,
             waitingForStock = Group.WaitingForStock, stockWaitRemaining = Mathf.Ceil(Group.StockWaitRemaining),
-            isFastFood = Group.FastFood != null, fastFood = Group.CaptureFastFoodState(), takeoutQueue = (int)Group.CurrentTakeoutQueueState };
+            isFastFood = Group.FastFood != null, fastFood = Group.CaptureFastFoodState(),
+            fineDining = Group.CaptureFineDiningState(), takeoutQueue = (int)Group.CurrentTakeoutQueueState };
         state.carrier = CarrierActorNumber; state.carrierRecovery = CarrierNeedsRecovery;
         var kitchen = MultiplayerWorldRegistry.Kitchen;
         if (Group.HasConfirmedOrder && kitchen != null && kitchen.TryGetForecast(Group.currentOrderNumber, out var forecast) && forecast.Group == Group)
@@ -108,6 +110,7 @@ public partial class MultiplayerCustomerSpawn
         var holder = MultiplayerWorldRegistry.ResolveHolder(state.billHolder);
         if (!string.IsNullOrEmpty(state.billHolder) && holder == null) return;
         var info = pendingServiceInfo;
+        if (state.fineDining != null) Group.PresentFineDiningState(state.fineDining);
         if (state.isFastFood && !Group.PresentFastFoodState(state.fastFood)) return;
         Group.PresentStockWait(state.waitingForStock, state.stockWaitRemaining);
         if (!string.IsNullOrEmpty(state.orderJson) && state.choices?.Length == 4)

@@ -201,6 +201,11 @@ public class GameDayManager : MonoBehaviour
     // Optional day authority hooks; unset in the original single-player scenes.
     public System.Func<bool> StartShiftInterception { get; set; }
     public bool ObserveDayOnly { get; set; }
+    private bool fineDiningTutorialClockPaused;
+    public void SetFineDiningTutorialClockPaused(bool paused)
+    {
+        if (gameObject.scene.name == "Lobby3Tutorial") fineDiningTutorialClockPaused = paused;
+    }
     public bool ClosingOut => closingOut;
     private bool multiplayerDayEnded;
     public bool HasDayResults => MultiplayerDayBridge.IsActive ? multiplayerDayEnded : resultsHaveOutcome;
@@ -338,7 +343,7 @@ public class GameDayManager : MonoBehaviour
         UpdateContinuePurchaseConfirmation();
         RefreshResultsResponsiveLayout();
 
-        if (!shiftRunning)
+        if (!shiftRunning || fineDiningTutorialClockPaused)
             return;
 
         timeRemaining -= Time.deltaTime;

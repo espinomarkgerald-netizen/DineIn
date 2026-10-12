@@ -191,6 +191,8 @@ public sealed class TutorialSceneBindings : MonoBehaviour
 
     public RectTransform ResolveUI(string key)
     {
+        if (FineDiningTutorialBridge.Active && key != null && key.StartsWith("FD.", StringComparison.Ordinal))
+            return FineDiningTutorialBridge.Instance.ResolveUI(key);
         if (FastFoodTutorialBridge.Active && key != null && key.StartsWith("FF."))
             return FastFoodTutorialBridge.Instance.ResolveUI(key);
         if (string.IsNullOrEmpty(key))
@@ -393,6 +395,8 @@ public sealed class TutorialSceneBindings : MonoBehaviour
 
     public Transform ResolveWorld(string key)
     {
+        if (FineDiningTutorialBridge.Active && key != null && key.StartsWith("FD.", StringComparison.Ordinal))
+            return FineDiningTutorialBridge.Instance.ResolveWorld(key);
         if (FastFoodTutorialBridge.Active && key != null && key.StartsWith("FF."))
             return FastFoodTutorialBridge.Instance.ResolveWorld(key);
         if (string.IsNullOrEmpty(key)) return null;

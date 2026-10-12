@@ -235,7 +235,7 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
     public void RefreshVisibility()
     {
         string activeScene = SceneManager.GetActiveScene().name;
-        bool inLobby = activeScene == LobbySceneName || activeScene == "Lobby3" || FastFoodScene.Contains(activeScene) || MultiplayerHUDBridge.IsActive;
+        bool inLobby = activeScene == LobbySceneName || FineDiningScene.Contains(activeScene) || FastFoodScene.Contains(activeScene) || MultiplayerHUDBridge.IsActive;
         bool inRestock = activeScene == "RestockScene";
         bool localMultiplayerRestock = MultiplayerSessionManager.Instance != null
             && MultiplayerSessionManager.Instance.IsMultiplayerSession
@@ -585,11 +585,24 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
 
     private void FocusCameraOnManager()
     {
+        MainCameraController fineDiningCamera = FindFirstObjectByType<MainCameraController>();
+        ManagerPlayer player = LocalHudPlayer;
+        if (fineDiningCamera != null && FineDiningReservations.For(fineDiningCamera) != null)
+        {
+            if (player == null) return;
+            if (fineDiningCamera.FollowTarget == player.transform)
+                fineDiningCamera.StopFollowing();
+            else
+                fineDiningCamera.SetFollowTarget(player.transform,
+                    player.transform.InverseTransformPoint(PlayerFocusPoint(player)));
+            return;
+        }
+
         if (MultiplayerHUDBridge.IsActive)
         {
-            var player = MultiplayerHUDBridge.LocalPlayer;
-            if (player != null)
-                FindFirstObjectByType<MainCameraController>()?.CenterOnWorldPoint(PlayerFocusPoint(player), false);
+            var localPlayer = MultiplayerHUDBridge.LocalPlayer;
+            if (localPlayer != null)
+                FindFirstObjectByType<MainCameraController>()?.CenterOnWorldPoint(PlayerFocusPoint(localPlayer), false);
             return;
         }
         CameraController cameraController = FindFirstObjectByType<CameraController>();

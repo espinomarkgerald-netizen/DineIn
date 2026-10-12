@@ -28,7 +28,8 @@ public class MultiplayerCustomerSpawnBridge : MonoBehaviour
         {
             PhotonNetwork.InstantiateRoomObject(networkPrefab, group.transform.position,
                 group.transform.rotation, 0,
-                new object[] { (int)group.CurrentCustomerType, group.members.Count, takeout, group.FastFood != null, group.CampaignChildCount });
+                new object[] { (int)group.CurrentCustomerType, group.members.Count, takeout, group.FastFood != null, group.CampaignChildCount,
+                    group.FineDiningReservationId ?? string.Empty });
         }
         finally { PendingGroup = null; }
     }

@@ -89,6 +89,10 @@ public class MainCameraController : MonoBehaviour
     private float targetOrtho;
     private float zoomVel;
 
+    private Transform followTarget;
+    private Vector3 followLocalOffset;
+    private bool followSuspended;
+
     private bool isDragging;
     private Vector2 lastPointerPos;
     private Vector2 accumulatedPanPixels;
@@ -140,6 +144,8 @@ public class MainCameraController : MonoBehaviour
     public event Action<Vector2> CameraPanned;
 
     public Camera Cam => cam;
+    public Transform FollowTarget => followTarget;
+    public bool FollowSuspended => followSuspended;
     public float NormalizedZoom => cam != null
         ? Mathf.InverseLerp(minOrthoSize, MaximumOrthoSize, cam.orthographicSize)
         : 0f;
@@ -164,9 +170,14 @@ public class MainCameraController : MonoBehaviour
         if (cam == null) cam = Camera.main;
         if (cam == null) return;
 
+        if (followTarget != null && !followTarget.gameObject.activeInHierarchy)
+            StopFollowing();
+
         HandlePanInput();
         HandleZoomInput();
         targetOrtho = Mathf.Clamp(targetOrtho, minOrthoSize, MaximumOrthoSize);
+        if (followTarget != null && !followSuspended)
+            CenterOnWorldPoint(followTarget.TransformPoint(followLocalOffset));
 
         Vector3 desired = targetRigPos;
         if (lockRigY) desired.y = rigY;
@@ -212,6 +223,36 @@ public class MainCameraController : MonoBehaviour
         SetRigTargetPosition(centeredRig, snapInstant);
     }
 
+    public void SetFollowTarget(Transform target, Vector3 localFocusOffset)
+    {
+        if (target == null || !target.gameObject.activeInHierarchy)
+        {
+            StopFollowing();
+            return;
+        }
+
+        followTarget = target;
+        followLocalOffset = localFocusOffset;
+        isDragging = false;
+        rigVel = Vector3.zero;
+        if (!followSuspended)
+            CenterOnWorldPoint(target.TransformPoint(localFocusOffset));
+    }
+
+    public void StopFollowing()
+    {
+        followTarget = null;
+        followLocalOffset = Vector3.zero;
+        targetRigPos = transform.position;
+        rigVel = Vector3.zero;
+    }
+
+    // Temporary scripted framing keeps the selected follow target for resuming.
+    public void SetFollowSuspended(bool suspended)
+    {
+        followSuspended = suspended;
+    }
+
     public Vector3 GetRigTargetPosition()
     {
         return targetRigPos;
@@ -238,7 +279,7 @@ public class MainCameraController : MonoBehaviour
     {
         CaptureRightClickRelease();
         if (PanInputBlocked) { isDragging = false; return; }
-        if (!Input.GetMouseButton(0) && !Input.GetMouseButton(1))
+        if (followTarget == null && !Input.GetMouseButton(0) && !Input.GetMouseButton(1))
             PanByScreenDelta(-DineIn.NewMenu.SettingsManager.EdgePanDirection(edgePanMargin) * edgePanPixelsPerSecond * Time.deltaTime);
         if (Input.touchCount >= 2)
         {
@@ -264,11 +305,17 @@ public class MainCameraController : MonoBehaviour
             {
                 Vector2 delta = t.position - lastPointerPos;
                 lastPointerPos = t.position;
-                PanByScreenDelta(delta);
                 RecordPanGesture(delta);
+                PanByScreenDelta(delta);
             }
             else if (t.phase == TouchPhase.Ended || t.phase == TouchPhase.Canceled)
             {
+                if (t.phase == TouchPhase.Ended && isDragging && followTarget != null)
+                {
+                    Vector2 delta = t.position - lastPointerPos;
+                    RecordPanGesture(delta);
+                    PanByScreenDelta(delta);
+                }
                 isDragging = false;
             }
 
@@ -292,11 +339,17 @@ public class MainCameraController : MonoBehaviour
             Vector2 current = Input.mousePosition;
             Vector2 delta = current - lastPointerPos;
             lastPointerPos = current;
-            PanByScreenDelta(delta);
             RecordPanGesture(delta);
+            PanByScreenDelta(delta);
         }
         else if (dragUp)
         {
+            if (isDragging && followTarget != null)
+            {
+                Vector2 delta = (Vector2)Input.mousePosition - lastPointerPos;
+                RecordPanGesture(delta);
+                PanByScreenDelta(delta);
+            }
             isDragging = false;
         }
     }
@@ -324,6 +377,8 @@ public class MainCameraController : MonoBehaviour
             return;
 
         panGestureReported = true;
+        if (followTarget != null && !followSuspended)
+            StopFollowing();
         Vector2 reportedMovement = accumulatedPanPixels.sqrMagnitude > 0.001f
             ? accumulatedPanPixels
             : screenDelta;
@@ -332,6 +387,9 @@ public class MainCameraController : MonoBehaviour
 
     private void PanByScreenDelta(Vector2 screenDelta)
     {
+        // Ignore tap jitter and edge pan until an intentional drag releases follow.
+        if (followTarget != null) return;
+
         float zoomScale = Mathf.InverseLerp(minOrthoSize, MaximumOrthoSize, targetOrtho);
         float scaledUnitsPerPixel = panUnitsPerPixel * DineIn.NewMenu.SettingsManager.PanMultiplier * Mathf.Lerp(0.7f, 2.0f, zoomScale);
 

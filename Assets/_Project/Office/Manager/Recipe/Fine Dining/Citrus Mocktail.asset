@@ -38,7 +38,7 @@ MonoBehaviour:
   ingredients:
   - item: {fileID: 11400000, guid: 43f12523c9b44a11b1cd819ab698b164, type: 2}
     amount: 1
-  - item: {fileID: 11400000, guid: cd100000000000000000000000000008, type: 2}
+  - item: {fileID: 11400000, guid: 5d5ae006bee74e1880e0f74d3adeaa73, type: 2}
     amount: 1
-  sellPrice: 75
+  sellPrice: 350
   descriptionText: Citrus Mocktail (Fine Dining menu).

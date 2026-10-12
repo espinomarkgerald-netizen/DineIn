@@ -134,6 +134,11 @@ MonoBehaviour:
   successMark: {fileID: 3711714829693484918}
   instruction: {fileID: 1559106312238333467}
   backButton: {fileID: 6302112259497937931}
+  waterPitcherSprite: {fileID: 21300000, guid: 76b9e37162314acb863b958e73be5bdd, type: 3}
+  waterFillSprite: {fileID: 21300000, guid: c91dee20cb064227a92f9d8e97afaf44, type: 3}
+  waterPitcherSize: {x: 430, y: 430}
+  waterPitcherMouthAnchor: {x: 0.17, y: 0.84}
+  waterStreamColor: {r: 0.6, g: 0.85, b: 1, a: 0.85}
   pourTiltDegrees: 65
   captureRadius: 185
   mouthTolerance: 60

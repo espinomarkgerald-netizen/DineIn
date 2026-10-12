@@ -14,6 +14,9 @@ public class MoneyBubbleUI : MonoBehaviour
     [SerializeField] private Image paymentIcon;
     [SerializeField] private Sprite cashIcon;
     [SerializeField] private Sprite cardIcon;
+    [Header("Fine Dining Card Icon Layout")]
+    [SerializeField, Range(.2f, .9f)] private float cardIconBodyProportion = .65f;
+    [SerializeField] private Vector2 cardIconBodyCenter = new Vector2(.5f, .585f);
 
     private MoneyPickup money;
     private bool isRemoving;
@@ -100,6 +103,8 @@ public class MoneyBubbleUI : MonoBehaviour
             paymentIcon.sprite = cardPayment ? cardIcon : cashIcon;
             paymentIcon.enabled = paymentIcon.sprite != null;
             paymentIcon.preserveAspect = true;
+            if (cardPayment && FineDiningReservations.For(m != null ? m.TargetGroup : null) != null)
+                CenterFineDiningCardIcon();
         }
 
         SetTableNumber(m != null && m.TargetGroup != null ? m.TargetGroup.currentOrderNumber : -1);
@@ -130,6 +135,25 @@ public class MoneyBubbleUI : MonoBehaviour
         // makes an owned task look like it is flickering.
         if (gameObject.activeSelf == claimed)
             gameObject.SetActive(!claimed);
+    }
+
+    private void CenterFineDiningCardIcon()
+    {
+        if (paymentFrame == null || paymentIcon == null) return;
+        RectTransform frame = paymentFrame.rectTransform;
+        RectTransform icon = paymentIcon.rectTransform;
+        icon.SetParent(frame, false);
+        icon.anchorMin = icon.anchorMax = cardIconBodyCenter;
+        icon.pivot = new Vector2(.5f, .5f);
+        icon.anchoredPosition = Vector2.zero;
+        icon.localScale = Vector3.one;
+        icon.localRotation = Quaternion.identity;
+        float width = frame.rect.width;
+        if (paymentFrame.sprite != null && paymentFrame.sprite.rect.height > 0f)
+            width = Mathf.Min(width, frame.rect.height * paymentFrame.sprite.rect.width / paymentFrame.sprite.rect.height);
+        icon.sizeDelta = Vector2.one * Mathf.Max(1f, width) * cardIconBodyProportion;
+        paymentIcon.raycastTarget = false;
+        icon.SetAsLastSibling();
     }
 
     public void SetTableNumber(int number)

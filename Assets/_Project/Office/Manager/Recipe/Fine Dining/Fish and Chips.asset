@@ -42,7 +42,7 @@ MonoBehaviour:
     amount: 1
   - item: {fileID: 11400000, guid: e5c0bcfcad404bc597277e0c46a60bf7, type: 2}
     amount: 1
-  - item: {fileID: 11400000, guid: cd100000000000000000000000000006, type: 2}
+  - item: {fileID: 11400000, guid: 548d4664b71949feac0383a2bb306183, type: 2}
     amount: 1
-  sellPrice: 295
+  sellPrice: 1600
   descriptionText: Fish and Chips (Fine Dining menu).

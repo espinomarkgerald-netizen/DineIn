@@ -38,5 +38,5 @@ MonoBehaviour:
   ingredients:
   - item: {fileID: 11400000, guid: 0feb09e4fdec4015840ad2bb7309fb84, type: 2}
     amount: 1
-  sellPrice: 80
+  sellPrice: 550
   descriptionText: Martini (Fine Dining menu).

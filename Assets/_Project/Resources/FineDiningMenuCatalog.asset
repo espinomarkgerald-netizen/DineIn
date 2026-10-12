@@ -15,6 +15,7 @@ MonoBehaviour:
   restaurantType: 2
   sceneNames:
   - Lobby3
+  - Lobby3 Multiplayer
   products:
   - {fileID: 11400000, guid: 01a4465fb4ee40c1843310b6d7cfbf4e, type: 2}
   - {fileID: 11400000, guid: 44532d61bc454d879e528cc1c51b61e9, type: 2}
@@ -24,7 +25,6 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 52655625677349fd8b863627c2b8480e, type: 2}
   - {fileID: 11400000, guid: ccc279ca65984ce7ba9aabc4e9db81c3, type: 2}
   - {fileID: 11400000, guid: 63b0e358473b49799a425afd93acf75d, type: 2}
-  - {fileID: 11400000, guid: 1c42bf21189447a69bf7af64eaafabb9, type: 2}
   - {fileID: 11400000, guid: 25c75c78b2a84668ac3503439201556a, type: 2}
   - {fileID: 11400000, guid: 46a629925cc645c1a9494fff95a5e762, type: 2}
   - {fileID: 11400000, guid: 9fdd10ecfabd49458c6dced1cdae4bdd, type: 2}
@@ -44,16 +44,15 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 8030f1fc8e8840b7a82cb6c1e1a99fa7, type: 2}
   - {fileID: 11400000, guid: 946373b37e4348129ab039b0ac90b11a, type: 2}
   - {fileID: 11400000, guid: 9f73f132ad534e858ca6b4aa5735317d, type: 2}
-  - {fileID: 11400000, guid: a358824a5b404a33bafe8b1f1f0e16aa, type: 2}
   - {fileID: 11400000, guid: a78aab82537d4cf0819211283bf2b5c9, type: 2}
-  - {fileID: 11400000, guid: cd100000000000000000000000000001, type: 2}
-  - {fileID: 11400000, guid: cd100000000000000000000000000003, type: 2}
-  - {fileID: 11400000, guid: cd100000000000000000000000000006, type: 2}
-  - {fileID: 11400000, guid: cd100000000000000000000000000008, type: 2}
-  - {fileID: 11400000, guid: cd100000000000000000000000000009, type: 2}
-  - {fileID: 11400000, guid: cd10000000000000000000000000000b, type: 2}
-  - {fileID: 11400000, guid: cd10000000000000000000000000000c, type: 2}
-  - {fileID: 11400000, guid: cd10000000000000000000000000000d, type: 2}
+  - {fileID: 11400000, guid: e1c90490401f4c7d92f35cb81f14d373, type: 2}
+  - {fileID: 11400000, guid: b73a3ee5f0d34c02ac069f50db8a7367, type: 2}
+  - {fileID: 11400000, guid: 548d4664b71949feac0383a2bb306183, type: 2}
+  - {fileID: 11400000, guid: 5d5ae006bee74e1880e0f74d3adeaa73, type: 2}
+  - {fileID: 11400000, guid: 2dfa529f2de246bda6d98759825ead01, type: 2}
+  - {fileID: 11400000, guid: 5772fbc2d4c74783a4666166550afdd5, type: 2}
+  - {fileID: 11400000, guid: 036ffec8b93d4d0a814ed81e2da8b97a, type: 2}
+  - {fileID: 11400000, guid: 7035c25830204a6fa849447d8c401b82, type: 2}
   - {fileID: 11400000, guid: d84de0e7040149468ba827cdc6dc4ef5, type: 2}
   - {fileID: 11400000, guid: dc80153e2f2947859326a68afe917b3e, type: 2}
   - {fileID: 11400000, guid: e5c0bcfcad404bc597277e0c46a60bf7, type: 2}

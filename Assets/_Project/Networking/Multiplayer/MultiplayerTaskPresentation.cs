@@ -49,8 +49,21 @@ public sealed class MultiplayerTaskPresentation : MonoBehaviour
     private MultiplayerTaskClaims claimSource;
     private float nextStatusRefresh;
     private string shownStatus;
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetRuntimeState()
+    {
+        bubbles.Clear();
+        LiveCount = 0;
+    }
     private void EnsureOwnershipLabel()
     {
+        // Fine Dining already limits expanded bubbles and shows actor work circles.
+        // Adding a second label under each compact marker obscures nearby tables.
+        if (MultiplayerSessionManager.Instance?.RestaurantType == "FineDining")
+        {
+            if (ownershipBackground != null) ownershipBackground.gameObject.SetActive(false);
+            return;
+        }
         if (ownershipText != null || buttons == null || buttons.Length == 0 || buttons[0] == null) return;
         var parent = buttons[0].transform as RectTransform;
         if (parent == null) return;
@@ -105,7 +118,7 @@ public sealed class MultiplayerTaskPresentation : MonoBehaviour
     {
         var session = MultiplayerSessionManager.Instance;
         if (session == null || string.IsNullOrEmpty(task)) return;
-        if (GameFlowManager.Instance != null && boundDay != GameFlowManager.Instance.CurrentDay)
+        if (boundRun != session.RunId || (GameFlowManager.Instance != null && boundDay != GameFlowManager.Instance.CurrentDay))
         { DestroyBubble(gameObject); return; }
         if (claimSource == null) claimSource = session.GetComponent<MultiplayerTaskClaims>();
         var claims = claimSource;

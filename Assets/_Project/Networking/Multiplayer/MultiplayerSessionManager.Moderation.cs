@@ -88,7 +88,7 @@ public partial class MultiplayerSessionManager : IOnEventCallback
             var member = published.participants.Find(p => p.accountId == removal.Key && p.departed);
             if (member == null) continue;
             pendingRemovals.Remove(removal.Key);
-            GetComponent<FastFoodMultiplayerSession>()?.ParticipantUnavailable(removal.Value);
+            gameplay?.ParticipantUnavailable(removal.Value);
             if (PhotonNetwork.CurrentRoom.Players.TryGetValue(removal.Value, out var player))
             {
                 GetComponent<MultiplayerTaskClaims>()?.OnPlayerLeftRoom(player);

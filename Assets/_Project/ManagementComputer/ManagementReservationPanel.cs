@@ -296,12 +296,26 @@ public sealed class ManagementReservationPanel : MonoBehaviour
         if (booking == null || table == null || !TableSelectable(booking, table, out _)) { Toast("Choose an available table", false); RefreshData(); return; }
         bool accepting = booking.status == FineDiningBookingStatus.Pending;
         busy = true;
-        if (!source.Assign(booking.id, table, out var reason)) { busy = false; Toast(reason, false); RefreshData(); return; }
-        tables[table.tableId].feedback?.PlayValueFeedback(true);
+        if (FineDiningMultiplayerSession.IsActive)
+        {
+            MultiplayerFineDiningService.RequestReservation("assign", booking.id, table,
+                (accepted, reason) => CompleteAccept(booking.id, table.tableId, accepting, accepted, reason));
+            return;
+        }
+        bool assigned = source.Assign(booking.id, table, out var offlineReason);
+        CompleteAccept(booking.id, table.tableId, accepting, assigned, offlineReason);
+    }
+
+    private void CompleteAccept(string bookingId, string tableId, bool accepting, bool accepted, string reason)
+    {
+        if (this == null) return;
+        if (!isActiveAndEnabled) { busy = false; return; }
+        if (!accepted) { busy = false; Toast(reason, false); RefreshData(); return; }
+        if (tables.TryGetValue(tableId, out var card)) card.feedback?.PlayValueFeedback(true);
         acceptButton.interactable = false;
         acceptButton.GetComponent<UISubtlePressFeedback>()?.PlayConfirmation(.045f);
         Toast(accepting ? "Reservation Confirmed" : "Table Updated", true);
-        StartCoroutine(FinishDecision(booking.id, false));
+        StartCoroutine(FinishDecision(bookingId, false));
     }
 
     private void Decline()
@@ -309,9 +323,24 @@ public sealed class ManagementReservationPanel : MonoBehaviour
         if (busy) return;
         declineConfirmation.SetActive(false);
         busy = true;
-        if (!source.Decline(selectedId, out var reason)) { busy = false; Toast(reason, false); RefreshData(); return; }
+        string bookingId = selectedId;
+        if (FineDiningMultiplayerSession.IsActive)
+        {
+            MultiplayerFineDiningService.RequestReservation("decline", bookingId, null,
+                (accepted, reason) => CompleteDecline(bookingId, accepted, reason));
+            return;
+        }
+        bool declined = source.Decline(bookingId, out var offlineReason);
+        CompleteDecline(bookingId, declined, offlineReason);
+    }
+
+    private void CompleteDecline(string bookingId, bool accepted, string reason)
+    {
+        if (this == null) return;
+        if (!isActiveAndEnabled) { busy = false; return; }
+        if (!accepted) { busy = false; Toast(reason, false); RefreshData(); return; }
         Toast("Request Declined", false);
-        StartCoroutine(FinishDecision(selectedId, true));
+        StartCoroutine(FinishDecision(bookingId, true));
     }
 
     private IEnumerator FinishDecision(string id, bool declined)

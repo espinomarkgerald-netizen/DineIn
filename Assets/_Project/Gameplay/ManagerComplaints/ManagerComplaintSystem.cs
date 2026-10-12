@@ -66,6 +66,7 @@ public sealed partial class ManagerComplaintSystem : MonoBehaviour
     private MainCameraController focusedCamera;
     private Vector3 savedCameraTarget;
     private float savedCameraZoom;
+    private bool savedFollowSuspended;
     private bool cameraStateCaptured;
     private Coroutine finishRoutine;
 
@@ -617,7 +618,7 @@ public sealed partial class ManagerComplaintSystem : MonoBehaviour
 
     private void FocusCameraOnGroup()
     {
-        if (activeGroup == null)
+        if (activeGroup == null || (cameraStateCaptured && focusedCamera != null))
             return;
 
         focusedCamera = FindFirstObjectByType<MainCameraController>();
@@ -626,6 +627,8 @@ public sealed partial class ManagerComplaintSystem : MonoBehaviour
 
         savedCameraTarget = focusedCamera.GetRigTargetPosition();
         savedCameraZoom = focusedCamera.GetTargetOrthographicSize();
+        savedFollowSuspended = focusedCamera.FollowSuspended;
+        focusedCamera.SetFollowSuspended(true);
         cameraStateCaptured = true;
 
         Vector3 target = activeGroup.ManagerComplaintAnchor.position +
@@ -636,11 +639,15 @@ public sealed partial class ManagerComplaintSystem : MonoBehaviour
 
     private void RestoreCamera()
     {
-        if (!cameraStateCaptured || focusedCamera == null)
+        if (!cameraStateCaptured)
             return;
 
-        focusedCamera.SetRigTargetPosition(savedCameraTarget);
-        focusedCamera.SetTargetOrthographicSize(savedCameraZoom);
+        if (focusedCamera != null)
+        {
+            focusedCamera.SetRigTargetPosition(savedCameraTarget);
+            focusedCamera.SetTargetOrthographicSize(savedCameraZoom);
+            focusedCamera.SetFollowSuspended(savedFollowSuspended);
+        }
         focusedCamera = null;
         cameraStateCaptured = false;
     }

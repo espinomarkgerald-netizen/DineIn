@@ -5,7 +5,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
-/// <summary>Routes a new Casual Dining career to Tutorial Day and adds its revisit entry.</summary>
+/// <summary>Routes each restaurant's first entry to its own tutorial and provides revisits.</summary>
 public static class TutorialGameModeEntry
 {
     public static bool HasCompletedTutorial => PlayerPrefs.GetInt(TutorialSystem.TutorialCompletedSaveKey, 0) == 1;
@@ -14,6 +14,12 @@ public static class TutorialGameModeEntry
 
     public static string ResolveCampaignDestination(string careerScene, out bool isMenuLaunch)
     {
+        if (careerScene == FineDiningScene.Career)
+        {
+            isMenuLaunch = PlayerPrefs.GetInt(FineDiningTutorialBridge.CompletedKey, 0) == 0 &&
+                PlayerPrefs.GetInt(FineDiningTutorialBridge.SkippedKey, 0) == 0;
+            return isMenuLaunch ? FineDiningScene.Tutorial : careerScene;
+        }
         if (careerScene == "Lobby2")
         {
             isMenuLaunch = PlayerPrefs.GetInt(FastFoodTutorialBridge.CompletedKey, 0) == 0 &&
@@ -76,13 +82,9 @@ public static class TutorialGameModeEntry
         revisit.onClick = new Button.ButtonClickedEvent();
         revisit.onClick.AddListener(() =>
         {
-            if (controller.SelectedRestaurantIndex > 1)
-            {
-                NotificationPopupController.Instance?.Show("Fine Dining tutorial is not available yet.", NotificationPopupController.PopupType.Error);
-                return;
-            }
             IsMenuLaunch = IsRevisitLaunch = true;
-            Load(controller.SelectedRestaurantIndex == 1 ? FastFoodScene.Tutorial : "Lobby1Tutorial");
+            Load(controller.SelectedRestaurantIndex == 2 ? FineDiningScene.Tutorial :
+                controller.SelectedRestaurantIndex == 1 ? FastFoodScene.Tutorial : "Lobby1Tutorial");
         });
         TMP_Text text = revisit.GetComponentInChildren<TMP_Text>(true);
         if (text != null)

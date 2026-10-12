@@ -5,7 +5,7 @@ using UnityEngine;
 
 /// <summary>Lobby3 booking schedule. Customers, tasks, stock and payments keep their existing owners.</summary>
 [DisallowMultipleComponent]
-public sealed class FineDiningReservations : MonoBehaviour
+public sealed partial class FineDiningReservations : MonoBehaviour
 {
     public static FineDiningReservations Instance { get; private set; }
     public static FineDiningReservations For(Component component) => Instance != null &&
@@ -50,7 +50,7 @@ public sealed class FineDiningReservations : MonoBehaviour
     [Header("Fine Dining customer timing")]
     [Min(1f)] public float walkInReceptionPatienceMultiplier = 2f;
     [Min(1f)] public float eatingDurationMultiplier = 1.5f;
-    [Range(0f, 1f)] public float additionalDrinkChance = .5f;
+    [Range(0f, 1f)] public float additionalDrinkChance = .85f;
     [Range(.1f, .8f)] public float additionalDrinkTriggerFraction = .35f;
     [Min(1f)] public float additionalDrinkServiceSeconds = 75f;
     [Tooltip("Maximum optional service time before dining resumes without a penalty or extra charge.")]
@@ -60,24 +60,47 @@ public sealed class FineDiningReservations : MonoBehaviour
     [Min(48f)] public float customerBubbleWidth = 160f;
     [Min(0f)] public float customerBubbleVerticalGap = 10f;
     [Min(0f)] public float customerBubbleTouchPadding = 12f;
+    [Header("Lobby3 customer bubble focus")]
+    [Min(1)] public int maxExpandedCustomerBubbles = 3;
+    [Range(.3f, 1f)] public float compactCustomerBubbleScale = .55f;
+    [Range(0f, 1f)] public float urgentCustomerBubblePatience = .3f;
     [Header("Additional drink presentation")]
     public GameObject orderRequestBubblePrefab;
     public GameObject drinkRequestBubblePrefab;
     public GameObject wineBottlePrefab;
     public Recipe[] wineRefillProducts = Array.Empty<Recipe>();
+    [Tooltip("Available from day one; an optional pitcher pour when the party did not order an eligible wine.")]
+    public Recipe waterPourProduct;
+    public Sprite waterPitcherIcon;
+    [Tooltip("Extra tip for a completed player pour, awarded once per party. Ignored requests have no penalty.")]
+    public Vector2Int pourServiceTipRange = new Vector2Int(500, 1000);
+    private WinePouringUI cachedPourUI;
+    public WinePouringUI PourUI
+    {
+        get
+        {
+            if (cachedPourUI == null) cachedPourUI = FindFirstObjectByType<WinePouringUI>(FindObjectsInactive.Include);
+            return cachedPourUI;
+        }
+    }
     public Vector3 wineBottleHandOffset = Vector3.zero;
     public Vector3 wineBottleHandRotation = Vector3.zero;
     public Vector3 wineBottleHandScale = Vector3.one;
     public FineDiningWaitingArea waitingArea;
     public event Action NewRequests;
-    public int UnreadRequests => state.bookings.Count(b => b.status == FineDiningBookingStatus.Pending && !b.viewed && b.arrivalMinute >= NowMinute);
-    public void MarkRequestsViewed() { foreach(var b in state.bookings) b.viewed = true; PersistDecision(); }
+    public int UnreadRequests => state.bookings.Count(b => b.status == FineDiningBookingStatus.Pending && !WasViewed(b) && b.arrivalMinute >= NowMinute);
+    public void MarkRequestsViewed()
+    {
+        foreach (var b in state.bookings)
+            if (UsesMultiplayer) locallyViewedBookings.Add(b.id); else b.viewed = true;
+        if (UsesMultiplayer) Changed?.Invoke(); else PersistDecision();
+    }
     public int ReservationGroupTarget => Mathf.Clamp(Mathf.RoundToInt(GroupBudget * reservationShare), 0, Mathf.Max(0, GroupBudget - 1));
     public int WalkInLimit => Mathf.Max(0, GroupBudget - ReservationGroupTarget);
-    public bool CanAdmitWalkIn => state.walkInsSpawned < WalkInLimit && AvailableAdmissionGroups > 0 &&
+    public bool CanAdmitWalkIn => CanSimulateReservations && !IsTutorialScene && state.walkInsSpawned < WalkInLimit && AvailableAdmissionGroups > 0 &&
         HasWalkInWaitingCapacity && !ServiceBusy && MaximumWalkInSize > 0 &&
         NowMinute - lastArrivalMinute >= minimumArrivalSpacingMinutes;
-    public void TrackWalkIn() { state.walkInsSpawned++; lastArrivalMinute = NowMinute; Changed?.Invoke(); }
+    public void TrackWalkIn() { if (!CanSimulateReservations) return; state.walkInsSpawned++; lastArrivalMinute = NowMinute; Changed?.Invoke(); }
     [Range(0f, 1f)] public float pianistBonus = .2f;
     [Min(1)] public int maximumPartySize = 4;
     [Min(1)] public int mobileMaximumPartySize = 3;
@@ -91,6 +114,7 @@ public sealed class FineDiningReservations : MonoBehaviour
     private bool lastPreparing;
     private bool lastServiceActive;
     public event Action Changed;
+    private bool IsTutorialScene => gameObject.scene.name == "Lobby3Tutorial";
     public IReadOnlyList<FineDiningBooking> Bookings => state.bookings;
     public int WindowMinutes => Mathf.Max(1, expectedDiningMinutes + cleanupMinutes +
         Mathf.CeilToInt(Mathf.Min(expectedDiningMinutes, baselineEatingMinutes) * (Mathf.Max(1f, eatingDurationMultiplier) - 1f) +
@@ -142,13 +166,13 @@ public sealed class FineDiningReservations : MonoBehaviour
                     if (employee != null) staff += Mathf.Clamp(employee.speed / 100f, .5f, 1.25f);
                 }
             float drinkWorkload = 1f + Mathf.Clamp01(additionalDrinkChance) * additionalDrinkWorkMinutes / Mathf.Max(1f, expectedDiningMinutes);
-            return Mathf.Max(1, Mathf.FloorToInt((soloServiceGroupCapacity + staff * groupsPerAssignedStaff) *
+            return Mathf.Max(1, Mathf.FloorToInt((soloServiceGroupCapacity + staff * groupsPerAssignedStaff + AdditionalHumanCapacity) *
                 (ClosingMinute - OpeningMinute) / 300f / drinkWorkload));
         }
     }
     public int CapacityGroupTarget => Mathf.Min(ProgressionGroupTarget, SeatingGroupCapacity, StaffGroupCapacity);
     // Preserve accepted booking data, but never admit more than the restaurant hard cap.
-    public int GroupBudget => Mathf.Min(Mathf.Clamp(maximumDailyGroups, 1, 20),
+    public int GroupBudget => IsMultiplayerObserver && observedReservations != null ? observedReservations.groupBudget : Mathf.Min(Mathf.Clamp(maximumDailyGroups, 1, 20),
         Mathf.Max(AcceptedGroups + state.walkInsSpawned, Mathf.Min(state.groupBudget, CapacityGroupTarget)));
     public float WalkInIntervalSeconds => dayManager == null ? 60f :
         dayManager.ShiftLengthSeconds * Mathf.Max(0f, 1f - (float)WindowMinutes / Mathf.Max(1, ClosingMinute - OpeningMinute)) /
@@ -178,9 +202,9 @@ public sealed class FineDiningReservations : MonoBehaviour
         ? "No suitable tables are available right now. Please wait for a table to be cleared."
         : "No purchased table can accommodate this party. Please add a table with enough seats for this party.";
     public int ProgressionAnnouncedDay => state.progressionAnnouncedDay;
-    public void MarkProgressionAnnounced(int day) { state.progressionAnnouncedDay=day; PersistDecision(); }
+    public void MarkProgressionAnnounced(int day) { if (!CanSimulateReservations) return; state.progressionAnnouncedDay=day; PersistDecision(); }
     // A new booking reserves one remaining group, replacing a potential walk-in.
-    public int AvailableAdmissionGroups => Mathf.Max(0, GroupBudget - UnspawnedGroups -
+    public int AvailableAdmissionGroups => IsMultiplayerObserver && observedReservations != null ? observedReservations.availableGroups : Mathf.Max(0, GroupBudget - UnspawnedGroups -
         (dayManager != null && dayManager.ShiftRunning ? dayManager.GroupsSpawnedThisShift : 0));
     public int ExpectedWalkInGroups => Mathf.Min(AvailableAdmissionGroups, Mathf.Max(0, WalkInLimit - state.walkInsSpawned));
     public int ExpectedGuests => ReservedGuests + ExpectedWalkInGroups * 2;
@@ -193,6 +217,8 @@ public sealed class FineDiningReservations : MonoBehaviour
     {
         if (Time.unscaledTime < nextRefresh) return;
         nextRefresh = Time.unscaledTime + .25f;
+        if (IsMultiplayerObserver) { ResolveObservedParties(); return; }
+        if (!CanSimulateReservations) return;
         if (GameSaveManager.Instance == null || !GameSaveManager.Instance.HasCompletedInitialLoad || GameSaveManager.Instance.IsApplyingSave) return;
         EnsureDay();
         GenerateServiceRequests();
@@ -239,6 +265,7 @@ public sealed class FineDiningReservations : MonoBehaviour
 
     public void EnsureDay()
     {
+        if (!CanSimulateReservations) return;
         int day = GameFlowManager.Instance != null ? GameFlowManager.Instance.CurrentDay : 1;
         if (dayManager == null || (GameSaveManager.Instance != null && GameSaveManager.Instance.IsApplyingSave)) return;
         if (state.day == day)
@@ -253,13 +280,15 @@ public sealed class FineDiningReservations : MonoBehaviour
         parties.Clear();
         lastArrivalMinute = int.MinValue / 2;
         state.nextRequestMinute = OpeningMinute + Mathf.Max(1, requestCadenceMinutes);
-        GenerateRequests(Mathf.Min(ReservationGroupTarget, requestsPerDay), OpeningMinute);
+        if (!IsTutorialScene) GenerateRequests(Mathf.Min(ReservationGroupTarget, requestsPerDay), OpeningMinute);
         EnsurePartyIdentities(false);
         PersistDecision();
     }
 
     private void GenerateServiceRequests()
     {
+        // The final tutorial introduces one authored party at a time.
+        if (IsTutorialScene) return;
         if (dayManager == null || state.finalized || (!Preparing && !dayManager.ShiftRunning) || NowMinute >= requestCutoffHour * 60) return;
         int pending = state.bookings.Count(b => b.status == FineDiningBookingStatus.Pending && b.arrivalMinute >= NowMinute);
         int remaining = Mathf.Min(ReservationGroupTarget - AcceptedGroups - pending, AvailableAdmissionGroups - pending);
@@ -424,6 +453,8 @@ public sealed class FineDiningReservations : MonoBehaviour
 
     public bool Assign(string id, FineDiningTable table, out string reason)
     {
+        if (!CanSimulateReservations || (UsesMultiplayer && !MultiplayerFineDiningService.CommittingReservation))
+        { reason = "Waiting for the shared reservation decision."; return false; }
         var booking = Booking(id);
         if (!CanAssign(booking, table, out reason)) return false;
         booking.tableId = table.tableId;
@@ -434,6 +465,8 @@ public sealed class FineDiningReservations : MonoBehaviour
     public void Decline(string id) => Decline(id, out _);
     public bool Decline(string id, out string reason)
     {
+        if (!CanSimulateReservations || (UsesMultiplayer && !MultiplayerFineDiningService.CommittingReservation))
+        { reason = "Waiting for the shared reservation decision."; return false; }
         var booking = Booking(id);
         reason = "This request can no longer be declined.";
         if (!CanDeclineRequest(booking)) return false;
@@ -442,10 +475,12 @@ public sealed class FineDiningReservations : MonoBehaviour
         PersistDecision();
         return true;
     }
-    private void PersistDecision() { Changed?.Invoke(); GameSaveManager.Instance?.RequestSave(); }
+    private void PersistDecision() { Changed?.Invoke(); if (!UsesMultiplayer) GameSaveManager.Instance?.RequestSave(); }
 
     public bool CanSpawnArrival(string reservationId)
     {
+        if (!CanSimulateReservations) return false;
+        if (IsTutorialScene) return false; // The tutorial bridge owns arrivals, not the service clock.
         if (dayManager == null || !dayManager.ShiftRunning ||
             dayManager.GroupsSpawnedThisShift >= GroupBudget ||
             NowMinute - lastArrivalMinute < Mathf.Max(1, minimumArrivalSpacingMinutes)) return false;
@@ -457,8 +492,45 @@ public sealed class FineDiningReservations : MonoBehaviour
     }
     public FineDiningBooking DueBooking() => state.bookings.Where(b => CanSpawnArrival(b.id))
         .OrderBy(b => b.arrivalMinute).FirstOrDefault();
+
+    /// <summary>Prepares a request, never accepts it. The player still uses the real reservation panel.</summary>
+    public FineDiningBooking PrepareTutorialBooking(string guestName, int size)
+    {
+        if (!IsTutorialScene || dayManager == null || parties.Values.Any(party => party != null)) return null;
+        var table = tables?.Where(candidate => candidate != null && candidate.Usable && candidate.Capacity >= size)
+            .OrderBy(candidate => candidate.Capacity).FirstOrDefault();
+        if (table == null || size < 1) return null;
+        state = new FineDiningReservationSave
+        {
+            day = GameFlowManager.Instance != null ? GameFlowManager.Instance.CurrentDay : 1,
+            groupBudget = CapacityGroupTarget
+        };
+        parties.Clear();
+        lastArrivalMinute = int.MinValue / 2;
+        var booking = new FineDiningBooking
+        {
+            id = Guid.NewGuid().ToString("N"), guestName = guestName, size = size,
+            arrivalMinute = Mathf.Max(OpeningMinute, NowMinute), suggestedTableId = table.tableId,
+            customerType = (int)CustomerGroup.CustomerType.Green, status = FineDiningBookingStatus.Pending
+        };
+        state.bookings.Add(booking);
+        Changed?.Invoke();
+        NewRequests?.Invoke();
+        return booking;
+    }
+
+    public bool CanSpawnTutorialArrival(string reservationId)
+    {
+        if (!IsTutorialScene) return false;
+        if (string.IsNullOrEmpty(reservationId)) return true; // A prepared diner for a later lesson.
+        var booking = Booking(reservationId);
+        return booking != null && booking.status == FineDiningBookingStatus.Confirmed &&
+            !parties.ContainsKey(reservationId) && tables != null && tables.Any(table => table != null &&
+                table.tableId == booking.tableId && table.Usable && table.booth.IsAvailableFor(booking.size));
+    }
     public void TrackSpawn(FineDiningBooking booking, CustomerGroup group)
     {
+        if (!CanSimulateReservations) return;
         if (booking == null || group == null || parties.ContainsKey(booking.id)) return;
         parties[booking.id] = group;
         lastArrivalMinute = NowMinute;
@@ -467,6 +539,7 @@ public sealed class FineDiningReservations : MonoBehaviour
     }
     private void OnSeated(CustomerGroup group)
     {
+        if (!CanSimulateReservations) return;
         var booking = Booking(group.FineDiningReservationId);
         if (booking == null) return;
         booking.status = FineDiningBookingStatus.Seated;
@@ -475,6 +548,7 @@ public sealed class FineDiningReservations : MonoBehaviour
     }
     public void PaidDeparture(CustomerGroup group)
     {
+        if (!CanSimulateReservations) return;
         var booking = Booking(group.FineDiningReservationId);
         if (booking == null || booking.status == FineDiningBookingStatus.Completed) return;
         booking.status = FineDiningBookingStatus.Completed;
@@ -523,6 +597,7 @@ public sealed class FineDiningReservations : MonoBehaviour
     }
     public bool CommitSeating(CustomerGroup group, Booth booth)
     {
+        if (!CanSimulateReservations) return false;
         if (!CanSeat(group, booth, out _)) return false;
         var booking = Booking(group.FineDiningReservationId);
         if (booking != null) booking.tableId = tables.First(t => t != null && t.booth == booth).tableId;
@@ -535,6 +610,7 @@ public sealed class FineDiningReservations : MonoBehaviour
 
     public void FinishDay()
     {
+        if (!CanSimulateReservations) return;
         if (state.finalized) return;
         foreach (var b in state.bookings)
             if (FineDiningReservationRules.ProtectsTable(b)) b.status = FineDiningBookingStatus.Left;

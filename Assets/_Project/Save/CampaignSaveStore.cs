@@ -11,17 +11,31 @@ public static partial class CampaignSaveStore
     public static bool ProtectedSession => GameSaveManager.IsPersistenceSuspended ||
         MultiplayerRestockBridge.IsActive || SceneManager.GetSceneByName("Lobby1 Multiplayer").isLoaded ||
         SceneManager.GetSceneByName(FastFoodScene.Multiplayer).isLoaded ||
+        SceneManager.GetSceneByName(MultiplayerDestinations.FineDiningScene).isLoaded ||
         SceneManager.GetSceneByName("Lobby1Tutorial").isLoaded ||
-        SceneManager.GetSceneByName(FastFoodScene.Tutorial).isLoaded;
+        SceneManager.GetSceneByName(FastFoodScene.Tutorial).isLoaded ||
+        SceneManager.GetSceneByName(FineDiningScene.Tutorial).isLoaded;
     public static void SelectFastFoodTraining()
     {
         RestaurantScene = "Lobby2";
+        cachedStamp = null;
+    }
+    public static void SelectFineDiningTraining()
+    {
+        RestaurantScene = FineDiningScene.Career;
         cachedStamp = null;
     }
     // Keep the selected restaurant through additive RestockScene and menu transitions.
     public static string RestaurantScene { get; private set; } = "Lobby1";
     public static bool IsFastFood => RestaurantScene == "Lobby2";
     public static bool IsFineDining => RestaurantScene == "Lobby3";
+    // Runtime data belongs to the room, while paths and campaign selection stay career-owned.
+    public static string ActiveRestaurantScene => MultiplayerProgressionContext.UsesRoomRestaurant
+        ? MultiplayerSessionManager.Instance.RestaurantType == "FineDining" ? "Lobby3"
+            : MultiplayerSessionManager.Instance.RestaurantType == "FastFood" ? "Lobby2" : "Lobby1"
+        : RestaurantScene;
+    public static bool RuntimeIsFastFood => ActiveRestaurantScene == "Lobby2";
+    public static bool RuntimeIsFineDining => ActiveRestaurantScene == "Lobby3";
     public static string ResolveFileName(string casualName) => IsFastFood ? "dinein_fastfood_save.json" :
         IsFineDining ? "dinein_finedining_save.json" : casualName;
     public static string CloudFileName => IsFastFood ? "FastFoodCampaignSave_v1.json" : "CampaignSave_v1.json";
@@ -157,7 +171,7 @@ public static partial class CampaignSaveStore
                 string stamp = path + File.GetLastWriteTimeUtc(path).Ticks + (File.Exists(path) ? new FileInfo(path).Length : 0);
                 if (stamp != cachedStamp)
                 {
-                    cachedMoney = File.Exists(path) ? JsonUtility.FromJson<GameSaveData>(File.ReadAllText(path)).money : 5000;
+                    cachedMoney = File.Exists(path) ? JsonUtility.FromJson<GameSaveData>(File.ReadAllText(path)).money : MoneyManager.DefaultStartingMoney;
                     cachedStamp = stamp;
                 }
             }
@@ -182,7 +196,7 @@ public static partial class CampaignSaveStore
             var snapshot = Read();
             if (!string.IsNullOrEmpty(snapshot.save) && !Valid(snapshot)) return false;
             string current = !string.IsNullOrEmpty(snapshot.checkpoint) ? snapshot.checkpoint : snapshot.save;
-            var data = string.IsNullOrEmpty(current) ? new GameSaveData() : JsonUtility.FromJson<GameSaveData>(current);
+            var data = string.IsNullOrEmpty(current) ? new GameSaveData { money = MoneyManager.DefaultStartingMoney, polishDayStartMoney = MoneyManager.DefaultStartingMoney } : JsonUtility.FromJson<GameSaveData>(current);
             long balance = (long)data.money + delta;
             if (balance < 0 || balance > int.MaxValue) return false;
             data.money = (int)balance;
@@ -256,7 +270,7 @@ public static partial class CampaignSaveStore
             if (!string.IsNullOrEmpty(snapshot.save) && !Valid(snapshot))
                 throw new InvalidDataException("Campaign is invalid; confirmed credit preserved for recovery.");
             string json = !string.IsNullOrEmpty(snapshot.checkpoint) ? snapshot.checkpoint : snapshot.save;
-            var data = string.IsNullOrEmpty(json) ? new GameSaveData() : JsonUtility.FromJson<GameSaveData>(json);
+            var data = string.IsNullOrEmpty(json) ? new GameSaveData { money = MoneyManager.DefaultStartingMoney, polishDayStartMoney = MoneyManager.DefaultStartingMoney } : JsonUtility.FromJson<GameSaveData>(json);
             data.campaignCreditReceipts ??= new System.Collections.Generic.List<string>();
             if (data.campaignCreditReceipts.Contains(credit.id)) { File.Delete(file); continue; }
             if ((long)data.money + credit.amount > int.MaxValue) continue;

@@ -38,5 +38,5 @@ MonoBehaviour:
   ingredients:
   - item: {fileID: 11400000, guid: 494f0f12c3584ee599fef1161cfff19f, type: 2}
     amount: 1
-  sellPrice: 55
+  sellPrice: 200
   descriptionText: Sparkling Water (Fine Dining menu).

@@ -60,6 +60,13 @@ public static class RestaurantTaskClaim
         if (target == null)
             return false;
 
+        CustomerGroup lessonGroup = target is CustomerGroup group ? group
+            : target is FoodTray tray ? tray.TargetGroup
+            : target is MoneyPickup money ? money.TargetGroup
+            : target is BillPaper bill ? bill.TargetGroup
+            : target is Booth booth ? booth.CurrentGroup : null;
+        if (lessonGroup != null && lessonGroup.TrainingGroupProtected) return false;
+
         if (!CanStartMultiplayerTask(target))
             return false;
 
@@ -217,6 +224,8 @@ public static class RestaurantTaskClaim
         var customer = group.GetComponentInParent<MultiplayerCustomerSpawn>();
         var view = customer != null ? customer.photonView : null;
         if (view == null || view.ViewID <= 0) return null;
+        if (group.HasWineRefillRequest && FineDiningReservations.For(group) != null)
+            return $"Customer:{view.ViewID}:Pour";
         if (group.FastFood != null)
         {
             string action = group.FastFood.CanReviewCounterOrder(group) ? "Order"

@@ -71,11 +71,42 @@ public class UIFollowWorldPoint : MonoBehaviour
 
     private FineDiningReservations fineDiningSizing;
     private float fineDiningFrameWidth;
+    private Graphic fineDiningFrame;
+    private bool compactCustomerPresentation;
+
+    public bool IsCustomerPresentationOnScreen
+    {
+        get
+        {
+            if (!isActiveAndEnabled || target == null || cam == null || !cam.isActiveAndEnabled ||
+                (hideWhenGameplayUIBlocked && GameplayUIBlocker.IsBlocked())) return false;
+            Vector3 position = cam.WorldToViewportPoint(target.position + worldOffset);
+            return position.z > 0f && position.x >= 0f && position.x <= 1f && position.y >= 0f && position.y <= 1f;
+        }
+    }
+
+    public void SetCompactCustomerPresentation(bool compact)
+    {
+        if (compactCustomerPresentation == compact) return;
+        compactCustomerPresentation = compact;
+        ConfigureCustomerTouchPadding();
+    }
+
+    private void ConfigureCustomerTouchPadding()
+    {
+        if (!Application.isMobilePlatform || fineDiningSizing == null || fineDiningFrame == null) return;
+        float width = fineDiningSizing.customerBubbleWidth * (compactCustomerPresentation
+            ? Mathf.Clamp(fineDiningSizing.compactCustomerBubbleScale, .25f, 1f) : 1f);
+        // Padding remains the same visible size when the artwork switches to a compact marker.
+        float padding = fineDiningSizing.customerBubbleTouchPadding * fineDiningFrame.rectTransform.rect.width /
+            Mathf.Max(1f, width);
+        fineDiningFrame.raycastPadding = new Vector4(-padding, -padding, -padding, -padding);
+    }
 
     // Explicit opt-in from customer/service bubbles; other levels and HUDs retain their settings.
     public void ConfigureFineDiningSizing(FineDiningReservations settings)
     {
-        if (settings == null || settings.gameObject.scene.name != "Lobby3") return;
+        if (settings == null || !FineDiningScene.Contains(settings.gameObject.scene)) return;
         var button = GetComponentInChildren<Selectable>(true);
         Graphic frame = button != null ? button.targetGraphic : GetComponent<Image>();
         if (rect == null) rect = GetComponent<RectTransform>();
@@ -100,13 +131,9 @@ public class UIFollowWorldPoint : MonoBehaviour
         if (width <= .001f) return;
         fineDiningSizing = settings;
         fineDiningFrameWidth = width * Mathf.Abs(authoredScale.x);
+        fineDiningFrame = frame;
         KeepAttachedToTarget();
-        if (Application.isMobilePlatform && button != null)
-        {
-            float padding = settings.customerBubbleTouchPadding * frame.rectTransform.rect.width /
-                Mathf.Max(1f, settings.customerBubbleWidth);
-            frame.raycastPadding = new Vector4(-padding, -padding, -padding, -padding);
-        }
+        if (button != null) ConfigureCustomerTouchPadding();
     }
 
     public bool IsWorldSpace => worldSpaceInitialized;
@@ -428,8 +455,10 @@ public class UIFollowWorldPoint : MonoBehaviour
         {
             // Cancel camera zoom once; do not also apply canvas, mobile, or HUD scale.
             float viewportScale = Mathf.Max(1, cam != null ? cam.pixelHeight : Screen.height) / 1080f;
+            float visualWidth = fineDiningSizing.customerBubbleWidth * (compactCustomerPresentation
+                ? Mathf.Clamp(fineDiningSizing.compactCustomerBubbleScale, .25f, 1f) : 1f);
             return ResolveWorldUnitsPerScreenPixel(anchorPosition) *
-                fineDiningSizing.customerBubbleWidth * viewportScale / fineDiningFrameWidth;
+                visualWidth * viewportScale / fineDiningFrameWidth;
         }
         float platformScale = (Application.isMobilePlatform ? mobileVisualScale : 1f) * DineIn.NewMenu.SettingsManager.UIScaleMultiplier;
         if (!preserveScreenSize)

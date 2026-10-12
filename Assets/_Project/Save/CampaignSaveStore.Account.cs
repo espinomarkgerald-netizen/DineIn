@@ -16,12 +16,13 @@ public static partial class CampaignSaveStore
     public static string LocalDirectory => localDirectory ??= ResolveDirectory(PlayerPrefs.GetString(ActiveAccountKey, ""));
     internal static readonly string[] ProgressPreferenceKeys = {
         "TutorialCompleted", "DineIn_FastFoodTutorial_Completed", "DineIn_FastFoodTutorial_Skipped",
-        "DineIn_FastFoodTutorial_Chapter_v1", "DineIn_OfficeTutorial_Done", "DineIn_Tutorial_CurrentDay"
+        "DineIn_FastFoodTutorial_Chapter_v1", "DineIn_OfficeTutorial_Done", "DineIn_Tutorial_CurrentDay",
+        "DineIn_FineDiningTutorial_Completed", "DineIn_FineDiningTutorial_Skipped", "DineIn_FineDiningTutorial_Chapter_v1"
     };
 
     [Serializable] public sealed class ProfileProgress
     {
-        public int[] tutorials = new int[6];
+        public int[] tutorials = new int[ProgressPreferenceKeys.Length];
         public int coins;
         public List<string> ownedItemIds = new List<string>();
         public List<LocalSaveManager.RoleEntry> roles = new List<LocalSaveManager.RoleEntry>();
@@ -212,7 +213,8 @@ public static partial class CampaignSaveStore
     }
     private static void ApplyProfile(ProfileProgress profile, string account)
     {
-        for (int i = 0; i < ProgressPreferenceKeys.Length; i++) PlayerPrefs.SetInt(ProgressPreferenceKeys[i], profile.tutorials[i]);
+        for (int i = 0; i < ProgressPreferenceKeys.Length; i++)
+            PlayerPrefs.SetInt(ProgressPreferenceKeys[i], profile.tutorials != null && i < profile.tutorials.Length ? profile.tutorials[i] : 0);
         PlayerPrefs.Save();
         var data = LocalSaveManager.Data;
         data.progressAccount = account;
@@ -257,7 +259,8 @@ public static partial class CampaignSaveStore
         bool Career(Snapshot pair) => pair != null && pair.version == 1 && pair.hash == Hash(pair.save, pair.checkpoint) &&
             ((string.IsNullOrEmpty(pair.save) && string.IsNullOrEmpty(pair.checkpoint)) || Valid(pair));
         if (value == null || !Career(value.casual) || !Career(value.fastFood) ||
-            (value.version == 3 && !Career(value.fineDining)) || value.profile?.tutorials?.Length != ProgressPreferenceKeys.Length ||
+            (value.version == 3 && !Career(value.fineDining)) ||
+            (value.profile?.tutorials?.Length != 6 && value.profile?.tutorials?.Length != ProgressPreferenceKeys.Length) ||
             value.profile.coins < 0 || value.profile.roles == null || value.profile.ownedItemIds == null) return false;
         foreach (int flag in value.profile.tutorials) if (flag < 0 || flag > 100) return false;
         foreach (var role in value.profile.roles) if (role == null || role.highestUnlockedLevel < 1 || role.completedLevels == null) return false;
