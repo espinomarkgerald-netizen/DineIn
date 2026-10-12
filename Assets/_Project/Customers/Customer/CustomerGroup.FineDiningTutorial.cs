@@ -5,6 +5,11 @@ public partial class CustomerGroup
 {
     private bool fineDiningTrainingProtected;
     public bool TrainingGroupProtected => fineDiningTrainingProtected && gameObject.scene.name == "Lobby3Tutorial";
+    public string TutorialSeatingFailure { get; private set; }
+    public RectTransform TutorialTableNumberTarget => tableNumberInstance != null
+        ? tableNumberInstance.GetComponentInChildren<UnityEngine.UI.Button>(true)?.transform as RectTransform
+            ?? tableNumberInstance.transform as RectTransform
+        : null;
     public bool TutorialSeated
     {
         get
@@ -23,6 +28,7 @@ public partial class CustomerGroup
     {
         if (gameObject.scene.name != "Lobby3Tutorial") return;
         fineDiningTrainingProtected = protectedByLesson;
+        TutorialSeatingFailure = null;
         tutorialDisableAutoOrderFlow = protectedByLesson;
         if (!protectedByLesson) return;
         StopReadyToOrderFlow();

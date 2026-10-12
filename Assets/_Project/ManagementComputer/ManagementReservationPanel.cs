@@ -51,6 +51,54 @@ public sealed class ManagementReservationPanel : MonoBehaviour
     private static readonly Color Green = new Color(.05f, .42f, .24f);
     private static readonly Color Red = new Color(.65f, .16f, .22f);
 
+    public bool TutorialShowingTonight => tonight;
+    public bool TutorialBusy => busy;
+    public string TutorialSelectedBookingId => selectedId;
+    public string TutorialSelectedTableId => selectedTableId;
+
+    // Resolve the live controls after the panel creates or refreshes its cards.
+    // Tutorial guidance must point at the actual button, never a template or the whole panel.
+    public RectTransform ResolveTutorialTarget(string semanticId, string bookingId = null, string tableId = null)
+    {
+        if (!isActiveAndEnabled || string.IsNullOrEmpty(semanticId)) return null;
+        string partyId = string.IsNullOrEmpty(bookingId) ? selectedId : bookingId;
+        ManagementReservationCard partyCard = null, tableCard = null;
+        if (!string.IsNullOrEmpty(partyId)) requests.TryGetValue(partyId, out partyCard);
+        if (!string.IsNullOrEmpty(tableId)) tables.TryGetValue(tableId, out tableCard);
+        else tableCard = tables.Values.Where(card => card != null && card.gameObject.activeInHierarchy &&
+            card.button != null && card.button.interactable).OrderBy(card => card.transform.GetSiblingIndex()).FirstOrDefault();
+        ManagementReservationCard detail = partyId == selectedId ? selectedDetails : null;
+        Component target;
+        switch (semanticId)
+        {
+            case "Reservation:Panel": target = this; break;
+            case "Reservation:RequestsTab": target = requestsTab; break;
+            case "Reservation:TonightTab": target = tonightTab; break;
+            case "Reservation:Party": target = partyCard; break;
+            case "Reservation:PartyName": target = partyCard?.title; break;
+            case "Reservation:PartyDetails": target = partyCard?.details; break;
+            case "Reservation:PartyStatus": target = partyCard?.status; break;
+            case "Reservation:SelectedParty": target = detail; break;
+            case "Reservation:SelectedPartyDetails": target = detail?.details; break;
+            case "Reservation:SelectedPartyStatus": target = detail?.status; break;
+            case "Reservation:Tables": target = tablesScroll != null ? tablesScroll.viewport : null; break;
+            case "Reservation:TableHeading": target = tableHeading; break;
+            case "Reservation:TableCard": target = tableCard; break;
+            case "Reservation:TablePreview": target = tableCard?.preview; break;
+            case "Reservation:TableName": target = tableCard?.title; break;
+            case "Reservation:TableCapacity": target = tableCard?.details; break;
+            case "Reservation:TableStatus": target = tableCard?.status; break;
+            case "Reservation:SelectTable": target = tableCard?.button; break;
+            case "Reservation:Confirm": target = acceptButton; break;
+            case "Reservation:Decline": target = declineButton; break;
+            case "Reservation:Summary": target = summary; break;
+            case "Reservation:Back": target = backButton; break;
+            case "Reservation:Banner": target = banner; break;
+            default: return null;
+        }
+        return target != null && target.gameObject.activeInHierarchy ? target.transform as RectTransform : null;
+    }
+
     public void Bind(FineDiningReservations service, Action back)
     {
         source = service;

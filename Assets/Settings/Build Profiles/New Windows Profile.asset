@@ -44,6 +44,8 @@ MonoBehaviour:
     m_path: Assets/_Project/Scenes/RoleBased/Lobby3.unity
   - m_enabled: 1
     m_path: Assets/_Project/Scenes/RoleBased/Lobby3 Multiplayer.unity
+  - m_enabled: 1
+    m_path: Assets/_Project/Scenes/RoleBased/Lobby3Tutorial.unity
   m_ScriptingDefines: []
   m_PlayerSettingsYaml:
     m_Settings: []

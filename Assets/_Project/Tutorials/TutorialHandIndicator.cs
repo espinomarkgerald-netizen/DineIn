@@ -557,6 +557,26 @@ public sealed class TutorialHandIndicator : MonoBehaviour
     private Vector2 MouseLegendPosition()
     {
         Rect r = hintRoot != null ? hintRoot.rect : new Rect(-800f, -450f, 1600f, 900f);
+        if (FineDiningTutorialBridge.Active && currentTarget != null &&
+            TryGetTargetCanvasPosition(currentTarget, out Vector2 targetPoint))
+        {
+            // Keep the click demonstration beside the actual action. Fine
+            // Dining has distant tables and rebuilt panels, so an edge legend
+            // can otherwise look like an instruction to click the HUD.
+            float halfSize = mouseDisplaySize * .5f;
+            float gap = cursorDisplaySize * .5f;
+            float minX = targetPoint.x, maxX = targetPoint.x;
+            if (liveMask != null && liveMask.TryGetFocusScreenRect(currentTarget, out Rect focusScreen) && hintRoot != null)
+            {
+                RectTransformUtility.ScreenPointToLocalPointInRectangle(hintRoot, focusScreen.min, null, out Vector2 focusMin);
+                RectTransformUtility.ScreenPointToLocalPointInRectangle(hintRoot, focusScreen.max, null, out Vector2 focusMax);
+                minX = focusMin.x; maxX = focusMax.x;
+            }
+            bool placeRight = maxX + mouseDisplaySize + gap <= r.xMax;
+            float adjacentX = placeRight ? maxX + halfSize + gap : minX - halfSize - gap;
+            return new Vector2(Mathf.Clamp(adjacentX, r.xMin + halfSize, r.xMax - halfSize),
+                Mathf.Clamp(targetPoint.y, r.yMin + halfSize, r.yMax - halfSize));
+        }
         bool targetOnRight = currentTarget != null &&
                              TryGetTargetCanvasPosition(currentTarget, out Vector2 point) &&
                              point.x > r.center.x;
@@ -573,6 +593,31 @@ public sealed class TutorialHandIndicator : MonoBehaviour
             targetCanvas != null ? targetCanvas.transform as RectTransform : null;
         if (target == null || !target.gameObject.activeInHierarchy || canvasRect == null) return false;
         Vector3 screen;
+        if (mode == HintMode.Drag && FineDiningTutorialBridge.Active &&
+            FineDiningTutorialBridge.Instance.CurrentLesson?.action == FineDiningTutorialBridge.ActionKind.Pour &&
+            WinePouringUI.Instance?.IsOpen == true)
+        {
+            WinePouringUI pourUI = WinePouringUI.Instance;
+            // Gameplay captures the container pivot near its tilted pouring
+            // position, not at the glass center. Demonstrate that exact path.
+            Vector3 point = target == dragEndTarget ? pourUI.TutorialPourPositionWorld : pourUI.bottle.position;
+            Canvas source = pourUI.stage.GetComponentInParent<Canvas>()?.rootCanvas;
+            Camera camera = source == null || source.renderMode == RenderMode.ScreenSpaceOverlay ? null : source.worldCamera;
+            screen = RectTransformUtility.WorldToScreenPoint(camera, point);
+            Canvas hintCanvas = hintRoot != null ? hintRoot.GetComponent<Canvas>() : targetCanvas;
+            return RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, screen,
+                hintCanvas == null || hintCanvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : hintCanvas.worldCamera, out canvasPosition);
+        }
+        // Fine Dining projects world objects into a UI proxy for its mask. Use
+        // the mask's final camera/layout result so the cursor cannot disagree
+        // with that opening during a camera pan or CanvasScaler resize.
+        if (FineDiningTutorialBridge.Active && liveMask != null &&
+            liveMask.TryGetFocusPoint(target, out Vector2 worldFocusPoint))
+        {
+            Canvas hintCanvas = hintRoot != null ? hintRoot.GetComponent<Canvas>() : targetCanvas;
+            return RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, worldFocusPoint,
+                hintCanvas == null || hintCanvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : hintCanvas.worldCamera, out canvasPosition);
+        }
         if (target is RectTransform targetRect)
         {
             if (liveMask != null && liveMask.CurrentTarget == targetRect)

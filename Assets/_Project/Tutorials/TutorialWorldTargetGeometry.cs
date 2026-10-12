@@ -45,6 +45,8 @@ public static class TutorialWorldTargetGeometry
 
     private static bool TryGetBounds(Transform target, out Bounds bounds, out Transform space)
     {
+        if (FineDiningTutorialBridge.Active && target != null && target.gameObject.scene.name == FineDiningScene.Tutorial &&
+            FineDiningTutorialBridge.Instance.TryGetTargetBounds(target, out bounds, out space)) return true;
         if (FastFoodTutorialBridge.Active &&
             FastFoodTutorialBridge.Instance.TryGetTargetBounds(target, out bounds, out space)) return true;
         // Prefer the object's own mesh; child food, speech bubbles and role UI

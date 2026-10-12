@@ -75,11 +75,32 @@ public sealed class WinePouringUI : MonoBehaviour
     private Vector2 wineBottleSize, wineMouthAnchor;
     private Color wineStreamColor;
     private TMP_Text title;
+    private RectTransform glassVisual;
 
     public bool IsOpen => open && gameObject.activeInHierarchy;
     public bool IsDragging => IsOpen && dragging;
     public bool SupportsWaterService => waterPitcherSprite != null && waterFillSprite != null;
     public float CurrentFill => fill;
+    public RectTransform TutorialBottleRect => IsOpen ? bottle : null;
+    public RectTransform TutorialGlassRect => IsOpen ? glassVisual : null;
+    public RectTransform TutorialTargetMarkerRect => IsOpen ? targetMarker : null;
+    public float TutorialFillProgress
+    {
+        get
+        {
+            float start = Mathf.Min(initialFill, targetFill * 0.5f);
+            return Mathf.InverseLerp(start, targetFill, fill);
+        }
+    }
+    public Vector3 TutorialPourPositionWorld
+    {
+        get
+        {
+            if (stage == null || bottle == null || bottleMouth == null || glassOpening == null) return Vector3.zero;
+            GetPourGeometry(out _, out _, out _, out Vector2 pourPosition);
+            return stage.TransformPoint(pourPosition);
+        }
+    }
 
     private void Awake()
     {
@@ -107,6 +128,7 @@ public sealed class WinePouringUI : MonoBehaviour
         wineStreamColor = stream != null ? stream.color : Color.white;
         wineSplashSprite = splash != null ? splash.sprite : null;
         if (safeArea != null) title = safeArea.Find("Title")?.GetComponent<TMP_Text>();
+        if (stage != null) glassVisual = stage.Find("WineGlass") as RectTransform;
         if (backButton != null) backButton.onClick.AddListener(Cancel);
     }
 
@@ -225,11 +247,7 @@ public sealed class WinePouringUI : MonoBehaviour
         if (completing) return;
 
         float dt = Mathf.Min(Time.unscaledDeltaTime, 0.05f);
-        Quaternion tilt = Quaternion.Euler(0f, 0f, pourTiltDegrees);
-        Vector2 opening = stage.InverseTransformPoint(glassOpening.position);
-        Vector2 desiredMouth = opening + pourMouthOffset;
-        Vector2 mouthFromPivot = bottle.InverseTransformPoint(bottleMouth.position);
-        Vector2 pourPosition = desiredMouth - (Vector2)(tilt * mouthFromPivot);
+        GetPourGeometry(out Vector2 opening, out Vector2 desiredMouth, out Quaternion tilt, out Vector2 pourPosition);
         bool close = dragging && Vector2.Distance(pointerPosition, pourPosition) <= captureRadius;
         Vector2 destination = !dragging ? (Vector2)restPosition : close ? pourPosition : ClampPointer(pointerPosition);
         float smoothing = LevelOneUIAccessibility.ReducedMotion ? 0.025f : followSeconds;
@@ -249,6 +267,16 @@ public sealed class WinePouringUI : MonoBehaviour
         liquid.fillAmount = fill;
         AnimateStream(mouth, opening, dt);
         if (fill >= targetFill) StartCoroutine(CompleteRoutine());
+    }
+
+    private void GetPourGeometry(out Vector2 opening, out Vector2 desiredMouth,
+        out Quaternion tilt, out Vector2 pourPosition)
+    {
+        tilt = Quaternion.Euler(0f, 0f, pourTiltDegrees);
+        opening = stage.InverseTransformPoint(glassOpening.position);
+        desiredMouth = opening + pourMouthOffset;
+        Vector2 mouthFromPivot = bottle.InverseTransformPoint(bottleMouth.position);
+        pourPosition = desiredMouth - (Vector2)(tilt * mouthFromPivot);
     }
 
     private Vector2 ClampPointer(Vector2 point)

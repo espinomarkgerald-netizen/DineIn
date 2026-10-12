@@ -56,7 +56,10 @@ public static class FineDiningTutorialAuthoring
             if (opened) existing = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Additive);
             try
             {
+                ApplyPresentationCorrections(existing);
                 Validate(existing);
+                if (existing.isDirty && !EditorSceneManager.SaveScene(existing))
+                    throw new InvalidOperationException("Unity could not save the tutorial corrections.");
                 RegisterBuildScene();
                 EditorPrefs.SetBool(AppliedKey, true);
                 Debug.Log("[Fine Dining Tutorial] Existing tutorial validated; its authored steps and scene edits were preserved.");
@@ -120,6 +123,20 @@ public static class FineDiningTutorialAuthoring
         var cashier = FindAll<CashierBoothInteractable>(scene).Single(station => station.name == "Bar Cashier Target");
         var navigation = FindAll<NavMeshSurface>(scene).FirstOrDefault(s => s.agentTypeID == 0 && s.navMeshData != null && s.name == "NavMesh")
             ?? FindAll<NavMeshSurface>(scene).FirstOrDefault(s => s.agentTypeID == 0 && s.navMeshData != null);
+        if (navigation == null)
+        {
+            // Repair only the tutorial copy when the saved restaurant has lost its asset binding.
+            var surface = FindAll<NavMeshSurface>(scene).SingleOrDefault(s => s.agentTypeID == 0
+                && s.isActiveAndEnabled && s.name == "Fine Dining Navigation");
+            var baked = AssetDatabase.LoadAssetAtPath<UnityEngine.AI.NavMeshData>(
+                "Assets/_Project/Scenes/RoleBased/Lobby3-NavMesh.asset");
+            if (surface != null && baked != null)
+            {
+                surface.navMeshData = baked;
+                EditorUtility.SetDirty(surface);
+                navigation = surface;
+            }
+        }
         if (navigation == null) throw new InvalidOperationException("Lobby3's baked customer navigation is missing.");
         if (!kitchen.HasDrinkServiceOutput) throw new InvalidOperationException("Lobby3's bar drink pickup/output references are missing.");
 
@@ -152,7 +169,7 @@ public static class FineDiningTutorialAuthoring
         var confirmation = presentation.GetComponentsInChildren<Transform>(true).Single(t => t.name == "Skip Confirmation").gameObject;
         var recovery = presentation.GetComponentsInChildren<Transform>(true).Single(t => t.name == "Recovery message");
         var status = recovery.GetComponentInChildren<TMP_Text>(true);
-        var confirmationText = confirmation.GetComponentsInChildren<TMP_Text>(true).Single(t => t.GetComponentInParent<UnityEngine.UI.Button>() == null);
+        var confirmationText = confirmation.GetComponentsInChildren<TMP_Text>(true).Single(t => t.GetComponentInParent<UnityEngine.UI.Button>(true) == null);
         confirmationText.text = "Skip Fine Dining training?";
         confirmation.SetActive(false);
         retry.gameObject.SetActive(false);
@@ -205,6 +222,79 @@ public static class FineDiningTutorialAuthoring
         pourUI.waterPitcherSprite = reservations.waterPitcherIcon;
         pourUI.waterFillSprite = RequireAsset<Sprite>(ArtFolder + "WaterFill.png");
         PrefabUtility.RecordPrefabInstancePropertyModifications(pourUI);
+        ApplyPresentationCorrections(scene);
+    }
+
+    private static void ApplyPresentationCorrections(Scene scene)
+    {
+        var tutorial = Require<TutorialSystem>(scene);
+        var bridge = Require<FineDiningTutorialBridge>(scene);
+        var ts = new SerializedObject(tutorial);
+        var bs = new SerializedObject(bridge);
+        var steps = Property(ts, "steps");
+        var lessons = Property(bs, "lessons");
+        if (steps.arraySize != lessons.arraySize)
+            throw new InvalidOperationException("Tutorial step/lesson count mismatch; refusing to remove a lesson from only one array.");
+        for (int i = steps.arraySize - 1; i >= 0; i--)
+        {
+            if (steps.GetArrayElementAtIndex(i).FindPropertyRelative("id").stringValue != "fd_camera_hint") continue;
+            if (lessons.GetArrayElementAtIndex(i).FindPropertyRelative("id").stringValue != "fd_camera_hint")
+                throw new InvalidOperationException("Camera lesson identity does not match its step.");
+            steps.DeleteArrayElementAtIndex(i);
+            lessons.DeleteArrayElementAtIndex(i);
+        }
+        bool hasPreciseDrinkWalkthrough = false;
+        for (int i = 0; i < steps.arraySize; i++)
+            hasPreciseDrinkWalkthrough |= steps.GetArrayElementAtIndex(i).FindPropertyRelative("id").stringValue == "fd_congratulations";
+        if (!hasPreciseDrinkWalkthrough) WriteLessons(ts, bs);
+        BindWaitingTimer(scene, bs);
+        var status = Property(bs, "status").objectReferenceValue as TMP_Text;
+        status.color = Color.white;
+        status.raycastTarget = false;
+        EditorUtility.SetDirty(status);
+        var furniture = Require<FineDiningSceneBindings>(scene);
+        if (furniture.importedModel == null) throw new InvalidOperationException("Fine Dining tutorial model reference is missing.");
+        var nodes = furniture.importedModel.GetComponentsInChildren<Transform>(true);
+        Set(bs, "receptionFocus", nodes.Single(t => t.name == "Reception"));
+        Set(bs, "barFocus", nodes.Single(t => t.name == "Bar"));
+        Set(bs, "cashierFocus", FindAll<Transform>(scene).Single(t => t.name == "Fine Dining Cashier Station"));
+        Set(bs, "bartenderFocus", FindAll<KitchenWorkerBot>(scene).Single(t => t.EmployeeRole == EmployeeRole.Bartender).transform);
+        foreach (string field in new[] { "restart", "skip", "finish", "confirmation" })
+        {
+            var value = Property(bs, field).objectReferenceValue;
+            if (value is Component control) control.gameObject.SetActive(false);
+            else if (value is GameObject panel) panel.SetActive(false);
+        }
+        ts.ApplyModifiedPropertiesWithoutUndo();
+        bs.ApplyModifiedPropertiesWithoutUndo();
+        EditorSceneManager.MarkSceneDirty(scene);
+    }
+
+    private static void BindWaitingTimer(Scene scene, SerializedObject bridge)
+    {
+        if (Property(bridge, "waitingTimerTemplate").objectReferenceValue != null) return;
+        const string blueprint = "Assets/_Project/Scenes/RoleBased/Lobby2Tutorial.unity";
+        Scene previous = SceneManager.GetActiveScene();
+        Scene source = SceneManager.GetSceneByPath(blueprint);
+        bool opened = !source.IsValid() || !source.isLoaded;
+        if (opened) source = EditorSceneManager.OpenScene(blueprint, OpenSceneMode.Additive);
+        try
+        {
+            var sourceBridge = new SerializedObject(Require<FastFoodTutorialBridge>(source));
+            var template = Property(sourceBridge, "waitingTimerTemplate").objectReferenceValue as FastFoodCookingTimer;
+            if (template == null || template.ring == null || template.seconds == null || template.caption == null)
+                throw new InvalidOperationException("The existing tutorial waiting timer is incomplete.");
+            var status = Property(bridge, "status").objectReferenceValue as TMP_Text;
+            var copy = UnityEngine.Object.Instantiate(template.gameObject, status.transform.parent, false);
+            copy.name = "Fine Dining tutorial waiting template";
+            copy.SetActive(false);
+            Set(bridge, "waitingTimerTemplate", copy.GetComponent<FastFoodCookingTimer>());
+        }
+        finally
+        {
+            if (opened) EditorSceneManager.CloseScene(source, true);
+            RestoreActive(previous);
+        }
     }
 
     private sealed class AuthoredLesson
@@ -226,41 +316,63 @@ public static class FineDiningTutorialAuthoring
         Add("fd_reception_tour", "The receptionist desk handles reservations. Check each party's time and size before choosing its table.", control: "World:Reception");
         Add("fd_cashier_tour", "Your cashier works beside the bar. This is your payment station; use the payment steps you've already learned.", control: "World:Cashier");
         Add("fd_bar_tour", "The bartender prepares extra drink orders. Those trays are collected here at the bar.", control: "World:Bar");
-        Add("fd_camera_hint", "The camera button follows your player. Drag the view to unlock it. Smaller service markers expand when selected.");
 
         chapter = FineDiningTutorialBridge.Chapter.Reservation;
         Add("fd_reservation_open", "A reservation request is waiting. Open the receptionist desk.", FineDiningTutorialBridge.ActionKind.OpenReception,
             "World:Reception", "Open reservations at the receptionist desk.");
-        Add("fd_reservation_review", "Check the party's arrival time and guest count. The table must fit the whole party.", control: "Reservation:Panel");
-        Add("fd_reservation_accept", "Choose a suitable table and confirm this booking.", FineDiningTutorialBridge.ActionKind.AcceptReservation,
-            "Reservation:Panel", "Assign a suitable table and accept the reservation.");
-        Add("fd_reservation_protection", "That table is now held for the booked visit. Use Decline when you cannot accommodate a request.", control: "Reservation:Panel");
+        Add("fd_reservation_requests", "Requests holds parties waiting for your decision. The number on this tab counts pending requests.", control: "Reservation:RequestsTab");
+        Add("fd_reservation_party", "Choose a party from this list to review its visit. The check mark shows the party you're reviewing.", control: "Reservation:Party");
+        Add("fd_reservation_review", "Here are the party's name, arrival time and guest count. The table you choose must fit everyone.", control: "Reservation:SelectedParty");
+        Add("fd_reservation_status", "REQUESTED means the booking still needs a decision. Its status changes after you confirm it.", control: "Reservation:SelectedPartyStatus");
+        Add("fd_reservation_decline", "Decline opens a confirmation when you cannot accommodate a party. Keep this request for our seating lesson.", control: "Reservation:Decline");
+        Add("fd_reservation_tables", "These are the restaurant's tables. Compare their pictures, names and seating capacities before choosing.", control: "Reservation:TableCard");
+        Add("fd_reservation_capacity", "Seats tells you how many guests fit. Choose a table with room for the whole party.", control: "Reservation:TableCapacity");
+        Add("fd_reservation_availability", "This status tells you whether the table can take this booking. An unavailable table cannot be selected.", control: "Reservation:TableStatus");
+        Add("fd_reservation_summary", "This summary counts booked guests and expected walk-ins, so you can prepare for tonight's demand.", control: "Reservation:Summary");
+        Add("fd_reservation_select", "Use this table's Select button. Selection chooses the table; it does not confirm the reservation yet.", FineDiningTutorialBridge.ActionKind.SelectReservationTable,
+            "Reservation:SelectTable", "Select a suitable table for this party.");
+        Add("fd_reservation_accept", "Confirm Reservation accepts the request and holds the selected table for the booked visit.", FineDiningTutorialBridge.ActionKind.AcceptReservation,
+            "Reservation:Confirm", "Confirm this reservation at the selected table.");
+        Add("fd_reservation_tonight_open", "The accepted booking is now in Tonight. Open that tab to review it.", FineDiningTutorialBridge.ActionKind.ViewTonight,
+            "Reservation:TonightTab", "Open Tonight to view the accepted booking.");
+        Add("fd_reservation_tonight_party", "Tonight lists accepted visits. Select a party here to follow its booking.", control: "Reservation:Party");
+        Add("fd_reservation_protection", "Here are its arrival time, guest count and assigned table. That table is held for this visit.", control: "Reservation:PartyDetails");
+        Add("fd_reservation_tonight_status", "This status follows the party's arrival and seating. Use Tonight to keep track of booked visits during service.", control: "Reservation:PartyStatus");
         Add("fd_reservation_close", "Close reservations. Let's welcome the booked party.", FineDiningTutorialBridge.ActionKind.CloseReception,
-            "Computer:Exit", "Close reservations to return to the restaurant.");
+            "Reservation:Back", "Close reservations to return to the restaurant.");
         Add("fd_reserved_arrival", "Match the arriving party to its booking, then seat it at the reserved table.", FineDiningTutorialBridge.ActionKind.SeatReservation,
             "World:Party", "Seat the booked party at its reserved table.");
         Add("fd_reservation_done", "Good! Their reservation is seated. A seating prompt only appears when a suitable table is available.", control: "World:Party");
 
         chapter = FineDiningTutorialBridge.Chapter.Drinks;
         Add("fd_extra_drink_intro", "This table wants another drink during its meal. The DRINK bubble marks an extra request.", control: "World:Party");
-        Add("fd_extra_drink_order", "Confirm this extra drink in the familiar notepad. The bartender will prepare it.", FineDiningTutorialBridge.ActionKind.TakeDrinkOrder,
-            "Drink:Order", "Confirm the extra DRINK order for the bartender.");
+        Add("fd_extra_drink_open", "Select the DRINK bubble to hear this table's extra request.", FineDiningTutorialBridge.ActionKind.OpenDrinkOrder,
+            "Drink:Order", "Open this table's DRINK request.");
+        Add("fd_extra_drink_quantity", "Add the requested drink with this plus button. Match the quantity shown beside the customer's request.", FineDiningTutorialBridge.ActionKind.SelectDrinkQuantity,
+            "Drink:Quantity", "Match the customer's requested drink quantity.");
+        Add("fd_extra_drink_check", "Use CHECK ORDER to review the drink before sending it to the bar.", FineDiningTutorialBridge.ActionKind.ReviewDrinkOrder,
+            "Drink:Check", "Check this extra drink order.");
+        Add("fd_extra_drink_order", "Confirm the checked drink order. Your bartender will prepare it at the bar.", FineDiningTutorialBridge.ActionKind.TakeDrinkOrder,
+            "Drink:Confirm", "Confirm the extra DRINK order for the bartender.");
         Add("fd_extra_drink_pickup", "Collect this table's ready drink from the bar.", FineDiningTutorialBridge.ActionKind.PickUpDrink,
             "World:Bar", "Collect the prepared drink at the bar.");
-        Add("fd_extra_drink_deliver", "Bring the drink back to the requesting table.", FineDiningTutorialBridge.ActionKind.DeliverDrink,
-            "World:Party", "Deliver the extra drink to the correct table.");
+        Add("fd_extra_drink_deliver", "Click this table's number bubble to carry the drink to the correct guests. Match it to the number on your tray.", FineDiningTutorialBridge.ActionKind.DeliverDrink,
+            "World:TableNumber", "Click the table number to deliver its extra drink.");
         Add("fd_extra_drink_done", "Exactly. Extra drink orders use the bar, and the drink is added to that table's bill.", control: "World:Party");
 
         chapter = FineDiningTutorialBridge.Chapter.Pour;
         Add("fd_pour_intro", "A different table wants a personal pour. This request is served at the table, without a new bar ticket.", control: "World:Party");
         Add("fd_pour_open", "Select POUR and walk over to serve this table.", FineDiningTutorialBridge.ActionKind.OpenPour,
             "World:Party", "Open the table's POUR request.");
-        Add("fd_pour_explain", "Drag the pitcher above the glass and hold it there. Fill to the marked line.", control: "Pour:Stage");
-        Add("fd_pour_fill", "", FineDiningTutorialBridge.ActionKind.Pour, "Pour:Glass", "Hold the pitcher over the glass until the pour is complete.");
+        Add("fd_pour_pitcher", "This pitcher is the control. Press and hold it, then drag it toward the glass.", control: "Pour:Pitcher");
+        Add("fd_pour_glass", "Place the pitcher's spout above this glass. The pitcher tilts and the stream starts when it is in position.", control: "Pour:Glass");
+        Add("fd_pour_line", "This mark is the target fill. Keep holding the pitcher in pouring position until the water reaches this line.", control: "Pour:Line");
+        Add("fd_pour_fill", "", FineDiningTutorialBridge.ActionKind.Pour, "Pour:Glass", "Drag the pitcher as shown, then hold it steady until the glass reaches the marked line.");
         Add("fd_pour_done", "Nicely poured! Personal service can earn a 500 to 1,000 peso tip. Wine refills use the same pouring gesture.", control: "World:Party");
+        Add("fd_congratulations", "Congratulations! You've completed Fine Dining training and learned every restaurant. You're ready to welcome booked parties, serve extra drinks and pour at the table.");
 
         chapter = FineDiningTutorialBridge.Chapter.Complete;
-        Add("fd_complete", "You've learned every restaurant. Look after your reservations, watch the bar, and make each visit special. Good luck with your final restaurant!");
+        Add("fd_complete", "Good luck with your final restaurant! Continue when you're ready to begin your Fine Dining shift.");
 
         Sprite welcome = RequireAsset<Sprite>("Assets/_Project/UI/Assets/Tutorial Images/Welcome  Greeting Pose.png");
         Sprite explaining = RequireAsset<Sprite>("Assets/_Project/UI/Assets/Tutorial Images/Tutorial  Explaining Pose.png");
@@ -282,7 +394,7 @@ public static class FineDiningTutorialAuthoring
             step.FindPropertyRelative("message").stringValue = lesson.message;
             step.FindPropertyRelative("objective").stringValue = lesson.objective;
             step.FindPropertyRelative("portrait").objectReferenceValue = i == 0 ? welcome :
-                lesson.id.EndsWith("_done", StringComparison.Ordinal) || lesson.id == "fd_complete" ? success : explaining;
+                lesson.id.EndsWith("_done", StringComparison.Ordinal) || lesson.id == "fd_complete" || lesson.id == "fd_congratulations" ? success : explaining;
             step.FindPropertyRelative("phase").enumValueIndex = (int)PhaseFor(lesson.chapter);
             bool action = lesson.action != FineDiningTutorialBridge.ActionKind.Explain;
             bool pour = lesson.action == FineDiningTutorialBridge.ActionKind.Pour;
@@ -320,8 +432,11 @@ public static class FineDiningTutorialAuthoring
         var ts = new SerializedObject(tutorial); var bs = new SerializedObject(bridge);
         foreach (string key in new[] { "dialogueUI", "handIndicator", "targetIndicator", "uiFocusMask", "sceneBindings", "cameraController", "tapSelector", "groupSpawner", "lobbyNavigationSurface", "lobbyNavigationData" })
             RequireReference(ts, key);
-        foreach (string key in new[] { "tutorial", "day", "controlsCanvas", "restart", "skip", "finish", "confirmation", "confirmSkip", "cancelSkip", "status", "lobbyHUD", "worldFocusProxy", "receptionistDesk", "cashier", "barPickup", "reservations", "food", "drink", "water" })
+        foreach (string key in new[] { "tutorial", "day", "controlsCanvas", "restart", "skip", "finish", "confirmation", "confirmSkip", "cancelSkip", "status", "waitingTimerTemplate", "lobbyHUD", "worldFocusProxy", "receptionistDesk", "cashier", "barPickup", "receptionFocus", "barFocus", "cashierFocus", "bartenderFocus", "reservations", "food", "drink", "water" })
             RequireReference(bs, key);
+        var timer = Property(bs, "waitingTimerTemplate").objectReferenceValue as FastFoodCookingTimer;
+        if (timer == null || timer.gameObject.scene != scene || timer.ring == null || timer.seconds == null || timer.caption == null)
+            throw new InvalidOperationException("Tutorial waiting timer bindings are incomplete.");
         var cashier = Property(bs, "cashier").objectReferenceValue as CashierBoothInteractable;
         if (cashier == null || cashier.gameObject.scene != scene || cashier.name != "Bar Cashier Target")
             throw new InvalidOperationException("Tutorial cashier guidance must reference this scene's Bar Cashier Target.");
@@ -353,9 +468,10 @@ public static class FineDiningTutorialAuthoring
             reservations.waitingArea.reservations != reservations || reservations.waitingArea.receptionLine != reservations.receptionLine ||
             reservations.waitingArea.seats == null || reservations.waitingArea.seats.Count(s => s != null && s.seat != null && s.approach != null) < partySize)
             throw new InvalidOperationException("Tutorial reservation arrival is missing its day, line or waiting-seat bindings.");
-        if (reservations.tables == null || !reservations.tables.Any(t => t != null && t.Capacity >= partySize &&
+        if (reservations.tables == null || !reservations.tables.Any(t => t != null && t.unlockDay <= 1 &&
+            (t.equipment == null || !string.IsNullOrWhiteSpace(t.equipment.itemID)) && t.Capacity >= partySize &&
             t.booth.NetworkTrayPoint != null && (t.booth.customerApproachPoint != null || t.booth.approachPoint != null)))
-            throw new InvalidOperationException("Tutorial diners need a complete table with seats, customer approach and tray position.");
+            throw new InvalidOperationException("Tutorial diners need a complete opening-day table with equipment identity, seats, customer approach and tray position.");
         if (FindAll<TutorialManager>(scene).Any(manager => manager.enabled && manager.gameObject.activeInHierarchy))
             throw new InvalidOperationException("The copied restaurant contains an active legacy tutorial; refusing to run two tutorial flows.");
     }

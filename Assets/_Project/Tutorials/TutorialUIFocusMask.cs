@@ -66,15 +66,24 @@ public sealed class TutorialUIFocusMask : MaskableGraphic
         if (focusGroup != null && group != focusGroup) Hide();
     }
 
-    public bool TryGetFocusPoint(RectTransform source, out Vector2 screen)
+    public bool TryGetFocusPoint(Transform source, out Vector2 screen)
     {
-        screen = default;
-        if (source != target) return false;
+        bool visible = TryGetFocusScreenRect(source, out Rect screenRect);
+        screen = visible ? screenRect.center : default;
+        return visible;
+    }
+
+    public bool TryGetFocusScreenRect(Transform source, out Rect screenRect)
+    {
+        screenRect = default;
+        if (source != target && !(target == worldProxy && source == projectedWorldTarget)) return false;
         RefreshFocus();
         if (!hasFocus) return false;
         Canvas owner = canvas != null ? canvas.rootCanvas : null;
         Camera camera = owner == null || owner.renderMode == RenderMode.ScreenSpaceOverlay ? null : owner.worldCamera;
-        screen = RectTransformUtility.WorldToScreenPoint(camera, rectTransform.TransformPoint(focusRect.center));
+        Vector2 min = RectTransformUtility.WorldToScreenPoint(camera, rectTransform.TransformPoint(focusRect.min));
+        Vector2 max = RectTransformUtility.WorldToScreenPoint(camera, rectTransform.TransformPoint(focusRect.max));
+        screenRect = Rect.MinMaxRect(min.x, min.y, max.x, max.y);
         return true;
     }
 
@@ -366,8 +375,22 @@ public sealed class TutorialUIFocusMask : MaskableGraphic
             Camera worldCamera = TutorialWorldTargetGeometry.ResolveCamera(projectedWorldTarget, Camera.main);
             if (worldCamera == null || !TutorialWorldTargetGeometry.TryGetScreenRect(projectedWorldTarget, worldCamera, out Rect projected))
                 return false;
-            source.position = projected.center;
-            source.sizeDelta = projected.size;
+            // Camera coordinates are pixels. The proxy belongs to a scaled UI
+            // canvas, so assigning pixel sizeDelta applies CanvasScaler a second
+            // time. Project directly into this mask's coordinate space instead.
+            Canvas worldOverlay = canvas != null ? canvas.rootCanvas : null;
+            Camera worldOverlayCamera = worldOverlay == null || worldOverlay.renderMode == RenderMode.ScreenSpaceOverlay
+                ? null : worldOverlay.worldCamera;
+            if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(rectTransform, projected.min, worldOverlayCamera, out Vector2 projectedMin) ||
+                !RectTransformUtility.ScreenPointToLocalPointInRectangle(rectTransform, projected.max, worldOverlayCamera, out Vector2 projectedMax))
+                return false;
+            Rect worldBounds = rectTransform.rect;
+            result = Rect.MinMaxRect(
+                Mathf.Clamp(projectedMin.x - padding.x, worldBounds.xMin, worldBounds.xMax),
+                Mathf.Clamp(projectedMin.y - padding.y, worldBounds.yMin, worldBounds.yMax),
+                Mathf.Clamp(projectedMax.x + padding.x, worldBounds.xMin, worldBounds.xMax),
+                Mathf.Clamp(projectedMax.y + padding.y, worldBounds.yMin, worldBounds.yMax));
+            return result.width > 0f && result.height > 0f;
         }
         // Read live geometry: a layout rebuild or scrolling can move a control
         // without changing its identity, lesson, scene, or screen resolution.

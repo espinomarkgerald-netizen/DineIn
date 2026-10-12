@@ -375,6 +375,42 @@ public class KitchenManager : MonoBehaviour
         return false;
     }
 
+    /// <summary>Read-only progress for the current bar order, using the kitchen's actual preparation ledger.</summary>
+    public bool TryGetOptionalDrinkPreparationProgress(CustomerGroup group, int orderNumber, out float progress)
+    {
+        progress = 0f;
+        if (!UsesDrinkOutput(group) || group.currentOrderNumber != orderNumber)
+            return false;
+
+        if (activeOrderForecasts.TryGetValue(orderNumber, out var active))
+        {
+            if (active.group != group || active.state == ForecastState.Canceled)
+                return false;
+            if (active.awaitingSpawn || active.state == ForecastState.WaitingForSpawnSlot || active.state == ForecastState.Completed)
+            {
+                progress = 1f;
+                return true;
+            }
+            // An accepted order may still be waiting to start. Paused kitchen work
+            // keeps its real remaining time rather than advancing a UI countdown.
+            if (active.isPaused || active.hygieneWaiting)
+                return true;
+            float duration = active.preparationDelaySeconds + active.cookDurationSeconds;
+            float remaining = active.hygienePaused
+                ? active.hygieneRemaining
+                : Mathf.Max(0f, active.predictedReadyAt - Time.time);
+            progress = duration > 0f ? Mathf.Clamp01(1f - remaining / duration) : 1f;
+            return true;
+        }
+
+        if (TryGetForecast(orderNumber, out var completed) && completed.Group == group && completed.State == ForecastState.Completed)
+        {
+            progress = 1f;
+            return true;
+        }
+        return false;
+    }
+
     public bool TryGetNextDineInForecast(out OrderForecast forecast)
     {
         bool found = false;

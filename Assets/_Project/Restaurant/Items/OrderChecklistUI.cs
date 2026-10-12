@@ -114,6 +114,43 @@ public class OrderChecklistUI : MonoBehaviour
     private MenuCatalog catalog;
     private CustomerGroup group;
     public CustomerGroup ReviewedGroup => gameObject.activeInHierarchy ? group : null;
+    public bool TutorialSelectionMatchesRequest => ReviewedGroup != null && EvaluateOrderSelection(false).IsCorrect;
+    public bool TutorialReviewOpen => ReviewedGroup != null && reviewOverlay != null && reviewOverlay.activeInHierarchy;
+    public bool TutorialReviewCorrect => TutorialReviewOpen && reviewSubmitButton != null && reviewSubmitButton.interactable;
+    public RectTransform TutorialRequestedItemsTarget => ReviewedGroup != null ? requestedIconsRoot : null;
+    public RectTransform TutorialCheckOrderTarget => !TutorialReviewOpen && confirmButton != null && confirmButton.gameObject.activeInHierarchy
+        ? confirmButton.transform as RectTransform : null;
+    public RectTransform TutorialConfirmOrderTarget => TutorialReviewOpen && reviewSubmitButton != null &&
+        reviewSubmitButton.gameObject.activeInHierarchy && reviewSubmitButton.interactable
+        ? reviewSubmitButton.transform as RectTransform : null;
+    public RectTransform TutorialReviewBackTarget => TutorialReviewOpen && reviewBackButton != null && reviewBackButton.gameObject.activeInHierarchy
+        ? reviewBackButton.transform as RectTransform : null;
+
+    public RectTransform TutorialQuantityTarget(Recipe product)
+    {
+        if (ReviewedGroup == null || product == null || TutorialReviewOpen) return null;
+        var expected = BuildExpectedOrderMap();
+        if (!expected.TryGetValue(BuildOrderKey(false, product.ProductId), out ExpectedOrderItem requested)) return null;
+        foreach (var entry in menuEntries)
+        {
+            if (entry == null || entry.Kind != NotepadMenuEntryUI.EntryKind.Product ||
+                !string.Equals(entry.ItemId, product.ProductId, StringComparison.OrdinalIgnoreCase)) continue;
+            if (entry.SelectedQuantity < requested.quantity) return entry.IncreaseQuantityRect;
+            if (entry.SelectedQuantity > requested.quantity) return entry.DecreaseQuantityRect;
+            break;
+        }
+        // A mistaken extra item must remain correctable before the lesson advances.
+        foreach (var entry in menuEntries)
+        {
+            if (entry == null) continue;
+            expected.TryGetValue(BuildOrderKey(entry.Kind == NotepadMenuEntryUI.EntryKind.Bundle, entry.ItemId), out ExpectedOrderItem item);
+            int quantity = item != null ? item.quantity : 0;
+            if (entry.SelectedQuantity < quantity) return entry.IncreaseQuantityRect;
+            if (entry.SelectedQuantity > quantity) return entry.DecreaseQuantityRect;
+        }
+        return null;
+    }
+
     private bool DrinksOnly => group != null && group.IsFineDiningAdditionalDrinkOrder;
     private TabManager drinkRequestTabManager;
     private Coroutine typingRoutine;

@@ -20887,7 +20887,7 @@ PrefabInstance:
       objectReference: {fileID: -6922793697723135513, guid: 04fac75123c57c84da9bac72861f85a4, type: 3}
     - target: {fileID: 6403599859377120230, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
       propertyPath: sceneViewId
-      value: 10
+      value: 14
       objectReference: {fileID: 0}
     - target: {fileID: 6723805264206209234, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
       propertyPath: m_LightProbeUsage
@@ -41607,7 +41607,7 @@ MonoBehaviour:
   observableSearch: 2
   ObservedComponents:
   - {fileID: 517721691}
-  sceneViewId: 7
+  sceneViewId: 18
   InstantiationId: 0
   isRuntimeInstantiated: 0
 --- !u!4 &517721693
@@ -48069,7 +48069,7 @@ PrefabInstance:
       objectReference: {fileID: 4874126678125670354, guid: 04fac75123c57c84da9bac72861f85a4, type: 3}
     - target: {fileID: 7416339107325409356, guid: 3bf3a3c7725d3924fa743579b9cacdfc, type: 3}
       propertyPath: sceneViewId
-      value: 2
+      value: 15
       objectReference: {fileID: 0}
     - target: {fileID: 9105747433823410986, guid: 3bf3a3c7725d3924fa743579b9cacdfc, type: 3}
       propertyPath: homePoint
@@ -62825,6 +62825,8 @@ MonoBehaviour:
   quotaIncreasePerDayThroughCeiling: 500
   quotaDifficultyCeilingDay: 20
   postCeilingQuotaGrowth: 0.04
+  fineDiningSalesForecastShare: 0.65
+  fineDiningQuotaRounding: 500
 --- !u!114 &808528920
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -68137,7 +68139,7 @@ PrefabInstance:
       objectReference: {fileID: -6629797300637803691, guid: 04fac75123c57c84da9bac72861f85a4, type: 3}
     - target: {fileID: 1234013864836622141, guid: e8870a052eba37b42a1e39a4328ac915, type: 3}
       propertyPath: sceneViewId
-      value: 5
+      value: 12
       objectReference: {fileID: 0}
     - target: {fileID: 2769238333184410437, guid: e8870a052eba37b42a1e39a4328ac915, type: 3}
       propertyPath: m_LightProbeUsage
@@ -70630,7 +70632,7 @@ PrefabInstance:
       objectReference: {fileID: -6922793697723135513, guid: 04fac75123c57c84da9bac72861f85a4, type: 3}
     - target: {fileID: 6403599859377120230, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
       propertyPath: sceneViewId
-      value: 1
+      value: 8
       objectReference: {fileID: 0}
     - target: {fileID: 6723805264206209234, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
       propertyPath: m_LightProbeUsage
@@ -100017,7 +100019,7 @@ PrefabInstance:
       objectReference: {fileID: -6922793697723135513, guid: 04fac75123c57c84da9bac72861f85a4, type: 3}
     - target: {fileID: 9221084057954882074, guid: 4197fbd1f0695d84baa432f964adbbca, type: 3}
       propertyPath: sceneViewId
-      value: 4
+      value: 17
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -140251,7 +140253,7 @@ MonoBehaviour:
   m_OverrideVoxelSize: 1
   m_VoxelSize: 0.15
   m_MinRegionArea: 2
-  m_NavMeshData: {fileID: 23800000, guid: b955d12ec5665254bb9513520c83b11f, type: 2}
+  m_NavMeshData: {fileID: 0}
   m_BuildHeightMesh: 0
 --- !u!64 &1636670760
 MeshCollider:
@@ -141421,7 +141423,7 @@ PrefabInstance:
       objectReference: {fileID: -6922793697723135513, guid: 04fac75123c57c84da9bac72861f85a4, type: 3}
     - target: {fileID: 6403599859377120230, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
       propertyPath: sceneViewId
-      value: 11
+      value: 16
       objectReference: {fileID: 0}
     - target: {fileID: 6723805264206209234, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
       propertyPath: m_LightProbeUsage
@@ -206917,7 +206919,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6403599859377120230, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
       propertyPath: sceneViewId
-      value: 6
+      value: 9
       objectReference: {fileID: 0}
     - target: {fileID: 6723805264206209234, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
       propertyPath: m_LightProbeUsage
@@ -207082,7 +207084,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6403599859377120230, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
       propertyPath: sceneViewId
-      value: 3
+      value: 13
       objectReference: {fileID: 0}
     - target: {fileID: 6723805264206209234, guid: 56b3a6a2603588c4d8da3cb0dd4934bc, type: 3}
       propertyPath: m_LightProbeUsage
@@ -209143,6 +209145,7 @@ MonoBehaviour:
   seatingUtilization: 0.75
   expectedPartySize: 2.5
   waitingPartiesPerTable: 0.5
+  groupsPerAdditionalPlayer: 2.5
 --- !u!114 &925000000000000173
 MonoBehaviour:
   m_ObjectHideFlags: 0

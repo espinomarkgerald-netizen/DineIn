@@ -56,6 +56,8 @@ public sealed class ManagerPlayer : MonoBehaviour
     private void Awake()
     {
         Movement = GetComponent<PlayerMovement>();
+        if (FineDiningScene.Contains(gameObject.scene.name))
+            CrowdNavigationAgent.Ensure(gameObject, false);
 
         // Network ownership is established by registration before Start, not Awake.
         // Network avatars never participate in the single-player singleton.

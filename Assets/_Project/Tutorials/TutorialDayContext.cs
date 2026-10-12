@@ -163,12 +163,44 @@ public sealed class TutorialDayContext : MonoBehaviour
         }
 
         ApplyRuntimeState(BuildFreshTutorialState());
+        if (gameObject.scene.name == FineDiningScene.Tutorial)
+            foreach (GameObject root in gameObject.scene.GetRootGameObjects())
+                foreach (FineDiningTable table in root.GetComponentsInChildren<FineDiningTable>(true))
+                    table.RefreshPresentation();
         if (IsRestaurantTutorial)
         { DailyFinanceBridge.Instance?.ResetDay(); DailyRevenueTracker.Instance?.ResetForNewDay(); }
         DailyObjectiveManager.Instance?.ResetForNewRun();
         runtimeIsolated = true;
         GetComponent<TutorialStaffSpawnGate>()?.RefreshStaffAppearance();
+        RefreshFineDiningStaffAppearance();
         Debug.Log("[Tutorial Day] Fresh isolated session applied: Day 1, 50% approval, empty stock/orders, fresh staff and menu state.", this);
+    }
+
+    private void RefreshFineDiningStaffAppearance()
+    {
+        if (gameObject.scene.name != FineDiningScene.Tutorial || EmployeeManager.Instance == null) return;
+        // Fine Dining stages already-hired staff and suppresses autonomous service.
+        // Bind their visuals after the isolated roster loads, without enabling bots.
+        void Bind(GameObject worker, EmployeeRole role)
+        {
+            if (worker == null || worker.scene != gameObject.scene || worker.GetComponent<ManagerPlayer>() != null) return;
+            DineIn.Appearance.EmployeeAppearance.Bind(worker,
+                EmployeeManager.Instance.GetAssignedEmployee(role), role, false);
+        }
+        foreach (GameObject root in gameObject.scene.GetRootGameObjects())
+        {
+            foreach (RoleManager roles in root.GetComponentsInChildren<RoleManager>(true))
+            {
+                Bind(roles.host, EmployeeRole.Host);
+                Bind(roles.waiter, EmployeeRole.Waiter);
+                Bind(roles.cashier, EmployeeRole.Cashier);
+                Bind(roles.busser, EmployeeRole.Busser);
+            }
+            foreach (StaffRole staff in root.GetComponentsInChildren<StaffRole>(true))
+                if (staff.role == StaffRole.Role.Waiter) Bind(staff.gameObject, EmployeeRole.Waiter);
+            foreach (KitchenWorkerBot worker in root.GetComponentsInChildren<KitchenWorkerBot>(true))
+                Bind(worker.gameObject, worker.EmployeeRole);
+        }
     }
 
     private GameSaveData BuildFreshTutorialState()
@@ -201,6 +233,17 @@ public sealed class TutorialDayContext : MonoBehaviour
         AddTutorialApplicant(data, "tutorial-chef", "Sora", EmployeeRole.Chef);
         if (gameObject.scene.name == FineDiningScene.Tutorial)
         {
+            // These lessons start in a prepared restaurant; equipment purchasing was taught earlier.
+            // Seed only the authored opening-day tables in this disposable state.
+            foreach (GameObject root in gameObject.scene.GetRootGameObjects())
+                foreach (FineDiningTable table in root.GetComponentsInChildren<FineDiningTable>(true))
+                    if (table.unlockDay <= data.currentDay && table.booth != null && table.Capacity > 0 &&
+                        table.equipment != null && !string.IsNullOrWhiteSpace(table.equipment.itemID) &&
+                        !data.purchasedEquipmentIDs.Contains(table.equipment.itemID))
+                    {
+                        data.purchasedEquipmentIDs.Add(table.equipment.itemID);
+                        data.unlockedEquipmentIDs.Add(table.equipment.itemID);
+                    }
             AddTutorialApplicant(data, "tutorial-sous-chef", "Aster", EmployeeRole.SousChef);
             AddTutorialApplicant(data, "tutorial-bartender", "Lumi", EmployeeRole.Bartender);
             AddTutorialApplicant(data, "tutorial-pianist", "Lyra", EmployeeRole.Pianist);

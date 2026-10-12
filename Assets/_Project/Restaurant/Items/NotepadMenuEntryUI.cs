@@ -89,6 +89,10 @@ public sealed class NotepadMenuEntryUI : MonoBehaviour
         : MenuProductCategory.Food;
     public bool IsOn => toggle != null && toggle.isOn;
     public int SelectedQuantity => selectedQuantity;
+    public RectTransform IncreaseQuantityRect => increaseButton != null && increaseButton.gameObject.activeInHierarchy
+        ? increaseButton.transform as RectTransform : null;
+    public RectTransform DecreaseQuantityRect => decreaseButton != null && decreaseButton.gameObject.activeInHierarchy
+        ? decreaseButton.transform as RectTransform : null;
     public Vector2 AuthoredCardSize => authoredCardSize.x > 0f && authoredCardSize.y > 0f
         ? authoredCardSize
         : GetCurrentCardSize();

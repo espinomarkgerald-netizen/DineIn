@@ -1164,6 +1164,19 @@ public partial class CustomerGroup : MonoBehaviour
         Vector3[] approachTargets = new Vector3[members.Count];
         int validMemberCount = 0;
         float approachTimeout = 12f;
+        bool fineDiningSeating = FineDiningReservations.For(this) != null;
+        float approachSpacing = .45f;
+        float approachClearance = 0f;
+        NavMeshAgent[] nearbyAgents = null;
+        if (fineDiningSeating)
+        {
+            approachClearance = CrowdNavigationProfile.LoadGlobal()?.MinimumStoppingDistance ?? .15f;
+            foreach (var member in members)
+                if (member != null && member.Agent != null)
+                    approachSpacing = Mathf.Max(approachSpacing, member.Agent.radius * 2f + approachClearance);
+            // Resolve destinations once, including the player standing at the staff approach.
+            nearbyAgents = FindObjectsByType<NavMeshAgent>(FindObjectsSortMode.None);
+        }
 
         for (int i = 0; i < members.Count; i++)
         {
@@ -1174,17 +1187,23 @@ public partial class CustomerGroup : MonoBehaviour
             if (seat == null) continue;
 
             float centeredIndex = i - (members.Count - 1) * 0.5f;
-            Vector3 desiredApproach = approachCenter + right * centeredIndex * 0.45f;
-            if (NavMesh.SamplePosition(desiredApproach, out NavMeshHit hit, 1f, NavMesh.AllAreas))
+            Vector3 desiredApproach = approachCenter + right * centeredIndex * approachSpacing;
+            if (fineDiningSeating && !TryResolveFineDiningSeatApproach(member, i, desiredApproach,
+                approachSpacing, approachClearance, approachTargets, nearbyAgents, out desiredApproach))
+            {
+                ReportFineDiningSeatingFailure("A customer could not reach a clear table approach.");
+                yield break;
+            }
+            if (!fineDiningSeating && NavMesh.SamplePosition(desiredApproach, out NavMeshHit hit, 1f, NavMesh.AllAreas))
                 desiredApproach = hit.position;
 
             approachTargets[i] = desiredApproach;
-            if (FastFood != null || FineDiningReservations.For(this) != null)
+            if (FastFood != null || fineDiningSeating)
             {
                 if (!member.TryWalkTo(desiredApproach, out approachTargets[i]))
                 {
                     if (FastFood != null) FailFastFoodService("We could not reach our table.");
-                    else BecomeUnhappyAndLeave();
+                    else ReportFineDiningSeatingFailure("A customer could not reach the assigned table.");
                     yield break;
                 }
                 var route = new NavMeshPath();
@@ -1225,13 +1244,13 @@ public partial class CustomerGroup : MonoBehaviour
             yield return null;
         }
 
-        if ((FastFood != null || FineDiningReservations.For(this) != null) &&
+        if ((FastFood != null || fineDiningSeating) &&
             (validMemberCount != members.Count || seatedMembers.Count != members.Count))
         {
             // Never claim a paid group is seated while a member is still standing.
             // Existing failure cleanup releases the table and refunds the unserved order.
             if (FastFood != null) FailFastFoodService("We could not reach our seats.");
-            else BecomeUnhappyAndLeave();
+            else ReportFineDiningSeatingFailure("A customer could not finish taking their seat.");
             yield break;
         }
 
