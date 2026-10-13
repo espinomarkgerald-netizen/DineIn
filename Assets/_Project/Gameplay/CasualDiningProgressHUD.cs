@@ -81,6 +81,7 @@ public sealed partial class CasualDiningProgressHUD : MonoBehaviour
     [SerializeField] private RectTransform safeAreaContent;
     [SerializeField] private RectTransform objectivesResponsiveRoot;
     [SerializeField] private RectTransform dayTimeRoot;
+    private bool dayTimeAuthoredActive;
     [SerializeField] private GameObject sideBySideDayTime;
     [SerializeField] private GameObject stackedDayTime;
     [SerializeField] private TMP_Text sideBySideDayText;
@@ -227,6 +228,7 @@ public sealed partial class CasualDiningProgressHUD : MonoBehaviour
             BuildVisualTree();
         else if (panelRect != null)
             expandedSize = panelRect.sizeDelta;
+        dayTimeAuthoredActive = dayTimeRoot != null && dayTimeRoot.gameObject.activeSelf;
         expanded = useLobbyHudRedesignLayout || !rememberToggleState ||
                    PlayerPrefs.GetInt(ExpandedPreference, 1) != 0;
         RefreshResponsiveLayout(true);
@@ -301,6 +303,8 @@ public sealed partial class CasualDiningProgressHUD : MonoBehaviour
 
     public void RefreshBlockingVisibility()
     {
+        if (dayTimeRoot != null)
+            dayTimeRoot.gameObject.SetActive(dayTimeAuthoredActive && TutorialSceneRuntimeMarker.AllowsHUDControl("DayTime", dayTimeRoot));
         bool canPresent = supportedSceneVisible && FastFoodCookingController.Instance?.IsHelpingKitchen != true
             && (!hideWhileGameplayUIBlocked || !GameplayUIBlocker.IsBlocked());
         if (hudGroup != null)
@@ -317,6 +321,7 @@ public sealed partial class CasualDiningProgressHUD : MonoBehaviour
         // all loaded scenes therefore leaks this gameplay HUD into both restock rooms.
         // The active scene is authoritative: only normal Lobby gameplay may show it.
         supportedSceneVisible = SceneManager.GetActiveScene().name == supportedScene || FineDiningScene.Contains(SceneManager.GetActiveScene()) || MultiplayerHUDBridge.IsActive
+            || TutorialSceneRuntimeMarker.UsesMinimalHUD && SceneManager.GetActiveScene().name != "RestockScene"
             || HygieneManager.Instance != null && HygieneManager.Instance.gameObject.scene == SceneManager.GetActiveScene();
         if (hudCanvas != null) hudCanvas.enabled = supportedSceneVisible;
         if (supportedSceneVisible) HideLegacyProgressBars();

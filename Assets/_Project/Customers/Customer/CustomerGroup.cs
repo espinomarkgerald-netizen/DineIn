@@ -2821,7 +2821,9 @@ public partial class CustomerGroup : MonoBehaviour
 
         if (assignedBooth != null)
         {
-            departurePosition = assignedBooth.GetNavigableApproachPosition();
+            departurePosition = FineDiningScene.Contains(gameObject.scene)
+                ? assignedBooth.GetCustomerApproachPosition()
+                : assignedBooth.GetNavigableApproachPosition();
 
             for (int i = 0; i < members.Count; i++)
             {

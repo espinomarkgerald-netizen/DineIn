@@ -28,7 +28,10 @@ public sealed class FineDiningSceneBindings : MonoBehaviour
         public FineDiningTable binding;
         public string furniture;
         public Vector2[] seatOffsets;
+        [Tooltip("Staff service position, offset from the furniture floor center in the restaurant model's local units.")]
         public Vector3 approachOffset;
+        [Tooltip("Customer seating and departure position, separate from staff service, in the restaurant model's local units.")]
+        public Vector3 customerApproachOffset;
         public Vector3 surfaceOffset;
         [Min(0f)] public float seatHeight = .56f;
         [Min(0f)] public float surfaceHeight = .8f;
@@ -151,7 +154,8 @@ public sealed class FineDiningSceneBindings : MonoBehaviour
         if (seats.Count > table.seatOffsets.Length) seats.RemoveRange(table.seatOffsets.Length, seats.Count - table.seatOffsets.Length);
         booth.useAuthoredSeatRotation = true;
         booth.approachPoint.position = importedModel.TransformPoint(floor + table.approachOffset);
-        if (booth.customerApproachPoint != null) booth.customerApproachPoint.position = booth.approachPoint.position;
+        if (booth.customerApproachPoint != null)
+            booth.customerApproachPoint.position = importedModel.TransformPoint(floor + table.customerApproachOffset);
         Vector3 surface = importedModel.TransformPoint(floor + table.surfaceOffset + Vector3.up * table.surfaceHeight);
         if (booth.tableLookTarget != null) booth.tableLookTarget.position = surface;
         if (booth.menuSpawnPoint != null) booth.menuSpawnPoint.SetPositionAndRotation(surface, importedModel.rotation * (booth.menuBookPrefab != null ? booth.menuBookPrefab.transform.localRotation : Quaternion.identity));

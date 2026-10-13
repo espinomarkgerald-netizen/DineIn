@@ -472,6 +472,7 @@ public sealed class PlayerTaskHUD : MonoBehaviour
             // RestockScene is additive, so a loaded Lobby1 scene is not enough.
             // The redesigned HUD belongs only to the active normal Lobby view.
             bool activeLobby = SceneManager.GetActiveScene().name == "Lobby1" || SceneManager.GetActiveScene().name == "Lobby2" || FineDiningScene.Contains(SceneManager.GetActiveScene()) || MultiplayerHUDBridge.IsActive;
+            activeLobby |= TutorialSceneRuntimeMarker.UsesMinimalHUD && SceneManager.GetActiveScene().name != "RestockScene";
             supportedSceneVisible = activeLobby || (preserveAuthoredPresentation && SceneManager.GetActiveScene().name == "RestockScene");
             objectivesSceneVisible = activeLobby;
         }

@@ -438,10 +438,14 @@ public class RoleBasedAssignController : MonoBehaviour
             Transform approach = booth.approachPoint != null
                 ? booth.approachPoint
                 : booth.transform;
+            // Fine Dining staff must reach the separate service point before diners walk in.
+            float seatingArrivalRadius = FineDiningScene.Contains(booth.gameObject.scene)
+                ? CrowdNavigationProfile.LoadGlobal()?.MinimumStoppingDistance ?? .15f
+                : 2.75f;
 
             managerPlayer.Movement.UI_MoveToAction(
                 approach,
-                2.75f,
+                seatingArrivalRadius,
                 CompleteAssignment,
                 () =>
                 {

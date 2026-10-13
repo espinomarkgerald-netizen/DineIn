@@ -236,6 +236,7 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
     {
         string activeScene = SceneManager.GetActiveScene().name;
         bool inLobby = activeScene == LobbySceneName || FineDiningScene.Contains(activeScene) || FastFoodScene.Contains(activeScene) || MultiplayerHUDBridge.IsActive;
+        inLobby |= TutorialSceneRuntimeMarker.UsesMinimalHUD && activeScene != "RestockScene";
         bool inRestock = activeScene == "RestockScene";
         bool localMultiplayerRestock = MultiplayerSessionManager.Instance != null
             && MultiplayerSessionManager.Instance.IsMultiplayerSession
@@ -267,7 +268,7 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
         {
             var kitchen = FastFoodCookingController.Instance;
             bool show = FastFoodScene.Contains(activeScene) && inLobby && kitchen != null &&
-                kitchen.Active && !kitchen.IsHelpingKitchen;
+                kitchen.Active && !kitchen.IsHelpingKitchen && TutorialSceneRuntimeMarker.AllowsHUDControl("KitchenButton", kitchenButton.transform);
             kitchenButton.gameObject.SetActive(show);
             kitchenButton.interactable = show && kitchen.CanEnterKitchen;
         }
@@ -315,15 +316,15 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
             return;
 
         if (livePanel != null)
-            livePanel.gameObject.SetActive(visible && livePanelAuthoredActive);
+            livePanel.gameObject.SetActive(visible && livePanelAuthoredActive && TutorialSceneRuntimeMarker.AllowsHUDControl("LivePanel", livePanel));
         if (liveToggleRect != null)
-            liveToggleRect.gameObject.SetActive(visible && liveToggleAuthoredActive);
+            liveToggleRect.gameObject.SetActive(visible && liveToggleAuthoredActive && TutorialSceneRuntimeMarker.AllowsHUDControl("LivePanel", livePanel));
         if (cameraButton != null)
-            cameraButton.gameObject.SetActive(visible && cameraAuthoredActive);
+            cameraButton.gameObject.SetActive(visible && cameraAuthoredActive && TutorialSceneRuntimeMarker.AllowsHUDControl("CameraButton", cameraButton.transform));
         if (computerButton != null)
-            computerButton.gameObject.SetActive(visible && computerAuthoredActive);
+            computerButton.gameObject.SetActive(visible && computerAuthoredActive && TutorialSceneRuntimeMarker.AllowsHUDControl("ComputerButton", computerButton.transform));
         if (newspaperButton != null)
-            newspaperButton.gameObject.SetActive(visible && newspaperAuthoredActive);
+            newspaperButton.gameObject.SetActive(visible && newspaperAuthoredActive && TutorialSceneRuntimeMarker.AllowsHUDControl("NewspaperButton", newspaperButton.transform));
     }
 
     private void ToggleLivePanel()
@@ -479,7 +480,7 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
         // player chooses another one.  PlayerMovement may clear CurrentTarget
         // as soon as an interaction finishes; clearing the HUD at that moment
         // made the label flash instead of behaving like the Canva design.
-        bool show = !string.IsNullOrWhiteSpace(selectedInteractionName);
+        bool show = !string.IsNullOrWhiteSpace(selectedInteractionName) && TutorialSceneRuntimeMarker.AllowsHUDControl("InteractionLabel", interactionLabel != null ? interactionLabel.transform : null);
         if (interactionLabel != null)
         {
             interactionLabel.gameObject.SetActive(show);
@@ -585,6 +586,7 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
 
     private void FocusCameraOnManager()
     {
+        if (!TutorialSceneRuntimeMarker.AllowsHUDControl("CameraButton", cameraButton != null ? cameraButton.transform : null)) return;
         MainCameraController fineDiningCamera = FindFirstObjectByType<MainCameraController>();
         ManagerPlayer player = LocalHudPlayer;
         if (fineDiningCamera != null && FineDiningReservations.For(fineDiningCamera) != null)
@@ -619,6 +621,7 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
 
     private void OpenComputerThroughManager()
     {
+        if (!TutorialSceneRuntimeMarker.AllowsHUDControl("ComputerButton", computerButton != null ? computerButton.transform : null)) return;
         ManagerPlayer manager = LocalHudPlayer;
         if (manager == null || manager.Movement == null)
             return;
@@ -630,6 +633,7 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
 
     private static void OpenNewspaper()
     {
+        if (!TutorialSceneRuntimeMarker.AllowsHUDControl("NewspaperButton")) return;
         CasualDiningPolishManager.Instance?.OpenCurrentIssue();
     }
 
@@ -652,7 +656,10 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
         newspaperButton?.onClick.RemoveListener(OpenNewspaper);
     }
 
-    private static void OpenKitchen() => FastFoodCookingController.Instance?.EnterKitchen();
+    private static void OpenKitchen()
+    {
+        if (TutorialSceneRuntimeMarker.AllowsHUDControl("KitchenButton")) FastFoodCookingController.Instance?.EnterKitchen();
+    }
 
     private void ResolveCanvas()
     {

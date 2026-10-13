@@ -328,6 +328,10 @@ public sealed class TutorialSystem : MonoBehaviour
         !recovering && !skeletonEndpointReached && !tutorialCompleted && isActiveAndEnabled &&
         CurrentStep != null && CurrentStep.RestrictUnrelatedInteractions;
 
+    public bool IsHUDControlFocused(Transform root) =>
+        root != null && currentUIFocus != null &&
+        (currentUIFocus == root || currentUIFocus.IsChildOf(root) || root.IsChildOf(currentUIFocus));
+
     private void Awake()
     {
         if (Instance != null && Instance != this)

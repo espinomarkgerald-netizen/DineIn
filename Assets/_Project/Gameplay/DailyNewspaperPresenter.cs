@@ -106,6 +106,12 @@ public sealed class DailyNewspaperPresenter : MonoBehaviour
 
     public void RefreshVisibility()
     {
+        if (!TutorialSceneRuntimeMarker.AllowsHUDControl("NewspaperButton"))
+        {
+            if (IsOpen) CloseImmediately();
+            if (canvasRoot != null) canvasRoot.SetActive(false);
+            return;
+        }
         bool inLobby = SceneManager.GetActiveScene().name == LobbySceneName || SceneManager.GetActiveScene().name == "Lobby2" || SceneManager.GetActiveScene().name == "Lobby3" || MultiplayerHUDBridge.IsActive;
         GameFlowManager flow = GameFlowManager.Instance;
         bool preparation = flow != null && flow.UsesSingleRestaurantFlow &&
@@ -142,7 +148,7 @@ public sealed class DailyNewspaperPresenter : MonoBehaviour
 
     public void Open(NewspaperIssueSaveEntry issue)
     {
-        if (issue == null)
+        if (issue == null || !TutorialSceneRuntimeMarker.AllowsHUDControl("NewspaperButton"))
             return;
         if (canvasRoot == null)
             BuildUI();

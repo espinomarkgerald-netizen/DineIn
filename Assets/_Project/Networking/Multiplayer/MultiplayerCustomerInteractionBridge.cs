@@ -951,7 +951,10 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
         BoothAssignArrowManager.Instance?.HideAll();
         CustomerGreetBubbleSpawner.Instance?.Hide();
         bridge.greetMover = mover;
-        bool started = mover.UI_MoveToAction(approach, 2.75f,
+        float seatingArrivalRadius = FineDiningScene.Contains(booth.gameObject.scene)
+            ? CrowdNavigationProfile.LoadGlobal()?.MinimumStoppingDistance ?? .15f
+            : 2.75f;
+        bool started = mover.UI_MoveToAction(approach, seatingArrivalRadius,
             () =>
             {
                 if (version != bridge.seatApproachVersion) return;

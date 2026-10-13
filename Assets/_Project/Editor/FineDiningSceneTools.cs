@@ -130,6 +130,24 @@ public static class FineDiningSceneTools
             if (t.booth.approachPoint == null || t.booth.menuSpawnPoint == null || t.booth.tableLookTarget == null ||
                 t.booth.GetComponent<BoothMoneySpawner>() == null || t.booth.GetComponent<CustomerDeliverInteractable>() == null)
                 errors.Add(t.displayName + " is missing service or payment references.");
+            if (t.booth.customerApproachPoint == null || t.booth.customerApproachPoint == t.booth.approachPoint)
+                errors.Add(t.displayName + " needs a separate customer seating/departure point.");
+            else if (t.booth.approachPoint != null)
+            {
+                var profile = CrowdNavigationProfile.LoadGlobal();
+                float spacing = (profile != null ? profile.CustomerRadius * 2f + profile.MinimumStoppingDistance : .99f);
+                float clearance = profile != null ? profile.StaffRadius + profile.CustomerRadius + profile.MinimumStoppingDistance : 1.05f;
+                Vector3 access = t.booth.customerApproachPoint.position;
+                Vector3 inward = t.booth.transform.position - access; inward.y = 0;
+                Vector3 right = Vector3.Cross(Vector3.up, inward.normalized);
+                for (int i = 0; i < t.Capacity; i++)
+                {
+                    Vector3 difference = t.booth.approachPoint.position - (access + right * (i - (t.Capacity - 1) * .5f) * spacing);
+                    difference.y = 0;
+                    if (difference.magnitude < clearance)
+                    { errors.Add(t.displayName + " staff approach overlaps its customer seating formation."); break; }
+                }
+            }
             try { binding.FindFurniture(table.furniture); } catch (Exception e) { errors.Add(e.Message); }
         }
         foreach (var anchor in binding.anchors)
@@ -176,8 +194,12 @@ public static class FineDiningSceneTools
                 throw new InvalidOperationException(name + " is missing or outside the baked Lobby3 NavMesh.");
         }
         foreach (var booth in roots.SelectMany(root => root.GetComponentsInChildren<Booth>()))
+        {
             if (booth.approachPoint == null || !NavMesh.SamplePosition(booth.approachPoint.position, out _, 1.5f, NavMesh.AllAreas))
                 throw new InvalidOperationException(booth.name + " approach point is outside the baked Lobby3 NavMesh.");
+            if (booth.customerApproachPoint == null || !NavMesh.SamplePosition(booth.customerApproachPoint.position, out _, 1.5f, NavMesh.AllAreas))
+                throw new InvalidOperationException(booth.name + " customer access point is missing or outside the baked Lobby3 NavMesh.");
+        }
         var binding = roots.SelectMany(r => r.GetComponentsInChildren<FineDiningSceneBindings>()).Single();
         var spawn = roots.SelectMany(r => r.GetComponentsInChildren<Transform>()).Single(t => t.name == "CustomerSpawnPoint");
         if (!NavMesh.SamplePosition(spawn.position, out var origin, .75f, NavMesh.AllAreas))

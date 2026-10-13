@@ -298,6 +298,8 @@ public sealed class CasualDiningPolishManager : MonoBehaviour
 
     public bool TryAllowStartShift()
     {
+        // Guided training owns shift progression; a hidden newspaper is never a prerequisite.
+        if (TutorialSceneRuntimeMarker.UsesMinimalHUD) return true;
         GameFlowManager flow = GameFlowManager.Instance;
         if (flow == null || !flow.UsesSingleRestaurantFlow)
             return true;
@@ -320,6 +322,7 @@ public sealed class CasualDiningPolishManager : MonoBehaviour
 
     public void OpenCurrentIssue()
     {
+        if (!TutorialSceneRuntimeMarker.AllowsHUDControl("NewspaperButton")) return;
         GameFlowManager flow = GameFlowManager.Instance;
         if (flow == null)
             return;

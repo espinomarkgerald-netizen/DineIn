@@ -1562,6 +1562,37 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!1 &20873076
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 20873077}
+  m_Layer: 0
+  m_Name: CustomerApproachPoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &20873077
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 20873076}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0.02, y: 0.000000047683713, z: -0.000000012715657}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 925000000000000005}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &21519912
 GameObject:
   m_ObjectHideFlags: 0
@@ -3707,6 +3738,37 @@ Transform:
   - {fileID: 1168323948}
   m_Father: {fileID: 1273289546}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &51065486
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 51065487}
+  m_Layer: 0
+  m_Name: CustomerApproachPoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &51065487
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 51065486}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0.02, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 925000000000000053}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &54040389
 GameObject:
   m_ObjectHideFlags: 0
@@ -5357,6 +5419,37 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1244852006}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &83782838
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 83782839}
+  m_Layer: 0
+  m_Name: CustomerApproachPoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &83782839
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 83782838}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0.02, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 925000000000000061}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &83986251
 GameObject:
@@ -22309,7 +22402,8 @@ MonoBehaviour:
   - id: fd_welcome
     phase: 16
     speaker: Big Boss
-    message: "Welcome to Fine Dining, our final restaurant! You know the basics. Let's focus on reservations and personal drink service."
+    message: Welcome to Fine Dining, our final restaurant! You know the basics. Let's
+      focus on reservations and personal drink service.
     portrait: {fileID: 21300000, guid: c6ec8f164086386409335a7aa7a53270, type: 3}
     stepType: 0
     requiredAction: 0
@@ -22321,7 +22415,8 @@ MonoBehaviour:
     uiTargetKey: 
     actionKey: 
     requiredContext: {fileID: 0}
-    objective: "Welcome to Fine Dining, our final restaurant! You know the basics. Let's focus on reservations and personal drink service."
+    objective: Welcome to Fine Dining, our final restaurant! You know the basics.
+      Let's focus on reservations and personal drink service.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -22329,7 +22424,8 @@ MonoBehaviour:
   - id: fd_reception_tour
     phase: 16
     speaker: Big Boss
-    message: "The receptionist desk handles reservations. Check each party's time and size before choosing its table."
+    message: The receptionist desk handles reservations. Check each party's time
+      and size before choosing its table.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
@@ -22341,7 +22437,8 @@ MonoBehaviour:
     uiTargetKey: FD.Target
     actionKey: 
     requiredContext: {fileID: 0}
-    objective: "The receptionist desk handles reservations. Check each party's time and size before choosing its table."
+    objective: The receptionist desk handles reservations. Check each party's time
+      and size before choosing its table.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -22349,7 +22446,8 @@ MonoBehaviour:
   - id: fd_cashier_tour
     phase: 16
     speaker: Big Boss
-    message: "Your cashier works beside the bar. This is your payment station; use the payment steps you've already learned."
+    message: Your cashier works beside the bar. This is your payment station; use
+      the payment steps you've already learned.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
@@ -22361,7 +22459,8 @@ MonoBehaviour:
     uiTargetKey: FD.Target
     actionKey: 
     requiredContext: {fileID: 0}
-    objective: "Your cashier works beside the bar. This is your payment station; use the payment steps you've already learned."
+    objective: Your cashier works beside the bar. This is your payment station; use
+      the payment steps you've already learned.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -22369,7 +22468,8 @@ MonoBehaviour:
   - id: fd_bar_tour
     phase: 16
     speaker: Big Boss
-    message: "The bartender prepares extra drink orders. Those trays are collected here at the bar."
+    message: The bartender prepares extra drink orders. Those trays are collected
+      here at the bar.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
@@ -22381,7 +22481,8 @@ MonoBehaviour:
     uiTargetKey: FD.Target
     actionKey: 
     requiredContext: {fileID: 0}
-    objective: "The bartender prepares extra drink orders. Those trays are collected here at the bar."
+    objective: The bartender prepares extra drink orders. Those trays are collected
+      here at the bar.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -22389,7 +22490,7 @@ MonoBehaviour:
   - id: fd_reservation_open
     phase: 17
     speaker: Big Boss
-    message: "A reservation request is waiting. Open the receptionist desk."
+    message: A reservation request is waiting. Open the receptionist desk.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
@@ -22401,7 +22502,7 @@ MonoBehaviour:
     uiTargetKey: FD.Target
     actionKey: fd_reservation_open
     requiredContext: {fileID: 0}
-    objective: "Open reservations at the receptionist desk."
+    objective: Open reservations at the receptionist desk.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -22409,7 +22510,8 @@ MonoBehaviour:
   - id: fd_reservation_requests
     phase: 17
     speaker: Big Boss
-    message: "Requests holds parties waiting for your decision. The number on this tab counts pending requests."
+    message: Requests holds parties waiting for your decision. The number on this
+      tab counts pending requests.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
@@ -22421,7 +22523,8 @@ MonoBehaviour:
     uiTargetKey: FD.Target
     actionKey: 
     requiredContext: {fileID: 0}
-    objective: "Requests holds parties waiting for your decision. The number on this tab counts pending requests."
+    objective: Requests holds parties waiting for your decision. The number on this
+      tab counts pending requests.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -22429,7 +22532,8 @@ MonoBehaviour:
   - id: fd_reservation_party
     phase: 17
     speaker: Big Boss
-    message: "Choose a party from this list to review its visit. The check mark shows the party you're reviewing."
+    message: Choose a party from this list to review its visit. The check mark shows
+      the party you're reviewing.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
@@ -22441,7 +22545,8 @@ MonoBehaviour:
     uiTargetKey: FD.Target
     actionKey: 
     requiredContext: {fileID: 0}
-    objective: "Choose a party from this list to review its visit. The check mark shows the party you're reviewing."
+    objective: Choose a party from this list to review its visit. The check mark
+      shows the party you're reviewing.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -22449,7 +22554,8 @@ MonoBehaviour:
   - id: fd_reservation_review
     phase: 17
     speaker: Big Boss
-    message: "Here are the party's name, arrival time and guest count. The table you choose must fit everyone."
+    message: Here are the party's name, arrival time and guest count. The table you
+      choose must fit everyone.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
@@ -22461,7 +22567,8 @@ MonoBehaviour:
     uiTargetKey: FD.Target
     actionKey: 
     requiredContext: {fileID: 0}
-    objective: "Here are the party's name, arrival time and guest count. The table you choose must fit everyone."
+    objective: Here are the party's name, arrival time and guest count. The table
+      you choose must fit everyone.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -22469,7 +22576,8 @@ MonoBehaviour:
   - id: fd_reservation_status
     phase: 17
     speaker: Big Boss
-    message: "REQUESTED means the booking still needs a decision. Its status changes after you confirm it."
+    message: REQUESTED means the booking still needs a decision. Its status changes
+      after you confirm it.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
@@ -22481,7 +22589,8 @@ MonoBehaviour:
     uiTargetKey: FD.Target
     actionKey: 
     requiredContext: {fileID: 0}
-    objective: "REQUESTED means the booking still needs a decision. Its status changes after you confirm it."
+    objective: REQUESTED means the booking still needs a decision. Its status changes
+      after you confirm it.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -22489,7 +22598,8 @@ MonoBehaviour:
   - id: fd_reservation_decline
     phase: 17
     speaker: Big Boss
-    message: "Decline opens a confirmation when you cannot accommodate a party. Keep this request for our seating lesson."
+    message: Decline opens a confirmation when you cannot accommodate a party. Keep
+      this request for our seating lesson.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
@@ -22501,7 +22611,8 @@ MonoBehaviour:
     uiTargetKey: FD.Target
     actionKey: 
     requiredContext: {fileID: 0}
-    objective: "Decline opens a confirmation when you cannot accommodate a party. Keep this request for our seating lesson."
+    objective: Decline opens a confirmation when you cannot accommodate a party.
+      Keep this request for our seating lesson.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -22509,7 +22620,8 @@ MonoBehaviour:
   - id: fd_reservation_tables
     phase: 17
     speaker: Big Boss
-    message: "These are the restaurant's tables. Compare their pictures, names and seating capacities before choosing."
+    message: These are the restaurant's tables. Compare their pictures, names and
+      seating capacities before choosing.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
@@ -22521,7 +22633,8 @@ MonoBehaviour:
     uiTargetKey: FD.Target
     actionKey: 
     requiredContext: {fileID: 0}
-    objective: "These are the restaurant's tables. Compare their pictures, names and seating capacities before choosing."
+    objective: These are the restaurant's tables. Compare their pictures, names and
+      seating capacities before choosing.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -22529,7 +22642,8 @@ MonoBehaviour:
   - id: fd_reservation_capacity
     phase: 17
     speaker: Big Boss
-    message: "Seats tells you how many guests fit. Choose a table with room for the whole party."
+    message: Seats tells you how many guests fit. Choose a table with room for the
+      whole party.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
@@ -22541,7 +22655,8 @@ MonoBehaviour:
     uiTargetKey: FD.Target
     actionKey: 
     requiredContext: {fileID: 0}
-    objective: "Seats tells you how many guests fit. Choose a table with room for the whole party."
+    objective: Seats tells you how many guests fit. Choose a table with room for
+      the whole party.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -22549,7 +22664,8 @@ MonoBehaviour:
   - id: fd_reservation_availability
     phase: 17
     speaker: Big Boss
-    message: "This status tells you whether the table can take this booking. An unavailable table cannot be selected."
+    message: This status tells you whether the table can take this booking. An unavailable
+      table cannot be selected.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
@@ -22561,7 +22677,8 @@ MonoBehaviour:
     uiTargetKey: FD.Target
     actionKey: 
     requiredContext: {fileID: 0}
-    objective: "This status tells you whether the table can take this booking. An unavailable table cannot be selected."
+    objective: This status tells you whether the table can take this booking. An
+      unavailable table cannot be selected.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -22569,7 +22686,8 @@ MonoBehaviour:
   - id: fd_reservation_summary
     phase: 17
     speaker: Big Boss
-    message: "This summary counts booked guests and expected walk-ins, so you can prepare for tonight's demand."
+    message: This summary counts booked guests and expected walk-ins, so you can
+      prepare for tonight's demand.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
@@ -22581,7 +22699,8 @@ MonoBehaviour:
     uiTargetKey: FD.Target
     actionKey: 
     requiredContext: {fileID: 0}
-    objective: "This summary counts booked guests and expected walk-ins, so you can prepare for tonight's demand."
+    objective: This summary counts booked guests and expected walk-ins, so you can
+      prepare for tonight's demand.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -22589,7 +22708,8 @@ MonoBehaviour:
   - id: fd_reservation_select
     phase: 17
     speaker: Big Boss
-    message: "Use this table's Select button. Selection chooses the table; it does not confirm the reservation yet."
+    message: Use this table's Select button. Selection chooses the table; it does
+      not confirm the reservation yet.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
@@ -22601,7 +22721,7 @@ MonoBehaviour:
     uiTargetKey: FD.Target
     actionKey: fd_reservation_select
     requiredContext: {fileID: 0}
-    objective: "Select a suitable table for this party."
+    objective: Select a suitable table for this party.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -22609,7 +22729,8 @@ MonoBehaviour:
   - id: fd_reservation_accept
     phase: 17
     speaker: Big Boss
-    message: "Confirm Reservation accepts the request and holds the selected table for the booked visit."
+    message: Confirm Reservation accepts the request and holds the selected table
+      for the booked visit.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
@@ -22621,7 +22742,7 @@ MonoBehaviour:
     uiTargetKey: FD.Target
     actionKey: fd_reservation_accept
     requiredContext: {fileID: 0}
-    objective: "Confirm this reservation at the selected table."
+    objective: Confirm this reservation at the selected table.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -22629,7 +22750,7 @@ MonoBehaviour:
   - id: fd_reservation_tonight_open
     phase: 17
     speaker: Big Boss
-    message: "The accepted booking is now in Tonight. Open that tab to review it."
+    message: The accepted booking is now in Tonight. Open that tab to review it.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
@@ -22641,7 +22762,7 @@ MonoBehaviour:
     uiTargetKey: FD.Target
     actionKey: fd_reservation_tonight_open
     requiredContext: {fileID: 0}
-    objective: "Open Tonight to view the accepted booking."
+    objective: Open Tonight to view the accepted booking.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -22649,7 +22770,7 @@ MonoBehaviour:
   - id: fd_reservation_tonight_party
     phase: 17
     speaker: Big Boss
-    message: "Tonight lists accepted visits. Select a party here to follow its booking."
+    message: Tonight lists accepted visits. Select a party here to follow its booking.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
@@ -22661,7 +22782,7 @@ MonoBehaviour:
     uiTargetKey: FD.Target
     actionKey: 
     requiredContext: {fileID: 0}
-    objective: "Tonight lists accepted visits. Select a party here to follow its booking."
+    objective: Tonight lists accepted visits. Select a party here to follow its booking.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -22669,7 +22790,8 @@ MonoBehaviour:
   - id: fd_reservation_protection
     phase: 17
     speaker: Big Boss
-    message: "Here are its arrival time, guest count and assigned table. That table is held for this visit."
+    message: Here are its arrival time, guest count and assigned table. That table
+      is held for this visit.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
@@ -22681,7 +22803,8 @@ MonoBehaviour:
     uiTargetKey: FD.Target
     actionKey: 
     requiredContext: {fileID: 0}
-    objective: "Here are its arrival time, guest count and assigned table. That table is held for this visit."
+    objective: Here are its arrival time, guest count and assigned table. That table
+      is held for this visit.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -22689,7 +22812,8 @@ MonoBehaviour:
   - id: fd_reservation_tonight_status
     phase: 17
     speaker: Big Boss
-    message: "This status follows the party's arrival and seating. Use Tonight to keep track of booked visits during service."
+    message: This status follows the party's arrival and seating. Use Tonight to
+      keep track of booked visits during service.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
@@ -22701,7 +22825,8 @@ MonoBehaviour:
     uiTargetKey: FD.Target
     actionKey: 
     requiredContext: {fileID: 0}
-    objective: "This status follows the party's arrival and seating. Use Tonight to keep track of booked visits during service."
+    objective: This status follows the party's arrival and seating. Use Tonight to
+      keep track of booked visits during service.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -22709,7 +22834,7 @@ MonoBehaviour:
   - id: fd_reservation_close
     phase: 17
     speaker: Big Boss
-    message: "Close reservations. Let's welcome the booked party."
+    message: Close reservations. Let's welcome the booked party.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
@@ -22721,7 +22846,7 @@ MonoBehaviour:
     uiTargetKey: FD.Target
     actionKey: fd_reservation_close
     requiredContext: {fileID: 0}
-    objective: "Close reservations to return to the restaurant."
+    objective: Close reservations to return to the restaurant.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -22729,7 +22854,8 @@ MonoBehaviour:
   - id: fd_reserved_arrival
     phase: 17
     speaker: Big Boss
-    message: "Match the arriving party to its booking, then seat it at the reserved table."
+    message: Match the arriving party to its booking, then seat it at the reserved
+      table.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
@@ -22741,7 +22867,7 @@ MonoBehaviour:
     uiTargetKey: FD.Target
     actionKey: fd_reserved_arrival
     requiredContext: {fileID: 0}
-    objective: "Seat the booked party at its reserved table."
+    objective: Seat the booked party at its reserved table.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -22749,7 +22875,8 @@ MonoBehaviour:
   - id: fd_reservation_done
     phase: 17
     speaker: Big Boss
-    message: "Good! Their reservation is seated. A seating prompt only appears when a suitable table is available."
+    message: Good! Their reservation is seated. A seating prompt only appears when
+      a suitable table is available.
     portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
     stepType: 0
     requiredAction: 0
@@ -22761,7 +22888,8 @@ MonoBehaviour:
     uiTargetKey: FD.Target
     actionKey: 
     requiredContext: {fileID: 0}
-    objective: "Good! Their reservation is seated. A seating prompt only appears when a suitable table is available."
+    objective: Good! Their reservation is seated. A seating prompt only appears when
+      a suitable table is available.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -22769,7 +22897,8 @@ MonoBehaviour:
   - id: fd_extra_drink_intro
     phase: 18
     speaker: Big Boss
-    message: "This table wants another drink during its meal. The DRINK bubble marks an extra request."
+    message: This table wants another drink during its meal. The DRINK bubble marks
+      an extra request.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
@@ -22781,7 +22910,8 @@ MonoBehaviour:
     uiTargetKey: FD.Target
     actionKey: 
     requiredContext: {fileID: 0}
-    objective: "This table wants another drink during its meal. The DRINK bubble marks an extra request."
+    objective: This table wants another drink during its meal. The DRINK bubble marks
+      an extra request.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -22789,7 +22919,7 @@ MonoBehaviour:
   - id: fd_extra_drink_open
     phase: 18
     speaker: Big Boss
-    message: "Select the DRINK bubble to hear this table's extra request."
+    message: Select the DRINK bubble to hear this table's extra request.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
@@ -22801,7 +22931,7 @@ MonoBehaviour:
     uiTargetKey: FD.Target
     actionKey: fd_extra_drink_open
     requiredContext: {fileID: 0}
-    objective: "Open this table's DRINK request."
+    objective: Open this table's DRINK request.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -22809,7 +22939,8 @@ MonoBehaviour:
   - id: fd_extra_drink_quantity
     phase: 18
     speaker: Big Boss
-    message: "Add the requested drink with this plus button. Match the quantity shown beside the customer's request."
+    message: Add the requested drink with this plus button. Match the quantity shown
+      beside the customer's request.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
@@ -22821,7 +22952,7 @@ MonoBehaviour:
     uiTargetKey: FD.Target
     actionKey: fd_extra_drink_quantity
     requiredContext: {fileID: 0}
-    objective: "Match the customer's requested drink quantity."
+    objective: Match the customer's requested drink quantity.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -22829,7 +22960,7 @@ MonoBehaviour:
   - id: fd_extra_drink_check
     phase: 18
     speaker: Big Boss
-    message: "Use CHECK ORDER to review the drink before sending it to the bar."
+    message: Use CHECK ORDER to review the drink before sending it to the bar.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
@@ -22841,7 +22972,7 @@ MonoBehaviour:
     uiTargetKey: FD.Target
     actionKey: fd_extra_drink_check
     requiredContext: {fileID: 0}
-    objective: "Check this extra drink order."
+    objective: Check this extra drink order.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -22849,7 +22980,8 @@ MonoBehaviour:
   - id: fd_extra_drink_order
     phase: 18
     speaker: Big Boss
-    message: "Confirm the checked drink order. Your bartender will prepare it at the bar."
+    message: Confirm the checked drink order. Your bartender will prepare it at the
+      bar.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
@@ -22861,7 +22993,7 @@ MonoBehaviour:
     uiTargetKey: FD.Target
     actionKey: fd_extra_drink_order
     requiredContext: {fileID: 0}
-    objective: "Confirm the extra DRINK order for the bartender."
+    objective: Confirm the extra DRINK order for the bartender.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -22869,7 +23001,7 @@ MonoBehaviour:
   - id: fd_extra_drink_pickup
     phase: 18
     speaker: Big Boss
-    message: "Collect this table's ready drink from the bar."
+    message: Collect this table's ready drink from the bar.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
@@ -22881,7 +23013,7 @@ MonoBehaviour:
     uiTargetKey: FD.Target
     actionKey: fd_extra_drink_pickup
     requiredContext: {fileID: 0}
-    objective: "Collect the prepared drink at the bar."
+    objective: Collect the prepared drink at the bar.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -22889,7 +23021,8 @@ MonoBehaviour:
   - id: fd_extra_drink_deliver
     phase: 18
     speaker: Big Boss
-    message: "Click this table's number bubble to carry the drink to the correct guests. Match it to the number on your tray."
+    message: Click this table's number bubble to carry the drink to the correct guests.
+      Match it to the number on your tray.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
@@ -22901,7 +23034,7 @@ MonoBehaviour:
     uiTargetKey: FD.Target
     actionKey: fd_extra_drink_deliver
     requiredContext: {fileID: 0}
-    objective: "Click the table number to deliver its extra drink."
+    objective: Click the table number to deliver its extra drink.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -22909,7 +23042,8 @@ MonoBehaviour:
   - id: fd_extra_drink_done
     phase: 18
     speaker: Big Boss
-    message: "Exactly. Extra drink orders use the bar, and the drink is added to that table's bill."
+    message: Exactly. Extra drink orders use the bar, and the drink is added to that
+      table's bill.
     portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
     stepType: 0
     requiredAction: 0
@@ -22921,7 +23055,8 @@ MonoBehaviour:
     uiTargetKey: FD.Target
     actionKey: 
     requiredContext: {fileID: 0}
-    objective: "Exactly. Extra drink orders use the bar, and the drink is added to that table's bill."
+    objective: Exactly. Extra drink orders use the bar, and the drink is added to
+      that table's bill.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -22929,7 +23064,8 @@ MonoBehaviour:
   - id: fd_pour_intro
     phase: 19
     speaker: Big Boss
-    message: "A different table wants a personal pour. This request is served at the table, without a new bar ticket."
+    message: A different table wants a personal pour. This request is served at the
+      table, without a new bar ticket.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
@@ -22941,7 +23077,8 @@ MonoBehaviour:
     uiTargetKey: FD.Target
     actionKey: 
     requiredContext: {fileID: 0}
-    objective: "A different table wants a personal pour. This request is served at the table, without a new bar ticket."
+    objective: A different table wants a personal pour. This request is served at
+      the table, without a new bar ticket.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -22949,7 +23086,7 @@ MonoBehaviour:
   - id: fd_pour_open
     phase: 19
     speaker: Big Boss
-    message: "Select POUR and walk over to serve this table."
+    message: Select POUR and walk over to serve this table.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 1
     requiredAction: 0
@@ -22961,7 +23098,7 @@ MonoBehaviour:
     uiTargetKey: FD.Target
     actionKey: fd_pour_open
     requiredContext: {fileID: 0}
-    objective: "Open the table's POUR request."
+    objective: Open the table's POUR request.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -22969,7 +23106,8 @@ MonoBehaviour:
   - id: fd_pour_pitcher
     phase: 19
     speaker: Big Boss
-    message: "This pitcher is the control. Press and hold it, then drag it toward the glass."
+    message: This pitcher is the control. Press and hold it, then drag it toward
+      the glass.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
@@ -22981,7 +23119,8 @@ MonoBehaviour:
     uiTargetKey: FD.Target
     actionKey: 
     requiredContext: {fileID: 0}
-    objective: "This pitcher is the control. Press and hold it, then drag it toward the glass."
+    objective: This pitcher is the control. Press and hold it, then drag it toward
+      the glass.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -22989,7 +23128,8 @@ MonoBehaviour:
   - id: fd_pour_glass
     phase: 19
     speaker: Big Boss
-    message: "Place the pitcher's spout above this glass. The pitcher tilts and the stream starts when it is in position."
+    message: Place the pitcher's spout above this glass. The pitcher tilts and the
+      stream starts when it is in position.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
@@ -23001,7 +23141,8 @@ MonoBehaviour:
     uiTargetKey: FD.Target
     actionKey: 
     requiredContext: {fileID: 0}
-    objective: "Place the pitcher's spout above this glass. The pitcher tilts and the stream starts when it is in position."
+    objective: Place the pitcher's spout above this glass. The pitcher tilts and
+      the stream starts when it is in position.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -23009,7 +23150,8 @@ MonoBehaviour:
   - id: fd_pour_line
     phase: 19
     speaker: Big Boss
-    message: "This mark is the target fill. Keep holding the pitcher in pouring position until the water reaches this line."
+    message: This mark is the target fill. Keep holding the pitcher in pouring position
+      until the water reaches this line.
     portrait: {fileID: 21300000, guid: 8a0c7ce6363cf6d4da8d1740534f7f94, type: 3}
     stepType: 0
     requiredAction: 0
@@ -23021,7 +23163,8 @@ MonoBehaviour:
     uiTargetKey: FD.Target
     actionKey: 
     requiredContext: {fileID: 0}
-    objective: "This mark is the target fill. Keep holding the pitcher in pouring position until the water reaches this line."
+    objective: This mark is the target fill. Keep holding the pitcher in pouring
+      position until the water reaches this line.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -23041,7 +23184,8 @@ MonoBehaviour:
     uiTargetKey: FD.Source
     actionKey: fd_pour_fill
     requiredContext: {fileID: 0}
-    objective: "Drag the pitcher as shown, then hold it steady until the glass reaches the marked line."
+    objective: Drag the pitcher as shown, then hold it steady until the glass reaches
+      the marked line.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -23049,7 +23193,8 @@ MonoBehaviour:
   - id: fd_pour_done
     phase: 19
     speaker: Big Boss
-    message: "Nicely poured! Personal service can earn a 500 to 1,000 peso tip. Wine refills use the same pouring gesture."
+    message: Nicely poured! Personal service can earn a 500 to 1,000 peso tip. Wine
+      refills use the same pouring gesture.
     portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
     stepType: 0
     requiredAction: 0
@@ -23061,7 +23206,8 @@ MonoBehaviour:
     uiTargetKey: FD.Target
     actionKey: 
     requiredContext: {fileID: 0}
-    objective: "Nicely poured! Personal service can earn a 500 to 1,000 peso tip. Wine refills use the same pouring gesture."
+    objective: Nicely poured! Personal service can earn a 500 to 1,000 peso tip.
+      Wine refills use the same pouring gesture.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -23069,7 +23215,9 @@ MonoBehaviour:
   - id: fd_congratulations
     phase: 19
     speaker: Big Boss
-    message: "Congratulations! You've completed Fine Dining training and learned every restaurant. You're ready to welcome booked parties, serve extra drinks and pour at the table."
+    message: Congratulations! You've completed Fine Dining training and learned every
+      restaurant. You're ready to welcome booked parties, serve extra drinks and
+      pour at the table.
     portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
     stepType: 0
     requiredAction: 0
@@ -23081,7 +23229,9 @@ MonoBehaviour:
     uiTargetKey: 
     actionKey: 
     requiredContext: {fileID: 0}
-    objective: "Congratulations! You've completed Fine Dining training and learned every restaurant. You're ready to welcome booked parties, serve extra drinks and pour at the table."
+    objective: Congratulations! You've completed Fine Dining training and learned
+      every restaurant. You're ready to welcome booked parties, serve extra drinks
+      and pour at the table.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -23089,7 +23239,8 @@ MonoBehaviour:
   - id: fd_complete
     phase: 7
     speaker: Big Boss
-    message: "Good luck with your final restaurant! Continue when you're ready to begin your Fine Dining shift."
+    message: Good luck with your final restaurant! Continue when you're ready to
+      begin your Fine Dining shift.
     portrait: {fileID: 21300000, guid: 6a906a25176d6784cb9b720017ea4905, type: 3}
     stepType: 0
     requiredAction: 0
@@ -23101,7 +23252,8 @@ MonoBehaviour:
     uiTargetKey: 
     actionKey: 
     requiredContext: {fileID: 0}
-    objective: "Good luck with your final restaurant! Continue when you're ready to begin your Fine Dining shift."
+    objective: Good luck with your final restaurant! Continue when you're ready to
+      begin your Fine Dining shift.
     explainsAction: 1
     enableStaffSpawningOnComplete: 0
     enableCustomerSpawningOnComplete: 0
@@ -30436,7 +30588,7 @@ Transform:
   m_GameObject: {fileID: 344128239}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: -0.7071068, z: -0.7071068, w: 0}
-  m_LocalPosition: {x: 0.013333362, y: -0.008333512, z: 7.9472856e-10}
+  m_LocalPosition: {x: 0.014746592, y: 0.006506488, z: 0.000016655127}
   m_LocalScale: {x: 0.0033333332, y: 0.0033333332, z: 0.0033333332}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -52444,6 +52596,37 @@ MonoBehaviour:
   booth: {fileID: 987110861}
   diningSurface: {fileID: 2117426765}
   reservationPreview: {fileID: 21300000, guid: cd9fea07fa10d544fae9996f6799ade1, type: 3}
+--- !u!1 &639154069
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 639154070}
+  m_Layer: 0
+  m_Name: CustomerApproachPoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &639154070
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 639154069}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.013333362, y: -0.008333512, z: 0.0000000023841857}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1850874457}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &639351116
 GameObject:
   m_ObjectHideFlags: 0
@@ -59138,6 +59321,37 @@ Transform:
   - {fileID: 239448294}
   m_Father: {fileID: 377829633}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &745877233
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 745877234}
+  m_Layer: 0
+  m_Name: CustomerApproachPoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &745877234
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 745877233}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0.02, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 925000000000000013}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &746587030
 GameObject:
   m_ObjectHideFlags: 0
@@ -63413,6 +63627,37 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 801190659}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1 &802489589
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 802489590}
+  m_Layer: 0
+  m_Name: CustomerApproachPoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &802489590
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 802489589}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.013333362, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 925000000000000029}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &803315427
 GameObject:
   m_ObjectHideFlags: 0
@@ -77487,7 +77732,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   approachPoint: {fileID: 1574641621}
-  customerApproachPoint: {fileID: 0}
+  customerApproachPoint: {fileID: 1674603245}
   seats:
   - {fileID: 263358034}
   - {fileID: 1935574348}
@@ -77543,6 +77788,7 @@ Transform:
   - {fileID: 930141777}
   - {fileID: 58719725}
   - {fileID: 421706359}
+  - {fileID: 1674603245}
   m_Father: {fileID: 925000000000000002}
   m_LocalEulerAnglesHint: {x: -90, y: 0, z: 90}
 --- !u!114 &957530184
@@ -80367,7 +80613,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   approachPoint: {fileID: 1856501243}
-  customerApproachPoint: {fileID: 0}
+  customerApproachPoint: {fileID: 1503563526}
   seats:
   - {fileID: 793791799}
   - {fileID: 2080729798}
@@ -80632,6 +80878,7 @@ Transform:
   - {fileID: 644467969}
   - {fileID: 1940765707}
   - {fileID: 149910952}
+  - {fileID: 1503563526}
   m_Father: {fileID: 315699136}
   m_LocalEulerAnglesHint: {x: -90, y: 0, z: 90}
 --- !u!114 &987269879
@@ -86975,7 +87222,7 @@ Transform:
   m_GameObject: {fileID: 1078379104}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: -0.7071068, z: -0.7071068, w: 0}
-  m_LocalPosition: {x: 0.013333358, y: 0, z: 0}
+  m_LocalPosition: {x: 0.006666692, y: -0.013333358, z: 0.000016655922}
   m_LocalScale: {x: 0.0033333332, y: 0.0033333332, z: 0.0033333332}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -106629,7 +106876,7 @@ Transform:
   m_GameObject: {fileID: 1326386683}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: -0.7071068, z: -0.7071068, w: 0}
-  m_LocalPosition: {x: -0.02, y: 0, z: 0}
+  m_LocalPosition: {x: -0.013333358, y: -0.013333384, z: 0.00031784293}
   m_LocalScale: {x: 0.0033333332, y: 0.0033333332, z: 0.0033333332}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -107069,6 +107316,37 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1328619530}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1 &1328713973
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1328713974}
+  m_Layer: 0
+  m_Name: CustomerApproachPoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1328713974
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1328713973}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0.02, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 925000000000000021}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1328886186
 GameObject:
   m_ObjectHideFlags: 0
@@ -110150,7 +110428,7 @@ Transform:
   m_GameObject: {fileID: 1380278994}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.013333362, y: -0.008333512, z: 7.9472856e-10}
+  m_LocalPosition: {x: 0.014746592, y: 0.006506488, z: 0.000016655127}
   m_LocalScale: {x: 3, y: 3, z: 3}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -122909,6 +123187,37 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1490971609}
   m_CullTransparentMesh: 1
+--- !u!1 &1491448927
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1491448928}
+  m_Layer: 0
+  m_Name: CustomerApproachPoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1491448928
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1491448927}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0.02, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 925000000000000045}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1491513890
 GameObject:
   m_ObjectHideFlags: 0
@@ -123896,6 +124205,37 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1503556497}
   m_Mesh: {fileID: 10206, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1 &1503563525
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1503563526}
+  m_Layer: 0
+  m_Name: CustomerApproachPoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1503563526
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1503563525}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.013333358, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 987110873}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1505510111
 GameObject:
   m_ObjectHideFlags: 0
@@ -132737,6 +133077,37 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1566530581}
   m_Mesh: {fileID: -7855458367385223002, guid: 5a59461bfa5248ef8e7aaa6f0056df6b, type: 3}
+--- !u!1 &1566706596
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1566706597}
+  m_Layer: 0
+  m_Name: CustomerApproachPoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1566706597
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1566706596}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.013333355, y: -0.013333347, z: 0.0000000047683715}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 925000000000000037}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1567507575
 GameObject:
   m_ObjectHideFlags: 0
@@ -133198,7 +133569,7 @@ Transform:
   m_GameObject: {fileID: 1574641620}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.02, y: 0, z: 0}
+  m_LocalPosition: {x: -0.013333358, y: -0.013333384, z: 0.00031784293}
   m_LocalScale: {x: 3, y: 3, z: 3}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -149741,6 +150112,37 @@ Transform:
   m_Children: []
   m_Father: {fileID: 187132913}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1674603244
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1674603245}
+  m_Layer: 0
+  m_Name: CustomerApproachPoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1674603245
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1674603244}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0.02, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 957530183}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1675099196
 GameObject:
   m_ObjectHideFlags: 0
@@ -163598,7 +164000,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   approachPoint: {fileID: 1380278995}
-  customerApproachPoint: {fileID: 0}
+  customerApproachPoint: {fileID: 639154070}
   seats:
   - {fileID: 1548783783}
   - {fileID: 970395428}
@@ -163648,6 +164050,7 @@ Transform:
   - {fileID: 1152369848}
   - {fileID: 1304366627}
   - {fileID: 281993214}
+  - {fileID: 639154070}
   m_Father: {fileID: 925000000000000002}
   m_LocalEulerAnglesHint: {x: -90, y: 0, z: 90}
 --- !u!114 &1850874458
@@ -164441,7 +164844,7 @@ Transform:
   m_GameObject: {fileID: 1856501242}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.013333358, y: 0, z: 0}
+  m_LocalPosition: {x: 0.006666692, y: -0.013333358, z: 0.000016655922}
   m_LocalScale: {x: 3, y: 3, z: 3}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -204204,6 +204607,10 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1414530160320430229, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
+      propertyPath: customerApproachPoint
+      value: 
+      objectReference: {fileID: 20873077}
+    - target: {fileID: 1414530160320430229, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: useAuthoredSeatRotation
       value: 1
       objectReference: {fileID: 0}
@@ -204249,15 +204656,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2030053484248605851, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -0.02
+      value: -0.013333333
       objectReference: {fileID: 0}
     - target: {fileID: 2030053484248605851, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.000000047683713
+      value: -0.013333285
       objectReference: {fileID: 0}
     - target: {fileID: 2030053484248605851, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -0.000000012715657
+      value: 0.000016654332
       objectReference: {fileID: 0}
     - target: {fileID: 2092182643434982098, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LightProbeUsage
@@ -204265,15 +204672,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2177773158648656085, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -0.02
+      value: -0.013333333
       objectReference: {fileID: 0}
     - target: {fileID: 2177773158648656085, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.000000047683713
+      value: -0.013333285
       objectReference: {fileID: 0}
     - target: {fileID: 2177773158648656085, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -0.000000012715657
+      value: 0.000016654332
       objectReference: {fileID: 0}
     - target: {fileID: 2177773158648656085, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalRotation.w
@@ -204513,6 +204920,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 2357183371082360675, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1733294935}
+    - targetCorrespondingSourceObject: {fileID: 2357183371082360675, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 20873077}
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
 --- !u!4 &925000000000000005 stripped
@@ -204743,6 +205153,10 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1414530160320430229, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
+      propertyPath: customerApproachPoint
+      value: 
+      objectReference: {fileID: 745877234}
+    - target: {fileID: 1414530160320430229, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: useAuthoredSeatRotation
       value: 1
       objectReference: {fileID: 0}
@@ -204788,15 +205202,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2030053484248605851, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 0
+      value: -0.01
       objectReference: {fileID: 0}
     - target: {fileID: 2030053484248605851, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.02
+      value: 0.013333396
       objectReference: {fileID: 0}
     - target: {fileID: 2030053484248605851, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0
+      value: 0.000016654332
       objectReference: {fileID: 0}
     - target: {fileID: 2092182643434982098, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LightProbeUsage
@@ -204804,15 +205218,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2177773158648656085, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 0
+      value: -0.01
       objectReference: {fileID: 0}
     - target: {fileID: 2177773158648656085, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.02
+      value: 0.013333396
       objectReference: {fileID: 0}
     - target: {fileID: 2177773158648656085, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0
+      value: 0.000016654332
       objectReference: {fileID: 0}
     - target: {fileID: 2177773158648656085, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalRotation.w
@@ -205052,6 +205466,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 2357183371082360675, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1209538167}
+    - targetCorrespondingSourceObject: {fileID: 2357183371082360675, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 745877234}
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
 --- !u!4 &925000000000000013 stripped
@@ -205284,6 +205701,10 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1414530160320430229, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
+      propertyPath: customerApproachPoint
+      value: 
+      objectReference: {fileID: 1328713974}
+    - target: {fileID: 1414530160320430229, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: useAuthoredSeatRotation
       value: 1
       objectReference: {fileID: 0}
@@ -205329,15 +205750,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2030053484248605851, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 0
+      value: -0.013333358
       objectReference: {fileID: 0}
     - target: {fileID: 2030053484248605851, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.02
+      value: 0.013333396
       objectReference: {fileID: 0}
     - target: {fileID: 2030053484248605851, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0
+      value: 0.000016667047
       objectReference: {fileID: 0}
     - target: {fileID: 2092182643434982098, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LightProbeUsage
@@ -205345,15 +205766,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2177773158648656085, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 0
+      value: -0.013333358
       objectReference: {fileID: 0}
     - target: {fileID: 2177773158648656085, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.02
+      value: 0.013333396
       objectReference: {fileID: 0}
     - target: {fileID: 2177773158648656085, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0
+      value: 0.000016667047
       objectReference: {fileID: 0}
     - target: {fileID: 2177773158648656085, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalRotation.w
@@ -205593,6 +206014,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 2357183371082360675, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       insertIndex: -1
       addedObject: {fileID: 919929587}
+    - targetCorrespondingSourceObject: {fileID: 2357183371082360675, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1328713974}
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
 --- !u!4 &925000000000000021 stripped
@@ -205823,6 +206247,10 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1414530160320430229, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
+      propertyPath: customerApproachPoint
+      value: 
+      objectReference: {fileID: 802489590}
+    - target: {fileID: 1414530160320430229, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: useAuthoredSeatRotation
       value: 1
       objectReference: {fileID: 0}
@@ -205868,15 +206296,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2030053484248605851, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 0.013333358
+      value: 0.0069199763
       objectReference: {fileID: 0}
     - target: {fileID: 2030053484248605851, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0
+      value: 0.013313231
       objectReference: {fileID: 0}
     - target: {fileID: 2030053484248605851, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0
+      value: 0.000016654332
       objectReference: {fileID: 0}
     - target: {fileID: 2092182643434982098, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LightProbeUsage
@@ -205884,15 +206312,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2177773158648656085, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 0.013333358
+      value: 0.0069199763
       objectReference: {fileID: 0}
     - target: {fileID: 2177773158648656085, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0
+      value: 0.013313231
       objectReference: {fileID: 0}
     - target: {fileID: 2177773158648656085, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0
+      value: 0.000016654332
       objectReference: {fileID: 0}
     - target: {fileID: 2177773158648656085, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalRotation.w
@@ -206076,6 +206504,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 2357183371082360675, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1116126749}
+    - targetCorrespondingSourceObject: {fileID: 2357183371082360675, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 802489590}
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
 --- !u!4 &925000000000000029 stripped
@@ -206307,6 +206738,10 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1414530160320430229, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
+      propertyPath: customerApproachPoint
+      value: 
+      objectReference: {fileID: 1566706597}
+    - target: {fileID: 1414530160320430229, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: useAuthoredSeatRotation
       value: 1
       objectReference: {fileID: 0}
@@ -206352,15 +206787,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2030053484248605851, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 0.013333349
+      value: 0.018046618
       objectReference: {fileID: 0}
     - target: {fileID: 2030053484248605851, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.y
-      value: -0.013333347
+      value: 0.0008099874
       objectReference: {fileID: 0}
     - target: {fileID: 2030053484248605851, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0.0000000015894571
+      value: 0.000016655624
       objectReference: {fileID: 0}
     - target: {fileID: 2092182643434982098, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LightProbeUsage
@@ -206368,15 +206803,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2177773158648656085, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 0.013333349
+      value: 0.018046618
       objectReference: {fileID: 0}
     - target: {fileID: 2177773158648656085, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.y
-      value: -0.013333347
+      value: 0.0008099874
       objectReference: {fileID: 0}
     - target: {fileID: 2177773158648656085, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0.0000000015894571
+      value: 0.000016655624
       objectReference: {fileID: 0}
     - target: {fileID: 2177773158648656085, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalRotation.w
@@ -206560,6 +206995,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 2357183371082360675, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1683584048}
+    - targetCorrespondingSourceObject: {fileID: 2357183371082360675, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1566706597}
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
 --- !u!4 &925000000000000037 stripped
@@ -206800,6 +207238,10 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1414530160320430229, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
+      propertyPath: customerApproachPoint
+      value: 
+      objectReference: {fileID: 1491448928}
+    - target: {fileID: 1414530160320430229, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: useAuthoredSeatRotation
       value: 1
       objectReference: {fileID: 0}
@@ -206845,15 +207287,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2030053484248605851, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -0.02
+      value: -0.013333358
       objectReference: {fileID: 0}
     - target: {fileID: 2030053484248605851, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0
+      value: -0.013333333
       objectReference: {fileID: 0}
     - target: {fileID: 2030053484248605851, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0
+      value: 0.00031784293
       objectReference: {fileID: 0}
     - target: {fileID: 2092182643434982098, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LightProbeUsage
@@ -206861,15 +207303,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2177773158648656085, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -0.02
+      value: -0.013333358
       objectReference: {fileID: 0}
     - target: {fileID: 2177773158648656085, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0
+      value: -0.013333333
       objectReference: {fileID: 0}
     - target: {fileID: 2177773158648656085, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0
+      value: 0.00031784293
       objectReference: {fileID: 0}
     - target: {fileID: 2177773158648656085, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalRotation.w
@@ -207115,6 +207557,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 2357183371082360675, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       insertIndex: -1
       addedObject: {fileID: 926000000000000024}
+    - targetCorrespondingSourceObject: {fileID: 2357183371082360675, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1491448928}
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
 --- !u!4 &925000000000000045 stripped
@@ -207354,6 +207799,10 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1414530160320430229, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
+      propertyPath: customerApproachPoint
+      value: 
+      objectReference: {fileID: 51065487}
+    - target: {fileID: 1414530160320430229, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: useAuthoredSeatRotation
       value: 1
       objectReference: {fileID: 0}
@@ -207399,15 +207848,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2030053484248605851, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -0.02
+      value: -0.013333358
       objectReference: {fileID: 0}
     - target: {fileID: 2030053484248605851, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0
+      value: -0.013333333
       objectReference: {fileID: 0}
     - target: {fileID: 2030053484248605851, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0
+      value: 0.00031784293
       objectReference: {fileID: 0}
     - target: {fileID: 2092182643434982098, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LightProbeUsage
@@ -207415,15 +207864,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2177773158648656085, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -0.02
+      value: -0.013333358
       objectReference: {fileID: 0}
     - target: {fileID: 2177773158648656085, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0
+      value: -0.013333333
       objectReference: {fileID: 0}
     - target: {fileID: 2177773158648656085, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0
+      value: 0.00031784293
       objectReference: {fileID: 0}
     - target: {fileID: 2177773158648656085, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalRotation.w
@@ -207669,6 +208118,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 2357183371082360675, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       insertIndex: -1
       addedObject: {fileID: 926000000000000032}
+    - targetCorrespondingSourceObject: {fileID: 2357183371082360675, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 51065487}
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
 --- !u!4 &925000000000000053 stripped
@@ -207909,6 +208361,10 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1414530160320430229, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
+      propertyPath: customerApproachPoint
+      value: 
+      objectReference: {fileID: 83782839}
+    - target: {fileID: 1414530160320430229, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: useAuthoredSeatRotation
       value: 1
       objectReference: {fileID: 0}
@@ -207954,15 +208410,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2030053484248605851, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -0.02
+      value: -0.013333333
       objectReference: {fileID: 0}
     - target: {fileID: 2030053484248605851, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0
+      value: -0.013333333
       objectReference: {fileID: 0}
     - target: {fileID: 2030053484248605851, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0
+      value: 0.00031784293
       objectReference: {fileID: 0}
     - target: {fileID: 2092182643434982098, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LightProbeUsage
@@ -207970,15 +208426,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2177773158648656085, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -0.02
+      value: -0.013333333
       objectReference: {fileID: 0}
     - target: {fileID: 2177773158648656085, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0
+      value: -0.013333333
       objectReference: {fileID: 0}
     - target: {fileID: 2177773158648656085, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0
+      value: 0.00031784293
       objectReference: {fileID: 0}
     - target: {fileID: 2177773158648656085, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       propertyPath: m_LocalRotation.w
@@ -208224,6 +208680,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 2357183371082360675, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
       insertIndex: -1
       addedObject: {fileID: 926000000000000040}
+    - targetCorrespondingSourceObject: {fileID: 2357183371082360675, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 83782839}
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 171b24f17d963d64c9d93e162e998d99, type: 3}
 --- !u!4 &925000000000000061 stripped
@@ -210745,7 +211204,8 @@ MonoBehaviour:
     - {x: -0.04187025, y: 0.35965267}
     - {x: 0.06029146, y: -0.35767013}
     - {x: -0.35616034, y: -0.10721762}
-    approachOffset: {x: 3.0000005, y: -0.0000018775463, z: 0.0000076293945}
+    approachOffset: {x: 2.0000002, y: 0.002498269, z: -1.9999924}
+    customerApproachOffset: {x: 3.0000005, y: -0.0000019073486, z: 0.0000076293945}
     surfaceOffset: {x: -0.05264759, y: 0, z: -0.050294876}
     seatHeight: 0.64751214
     surfaceHeight: 0.96567726
@@ -210756,7 +211216,8 @@ MonoBehaviour:
     - {x: -0.04187025, y: 0.35965267}
     - {x: 0.06029146, y: -0.35767013}
     - {x: -0.35616034, y: -0.10721762}
-    approachOffset: {x: 0, y: 0, z: 3}
+    approachOffset: {x: 1.5000002, y: 0.0024981499, z: 2.0000114}
+    customerApproachOffset: {x: 0, y: 0, z: 3}
     surfaceOffset: {x: -0.05264759, y: 0, z: -0.050294876}
     seatHeight: 0.64751214
     surfaceHeight: 0.96567726
@@ -210767,7 +211228,8 @@ MonoBehaviour:
     - {x: -0.04187025, y: 0.35965267}
     - {x: 0.06029146, y: -0.35767013}
     - {x: -0.35616034, y: -0.10721762}
-    approachOffset: {x: 0, y: 0, z: 3}
+    approachOffset: {x: 2.000004, y: 0.0025000572, z: 2.0000114}
+    customerApproachOffset: {x: 0.0000038146973, y: 0, z: 3.0000038}
     surfaceOffset: {x: -0.05264759, y: 0, z: -0.050294876}
     seatHeight: 0.64751214
     surfaceHeight: 0.96567726
@@ -210776,7 +211238,8 @@ MonoBehaviour:
     seatOffsets:
     - {x: 0.3640548, y: -0.0076405867}
     - {x: -0.3668123, y: -0.12341143}
-    approachOffset: {x: 0.000009536743, y: 0.00000023841858, z: 2.0000076}
+    approachOffset: {x: 1.9969845, y: 0.0024979115, z: 1.0379944}
+    customerApproachOffset: {x: 0, y: 0, z: 2.0000038}
     surfaceOffset: {x: -0.009111404, y: 0, z: -0.0021896362}
     seatHeight: 0.6475121
     surfaceHeight: 0.9656775
@@ -210785,7 +211248,8 @@ MonoBehaviour:
     seatOffsets:
     - {x: 0.36405268, y: -0.0076405867}
     - {x: -0.366813, y: -0.12340975}
-    approachOffset: {x: -2.0000052, y: 0.00000023841858, z: 2.000019}
+    approachOffset: {x: 0.12149811, y: 0.0024983287, z: 2.706993}
+    customerApproachOffset: {x: -2.0000024, y: 0.0000009536743, z: 2.0000038}
     surfaceOffset: {x: -0.0091228485, y: 0, z: -0.0021858215}
     seatHeight: 0.6475121
     surfaceHeight: 0.9656775
@@ -210798,7 +211262,8 @@ MonoBehaviour:
     - {x: -0.15308918, y: -0.27882698}
     - {x: -0.04079383, y: 0.346099}
     - {x: -0.1953189, y: 0.2625764}
-    approachOffset: {x: 3, y: 0, z: 0}
+    approachOffset: {x: 2.0000038, y: 0.047676444, z: -2}
+    customerApproachOffset: {x: 3, y: 0, z: 0}
     surfaceOffset: {x: 0.6487608, y: 0, z: 0.06160164}
     seatHeight: 0.6516027
     surfaceHeight: 1.2857394
@@ -210811,7 +211276,8 @@ MonoBehaviour:
     - {x: -0.17198601, y: -0.27466694}
     - {x: -0.01664668, y: 0.34836617}
     - {x: -0.17965038, y: 0.2695686}
-    approachOffset: {x: 3, y: 0, z: 0}
+    approachOffset: {x: 2.0000038, y: 0.047676444, z: -2}
+    customerApproachOffset: {x: 3, y: 0, z: 0}
     surfaceOffset: {x: 0.6467867, y: 0, z: 0.027139664}
     seatHeight: 0.6516027
     surfaceHeight: 1.2857394
@@ -210824,7 +211290,8 @@ MonoBehaviour:
     - {x: -0.12716414, y: -0.28406644}
     - {x: -0.06972718, y: 0.34478435}
     - {x: -0.21290375, y: 0.25370228}
-    approachOffset: {x: 3, y: 0, z: 0}
+    approachOffset: {x: 2, y: 0.047676444, z: -2}
+    customerApproachOffset: {x: 3, y: 0, z: 0}
     surfaceOffset: {x: 0.65190125, y: 0, z: 0.10638237}
     seatHeight: 0.6516027
     surfaceHeight: 1.2857394
@@ -210837,7 +211304,8 @@ MonoBehaviour:
     - {x: -0.15308918, y: -0.27882698}
     - {x: -0.04079383, y: 0.346099}
     - {x: -0.1953189, y: 0.2625764}
-    approachOffset: {x: 3, y: 0, z: 0}
+    approachOffset: {x: 2.0000038, y: 0.047676325, z: -2.0000076}
+    customerApproachOffset: {x: 3, y: 0, z: 0}
     surfaceOffset: {x: 0.6487608, y: 0, z: 0.06160164}
     seatHeight: 0.6516027
     surfaceHeight: 1.2857394
@@ -210846,7 +211314,8 @@ MonoBehaviour:
     seatOffsets:
     - {x: 0.3640556, y: -0.0076389075}
     - {x: -0.36680907, y: -0.12340807}
-    approachOffset: {x: -1.2500019, y: 0.00000023841858, z: 2.0000305}
+    approachOffset: {x: 0.9759731, y: 0.0024981499, z: 2.2119904}
+    customerApproachOffset: {x: -1.2500267, y: 0.00000047683716, z: 2.0000038}
     surfaceOffset: {x: -0.009096146, y: 0, z: -0.0021820068}
     seatHeight: 0.6475121
     surfaceHeight: 0.9656775
@@ -211434,6 +211903,17 @@ MonoBehaviour:
   - {fileID: 1326386684}
   - {fileID: 1380278995}
   - {fileID: 344128240}
+  - {fileID: 83782839}
+  - {fileID: 51065487}
+  - {fileID: 1491448928}
+  - {fileID: 1566706597}
+  - {fileID: 802489590}
+  - {fileID: 1328713974}
+  - {fileID: 745877234}
+  - {fileID: 20873077}
+  - {fileID: 1674603245}
+  - {fileID: 639154070}
+  - {fileID: 1503563526}
   obsoleteFurniture:
   - {fileID: 975209113}
   - {fileID: 1041147062}
@@ -212143,6 +212623,524 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!1 &987000000000001000
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 987000000000001001}
+  - component: {fileID: 987000000000001004}
+  - component: {fileID: 987000000000001003}
+  - component: {fileID: 987000000000001002}
+  m_Layer: 0
+  m_Name: Fine Dining tutorial waiting template
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!224 &987000000000001001
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 987000000000001000}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 987000000000001010}
+  - {fileID: 987000000000001018}
+  - {fileID: 987000000000001006}
+  - {fileID: 987000000000001014}
+  m_Father: {fileID: 9221524388820461749}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 64, y: 64}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &987000000000001002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 987000000000001000}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 690b3a7084a4b2b4295a27e192661b3d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  ring: {fileID: 987000000000001020}
+  seconds: {fileID: 987000000000001007}
+  caption: {fileID: 987000000000001015}
+  cookingColor: {r: 0.1, g: 0.62, b: 0.83, a: 1}
+  readyColor: {r: 0.07, g: 0.7, b: 0.43, a: 1}
+  warningColor: {r: 1, g: 0.73, b: 0, a: 1}
+  burntColor: {r: 0.98, g: 0.12, b: 0.27, a: 1}
+  readyPulse: 0.04
+  pulseFrequency: 1.5
+  worldLift: 0.16
+  screenOffset: {x: 0, y: 30}
+--- !u!114 &987000000000001003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 987000000000001000}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_RaycastTarget: 0
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Sprite: {fileID: 21300000, guid: e9bf4b828aa6c5746a6d4434c53c3ed9, type: 2}
+  m_Type: 1
+  m_PreserveAspect: 0
+  m_FillCenter: 1
+  m_FillMethod: 4
+  m_FillAmount: 1
+  m_FillClockwise: 1
+  m_FillOrigin: 0
+  m_UseSpriteMesh: 0
+  m_PixelsPerUnitMultiplier: 1
+--- !u!222 &987000000000001004
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 987000000000001000}
+  m_CullTransparentMesh: 1
+--- !u!1 &987000000000001005
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 987000000000001006}
+  - component: {fileID: 987000000000001008}
+  - component: {fileID: 987000000000001007}
+  m_Layer: 0
+  m_Name: Label
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &987000000000001006
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 987000000000001005}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 987000000000001001}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.18, y: 0.18}
+  m_AnchorMax: {x: 0.82, y: 0.82}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &987000000000001007
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 987000000000001005}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_RaycastTarget: 0
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_text: 8
+  m_isRightToLeft: 0
+  m_fontAsset: {fileID: 11400000, guid: f21ac8ed5118a3e4ba1da956ec12a91f, type: 2}
+  m_sharedMaterial: {fileID: 295146467016911495, guid: f21ac8ed5118a3e4ba1da956ec12a91f, type: 2}
+  m_fontSharedMaterials: []
+  m_fontMaterial: {fileID: 0}
+  m_fontMaterials: []
+  m_fontColor32:
+    serializedVersion: 2
+    rgba: 4294967295
+  m_fontColor: {r: 0.04, g: 0.23, b: 0.33, a: 1}
+  m_enableVertexGradient: 0
+  m_colorMode: 3
+  m_fontColorGradient:
+    topLeft: {r: 1, g: 1, b: 1, a: 1}
+    topRight: {r: 1, g: 1, b: 1, a: 1}
+    bottomLeft: {r: 1, g: 1, b: 1, a: 1}
+    bottomRight: {r: 1, g: 1, b: 1, a: 1}
+  m_fontColorGradientPreset: {fileID: 0}
+  m_spriteAsset: {fileID: 0}
+  m_tintAllSprites: 0
+  m_StyleSheet: {fileID: 0}
+  m_TextStyleHashCode: 0
+  m_overrideHtmlColors: 0
+  m_faceColor:
+    serializedVersion: 2
+    rgba: 4294967295
+  m_fontSize: 24
+  m_fontSizeBase: 24
+  m_fontWeight: 400
+  m_enableAutoSizing: 0
+  m_fontSizeMin: 18
+  m_fontSizeMax: 72
+  m_fontStyle: 0
+  m_HorizontalAlignment: 2
+  m_VerticalAlignment: 512
+  m_textAlignment: 65535
+  m_characterSpacing: 0
+  m_wordSpacing: 0
+  m_lineSpacing: 0
+  m_lineSpacingMax: 0
+  m_paragraphSpacing: 0
+  m_charWidthMaxAdj: 0
+  m_TextWrappingMode: 1
+  m_wordWrappingRatios: 0.4
+  m_overflowMode: 0
+  m_linkedTextComponent: {fileID: 0}
+  parentLinkedComponent: {fileID: 0}
+  m_enableKerning: 0
+  m_ActiveFontFeatures: 6e72656b
+  m_enableExtraPadding: 0
+  checkPaddingRequired: 0
+  m_isRichText: 1
+  m_EmojiFallbackSupport: 1
+  m_parseCtrlCharacters: 1
+  m_isOrthographic: 1
+  m_isCullingEnabled: 0
+  m_horizontalMapping: 0
+  m_verticalMapping: 0
+  m_uvLineOffset: 0
+  m_geometrySortingOrder: 0
+  m_IsTextObjectScaleStatic: 0
+  m_VertexBufferAutoSizeReduction: 0
+  m_useMaxVisibleDescender: 1
+  m_pageToDisplay: 1
+  m_margin: {x: 0, y: 0, z: 0, w: 0}
+  m_isUsingLegacyAnimationComponent: 0
+  m_isVolumetricText: 0
+  m_hasFontAssetChanged: 0
+  m_baseMaterial: {fileID: 0}
+  m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!222 &987000000000001008
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 987000000000001005}
+  m_CullTransparentMesh: 1
+--- !u!1 &987000000000001009
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 987000000000001010}
+  - component: {fileID: 987000000000001012}
+  - component: {fileID: 987000000000001011}
+  m_Layer: 0
+  m_Name: Circle Centre
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &987000000000001010
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 987000000000001009}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 987000000000001001}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.14, y: 0.14}
+  m_AnchorMax: {x: 0.86, y: 0.86}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &987000000000001011
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 987000000000001009}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_RaycastTarget: 0
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Sprite: {fileID: 21300000, guid: ff5d0491aa3b8d348b457d9ba867d797, type: 3}
+  m_Type: 0
+  m_PreserveAspect: 1
+  m_FillCenter: 1
+  m_FillMethod: 4
+  m_FillAmount: 1
+  m_FillClockwise: 1
+  m_FillOrigin: 0
+  m_UseSpriteMesh: 0
+  m_PixelsPerUnitMultiplier: 1
+--- !u!222 &987000000000001012
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 987000000000001009}
+  m_CullTransparentMesh: 1
+--- !u!1 &987000000000001013
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 987000000000001014}
+  - component: {fileID: 987000000000001016}
+  - component: {fileID: 987000000000001015}
+  m_Layer: 0
+  m_Name: Bay Caption
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &987000000000001014
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 987000000000001013}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 987000000000001001}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: -0.2, y: 1.02}
+  m_AnchorMax: {x: 1.2, y: 1.32}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &987000000000001015
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 987000000000001013}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_RaycastTarget: 0
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_text: STAFF
+  m_isRightToLeft: 0
+  m_fontAsset: {fileID: 11400000, guid: f21ac8ed5118a3e4ba1da956ec12a91f, type: 2}
+  m_sharedMaterial: {fileID: 295146467016911495, guid: f21ac8ed5118a3e4ba1da956ec12a91f, type: 2}
+  m_fontSharedMaterials: []
+  m_fontMaterial: {fileID: 0}
+  m_fontMaterials: []
+  m_fontColor32:
+    serializedVersion: 2
+    rgba: 4294967295
+  m_fontColor: {r: 0.04, g: 0.23, b: 0.33, a: 1}
+  m_enableVertexGradient: 0
+  m_colorMode: 3
+  m_fontColorGradient:
+    topLeft: {r: 1, g: 1, b: 1, a: 1}
+    topRight: {r: 1, g: 1, b: 1, a: 1}
+    bottomLeft: {r: 1, g: 1, b: 1, a: 1}
+    bottomRight: {r: 1, g: 1, b: 1, a: 1}
+  m_fontColorGradientPreset: {fileID: 0}
+  m_spriteAsset: {fileID: 0}
+  m_tintAllSprites: 0
+  m_StyleSheet: {fileID: 0}
+  m_TextStyleHashCode: 0
+  m_overrideHtmlColors: 0
+  m_faceColor:
+    serializedVersion: 2
+    rgba: 4294967295
+  m_fontSize: 16
+  m_fontSizeBase: 16
+  m_fontWeight: 400
+  m_enableAutoSizing: 0
+  m_fontSizeMin: 0
+  m_fontSizeMax: 0
+  m_fontStyle: 0
+  m_HorizontalAlignment: 2
+  m_VerticalAlignment: 512
+  m_textAlignment: 65535
+  m_characterSpacing: 0
+  m_wordSpacing: 0
+  m_lineSpacing: 0
+  m_lineSpacingMax: 0
+  m_paragraphSpacing: 0
+  m_charWidthMaxAdj: 0
+  m_TextWrappingMode: 0
+  m_wordWrappingRatios: 0.4
+  m_overflowMode: 0
+  m_linkedTextComponent: {fileID: 0}
+  parentLinkedComponent: {fileID: 0}
+  m_enableKerning: 0
+  m_ActiveFontFeatures: 00000000
+  m_enableExtraPadding: 0
+  checkPaddingRequired: 0
+  m_isRichText: 1
+  m_EmojiFallbackSupport: 1
+  m_parseCtrlCharacters: 1
+  m_isOrthographic: 0
+  m_isCullingEnabled: 0
+  m_horizontalMapping: 0
+  m_verticalMapping: 0
+  m_uvLineOffset: 0
+  m_geometrySortingOrder: 0
+  m_IsTextObjectScaleStatic: 0
+  m_VertexBufferAutoSizeReduction: 0
+  m_useMaxVisibleDescender: 1
+  m_pageToDisplay: 1
+  m_margin: {x: 0, y: 0, z: 0, w: 0}
+  m_isUsingLegacyAnimationComponent: 0
+  m_isVolumetricText: 0
+  m_hasFontAssetChanged: 0
+  m_baseMaterial: {fileID: 0}
+  m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!222 &987000000000001016
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 987000000000001013}
+  m_CullTransparentMesh: 1
+--- !u!1 &987000000000001017
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 987000000000001018}
+  - component: {fileID: 987000000000001020}
+  - component: {fileID: 987000000000001019}
+  m_Layer: 0
+  m_Name: Progress Ring
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &987000000000001018
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 987000000000001017}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 987000000000001001}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 1}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!222 &987000000000001019
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 987000000000001017}
+  m_CullTransparentMesh: 1
+--- !u!114 &987000000000001020
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 987000000000001017}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 521dbb715b364fa29d717bd44e4aed4a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_Material: {fileID: 0}
+  m_Color: {r: 0.1, g: 0.62, b: 0.83, a: 1}
+  m_RaycastTarget: 0
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  amount: 0.65
+  trackColor: {r: 0.73, g: 0.79, b: 0.84, a: 1}
+  innerRatio: 0.82
 --- !u!222 &1021894146028515910
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -215911,521 +216909,3 @@ SceneRoots:
   - {fileID: 1608747186}
   - {fileID: 6486326368574189431}
   - {fileID: 306786501}
---- !u!1 &987000000000001000
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 987000000000001001}
-  - component: {fileID: 987000000000001004}
-  - component: {fileID: 987000000000001003}
-  - component: {fileID: 987000000000001002}
-  m_Layer: 0
-  m_Name: Fine Dining tutorial waiting template
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 0
---- !u!224 &987000000000001001
-RectTransform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 987000000000001000}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 987000000000001010}
-  - {fileID: 987000000000001018}
-  - {fileID: 987000000000001006}
-  - {fileID: 987000000000001014}
-  m_Father: {fileID: 9221524388820461749}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 0.5}
-  m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 64, y: 64}
-  m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &987000000000001002
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 987000000000001000}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 690b3a7084a4b2b4295a27e192661b3d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  ring: {fileID: 987000000000001020}
-  seconds: {fileID: 987000000000001007}
-  caption: {fileID: 987000000000001015}
-  cookingColor: {r: 0.1, g: 0.62, b: 0.83, a: 1}
-  readyColor: {r: 0.07, g: 0.7, b: 0.43, a: 1}
-  warningColor: {r: 1, g: 0.73, b: 0, a: 1}
-  burntColor: {r: 0.98, g: 0.12, b: 0.27, a: 1}
-  readyPulse: 0.04
-  pulseFrequency: 1.5
-  worldLift: 0.16
-  screenOffset: {x: 0, y: 30}
---- !u!114 &987000000000001003
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 987000000000001000}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 0
-  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
-  m_Maskable: 1
-  m_OnCullStateChanged:
-    m_PersistentCalls:
-      m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: e9bf4b828aa6c5746a6d4434c53c3ed9, type: 2}
-  m_Type: 1
-  m_PreserveAspect: 0
-  m_FillCenter: 1
-  m_FillMethod: 4
-  m_FillAmount: 1
-  m_FillClockwise: 1
-  m_FillOrigin: 0
-  m_UseSpriteMesh: 0
-  m_PixelsPerUnitMultiplier: 1
---- !u!222 &987000000000001004
-CanvasRenderer:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 987000000000001000}
-  m_CullTransparentMesh: 1
---- !u!1 &987000000000001005
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 987000000000001006}
-  - component: {fileID: 987000000000001008}
-  - component: {fileID: 987000000000001007}
-  m_Layer: 0
-  m_Name: Label
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!224 &987000000000001006
-RectTransform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 987000000000001005}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 987000000000001001}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.18, y: 0.18}
-  m_AnchorMax: {x: 0.82, y: 0.82}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
-  m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &987000000000001007
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 987000000000001005}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 0
-  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
-  m_Maskable: 1
-  m_OnCullStateChanged:
-    m_PersistentCalls:
-      m_Calls: []
-  m_text: 8
-  m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: f21ac8ed5118a3e4ba1da956ec12a91f, type: 2}
-  m_sharedMaterial: {fileID: 295146467016911495, guid: f21ac8ed5118a3e4ba1da956ec12a91f, type: 2}
-  m_fontSharedMaterials: []
-  m_fontMaterial: {fileID: 0}
-  m_fontMaterials: []
-  m_fontColor32:
-    serializedVersion: 2
-    rgba: 4294967295
-  m_fontColor: {r: 0.04, g: 0.23, b: 0.33, a: 1}
-  m_enableVertexGradient: 0
-  m_colorMode: 3
-  m_fontColorGradient:
-    topLeft: {r: 1, g: 1, b: 1, a: 1}
-    topRight: {r: 1, g: 1, b: 1, a: 1}
-    bottomLeft: {r: 1, g: 1, b: 1, a: 1}
-    bottomRight: {r: 1, g: 1, b: 1, a: 1}
-  m_fontColorGradientPreset: {fileID: 0}
-  m_spriteAsset: {fileID: 0}
-  m_tintAllSprites: 0
-  m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
-  m_overrideHtmlColors: 0
-  m_faceColor:
-    serializedVersion: 2
-    rgba: 4294967295
-  m_fontSize: 24
-  m_fontSizeBase: 24
-  m_fontWeight: 400
-  m_enableAutoSizing: 0
-  m_fontSizeMin: 18
-  m_fontSizeMax: 72
-  m_fontStyle: 0
-  m_HorizontalAlignment: 2
-  m_VerticalAlignment: 512
-  m_textAlignment: 65535
-  m_characterSpacing: 0
-  m_wordSpacing: 0
-  m_lineSpacing: 0
-  m_lineSpacingMax: 0
-  m_paragraphSpacing: 0
-  m_charWidthMaxAdj: 0
-  m_TextWrappingMode: 1
-  m_wordWrappingRatios: 0.4
-  m_overflowMode: 0
-  m_linkedTextComponent: {fileID: 0}
-  parentLinkedComponent: {fileID: 0}
-  m_enableKerning: 0
-  m_ActiveFontFeatures: 6e72656b
-  m_enableExtraPadding: 0
-  checkPaddingRequired: 0
-  m_isRichText: 1
-  m_EmojiFallbackSupport: 1
-  m_parseCtrlCharacters: 1
-  m_isOrthographic: 1
-  m_isCullingEnabled: 0
-  m_horizontalMapping: 0
-  m_verticalMapping: 0
-  m_uvLineOffset: 0
-  m_geometrySortingOrder: 0
-  m_IsTextObjectScaleStatic: 0
-  m_VertexBufferAutoSizeReduction: 0
-  m_useMaxVisibleDescender: 1
-  m_pageToDisplay: 1
-  m_margin: {x: 0, y: 0, z: 0, w: 0}
-  m_isUsingLegacyAnimationComponent: 0
-  m_isVolumetricText: 0
-  m_hasFontAssetChanged: 0
-  m_baseMaterial: {fileID: 0}
-  m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
---- !u!222 &987000000000001008
-CanvasRenderer:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 987000000000001005}
-  m_CullTransparentMesh: 1
---- !u!1 &987000000000001009
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 987000000000001010}
-  - component: {fileID: 987000000000001012}
-  - component: {fileID: 987000000000001011}
-  m_Layer: 0
-  m_Name: Circle Centre
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!224 &987000000000001010
-RectTransform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 987000000000001009}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 987000000000001001}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.14, y: 0.14}
-  m_AnchorMax: {x: 0.86, y: 0.86}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
-  m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &987000000000001011
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 987000000000001009}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 0
-  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
-  m_Maskable: 1
-  m_OnCullStateChanged:
-    m_PersistentCalls:
-      m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: ff5d0491aa3b8d348b457d9ba867d797, type: 3}
-  m_Type: 0
-  m_PreserveAspect: 1
-  m_FillCenter: 1
-  m_FillMethod: 4
-  m_FillAmount: 1
-  m_FillClockwise: 1
-  m_FillOrigin: 0
-  m_UseSpriteMesh: 0
-  m_PixelsPerUnitMultiplier: 1
---- !u!222 &987000000000001012
-CanvasRenderer:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 987000000000001009}
-  m_CullTransparentMesh: 1
---- !u!1 &987000000000001013
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 987000000000001014}
-  - component: {fileID: 987000000000001016}
-  - component: {fileID: 987000000000001015}
-  m_Layer: 0
-  m_Name: Bay Caption
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!224 &987000000000001014
-RectTransform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 987000000000001013}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 987000000000001001}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: -0.2, y: 1.02}
-  m_AnchorMax: {x: 1.2, y: 1.32}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
-  m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &987000000000001015
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 987000000000001013}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 0
-  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
-  m_Maskable: 1
-  m_OnCullStateChanged:
-    m_PersistentCalls:
-      m_Calls: []
-  m_text: STAFF
-  m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: f21ac8ed5118a3e4ba1da956ec12a91f, type: 2}
-  m_sharedMaterial: {fileID: 295146467016911495, guid: f21ac8ed5118a3e4ba1da956ec12a91f, type: 2}
-  m_fontSharedMaterials: []
-  m_fontMaterial: {fileID: 0}
-  m_fontMaterials: []
-  m_fontColor32:
-    serializedVersion: 2
-    rgba: 4294967295
-  m_fontColor: {r: 0.04, g: 0.23, b: 0.33, a: 1}
-  m_enableVertexGradient: 0
-  m_colorMode: 3
-  m_fontColorGradient:
-    topLeft: {r: 1, g: 1, b: 1, a: 1}
-    topRight: {r: 1, g: 1, b: 1, a: 1}
-    bottomLeft: {r: 1, g: 1, b: 1, a: 1}
-    bottomRight: {r: 1, g: 1, b: 1, a: 1}
-  m_fontColorGradientPreset: {fileID: 0}
-  m_spriteAsset: {fileID: 0}
-  m_tintAllSprites: 0
-  m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
-  m_overrideHtmlColors: 0
-  m_faceColor:
-    serializedVersion: 2
-    rgba: 4294967295
-  m_fontSize: 16
-  m_fontSizeBase: 16
-  m_fontWeight: 400
-  m_enableAutoSizing: 0
-  m_fontSizeMin: 0
-  m_fontSizeMax: 0
-  m_fontStyle: 0
-  m_HorizontalAlignment: 2
-  m_VerticalAlignment: 512
-  m_textAlignment: 65535
-  m_characterSpacing: 0
-  m_wordSpacing: 0
-  m_lineSpacing: 0
-  m_lineSpacingMax: 0
-  m_paragraphSpacing: 0
-  m_charWidthMaxAdj: 0
-  m_TextWrappingMode: 0
-  m_wordWrappingRatios: 0.4
-  m_overflowMode: 0
-  m_linkedTextComponent: {fileID: 0}
-  parentLinkedComponent: {fileID: 0}
-  m_enableKerning: 0
-  m_ActiveFontFeatures: 00000000
-  m_enableExtraPadding: 0
-  checkPaddingRequired: 0
-  m_isRichText: 1
-  m_EmojiFallbackSupport: 1
-  m_parseCtrlCharacters: 1
-  m_isOrthographic: 0
-  m_isCullingEnabled: 0
-  m_horizontalMapping: 0
-  m_verticalMapping: 0
-  m_uvLineOffset: 0
-  m_geometrySortingOrder: 0
-  m_IsTextObjectScaleStatic: 0
-  m_VertexBufferAutoSizeReduction: 0
-  m_useMaxVisibleDescender: 1
-  m_pageToDisplay: 1
-  m_margin: {x: 0, y: 0, z: 0, w: 0}
-  m_isUsingLegacyAnimationComponent: 0
-  m_isVolumetricText: 0
-  m_hasFontAssetChanged: 0
-  m_baseMaterial: {fileID: 0}
-  m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
---- !u!222 &987000000000001016
-CanvasRenderer:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 987000000000001013}
-  m_CullTransparentMesh: 1
---- !u!1 &987000000000001017
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 987000000000001018}
-  - component: {fileID: 987000000000001020}
-  - component: {fileID: 987000000000001019}
-  m_Layer: 0
-  m_Name: Progress Ring
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!224 &987000000000001018
-RectTransform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 987000000000001017}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 987000000000001001}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
-  m_Pivot: {x: 0.5, y: 0.5}
---- !u!222 &987000000000001019
-CanvasRenderer:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 987000000000001017}
-  m_CullTransparentMesh: 1
---- !u!114 &987000000000001020
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 987000000000001017}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 521dbb715b364fa29d717bd44e4aed4a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_Material: {fileID: 0}
-  m_Color: {r: 0.1, g: 0.62, b: 0.83, a: 1}
-  m_RaycastTarget: 0
-  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
-  m_Maskable: 1
-  m_OnCullStateChanged:
-    m_PersistentCalls:
-      m_Calls: []
-  amount: 0.65
-  trackColor: {r: 0.73, g: 0.79, b: 0.84, a: 1}
-  innerRatio: 0.82

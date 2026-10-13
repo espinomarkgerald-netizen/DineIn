@@ -338,6 +338,8 @@ public class GameDayManager : MonoBehaviour
 
     private void Update()
     {
+        if (playButton != null && TutorialSceneRuntimeMarker.UsesMinimalHUD)
+            playButton.gameObject.SetActive(TutorialSceneRuntimeMarker.AllowsHUDControl("ShiftPlayButton", playButton.transform));
         if (ObserveDayOnly || (MultiplayerDayBridge.IsActive && !MultiplayerSessionManager.Instance.IsAuthority)) return;
         UpdateMoodBarsSmooth();
         UpdateContinuePurchaseConfirmation();
@@ -579,6 +581,7 @@ public class GameDayManager : MonoBehaviour
 
     public void ConfirmStartShift()
     {
+        if (!TutorialSceneRuntimeMarker.AllowsHUDControl("ShiftPlayButton", playButton != null ? playButton.transform : null)) return;
         if (StartShiftInterception?.Invoke() == true) return;
         if (!CasualDiningPolishManager.EnsureInstance().TryAllowStartShift())
             return;
