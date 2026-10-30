@@ -183,7 +183,7 @@ public sealed class CampaignCloudSync : MonoBehaviour
             if (json != null)
             {
                 var header = Newtonsoft.Json.Linq.JObject.Parse(json);
-                if ((int?)header["version"] == 2 || (int?)header["version"] == 3 || (int?)header["version"] == 4)
+                if ((int?)header["version"] == 2 || (int?)header["version"] == 3 || (int?)header["version"] == 4 || (int?)header["version"] == 5)
                 {
                     cloud = JsonUtility.FromJson<Snapshot>(json);
                     if (!Store.ValidAccount(cloud, account)) throw new InvalidDataException("Invalid cloud account save.");

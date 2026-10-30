@@ -15,14 +15,18 @@ public sealed class RestaurantBossTips : MonoBehaviour
     [TextArea] public string fastFoodTip = "Keep the pickup counter clear. Takeout customers collect their own bags, while pink diners always expect their food at the table.";
     [TextArea] public string serviceTip = "A quiet moment is your chance to clear used trays and check the next table. Those small jobs keep the next rush moving.";
     [TextArea] public string upgradeTip = "Check today's newspaper and the equipment catalog before opening. Buy upgrades when your team needs them, and leave enough money for stock and wages.";
+    [TextArea] public string approvalCongratulations = "Outstanding work! You've earned the aliens' complete approval. Every restaurant you manage now has their full confidence. Congratulations—you've made Earth proud!";
+    private bool congratulationsVisible;
+    private RestaurantUnlockCoachUI congratulationsView;
+    private string congratulationsAccount, congratulationsScene;
     private readonly HashSet<string> shown = new();
     private string dayKey;
     private float quietSeconds, nextCheck;
     private RestaurantUnlockCoach unlockCoach;
     public Sprite BossPortrait => portrait;
-    public bool IsCoaching => unlockCoach != null && unlockCoach.IsActive;
-    public GameObject CoachOverlayRoot => unlockCoach != null ? unlockCoach.OverlayRoot : null;
-    public bool CoachConsumesPointer(Vector2 position) => unlockCoach != null && unlockCoach.ConsumesPointer(position);
+    public bool IsCoaching => congratulationsVisible || unlockCoach != null && unlockCoach.IsActive;
+    public GameObject CoachOverlayRoot => congratulationsVisible && congratulationsView != null ? congratulationsView.gameObject : unlockCoach != null ? unlockCoach.OverlayRoot : null;
+    public bool CoachConsumesPointer(Vector2 position) => congratulationsVisible && congratulationsView != null ? congratulationsView.ConsumesPointer(position) : unlockCoach != null && unlockCoach.ConsumesPointer(position);
     public bool HasSeenCoach(string id) => shown.Contains("coach:" + id);
     public void MarkCoachSeen(string id) { shown.Add("coach:" + id); }
     public void QueueEquipmentGuide(Equipment equipment) => unlockCoach?.QueueEquipment(equipment);
@@ -42,14 +46,29 @@ public sealed class RestaurantBossTips : MonoBehaviour
         DontDestroyOnLoad(gameObject);
         unlockCoach = gameObject.AddComponent<RestaurantUnlockCoach>();
     }
-    private void OnDestroy() { if (Instance == this) Instance = null; }
+    private void OnDestroy() { if (congratulationsView != null) Destroy(congratulationsView.gameObject); if (Instance == this) Instance = null; }
 
     private void Update()
     {
+        if (congratulationsVisible)
+        {
+            bool interrupted = unlockCoach != null && unlockCoach.IsActive || congratulationsView == null || !congratulationsView.IsExplaining ||
+                SceneManager.GetActiveScene().name != congratulationsScene ||
+                LocalSaveManager.Data.progressAccount != congratulationsAccount ||
+                AlienApprovalManager.Instance?.UsesSharedCampaignApproval != true ||
+                GameplayUIBlocker.IsBlockedExcept(congratulationsView) || (GameSaveManager.Instance != null && GameSaveManager.Instance.IsApplyingSave) || SceneLoader.HasPendingLoad || (SceneLoader.Instance != null && SceneLoader.Instance.IsLoading) || Time.timeScale <= 0f || HygieneManager.DecisionPaused ||
+                ManagerComplaintSystem.Instance?.HasActiveComplaint == true;
+            if (interrupted)
+            {
+                congratulationsVisible = false;
+                congratulationsView?.Hide();
+            }
+            else return;
+        }
         if (IsCoaching) return;
         string scene = SceneManager.GetActiveScene().name;
         bool restaurant = scene == "Lobby1" || scene == "Lobby2" || scene == "Lobby3" || scene == "Lobby1 Multiplayer";
-        if (!restaurant || TutorialSystem.IsTutorialMode || GameplayUIBlocker.IsBlocked() ||
+        if (!restaurant || TutorialSystem.IsTutorialMode || SceneLoader.HasPendingLoad || (SceneLoader.Instance != null && SceneLoader.Instance.IsLoading) || GameplayUIBlocker.IsBlocked() ||
             Time.timeScale <= 0f || HygieneManager.DecisionPaused || ManagerComplaintSystem.Instance?.HasActiveComplaint == true)
         {
             dialogue?.HideDialogue();
@@ -58,6 +77,27 @@ public sealed class RestaurantBossTips : MonoBehaviour
         }
         if (GameSaveManager.Instance != null &&
             (!GameSaveManager.Instance.HasCompletedInitialLoad || GameSaveManager.Instance.IsApplyingSave)) return;
+        var approval = AlienApprovalManager.Instance;
+        if (approval != null && approval.CongratulationsPending)
+        {
+            if (congratulationsView == null) congratulationsView = RestaurantUnlockCoachUI.Create(portrait);
+            if (congratulationsView == null) return;
+            dialogue?.HideDialogue();
+            congratulationsVisible = true;
+            congratulationsAccount = LocalSaveManager.Data.progressAccount;
+            congratulationsScene = scene;
+            string account = congratulationsAccount;
+            congratulationsView.ShowAnnouncement("100% Alien Approval", approvalCongratulations, () =>
+            {
+                if (!congratulationsVisible || LocalSaveManager.Data.progressAccount != account ||
+                    SceneManager.GetActiveScene().name != congratulationsScene) return;
+                approval.MarkCongratulationsDelivered(account);
+                congratulationsVisible = false;
+                congratulationsView.Hide();
+                quietSeconds = 0f;
+            });
+            return;
+        }
         if (Time.unscaledTime < nextCheck) return;
         nextCheck = Time.unscaledTime + 2f;
         int day = GameFlowManager.Instance != null ? GameFlowManager.Instance.CurrentDay : 1;

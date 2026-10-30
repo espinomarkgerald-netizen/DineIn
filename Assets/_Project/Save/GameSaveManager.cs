@@ -50,6 +50,8 @@ public class GameSaveManager : MonoBehaviour
 #if UNITY_EDITOR
         if (SuppressWritesForTests) return;
 #endif
+        // Tutorial performance must not seed personal approval in a fresh career.
+        if (AlienApprovalManager.Instance != null) cleanStart.approval = AlienApprovalManager.Instance.StartingApproval;
         CampaignSaveStore.AtomicWrite(initialPath, JsonUtility.ToJson(cleanStart, true));
         CampaignSaveStore.NotifyLocalWrite();
     }
@@ -366,7 +368,8 @@ public class GameSaveManager : MonoBehaviour
             if (CampaignSaveStore.IsFastFood || CampaignSaveStore.IsFineDining || profileChanged)
             {
                 int startingBalance = MoneyManager.DefaultStartingMoney;
-                ApplySaveData(new GameSaveData { money = startingBalance, polishDayStartMoney = startingBalance }, false, false);
+                ApplySaveData(new GameSaveData { money = startingBalance, polishDayStartMoney = startingBalance,
+                    approval = AlienApprovalManager.Instance != null ? AlienApprovalManager.Instance.StartingApproval : new GameSaveData().approval }, false, false);
                 EmployeeManager.Instance?.PrepareFreshRestaurantRoster();
                 RequestSave();
             }

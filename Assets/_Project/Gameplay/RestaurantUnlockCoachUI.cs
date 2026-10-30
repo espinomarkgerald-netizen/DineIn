@@ -185,6 +185,12 @@ public sealed class RestaurantUnlockCoachUI : MonoBehaviour
         PresentPage();
     }
 
+    public void ShowAnnouncement(string title, string message, Action acknowledged)
+    {
+        Show(title, message, null, acknowledged, true, null);
+        controlsRoot.gameObject.SetActive(false);
+    }
+
     public void ShowCustomer(CustomerTypeProfile profile, Action acknowledged)
     {
         Show(profile.displayName, profile.introduction, null, acknowledged, true, null);

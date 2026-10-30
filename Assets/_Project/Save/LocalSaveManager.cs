@@ -15,6 +15,7 @@ public static class LocalSaveManager
         public string username = "Guest";
         public string progressAccount;
         public int coins = 0;
+        public ApprovalProgress sharedApproval;
         public int restaurantProgressionVersion;
         public List<string> unlockedRestaurantIds;
         public List<string> ownedItemIds = new List<string>();
@@ -23,6 +24,18 @@ public static class LocalSaveManager
         // Profile-wide cosmetics intentionally live outside restaurant/day-start career saves.
         public List<AppearanceRecord> appearances = new List<AppearanceRecord>();
     }
+
+    [Serializable]
+    public sealed class ApprovalProgress
+    {
+        public int version = 1;
+        public int value;
+        public bool lockedAt100, congratulationsDelivered;
+    }
+
+    public static bool ValidApproval(ApprovalProgress value) => value == null ||
+        (value.version == 1 && value.value >= 0 && value.value <= 100 &&
+         (!value.lockedAt100 || value.value == 100) && (!value.congratulationsDelivered || value.lockedAt100));
 
     [Serializable]
     public sealed class AppearanceRecord
@@ -162,7 +175,7 @@ public static class LocalSaveManager
 
             var json = File.ReadAllText(FilePath);
             var d2 = JsonUtility.FromJson<SaveData>(json);
-            if (d2 == null || d2.roles == null || d2.ownedItemIds == null || !json.Contains("\"roles\"")) throw new InvalidDataException("Invalid local profile.");
+            if (d2 == null || !ValidApproval(d2.sharedApproval) || d2.roles == null || d2.ownedItemIds == null || !json.Contains("\"roles\"")) throw new InvalidDataException("Invalid local profile.");
             bool migrate = d2.restaurantProgressionVersion == 0;
             InitializeRestaurantProgression(d2, true);
             if (d2.unlockedRestaurantIds == null) throw new InvalidDataException("Missing restaurant ownership.");

@@ -29,10 +29,11 @@ public static partial class CampaignSaveStore
         public string appearance;
         public int restaurantProgressionVersion;
         public List<string> unlockedRestaurantIds;
+        public LocalSaveManager.ApprovalProgress sharedApproval;
     }
     [Serializable] public sealed class AccountSnapshot
     {
-        public int version = 4;
+        public int version = 5;
         public string account, lineage;
         public long revision;
         public string savedUtc, device;
@@ -58,6 +59,31 @@ public static partial class CampaignSaveStore
         public LegacyProfileProgress profile;
         public string contentHash, checksum;
     }
+    [Serializable] private sealed class LegacyV4ProfileProgress
+    {
+        public int[] tutorials;
+        public int coins;
+        public List<string> ownedItemIds;
+        public List<LocalSaveManager.RoleEntry> roles;
+        public string appearance;
+        public int restaurantProgressionVersion;
+        public List<string> unlockedRestaurantIds;
+    }
+    [Serializable] private sealed class LegacyV4AccountSnapshot
+    {
+        public int version;
+        public string account, lineage;
+        public long revision;
+        public string savedUtc, device;
+        public Snapshot casual, fastFood, fineDining;
+        public LegacyV4ProfileProgress profile;
+        public string contentHash, checksum;
+    }
+    private static string ProfileJson(AccountSnapshot value) => value.version < 4
+        ? JsonUtility.ToJson(LegacyProfile(value.profile)) : value.version == 4
+        ? JsonUtility.ToJson(JsonUtility.FromJson<LegacyV4ProfileProgress>(JsonUtility.ToJson(value.profile)))
+        : JsonUtility.ToJson(value.profile);
+
     private static LegacyProfileProgress LegacyProfile(ProfileProgress profile) =>
         JsonUtility.FromJson<LegacyProfileProgress>(JsonUtility.ToJson(profile));
     private static ProfileProgress NewProfile() => new ProfileProgress {
@@ -234,7 +260,7 @@ public static partial class CampaignSaveStore
         if (LocalSaveManager.NeedsRecovery || !string.IsNullOrEmpty(data.progressAccount) && data.progressAccount != account) return null;
         var record = data.appearances?.Find(x => x != null && x.accountId == (string.IsNullOrEmpty(account) ? "guest" : "playfab:" + account));
         var profile = new ProfileProgress { coins = data.coins, roles = data.roles, ownedItemIds = data.ownedItemIds, appearance = record?.json,
-            restaurantProgressionVersion = data.restaurantProgressionVersion, unlockedRestaurantIds = data.unlockedRestaurantIds };
+            restaurantProgressionVersion = data.restaurantProgressionVersion, unlockedRestaurantIds = data.unlockedRestaurantIds, sharedApproval = data.sharedApproval };
         for (int i = 0; i < ProgressPreferenceKeys.Length; i++) profile.tutorials[i] = PlayerPrefs.GetInt(ProgressPreferenceKeys[i], 0);
         return JsonUtility.FromJson<ProfileProgress>(JsonUtility.ToJson(profile));
     }
@@ -245,6 +271,15 @@ public static partial class CampaignSaveStore
         PlayerPrefs.Save();
         var data = LocalSaveManager.Data;
         bool sameProgressAccount = data.progressAccount == account;
+        var previousApproval = sameProgressAccount ? data.sharedApproval : null;
+        data.sharedApproval = profile.sharedApproval == null ? null :
+            JsonUtility.FromJson<LocalSaveManager.ApprovalProgress>(JsonUtility.ToJson(profile.sharedApproval));
+        if (previousApproval?.lockedAt100 == true || previousApproval?.value == 100)
+        {
+            data.sharedApproval ??= new LocalSaveManager.ApprovalProgress();
+            data.sharedApproval.value = 100; data.sharedApproval.lockedAt100 = true;
+            data.sharedApproval.congratulationsDelivered |= previousApproval.congratulationsDelivered;
+        }
         data.restaurantProgressionVersion = profile.restaurantProgressionVersion;
         data.unlockedRestaurantIds = profile.unlockedRestaurantIds == null ? null : new List<string>(profile.unlockedRestaurantIds);
         LocalSaveManager.InitializeRestaurantProgression(data, true);
@@ -260,9 +295,9 @@ public static partial class CampaignSaveStore
     public static string ContentHash(AccountSnapshot value)
     {
         string casual = Hash(value.casual?.save, value.casual?.checkpoint);
-        string fastFoodAndProfile = Hash(Hash(value.fastFood?.save, value.fastFood?.checkpoint), (value.version < 4 ? JsonUtility.ToJson(LegacyProfile(value.profile)) : JsonUtility.ToJson(value.profile)));
+        string fastFoodAndProfile = Hash(Hash(value.fastFood?.save, value.fastFood?.checkpoint), ProfileJson(value));
         if (value.version == 2) return Hash(casual, fastFoodAndProfile);
-        string fineDiningAndProfile = Hash(Hash(value.fineDining?.save, value.fineDining?.checkpoint), (value.version < 4 ? JsonUtility.ToJson(LegacyProfile(value.profile)) : JsonUtility.ToJson(value.profile)));
+        string fineDiningAndProfile = Hash(Hash(value.fineDining?.save, value.fineDining?.checkpoint), ProfileJson(value));
         return Hash(casual, Hash(Hash(value.fastFood?.save, value.fastFood?.checkpoint), fineDiningAndProfile));
     }
     public static void Seal(AccountSnapshot value)
@@ -278,11 +313,16 @@ public static partial class CampaignSaveStore
             var legacy = JsonUtility.FromJson<LegacyV3AccountSnapshot>(JsonUtility.ToJson(value));
             value.checksum = Hash(JsonUtility.ToJson(legacy), null);
         }
+        else if (value.version == 4)
+        {
+            var legacy = JsonUtility.FromJson<LegacyV4AccountSnapshot>(JsonUtility.ToJson(value));
+            value.checksum = Hash(JsonUtility.ToJson(legacy), null);
+        }
         else value.checksum = Hash(JsonUtility.ToJson(value), null);
     }
     public static bool ValidAccount(AccountSnapshot value, string account)
     {
-        if (value == null || (value.version != 2 && value.version != 3 && value.version != 4) || value.account != account ||
+        if (value == null || (value.version != 2 && value.version != 3 && value.version != 4 && value.version != 5) || value.account != account ||
             value.revision < 0 || !ValidContent(value) || value.contentHash != ContentHash(value)) return false;
         if (value.version == 2)
         {
@@ -299,6 +339,12 @@ public static partial class CampaignSaveStore
             string checksum = legacy.checksum; legacy.checksum = null;
             return !string.IsNullOrEmpty(checksum) && checksum == Hash(JsonUtility.ToJson(legacy), null);
         }
+        if (value.version == 4)
+        {
+            var legacy = JsonUtility.FromJson<LegacyV4AccountSnapshot>(JsonUtility.ToJson(value));
+            string checksum = legacy.checksum; legacy.checksum = null;
+            return !string.IsNullOrEmpty(checksum) && checksum == Hash(JsonUtility.ToJson(legacy), null);
+        }
         var copy = JsonUtility.FromJson<AccountSnapshot>(JsonUtility.ToJson(value));
         string currentChecksum = copy.checksum; copy.checksum = null;
         return !string.IsNullOrEmpty(currentChecksum) && currentChecksum == Hash(JsonUtility.ToJson(copy), null);
@@ -312,6 +358,7 @@ public static partial class CampaignSaveStore
             (value.profile?.tutorials?.Length != 6 && value.profile?.tutorials?.Length != ProgressPreferenceKeys.Length) ||
             value.profile.coins < 0 || value.profile.roles == null || value.profile.ownedItemIds == null) return false;
         if (value.version >= 4 && (value.profile.restaurantProgressionVersion < 1 || value.profile.unlockedRestaurantIds == null)) return false;
+        if (!LocalSaveManager.ValidApproval(value.profile.sharedApproval)) return false;
         foreach (int flag in value.profile.tutorials) if (flag < 0 || flag > 100) return false;
         foreach (var role in value.profile.roles) if (role == null || role.highestUnlockedLevel < 1 || role.completedLevels == null) return false;
         return string.IsNullOrEmpty(value.profile.appearance) || PlayerCustomizationData.TryReadAppearance(value.profile.appearance, out _);
@@ -334,6 +381,7 @@ public static partial class CampaignSaveStore
         }
         foreach (int flag in value.profile.tutorials) if (flag > 0) return true;
         foreach (var role in value.profile.roles) if (role.highestUnlockedLevel > 1 || role.completedLevels.Count > 0) return true;
+        if (value.profile.sharedApproval?.lockedAt100 == true) return true;
         return value.profile.unlockedRestaurantIds?.Exists(id => id != LocalSaveManager.CasualDiningId) == true || value.profile.coins != 0 || value.profile.ownedItemIds.Count > 0 || !string.IsNullOrEmpty(value.profile.appearance);
     }
     public static void InstallAccount(AccountSnapshot value, bool acknowledge)

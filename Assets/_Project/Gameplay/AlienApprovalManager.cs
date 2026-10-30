@@ -1,7 +1,7 @@
 using UnityEngine;
 using System;
 
-public class AlienApprovalManager : MonoBehaviour
+public partial class AlienApprovalManager : MonoBehaviour
 {
     public static AlienApprovalManager Instance { get; private set; }
 
@@ -128,7 +128,7 @@ public class AlienApprovalManager : MonoBehaviour
     {
         if (!CanMutateApproval) return;
         lastHygieneHour = -1;
-        Approval = Mathf.Clamp(startingApproval, 0, 100);
+        Approval = ResolveCampaignApproval(startingApproval);
         positiveGroupApprovalEarnedToday = 0;
         approvalLostToday = 0;
         oneStarPenaltyAppliedDay = -1;
@@ -149,7 +149,7 @@ public class AlienApprovalManager : MonoBehaviour
     {
         if (MultiplayerProgressionContext.IsActive || !CanMutateApproval) return;
         lastHygieneHour = -1;
-        Approval = Mathf.Clamp(approval, 1, 100);
+        Approval = ResolveCampaignApproval(Mathf.Clamp(approval, 1, 100));
         positiveGroupApprovalEarnedToday = 0;
         approvalLostToday = 0;
         oneStarPenaltyAppliedDay = -1;
@@ -163,7 +163,11 @@ public class AlienApprovalManager : MonoBehaviour
         if (value < 0 || value > 100)
             return false;
 
-        Approval = value;
+        if (UsesSharedCampaignApproval)
+        {
+            if (!TryGetSharedApproval(out var state) || state.lockedAt100 && value != 100) return false;
+        }
+        Approval = ResolveCampaignApproval(value);
         OnApprovalChanged?.Invoke(Approval);
 
         TriggerImmediateGameOverForLegacyFlow();
@@ -188,7 +192,10 @@ public class AlienApprovalManager : MonoBehaviour
         if (data == null)
             return;
 
-        Approval = Mathf.Clamp(data.approval, 0, 100);
+        // Career/checkpoint snapshots cannot replace the personal campaign total.
+        Approval = UsesSharedCampaignApproval
+            ? (TryGetSharedApproval(out var shared) ? shared.value : Mathf.Clamp(startingApproval, 0, 100))
+            : Mathf.Clamp(data.approval, 0, 100);
         OnApprovalChanged?.Invoke(Approval);
 
         TriggerImmediateGameOverForLegacyFlow();
@@ -216,7 +223,13 @@ public class AlienApprovalManager : MonoBehaviour
         if (delta == 0)
             return;
 
-        Approval = Mathf.Clamp(Approval + delta, 0, 100);
+        if (UsesSharedCampaignApproval && TryGetSharedApproval(out var locked) && locked.lockedAt100)
+        {
+            if (Approval != 100) { Approval = 100; OnApprovalChanged?.Invoke(Approval); }
+            return;
+        }
+        int current = UsesSharedCampaignApproval && TryGetSharedApproval(out var shared) ? shared.value : Approval;
+        Approval = ResolveCampaignApproval(Mathf.Clamp(current + delta, 0, 100));
         OnApprovalChanged?.Invoke(Approval);
 
         TriggerImmediateGameOverForLegacyFlow();
