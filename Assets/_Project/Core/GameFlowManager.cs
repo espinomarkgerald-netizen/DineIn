@@ -649,6 +649,8 @@ public class GameFlowManager : MonoBehaviour
     /// result, including a terminal outcome, instead of changing state only
     /// after its button has already been pressed.
     /// </summary>
+    public bool LastRestaurantDaySucceeded { get; private set; }
+
     public void FinalizeRestaurantDayForResults(int earnedStars = -1)
     {
         if (MultiplayerRestaurantBridge.IsObserver) return;
@@ -667,9 +669,10 @@ public class GameFlowManager : MonoBehaviour
             AlienApprovalManager.Instance?.RegisterDailyStarRating(earnedStars, currentDay);
 
         CasualDiningPolishManager.EnsureInstance()?.FinalizeDay(currentDay);
+        LastRestaurantDaySucceeded = !TryGetRestaurantDayOutcome(out var settledOutcome) || settledOutcome == GameOverReason.EarthSaved;
 
-        if (restaurantSceneName == "Lobby2" || restaurantSceneName == "Lobby3") GameSaveManager.Instance?.CommitRestaurantResults();
-        else GameSaveManager.Instance?.RequestSave();
+        if (!GameSaveManager.Instance || !GameSaveManager.Instance.CommitRestaurantResults())
+            GameSaveManager.Instance?.RequestSave();
     }
 
     public bool TryGetRestaurantDayOutcome(out GameOverReason reason)

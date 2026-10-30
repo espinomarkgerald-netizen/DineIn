@@ -245,6 +245,14 @@ public class GameSaveManager : MonoBehaviour
         GameSaveData data = new GameSaveData();
         if (CampaignSaveStore.RuntimeIsFineDining) FineDiningReservations.Instance?.FillSaveData(data);
         GameSaveData previous = IsPersistenceSuspended ? null : ReadSaveData(SavePath);
+        if (previous?.successfulRestaurantDays != null)
+            data.successfulRestaurantDays = new System.Collections.Generic.List<int>(previous.successfulRestaurantDays);
+        var completedFlow = GameFlowManager.Instance;
+        if (!IsPersistenceSuspended && !CampaignSaveStore.ProtectedSession && completedFlow != null &&
+            completedFlow.CurrentRestaurantSessionState == GameFlowManager.RestaurantSessionState.DayComplete &&
+            completedFlow.LastRestaurantDaySucceeded &&
+            !data.successfulRestaurantDays.Contains(completedFlow.CurrentDay))
+            data.successfulRestaurantDays.Add(completedFlow.CurrentDay);
         if (previous?.campaignCreditReceipts != null)
             data.campaignCreditReceipts = previous.campaignCreditReceipts;
 

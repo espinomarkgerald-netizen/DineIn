@@ -13,6 +13,7 @@ public sealed class MultiplayerRunParticipant
     public double disconnectDeadline;
     public bool departed, kicked;
     public int initialActor;
+    public List<int> successfulDays = new();
 }
 
 // Deliberately contains no restaurant save state or credentials.
@@ -35,7 +36,7 @@ public sealed class MultiplayerRunRecords : MonoBehaviour
         [NonSerialized] public float retryAfter;
     }
     [Serializable] private sealed class Outbox { public List<Pending> pending = new(); }
-    [Serializable] private sealed class Reply { public bool accepted; public int bestCompletedDay; public string message; }
+    [Serializable] private sealed class Reply { public bool accepted; public int bestCompletedDay; public string message; public List<int> successfulDays; }
     private static MultiplayerRunRecords instance;
     private Outbox outbox;
     private bool busy;
@@ -169,6 +170,9 @@ public sealed class MultiplayerRunRecords : MonoBehaviour
             catch (Exception) { Status = "Run result pending: invalid account response."; return; }
             if (reply == null || !reply.accepted)
             { Status = "Run result pending: " + (reply?.message ?? "awaiting host receipt"); return; }
+            string restaurant = pending.record.restaurant == "FastFood" ? LocalSaveManager.FastFoodId : pending.record.restaurant == "FineDining" ? LocalSaveManager.FineDiningId : LocalSaveManager.CasualDiningId;
+            if (!LocalSaveManager.CreditRestaurantDays(pending.accountId, restaurant, pending.record.runId, reply.successfulDays))
+            { Status = "Successful-day credit awaiting local profile save."; return; }
             if (JsonUtility.ToJson(pending) == sent) { outbox.pending.Remove(pending); Save(); }
             nextAttempt = Time.realtimeSinceStartup + 1f;
             Status = "Account record synced. Best: " + reply.bestCompletedDay + " completed days.";

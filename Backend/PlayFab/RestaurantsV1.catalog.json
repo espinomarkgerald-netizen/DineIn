@@ -1,0 +1,8 @@
+{
+  "CatalogVersion": "RestaurantsV1",
+  "SetAsDefaultCatalog": false,
+  "Catalog": [
+    { "ItemId": "fastfood", "DisplayName": "Fast Food", "Description": "Permanent restaurant access", "ItemClass": "Restaurant", "IsStackable": false, "IsTradable": false, "VirtualCurrencyPrices": { "GC": 100 } },
+    { "ItemId": "finedining", "DisplayName": "Fine Dining", "Description": "Permanent restaurant access", "ItemClass": "Restaurant", "IsStackable": false, "IsTradable": false, "VirtualCurrencyPrices": { "GC": 200 } }
+  ]
+}

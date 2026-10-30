@@ -12,7 +12,7 @@ using Hashtable = ExitGames.Client.Photon.Hashtable;
 public partial class MultiplayerSessionManager : MonoBehaviourPunCallbacks
 {
     public const string SceneName = "Lobby1 Multiplayer", RunKey = "restaurant.run.v2";
-    public const string ProtocolKey = "restaurant.protocol", Protocol = "shared-session-21";
+    public const string ProtocolKey = "restaurant.protocol", Protocol = "shared-session-22";
     public const string ResultRulesVersion = "casual-session-2";
     public const string ReadyKey = "restaurant.ready", LoadedKey = "restaurant.loaded";
     public const int RejoinSeconds = 90;
@@ -99,6 +99,7 @@ public partial class MultiplayerSessionManager : MonoBehaviourPunCallbacks
         var participant = run.participants.Find(p => p.accountId == auth?.PlayFabId);
         if (participant?.kicked == true) { ReturnAfterRecoveryFailure(RemovedMessage, true); return; }
         if (participant?.departed == true) { ReturnAfterRecoveryFailure("You left the session.", true); return; }
+        RecordSuccessfulExperience();
         TickLeaveRequest();
         if (!Ended && (auth == null || !auth.IsLoggedIn || participant == null || participant.accountId != auth.PlayFabId))
         { LeaveToMenu(); return; }
@@ -163,6 +164,29 @@ public partial class MultiplayerSessionManager : MonoBehaviourPunCallbacks
     internal void Unregister(int actor, MultiplayerManagerRegistration manager)
     { if (managers.TryGetValue(actor, out var current) && current == manager) managers.Remove(actor); }
 
+    private float nextExperienceSave;
+    private void RecordSuccessfulExperience()
+    {
+        if (run == null || Time.realtimeSinceStartup < nextExperienceSave) return;
+        nextExperienceSave = Time.realtimeSinceStartup + 1f;
+        var auth = PlayFabAuthManager.Instance;
+        if (auth == null || !auth.IsLoggedIn || LocalSaveManager.NeedsRecovery ||
+            !CampaignSaveStore.AccountMatches(auth.PlayFabId) || LocalSaveManager.Data.progressAccount != auth.PlayFabId) return;
+        var own = run.participants.Find(p => p.accountId == auth.PlayFabId);
+        if (own?.successfulDays == null) return;
+        string restaurant = run.restaurant == "FastFood" ? LocalSaveManager.FastFoodId :
+            run.restaurant == "FineDining" ? LocalSaveManager.FineDiningId : LocalSaveManager.CasualDiningId;
+        var ids = LocalSaveManager.Data.ownedItemIds;
+        var added = new List<string>();
+        foreach (int day in own.successfulDays)
+        {
+            if (day < 1 || day > own.completedDay) continue;
+            string key = "restaurant-day:" + restaurant + ":" + run.runId + ":" + day;
+            if (!ids.Contains(key)) { ids.Add(key); added.Add(key); }
+        }
+        if (added.Count > 0 && !LocalSaveManager.TrySave()) foreach (var id in added) ids.Remove(id);
+    }
+
     public void CompleteDay(int day, string terminalReason)
     {
         if (!IsAuthority || day <= run.completedDay) return;
@@ -172,7 +196,15 @@ public partial class MultiplayerSessionManager : MonoBehaviourPunCallbacks
         {
             if (p.departed) continue;
             if (p.disconnectDeadline > 0) p.provisionalDay = day;
-            else p.completedDay = day;
+            else
+            {
+                p.completedDay = day;
+                if (string.IsNullOrEmpty(terminalReason))
+                {
+                    p.successfulDays ??= new List<int>();
+                    if (!p.successfulDays.Contains(day)) p.successfulDays.Add(day);
+                }
+            }
         }
         if (!string.IsNullOrEmpty(terminalReason)) run.endReason = terminalReason;
         PublishRun();
@@ -192,6 +224,7 @@ public partial class MultiplayerSessionManager : MonoBehaviourPunCallbacks
     private void PublishRun()
     {
         if (!IsHostConnection || run == null) return;
+        RecordSuccessfulExperience();
         run.revision++;
         if (Ended && string.IsNullOrEmpty(run.endedUtc)) run.endedUtc = DateTime.UtcNow.ToString("o");
         PhotonNetwork.CurrentRoom.SetCustomProperties(new Hashtable { [RunKey] = JsonUtility.ToJson(run) });
@@ -217,6 +250,7 @@ public partial class MultiplayerSessionManager : MonoBehaviourPunCallbacks
                     || Ended && string.IsNullOrEmpty(incoming.endReason)
                     || incoming.participants.Exists(p => !run.participants.Exists(old => old.accountId == p.accountId && old.initialActor == p.initialActor))))) return;
             run = incoming;
+            RecordSuccessfulExperience();
             MultiplayerRunRecords.Record(run, localActor, IsHostConnection);
             if (Ended) { ForgetLastRun(); StopSimulation(); }
         }

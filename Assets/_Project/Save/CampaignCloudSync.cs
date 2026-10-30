@@ -183,7 +183,7 @@ public sealed class CampaignCloudSync : MonoBehaviour
             if (json != null)
             {
                 var header = Newtonsoft.Json.Linq.JObject.Parse(json);
-                if ((int?)header["version"] == 2 || (int?)header["version"] == 3)
+                if ((int?)header["version"] == 2 || (int?)header["version"] == 3 || (int?)header["version"] == 4)
                 {
                     cloud = JsonUtility.FromJson<Snapshot>(json);
                     if (!Store.ValidAccount(cloud, account)) throw new InvalidDataException("Invalid cloud account save.");
@@ -221,7 +221,7 @@ public sealed class CampaignCloudSync : MonoBehaviour
                         return pair;
                     }
                     cloud = new Snapshot { account = account, lineage = "legacy", casual = Pair(json), fastFood = Pair(fastJson), fineDining = Pair(null),
-                        profile = new Store.ProfileProgress { appearance = appearance } };
+                        profile = new Store.ProfileProgress { appearance = appearance, restaurantProgressionVersion = LocalSaveManager.RestaurantProgressionVersion, unlockedRestaurantIds = new List<string> { LocalSaveManager.CasualDiningId, LocalSaveManager.FastFoodId, LocalSaveManager.FineDiningId } } };
                     // Legacy cloud never contained roles/tutorials. Infer only completed tutorial prerequisites
                     // from an existing career; do not invent rewards or combine divergent career values.
                     if (Store.Valid(cloud.casual)) cloud.profile.tutorials[0] = 1;

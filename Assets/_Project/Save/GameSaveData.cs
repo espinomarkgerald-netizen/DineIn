@@ -197,6 +197,7 @@ public class GameSaveData
     // uses the serialized presence of this field to migrate older saves once.
     public int inventorySystemVersion = 2;
 
+    public List<int> successfulRestaurantDays = new List<int>();
     public int currentDay = 1;
     public int currentPhase = 0;
     public int currentDayHalf = 1;

@@ -130,6 +130,9 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
     private static string RestaurantForSelection(int index) => index == 0 ? nameof(RestaurantType.CasualDining)
         : index == 1 ? nameof(RestaurantType.FastFood) : index == 2 ? nameof(RestaurantType.FineDining) : null;
 
+    private static bool OwnsMultiplayerRestaurant(string restaurant) => LocalSaveManager.IsRestaurantUnlocked(
+        restaurant == "FastFood" ? LocalSaveManager.FastFoodId : restaurant == "FineDining" ? LocalSaveManager.FineDiningId : LocalSaveManager.CasualDiningId);
+
     public bool TrySelectRestaurant(int index, out string error)
     {
         error = null;
@@ -250,6 +253,7 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
             if (!(fallbackRejoin ? PhotonNetwork.JoinRoom(code) : PhotonNetwork.RejoinRoom(code))) Fail("Could not start reconnecting. Please retry.");
             return;
         }
+        if (pendingCreate && !OwnsMultiplayerRestaurant(pendingRestaurant)) { Fail("Purchase this restaurant before creating a room."); return; }
         SetStatus(pendingCreate ? "Creating..." : "Joining...");
         PhotonCustomizationSync.PushToPhoton();
         string destination = null;
@@ -275,6 +279,10 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
 
     public override void OnJoinedRoom()
     {
+        var restaurant = PhotonNetwork.CurrentRoom?.CustomProperties[RestaurantKey] as string;
+        if (!OwnsMultiplayerRestaurant(restaurant))
+        { rejoinFailure = "Purchase this restaurant before joining this room."; pendingRejoin = awaitingAdmission = false; PhotonNetwork.LeaveRoom(false); return; }
+
         TraceRoom("joined", PhotonNetwork.CurrentRoom?.Name);
         if (!SupportedRoom())
         {

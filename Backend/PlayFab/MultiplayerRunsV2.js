@@ -44,6 +44,10 @@
             if (!p || !/^[a-fA-F0-9]{1,64}$/.test(p.accountId || "") || !integer(p.actor, 1, 2147483647) ||
                 accounts[p.accountId] || actors[p.actor] || !integer(p.completedDay, 0, record.completedDay) ||
                 !integer(p.highestDay, Math.max(1, p.completedDay), record.highestDay)) return false;
+            if (p.successfulDays != null && (!Array.isArray(p.successfulDays) || p.successfulDays.some(function (day, index, days) {
+                return !integer(day, 1, p.completedDay) || days.indexOf(day) !== index ||
+                    (["Bankruptcy", "ApprovalCollapsed", "EarthConqueredDay30"].indexOf(record.endReason) >= 0 && day === record.completedDay);
+            }))) return false;
             accounts[p.accountId] = true; actors[p.actor] = true;
             if (p.accountId === record.hostAccountId && p.actor === record.hostActor) host = true;
         }
@@ -85,7 +89,7 @@
                 || record.sceneName !== receipt.sceneName)
                 return fail("Run membership and identity cannot change.");
             if (record.revision <= receipt.revision)
-                return { accepted: true, bestCompletedDay: best(currentPlayerId, receipt.restaurant) };
+                return { accepted: true, bestCompletedDay: best(currentPlayerId, receipt.restaurant), successfulDays: (receipt.participants.filter(function(p) { return p.accountId === currentPlayerId; })[0] || {}).successfulDays || [] };
             else {
                 if (record.completedDay < receipt.completedDay || record.highestDay < receipt.highestDay)
                     return fail("Run progress cannot decrease.");
@@ -94,6 +98,8 @@
                 for (var j = 0; j < record.participants.length; j++) {
                     var p = record.participants[j];
                     var old = receipt.participants.filter(function (v) { return v.accountId === p.accountId; })[0];
+                    if (old && (old.successfulDays || []).some(function(day) { return (p.successfulDays || []).indexOf(day) < 0; }))
+                        return fail("Successful-day credit cannot decrease.");
                     if (old && (p.completedDay < old.completedDay || p.highestDay < old.highestDay ||
                         (old.departed && (!p.departed || p.completedDay > old.completedDay || p.highestDay > old.highestDay))))
                         return fail("Participant credit cannot change after departure.");
@@ -105,7 +111,7 @@
         for (var i = 0; i < record.participants.length; i++)
             publishScore(record, record.participants[i], !!record.endReason || !!record.participants[i].departed);
         write(currentPlayerId, key, record, true);
-        return { accepted: true, bestCompletedDay: best(currentPlayerId, record.restaurant) };
+        return { accepted: true, bestCompletedDay: best(currentPlayerId, record.restaurant), successfulDays: (record.participants.filter(function(p) { return p.accountId === currentPlayerId; })[0] || {}).successfulDays || [] };
     };
     handlers.DineInClaimRunV2 = function (args) {
         var record = args && args.record;
@@ -127,7 +133,7 @@
             if (!verified || own.completedDay > verified.completedDay || own.highestDay > verified.highestDay)
                 return fail("Awaiting the host completion receipt.");
             if (args.final) publishScore(record, own, true);
-            return { accepted: true, bestCompletedDay: best(currentPlayerId, record.restaurant) };
+            return { accepted: true, bestCompletedDay: best(currentPlayerId, record.restaurant), successfulDays: verified.successfulDays || [] };
         }
         // An aged-out receipt needs no write: the host already secured this or a
         // better score directly on the participant's account.

@@ -82,6 +82,7 @@ public static class TutorialGameModeEntry
         revisit.onClick = new Button.ButtonClickedEvent();
         revisit.onClick.AddListener(() =>
         {
+            if (!controller.EnsureRestaurantAccess()) return;
             IsMenuLaunch = IsRevisitLaunch = true;
             Load(controller.SelectedRestaurantIndex == 2 ? FineDiningScene.Tutorial :
                 controller.SelectedRestaurantIndex == 1 ? FastFoodScene.Tutorial : "Lobby1Tutorial");

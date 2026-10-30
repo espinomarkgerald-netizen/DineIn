@@ -5,6 +5,8 @@ using UnityEngine;
 
 public static class LocalSaveManager
 {
+    public const int RestaurantProgressionVersion = 1;
+    public const string CasualDiningId = "casual", FastFoodId = "fastfood", FineDiningId = "finedining";
     private const string FileName = "singleplayer_save.json";
 
     [Serializable]
@@ -13,6 +15,8 @@ public static class LocalSaveManager
         public string username = "Guest";
         public string progressAccount;
         public int coins = 0;
+        public int restaurantProgressionVersion;
+        public List<string> unlockedRestaurantIds;
         public List<string> ownedItemIds = new List<string>();
 
         public List<RoleEntry> roles = new List<RoleEntry>();
@@ -44,6 +48,36 @@ public static class LocalSaveManager
     private static string FilePath => Path.Combine(Application.persistentDataPath, FileName);
 
     public static SaveData Data => _cache ??= Load();
+
+    internal static void InitializeRestaurantProgression(SaveData data, bool legacy)
+    {
+        if (data.restaurantProgressionVersion != 0) return;
+        data.unlockedRestaurantIds ??= legacy
+            ? new List<string> { CasualDiningId, FastFoodId, FineDiningId }
+            : new List<string> { CasualDiningId };
+        data.restaurantProgressionVersion = RestaurantProgressionVersion;
+    }
+
+    public static bool IsRestaurantUnlocked(string id)
+    {
+        var data = Data;
+        return !NeedsRecovery && data.unlockedRestaurantIds != null && data.unlockedRestaurantIds.Contains(id);
+    }
+
+    public static bool CreditRestaurantDays(string account, string restaurant, string runId, List<int> days)
+    {
+        if (NeedsRecovery || Data.progressAccount != account || !CampaignSaveStore.AccountMatches(account)) return false;
+        var added = new List<string>();
+        foreach (int day in days ?? new List<int>())
+        {
+            if (day < 1) continue;
+            string id = "restaurant-day:" + restaurant + ":" + runId + ":" + day;
+            if (!Data.ownedItemIds.Contains(id)) { Data.ownedItemIds.Add(id); added.Add(id); }
+        }
+        if (added.Count == 0 || TrySave()) return true;
+        foreach (string id in added) Data.ownedItemIds.Remove(id);
+        return false;
+    }
 
     public static void EnsureDefaultRoles()
     {
@@ -119,6 +153,7 @@ public static class LocalSaveManager
             if (!File.Exists(FilePath))
             {
                 var d = new SaveData();
+                InitializeRestaurantProgression(d, false);
                 _cache = d;
                 EnsureDefaultRoles();
                 Save();
@@ -128,7 +163,11 @@ public static class LocalSaveManager
             var json = File.ReadAllText(FilePath);
             var d2 = JsonUtility.FromJson<SaveData>(json);
             if (d2 == null || d2.roles == null || d2.ownedItemIds == null || !json.Contains("\"roles\"")) throw new InvalidDataException("Invalid local profile.");
+            bool migrate = d2.restaurantProgressionVersion == 0;
+            InitializeRestaurantProgression(d2, true);
+            if (d2.unlockedRestaurantIds == null) throw new InvalidDataException("Missing restaurant ownership.");
             _cache = d2;
+            if (migrate && !TrySave()) throw new IOException("Could not persist restaurant migration.");
             EnsureDefaultRoles();
             return d2;
         }

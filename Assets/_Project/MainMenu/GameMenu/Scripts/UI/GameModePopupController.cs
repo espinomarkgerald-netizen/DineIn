@@ -6,7 +6,7 @@ using UnityEngine.SceneManagement;
 /// Controls the Campaign/Multiplayer choice popup in GameMenu and routes a
 /// Campaign selection to the scene assigned to the highlighted restaurant.
 /// </summary>
-public class GameModePopupController : MonoBehaviour
+public partial class GameModePopupController : MonoBehaviour
 {
     private const string SelectedGameModeKey = "GameMenu_SelectedGameMode";
     private string lastUnavailableCampaignRoute;
@@ -56,12 +56,14 @@ public class GameModePopupController : MonoBehaviour
             ? (GameModeChoice)savedMode
             : GameModeChoice.None;
 
+        InitializeRestaurantAccess();
         HidePopup();
     }
 
     /// <summary>Wire this to the existing Restaurant Play button.</summary>
     public void ShowPopup()
     {
+        if (!EnsureRestaurantAccess()) return;
         if (gamemodePopupUI == null)
         {
             Debug.LogError("[GameModePopupController] Assign GamemodePopupUI in the Inspector.");
@@ -82,6 +84,7 @@ public class GameModePopupController : MonoBehaviour
     /// <summary>Wire this to CampaignButton.</summary>
     public void ChooseCampaign()
     {
+        if (!EnsureRestaurantAccess()) return;
         if (!CampaignCloudSync.CanEnterGameplay()) return;
         if (!TryGetSelectedCampaignScene(out string careerScene))
             return;
@@ -112,6 +115,7 @@ public class GameModePopupController : MonoBehaviour
     /// <summary>Wire this to MultiplayerButton.</summary>
     public void ChooseMultiplayer()
     {
+        if (!EnsureRestaurantAccess()) return;
         if (restaurantSelector == null || multiplayerMenu == null || multiplayerPanel == null)
         {
             NotificationPopupController.Instance?.Show("Multiplayer menu references are missing.",

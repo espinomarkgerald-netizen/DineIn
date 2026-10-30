@@ -22,7 +22,7 @@ using UnityEngine;
 /// listen to OnWalletUpdated / OnWalletRefreshFailed / OnWalletCleared to
 /// refresh labels.
 /// </summary>
-public class PlayFabWalletManager : MonoBehaviour
+public partial class PlayFabWalletManager : MonoBehaviour
 {
     public static PlayFabWalletManager Instance { get; private set; }
 
@@ -156,6 +156,7 @@ public class PlayFabWalletManager : MonoBehaviour
     private void HandleLoginSuccess()
     {
         authGeneration++; inventoryRequest++;
+        RestaurantPurchaseBusy = false;
         HasLoadedWallet = IsRefreshing = goldCoinSpendInFlight = false;
         walletAccount = null; ownedCostumes.Clear();
         if (refreshOnLogin)
@@ -166,6 +167,7 @@ public class PlayFabWalletManager : MonoBehaviour
     {
         StopPolling();
         authGeneration++; inventoryRequest++;
+        RestaurantPurchaseBusy = false;
         IsRefreshing = goldCoinSpendInFlight = false;
         ownedCostumes.Clear(); walletAccount = null;
 

@@ -27,10 +27,12 @@ public static partial class CampaignSaveStore
         public List<string> ownedItemIds = new List<string>();
         public List<LocalSaveManager.RoleEntry> roles = new List<LocalSaveManager.RoleEntry>();
         public string appearance;
+        public int restaurantProgressionVersion;
+        public List<string> unlockedRestaurantIds;
     }
     [Serializable] public sealed class AccountSnapshot
     {
-        public int version = 3;
+        public int version = 4;
         public string account, lineage;
         public long revision;
         public string savedUtc, device;
@@ -38,6 +40,30 @@ public static partial class CampaignSaveStore
         public ProfileProgress profile;
         public string contentHash, checksum;
     }
+    [Serializable] private sealed class LegacyProfileProgress
+    {
+        public int[] tutorials;
+        public int coins;
+        public List<string> ownedItemIds;
+        public List<LocalSaveManager.RoleEntry> roles;
+        public string appearance;
+    }
+    [Serializable] private sealed class LegacyV3AccountSnapshot
+    {
+        public int version;
+        public string account, lineage;
+        public long revision;
+        public string savedUtc, device;
+        public Snapshot casual, fastFood, fineDining;
+        public LegacyProfileProgress profile;
+        public string contentHash, checksum;
+    }
+    private static LegacyProfileProgress LegacyProfile(ProfileProgress profile) =>
+        JsonUtility.FromJson<LegacyProfileProgress>(JsonUtility.ToJson(profile));
+    private static ProfileProgress NewProfile() => new ProfileProgress {
+        restaurantProgressionVersion = LocalSaveManager.RestaurantProgressionVersion,
+        unlockedRestaurantIds = new List<string> { LocalSaveManager.CasualDiningId } };
+
     // Preserve version 2 checksum verification when reading existing cloud saves.
     [Serializable] private sealed class LegacyAccountSnapshot
     {
@@ -46,7 +72,7 @@ public static partial class CampaignSaveStore
         public long revision;
         public string savedUtc, device;
         public Snapshot casual, fastFood;
-        public ProfileProgress profile;
+        public LegacyProfileProgress profile;
         public string contentHash, checksum;
     }
 
@@ -119,7 +145,7 @@ public static partial class CampaignSaveStore
         {
             if (switched)
             {
-                state.profile ??= new ProfileProgress();
+                state.profile ??= NewProfile();
                 SaveAccountState(state);
                 ApplyProfile(state.profile, account);
             }
@@ -207,7 +233,8 @@ public static partial class CampaignSaveStore
         var data = LocalSaveManager.Data;
         if (LocalSaveManager.NeedsRecovery || !string.IsNullOrEmpty(data.progressAccount) && data.progressAccount != account) return null;
         var record = data.appearances?.Find(x => x != null && x.accountId == (string.IsNullOrEmpty(account) ? "guest" : "playfab:" + account));
-        var profile = new ProfileProgress { coins = data.coins, roles = data.roles, ownedItemIds = data.ownedItemIds, appearance = record?.json };
+        var profile = new ProfileProgress { coins = data.coins, roles = data.roles, ownedItemIds = data.ownedItemIds, appearance = record?.json,
+            restaurantProgressionVersion = data.restaurantProgressionVersion, unlockedRestaurantIds = data.unlockedRestaurantIds };
         for (int i = 0; i < ProgressPreferenceKeys.Length; i++) profile.tutorials[i] = PlayerPrefs.GetInt(ProgressPreferenceKeys[i], 0);
         return JsonUtility.FromJson<ProfileProgress>(JsonUtility.ToJson(profile));
     }
@@ -217,9 +244,15 @@ public static partial class CampaignSaveStore
             PlayerPrefs.SetInt(ProgressPreferenceKeys[i], profile.tutorials != null && i < profile.tutorials.Length ? profile.tutorials[i] : 0);
         PlayerPrefs.Save();
         var data = LocalSaveManager.Data;
+        bool sameProgressAccount = data.progressAccount == account;
+        data.restaurantProgressionVersion = profile.restaurantProgressionVersion;
+        data.unlockedRestaurantIds = profile.unlockedRestaurantIds == null ? null : new List<string>(profile.unlockedRestaurantIds);
+        LocalSaveManager.InitializeRestaurantProgression(data, true);
         data.progressAccount = account;
         data.coins = profile.coins; data.roles = profile.roles ?? new List<LocalSaveManager.RoleEntry>();
-        data.ownedItemIds = profile.ownedItemIds ?? new List<string>();
+        var restaurantCredit = sameProgressAccount ? data.ownedItemIds.FindAll(id => id != null && (id.StartsWith("restaurant-day:", StringComparison.Ordinal) || id.StartsWith("restaurant-order:", StringComparison.Ordinal))) : new List<string>();
+        data.ownedItemIds = new List<string>(profile.ownedItemIds ?? new List<string>());
+        foreach (string id in restaurantCredit) if (!data.ownedItemIds.Contains(id)) data.ownedItemIds.Add(id);
         DineIn.Appearance.PlayFabAppearanceAdapter.InstallSyncedAppearance(account, profile.appearance);
         LocalSaveManager.MarkRestored();
         if (!LocalSaveManager.TrySave()) throw new IOException("Could not persist restored profile.");
@@ -227,26 +260,42 @@ public static partial class CampaignSaveStore
     public static string ContentHash(AccountSnapshot value)
     {
         string casual = Hash(value.casual?.save, value.casual?.checkpoint);
-        string fastFoodAndProfile = Hash(Hash(value.fastFood?.save, value.fastFood?.checkpoint), JsonUtility.ToJson(value.profile));
+        string fastFoodAndProfile = Hash(Hash(value.fastFood?.save, value.fastFood?.checkpoint), (value.version < 4 ? JsonUtility.ToJson(LegacyProfile(value.profile)) : JsonUtility.ToJson(value.profile)));
         if (value.version == 2) return Hash(casual, fastFoodAndProfile);
-        string fineDiningAndProfile = Hash(Hash(value.fineDining?.save, value.fineDining?.checkpoint), JsonUtility.ToJson(value.profile));
+        string fineDiningAndProfile = Hash(Hash(value.fineDining?.save, value.fineDining?.checkpoint), (value.version < 4 ? JsonUtility.ToJson(LegacyProfile(value.profile)) : JsonUtility.ToJson(value.profile)));
         return Hash(casual, Hash(Hash(value.fastFood?.save, value.fastFood?.checkpoint), fineDiningAndProfile));
     }
     public static void Seal(AccountSnapshot value)
     {
         value.contentHash = ContentHash(value); value.checksum = null;
-        value.checksum = Hash(JsonUtility.ToJson(value), null);
+        if (value.version == 2)
+        {
+            var legacy = JsonUtility.FromJson<LegacyAccountSnapshot>(JsonUtility.ToJson(value));
+            value.checksum = Hash(JsonUtility.ToJson(legacy), null);
+        }
+        else if (value.version == 3)
+        {
+            var legacy = JsonUtility.FromJson<LegacyV3AccountSnapshot>(JsonUtility.ToJson(value));
+            value.checksum = Hash(JsonUtility.ToJson(legacy), null);
+        }
+        else value.checksum = Hash(JsonUtility.ToJson(value), null);
     }
     public static bool ValidAccount(AccountSnapshot value, string account)
     {
-        if (value == null || (value.version != 2 && value.version != 3) || value.account != account ||
+        if (value == null || (value.version != 2 && value.version != 3 && value.version != 4) || value.account != account ||
             value.revision < 0 || !ValidContent(value) || value.contentHash != ContentHash(value)) return false;
         if (value.version == 2)
         {
             var legacy = new LegacyAccountSnapshot { version = 2, account = value.account, lineage = value.lineage,
                 revision = value.revision, savedUtc = value.savedUtc, device = value.device,
-                casual = value.casual, fastFood = value.fastFood, profile = value.profile,
+                casual = value.casual, fastFood = value.fastFood, profile = LegacyProfile(value.profile),
                 contentHash = value.contentHash, checksum = value.checksum };
+            string checksum = legacy.checksum; legacy.checksum = null;
+            return !string.IsNullOrEmpty(checksum) && checksum == Hash(JsonUtility.ToJson(legacy), null);
+        }
+        if (value.version == 3)
+        {
+            var legacy = JsonUtility.FromJson<LegacyV3AccountSnapshot>(JsonUtility.ToJson(value));
             string checksum = legacy.checksum; legacy.checksum = null;
             return !string.IsNullOrEmpty(checksum) && checksum == Hash(JsonUtility.ToJson(legacy), null);
         }
@@ -259,9 +308,10 @@ public static partial class CampaignSaveStore
         bool Career(Snapshot pair) => pair != null && pair.version == 1 && pair.hash == Hash(pair.save, pair.checkpoint) &&
             ((string.IsNullOrEmpty(pair.save) && string.IsNullOrEmpty(pair.checkpoint)) || Valid(pair));
         if (value == null || !Career(value.casual) || !Career(value.fastFood) ||
-            (value.version == 3 && !Career(value.fineDining)) ||
+            (value.version >= 3 && !Career(value.fineDining)) ||
             (value.profile?.tutorials?.Length != 6 && value.profile?.tutorials?.Length != ProgressPreferenceKeys.Length) ||
             value.profile.coins < 0 || value.profile.roles == null || value.profile.ownedItemIds == null) return false;
+        if (value.version >= 4 && (value.profile.restaurantProgressionVersion < 1 || value.profile.unlockedRestaurantIds == null)) return false;
         foreach (int flag in value.profile.tutorials) if (flag < 0 || flag > 100) return false;
         foreach (var role in value.profile.roles) if (role == null || role.highestUnlockedLevel < 1 || role.completedLevels == null) return false;
         return string.IsNullOrEmpty(value.profile.appearance) || PlayerCustomizationData.TryReadAppearance(value.profile.appearance, out _);
@@ -269,7 +319,7 @@ public static partial class CampaignSaveStore
     public static bool Meaningful(AccountSnapshot value)
     {
         if (!ValidContent(value)) return false;
-        foreach (var pair in new[] { value.casual, value.fastFood, value.version == 3 ? value.fineDining : null })
+        foreach (var pair in new[] { value.casual, value.fastFood, value.version >= 3 ? value.fineDining : null })
         {
             if (pair == null) continue;
             foreach (string json in new[] { pair.save, pair.checkpoint })
@@ -284,7 +334,7 @@ public static partial class CampaignSaveStore
         }
         foreach (int flag in value.profile.tutorials) if (flag > 0) return true;
         foreach (var role in value.profile.roles) if (role.highestUnlockedLevel > 1 || role.completedLevels.Count > 0) return true;
-        return value.profile.coins != 0 || value.profile.ownedItemIds.Count > 0 || !string.IsNullOrEmpty(value.profile.appearance);
+        return value.profile.unlockedRestaurantIds?.Exists(id => id != LocalSaveManager.CasualDiningId) == true || value.profile.coins != 0 || value.profile.ownedItemIds.Count > 0 || !string.IsNullOrEmpty(value.profile.appearance);
     }
     public static void InstallAccount(AccountSnapshot value, bool acknowledge)
     {
