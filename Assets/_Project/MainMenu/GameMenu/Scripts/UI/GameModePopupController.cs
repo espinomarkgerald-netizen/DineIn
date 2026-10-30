@@ -112,7 +112,6 @@ public class GameModePopupController : MonoBehaviour
     /// <summary>Wire this to MultiplayerButton.</summary>
     public void ChooseMultiplayer()
     {
-        if (!CampaignCloudSync.CanEnterGameplay()) return;
         if (restaurantSelector == null || multiplayerMenu == null || multiplayerPanel == null)
         {
             NotificationPopupController.Instance?.Show("Multiplayer menu references are missing.",
