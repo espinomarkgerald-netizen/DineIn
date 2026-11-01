@@ -309,7 +309,7 @@ public sealed class AlmanacMenu : MonoBehaviour
         search.SetTextWithoutNotify(""); RebuildIndex();
         Navigate(entries.Find(e => e.entryId == id), false);
     }
-    private void PlaySound(){if(audioSource==null||pageSound==null||Time.unscaledTime-lastSound<.12f)return;lastSound=Time.unscaledTime;audioSource.PlayOneShot(pageSound);}
+    private void PlaySound(){if(audioSource==null||pageSound==null||Time.unscaledTime-lastSound<.12f)return;lastSound=Time.unscaledTime;GameplaySfx.PlayUiClip(pageSound, audioSource.volume, audioSource.outputAudioMixerGroup);}
     public void RotatePreview(float pixels){if(opened&&previewStage!=null)previewStage.Rotate(pixels);}
     private static string CategoryName(AlmanacCategory c)=>c==AlmanacCategory.CleaningStorage?"Storage & Cleaning":c.ToString();
     private static void Clear(Transform parent){for(int i=parent.childCount-1;i>=0;i--){var go=parent.GetChild(i).gameObject;go.SetActive(false);if(Application.isPlaying)Destroy(go);else DestroyImmediate(go);}}

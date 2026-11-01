@@ -316,8 +316,8 @@ public sealed class WinePouringUI : MonoBehaviour
         if (targetMarker != null) targetMarker.gameObject.SetActive(false);
         if (instruction != null) instruction.text = "Perfect pour!";
         if (successMark != null) successMark.gameObject.SetActive(true);
-        if (feedbackAudio != null && successSound != null)
-            feedbackAudio.PlayOneShot(successSound, successVolume);
+        if (successSound != null) GameplaySfx.PlayUiClip(successSound, Mathf.Clamp01(successVolume * 1.25f),
+            feedbackAudio != null ? feedbackAudio.outputAudioMixerGroup : null);
         Vector3 startPosition = bottle.localPosition;
         Quaternion startRotation = bottle.localRotation;
         float duration = LevelOneUIAccessibility.ReducedMotion ? 0.15f : Mathf.Max(0.15f, successSeconds);

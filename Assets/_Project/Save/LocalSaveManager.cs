@@ -65,10 +65,36 @@ public static class LocalSaveManager
     internal static void InitializeRestaurantProgression(SaveData data, bool legacy)
     {
         if (data.restaurantProgressionVersion != 0) return;
-        data.unlockedRestaurantIds ??= legacy
+        if (data.unlockedRestaurantIds == null || data.unlockedRestaurantIds.Count == 0) data.unlockedRestaurantIds = legacy
             ? new List<string> { CasualDiningId, FastFoodId, FineDiningId }
             : new List<string> { CasualDiningId };
         data.restaurantProgressionVersion = RestaurantProgressionVersion;
+    }
+
+    // Repair only the broken v1-empty migration, with a valid legacy profile for this exact account.
+    // New profiles always have Casual Dining and cannot enter this branch.
+    private static bool RepairLegacyRestaurantOwnership(SaveData data)
+    {
+        if (data.restaurantProgressionVersion != 1 || data.unlockedRestaurantIds == null ||
+            data.unlockedRestaurantIds.Count != 0 || string.IsNullOrEmpty(data.progressAccount)) return false;
+        try
+        {
+            string path = FilePath + ".bak";
+            if (!File.Exists(path)) return false;
+            string json = File.ReadAllText(path);
+            if (json.Contains("\"restaurantProgressionVersion\"") || !json.Contains("\"roles\"")) return false;
+            var previous = JsonUtility.FromJson<SaveData>(json);
+            if (previous == null || previous.progressAccount != data.progressAccount || previous.roles == null || previous.ownedItemIds == null ||
+                previous.coins < 0 || !ValidApproval(previous.sharedApproval)) return false;
+            data.unlockedRestaurantIds = new List<string> { CasualDiningId, FastFoodId, FineDiningId };
+            return true;
+        }
+        catch (Exception error)
+        {
+            // An unreadable optional backup must not invalidate the otherwise readable current profile.
+            Debug.LogWarning("[LocalSaveManager] Legacy ownership repair deferred: " + error.Message);
+            return false;
+        }
     }
 
     public static bool IsRestaurantUnlocked(string id)
@@ -178,6 +204,7 @@ public static class LocalSaveManager
             if (d2 == null || !ValidApproval(d2.sharedApproval) || d2.roles == null || d2.ownedItemIds == null || !json.Contains("\"roles\"")) throw new InvalidDataException("Invalid local profile.");
             bool migrate = d2.restaurantProgressionVersion == 0;
             InitializeRestaurantProgression(d2, true);
+            migrate |= RepairLegacyRestaurantOwnership(d2);
             if (d2.unlockedRestaurantIds == null) throw new InvalidDataException("Missing restaurant ownership.");
             _cache = d2;
             if (migrate && !TrySave()) throw new IOException("Could not persist restaurant migration.");

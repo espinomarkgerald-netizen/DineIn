@@ -87,6 +87,7 @@ public sealed class RestaurantBossTips : MonoBehaviour
             congratulationsAccount = LocalSaveManager.Data.progressAccount;
             congratulationsScene = scene;
             string account = congratulationsAccount;
+            GameplaySfx.Milestone("approval100:" + account);
             congratulationsView.ShowAnnouncement("100% Alien Approval", approvalCongratulations, () =>
             {
                 if (!congratulationsVisible || LocalSaveManager.Data.progressAccount != account ||

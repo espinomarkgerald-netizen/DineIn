@@ -222,6 +222,7 @@ public class GameDayManager : MonoBehaviour
     public void ApplyObservedDay(int day, bool running, bool closing, bool ended, float remaining)
     {
         if (!ObserveDayOnly) return;
+        if ((running || closing) && MultiplayerSessionManager.Instance?.IsRecovering != true) observedLiveService = true;
         shiftRunning = running;
         closingOut = closing;
         if (!MultiplayerDayBridge.IsActive) resultsHaveOutcome = ended;
@@ -323,7 +324,9 @@ public class GameDayManager : MonoBehaviour
         if ((gameObject.scene.name == "Lobby2" || gameObject.scene.name == "Lobby3") && GameFlowManager.Instance != null &&
             GameFlowManager.Instance.CurrentRestaurantSessionState == GameFlowManager.RestaurantSessionState.DayComplete)
         {
+            restoringResultsPresentation = true;
             ShowResults();
+            restoringResultsPresentation = false;
             return;
         }
         if (useManagementComputerForDayStart)
@@ -674,6 +677,8 @@ public class GameDayManager : MonoBehaviour
         HygieneManager.Instance?.ResetForShift();
 
         timeRemaining = ShiftLengthSeconds;
+        // Lock HR only after every start gate and preparation save has succeeded.
+        EmployeeManager.Instance?.LockAllSlots();
         shiftRunning = true;
         closingOut = false;
         if (fastFood == null && fineDining == null) GameFlowManager.Instance?.MarkRestaurantServiceStarted();
@@ -1208,6 +1213,10 @@ public class GameDayManager : MonoBehaviour
             MultiplayerSessionManager.Instance.GetComponent<MultiplayerDayBridge>()?.PublishNow();
         }
         RefreshResultsResponsiveLayout(true);
+        instantResults = restoringResultsPresentation || ObserveDayOnly && !observedLiveService || MultiplayerSessionManager.Instance?.IsRecovering == true;
+        resultsCuePending = !instantResults && !restoringResultsPresentation && GameSaveManager.Instance?.IsApplyingSave != true &&
+            (!MultiplayerDayBridge.IsActive || (!ObserveDayOnly || observedLiveService) && MultiplayerSessionManager.Instance?.IsRecovering != true) &&
+            (!resultsHaveOutcome || currentResultsOutcome == GameOverReason.EarthSaved);
         PrepareResultStars(earnedStars);
 
         AnimateResults(earnedStars);
@@ -2016,6 +2025,11 @@ public class GameDayManager : MonoBehaviour
         return 1;
     }
 
+    private bool restoringResultsPresentation;
+    private bool observedLiveService;
+    private bool resultsCuePending;
+    private bool instantResults;
+    private readonly Dictionary<RectTransform, Vector3> panelPresentationScales = new();
     private void PrepareResultStars(int earnedStars)
     {
         Image[] stars = { star1, star2, star3 };
@@ -2031,7 +2045,7 @@ public class GameDayManager : MonoBehaviour
             stars[i].gameObject.SetActive(earned);
             stars[i].preserveAspect = true;
             Vector3 authoredScale = GetAuthoredResultsScale(stars[i].rectTransform);
-            stars[i].transform.localScale = earned ? Vector3.zero : authoredScale;
+            stars[i].transform.localScale = earned && !instantResults && !LevelOneUIAccessibility.ReducedMotion ? Vector3.zero : authoredScale;
         }
 
         if (starRoot != null)
@@ -2048,7 +2062,41 @@ public class GameDayManager : MonoBehaviour
 
     private IEnumerator AnimateResultsRoutine(int earnedStars)
     {
+        TMP_Text[] totals = { resultsSummaryText, resultsCustomersText, resultsCashText };
+        foreach (var text in totals) if (text != null)
+        {
+            text.ForceMeshUpdate();
+            text.maxVisibleCharacters = instantResults || LevelOneUIAccessibility.ReducedMotion ? int.MaxValue : 0;
+        }
+        if (instantResults)
+        {
+            var root = GetPanelPresentationRoot(resultsPanel);
+            if (root != null)
+            {
+                var group = root.GetComponent<CanvasGroup>();
+                if (group != null) group.alpha = 1f;
+                var rect = root.transform as RectTransform;
+                if (rect != null) rect.localScale = panelPresentationScales.TryGetValue(rect, out var scale) ? scale : GetAuthoredResultsScale(rect);
+            }
+            panelAnimationRoutine = null;
+            yield break;
+        }
         yield return AnimatePanelRoutine(resultsPanel);
+        if (resultsCuePending)
+        {
+            resultsCuePending = false;
+            GameplaySfx.Play(GameplaySfx.Cue.EndDay);
+        }
+        // Totals remain real settlement values; reveal existing text without rewriting game data.
+        if (!LevelOneUIAccessibility.ReducedMotion)
+        {
+            for (float t = 0f; t < .24f; t += LevelOneUIAccessibility.UnscaledAnimationDeltaTime)
+            {
+                foreach (var text in totals) if (text != null) text.maxVisibleCharacters = Mathf.CeilToInt(text.textInfo.characterCount * Mathf.Clamp01(t / .24f));
+                yield return null;
+            }
+        }
+        foreach (var text in totals) if (text != null) text.maxVisibleCharacters = int.MaxValue;
 
         Image[] stars = { star1, star2, star3 };
         for (int i = 0; i < Mathf.Min(earnedStars, stars.Length); i++)
@@ -2058,13 +2106,14 @@ public class GameDayManager : MonoBehaviour
                 continue;
 
             Vector3 finalScale = GetAuthoredResultsScale(star.rectTransform);
+            if (LevelOneUIAccessibility.ReducedMotion) { star.transform.localScale = finalScale; continue; }
             float elapsed = 0f;
             const float duration = 0.24f;
             while (elapsed < duration)
             {
                 elapsed += LevelOneUIAccessibility.UnscaledAnimationDeltaTime;
                 float t = Mathf.Clamp01(elapsed / duration);
-                float overshoot = 1f + Mathf.Sin(t * Mathf.PI) * 0.2f;
+                float overshoot = 1f + Mathf.Sin(t * Mathf.PI) * 0.035f;
                 star.transform.localScale = finalScale * (t * overshoot);
                 yield return null;
             }
@@ -2124,6 +2173,15 @@ public class GameDayManager : MonoBehaviour
         if (!ServiceActive) return;
         ordersProcessed++;
         RefreshUI();
+    }
+
+    public void PresentActionFeedback(GameplaySfx.Cue cue)
+    {
+        Transform target = cue == GameplaySfx.Cue.Payment && progressMoneyText != null ? progressMoneyText.transform : progressBar != null ? progressBar.transform : null;
+        if (target == null || !target.gameObject.activeInHierarchy || target.GetComponent<Animator>() != null) return;
+        var effect = target.GetComponent<UISubtlePressFeedback>();
+        if (effect == null) effect = target.gameObject.AddComponent<UISubtlePressFeedback>();
+        effect.PlayConfirmation(.025f);
     }
 
     public void RegisterFoodDelivered()
@@ -2219,7 +2277,7 @@ public class GameDayManager : MonoBehaviour
         return current.gameObject;
     }
 
-    private static void SetPanelVisible(GameObject panel, bool visible)
+    private void SetPanelVisible(GameObject panel, bool visible)
     {
         GameObject root = GetPanelPresentationRoot(panel);
         if (root == null)
@@ -2233,6 +2291,15 @@ public class GameDayManager : MonoBehaviour
         }
         else
         {
+            if (panel == resultsPanel)
+            {
+                if (panelAnimationRoutine != null) StopCoroutine(panelAnimationRoutine);
+                panelAnimationRoutine = null; resultsCuePending = false;
+                foreach (var text in new[] { resultsSummaryText, resultsCustomersText, resultsCashText })
+                    if (text != null) text.maxVisibleCharacters = int.MaxValue;
+                foreach (var star in new[] { star1, star2, star3 })
+                    if (star != null) star.transform.localScale = GetAuthoredResultsScale(star.rectTransform);
+            }
             root.SetActive(false);
         }
     }
@@ -2255,10 +2322,14 @@ public class GameDayManager : MonoBehaviour
             group = root.AddComponent<CanvasGroup>();
 
         RectTransform rect = root.transform as RectTransform;
-        Vector3 finalScale = Vector3.one;
+        if (rect != null && !panelPresentationScales.ContainsKey(rect))
+            panelPresentationScales[rect] = authoredResultsLayout.ContainsKey(rect) ? GetAuthoredResultsScale(rect) : rect.localScale;
+        Vector3 finalScale = rect != null ? panelPresentationScales[rect] : Vector3.one;
+        if (LevelOneUIAccessibility.ReducedMotion) { group.alpha = 1f; if (rect != null) rect.localScale = finalScale; yield break; }
+        UISubtlePressFeedback.EnsureButtons(root.transform);
         group.alpha = 0f;
         if (rect != null)
-            rect.localScale = finalScale * 0.88f;
+            rect.localScale = finalScale * 0.96f;
 
         float elapsed = 0f;
         const float duration = 0.28f;

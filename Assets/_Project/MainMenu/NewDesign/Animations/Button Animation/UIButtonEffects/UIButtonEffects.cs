@@ -25,6 +25,7 @@ namespace UI.Effects
     [RequireComponent(typeof(AudioSource))]
     public class UIButtonEffects : MonoBehaviour
     {
+        public bool ControlsButton(Button candidate) => buttonEntries != null && buttonEntries.Exists(entry => entry != null && entry.targetButton == candidate);
         [System.Serializable]
         public class ButtonConfig
         {
@@ -39,7 +40,7 @@ namespace UI.Effects
 
             [Header("Audio Customization")]
             public AudioClip hoverSFX;
-            public AudioClip clickSFX;
+            [HideInInspector] public AudioClip clickSFX; // Legacy data; shared GameplaySfx.click owns activation audio.
 
             [HideInInspector] public RectTransform rectTransform;
             [HideInInspector] public Vector3 initialScale;
@@ -52,8 +53,6 @@ namespace UI.Effects
 
         [Header("Audio Settings")]
         [SerializeField] private AudioSource audioSource;
-        [SerializeField, Range(0.8f, 1.2f)] private float minPitch = 0.95f;
-        [SerializeField, Range(0.8f, 1.2f)] private float maxPitch = 1.05f;
 
         [Header("Button List")]
         [SerializeField] private List<ButtonConfig> buttonEntries = new List<ButtonConfig>();
@@ -91,6 +90,7 @@ namespace UI.Effects
             foreach (var entry in buttonEntries)
             {
                 if (entry.targetButton == null) continue;
+                GameplayButtonSound.Ensure(entry.targetButton);
 
                 if (entry.speedMultiplier <= 0f) 
                     entry.speedMultiplier = 1.0f;
@@ -141,6 +141,7 @@ namespace UI.Effects
             if (!entry.targetButton.interactable) return;
 
             entry.isHovering = false;
+            if (LevelOneUIAccessibility.ReducedMotion) { StopEntryCoroutine(entry); ResetToInitialImmediate(entry); return; }
             StartAnimationCoroutine(entry, AnimateToResetState(entry, 0.15f / entry.speedMultiplier));
         }
 
@@ -150,7 +151,7 @@ namespace UI.Effects
             var animator = entry.targetButton.GetComponent<ButtonAnimator>();
             if (animator != null && !animator.IsRaycastLocationValid(pointer.position, pointer.pressEventCamera)) return;
 
-            PlaySFX(entry.clickSFX);
+            // The shared click-only component handles pointer and submit activation once.
             StartPresetAnimation(entry, isClick: true);
         }
 
@@ -161,6 +162,7 @@ namespace UI.Effects
         private void StartPresetAnimation(ButtonConfig entry, bool isClick)
         {
             StopEntryCoroutine(entry);
+            if (LevelOneUIAccessibility.ReducedMotion) { ResetToInitialImmediate(entry); return; }
 
             IEnumerator routine = isClick 
                 ? GetClickRoutine(entry) 
@@ -433,8 +435,7 @@ namespace UI.Effects
         {
             if (clip == null || audioSource == null) return;
 
-            audioSource.pitch = UnityEngine.Random.Range(minPitch, maxPitch);
-            audioSource.PlayOneShot(clip);
+            GameplaySfx.PlayUiClip(clip, Mathf.Min(.3f, audioSource.volume), audioSource.outputAudioMixerGroup);
         }
 
         private void AddEventTriggerListener(EventTrigger trigger, EventTriggerType eventType, Action<BaseEventData> callback)

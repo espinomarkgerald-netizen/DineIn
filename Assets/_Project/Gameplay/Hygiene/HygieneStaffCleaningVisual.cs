@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -9,11 +8,8 @@ public sealed class HygieneStaffCleaningVisual : MonoBehaviour
 {
     [SerializeField] private HygieneCleaningPresentation presentation;
     [SerializeField] private Transform mopAnchor;
-    [SerializeField] private Transform bucketAnchor;
-    private Transform mop, bucket;
-    private readonly Queue<Vector3> trail = new();
-    private Vector3 lastTrail, previous;
-    private float bodyHeight, mopHeight, bucketHeight, floorHeight;
+    private Transform mop;
+    private float bodyHeight, mopHeight, floorHeight;
     private bool visible;
     private Animator cleaningAnimator;
     private Avatar cleaningAvatar;
@@ -30,26 +26,21 @@ public sealed class HygieneStaffCleaningVisual : MonoBehaviour
 
     private bool EnsureProps()
     {
-        if (mop != null && bucket != null) return true;
+        if (mop != null) return true;
         if (presentation == null) presentation = HygieneCleaningPresentation.Load();
-        if (presentation == null || presentation.mop == null || presentation.bucket == null) return false;
+        if (presentation == null || presentation.mop == null) return false;
         cleaningAnimator = GetComponentInChildren<Animator>(true);
         CacheArms();
         if (mopAnchor == null) mopAnchor = Anchor("CleaningMopAnchor", transform);
-        if (bucketAnchor == null) bucketAnchor = Anchor("CleaningBucketAnchor", transform);
         // The first skin may contain only the arms. Use the complete character,
-        // otherwise modular staff receive a miniature mop and bucket.
+        // otherwise modular staff receive a miniature mop.
         var look = GetComponent<DineIn.Appearance.CharacterAppearance>();
         bodyHeight = look != null && look.TryGetBodyBounds(out var bounds)
             ? Mathf.Clamp(bounds.size.y, .7f, 5f) : 3f;
-        mopHeight = bodyHeight * .95f; bucketHeight = bodyHeight * .45f;
+        mopHeight = bodyHeight * .95f;
         mop = CreateProp(presentation.mop, "Cleaning Mop", mopHeight);
-        bucket = CreateProp(presentation.bucket, "Cleaning Bucket", bucketHeight);
         // Keep explicit anchors for authoring while compensating inherited rig scale.
         mop.SetParent(mopAnchor, true);
-        // The bucket follows world-space breadcrumbs. Parenting it to a moving
-        // character would move it twice and defeat corner following.
-        UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(bucket.gameObject, gameObject.scene);
         return true;
     }
 
@@ -92,34 +83,11 @@ public sealed class HygieneStaffCleaningVisual : MonoBehaviour
         if (!visible || shownDay != manager.State.day || shownRun != manager.State.run)
         {
             visible = true; shownDay = manager.State.day; shownRun = manager.State.run;
-            mop.gameObject.SetActive(true); bucket.gameObject.SetActive(true);
-            trail.Clear(); previous = lastTrail = transform.position;
+            mop.gameObject.SetActive(true);
             floorHeight = transform.position.y;
-            var start = Ground(transform.position - transform.forward * bodyHeight * .45f);
-            bucket.position = start; bucket.rotation = transform.rotation;
         }
         if (Time.deltaTime <= 0f) return;
         Vector3 now = transform.position;
-        if ((now - previous).sqrMagnitude > 9f)
-        { trail.Clear(); bucket.position = Ground(now); lastTrail = now; }
-        if ((now - lastTrail).sqrMagnitude > .01f)
-        {
-            trail.Enqueue(Ground(now)); lastTrail = now;
-            while (trail.Count > 64) trail.Dequeue();
-        }
-        float travelled = (now - previous).magnitude;
-        previous = now;
-        // Follow the same breadcrumb corners, instead of cutting through tables.
-        float movement = travelled + Time.deltaTime * .15f;
-        if (trail.Count > 0 && Vector3.Distance(bucket.position, now) > bodyHeight * .4f)
-        {
-            Vector3 destination = trail.Peek();
-            Vector3 direction = destination - bucket.position; direction.y = 0f;
-            bucket.position = Vector3.MoveTowards(bucket.position, destination, movement);
-            if (direction.sqrMagnitude > .001f)
-                bucket.rotation = Quaternion.Slerp(bucket.rotation, Quaternion.LookRotation(direction), 1f - Mathf.Exp(-12f * Time.deltaTime));
-            if (Vector3.Distance(bucket.position, destination) < .06f) trail.Dequeue();
-        }
         float phase = Time.time * Mathf.PI * 2f / Mathf.Max(.5f, presentation.mopCycleSeconds);
         ApplyMoppingPose(now, phase);
     }
@@ -134,7 +102,6 @@ public sealed class HygieneStaffCleaningVisual : MonoBehaviour
         Vector3 shaft = (grip - head).normalized;
         mop.SetPositionAndRotation(head, Quaternion.FromToRotation(Vector3.up, shaft));
         SetWorldScale(mop, 1f);
-        SetWorldScale(bucket, 1f);
         if (leftHand != null && rightHand != null)
         {
             Quaternion l = leftHand.rotation, r = rightHand.rotation;
@@ -171,9 +138,8 @@ public sealed class HygieneStaffCleaningVisual : MonoBehaviour
     }
     private void Hide()
     {
-        visible = false; trail.Clear();
+        visible = false;
         if (mop != null) mop.gameObject.SetActive(false);
-        if (bucket != null) bucket.gameObject.SetActive(false);
     }
     private void OnDisable()
     {
@@ -183,6 +149,5 @@ public sealed class HygieneStaffCleaningVisual : MonoBehaviour
     private void OnDestroy()
     {
         if (mop != null) Destroy(mop.gameObject);
-        if (bucket != null) Destroy(bucket.gameObject);
     }
 }

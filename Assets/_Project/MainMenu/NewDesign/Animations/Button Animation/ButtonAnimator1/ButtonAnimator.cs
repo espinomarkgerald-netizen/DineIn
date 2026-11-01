@@ -20,12 +20,23 @@ public class ButtonAnimator : MonoBehaviour, IPointerEnterHandler, IPointerExitH
     private void Awake()
     {
         _button = GetComponent<Button>();
+        GameplayButtonSound.Ensure(_button);
         _canvasGroup = GetComponent<CanvasGroup>();
         _image = GetComponent<Image>();
         _rect = (RectTransform)transform;
         _originalScale = transform.localScale;
         _originalColor = _image != null ? _image.color : Color.white;
         _initialized = true;
+    }
+
+    public void PlayConfirmation(float strength = .035f)
+    {
+        if (!_initialized || !isActiveAndEnabled) return;
+        transform.DOKill();
+        if (_image != null) { _image.DOKill(); _image.color = Color.Lerp(_originalColor, Color.white, .12f); _image.DOColor(_originalColor, .18f).SetUpdate(true); }
+        if (LevelOneUIAccessibility.ReducedMotion) { transform.localScale = _originalScale; return; }
+        transform.DOScale(_originalScale * (1f + Mathf.Clamp(strength, 0f, .05f)), .08f).SetUpdate(true)
+            .OnComplete(() => transform.DOScale(_originalScale, .1f).SetUpdate(true));
     }
 
     private void Animate(Vector3 targetScale, Color targetColor, Ease ease)
@@ -37,6 +48,12 @@ public class ButtonAnimator : MonoBehaviour, IPointerEnterHandler, IPointerExitH
         if (_image != null)
             _image.DOKill();
         
+        if (LevelOneUIAccessibility.ReducedMotion)
+        {
+            transform.localScale = _originalScale;
+            if (_image != null) _image.color = targetColor;
+            return;
+        }
         float duration = profile != null ? profile.duration : 0.12f;
         transform.DOScale(targetScale, duration).SetEase(ease).SetUpdate(true);
         if (_image != null)
@@ -166,15 +183,22 @@ internal sealed class InGameButtonAnimationInstaller : MonoBehaviour
         ScanButtons();
     }
 
-    private void ScanButtons()
+    private void ScanButtons() => EnsureButtons(null);
+
+    internal static void EnsureButtons(Transform root)
     {
-        Button[] buttons = FindObjectsByType<Button>(
+        var effects = FindObjectsByType<UI.Effects.UIButtonEffects>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        Button[] buttons = root != null ? root.GetComponentsInChildren<Button>(true) : FindObjectsByType<Button>(
             FindObjectsInactive.Include, FindObjectsSortMode.None);
         for (int i = 0; i < buttons.Length; i++)
         {
             Button button = buttons[i];
-            if (button != null && button.GetComponent<ButtonAnimator>() == null)
-                button.gameObject.AddComponent<ButtonAnimator>();
+            GameplayButtonSound.Ensure(button);
+            if (button == null || button.GetComponent<ButtonAnimator>() != null ||
+                button.GetComponent<UISubtlePressFeedback>() != null || button.GetComponent<Animator>() != null) continue;
+            bool authored = false;
+            foreach (var effect in effects) if (effect.ControlsButton(button)) { authored = true; break; }
+            if (!authored) button.gameObject.AddComponent<ButtonAnimator>();
         }
     }
 }

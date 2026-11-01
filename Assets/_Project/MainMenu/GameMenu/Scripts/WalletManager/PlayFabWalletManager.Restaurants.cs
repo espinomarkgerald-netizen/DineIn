@@ -107,6 +107,7 @@ public partial class PlayFabWalletManager
     private void PersistRestaurantOwnership(RestaurantOrder order)
     {
         if (!RestaurantContext(order.account)) return;
+        bool celebrate = order.state != RestaurantPurchaseState.Completed;
         order.state = RestaurantPurchaseState.OwnershipPersistencePending;
         try { SaveRestaurantOrder(order); } catch { RestaurantPurchaseStatus = "Payment confirmed; ownership save pending."; return; }
         var ids = LocalSaveManager.Data.unlockedRestaurantIds;
@@ -122,6 +123,7 @@ public partial class PlayFabWalletManager
             if (addedReceipt) receipts.Remove(receipt);
             RestaurantPurchaseStatus = "Payment confirmed; ownership save pending. Recover without paying again."; return;
         }
+        if (added && celebrate) GameplaySfx.Milestone("restaurant:" + order.account + ":" + order.restaurant);
         order.state = RestaurantPurchaseState.Completed;
         try { SaveRestaurantOrder(order); } catch { /* The confirmed journal remains recoverable. */ }
         RestaurantPurchaseStatus = "Purchase completed. Restaurant unlocked.";

@@ -20,7 +20,7 @@ public sealed class RestockTruckInteractable : MonoBehaviour, IInteractable
     [SerializeField] private AudioClip arrivalHornClip;
     [Tooltip("Routes the horn through the player-adjustable SFX mixer.")]
     [SerializeField] private AudioMixerGroup sfxMixerGroup;
-    [SerializeField, Range(0f, 1f)] private float hornVolume = 1f;
+    [SerializeField, Range(0f, 1f)] private float hornVolume = .15f;
     [SerializeField, Min(0.05f)] private float secondBeepDelay = 0.32f;
 
     [Header("Departure")]
@@ -33,6 +33,12 @@ public sealed class RestockTruckInteractable : MonoBehaviour, IInteractable
     public bool AutoReturnHome => false;
     public bool IsParked => isParked;
     public bool ParkingConfigured => parkingConfigured;
+    // The collection approach must be checked at the parked pose, even while the
+    // truck and its child stand point are travelling along the arrival animation.
+    public Vector3 ParkedStandPosition => standPoint == null ? parkingPosition
+        : standPoint.IsChildOf(transform)
+            ? parkingPosition + parkingRotation * Quaternion.Inverse(transform.rotation) * (standPoint.position - transform.position)
+            : standPoint.position;
     public bool HasReadyDelivery => RestockOrderManager.Instance != null &&
                                     RestockOrderManager.Instance.DeliveredContainerCount > 0;
 
@@ -41,12 +47,12 @@ public sealed class RestockTruckInteractable : MonoBehaviour, IInteractable
     private Collider[] interactionColliders;
     private Renderer[] presentationRenderers;
     private Canvas[] presentationCanvases;
-    private AudioSource hornSource;
     private Coroutine arrivalRoutine;
     private Coroutine hornRoutine;
     private Coroutine departureRoutine;
     private bool parkingConfigured;
     private bool isParked;
+    private bool collectionReachable = true;
     private int observedReadyContainers;
 
     public void Configure(Transform configuredStandPoint, TMP_Text configuredStatus)
@@ -91,14 +97,7 @@ public sealed class RestockTruckInteractable : MonoBehaviour, IInteractable
         interactionColliders = GetComponentsInChildren<Collider>(true);
         presentationRenderers = GetComponentsInChildren<Renderer>(true);
         presentationCanvases = GetComponentsInChildren<Canvas>(true);
-        hornSource = GetComponent<AudioSource>();
-        if (hornSource == null)
-            hornSource = gameObject.AddComponent<AudioSource>();
-        hornSource.playOnAwake = false;
-        hornSource.loop = false;
-        hornSource.spatialBlend = 0f;
-        hornSource.volume = hornVolume;
-        hornSource.outputAudioMixerGroup = sfxMixerGroup;
+
     }
 
     private void OnEnable()
@@ -133,10 +132,18 @@ public sealed class RestockTruckInteractable : MonoBehaviour, IInteractable
             StopCoroutine(departureRoutine);
     }
 
-    public bool CanInteract() => isActiveAndEnabled && isParked && HasReadyDelivery;
+    public void SetCollectionReachable(bool reachable)
+    {
+        collectionReachable = reachable;
+        SetInteractionReady(isParked && HasReadyDelivery);
+    }
+
+    public bool CanInteract() => collectionReachable && isActiveAndEnabled && isParked && HasReadyDelivery;
 
     public void Interact(PlayerMovement mover)
     {
+        if (!CanInteract())
+            return;
         RestockFlowCoordinator.EnsureInstance().OpenTruckCollection();
     }
 
@@ -297,6 +304,7 @@ public sealed class RestockTruckInteractable : MonoBehaviour, IInteractable
 
     private void SetInteractionReady(bool ready)
     {
+        ready &= collectionReachable;
         if (interactionColliders == null || interactionColliders.Length == 0)
             interactionColliders = GetComponentsInChildren<Collider>(true);
         for (int i = 0; i < interactionColliders.Length; i++)
@@ -322,10 +330,9 @@ public sealed class RestockTruckInteractable : MonoBehaviour, IInteractable
 
     private IEnumerator HornRoutine()
     {
-        hornSource.volume = hornVolume;
-        hornSource.PlayOneShot(arrivalHornClip, hornVolume);
+        GameplaySfx.PlayWorldClip(arrivalHornClip, transform.position, hornVolume, sfxMixerGroup);
         yield return new WaitForSecondsRealtime(Mathf.Max(0.05f, secondBeepDelay));
-        hornSource.PlayOneShot(arrivalHornClip, hornVolume);
+        GameplaySfx.PlayWorldClip(arrivalHornClip, transform.position, hornVolume, sfxMixerGroup);
         hornRoutine = null;
     }
 

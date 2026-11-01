@@ -30,8 +30,9 @@ public class TutorialWaiterRegisterGuard : MonoBehaviour
             paidGroup = hands.holdingMoneyFor;
             hands.ClearMoney();
 
-            if (registerPaymentCompletedInGameDay)
-                GameDayManager.Instance?.RegisterPaymentCompleted();
+            GameplaySfx.Completed(GameplaySfx.Cue.Payment, this);
+        if (registerPaymentCompletedInGameDay)
+            GameDayManager.Instance?.RegisterPaymentCompleted();
 
             if (autoCompleteCustomerLeave && paidGroup != null)
                 paidGroup.PayAndLeave();

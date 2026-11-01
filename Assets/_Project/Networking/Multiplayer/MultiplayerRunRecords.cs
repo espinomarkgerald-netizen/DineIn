@@ -26,17 +26,18 @@ public sealed class MultiplayerRunRecord
     public List<MultiplayerRunParticipant> participants = new();
 }
 
-public sealed class MultiplayerRunRecords : MonoBehaviour
+public sealed partial class MultiplayerRunRecords : MonoBehaviour
 {
     [Serializable] private sealed class Pending
     {
         public string accountId;
         public MultiplayerRunRecord record;
+        public SoloRunRecord solo; // Absent in existing multiplayer outboxes.
         public bool host, final;
         [NonSerialized] public float retryAfter;
     }
     [Serializable] private sealed class Outbox { public List<Pending> pending = new(); }
-    [Serializable] private sealed class Reply { public bool accepted; public int bestCompletedDay; public string message; public List<int> successfulDays; }
+    [Serializable] private sealed class Reply { public bool accepted; public int bestCompletedDay, bestCompletedDays, completedDays; public string runId, restaurant, message; public List<int> successfulDays; }
     private static MultiplayerRunRecords instance;
     private Outbox outbox;
     private bool busy;
@@ -73,10 +74,12 @@ public sealed class MultiplayerRunRecords : MonoBehaviour
                 Status = "Result storage is unavailable. Account sync will still be attempted.";
             }
         }
+        LoadSoloOutbox();
     }
     private static bool ValidOutbox(Outbox value) => value?.pending != null
-        && !value.pending.Exists(p => p == null || !Valid(p.record)
-            || !p.record.participants.Exists(member => member.accountId == p.accountId));
+        && !value.pending.Exists(p => p == null || (p.solo != null
+            ? p.record != null || !SoloRunRecord.Valid(p.solo) || string.IsNullOrEmpty(p.accountId)
+            : !Valid(p.record) || !p.record.participants.Exists(member => member.accountId == p.accountId)));
     public static bool Valid(MultiplayerRunRecord value)
     {
         if (value == null || value.schema != 2 || !Guid.TryParseExact(value.runId, "N", out _)
@@ -106,7 +109,7 @@ public sealed class MultiplayerRunRecords : MonoBehaviour
         // Identity is taken from the frozen roster, never from the account currently logged in later.
         // Retain every host revision until acknowledged. A guest may need an earlier
         // completed-day receipt after leaving while the host continues offline.
-        var pending = instance.outbox.pending.Find(p => p.accountId == participant.accountId && p.record.runId == run.runId
+        var pending = instance.outbox.pending.Find(p => p.solo == null && p.accountId == participant.accountId && p.record.runId == run.runId
             && (!host && !p.host || p.record.revision == run.revision));
         if (pending != null && pending.record.revision > run.revision) return;
         if (pending == null)
@@ -129,7 +132,7 @@ public sealed class MultiplayerRunRecords : MonoBehaviour
         try
         {
             string temp = PathName + ".tmp";
-            File.WriteAllText(temp, JsonUtility.ToJson(outbox));
+            File.WriteAllText(temp, JsonUtility.ToJson(new Outbox { pending = outbox.pending.FindAll(p => p.solo == null) }));
             if (File.Exists(PathName)) File.Replace(temp, PathName, PathName + ".bak");
             else File.Move(temp, PathName);
             Status = "Run result recorded locally; account sync pending.";
@@ -138,6 +141,7 @@ public sealed class MultiplayerRunRecords : MonoBehaviour
     }
     private void Update()
     {
+        RetrySoloStorage();
         if (outbox == null || busy || Time.realtimeSinceStartup < nextAttempt) return;
         nextAttempt = Time.realtimeSinceStartup + 1f;
         var auth = PlayFabAuthManager.Instance;
@@ -150,32 +154,48 @@ public sealed class MultiplayerRunRecords : MonoBehaviour
         // An unresolved guest receipt must not block later runs for the same account.
         pending.retryAfter = Time.realtimeSinceStartup + 30f;
         string sent = JsonUtility.ToJson(pending);
+        var sentSolo = pending.solo == null ? null : JsonUtility.FromJson<SoloRunRecord>(JsonUtility.ToJson(pending.solo));
         busy = true;
-        PlayFabClientAPI.ExecuteCloudScript(new ExecuteCloudScriptRequest
+        try
         {
-            AuthenticationContext = context,
-            FunctionName = pending.host ? "DineInPublishRunV2" : "DineInClaimRunV2",
-            FunctionParameter = new { record = pending.record, final = pending.final },
-            GeneratePlayStreamEvent = false
-        }, response =>
-        {
-            busy = false;
-            // A late callback cannot clear or submit another signed-in account's receipt.
-            if (PlayFabAuthManager.Instance == null || PlayFabAuthManager.Instance.PlayFabId != pending.accountId
-                || PlayFabSettings.staticPlayer.ClientSessionTicket != context.ClientSessionTicket) return;
-            if (response.Error != null || response.FunctionResult == null)
-            { Status = "Run result pending: account recording service is unavailable."; return; }
-            Reply reply;
-            try { reply = JsonUtility.FromJson<Reply>(PlayFab.Json.PlayFabSimpleJson.SerializeObject(response.FunctionResult)); }
-            catch (Exception) { Status = "Run result pending: invalid account response."; return; }
-            if (reply == null || !reply.accepted)
-            { Status = "Run result pending: " + (reply?.message ?? "awaiting host receipt"); return; }
-            string restaurant = pending.record.restaurant == "FastFood" ? LocalSaveManager.FastFoodId : pending.record.restaurant == "FineDining" ? LocalSaveManager.FineDiningId : LocalSaveManager.CasualDiningId;
-            if (!LocalSaveManager.CreditRestaurantDays(pending.accountId, restaurant, pending.record.runId, reply.successfulDays))
-            { Status = "Successful-day credit awaiting local profile save."; return; }
-            if (JsonUtility.ToJson(pending) == sent) { outbox.pending.Remove(pending); Save(); }
-            nextAttempt = Time.realtimeSinceStartup + 1f;
-            Status = "Account record synced. Best: " + reply.bestCompletedDay + " completed days.";
-        }, error => { busy = false; Status = "Run result pending; account sync will retry."; });
+            PlayFabClientAPI.ExecuteCloudScript(new ExecuteCloudScriptRequest
+            {
+                AuthenticationContext = context,
+                FunctionName = sentSolo != null ? SoloRunRecord.SubmissionFunction : pending.host ? "DineInPublishRunV2" : "DineInClaimRunV2",
+                FunctionParameter = sentSolo != null ? (object)new { record = sentSolo } : new { record = pending.record, final = pending.final },
+                RevisionSelection = CloudScriptRevisionOption.Live,
+                GeneratePlayStreamEvent = false
+            }, response =>
+            {
+                busy = false;
+                // A late callback cannot clear or submit another signed-in account's receipt.
+                if (PlayFabAuthManager.Instance == null || PlayFabAuthManager.Instance.PlayFabId != pending.accountId
+                    || PlayFabSettings.staticPlayer.ClientSessionTicket != context.ClientSessionTicket) return;
+                if (response.Error != null || response.FunctionResult == null)
+                { Status = "Run result pending: account recording service is unavailable."; return; }
+                Reply reply;
+                try { reply = JsonUtility.FromJson<Reply>(PlayFab.Json.PlayFabSimpleJson.SerializeObject(response.FunctionResult)); }
+                catch (Exception) { Status = "Run result pending: invalid account response."; return; }
+                if (reply == null || !reply.accepted)
+                { Status = "Run result pending: " + (reply?.message ?? "awaiting host receipt"); return; }
+                if (sentSolo != null)
+                {
+                    if (reply.runId != sentSolo.runId || reply.restaurant != sentSolo.restaurant ||
+                        reply.completedDays != sentSolo.completedDays || reply.bestCompletedDays < sentSolo.completedDays)
+                    { Status = "Solo result pending: mismatched account response."; return; }
+                    if (JsonUtility.ToJson(pending) == sent) { outbox.pending.Remove(pending); SaveSoloOutbox(); }
+                    nextAttempt = Time.realtimeSinceStartup + 1f;
+                    Status = "Solo record synced. Best: " + reply.bestCompletedDays + " completed days.";
+                    return;
+                }
+                string restaurant = pending.record.restaurant == "FastFood" ? LocalSaveManager.FastFoodId : pending.record.restaurant == "FineDining" ? LocalSaveManager.FineDiningId : LocalSaveManager.CasualDiningId;
+                if (!LocalSaveManager.CreditRestaurantDays(pending.accountId, restaurant, pending.record.runId, reply.successfulDays))
+                { Status = "Successful-day credit awaiting local profile save."; return; }
+                if (JsonUtility.ToJson(pending) == sent) { outbox.pending.Remove(pending); Save(); }
+                nextAttempt = Time.realtimeSinceStartup + 1f;
+                Status = "Account record synced. Best: " + reply.bestCompletedDay + " completed days.";
+            }, error => { busy = false; Status = "Run result pending; account sync will retry."; });
+        }
+        catch (Exception) { busy = false; Status = "Run result pending; account transport will retry."; }
     }
 }

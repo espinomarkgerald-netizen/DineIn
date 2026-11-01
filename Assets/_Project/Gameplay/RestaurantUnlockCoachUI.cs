@@ -147,7 +147,7 @@ public sealed class RestaurantUnlockCoachUI : MonoBehaviour
         }, true, null);
     }
 
-    public void Show(string title, string message, string action, Action onAction, bool isModal, Sprite icon)
+    public void Show(string title, string message, string action, Action onAction, bool isModal, Sprite icon, bool playInfo = true)
     {
         if (customerShowcase != null) customerShowcase.gameObject.SetActive(false);
         controlsRoot.gameObject.SetActive(true);
@@ -169,6 +169,7 @@ public sealed class RestaurantUnlockCoachUI : MonoBehaviour
         worldIndicator.Hide();
         dialogue.SetFocusTarget(null);
         dialogue.SetWorldFocusTarget(null);
+        if (playInfo) GameplaySfx.Play(GameplaySfx.Cue.Info);
         caption.text = title;
         objective.text = string.Empty;
         reviewButton.gameObject.SetActive(false);
@@ -187,7 +188,7 @@ public sealed class RestaurantUnlockCoachUI : MonoBehaviour
 
     public void ShowAnnouncement(string title, string message, Action acknowledged)
     {
-        Show(title, message, null, acknowledged, true, null);
+        Show(title, message, null, acknowledged, true, null, false);
         controlsRoot.gameObject.SetActive(false);
     }
 

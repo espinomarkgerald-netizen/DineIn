@@ -135,6 +135,7 @@ public sealed class UnlockCelebrationUI : MonoBehaviour
             " - UNLOCKED TODAY\n" + presentation.location.ToUpperInvariant();
 
         gameObject.SetActive(true);
+        UISubtlePressFeedback.EnsureButtons(transform);
         transform.SetAsLastSibling();
         if (canvasGroup != null)
         {
@@ -150,18 +151,19 @@ public sealed class UnlockCelebrationUI : MonoBehaviour
 
     private System.Collections.IEnumerator AnimateEntrance()
     {
-        if (panel == null || entranceDuration <= 0f)
-            yield break;
+        if (panel == null) yield break;
+        if (LevelOneUIAccessibility.ReducedMotion || entranceDuration <= 0f)
+        { panel.localScale = Vector3.one * responsivePanelScale; yield break; }
         float elapsed = 0f;
-        panel.localScale = Vector3.one * (responsivePanelScale * 0.72f);
+        panel.localScale = Vector3.one * (responsivePanelScale * 0.96f);
         while (elapsed < entranceDuration)
         {
             elapsed += LevelOneUIAccessibility.UnscaledAnimationDeltaTime;
             float t = Mathf.Clamp01(elapsed / entranceDuration);
             float eased = 1f - Mathf.Pow(1f - t, 3f);
-            float bounce = Mathf.Sin(t * Mathf.PI) * 0.08f;
+            float bounce = Mathf.Sin(t * Mathf.PI) * 0.015f;
             panel.localScale = Vector3.one *
-                (responsivePanelScale * (Mathf.Lerp(0.72f, 1f, eased) + bounce));
+                (responsivePanelScale * (Mathf.Lerp(0.96f, 1f, eased) + bounce));
             yield return null;
         }
         panel.localScale = Vector3.one * responsivePanelScale;

@@ -20,6 +20,32 @@ public partial class ShopPanelPopulator
     private bool checking, submitted, success;
     private Coroutine feedback;
 
+    public RestaurantPurchaseView CreateRestaurantPurchaseView(Transform parent)
+    {
+        if (purchaseRoot == null || purchasePanel == null) return null;
+        var clone = Instantiate(purchaseRoot, parent, false);
+        clone.name = "Restaurant Purchase";
+        T Map<T>(T original) where T : Component
+        {
+            if (original == null) return null;
+            var indices = new System.Collections.Generic.Stack<int>();
+            Transform current = original.transform;
+            while (current != purchaseRoot.transform)
+            {
+                if (current == null) throw new System.InvalidOperationException("Purchase template reference is outside its root.");
+                indices.Push(current.GetSiblingIndex()); current = current.parent;
+            }
+            current = clone.transform;
+            while (indices.Count > 0) current = current.GetChild(indices.Pop());
+            return current.GetComponent<T>();
+        }
+        var view = clone.AddComponent<RestaurantPurchaseView>();
+        var clonedCheck = successCheck != null ? Map(successCheck.transform)?.gameObject : null;
+        view.Configure(Map(purchasePanel), Map(purchaseHeading), Map(purchaseName), Map(purchaseDetails), Map(purchaseStatus),
+            Map(confirmLabel), Map(cancelLabel), Map(confirmButton), Map(cancelButton), Map(purchaseClose), Map(purchaseIcon), clonedCheck);
+        return view;
+    }
+
     public void RequestPurchase(ShopItemData item)
     {
         if (item == null || !allItems.Contains(item) || submitted) return;
@@ -141,7 +167,7 @@ public partial class ShopPanelPopulator
     private void BeginSuccessAnimation()
     {
         if (feedback != null) StopCoroutine(feedback);
-        if (successAudio != null && successSound != null) successAudio.PlayOneShot(successSound);
+        GameplaySfx.Play(GameplaySfx.Cue.Excellent);
         feedback = StartCoroutine(SuccessFeedback());
     }
     private IEnumerator SuccessFeedback()

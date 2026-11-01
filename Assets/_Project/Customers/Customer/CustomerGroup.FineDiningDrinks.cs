@@ -134,7 +134,7 @@ public partial class CustomerGroup
         if (!IsCorrectDeliveredOrder(contents))
         {
             // A mistaken optional drink must not discard the paid meal or start a food remake.
-            WarningSlideUI.Instance?.Show("That is not the requested drink.");
+            WarningSlideUI.Instance?.Show("That is not the requested drink.", true);
             if (tray != null) Destroy(tray.gameObject);
             FinishFineDiningDrinks(false);
             return true;
@@ -172,6 +172,7 @@ public partial class CustomerGroup
         }
         if (served && currentOrder != null && fineDiningDrink != null)
         {
+            GameplaySfx.Completed(GameplaySfx.Cue.Serve, this);
             fineDiningServedDrink = fineDiningDrink;
             currentOrder.ResolveProducts();
             var lines = new List<OrderLine>();

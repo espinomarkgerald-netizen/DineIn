@@ -750,7 +750,7 @@ public sealed class DailyNewspaperPresenter : MonoBehaviour
             return;
 
         float volume = settings != null ? settings.newspaperSoundVolume : 0.22f;
-        audioSource.PlayOneShot(clip, Mathf.Clamp01(volume));
+        GameplaySfx.PlayUiClip(clip, Mathf.Clamp01(volume), audioSource.outputAudioMixerGroup);
     }
 
     private static AudioClip CreatePaperSound(

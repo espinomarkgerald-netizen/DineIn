@@ -19482,6 +19482,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   gamemodePopupUI: {fileID: 904888439}
   restaurantSelector: {fileID: 1617335531}
+  restaurantModels: {fileID: 1450056258}
   multiplayerMenu: {fileID: 2200000100}
   multiplayerPanel: {fileID: 1094537825}
   campaignRestaurantScenes:

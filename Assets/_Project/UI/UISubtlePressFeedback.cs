@@ -11,7 +11,7 @@ using UnityEngine.UI;
 public sealed class UISubtlePressFeedback : MonoBehaviour,
     IPointerDownHandler,
     IPointerUpHandler,
-    IPointerExitHandler
+    IPointerExitHandler, ISubmitHandler
 {
     [SerializeField] private Button button;
     [SerializeField] private RectTransform visualTarget;
@@ -25,6 +25,7 @@ public sealed class UISubtlePressFeedback : MonoBehaviour,
     private void Awake()
     {
         ResolveReferences();
+        GameplayButtonSound.Ensure(button);
         CaptureRestingScale();
     }
 
@@ -45,9 +46,23 @@ public sealed class UISubtlePressFeedback : MonoBehaviour,
         ApplyScale(restingScale);
     }
 
+    // Reuse the existing installer rather than layering animation components.
+    public static void EnsureButtons(Transform root)
+    {
+        if (root == null) return;
+        if (root.GetComponent<Button>() != null && (root.GetComponent<ButtonAnimator>() != null ||
+            root.GetComponent<UISubtlePressFeedback>() != null)) return;
+        InGameButtonAnimationInstaller.EnsureButtons(root);
+    }
+
+    public void OnSubmit(BaseEventData eventData)
+    {
+        if (button != null && button.IsInteractable()) PlayConfirmation(.025f);
+    }
+
     public void OnPointerDown(PointerEventData eventData)
     {
-        if (button != null && !button.interactable)
+        if (button != null && !button.IsInteractable())
             return;
         AnimateTo(restingScale * pressedScale);
     }
@@ -57,7 +72,7 @@ public sealed class UISubtlePressFeedback : MonoBehaviour,
     public void OnPointerExit(PointerEventData eventData) => AnimateTo(restingScale);
 
     // Explicit opt-in for kitchen confirmations and quantity changes.
-    public void PlayConfirmation(float strength = .1f)
+    public void PlayConfirmation(float strength = .035f)
     {
         ResolveReferences(); CaptureRestingScale();
         if (routine != null) { StopCoroutine(routine); routine = null; }
@@ -101,7 +116,7 @@ public sealed class UISubtlePressFeedback : MonoBehaviour,
             return;
         if (LevelOneUIAccessibility.ReducedMotion || duration <= 0f || !isActiveAndEnabled)
         {
-            ApplyScale(target);
+            ApplyScale(LevelOneUIAccessibility.ReducedMotion ? restingScale : target);
             return;
         }
 

@@ -250,6 +250,7 @@ public sealed class UnlockCelebrationManager : MonoBehaviour
         UnlockPresentation presentation = pending.Dequeue();
         activePresentation = presentation;
         hasActivePresentation = true;
+        GameplaySfx.Milestone("unlock:" + LocalSaveManager.Data.progressAccount + ":" + CampaignSaveStore.RestaurantScene + ":" + presentation.id);
         view.Show(presentation, () =>
         {
             seen.Add(presentation.id);
@@ -311,7 +312,7 @@ public sealed class UnlockCelebrationManager : MonoBehaviour
 
     private bool IsPresentationScene(string sceneName)
     {
-        if (sceneName == MultiplayerSessionManager.SceneName) return true;
+        if (sceneName == MultiplayerSessionManager.SceneName || sceneName == FastFoodScene.Multiplayer || sceneName == MultiplayerDestinations.FineDiningScene) return true;
         if (string.IsNullOrWhiteSpace(sceneName) || presentationSceneNames == null)
             return false;
         for (int i = 0; i < presentationSceneNames.Length; i++)

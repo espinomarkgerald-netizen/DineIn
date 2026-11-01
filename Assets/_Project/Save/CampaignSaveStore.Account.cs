@@ -272,6 +272,8 @@ public static partial class CampaignSaveStore
         var data = LocalSaveManager.Data;
         bool sameProgressAccount = data.progressAccount == account;
         var previousApproval = sameProgressAccount ? data.sharedApproval : null;
+        var previousRestaurants = sameProgressAccount && !LocalSaveManager.NeedsRecovery
+            ? data.unlockedRestaurantIds : null;
         data.sharedApproval = profile.sharedApproval == null ? null :
             JsonUtility.FromJson<LocalSaveManager.ApprovalProgress>(JsonUtility.ToJson(profile.sharedApproval));
         if (previousApproval?.lockedAt100 == true || previousApproval?.value == 100)
@@ -283,6 +285,10 @@ public static partial class CampaignSaveStore
         data.restaurantProgressionVersion = profile.restaurantProgressionVersion;
         data.unlockedRestaurantIds = profile.unlockedRestaurantIds == null ? null : new List<string>(profile.unlockedRestaurantIds);
         LocalSaveManager.InitializeRestaurantProgression(data, true);
+        // Permanent ownership cannot be revoked by an older same-account cloud/profile snapshot.
+        if (previousRestaurants != null)
+            foreach (string id in previousRestaurants)
+                if (!data.unlockedRestaurantIds.Contains(id)) data.unlockedRestaurantIds.Add(id);
         data.progressAccount = account;
         data.coins = profile.coins; data.roles = profile.roles ?? new List<LocalSaveManager.RoleEntry>();
         var restaurantCredit = sameProgressAccount ? data.ownedItemIds.FindAll(id => id != null && (id.StartsWith("restaurant-day:", StringComparison.Ordinal) || id.StartsWith("restaurant-order:", StringComparison.Ordinal))) : new List<string>();

@@ -224,8 +224,14 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
         HideUI();
     }
 
+    private bool washFeedbackPlayed;
     public void ReportHygieneWashed()
     {
+        if (!washFeedbackPlayed && (hygieneIncidentRecorded || IsCleanupPickable))
+        {
+            washFeedbackPlayed = true;
+            GameplaySfx.Completed(GameplaySfx.Cue.Clean, this);
+        }
         if (!hygieneIncidentRecorded || hygieneWashed || HygieneManager.Instance?.CanRecordActivity != true) return;
         hygieneWashed = true;
         if (hygieneBooth != null && hygieneBooth.CurrentGroup == null) HygieneManager.Instance.CleanDining(hygieneBooth);

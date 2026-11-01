@@ -282,8 +282,7 @@ public class EmployeeManager : MonoBehaviour
         !EmployeeRoleCatalog.UsesFastFoodRoles ||
         (role != EmployeeRole.Host && role != EmployeeRole.Waiter));
 
-    private static bool IsRequiredRole(EmployeeRole role) => !EmployeeRoleCatalog.UsesFineDiningRoles &&
-        IsRoleUsedInCurrentRestaurant(role) &&
+    private static bool IsRequiredRole(EmployeeRole role) => IsRoleUsedInCurrentRestaurant(role) &&
         !(FastFoodProgressionSettings.Current != null && role == EmployeeRole.Waiter);
 
     public bool HasAllRequiredRolesAssigned
@@ -387,7 +386,11 @@ public class EmployeeManager : MonoBehaviour
         if (data?.employees == null)
             return;
 
-        if (CampaignSaveStore.IsFastFood && !GameSaveManager.IsPersistenceSuspended) SlotsLocked = false;
+        // Campaign loads resume preparation. Do not carry a prior scene or tutorial
+        // slot lock into this restaurant, or alter disposable/network restoration.
+        if ((CampaignSaveStore.IsFastFood || CampaignSaveStore.IsFineDining) &&
+            !GameSaveManager.IsPersistenceSuspended && !MultiplayerRestaurantBridge.IsActive)
+            SlotsLocked = false;
         allEmployees.Clear();
         foreach (EmployeeSaveEntry entry in data.employees)
         {

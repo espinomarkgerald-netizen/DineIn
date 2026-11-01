@@ -3,7 +3,7 @@ using UnityEngine.SceneManagement;
 using System;
 using TMPro;
 
-public class GameFlowManager : MonoBehaviour
+public partial class GameFlowManager : MonoBehaviour
 {
     public static GameFlowManager Instance { get; private set; }
 
@@ -190,6 +190,7 @@ public class GameFlowManager : MonoBehaviour
                 return;
             }
 
+            AdvanceSoloRankingDay();
             currentDay = MultiplayerRestaurantBridge.IsActive ? currentDay + 1 : Mathf.Min(currentDay + 1, campaignDayLimit);
             PrepareRestaurantDay();
             if (restaurantSceneName == "Lobby2" || restaurantSceneName == "Lobby3") GameSaveManager.Instance?.RequestSave();
@@ -339,6 +340,7 @@ public class GameFlowManager : MonoBehaviour
     private void ResetRunAtDay(int day)
     {
         if (MultiplayerRestaurantBridge.IsActive) return;
+        BeginSoloRankingRun();
         GameSaveManager.Instance?.CommitDayCheckpoint();
         currentDay = day;
         currentPhase = GamePhase.Management;
@@ -443,6 +445,7 @@ public class GameFlowManager : MonoBehaviour
         restaurantSessionState = campaignCompleted
             ? RestaurantSessionState.Endless
             : RestaurantSessionState.Running;
+        StartSoloRankingService();
     }
 
     public void EndOfDayFinance()
@@ -547,6 +550,7 @@ public class GameFlowManager : MonoBehaviour
         if (data == null)
             return;
 
+        CaptureSoloRanking(data);
         data.currentDay = currentDay;
         data.currentPhase = (int)currentPhase;
         data.currentDayHalf = (int)currentDayHalf;
@@ -561,6 +565,7 @@ public class GameFlowManager : MonoBehaviour
     {
         if (data == null)
             return;
+        LoadSoloRanking(data);
 
         fastFoodServiceStarted = false;
         financeSettledDay = (data.fastFoodDayComplete && restaurantSceneName == "Lobby2") ||
@@ -670,6 +675,7 @@ public class GameFlowManager : MonoBehaviour
 
         CasualDiningPolishManager.EnsureInstance()?.FinalizeDay(currentDay);
         LastRestaurantDaySucceeded = !TryGetRestaurantDayOutcome(out var settledOutcome) || settledOutcome == GameOverReason.EarthSaved;
+        SettleSoloRankingDay();
 
         if (!GameSaveManager.Instance || !GameSaveManager.Instance.CommitRestaurantResults())
             GameSaveManager.Instance?.RequestSave();
@@ -786,6 +792,7 @@ public class GameFlowManager : MonoBehaviour
 
     private void StartEndlessRestaurantDay()
     {
+        AdvanceSoloRankingDay();
         if (MultiplayerRestaurantBridge.IsActive) currentDay++;
         Time.timeScale = 1f;
         PrepareRestaurantDay();

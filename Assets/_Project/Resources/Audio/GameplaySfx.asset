@@ -1,0 +1,121 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2d29e8866b39475a844a66242f18bcdc, type: 3}
+  m_Name: GameplaySfx
+  m_EditorClassIdentifier: 
+  mixerGroup: {fileID: 2878796282664989187, guid: 3fd0d86c1f880854d9b5971fafc00816, type: 2}
+  serve: {fileID: 8300000, guid: ecf97be4a28b0daf9ede7dd391d392e5, type: 3}
+  payment: {fileID: 8300000, guid: aad5904d8fd952163cf18d620bfbdb73, type: 3}
+  clean: {fileID: 8300000, guid: bbbd711ee03577a050650ae5332b731a, type: 3}
+  success: {fileID: 8300000, guid: b54a1dc4db054b65fd39133489bab0b2, type: 3}
+  error: {fileID: 8300000, guid: f66945437fb3bd9cfdf49b98573da6dc, type: 3}
+  volume: 0.45
+  minimumInterval: 0.15
+  serveLevel: 0.94
+  paymentLevel: 1
+  cleanLevel: 0.81
+  successLevel: 0.8
+  errorLevel: 0.65
+  click: {fileID: 8300000, guid: ebaddf91658964604dfec3a9bedb20c1, type: 3}
+  panel: {fileID: 8300000, guid: b036d46e531f520190ac2c4e98ea4720, type: 3}
+  info: {fileID: 8300000, guid: b880396b3861241438f96ba7d21b8df8, type: 3}
+  notification: {fileID: 8300000, guid: 0b487803e255c4dc0aee1cf52afaa569, type: 3}
+  excellent: {fileID: 8300000, guid: ea9b501a45d6f5061e14c3c77ffb47ce, type: 3}
+  endDay: {fileID: 8300000, guid: 381f098e812d7e281fec1441387f9eff, type: 3}
+  blocked: {fileID: 8300000, guid: 7c37c1ceedf5e385f130fc0d07c807df, type: 3}
+  declined: {fileID: 8300000, guid: f8662e1ebddf4ef78c2f5ca532adcb56, type: 3}
+  mistake: {fileID: 8300000, guid: f66945437fb3bd9cfdf49b98573da6dc, type: 3}
+  ambience: {fileID: 8300000, guid: 2ed68a4ce6005ffe5b2b0e354127f1b4, type: 3}
+  clickLevel: 0.6
+  panelLevel: 0.4
+  infoLevel: 0.45
+  notificationLevel: 0.6
+  excellentLevel: 0.9
+  endDayLevel: 0.85
+  blockedLevel: 0.6
+  declinedLevel: 0.7
+  mistakeLevel: 0.65
+  maximumPan: 0.35
+  voiceCount: 8
+  minimumPitch: 0.985
+  maximumPitch: 1.015
+  ambienceLevel: 0.08
+  ambienceFadeSeconds: 1
+  ambienceCrossfadeSeconds: 3
+  minimumAmbiencePitch: 0.995
+  maximumAmbiencePitch: 1.005
+  distanceFalloff:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: -0.44999999999999996
+      outSlope: -0.44999999999999996
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1
+      value: 0.55
+      inSlope: -0.44999999999999996
+      outSlope: -0.45000000000000007
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 2
+      value: 0.1
+      inSlope: -0.45000000000000007
+      outSlope: -0.1
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 3
+      value: 0
+      inSlope: -0.1
+      outSlope: -0.1
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  zoomFalloff:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: -0.4
+      outSlope: -0.4
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1
+      value: 0.6
+      inSlope: -0.4
+      outSlope: -0.4
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4

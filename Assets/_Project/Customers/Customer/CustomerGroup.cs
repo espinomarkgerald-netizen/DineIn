@@ -2129,6 +2129,7 @@ public partial class CustomerGroup : MonoBehaviour
         SetState(GroupState.Eating);
         ClearEatingBubble();
 
+        GameplaySfx.Completed(GameplaySfx.Cue.Serve, this);
         GameDayManager.Instance?.RegisterFoodDelivered();
         if (eatingRoutine != null)
             StopCoroutine(eatingRoutine);
@@ -4256,6 +4257,7 @@ public partial class CustomerGroup : MonoBehaviour
             return false;
         }
 
+        GameplaySfx.Completed(GameplaySfx.Cue.Serve, this);
         GameDayManager.Instance?.RegisterFoodDelivered();
         ReportFinalResult(FinalResult.Happy);
         ShowThought(happyComments, happyFaceSprite);

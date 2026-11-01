@@ -34,7 +34,7 @@ public class CleanableEvent : MonoBehaviour
             Instantiate(cleanVfxPrefab, transform.position, Quaternion.identity);
 
         if (cleanSfx != null)
-            AudioSource.PlayClipAtPoint(cleanSfx, transform.position);
+            GameplaySfx.PlayWorldClip(cleanSfx, transform.position, .4f);
 
         OnCleaned?.Invoke(this);
         Destroy(gameObject);

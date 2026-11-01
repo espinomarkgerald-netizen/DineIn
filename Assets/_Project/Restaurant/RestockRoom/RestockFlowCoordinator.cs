@@ -69,6 +69,7 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
 
     private RestockFlowHUD hud;
     private GameObject truck;
+    private RestockTruckInteractable pendingTruckInteraction;
     private RestockTruckOffscreenIndicator truckIndicator;
     private RestockStockRoomEntrance dryEntrance;
     private RestockStockRoomEntrance freezerEntrance;
@@ -151,6 +152,9 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
 
     private void Update()
     {
+        if (!roomOpen && !loading && pendingTruckInteraction != null)
+            TrySetupTruckInteraction();
+
         if (roomOpen)
             roomController?.Tick();
         else
@@ -683,34 +687,18 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
             GameObject authoredMarker = authoredTruck == null
                 ? FindAuthoredTruckMarker()
                 : authoredTruck.gameObject;
-            Vector3 reachableFallback = FindNearbyNavMeshPoint(
-                origin + truckOffsetFromPlayer,
-                origin);
             Vector3 parkedPosition = authoredMarker != null
                 ? authoredMarker.transform.position
-                : reachableFallback;
+                : FindNearbyNavMeshPoint(origin + truckOffsetFromPlayer, origin);
             Quaternion parkedRotation = authoredMarker != null
                 ? authoredMarker.transform.rotation
                 : Quaternion.identity;
 
-            Vector3 authoredApproach = authoredTruck != null && authoredTruck.StandPoint != null
-                ? authoredTruck.StandPoint.position
-                : parkedPosition;
-            // Fast Food multiplayer shares Lobby2's authored outdoor parking marker.
-            // A local player's spawn/path readiness must not relocate it independently on each peer.
-            if (authoredMarker != null && lobbyScene.name != FastFoodScene.Multiplayer
-                && !HasCompleteNavMeshPath(origin, authoredApproach))
-            {
-                parkedPosition = reachableFallback;
-                Debug.LogWarning(
-                    "[RestockFlow] Authored delivery truck is outside the reachable Lobby NavMesh; " +
-                    "using the safe nearby parking fallback.");
-            }
-
+            // Parking is authored scenery, independent of navigation readiness.
+            // Never move it beside the player to compensate for a missing route.
             if (authoredTruck != null)
             {
                 truck = authoredTruck.gameObject;
-                truck.transform.SetPositionAndRotation(parkedPosition, parkedRotation);
             }
             else
             {
@@ -735,10 +723,12 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
             Vector3 parkedPosition = truck.transform.position;
             Quaternion parkedRotation = truck.transform.rotation;
             ConfigureInteractionPresentation(truck);
-            SnapStandPointToNavMesh(truckInteractable);
+            truckInteractable.SetCollectionReachable(false);
+            pendingTruckInteraction = truckInteractable;
             if (!truckInteractable.ParkingConfigured)
                 truckInteractable.ConfigureParkingPose(parkedPosition, parkedRotation);
             EnsureTruckIndicator(truckInteractable);
+            TrySetupTruckInteraction();
         }
 
         if (FastFoodScene.Contains(lobbyScene))
@@ -789,6 +779,44 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
                 RestockStorageType.Frozen,
                 origin + freezerEntranceOffsetFromPlayer,
                 origin);
+    }
+
+    private void TrySetupTruckInteraction()
+    {
+        if (pendingTruckInteraction == null || !lobbyScene.IsValid() || !lobbyScene.isLoaded)
+            return;
+
+        GameObject manager = MultiplayerRestockBridge.IsActive
+            ? MultiplayerSessionManager.Instance.LocalManager
+            : ManagerPlayer.Active != null ? ManagerPlayer.Active.gameObject : null;
+        if (manager == null || manager.scene != lobbyScene)
+            return;
+        var agent = manager.GetComponent<NavMeshAgent>();
+        // Scene loading and tutorial setup can install navigation after the truck.
+        // Wait for the actual manager agent; pending orders are left untouched.
+        if (agent == null || !agent.isActiveAndEnabled || !agent.isOnNavMesh)
+            return;
+
+        var target = pendingTruckInteraction;
+        var filter = new NavMeshQueryFilter { agentTypeID = agent.agentTypeID, areaMask = agent.areaMask };
+        // Preserve the existing stand-point projection range. The truck model
+        // pivot can sit above the floor; interaction radius is not a projection radius.
+        if (!NavMesh.SamplePosition(target.ParkedStandPosition, out var hit, 8f, filter))
+            return; // The collection surface is not available yet. Keep setup pending.
+        var path = new NavMeshPath();
+        bool reachable = NavMesh.CalculatePath(agent.nextPosition, hit.position, filter, path)
+                         && path.status == NavMeshPathStatus.PathComplete;
+        if (reachable && target.StandPoint != target.transform)
+        {
+            // Move only the collection approach. Applying the parked-space delta
+            // also works while the child point is travelling with the arrival animation.
+            target.StandPoint.position += hit.position - target.ParkedStandPosition;
+        }
+        target.SetCollectionReachable(reachable);
+        pendingTruckInteraction = null;
+        if (!reachable)
+            Debug.LogWarning("[RestockFlow] Delivery collection approach has no complete manager route. " +
+                             "The truck stays at its authored outdoor parking position and deliveries remain pending.", target);
     }
 
     private void BindLobbyShelfEntrances(Vector3 playerOrigin)
@@ -1062,7 +1090,10 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
         {
             RestockOrderSaveData order = orders[i];
             if (manager.ConsumeDeliveryNotice(order))
+            {
+                GameplaySfx.Play(GameplaySfx.Cue.Notification);
                 ShowMessage(deliveryArrivedMessage);
+            }
         }
     }
 

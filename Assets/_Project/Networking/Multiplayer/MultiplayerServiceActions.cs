@@ -567,7 +567,9 @@ public sealed partial class MultiplayerServiceActions : MonoBehaviourPunCallback
         if (reply.operation == "card_confirm") CardPaymentResult = reply.accepted;
         if (!reply.accepted)
         {
-            WarningSlideUI.Instance?.Show(string.IsNullOrEmpty(reply.result.message) ? MultiplayerActionFeedback.Message(reply.result.outcome) : reply.result.message);
+            bool cashMistake = reply.operation == "cash_confirm" && reply.result.outcome == MultiplayerActionOutcome.WrongTarget;
+            if (cashMistake) GameplaySfx.Play(GameplaySfx.Cue.Mistake);
+            WarningSlideUI.Instance?.Show(string.IsNullOrEmpty(reply.result.message) ? MultiplayerActionFeedback.Message(reply.result.outcome) : reply.result.message, !cashMistake);
             TrySendQueuedCancellation();
             return;
         }
@@ -799,6 +801,7 @@ public sealed partial class MultiplayerServiceActions : MonoBehaviourPunCallback
     }
     public void OnEvent(EventData ev)
     {
+        if (ev.Code == FeedbackEvent) { ReceiveFeedback(ev); return; }
         if ((ev.Code != RequestEvent && ev.Code != ReplyEvent) || !MultiplayerWire.TryRead(ev, out var payload)
             || payload is not string json || json.Length > 4096) return;
         try

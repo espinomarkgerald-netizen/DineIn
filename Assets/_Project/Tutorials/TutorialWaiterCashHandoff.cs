@@ -101,6 +101,7 @@ public class TutorialWaiterCashHandoff : MonoBehaviour
 
         hands.ClearMoney();
 
+        GameplaySfx.Completed(GameplaySfx.Cue.Payment, this);
         if (registerPaymentCompletedInGameDay)
             GameDayManager.Instance?.RegisterPaymentCompleted();
 

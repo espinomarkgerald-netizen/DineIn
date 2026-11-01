@@ -81,6 +81,7 @@ public class AnimatedPanel : MonoBehaviour
     /// <summary>Opens the panel, playing the configured open animation.</summary>
     public void Open()
     {
+        bool newlyOpening = !IsOpen || !gameObject.activeSelf;
         if (activeAnimation != null) StopCoroutine(activeAnimation);
 
         // Full-screen panels must render above the GameMenu's persistent controls.
@@ -93,6 +94,7 @@ public class AnimatedPanel : MonoBehaviour
         gameObject.SetActive(true);
         ResetTransform();
 
+        if (newlyOpening) GameplaySfx.Play(GameplaySfx.Cue.Panel);
         activeAnimation = StartCoroutine(PlayAnimation(openPreset, openDuration, openEase, true));
     }
 
@@ -118,6 +120,14 @@ public class AnimatedPanel : MonoBehaviour
         else Open();
     }
 
+    private void OnDisable()
+    {
+        if (activeAnimation != null) StopCoroutine(activeAnimation);
+        activeAnimation = null;
+        IsOpen = false;
+        if (rectTransform != null && canvasGroup != null) ResetTransform();
+    }
+
     private void ResetTransform()
     {
         rectTransform.anchoredPosition = originalAnchoredPos;
@@ -127,7 +137,10 @@ public class AnimatedPanel : MonoBehaviour
 
     private IEnumerator PlayAnimation(AnimationPreset preset, float duration, AnimationCurve ease, bool opening)
     {
-        canvasGroup.blocksRaycasts = opening;
+        // A fading panel remains a raycast shield until it is actually inactive.
+        canvasGroup.blocksRaycasts = true;
+        if (LevelOneUIAccessibility.ReducedMotion && preset != AnimationPreset.None)
+        { preset = AnimationPreset.Fade; duration = Mathf.Min(duration, .12f); }
         canvasGroup.interactable = opening;
 
         Vector2 startPos = originalAnchoredPos;
@@ -143,7 +156,7 @@ public class AnimatedPanel : MonoBehaviour
                 break; // alpha only; position/scale stay put
 
             case AnimationPreset.ScalePop:
-                if (opening) startScale = originalScale * 0.8f;
+                if (opening) startScale = originalScale * 0.96f;
                 else endScale = originalScale * 0.8f;
                 break;
 

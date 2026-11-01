@@ -274,11 +274,12 @@ public class Booth : MonoBehaviour, Photon.Realtime.IOnEventCallback
         return cleanupCommitPending;
     }
 
-    private void ApplyCompletedMultiplayerCleanup()
+    private void ApplyCompletedMultiplayerCleanup(bool presentFeedback = true)
     {
         cleanupCommitPending = false;
         if (!isDirty) return;
         isDirty = false;
+        if (presentFeedback && !MultiplayerRestaurantBridge.IsObserver) GameplaySfx.Completed(GameplaySfx.Cue.Clean, this);
         HygieneManager.Instance?.CleanDining(this);
         var drop = FindTableFoodSpawn();
         var tray = drop != null ? drop.GetComponentInChildren<FoodTray>(true) : null;
@@ -302,7 +303,7 @@ public class Booth : MonoBehaviour, Photon.Realtime.IOnEventCallback
         messSpawnedForCurrentGroup = false;
         eatingTimer = -1f;
         ClearBoothProps();
-        ApplyCompletedMultiplayerCleanup();
+        ApplyCompletedMultiplayerCleanup(false);
         if (MultiplayerSessionManager.Instance.IsAuthority && Photon.Pun.PhotonNetwork.CurrentRoom != null)
         {
             dirtySnapshotKey ??= "restaurant.booth.dirty:" + MultiplayerCustomerInteractionBridge.BoothIdentity(this);
@@ -514,8 +515,10 @@ public class Booth : MonoBehaviour, Photon.Realtime.IOnEventCallback
 
     public void CleanMess()
     {
+        bool wasDirty = NeedsSurfaceCleaning;
         SetDirty(false);
         HygieneManager.Instance?.CleanDining(this);
+        if (wasDirty) GameplaySfx.Completed(GameplaySfx.Cue.Clean, this);
         CleaningPromptOpen = false;
     }
 

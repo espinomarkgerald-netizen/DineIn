@@ -78,7 +78,10 @@ public class WarningSlideUI : MonoBehaviour
             Instance = null;
     }
 
-    public void Show(string message)
+    public void Show(string message) => Show(message, false);
+
+    // Informational notices are quiet. Callers explicitly opt into attention for rejected actions.
+    public void Show(string message, bool attention)
     {
         if (string.IsNullOrWhiteSpace(message))
             return;
@@ -98,6 +101,7 @@ public class WarningSlideUI : MonoBehaviour
             return;
         }
 
+        if (attention && (showRoutine == null || messageText.text != message)) GameplaySfx.Play(GameplaySfx.Cue.Blocked);
         Debug.Log("[WarningSlideUI] Show: " + message, this);
 
         messageText.text = message;

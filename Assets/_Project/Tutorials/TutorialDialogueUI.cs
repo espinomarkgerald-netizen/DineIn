@@ -403,6 +403,7 @@ public class TutorialDialogueUI : MonoBehaviour
     public void ShowManual(string speaker, string message, Sprite portrait, Action onNext)
     {
         if (shuttingDown) return;
+        if (nextButton != null) UISubtlePressFeedback.EnsureButtons(nextButton.transform);
         manualNextAction = onNext;
         ShowInternal(speaker, message, portrait, true);
     }

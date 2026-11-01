@@ -65,10 +65,13 @@ public class RestaurantSelector : MonoBehaviour
     [SerializeField] private UnityEngine.UI.Button previousButton;
     [SerializeField] private UnityEngine.UI.Button nextButton;
 
+    private bool purchaseOpen;
+    public void SetPurchaseOpen(bool open) { purchaseOpen = open; UpdateSelectionArrows(); }
+
     private void UpdateSelectionArrows()
     {
-        if (previousButton != null) previousButton.interactable = !customizing && currentIndex > 0;
-        if (nextButton != null) nextButton.interactable = !customizing && currentIndex < travelPoints.Length - 1;
+        if (previousButton != null) previousButton.interactable = !customizing && !purchaseOpen && currentIndex > 0;
+        if (nextButton != null) nextButton.interactable = !customizing && !purchaseOpen && currentIndex < travelPoints.Length - 1;
     }
 
     private void UpdateRestaurantName()
@@ -256,7 +259,7 @@ public class RestaurantSelector : MonoBehaviour
     /// </summary>
     public void NextRestaurant()
     {
-        if (customizing || travelPoints.Length == 0) return;
+        if (customizing || purchaseOpen || travelPoints.Length == 0) return;
 
         if (currentIndex >= travelPoints.Length - 1) return;
         currentIndex++;
@@ -269,7 +272,7 @@ public class RestaurantSelector : MonoBehaviour
     /// </summary>
     public void PreviousRestaurant()
     {
-        if (customizing || travelPoints.Length == 0) return;
+        if (customizing || purchaseOpen || travelPoints.Length == 0) return;
 
         if (currentIndex <= 0) return;
         currentIndex--;

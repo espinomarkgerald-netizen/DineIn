@@ -1380,7 +1380,6 @@ public sealed partial class ManagementComputerController : MonoBehaviour, IPoint
         }
 
         RestockFlowCoordinator.Instance?.AcknowledgeStartReadinessWarnings();
-        EmployeeManager.Instance?.LockAllSlots();
 
         int payroll = EmployeeManager.Instance != null && EmployeeManager.Instance.salaryConfig != null
             ? EmployeeManager.Instance.CalculateTotalPayroll()
@@ -1519,8 +1518,11 @@ public sealed partial class ManagementComputerController : MonoBehaviour, IPoint
             missingRoles = GetMissingMultiplayerStaffRoles();
             everyRoleCovered = missingRoles.Count == 0;
         }
+        var restaurantRoles = new List<EmployeeRole>(EmployeeRoleCatalog.LobbyRoles);
+        restaurantRoles.AddRange(EmployeeRoleCatalog.KitchenRoles);
         string staffDetails = everyRoleCovered
-            ? (CampaignSaveStore.IsFastFood ? "CASHIER   BUSSER   CHEF   BARISTA" : "HOST   WAITER   CASHIER   BUSSER   CHEF   BARISTA")
+            ? string.Join("   ", restaurantRoles.FindAll(EmployeeManager.IsRoleUsedInCurrentRestaurant)
+                .ConvertAll(EmployeeRoleCatalog.DisplayName)).ToUpperInvariant()
             : missingRoles.Count > 0
                 ? "MISSING: " + string.Join("  •  ", missingRoles.ConvertAll(EmployeeRoleCatalog.DisplayName)).ToUpperInvariant()
                 : "NO ACTIVE EMPLOYEES";

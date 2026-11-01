@@ -330,6 +330,10 @@ public class NotificationPopupController : MonoBehaviour
 
         isShowing = true;
         ApplyContent(request);
+        if (request.type == PopupType.Success) GameplaySfx.Play(GameplaySfx.Cue.Success);
+        else if (request.type == PopupType.Error) GameplaySfx.Play(GameplaySfx.Cue.Declined);
+        else if (request.type == PopupType.Warning) GameplaySfx.Play(GameplaySfx.Cue.Blocked);
+        else GameplaySfx.Play(GameplaySfx.Cue.Info);
 
         panelRect.gameObject.SetActive(true);
 

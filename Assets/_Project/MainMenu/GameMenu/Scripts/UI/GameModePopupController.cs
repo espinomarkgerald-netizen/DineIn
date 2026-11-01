@@ -71,14 +71,21 @@ public partial class GameModePopupController : MonoBehaviour
         }
 
         gamemodePopupUI.transform.SetAsLastSibling();
-        gamemodePopupUI.SetActive(true);
+        UISubtlePressFeedback.EnsureButtons(gamemodePopupUI.transform);
+        var animation = gamemodePopupUI.GetComponent<AnimatedPanel>();
+        if (animation == null) animation = gamemodePopupUI.AddComponent<AnimatedPanel>();
+        animation.Open();
     }
 
     /// <summary>Wire this to CancelButton.</summary>
     public void HidePopup()
     {
         if (gamemodePopupUI != null)
-            gamemodePopupUI.SetActive(false);
+        {
+            var animation = gamemodePopupUI.GetComponent<AnimatedPanel>();
+            if (animation != null) animation.Close();
+            else gamemodePopupUI.SetActive(false);
+        }
     }
 
     /// <summary>Wire this to CampaignButton.</summary>

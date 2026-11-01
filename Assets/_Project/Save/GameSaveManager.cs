@@ -52,6 +52,17 @@ public class GameSaveManager : MonoBehaviour
 #endif
         // Tutorial performance must not seed personal approval in a fresh career.
         if (AlienApprovalManager.Instance != null) cleanStart.approval = AlienApprovalManager.Instance.StartingApproval;
+        // This is an explicit, genuinely new career boundary, not a tutorial score.
+        try
+        {
+            cleanStart.soloRankingV1 = string.IsNullOrEmpty(CampaignSaveStore.ReadAccountState().account)
+                ? null : SoloRankingV1.NewRun();
+        }
+        catch (System.Exception error)
+        {
+            cleanStart.soloRankingV1 = null;
+            Debug.LogWarning("[Solo ranking] Fresh career remains playable but unranked: " + error.Message);
+        }
         CampaignSaveStore.AtomicWrite(initialPath, JsonUtility.ToJson(cleanStart, true));
         CampaignSaveStore.NotifyLocalWrite();
     }
@@ -203,6 +214,7 @@ public class GameSaveManager : MonoBehaviour
         if (data == null)
             return false;
 
+        PreserveSoloCheckpointCredit(data, SavePath);
         ApplySaveData(data, true, false);
         if (CampaignSaveStore.IsFastFood || CampaignSaveStore.IsFineDining)
         {
@@ -230,8 +242,10 @@ public class GameSaveManager : MonoBehaviour
         try
         {
             // Recoverable pair transaction: a crash cannot load a stale day-start snapshot over final results.
+            var data = CaptureCurrentData();
             CampaignSaveStore.WritePair(new CampaignSaveStore.Snapshot {
-                save = JsonUtility.ToJson(CaptureCurrentData(), true), checkpoint = null });
+                save = JsonUtility.ToJson(data, true), checkpoint = null });
+            GameFlowManager.Instance?.RecoverPersistedSoloRanking(data);
             CampaignSaveStore.NeedsReload = false;
             return true;
         }
@@ -313,11 +327,27 @@ public class GameSaveManager : MonoBehaviour
         string json = JsonUtility.ToJson(data, true);
         CampaignSaveStore.AtomicWrite(path, json);
         CampaignSaveStore.NotifyLocalWrite();
+        GameFlowManager.Instance?.RecoverPersistedSoloRanking(data);
 
         Debug.Log("[GameSaveManager] Game saved to: " + path);
         Debug.Log("[GameSaveManager] Saved money: " + data.money);
         Debug.Log("[GameSaveManager] Saved day: " + data.currentDay);
         Debug.Log("[GameSaveManager] Saved approval: " + data.approval);
+    }
+
+    private static void PreserveSoloCheckpointCredit(GameSaveData checkpoint, string careerPath)
+    {
+        try
+        {
+            var current = ReadSaveData(careerPath);
+            checkpoint.soloRankingV1 = SoloRankingV1.RestoreCheckpoint(checkpoint.soloRankingV1, current?.soloRankingV1);
+        }
+        catch (System.Exception error)
+        {
+            // Reporting recovery cannot block a valid gameplay checkpoint.
+            checkpoint.soloRankingV1 = null;
+            Debug.LogWarning("[Solo ranking] Checkpoint remains playable but unranked: " + error.Message);
+        }
     }
 
     private static GameSaveData ReadSaveData(string path)
@@ -365,14 +395,16 @@ public class GameSaveManager : MonoBehaviour
         if (!HasSave() && !File.Exists(DayCheckpointPath))
         {
             Debug.Log("[GameSaveManager] No save file found — using defaults.");
-            if (CampaignSaveStore.IsFastFood || CampaignSaveStore.IsFineDining || profileChanged)
+            bool resetRuntime = CampaignSaveStore.IsFastFood || CampaignSaveStore.IsFineDining || profileChanged;
+            if (resetRuntime)
             {
                 int startingBalance = MoneyManager.DefaultStartingMoney;
                 ApplySaveData(new GameSaveData { money = startingBalance, polishDayStartMoney = startingBalance,
                     approval = AlienApprovalManager.Instance != null ? AlienApprovalManager.Instance.StartingApproval : new GameSaveData().approval }, false, false);
                 EmployeeManager.Instance?.PrepareFreshRestaurantRoster();
-                RequestSave();
             }
+            GameFlowManager.Instance?.BeginSoloRankingRun();
+            if (resetRuntime) RequestSave();
             if (GameFlowManager.Instance != null &&
                 GameFlowManager.Instance.HasRunningRestaurantDay)
                 CaptureDayStartCheckpoint();
@@ -397,7 +429,9 @@ public class GameSaveManager : MonoBehaviour
             data.saveSchemaVersion = 0;
         bool requiresCasualDiningMigration = !hasCasualDiningSchema || data.saveSchemaVersion < 3;
 
+        if (loadPath == DayCheckpointPath) PreserveSoloCheckpointCredit(data, SavePath);
         ApplySaveData(data, false, requiresFiniteInventoryMigration);
+        GameFlowManager.Instance?.RecoverPersistedSoloRanking(data);
 
         if ((CampaignSaveStore.IsFastFood || CampaignSaveStore.IsFineDining) && loadPath == DayCheckpointPath)
         {
