@@ -8,7 +8,7 @@ let checks = 0;
 function test(name, condition) { assert.ok(condition, name); checks++; console.log('PASS ' + name); }
 const settings = read('Assets/_Project/Resources/Audio/GameplaySfx.asset');
 const files = fs.readdirSync(path.join(root, 'Assets/_Project/Audio/Supplied')).filter(f => f.endsWith('.mp3'));
-test('all 12 supplied clips imported', files.length === 12);
+test('all 14 supplied clips imported', files.length === 14);
 for (const name of files) {
     const file = path.join(root, 'Assets/_Project/Audio/Supplied', name), meta = fs.readFileSync(file + '.meta', 'utf8');
     test(name + ' assigned in shared SFX configuration', settings.includes(meta.match(/guid: (\w+)/)[1]));
@@ -65,3 +65,44 @@ fs.writeFileSync(rsp, ['-nologo','-nostdlib','-target:exe',`-out:"${dll}"`,
 fs.writeFileSync(path.join(output,'SfxPolicy.runtimeconfig.json'),JSON.stringify({runtimeOptions:{tfm:'net9.0',framework:{name:'Microsoft.NETCore.App',version:runtime}}}));
 cp.execFileSync('dotnet',[path.join(sdk[2],sdk[1],'Roslyn/bincore/csc.dll'),'/noconfig','@'+rsp],{stdio:'inherit'});
 cp.execFileSync('dotnet',[dll],{stdio:'inherit'});
+
+// UI-family asset validation: independent authored variants, valid PCM and bounded output.
+for (const family of ['menu', 'computer', 'hud']) {
+    // Parse the YAML array without assuming checkout line endings.
+    const entries = settings.split('  ' + family + 'Clicks:')[1].trimStart().split('\n').slice(0, 3);
+    test(family + ' has three distinct authored variants', new Set(entries).size === 3 && entries.every(x => x.trim().startsWith('- {fileID: 8300000,')));
+    const buffers = [1, 2, 3].map(i => fs.readFileSync(path.join(root, 'Assets/_Project/Audio/Supplied', family + '-' + i + '.wav')));
+    test(family + ' variants are different', !buffers[0].equals(buffers[1]) && !buffers[1].equals(buffers[2]));
+    for (const b of buffers) {
+        test(family + ' valid short mono PCM', b.toString('ascii', 0, 4) === 'RIFF' && b.readUInt16LE(22) === 1 && b.readUInt32LE(24) === 44100 && b.length < 44100);
+        let peak = 0; for (let i = 44; i < b.length; i += 2) peak = Math.max(peak, Math.abs(b.readInt16LE(i)));
+        test(family + ' nonempty without digital clipping', peak > 1000 && peak < 32767);
+    }
+}
+test('disabled attempts use blocked cue', button.includes('!button.isActiveAndEnabled') && button.includes('GameplaySfx.Cue.Blocked'));
+test('computer windows and HUD have distinct classification', button.includes('ManagementComputerWindow') && button.includes('ButtonFamily.Hud') && button.includes('RestockScene'));
+const pouring = read('Assets/_Project/Restaurant/Items/WinePouringUI.cs');
+test('pour stops on disable and flowing ends', pouring.includes('pouringAudio.Stop()') && pouring.includes('SetWaterPour(pouringAudio, visible && waterService)'));
+const room = read('Assets/_Project/Restaurant/RestockRoom/RestockRoomController.cs');
+test('multiplayer placement feedback follows accepted receipt', room.includes('if (accepted && grid != null) grid.PresentPlacement();'));
+console.log('PASS UI families, PCM assets, pouring lifecycle and placement reference checks.');
+
+const hold = read('Assets/_Project/Restaurant/RestockRoom/RestockHoldButton.cs');
+test('hold closure/release/exit interrupt handling audio', hold.includes('OnDisable() => CancelHold()') && hold.includes('OnPointerUp') && hold.includes('OnPointerExit') && hold.includes('SetDeliveryHold(handlingAudio, false)'));
+test('hold does not emit success cue', !hold.includes('Cue.Success') && !hold.includes('HotbarArrived'));
+const hud = read('Assets/_Project/Restaurant/RestockRoom/RestockFlowHUD.cs');
+const coordinator = read('Assets/_Project/Restaurant/RestockRoom/RestockFlowCoordinator.cs');
+test('hotbar sound follows explicit confirmed collection', coordinator.includes('else hud?.ConfirmPickupFeedback();') && hud.includes('if (!pickupFeedbackPending) return;'));
+test('ordinary hotbar reconstruction does not emit audio', !hud.split('public void RebuildHotbar()')[1].split('public void HandleSlotClicked')[0].includes('HotbarArrived'));
+const cashier = read('Assets/_Project/Lobby/Roles/CashierRegisterUI.cs');
+test('payment presentation uses actual credited total in manual and automated paths', (cashier.match(/PaymentCompleted\(.*amountEarned/g) || []).length === 2 && cashier.indexOf('AddEarnings(amountEarned)') < cashier.indexOf('GameplaySfx.PaymentCompleted'));
+const paymentTransport = read('Assets/_Project/Networking/Multiplayer/MultiplayerServiceActions.Feedback.cs');
+test('payment metadata remains optional and deduplicated before popup', paymentTransport.includes('int paymentAmount = 0') && paymentTransport.indexOf('heardFeedback.Add') < paymentTransport.indexOf('PresentPayment(message.paymentAmount)'));
+test('legacy feedback without amount has no payment popup', paymentTransport.includes('message.paymentAmount > 0'));
+const popup = read('Assets/_Project/UI/TipPopupUI.cs');
+test('payment popup formats currency and honors reduced motion', popup.includes('amount:N0') && popup.includes('!LevelOneUIAccessibility.ReducedMotion'));
+test('two conversation voices, seated occupancy and no takeout', playback.includes('new Conversation { source = NewSource() }, new Conversation') && playback.includes('member.IsSeated') && playback.includes('seated < 2') && playback.includes('group.IsTakeout'));
+test('conversation uses table location and retained voice assignment', playback.includes('voice.position = voice.group.assignedBooth.transform.position') && playback.includes('if (!eligible && voice.gain <= .001f)'));
+test('conversation fade cap and interruption cleanup', playback.includes('CapScale(total') && playback.includes('conversationFadeSeconds') && playback.includes('if (suspended) { voice.source.Stop()'));
+test('very quiet ambience and editable zoom hysteresis', settings.includes('ambienceLevel: 0.025') && settings.includes('conversationEnterZoom: 0.35') && settings.includes('conversationExitZoom: 0.45'));
+console.log('PASS delivery, payment, interaction and conversation reference checks; live playback remains untested.');

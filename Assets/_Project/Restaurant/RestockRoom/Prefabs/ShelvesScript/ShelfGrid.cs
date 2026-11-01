@@ -21,6 +21,52 @@ public class ShelfGrid : MonoBehaviour
     [Header("Debug")]
     public bool showGrid = true;
 
+    [Header("Placement feedback")]
+    [Range(.05f, 1f)] public float placementHighlightSeconds = .22f;
+    public Color placementHighlight = new Color(.65f, 1f, .72f, 1f);
+    private Renderer[] highlighted;
+    private MaterialPropertyBlock[] originalBlocks;
+    private Coroutine highlightRoutine;
+    public void PresentPlacement()
+    {
+        GameplaySfx.CratePlaced();
+        if (!isActiveAndEnabled) return;
+        if (highlightRoutine != null) StopCoroutine(highlightRoutine);
+        RestoreHighlight();
+        highlightRoutine = StartCoroutine(HighlightPlacement());
+    }
+    private System.Collections.IEnumerator HighlightPlacement()
+    {
+        highlighted = GetComponentsInChildren<Renderer>();
+        originalBlocks = new MaterialPropertyBlock[highlighted.Length];
+        for (int i = 0; i < highlighted.Length; i++)
+        {
+            var renderer = highlighted[i];
+            originalBlocks[i] = new MaterialPropertyBlock(); renderer.GetPropertyBlock(originalBlocks[i]);
+            var block = new MaterialPropertyBlock(); renderer.GetPropertyBlock(block);
+            var material = renderer.sharedMaterial;
+            if (material == null) continue;
+            string property = material.HasProperty("_BaseColor") ? "_BaseColor" : "_Color";
+            if (!material.HasProperty(property)) continue;
+            block.SetColor(property, Color.Lerp(material.GetColor(property), placementHighlight, .35f));
+            renderer.SetPropertyBlock(block);
+        }
+        // A steady brief tint also respects reduced motion: no movement or pulsing.
+        yield return new WaitForSecondsRealtime(placementHighlightSeconds);
+        RestoreHighlight(); highlightRoutine = null;
+    }
+    private void RestoreHighlight()
+    {
+        if (highlighted != null)
+            for (int i = 0; i < highlighted.Length; i++)
+                if (highlighted[i] != null) highlighted[i].SetPropertyBlock(originalBlocks[i]);
+        highlighted = null; originalBlocks = null;
+    }
+    private void OnDisable()
+    {
+        if (highlightRoutine != null) StopCoroutine(highlightRoutine);
+        highlightRoutine = null; RestoreHighlight();
+    }
     private GameObject[,] occupiedCells;
 
     public RestockStorageType StorageType => storageType;

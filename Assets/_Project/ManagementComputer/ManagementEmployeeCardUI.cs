@@ -321,6 +321,7 @@ public sealed class ManagementEmployeeCardUI : MonoBehaviour
         if (onEmptySlot != null)
             emptySlotButton.onClick.AddListener(onEmptySlot);
         emptySlotButton.interactable = onEmptySlot != null;
+        GameplayButtonSound.Ensure(emptySlotButton);
     }
 
     private IEnumerator AttentionBopRoutine()

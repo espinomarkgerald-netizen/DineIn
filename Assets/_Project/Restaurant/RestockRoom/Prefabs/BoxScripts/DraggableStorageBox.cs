@@ -754,6 +754,7 @@ public class DraggableStorageBox : MonoBehaviour
                 row,
                 transform.eulerAngles.y);
         }
+        grid.PresentPlacement();
     }
 
     /// <summary>

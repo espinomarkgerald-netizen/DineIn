@@ -229,6 +229,7 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
                 MultiplayerRestockBridge.Active.RequestCollect((accepted, message) =>
                 {
                     if (!accepted) hud?.CancelPickupAnimation();
+                    else hud?.ConfirmPickupFeedback();
                     ShowMessage(message);
                 });
                 return;
@@ -239,6 +240,7 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
                 return;
             }
 
+            hud?.ConfirmPickupFeedback();
             int count = manager.HotbarContainerCount;
             truck?.GetComponent<RestockTruckInteractable>()?.BeginDepartureAfterCollection();
             ShowMessage("ORDER COLLECTED  |  " + count + " BOX" +

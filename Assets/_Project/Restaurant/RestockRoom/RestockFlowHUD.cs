@@ -60,6 +60,7 @@ public sealed class RestockFlowHUD : MonoBehaviour
     private RestockStorageType activeRoom;
     private bool inRestockRoom;
     private bool worldDragStarted;
+    private bool pickupFeedbackPending;
     private bool pickupAnimationRequested;
     private Coroutine pickupRoutine;
     private Coroutine returnRoutine;
@@ -293,10 +294,19 @@ public sealed class RestockFlowHUD : MonoBehaviour
     public void RequestPickupAnimation()
     {
         pickupAnimationRequested = true;
+        pickupFeedbackPending = true;
+    }
+
+    public void ConfirmPickupFeedback()
+    {
+        if (!pickupFeedbackPending) return;
+        pickupFeedbackPending = false;
+        if (!GameplaySfx.PresentationSuspended && isActiveAndEnabled) GameplaySfx.HotbarArrived();
     }
 
     public void CancelPickupAnimation()
     {
+        pickupFeedbackPending = false;
         pickupAnimationRequested = false;
     }
 

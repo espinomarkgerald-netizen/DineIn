@@ -41,6 +41,17 @@ public static class SfxPolicyHarness
         Check(pitches.Next(3, 1, 1) == 1, "explicit fixed pitch configuration");
         float swapped = pitches.Next(4, 1.015f, .985f);
         Check(swapped >= .985f && swapped <= 1.015f, "reversed editable range");
+        Check(GameplaySfxConversationPolicy.Zoomed(false, .35f, .35f, .45f), "conversation enters at close zoom");
+        Check(!GameplaySfxConversationPolicy.Zoomed(false, .4f, .35f, .45f), "conversation stays off in hysteresis band");
+        Check(GameplaySfxConversationPolicy.Zoomed(true, .4f, .35f, .45f), "conversation retains close zoom in band");
+        Check(!GameplaySfxConversationPolicy.Zoomed(true, .45f, .35f, .45f), "conversation releases at wide zoom");
+        Check(!GameplaySfxConversationPolicy.Zoomed(true, float.NaN, .35f, .45f), "invalid zoom is silent");
+        for (int i = 0; i < 1000; i++)
+        {
+            float total = i * .001f, cap = .054f;
+            float scale = GameplaySfxConversationPolicy.CapScale(total, cap);
+            Check(scale >= 0 && scale <= 1 && total * scale <= cap + .000001f, "conversation aggregate cap");
+        }
         Console.WriteLine("PASS: " + checks + " source-linked pitch/view math assertions; no listening or Unity runtime verification.");
     }
 }

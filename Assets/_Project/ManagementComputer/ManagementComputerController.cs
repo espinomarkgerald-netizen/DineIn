@@ -718,6 +718,12 @@ public sealed partial class ManagementComputerController : MonoBehaviour, IPoint
 
     private void QueueComputerCanvasRefresh()
     {
+        if (desktopRoot != null)
+            foreach (var control in desktopRoot.GetComponentsInChildren<Button>(true))
+            {
+                GameplayButtonSound.Ensure(control);
+                control.GetComponent<GameplayButtonSound>().soundContext = GameplayButtonSound.SoundContext.Computer;
+            }
         if (!IsOpen)
             return;
 

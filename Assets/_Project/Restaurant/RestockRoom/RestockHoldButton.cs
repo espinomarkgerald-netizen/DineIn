@@ -14,6 +14,7 @@ public sealed class RestockHoldButton : MonoBehaviour,
     [SerializeField] private TMP_Text label;
     [SerializeField, Min(0.25f)] private float holdSeconds = 1.4f;
 
+    private AudioSource handlingAudio;
     private bool holding;
     private float heldFor;
     private Action completed;
@@ -26,6 +27,7 @@ public sealed class RestockHoldButton : MonoBehaviour,
 
     public void Begin(Action onCompleted)
     {
+        CancelHold();
         completed = onCompleted;
         holding = false;
         heldFor = 0f;
@@ -34,8 +36,9 @@ public sealed class RestockHoldButton : MonoBehaviour,
 
     private void Update()
     {
-        if (!holding)
-            return;
+        if (GameplaySfx.PresentationSuspended) { CancelHold(); return; }
+        if (!holding) return;
+        GameplaySfx.SetDeliveryHold(handlingAudio, true);
 
         heldFor += Time.unscaledDeltaTime;
         Refresh();
@@ -43,6 +46,7 @@ public sealed class RestockHoldButton : MonoBehaviour,
             return;
 
         holding = false;
+        GameplaySfx.SetDeliveryHold(handlingAudio, false);
         Action callback = completed;
         completed = null;
         callback?.Invoke();
@@ -50,15 +54,22 @@ public sealed class RestockHoldButton : MonoBehaviour,
 
     public void OnPointerDown(PointerEventData eventData)
     {
-        if (completed != null)
+        if (completed != null && eventData.button == PointerEventData.InputButton.Left && !GameplaySfx.PresentationSuspended)
+        {
+            if (handlingAudio == null) { handlingAudio = gameObject.AddComponent<AudioSource>(); handlingAudio.playOnAwake = false; }
             holding = true;
+            GameplaySfx.SetDeliveryHold(handlingAudio, true);
+        }
     }
 
     public void OnPointerUp(PointerEventData eventData) => CancelHold();
     public void OnPointerExit(PointerEventData eventData) => CancelHold();
 
+    private void OnDisable() => CancelHold();
+
     private void CancelHold()
     {
+        GameplaySfx.SetDeliveryHold(handlingAudio, false);
         if (!holding)
             return;
 

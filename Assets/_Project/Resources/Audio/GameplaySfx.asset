@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   mixerGroup: {fileID: 2878796282664989187, guid: 3fd0d86c1f880854d9b5971fafc00816, type: 2}
   serve: {fileID: 8300000, guid: ecf97be4a28b0daf9ede7dd391d392e5, type: 3}
-  payment: {fileID: 8300000, guid: aad5904d8fd952163cf18d620bfbdb73, type: 3}
+  payment: {fileID: 8300000, guid: 08d538fbcb036db1da6e0fc8a118417e, type: 3}
   clean: {fileID: 8300000, guid: bbbd711ee03577a050650ae5332b731a, type: 3}
   success: {fileID: 8300000, guid: b54a1dc4db054b65fd39133489bab0b2, type: 3}
   error: {fileID: 8300000, guid: f66945437fb3bd9cfdf49b98573da6dc, type: 3}
@@ -48,7 +48,7 @@ MonoBehaviour:
   voiceCount: 8
   minimumPitch: 0.985
   maximumPitch: 1.015
-  ambienceLevel: 0.08
+  ambienceLevel: 0.025
   ambienceFadeSeconds: 1
   ambienceCrossfadeSeconds: 3
   minimumAmbiencePitch: 0.995
@@ -119,3 +119,36 @@ MonoBehaviour:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+  menuClicks:
+  - {fileID: 8300000, guid: fd37038ea4c578ab32c5d209da4827b5, type: 3}
+  - {fileID: 8300000, guid: 22cb252eb3f1ed27d3193b45e33feac0, type: 3}
+  - {fileID: 8300000, guid: e6dc07426306925b9d4fa4dc0c9b9677, type: 3}
+  computerClicks:
+  - {fileID: 8300000, guid: 683ead12812d36c9fa5570cc726f4f2e, type: 3}
+  - {fileID: 8300000, guid: 8852450ae15cbfe386473a841b09135d, type: 3}
+  - {fileID: 8300000, guid: ab63755d166932ef4d25c5975a9e68ca, type: 3}
+  hudClicks:
+  - {fileID: 8300000, guid: 5e8485443547ac98a0402d3cb3e201fb, type: 3}
+  - {fileID: 8300000, guid: a000f07537a651e973207bc7c08bcefc, type: 3}
+  - {fileID: 8300000, guid: 1e2414d31a0c49151b0b0da9be43d161, type: 3}
+  waterPour: {fileID: 8300000, guid: 58cf6c332637610048c230da21323564, type: 3}
+  waterPourLevel: 0.65
+  cratePlacementLevel: 0.85
+  cratePlacements:
+  - {fileID: 8300000, guid: fd37038ea4c578ab32c5d209da4827b5, type: 3}
+  - {fileID: 8300000, guid: 22cb252eb3f1ed27d3193b45e33feac0, type: 3}
+  - {fileID: 8300000, guid: e6dc07426306925b9d4fa4dc0c9b9677, type: 3}
+  tip: {fileID: 8300000, guid: 29874c67eab956bb6a4c573b3bc3435b, type: 3}
+  tipLevel: 0.85
+  deliveryHold: {fileID: 8300000, guid: 20a7e3328893467fb4b0be1532a13458, type: 3}
+  hotbarArrival: {fileID: 8300000, guid: e1d18662f612f605014cb003eb96395c, type: 3}
+  selection: {fileID: 8300000, guid: 51306bf7c16746eb19f49c1cc66db4a9, type: 3}
+  conversation: {fileID: 8300000, guid: bcd7d34c106b4148d53e6629ad478f12, type: 3}
+  deliveryHoldLevel: 0.35
+  hotbarArrivalLevel: 0.6
+  selectionLevel: 0.35
+  conversationLevel: 0.12
+  conversationFadeSeconds: 0.6
+  conversationGapSeconds: 2
+  conversationEnterZoom: 0.35
+  conversationExitZoom: 0.45

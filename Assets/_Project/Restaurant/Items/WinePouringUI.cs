@@ -53,6 +53,7 @@ public sealed class WinePouringUI : MonoBehaviour
     public AudioClip successSound;
     [Range(0f, 1f)] public float successVolume = 0.6f;
 
+    private AudioSource pouringAudio;
     private Action succeeded;
     private Action cancelled;
     private Vector3 restPosition;
@@ -198,6 +199,7 @@ public sealed class WinePouringUI : MonoBehaviour
 
     private void OnDisable()
     {
+        if (pouringAudio != null) pouringAudio.Stop();
         // External panel closure must restore the caller's temporary carry state as well.
         if (!open) return;
         Action callback = cancelled;
@@ -245,6 +247,10 @@ public sealed class WinePouringUI : MonoBehaviour
         if (screenSize.x != Screen.width || screenSize.y != Screen.height || lastSafeArea != Screen.safeArea)
             ApplyLayout();
         if (completing) return;
+        if (LobbyPauseMenu.IsAnyOpen || AudioListener.pause ||
+            MultiplayerSessionManager.Instance != null && MultiplayerSessionManager.Instance.IsMultiplayerSession &&
+            (MultiplayerSessionManager.Instance.IsRecovering || !MultiplayerSessionManager.Instance.IsConnected))
+        { SetPourVisible(false); return; }
 
         float dt = Mathf.Min(Time.unscaledDeltaTime, 0.05f);
         GetPourGeometry(out Vector2 opening, out Vector2 desiredMouth, out Quaternion tilt, out Vector2 pourPosition);
@@ -337,6 +343,12 @@ public sealed class WinePouringUI : MonoBehaviour
 
     private void SetPourVisible(bool visible)
     {
+        if (visible && waterService && pouringAudio == null)
+        {
+            pouringAudio = gameObject.AddComponent<AudioSource>();
+            pouringAudio.playOnAwake = false;
+        }
+        if (pouringAudio != null) GameplaySfx.SetWaterPour(pouringAudio, visible && waterService);
         if (stream != null) stream.gameObject.SetActive(visible);
         if (splash != null) splash.gameObject.SetActive(visible);
     }

@@ -466,7 +466,7 @@ public class CashierRegisterUI : MonoBehaviour
                         " | Total = ₱" + DailyFinanceBridge.Instance.EarnedToday);
             }
 
-            GameplaySfx.Completed(GameplaySfx.Cue.Payment, paidGroup);
+            GameplaySfx.PaymentCompleted(paidGroup, DailyFinanceBridge.Instance != null ? amountEarned : 0);
             GameDayManager.Instance?.RegisterPaymentCompleted();
 
             if (paidGroup.IsTakeout)
@@ -521,7 +521,7 @@ public class CashierRegisterUI : MonoBehaviour
         if (multiplayer && !group.BeginMultiplayerSettlement()) return false;
         DailyFinanceBridge.Instance?.AddEarnings(amountEarned, "Autonomous cashier payment");
         GameDayManager.Instance?.RefreshRevenueUI();
-        GameplaySfx.Completed(GameplaySfx.Cue.Payment, group);
+        GameplaySfx.PaymentCompleted(group, DailyFinanceBridge.Instance != null ? amountEarned : 0);
         GameDayManager.Instance?.RegisterPaymentCompleted();
 
         if (activeGroup == group)

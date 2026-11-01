@@ -2643,6 +2643,7 @@ public partial class CustomerGroup : MonoBehaviour
             if (ShouldShowVipTip())
             {
                 GameDayManager.Instance?.RegisterTip(Profile.tipAmount);
+                GameplaySfx.Completed(GameplaySfx.Cue.Tip, this);
                 SpawnTipPopup(Profile.tipAmount);
                 Debug.Log($"[CustomerGroup] {name} ({customerType}) left a tip of {Profile.tipAmount}.");
             }
@@ -4265,6 +4266,7 @@ public partial class CustomerGroup : MonoBehaviour
         if (ShouldShowVipTip())
         {
             GameDayManager.Instance?.RegisterTip(Profile.tipAmount);
+            GameplaySfx.Completed(GameplaySfx.Cue.Tip, this);
             SpawnTipPopup(Profile.tipAmount);
             Debug.Log($"[CustomerGroup] {name} ({customerType}) left a takeout tip of {Profile.tipAmount}.");
         }
@@ -4338,7 +4340,9 @@ public partial class CustomerGroup : MonoBehaviour
             Profile.tipAmount > 0;
     }
 
-    private void SpawnTipPopup(int amount)
+    public void PresentPayment(int amount) => SpawnTipPopup(amount, true);
+
+    private void SpawnTipPopup(int amount, bool payment = false)
     {
         if (tipPopupPrefab == null || amount <= 0)
             return;
@@ -4370,6 +4374,9 @@ public partial class CustomerGroup : MonoBehaviour
 
         var ui = instance.GetComponentInChildren<TipPopupUI>(true);
         if (ui != null)
-            ui.Show(amount);
+        {
+            if (payment) ui.ShowPayment(amount);
+            else ui.Show(amount);
+        }
     }
 }

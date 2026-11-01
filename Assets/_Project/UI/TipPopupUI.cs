@@ -47,6 +47,11 @@ public class TipPopupUI : MonoBehaviour
         Play();
     }
 
+    public void ShowPayment(int amount)
+    {
+        if (amountText != null) { amountText.text = $"+₱{amount:N0}"; amountText.color = normalTextColor; }
+        Play();
+    }
     public void ShowLoss(int amount)
     {
         if (amountText != null)
@@ -83,7 +88,7 @@ public class TipPopupUI : MonoBehaviour
             float p = Mathf.Clamp01(t / duration);
             float eased = EaseOutCubic(p);
 
-            if (animatedRoot != null)
+            if (animatedRoot != null && !LevelOneUIAccessibility.ReducedMotion)
             {
                 animatedRoot.anchoredPosition = Vector2.LerpUnclamped(startPos, endPos, eased);
 

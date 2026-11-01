@@ -32,3 +32,11 @@ public static class GameplaySfxView
                Math.Max(0, Math.Min(1, zoomCurve(Math.Max(0, Math.Min(1, zoom)))));
     }
 }
+
+// Pure conversation gating, shared with focused headless verification.
+public static class GameplaySfxConversationPolicy
+{
+    public static bool Zoomed(bool wasZoomed, float zoom, float enter, float exit)
+        => GameplaySfxView.Finite(zoom) && (wasZoomed ? zoom < Math.Max(enter, exit) : zoom <= Math.Min(enter, exit));
+    public static float CapScale(float total, float cap) => total > 0 ? Math.Min(1, Math.Max(0, cap) / total) : 1;
+}

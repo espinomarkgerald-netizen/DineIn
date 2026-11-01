@@ -307,6 +307,7 @@ public class PlayerMovement : MonoBehaviour
             if (requestingParty != null && requestingParty.HasWineRefillRequest &&
                 TutorialCustomerFlowBridge.AllowsWorldInteraction(requestingParty.transform))
             {
+                GameplaySfx.SelectWorld();
                 requestingParty.BeginWineRefill();
                 return;
             }
@@ -419,6 +420,7 @@ public class PlayerMovement : MonoBehaviour
         Vector3 worldPos = stand != null ? stand.position : bestHit.point;
 
         MoveToInteractable(bestTarget, stand, worldPos);
+        if (state == State.MovingToTarget && bestTarget is not ClickToMoveTarget) GameplaySfx.SelectWorld();
     }
 
     private void MoveToInteractable(IInteractable target, Transform standPoint, Vector3 worldPos)

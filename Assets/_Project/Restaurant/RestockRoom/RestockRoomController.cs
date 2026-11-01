@@ -89,8 +89,23 @@ public sealed class RestockRoomController
 
     public void Tick()
     {
-        // Pointer input is intentionally owned by RestockHotbarSlotUI so mouse
-        // and touch use the same deterministic drag path.
+        // Feedback only: hotbar/box owners retain all drag and placement behavior.
+        if (roomCamera == null || !roomCamera.isActiveAndEnabled || dragPreview != null || GameplaySfx.PresentationSuspended) return;
+        Vector2 point; int pointer;
+        if (Input.touchCount > 0)
+        {
+            var touch = Input.GetTouch(0);
+            if (touch.phase != TouchPhase.Began) return;
+            point = touch.position; pointer = touch.fingerId;
+        }
+        else { if (!Input.GetMouseButtonDown(0)) return; point = Input.mousePosition; pointer = -1; }
+        var events = UnityEngine.EventSystems.EventSystem.current;
+        if (events != null && (pointer < 0 ? events.IsPointerOverGameObject() : events.IsPointerOverGameObject(pointer))) return;
+        var hits = Physics.RaycastAll(roomCamera.ScreenPointToRay(point), 500f, MultiplayerRestockView.Active ? MultiplayerRestockView.RaycastMask : ~0, QueryTriggerInteraction.Collide);
+        System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+        if (hits.Length == 0) return;
+        var shelf = hits[0].collider.GetComponentInParent<ShelfGrid>();
+        if (shelf != null && grids.Contains(shelf) && shelf.StorageType == activeRoom) GameplaySfx.SelectWorld();
     }
 
     public void PrepareHotbarDrag(ItemData item)
@@ -256,7 +271,11 @@ public sealed class RestockRoomController
         if (MultiplayerRestockBridge.IsActive)
         {
             MultiplayerRestockBridge.Active?.RequestPlace(item, grid, column, row,
-                (accepted, message) => hud?.SetRoomMessage(message, !accepted));
+                (accepted, message) =>
+                {
+                    hud?.SetRoomMessage(message, !accepted);
+                    if (accepted && grid != null) grid.PresentPlacement();
+                });
             return MultiplayerRestockBridge.Active != null;
         }
 
@@ -311,6 +330,7 @@ public sealed class RestockRoomController
             row,
             box.transform.eulerAngles.y);
 
+        grid.PresentPlacement();
         hud?.SetRoomMessage(result, false);
         return true;
     }

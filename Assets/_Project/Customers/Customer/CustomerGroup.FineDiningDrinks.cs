@@ -287,6 +287,7 @@ public partial class CustomerGroup
             if (tip > 0)
             {
                 GameDayManager.Instance.RegisterTip(tip);
+                GameplaySfx.Completed(GameplaySfx.Cue.Tip, this);
                 SpawnTipPopup(tip);
             }
             ShowCustomThought("Thank you for the lovely service!", happyFaceSprite);
