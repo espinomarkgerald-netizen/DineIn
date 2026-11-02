@@ -82,7 +82,7 @@ for (const family of ['menu', 'computer', 'hud']) {
 test('disabled attempts use blocked cue', button.includes('!button.isActiveAndEnabled') && button.includes('GameplaySfx.Cue.Blocked'));
 test('computer windows and HUD have distinct classification', button.includes('ManagementComputerWindow') && button.includes('ButtonFamily.Hud') && button.includes('RestockScene'));
 const pouring = read('Assets/_Project/Restaurant/Items/WinePouringUI.cs');
-test('pour stops on disable and flowing ends', pouring.includes('pouringAudio.Stop()') && pouring.includes('SetWaterPour(pouringAudio, visible && waterService)'));
+test('pour stops on disable and flowing ends', pouring.includes('pouringAudio.Stop()') && pouring.includes('SetWaterPour(pouringAudio, visible)'));
 const room = read('Assets/_Project/Restaurant/RestockRoom/RestockRoomController.cs');
 test('multiplayer placement feedback follows accepted receipt', room.includes('if (accepted && grid != null) grid.PresentPlacement();'));
 console.log('PASS UI families, PCM assets, pouring lifecycle and placement reference checks.');

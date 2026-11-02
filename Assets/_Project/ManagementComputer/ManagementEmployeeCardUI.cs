@@ -41,6 +41,13 @@ public sealed class ManagementEmployeeCardUI : MonoBehaviour
 
     private Coroutine attentionRoutine;
     private Coroutine actionRoutine;
+    private string boundAccount, boundRun;
+    private int boundDay;
+    private bool ActionContextValid => isActiveAndEnabled && boundAccount == CampaignSaveStore.LocalDirectory &&
+        boundDay == (GameFlowManager.Instance != null ? GameFlowManager.Instance.CurrentDay : 0) &&
+        boundRun == MultiplayerSessionManager.Instance?.RunId;
+    private bool actionInProgress;
+    public bool IsActionPending => actionInProgress;
     private CanvasGroup canvasGroup;
     private RawImage avatarPortrait;
     private GameObject portraitSource;
@@ -147,6 +154,8 @@ public sealed class ManagementEmployeeCardUI : MonoBehaviour
         bool secondaryEnabled,
         UnityAction onEmptySlot = null)
     {
+        boundAccount = CampaignSaveStore.LocalDirectory; boundRun = MultiplayerSessionManager.Instance?.RunId;
+        boundDay = GameFlowManager.Instance != null ? GameFlowManager.Instance.CurrentDay : 0;
         Employee = employee;
         string employeeName = employee != null ? employee.employeeName : "Empty Slot";
         EmployeeRole role = employee != null ? employee.role : EmployeeRole.Host;
@@ -209,7 +218,7 @@ public sealed class ManagementEmployeeCardUI : MonoBehaviour
 
     public void PlayAttentionBop()
     {
-        if (!isActiveAndEnabled || actionRoutine != null)
+        if (!isActiveAndEnabled || actionInProgress)
             return;
 
         if (attentionRoutine != null)
@@ -229,7 +238,7 @@ public sealed class ManagementEmployeeCardUI : MonoBehaviour
 
     private void StartActionFeedback(IEnumerator routine)
     {
-        if (!isActiveAndEnabled || actionRoutine != null)
+        if (!isActiveAndEnabled || actionInProgress)
             return;
 
         if (attentionRoutine != null)
@@ -242,7 +251,9 @@ public sealed class ManagementEmployeeCardUI : MonoBehaviour
         if (canvasGroup != null)
             canvasGroup.interactable = false;
         transform.localScale = Vector3.one;
+        actionInProgress = true;
         actionRoutine = StartCoroutine(routine);
+        if (!actionInProgress) actionRoutine = null;
     }
 
     private IEnumerator PositiveFeedbackRoutine(Func<bool> action, UnityAction onSuccess)
@@ -261,8 +272,8 @@ public sealed class ManagementEmployeeCardUI : MonoBehaviour
         }
 
         RestoreActionVisuals();
-        bool succeeded = action != null && action.Invoke();
-        actionRoutine = null;
+        bool succeeded = ActionContextValid && action != null && action.Invoke();
+        actionRoutine = null; actionInProgress = false;
         if (succeeded)
             onSuccess?.Invoke();
     }
@@ -283,8 +294,8 @@ public sealed class ManagementEmployeeCardUI : MonoBehaviour
             yield return null;
         }
 
-        bool succeeded = action != null && action.Invoke();
-        actionRoutine = null;
+        bool succeeded = ActionContextValid && action != null && action.Invoke();
+        actionRoutine = null; actionInProgress = false;
         if (succeeded)
         {
             onSuccess?.Invoke();
@@ -362,6 +373,7 @@ public sealed class ManagementEmployeeCardUI : MonoBehaviour
             StopCoroutine(actionRoutine);
             actionRoutine = null;
         }
+        actionInProgress = false;
         RestoreActionVisuals();
     }
 
@@ -381,6 +393,7 @@ public sealed class ManagementEmployeeCardUI : MonoBehaviour
         button.interactable = enabled && callback != null;
         button.gameObject.SetActive(!string.IsNullOrWhiteSpace(action));
         if (label != null) label.text = action ?? string.Empty;
+        GameplayButtonSound.Ensure(button);
     }
 
     private void ApplyRating(int stars)

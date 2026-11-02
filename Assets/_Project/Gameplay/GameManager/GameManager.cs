@@ -1157,8 +1157,10 @@ public class GameDayManager : MonoBehaviour
         groupsSpawnedThisShift = Mathf.Max(0, stats[12]);
     }
 
+    private bool rewardResultsPending;
     private void ShowResults()
     {
+        if (rewardResultsPending) return;
         FineDiningReservations.For(this)?.FinishDay();
         bool multiplayer = MultiplayerDayBridge.IsActive;
         if (multiplayer && multiplayerDayEnded) return;
@@ -1177,6 +1179,24 @@ public class GameDayManager : MonoBehaviour
                              flow.TryGetRestaurantDayOutcome(out currentResultsOutcome);
         continuePurchaseArmed = false;
 
+        // Settlement above is completed before any reward UI. The provider is disabled
+        // until an authoritative, recoverable award service is implemented and deployed.
+        if (!multiplayer && singleRestaurantFlow && flow.LastRestaurantDaySucceeded &&
+            !restoringResultsPresentation && GameSaveManager.Instance?.IsApplyingSave != true && !CampaignSaveStore.ProtectedSession)
+        {
+            rewardResultsPending = true;
+            if (DailyRewardSlotUI.TryOfferBeforeResults(() =>
+            {
+                rewardResultsPending = false;
+                if (this != null && isActiveAndEnabled) PresentResultsAfterReward(earnedStars, singleRestaurantFlow, multiplayer);
+            })) return;
+            rewardResultsPending = false;
+        }
+        PresentResultsAfterReward(earnedStars, singleRestaurantFlow, multiplayer);
+    }
+    private void PresentResultsAfterReward(int earnedStars, bool singleRestaurantFlow, bool multiplayer)
+    {
+        var flow = GameFlowManager.Instance;
         SetPanelVisible(resultsPanel, true);
 
         int dayRevenue = DailyFinanceBridge.Instance != null

@@ -78,6 +78,13 @@ public sealed class GameplaySfx : ScriptableObject
         PlayUiClip(clips[index], settings.volume * settings.clickLevel);
         lastButtonTime = Time.unscaledTime;
     }
+    public static void SetUiLoop(AudioSource source, AudioClip clip, float level, bool active)
+    {
+        var player = GetPlayback();
+        if (source == null) return;
+        if (!active || player == null || clip == null || PresentationSuspended) { source.Stop(); return; }
+        if (!source.isPlaying) player.StartUiLoop(source, clip, settings.volume * Mathf.Clamp01(level));
+    }
     public static void SetWaterPour(AudioSource source, bool flowing)
     {
         var player = GetPlayback();

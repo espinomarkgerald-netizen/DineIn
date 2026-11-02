@@ -177,6 +177,16 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
         checkoutLinePrefab = configuredLinePrefab;
     }
 
+    private string boundAccount, boundRun;
+    private int boundDay, viewGeneration;
+    private void CaptureViewContext()
+    {
+        boundAccount = CampaignSaveStore.LocalDirectory; boundRun = MultiplayerSessionManager.Instance?.RunId;
+        boundDay = GameFlowManager.Instance != null ? GameFlowManager.Instance.CurrentDay : 0;
+    }
+    private bool ValidView => this != null && isActiveAndEnabled && boundAccount == CampaignSaveStore.LocalDirectory &&
+        boundRun == MultiplayerSessionManager.Instance?.RunId && boundDay == (GameFlowManager.Instance != null ? GameFlowManager.Instance.CurrentDay : 0);
+    private void OnDisable() { viewGeneration++; }
     private void OnEnable()
     {
         StretchToAvailableParent();
@@ -206,6 +216,7 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
         Func<Recipe, bool, bool> availabilitySetter,
         Func<Recipe, int, bool> priceSetter)
     {
+        CaptureViewContext();
         UnsubscribeInventory();
         SetMode(menu: true);
         activeCategory = MenuProductCategory.Food;
@@ -240,6 +251,7 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
         int configuredExpectedCustomers,
         Func<IReadOnlyList<RestockCartLine>, bool> orderConfirmation)
     {
+        CaptureViewContext();
         SubscribeInventory();
         SetMode(menu: false);
         activeCategory = MenuProductCategory.Food;
@@ -533,6 +545,31 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
         }
     }
 
+    public void RefreshData()
+    {
+        if (!ValidView) return;
+        var anchor = new ManagementComputerScrollAnchor(transform);
+        if (showingMenu)
+        {
+            menuEditable = MultiplayerRestaurantBridge.CanEdit && MenuAvailabilityManager.Instance != null &&
+                (GameDayManager.Instance == null || !GameDayManager.Instance.ServiceActive);
+            RefreshMenuCards();
+            if (selectedRecipe != null)
+            {
+                ConfigureMenuButtons(selectedRecipe.IsUnlocked);
+                if (menuPriceInput != null) menuPriceInput.interactable = menuEditable && selectedRecipe.IsUnlocked;
+                if (pendingMenuPrice >= 0 && selectedRecipe.EffectiveSellPrice == pendingMenuPrice)
+                { menuPriceDirty = false; pendingMenuPrice = -1; }
+                if (menuPriceInput != null && !menuPriceInput.isFocused && !menuPriceDirty)
+                    menuPriceInput.SetTextWithoutNotify(selectedRecipe.EffectiveSellPrice.ToString());
+            }
+        }
+        else RefreshRestockView();
+        anchor.Restore();
+    }
+    private bool menuPriceDirty;
+    private int pendingMenuPrice = -1;
+    private void MarkPriceDirty(string _) { menuPriceDirty = true; pendingMenuPrice = -1; }
     private void RefreshMenuCards()
     {
         foreach (KeyValuePair<Recipe, ManagementComputerCatalogCardUI> entry in menuCards)
@@ -544,7 +581,9 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
 
     private void SelectRecipe(Recipe product)
     {
+        bool changed = selectedRecipe != product;
         selectedRecipe = product;
+        if (changed) { menuPriceDirty = false; pendingMenuPrice = -1; }
         RefreshMenuCards();
         ClearChildren(menuIngredientContent);
 
@@ -574,7 +613,9 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
 
         if (menuPriceInput != null)
         {
-            menuPriceInput.text = product.EffectiveSellPrice.ToString();
+            menuPriceInput.SetTextWithoutNotify(product.EffectiveSellPrice.ToString());
+            menuPriceInput.onValueChanged.RemoveListener(MarkPriceDirty);
+            menuPriceInput.onValueChanged.AddListener(MarkPriceDirty);
             menuPriceInput.interactable = menuEditable && product.IsUnlocked;
         }
 
@@ -629,6 +670,7 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
 
     private void SaveSelectedPrice()
     {
+        if (!ValidView) return;
         if (!menuEditable || selectedRecipe == null || menuPriceInput == null)
             return;
 
@@ -647,12 +689,15 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
             return;
         }
 
-        SelectRecipe(selectedRecipe);
-        SetMessage("Saved " + selectedRecipe.DisplayName + " at ₱" + price + ".");
+        pendingMenuPrice = price;
+        menuPriceDirty = selectedRecipe.EffectiveSellPrice != price;
+        RefreshData();
+        SetMessage(menuPriceDirty ? "Price update requested. Waiting for confirmation." : "Saved " + selectedRecipe.DisplayName + " at ₱" + price + ".");
     }
 
     private void ToggleSelectedAvailability()
     {
+        if (!ValidView) return;
         if (!menuEditable || selectedRecipe == null || setMenuAvailability == null)
             return;
 
@@ -663,7 +708,7 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
             return;
         }
 
-        SelectRecipe(selectedRecipe);
+        RefreshData();
     }
 
     private void BuildRestockCards()
@@ -688,6 +733,7 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
 
     private void RefreshRestockView()
     {
+        var anchor = new ManagementComputerScrollAnchor(transform);
         foreach (KeyValuePair<ItemData, ManagementComputerCatalogCardUI> entry in restockCards)
         {
             ItemData item = entry.Key;
@@ -714,6 +760,7 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
         RefreshCartSummary();
         ConfigureCartButtons();
         ApplyCategoryFilter(false);
+        anchor.Restore();
     }
 
     private void BuildRestockProgressionMetadata()
@@ -798,7 +845,7 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
 
     private void RebuildCartLines()
     {
-        ClearChildren(cartLineContent);
+        var usedLines = new HashSet<ManagementComputerCheckoutLineUI>();
         if (checkoutLinePrefab == null || cartLineContent == null)
             return;
 
@@ -809,9 +856,11 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
             if (quantity <= 0)
                 continue;
 
-            ManagementComputerCheckoutLineUI line = Instantiate(
-                checkoutLinePrefab,
-                cartLineContent);
+            string key = "Cart_" + item.StableItemId;
+            var existing = cartLineContent.Find(key);
+            ManagementComputerCheckoutLineUI line = existing != null && existing.gameObject.activeSelf ? existing.GetComponent<ManagementComputerCheckoutLineUI>() : Instantiate(checkoutLinePrefab, cartLineContent);
+            line.name = key; usedLines.Add(line);
+            line.transform.SetAsLastSibling();
             line.gameObject.SetActive(true);
             line.BindCart(
                 item,
@@ -819,10 +868,13 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
                 GetAvailableCapacity(item.requiredStorage) > 0,
                 ChangeCartQuantity);
         }
+        foreach (var old in cartLineContent.GetComponentsInChildren<ManagementComputerCheckoutLineUI>(true))
+            if (!usedLines.Contains(old)) { old.gameObject.SetActive(false); Destroy(old.gameObject); }
     }
 
     private void ChangeCartQuantity(ItemData item, int delta)
     {
+        if (!ValidView) return;
         if (item == null || delta == 0 || committingOrder || reviewMode)
             return;
 
@@ -920,6 +972,7 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
 
     private void CommitOrder()
     {
+        if (!ValidView) return;
         if (committingOrder)
             return;
 
@@ -940,7 +993,11 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
             if (MultiplayerRestockBridge.Active == null)
                 CompleteMultiplayerOrder(false, "Restock authority is not ready.");
             else
-                MultiplayerRestockBridge.Active.RequestOrder(lines, CompleteMultiplayerOrder);
+            {
+                int generation = viewGeneration;
+                MultiplayerRestockBridge.Active.RequestOrder(lines, (success, message) =>
+                { if (this != null && generation == viewGeneration && ValidView) CompleteMultiplayerOrder(success, message); });
+            }
             return;
         }
         bool success = confirmOrder != null && confirmOrder(lines);
@@ -961,7 +1018,7 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
 
     private void CompleteMultiplayerOrder(bool success, string message)
     {
-        if (this == null) return;
+        if (!ValidView) return;
         committingOrder = false;
         if (success)
         {

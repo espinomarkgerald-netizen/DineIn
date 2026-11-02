@@ -343,12 +343,12 @@ public sealed class WinePouringUI : MonoBehaviour
 
     private void SetPourVisible(bool visible)
     {
-        if (visible && waterService && pouringAudio == null)
+        if (visible && pouringAudio == null)
         {
             pouringAudio = gameObject.AddComponent<AudioSource>();
             pouringAudio.playOnAwake = false;
         }
-        if (pouringAudio != null) GameplaySfx.SetWaterPour(pouringAudio, visible && waterService);
+        if (pouringAudio != null) GameplaySfx.SetWaterPour(pouringAudio, visible);
         if (stream != null) stream.gameObject.SetActive(visible);
         if (splash != null) splash.gameObject.SetActive(visible);
     }

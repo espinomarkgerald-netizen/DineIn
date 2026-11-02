@@ -875,7 +875,11 @@ public sealed class FastFoodTutorialBridge : MonoBehaviour
     {
         var computer = Computer;
         if (computer == null || !computer.IsOpen) return null;
-        if (control == "Computer:Restock") return bindings.ResolveUI("RestockButton");
+        if (control == "Computer:Restock")
+        {
+            if (CartPanel == null && !tutorial.RequireComputerDesktop()) return null;
+            return bindings.ResolveUI("RestockButton");
+        }
         if (control == "Computer:Exit") return bindings.ResolveUI("ManagementExit");
         if (control == "Computer:CloseApp") return computer.AppWindow?.CloseButton?.transform as RectTransform;
         var panel = CartPanel;

@@ -178,6 +178,7 @@ public class EmployeeManager : MonoBehaviour
                  GetAssignedEmployee(employee.role, 1) == null)
             AssignEmployeeForDay(employee);
 
+        EnsureMinimumApplicants(CurrentDay());
         ApplicantHired?.Invoke(employee);
         GameSaveManager.Instance?.RequestSave();
         return true;
@@ -202,6 +203,7 @@ public class EmployeeManager : MonoBehaviour
                 AssignEmployeeForDay(replacement);
         }
 
+        EnsureMinimumApplicants(CurrentDay());
         AssignmentsChanged?.Invoke();
         GameSaveManager.Instance?.RequestSave();
         return true;
@@ -215,6 +217,7 @@ public class EmployeeManager : MonoBehaviour
             return false;
 
         RemoveEmployee(employee);
+        EnsureMinimumApplicants(CurrentDay());
         AssignmentsChanged?.Invoke();
         GameSaveManager.Instance?.RequestSave();
         return true;
@@ -436,13 +439,13 @@ public class EmployeeManager : MonoBehaviour
             : latestAllowedRefresh;
         applicantLastProcessedDay = Mathf.Max(0, data.employeeApplicantLastProcessedDay);
         applicantsUnseen = data.employeeApplicantsUnseen;
-        // A saved pool with missing roles (or no applicants left) is valid.
-        // It must remain depleted until the configured applicant refresh day.
+        // Preserve the saved cohort and refresh date; repair only depleted roles.
         applicantPoolsInitialized = data.employeeRosterInitialized || allEmployees.Count > 0 || !CampaignSaveStore.IsFineDining;
         if (!applicantPoolsInitialized) EnsureEmployeesGenerated();
         RebuildRoleGroups();
 
         AssignMissingApplicantExpiryDays(loadedDay);
+        EnsureMinimumApplicants(loadedDay);
         AutoAssignSoleHires();
 
         AssignmentsChanged?.Invoke();
@@ -624,10 +627,15 @@ public class EmployeeManager : MonoBehaviour
         if (applicantNextRefreshDay <= 0)
             applicantNextRefreshDay = currentDay + refreshIntervalDays;
 
+        // The safety floor also runs on the same day after loading or HR changes.
+        // A player must not need to open a staffed shift just to reach recruitment refresh.
         // PrepareDay can call this more than once. Applicant expiry and the full
         // cohort roll must only happen once per in-game morning.
         if (applicantLastProcessedDay == currentDay)
+        {
+            if (EnsureMinimumApplicants(currentDay)) GameSaveManager.Instance?.RequestSave();
             return;
+        }
 
         bool fullRefresh = currentDay >= applicantNextRefreshDay;
         RemoveExpiredApplicants(currentDay, fullRefresh);
@@ -638,6 +646,7 @@ public class EmployeeManager : MonoBehaviour
             added = EnsureApplicantPools(currentDay);
             applicantPoolsInitialized = true;
         }
+        else EnsureMinimumApplicants(currentDay);
         applicantLastProcessedDay = currentDay;
         if (fullRefresh)
             applicantNextRefreshDay = currentDay + refreshIntervalDays;
@@ -845,6 +854,21 @@ public class EmployeeManager : MonoBehaviour
         return added;
     }
 
+    private bool EnsureMinimumApplicants(int currentDay)
+    {
+        if (MultiplayerRestaurantBridge.IsObserver || allEmployees == null) return false;
+        if (generator == null) generator = FindFirstObjectByType<EmployeeGenerator>();
+        if (generator == null) return false;
+        RemoveExpiredApplicants(currentDay, false);
+        bool added = false;
+        foreach (EmployeeRole role in EmployeeRoleCatalog.LobbyRoles)
+            added |= EnsureApplicantPool(role, currentDay, 1);
+        foreach (EmployeeRole role in EmployeeRoleCatalog.KitchenRoles)
+            added |= EnsureApplicantPool(role, currentDay, 1);
+        if (added) NotifyNewApplicants();
+        return added;
+    }
+
     private bool HasApplicantForEverySupportedRole()
     {
         foreach (EmployeeRole role in EmployeeRoleCatalog.LobbyRoles)
@@ -862,7 +886,7 @@ public class EmployeeManager : MonoBehaviour
         return true;
     }
 
-    private bool EnsureApplicantPool(EmployeeRole role, int currentDay)
+    private bool EnsureApplicantPool(EmployeeRole role, int currentDay, int minimumCount = -1)
     {
         if (generator == null)
             return false;
@@ -875,7 +899,7 @@ public class EmployeeManager : MonoBehaviour
                 applicantCount++;
         }
 
-        while (applicantCount < targetApplicantsPerRole)
+        while (applicantCount < (minimumCount < 0 ? targetApplicantsPerRole : minimumCount))
         {
             List<string> names = new List<string>();
             foreach (EmployeeData employee in allEmployees)

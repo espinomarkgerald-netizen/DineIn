@@ -90,7 +90,8 @@ public sealed class TutorialSceneBindings : MonoBehaviour
             if (appKey == "Management.Restock") return ResolveUI("RestockCheckout");
             return null;
         }
-        CloseCompletedApp();
+        if (Computer.AppWindow != null && Computer.AppWindow.gameObject.activeInHierarchy)
+            return Computer.AppWindow.CloseButton?.transform as RectTransform;
         string name = appKey?.Substring("Management.".Length);
         return ResolveUI(name + "Button");
     }
@@ -644,7 +645,7 @@ public sealed class TutorialSceneBindings : MonoBehaviour
         EmployeeData expected = TutorialUIActionAdapter.LastHiredEmployee;
         foreach (ManagementEmployeeCardUI card in content.GetComponentsInChildren<ManagementEmployeeCardUI>(false))
             if (card.Employee != null && card.Employee.hired &&
-                (expected == null || card.Employee == expected) &&
+                (expected == null || card.Employee.EmployeeID == expected.EmployeeID) &&
                 IsCurrentAnimatedCardTarget(card.transform as RectTransform, content))
                 return card.transform as RectTransform;
         return null;
@@ -819,6 +820,10 @@ public sealed class TutorialSceneBindings : MonoBehaviour
         // before measuring it; do not force child containers active or rebuild cards.
         target.GetComponentInParent<ManagementComputerCatalogCardUI>()
             ?.RestoreExpectedVisualState();
+
+        // Real app windows own their lifecycle. Never force them active again after X,
+        // or restore their old ancestor visibility during an in-place action update.
+        if (target.GetComponentInParent<ManagementComputerWindow>(true) != null) return;
 
         // Only force-reveal the persistent HUD branches that normally exclude
         // Lobby1Tutorial. Modal windows such as Newspaper / Management / Restock must

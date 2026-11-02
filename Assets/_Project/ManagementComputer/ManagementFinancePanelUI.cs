@@ -505,6 +505,14 @@ public sealed class ManagementFinancePanelUI : MonoBehaviour
         CreateDivider(parent, false);
     }
 
+    private bool refreshingData;
+    public void RefreshData(FinanceDayReport report, IReadOnlyList<DailyFinanceSummarySaveEntry> history)
+    {
+        refreshingData = true;
+        try { Bind(report, history); }
+        finally { refreshingData = false; }
+    }
+
     private void Bind(FinanceDayReport report, IReadOnlyList<DailyFinanceSummarySaveEntry> history)
     {
         report ??= new FinanceDayReport { day = 1 };
@@ -527,8 +535,17 @@ public sealed class ManagementFinancePanelUI : MonoBehaviour
         netProfitValue.color = report.NetProfit >= 0 ? Green : Red;
 
         RebuildHistory(history, report.day);
-        SelectTip();
-        ShowTab(true, false);
+        if (!refreshingData) { SelectTip(); ShowTab(true, false); }
+        if (refreshingData)
+        {
+            StopAllCoroutines();
+            todayGroup.alpha = historyGroup.alpha = 1;
+            todayRoot.localScale = historyRoot.localScale = Vector3.one;
+            tabRoutine = null;
+            salesValue.text = Money(report.TotalRevenue); expensesValue.text = Money(report.TotalExpenses);
+            profitValue.text = Money(report.NetProfit); cashValue.text = Money(report.cashBalance); netProfitValue.text = Money(report.NetProfit);
+            return;
+        }
         StartCoroutine(AnimateMoney(salesValue, report.TotalRevenue, Green, 0.05f));
         StartCoroutine(AnimateMoney(expensesValue, report.TotalExpenses, Red, 0.08f));
         StartCoroutine(AnimateMoney(profitValue, report.NetProfit,
@@ -546,8 +563,7 @@ public sealed class ManagementFinancePanelUI : MonoBehaviour
         Transform rows = Find("Rows");
         if (rows == null)
             return;
-        for (int i = rows.childCount - 1; i >= 0; i--)
-            Destroy(rows.GetChild(i).gameObject);
+        var used = new HashSet<GameObject>();
 
         List<DailyFinanceSummarySaveEntry> ordered = new List<DailyFinanceSummarySaveEntry>();
         if (history != null)
@@ -561,6 +577,7 @@ public sealed class ManagementFinancePanelUI : MonoBehaviour
             historyEmptyState.SetActive(ordered.Count == 0);
         if (ordered.Count == 0)
         {
+            foreach (Transform old in rows) { old.gameObject.SetActive(false); Destroy(old.gameObject); }
             ForceHistoryLayout(rows as RectTransform);
             return;
         }
@@ -568,7 +585,16 @@ public sealed class ManagementFinancePanelUI : MonoBehaviour
         for (int i = 0; i < ordered.Count; i++)
         {
             DailyFinanceSummarySaveEntry entry = ordered[i];
-            GameObject line = CreateObject("Day " + entry.day, rows);
+            var old = rows.Find("Day " + entry.day);
+            if (old != null)
+            {
+                used.Add(old.gameObject);
+                var divider = rows.Find("Divider_" + entry.day); if (divider != null) used.Add(divider.gameObject);
+                var cells = old.GetComponentsInChildren<TMP_Text>();
+                if (cells.Length >= 4) { cells[0].text = "Day " + entry.day; cells[1].text = Money(entry.sales); cells[2].text = Money(entry.expenses); cells[3].text = Money(entry.netProfit); }
+                continue;
+            }
+            GameObject line = CreateObject("Day " + entry.day, rows); used.Add(line);
             HorizontalLayoutGroup row = ConfigureHistoryRow(line);
             SetLayout(line, 58f, 60f, 0f, 0f);
             AddHistoryCell(row.transform, "Day " + entry.day, Navy, true);
@@ -577,9 +603,11 @@ public sealed class ManagementFinancePanelUI : MonoBehaviour
             AddHistoryCell(row.transform, Money(entry.netProfit),
                 entry.netProfit >= 0 ? Navy : Red, true);
             UIRevealAnimation reveal = line.AddComponent<UIRevealAnimation>();
-            reveal.Play(Mathf.Min(0.18f, i * 0.025f));
-            CreateDivider(rows, false);
+            if (!refreshingData) reveal.Play(Mathf.Min(0.18f, i * 0.025f));
+            int dividerCount = rows.childCount; CreateDivider(rows, false);
+            if (rows.childCount > dividerCount) { var divider = rows.GetChild(rows.childCount - 1); divider.name = "Divider_" + entry.day; used.Add(divider.gameObject); }
         }
+        foreach (Transform old in rows) if (!used.Contains(old.gameObject)) { old.gameObject.SetActive(false); Destroy(old.gameObject); }
         ForceHistoryLayout(rows as RectTransform);
     }
 

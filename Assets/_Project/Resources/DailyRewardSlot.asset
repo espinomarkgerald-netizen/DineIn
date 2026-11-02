@@ -1,0 +1,88 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 156a8c6a0cbd0d859ca4b2113bc4270b, type: 3}
+  m_Name: DailyRewardSlot
+  m_EditorClassIdentifier:
+  font: {fileID: 11400000, guid: 8a89fa14b10d46a99122fd4f73fca9a2, type: 2}
+  buttonSprite: {fileID: 21300000, guid: f8fd340688358464480e8f8918413eb6, type: 3}
+  rulesVersion: daily-slot-1
+  noPrizeWeight: 60
+  prizes:
+  - food: {fileID: 21300000, guid: 3f2e72868d33b7a4cb309008d2f52b65, type: 3}
+    foodName: Burger
+    symbolScale: 1.12
+    symbolOffset: {x: 0, y: 0}
+    amount: 100
+    gold: 0
+    weight: 15
+  - food: {fileID: 21300000, guid: d7865c5038827d6478c46ce8a989d686, type: 3}
+    foodName: Fries
+    symbolScale: 1.12
+    symbolOffset: {x: 0, y: 0}
+    amount: 250
+    gold: 0
+    weight: 10
+  - food: {fileID: 21300000, guid: 4dd2c34e92d3ff549898be38dc5c6945, type: 3}
+    foodName: Roasted Chicken
+    symbolScale: 1.12
+    symbolOffset: {x: 0, y: 0}
+    amount: 500
+    gold: 0
+    weight: 7
+  - food: {fileID: 21300000, guid: 2eecd69075cfced4f8752e5312353d85, type: 3}
+    foodName: Chicken Alfredo
+    symbolScale: 1.12
+    symbolOffset: {x: 0, y: 0}
+    amount: 1000
+    gold: 0
+    weight: 3
+  - food: {fileID: 21300000, guid: 00988c0f0a4cc484bb82da61025041ed, type: 3}
+    foodName: Fried Chicken
+    symbolScale: 1.12
+    symbolOffset: {x: 0, y: 0}
+    amount: 10
+    gold: 1
+    weight: 4
+  - food: {fileID: 21300000, guid: 3c6dfe96ae433b547afb19fe74c56813, type: 3}
+    foodName: Rib-Eye Steak
+    symbolScale: 1.12
+    symbolOffset: {x: 0, y: 0}
+    amount: 50
+    gold: 1
+    weight: 1
+  spinSeconds: 2.2
+  reelStagger: 0.3
+  audioLevel: 0.22
+  reelTick: {fileID: 8300000, guid: 683ead12812d36c9fa5570cc726f4f2e, type: 3}
+  spinSound: {fileID: 8300000, guid: e1d18662f612f605014cb003eb96395c, type: 3}
+  panelSprite: {fileID: 21300000, guid: 217277a4b422085a9739ac45ccd36f29, type: 3}
+  particleSprite: {fileID: 21300000, guid: afbddaad0e7a22846b5cd70515b18224, type: 3}
+  cashIcon: {fileID: 21300000, guid: 471c3e0f51ad10a47bfdb5d1dd4a5af4, type: 3}
+  popupWidth: 800
+  popupHeight: 630
+  maximumSafeWidth: 0.68
+  maximumSafeHeight: 0.78
+  backdropOpacity: 0.36
+  entranceSeconds: 0.24
+  closeSeconds: 0.18
+  settleSeconds: 0.2
+  celebrationSeconds: 1.05
+  particleCount: 16
+  particleLifetime: 0.75
+  reelCycles: 10
+  spinLoop: {fileID: 8300000, guid: 892cc8e0a612895412789853f24d7564, type: 3}
+  goldCoinIcon: {fileID: 21300000, guid: 71158aa097bac20200e87659a77d0db5, type: 3}
+  rewardIconSize: 62
+  iconTextGap: 8
+  lossDuration: 0.55
+  lossDipPixels: 4
+  currencyWinSound: {fileID: 8300000, guid: 29874c67eab956bb6a4c573b3bc3435b, type: 3}

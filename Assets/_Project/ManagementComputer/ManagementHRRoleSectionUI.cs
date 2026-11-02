@@ -26,6 +26,17 @@ public sealed class ManagementHRRoleSectionUI : MonoBehaviour
     [Header("Applicant Reflow (Editable)")]
     [SerializeField, Min(0.08f)] private float applicantReflowDuration = 0.16f;
 
+    private readonly HashSet<ManagementEmployeeCardUI> retainedCards = new();
+    private ManagementEmployeeCardUI Card(ManagementEmployeeCardUI prefab, RectTransform parent, EmployeeData employee, string key)
+    {
+        ManagementEmployeeCardUI card = null;
+        foreach (var existing in parent.GetComponentsInChildren<ManagementEmployeeCardUI>(true))
+            if (existing.gameObject.activeSelf && existing.name == key) { card = existing; break; }
+        if (card == null) card = Instantiate(prefab, parent);
+        card.name = key; card.gameObject.SetActive(true); retainedCards.Add(card);
+        card.transform.SetAsLastSibling();
+        return card;
+    }
     public EmployeeRole Role { get; private set; }
     public RectTransform EmployedContent => employedContent;
     public RectTransform ApplicantContent => applicantContent;
@@ -57,7 +68,7 @@ public sealed class ManagementHRRoleSectionUI : MonoBehaviour
         bool showEmployed = true,
         bool showApplicants = true,
         Action<EmployeeRole> onEmptySlotSelected = null,
-        Action<ManagementEmployeeCardUI, EmployeeData> portraitForEmployee = null)
+        Action<ManagementEmployeeCardUI, EmployeeData> portraitForEmployee = null, bool updating = false)
     {
         Role = role;
         ResolveRailRoots();
@@ -66,8 +77,7 @@ public sealed class ManagementHRRoleSectionUI : MonoBehaviour
         if (employedScroll != null) employedScroll.gameObject.SetActive(showEmployed);
         if (applicantScroll != null) applicantScroll.gameObject.SetActive(showApplicants);
         ApplySingleRailLayout(showEmployed, showApplicants);
-        Clear(employedContent);
-        Clear(applicantContent);
+        retainedCards.Clear();
 
         List<EmployeeData> employed = new List<EmployeeData>();
         List<EmployeeData> applicants = new List<EmployeeData>();
@@ -86,14 +96,14 @@ public sealed class ManagementHRRoleSectionUI : MonoBehaviour
 
         if (showEmployed && employed.Count == 0)
         {
-            ManagementEmployeeCardUI empty = Instantiate(cardPrefab, employedContent);
+            ManagementEmployeeCardUI empty = Card(cardPrefab, employedContent, null, "Empty_" + role);
             empty.name = "Empty_" + role;
             UnityEngine.Events.UnityAction openApplicants = onEmptySlotSelected == null
                 ? null
                 : () => onEmptySlotSelected(role);
             empty.Bind(null, manager.salaryConfig, "EMPTY POSITION", string.Empty, null, false,
                 string.Empty, null, false, openApplicants);
-            PlayCardReveal(empty, 0);
+            if (!updating) PlayCardReveal(empty, 0);
         }
         else if (showEmployed)
         {
@@ -101,8 +111,9 @@ public sealed class ManagementHRRoleSectionUI : MonoBehaviour
             foreach (EmployeeData employee in employed)
             {
                 EmployeeData captured = employee;
-                ManagementEmployeeCardUI card = Instantiate(cardPrefab, employedContent);
-                card.name = "Employee_" + employee.employeeName;
+                ManagementEmployeeCardUI card = Card(cardPrefab, employedContent, employee, "Employee_" + employee.EmployeeID);
+                bool portraitChanged = card.Employee == null || card.Employee.EmployeeID != employee.EmployeeID;
+
                 card.Bind(employee, manager.salaryConfig,
                     employee.assigned ? "ACTIVE THIS SHIFT" : "ROSTERED",
                     employee.assigned && manager.ActiveSlotLimit(role) > 1
@@ -120,8 +131,8 @@ public sealed class ManagementHRRoleSectionUI : MonoBehaviour
                         if (manager.FireEmployee(captured)) onRosterChanged?.Invoke();
                     },
                     editable);
-                portraitForEmployee?.Invoke(card, employee);
-                PlayCardReveal(card, employeeRevealIndex++);
+                if (portraitChanged) portraitForEmployee?.Invoke(card, employee);
+                if (!updating) PlayCardReveal(card, employeeRevealIndex++);
             }
         }
 
@@ -130,13 +141,13 @@ public sealed class ManagementHRRoleSectionUI : MonoBehaviour
             if (roleSummary != null) roleSummary.text += "   •   2 ACTIVE POSITIONS";
             for (int i = Mathf.Max(1, employed.Count); i < manager.ActiveSlotLimit(role); i++)
             {
-                var empty = Instantiate(cardPrefab, employedContent);
+                var empty = Card(cardPrefab, employedContent, null, "Empty_Waiter_" + (i + 1));
                 empty.name = "Empty_Waiter_" + (i + 1);
                 UnityEngine.Events.UnityAction openApplicants = onEmptySlotSelected == null
                     ? null : () => onEmptySlotSelected(role);
                 empty.Bind(null, manager.salaryConfig, "EMPTY WAITER POSITION", string.Empty, null, false,
                     string.Empty, null, false, openApplicants);
-                PlayCardReveal(empty, i);
+                if (!updating) PlayCardReveal(empty, i);
             }
         }
         bool hasSpace = employed.Count < manager.HiringLimit(role);
@@ -146,8 +157,9 @@ public sealed class ManagementHRRoleSectionUI : MonoBehaviour
             foreach (EmployeeData applicant in applicants)
             {
                 EmployeeData captured = applicant;
-                ManagementEmployeeCardUI card = Instantiate(cardPrefab, applicantContent);
-                card.name = "Applicant_" + applicant.employeeName;
+                ManagementEmployeeCardUI card = Card(cardPrefab, applicantContent, applicant, "Applicant_" + applicant.EmployeeID);
+                bool portraitChanged = card.Employee == null || card.Employee.EmployeeID != applicant.EmployeeID;
+
                 string availability = applicant.applicantAvailableUntilDay > 0
                     ? "AVAILABLE THROUGH DAY " + applicant.applicantAvailableUntilDay
                     : "APPLICANT";
@@ -165,19 +177,21 @@ public sealed class ManagementHRRoleSectionUI : MonoBehaviour
                     {
                         card.PlayDeclineRemoval(
                             () => manager.DeclineApplicant(captured),
-                            () => BeginApplicantReflow(card, manager, onRosterChanged));
+                            () => onRosterChanged?.Invoke());
                     },
                     editable);
-                portraitForEmployee?.Invoke(card, applicant);
-                PlayCardReveal(card, applicantRevealIndex++);
+                if (portraitChanged) portraitForEmployee?.Invoke(card, applicant);
+                if (!updating) PlayCardReveal(card, applicantRevealIndex++);
             }
         }
 
+        foreach (var old in GetComponentsInChildren<ManagementEmployeeCardUI>(true))
+            if (!retainedCards.Contains(old)) { old.gameObject.SetActive(false); Destroy(old.gameObject); }
         Canvas.ForceUpdateCanvases();
         if (showEmployed) LayoutRebuilder.ForceRebuildLayoutImmediate(employedContent);
         if (showApplicants) LayoutRebuilder.ForceRebuildLayoutImmediate(applicantContent);
-        if (employedScroll != null) employedScroll.horizontalNormalizedPosition = 0f;
-        if (applicantScroll != null) applicantScroll.horizontalNormalizedPosition = 0f;
+        if (!updating && employedScroll != null) employedScroll.horizontalNormalizedPosition = 0f;
+        if (!updating && applicantScroll != null) applicantScroll.horizontalNormalizedPosition = 0f;
 
         float preferredHeight = showEmployed && showApplicants
             ? 760f

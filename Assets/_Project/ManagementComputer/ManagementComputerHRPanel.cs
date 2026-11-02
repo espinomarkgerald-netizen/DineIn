@@ -166,12 +166,11 @@ public sealed class ManagementComputerHRPanel : MonoBehaviour
 
     public void ShowDepartment(EmployeeDepartment department)
     {
-        CancelApplicantFocus();
-        CancelScrollRestore();
+        if (!updating) { CancelApplicantFocus(); CancelScrollRestore(); }
         CurrentDepartment = department;
         bool lobby = department == EmployeeDepartment.Lobby;
         CurrentView = lobby ? ManagementHRView.Lobby : ManagementHRView.Kitchen;
-        ClearSections();
+        if (!updating) ClearSections();
 
         if (departmentTitle != null) departmentTitle.text = lobby ? "LOBBY DEPARTMENT" : "KITCHEN DEPARTMENT";
         if (departmentDescription != null)
@@ -194,10 +193,9 @@ public sealed class ManagementComputerHRPanel : MonoBehaviour
 
     public void ShowApplicants()
     {
-        CancelApplicantFocus();
-        CancelScrollRestore();
+        if (!updating) { CancelApplicantFocus(); CancelScrollRestore(); }
         CurrentView = ManagementHRView.Applicants;
-        ClearSections();
+        if (!updating) ClearSections();
         manager?.MarkApplicantsSeen();
 
         bool hasApplicants = HasAnyApplicants();
@@ -256,7 +254,9 @@ public sealed class ManagementComputerHRPanel : MonoBehaviour
             if (showApplicants && !showEmployed && !HasApplicantsForRole(role))
                 continue;
 
-            ManagementHRRoleSectionUI section = Instantiate(sectionPrefab, sectionsRoot);
+            string key = "Role_" + role;
+            Transform existing = sectionsRoot.Find(key);
+            ManagementHRRoleSectionUI section = existing != null && existing.gameObject.activeSelf ? existing.GetComponent<ManagementHRRoleSectionUI>() : Instantiate(sectionPrefab, sectionsRoot);
             section.name = "Role_" + role;
             section.gameObject.SetActive(true);
             section.Bind(
@@ -268,8 +268,8 @@ public sealed class ManagementComputerHRPanel : MonoBehaviour
                 showEmployed,
                 showApplicants,
                 ShowApplicantsForRole,
-                BindEmployeePortrait);
-            section.GetComponent<UIRevealAnimation>()?.Play();
+                BindEmployeePortrait, updating);
+            if (!updating) section.GetComponent<UIRevealAnimation>()?.Play();
         }
     }
 
@@ -447,27 +447,37 @@ public sealed class ManagementComputerHRPanel : MonoBehaviour
                 Mathf.Max(1f, contentHeight));
             LayoutRebuilder.ForceRebuildLayoutImmediate(sectionsRoot);
         }
-        if (bodyScroll != null)
+        if (!updating && bodyScroll != null)
         {
             bodyScroll.StopMovement();
             bodyScroll.verticalNormalizedPosition = 1f;
         }
     }
 
+    private bool refreshPending;
+    private bool updating;
+    public void RefreshData() => RefreshCurrentView();
+    private void LateUpdate()
+    {
+        if (refreshPending) RefreshCurrentView();
+    }
     private void RefreshCurrentView()
     {
-        if (CurrentView == ManagementHRView.Applicants)
+        foreach (var card in GetComponentsInChildren<ManagementEmployeeCardUI>())
+            if (card.IsActionPending) { refreshPending = true; return; }
+        refreshPending = false;
+        var anchor = new ManagementComputerScrollAnchor(transform);
+        updating = true;
+        try
         {
-            float previousPosition = bodyScroll != null
-                ? bodyScroll.verticalNormalizedPosition
-                : 1f;
-            ShowApplicants();
-            RestoreBodyScrollPosition(previousPosition);
-            scrollRestoreRoutine = StartCoroutine(RestoreScrollAfterLayout(previousPosition));
+            editable = MultiplayerRestaurantBridge.CanEdit && manager != null && !manager.SlotsLocked;
+            if (CurrentView == ManagementHRView.Applicants) ShowApplicants();
+            else ShowDepartment(CurrentDepartment);
+            anchor.Restore();
         }
-        else
-            ShowDepartment(CurrentDepartment);
+        finally { updating = false; }
     }
+
 
     private void RefreshApplicantBadge()
     {
@@ -496,6 +506,7 @@ public sealed class ManagementComputerHRPanel : MonoBehaviour
 
     private void PlayPanelTransition()
     {
+        if (updating) return;
         GetComponent<UIRevealAnimation>()?.Play();
     }
 }

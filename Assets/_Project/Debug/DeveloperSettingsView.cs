@@ -35,7 +35,25 @@ public sealed class DeveloperSettingsView : MonoBehaviour
         close.onClick.AddListener(owner.ClosePanel);
         cancel.onClick.AddListener(()=>confirmation.SetActive(false));
         confirm.onClick.AddListener(ExecutePending);
+        InstallRewardPreviewOption();
         SelectTab(0);
+    }
+    private void InstallRewardPreviewOption()
+    {
+        Option template = Array.Find(options, option => option.command == "cardpayment");
+        if (template?.button == null || template.button.transform.parent == null) return;
+        Transform original = template.button.transform.parent;
+        var row = Instantiate(original.gameObject, original.parent);
+        row.name = "Preview Daily Reward";
+        var button = row.GetComponentInChildren<Button>(true);
+        if (button == null) { Destroy(row); return; }
+        int index = 0;
+        foreach (var label in row.GetComponentsInChildren<TMP_Text>(true))
+            if (!label.transform.IsChildOf(button.transform)) label.text = index++ == 0 ? "Daily reward preview" : "Test the slot machine without finishing a day. No currency or attempts consumed.";
+        button.onClick.RemoveAllListeners();
+        button.onClick.AddListener(() => owner.TryExecuteCode("dailyreward()"));
+        GameplayButtonSound.Ensure(button);
+        row.SetActive(true);
     }
     private void OnEnable() { if(owner!=null)owner.TryExecuteCode("status()"); }
     private void OnDisable() { if(confirmation!=null) confirmation.SetActive(false); pending=null; }

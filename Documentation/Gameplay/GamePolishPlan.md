@@ -242,3 +242,68 @@ Manual coverage required in Casual Dining/Fast Food/Fine Dining, Campaign/Tutori
 - Listen on phone/headphones; compare quiet ambience with music and chatter, check all SFX/master levels and mute, reduced motion and interruption cleanup.
 
 NOT RUN: Play Mode, desktop control, listening, device/player builds, actual host/guest runtime playback. No website/backend deployment, saves/economy changes, or Git mutations. Previous uncommitted work preserved.
+
+## 2026-11-02 — Stable computer views and close-first navigation
+
+Implemented without changing artwork/layout, campaign save fields, authored lesson IDs or scene data:
+- Desktop app icons remain visible but non-interactable while a window is open. A central OpenApp guard protects normal pointer, keyboard/controller and fallback dispatch. Same-app requests do nothing; attempts to switch get existing blocked feedback. The gate preserves original CanvasGroup state and leaves Button.interactable owned by tutorials/gameplay. Dashboard/checklist links use a separate deliberate close-then-open path.
+- Routine data updates call RefreshActiveApp, never OpenApp. Shared notifications coalesce; closing clears pending refresh. Status changes update retained views. Actual opening alone owns window entrance/reset behavior.
+- Staff retains role sections, employee/applicant cards by stable employee ID, portraits, current tab and independent rail/body positions. Hire/decline/fire/assignment updates reconcile cards and retain the minimum-applicant fix. Routine changes do not replay panel/card entrances. Updates defer until brief card feedback completes; reduced-motion synchronous completion clears action state correctly. Delayed staff mutations validate account-directory/run/day context.
+- Menu retains selection/category and unsaved text, including while focused. Save/availability update bindings in place; requested prices do not replace the draft with an old network value. Restock retains categories/cart/review state, updates cart lines by stable ingredient ID and ignores stale order callbacks after view disable or account/run/day changes.
+- Equipment sections/cards, dashboard/objective rows and Finance panel/history rows are retained. Purchases recompute ownership/affordability without reopening. Finance background updates preserve its tab and use immediate totals rather than replayed counting/entry effects. Existing reservation view already reconciles requests and preserves selection; controller refresh uses that existing method.
+- Shared transient scroll geometry captures visible retained children and pixel offsets for all active nested ScrollRects; after synchronous layout, it anchors the nearest surviving captured item and clamps list boundaries. New deliberate tab/category navigation retains its existing start-position behavior.
+- Casual Dining's management transitions use a transient close-guidance phase: existing dialogue explains X, then the actual X is highlighted, and normal lesson progression resumes after real closure. Existing lesson IDs/indices are not reordered. Early-closure recovery identifies X when a wrong app obstructs the expected app. Tutorial focus no longer forcibly reactivates existing computer modal ancestors after closure.
+- Fast Food retains its explicit Restock-close lesson and invokes shared close guidance if another app obstructs its Restock desktop target. Fine Dining already explicitly teaches closing Reservations; its sequence and close action are retained. Office tutorial's task/close gates are retained.
+
+Exact files changed for this pass (relative to the Unity project):
+1. Assets/_Project/ManagementComputer/ManagementComputerController.cs
+2. Assets/_Project/ManagementComputer/ManagementComputerController.StableView.cs (new)
+3. Assets/_Project/ManagementComputer/ManagementComputerController.StableView.cs.meta (new)
+4. Assets/_Project/ManagementComputer/ManagementComputerScrollAnchor.cs (new)
+5. Assets/_Project/ManagementComputer/ManagementComputerScrollAnchor.cs.meta (new)
+6. Assets/_Project/ManagementComputer/ManagementComputerHRPanel.cs
+7. Assets/_Project/ManagementComputer/ManagementHRRoleSectionUI.cs
+8. Assets/_Project/ManagementComputer/ManagementEmployeeCardUI.cs
+9. Assets/_Project/ManagementComputer/ManagementComputerCatalogPanelUI.cs
+10. Assets/_Project/ManagementComputer/ManagementFinancePanelUI.cs
+11. Assets/_Project/Tutorials/TutorialSystem.cs
+12. Assets/_Project/Tutorials/TutorialSceneBindings.cs
+13. Assets/_Project/Tutorials/FastFoodTutorialBridge.cs
+14. Backend/Tests/StableComputer.tests.cjs (new)
+15. Documentation/Gameplay/GamePolishPlan.md
+
+Checks actually run:
+- C# runtime-source compilation with installed Unity references: PASS (not a Unity Editor/player build). Log: ../.codex-checks/StableComputer.log.
+- `node Backend/Tests/StableComputer.tests.cjs`: PASS, 24 source integration checks plus 8 source-linked compiled navigation/scroll cases using Unity geometry doubles. Scenarios include wrong/same/new app, vertical/horizontal pixel anchors, removed anchor fallback, inactive views and independent nested axes. This does not exercise real Unity layout timing or touch input.
+- `node Backend/Tests/ApplicantFloor.tests.cjs`: PASS, 33 source-extracted assertions plus four binding checks; existing recruitment repair remains covered.
+- Whitespace diff checks: PASS. Pre-existing EmployeeManager/ApplicantFloor test changes and skybox edits preserved; they are excluded from the file list above.
+
+Manual acceptance remains UNVERIFIED:
+- In Casual/Fast Food/Fine Dining, tap left-side icons behind an app, use X/Back/Exit and deliberate dashboard/checklist links. Verify no accidental replacement or duplicate input/SFX.
+- Near the bottom of every Staff tab/rail, hire/fire/decline/assign, including the last applicant; confirm stable position and new replacement availability. Repeat with reduced motion.
+- Edit/submit a menu price, toggle availability, modify/review/order a cart, buy equipment/booths, and inspect Finance History. Verify stable nested scroll, selection, drafts, immediate totals and no repeated entrances.
+- As multiplayer host and guest, test pending/rejected/duplicate requests, concurrent remote changes while typing, closing during pending requests, reconnect, and account/restaurant changes. Confirm late callbacks cannot alter a new view; verify real authoritative ownership/affordability stays correct.
+- Complete each affected tutorial transition, including closing early, pause/resume, retry and restored lesson progress. Verify X guidance advances once, correct targets stay clickable, normal target changes may scroll intentionally, and no closed modal is resurrected.
+- Rotate a phone near list boundaries, remove the first visible card, and shrink a list to zero. Verify clamping and pixel anchors under actual Unity layout/safe-area changes.
+
+NOT RUN: desktop control, Play Mode, automated playtesting, visual/listening/device QA, actual multiplayer, full tutorial walkthroughs, deployment or Git mutations. Runtime verification is required before claiming the tutorial/mobile flows are fully verified.
+
+### 2026-11-02 — Wine refill pouring sound
+
+Wine refill now reuses the supplied Pouring Water Into Glass recording while the stream is actually flowing, alongside water service. Removed only the water-only audio gate in WinePouringUI; both modes share existing pitch/mixer settings and release/completion/Back/disable/pause/recovery cleanup. This supersedes the earlier note that active wine pouring remained silent. Updated the existing audio reference check. Files: WinePouringUI.cs, Backend/Tests/run-sfx-checks.cjs, this checklist. Source checks and runtime-source compilation run; listening and Play Mode remain unverified. Manual: start/stop a wine pour, finish it, press Back, pause and reopen; confirm no lingering audio.
+
+## 2026-11-02 — Daily reward slot and developer preview
+
+Implemented the simplified three-reel panel with actual existing food sprites and button art, animation/SFX, reduced-motion behavior and developer preview. Developer Mode > Gameplay > Daily reward preview, or `dailyreward()`, opens it without completing a day; TEST CASH / TEST GC / TEST NO MATCH are presentation-only. Preview has no save, wallet or attempt mutations. Default odds: 35% cash, 5% GC, 60% no prize.
+
+The pre-results hook is present after successful campaign settlement and skips protected/restored/failed/multiplayer days. **Live rewards are not enabled:** the repository lacks trusted run/day eligibility, proven idempotent Classic GC credit and recoverable campaign-cash projection. No backend provider is registered and no grant is fabricated. With no provider, the normal results screen appears as before. Full contract, exact file list, deployment blockers, actual checks and manual acceptance are in `Documentation/Gameplay/DailyRewardSlot.md`.
+
+Checks: C# runtime-source compilation passed; 114 source-linked odds assertions and 22 source/asset checks passed. No Play Mode, desktop, actual payout, device/listening/visual or deployed backend verification. Manual: preview in all campaign restaurants, forced states, pause, reduced motion, master/SFX mute, repeat/close and safe-area sizing; confirm preview never changes balances or attempts.
+
+### 2026-11-02 — Compact slot visual correction
+
+Added actual nine-sliced rounded rim art, flat blue buttons, a smaller safe-area-limited popup, separate developer strip, larger normalized food symbols, prize/currency banner, continuous eased reels and stop settling, win emphasis/counting and pooled star particles. Added quiet reel-loop audio through the existing mixer. Reduced motion uses immediate outcomes/fades with no particles or pulsing; closing fades retain input blocking. See DailyRewardSlot.md for exact files and verification limits. Live payouts remain disabled. Source compilation and odds/motion/reference checks passed; actual Unity/device visual, listening and animation timing remain manual.
+
+### 2026-11-02 — Slot currency/result feedback
+
+Replaced padded cash artwork with the game's tight money-stack sprite, added generated transparent GoldCoinGC.png, and grouped larger currency icons closely beside measured labels in the prize strip/result banner. Removed the yellow filled reel overlay in favor of explicit border bars. Added win currency bursts/icon bounce and a distinct quiet blue no-match dip/fade, with capped pools, reset cleanup and reduced-motion fades. Compilation, 39 source/asset checks, 1,121 compiled odds/motion assertions and whitespace checks passed. Actual Unity visual/listening verification remains manual; see DailyRewardSlot.md for exact files and checklist. No live payouts enabled.

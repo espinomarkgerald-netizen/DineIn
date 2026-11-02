@@ -166,7 +166,7 @@ public sealed class TutorialSystem : MonoBehaviour
     public bool IsFineDining => gameObject.scene.name == FineDiningScene.Tutorial;
     private bool HasExternalBridge => IsFastFood || IsFineDining;
     private string TaskSource => HasExternalBridge ? gameObject.scene.name : "Lobby1Tutorial";
-    public bool IsPresentationBusy => waitingForNext || transitioning || recovering || travelling || externalTargetPending || focusTransitionPending;
+    public bool IsPresentationBusy => computerCloseGuidance || waitingForNext || transitioning || recovering || travelling || externalTargetPending || focusTransitionPending;
     public bool IsAwaitingExternalTarget => externalTargetPending;
     [Tooltip("Later-level tutorials: explain with informational focus, then hand off to the real action.")]
     [SerializeField] private bool explainWithFocus;
@@ -789,10 +789,9 @@ public sealed class TutorialSystem : MonoBehaviour
             SetSpawnPermissions(customers, staff);
 
         StepCompleted?.Invoke(completed);
-        // Only close at the boundary before the next authored app-opening lesson.
-        if (currentStepIndex + 1 < StepCount &&
-            TutorialSceneBindings.IsAppOpenAction(steps[currentStepIndex + 1].ActionKey))
-            sceneBindings.CloseCompletedApp();
+        // Keep authored lesson indices unchanged: the close lesson is transient.
+        if (currentStepIndex + 1 < StepCount && TutorialSceneBindings.IsAppOpenAction(steps[currentStepIndex + 1].ActionKey) &&
+            BeginComputerCloseGuidance(AdvanceToNextStep)) return;
         AdvanceToNextStep();
     }
 
@@ -819,6 +818,8 @@ public sealed class TutorialSystem : MonoBehaviour
     {
         if (IsExiting) return;
         TutorialStep step = CurrentStep;
+        if (step != null && TutorialSceneBindings.IsAppOpenAction(step.ActionKey) && !sceneBindings.IsAppOpen(step.ActionKey) &&
+            BeginComputerCloseGuidance(ShowCurrentStep)) return;
         currentStepId = step != null ? step.Id : string.Empty;
         if (step == null)
         {
@@ -1194,6 +1195,7 @@ public sealed class TutorialSystem : MonoBehaviour
     private void Update()
     {
         if (LobbyPauseMenu.BlocksTutorialInput) return;
+        if (computerCloseGuidance) return;
         if (advanceAfterPause) { advanceAfterPause = false; AdvanceToNextStep(); return; }
         if (FocusedFastFood)
         {
@@ -1361,13 +1363,14 @@ public sealed class TutorialSystem : MonoBehaviour
         else { uiFocusMask?.Hide(); handIndicator?.HideHint(); }
         SetObjective(app != null
             ? (sceneBindings.IsAppOpen(app) ? "Select the highlighted section to resume this lesson." :
-                sceneBindings.Computer?.IsOpen == true ? "Open " + TutorialSceneBindings.AppTitle(app) + " to continue." : "Return to the Computer to continue this lesson.")
+                sceneBindings.Computer?.IsOpen == true ? (sceneBindings.Computer.AppWindow != null && sceneBindings.Computer.AppWindow.gameObject.activeInHierarchy ? "Close the current window with X, then open " + TutorialSceneBindings.AppTitle(app) + "." : "Open " + TutorialSceneBindings.AppTitle(app) + " to continue.") : "Return to the Computer to continue this lesson.")
             : CurrentStep.Phase == TutorialPhase.PhysicalRestocking ? "Return to the storage room to continue this lesson." :
                 "Reopen the lesson window to continue.");
     }
 
     private void CheckLiveTarget()
     {
+        if (computerCloseGuidance) return;
         if (HasExternalBridge) { RefreshExternalBridgeGuidance(); return; }
         var step = CurrentStep;
         if (step == null || step.IsPlaceholder || tutorialCompleted || travelling) return;
@@ -1385,7 +1388,8 @@ public sealed class TutorialSystem : MonoBehaviour
         if (appMissing) { RecoverTarget(waitingForPlayerAction || resumeAction); return; }
         if (openingApp && sceneBindings.Computer?.IsOpen == true &&
             sceneBindings.Computer.AppWindow != null && sceneBindings.Computer.AppWindow.gameObject.activeInHierarchy &&
-            !sceneBindings.IsAppOpen(step.ActionKey)) sceneBindings.CloseCompletedApp();
+            !sceneBindings.IsAppOpen(step.ActionKey))
+        { BeginComputerCloseGuidance(ShowCurrentStep); return; }
         if (openingApp && waitingForPlayerAction && sceneBindings.IsAppOpen(step.ActionKey))
         { NotifyAction(step.ActionKey); return; }
         bool needsUI = !string.IsNullOrEmpty(step.UITargetKey) || step.UIFocusTarget != null;
@@ -1518,8 +1522,55 @@ public sealed class TutorialSystem : MonoBehaviour
         travelAgent = null;
     }
 
+    private bool computerCloseGuidance;
+    private Coroutine computerCloseRoutine;
+    public bool RequireComputerDesktop()
+    {
+        if (computerCloseGuidance) return false;
+        return !BeginComputerCloseGuidance(ShowCurrentStep);
+    }
+    private bool BeginComputerCloseGuidance(Action resume)
+    {
+        var computer = sceneBindings?.Computer;
+        if (computer == null || !computer.IsOpen || computer.AppWindow == null || !computer.AppWindow.gameObject.activeInHierarchy) return false;
+        if (computerCloseGuidance) return true;
+        ClearGuidance(false);
+        computerCloseGuidance = true;
+        waitingForNext = waitingForPlayerAction = false;
+        computerCloseRoutine = StartCoroutine(ComputerCloseGuidance(computer, resume));
+        return true;
+    }
+    private System.Collections.IEnumerator ComputerCloseGuidance(ManagementComputerController computer, Action resume)
+    {
+        var lesson = CurrentStep;
+        bool explained = false;
+        SetObjective("Close the current window with X before opening another app.");
+        dialogueUI?.ShowManual(lesson.Speaker, "Close this window with X first. Then choose the next app from the desktop.", lesson.Portrait, () => explained = true);
+        if (dialogueUI == null) explained = true;
+        uiFocusMask?.SetDialogueInput(true);
+        while (isActiveAndEnabled && !IsExiting && CurrentStep == lesson && computer != null && computer.IsOpen && computer.AppWindow != null && computer.AppWindow.gameObject.activeInHierarchy)
+        {
+            if (!LobbyPauseMenu.BlocksTutorialInput && explained)
+            {
+                var close = computer.AppWindow.CloseButton?.transform as RectTransform;
+                if (close != null && currentUIFocus != close)
+                {
+                    currentUIFocus = close;
+                    dialogueUI?.HideDialogue();
+                    uiFocusMask?.SetDialogueInput(false); uiFocusMask?.Show(close, true);
+                    handIndicator?.ShowTapHint(close);
+                }
+            }
+            yield return null;
+        }
+        computerCloseRoutine = null; computerCloseGuidance = false;
+        ClearGuidance(false);
+        if (isActiveAndEnabled && !IsExiting && CurrentStep == lesson) resume?.Invoke();
+    }
     private void ClearGuidance(bool preserveMask = false)
     {
+        if (computerCloseRoutine != null) StopCoroutine(computerCloseRoutine);
+        computerCloseRoutine = null; computerCloseGuidance = false;
         presentationRevision++;
         fastFoodDragFocused = false;
         externalTargetPending = focusTransitionPending = false;

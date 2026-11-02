@@ -183,10 +183,8 @@ public sealed partial class ManagementComputerController : MonoBehaviour, IPoint
         if (!IsOpen)
             return;
         if (MultiplayerDayBridge.PreparationLocked) return;
-        if (sharedAppRefreshPending && selectedApp >= 0 && appWindow != null && appWindow.gameObject.activeSelf
-            && (EventSystem.current == null || EventSystem.current.currentSelectedGameObject == null
-                || EventSystem.current.currentSelectedGameObject.GetComponent<TMP_InputField>() == null))
-        { sharedAppRefreshPending = false; OpenApp(selectedApp); }
+        if (sharedAppRefreshPending && selectedApp >= 0 && appWindow != null && appWindow.gameObject.activeSelf)
+        { sharedAppRefreshPending = false; RefreshActiveApp(); }
 
         if (!MultiplayerSocialUI.InputBlocked && Input.GetKeyDown(KeyCode.Escape))
         {
@@ -777,6 +775,11 @@ public sealed partial class ManagementComputerController : MonoBehaviour, IPoint
 
     public void OpenApp(int appIndex)
     {
+        if (appWindow != null && appWindow.gameObject.activeSelf)
+        {
+            if (appIndex != selectedApp) GameplaySfx.Play(GameplaySfx.Cue.Blocked);
+            return;
+        }
         startChecklistOpen = false;
         if (ReservationMode != (appIndex == (int)ManagementComputerApp.Reservations)) return;
         if (!Enum.IsDefined(typeof(ManagementComputerApp), appIndex) || appWindow == null)
@@ -786,6 +789,7 @@ public sealed partial class ManagementComputerController : MonoBehaviour, IPoint
         { reservationPanel.RefreshData(); return; }
 
         selectedApp = appIndex;
+        sharedAppRefreshPending = false;
         appWindow.ClearRows();
 
         ManagementComputerApp app = (ManagementComputerApp)appIndex;
@@ -817,6 +821,7 @@ public sealed partial class ManagementComputerController : MonoBehaviour, IPoint
         responsiveLayout?.RefreshDynamicContent();
         RebuildComputerLayoutNow();
         QueueComputerCanvasRefresh();
+        SetDesktopNavigationBlocked(true);
     }
 
     private void ResolveResponsiveLayout()
@@ -852,6 +857,9 @@ public sealed partial class ManagementComputerController : MonoBehaviour, IPoint
     {
         startChecklistOpen = false;
         selectedApp = -1;
+        sharedAppRefreshPending = false;
+        stableRows.Clear();
+        SetDesktopNavigationBlocked(false);
         if (appWindow != null)
         {
             appWindow.ClearRows();
@@ -861,7 +869,7 @@ public sealed partial class ManagementComputerController : MonoBehaviour, IPoint
 
     private void RefreshSharedApp()
     {
-        if (selectedApp == (int)ManagementComputerApp.Staff || selectedApp == (int)ManagementComputerApp.Restock) return;
+        if (selectedApp < 0) return;
         sharedAppRefreshPending = true;
     }
 
@@ -910,15 +918,15 @@ public sealed partial class ManagementComputerController : MonoBehaviour, IPoint
         AddRow(GetAppIcon(ManagementComputerApp.Dashboard), "Restaurant status", IsShiftActive ? "Service is currently running" : "Pre-opening management phase",
             IsShiftActive ? "OPEN" : "CLOSED", string.Empty, null, false);
         AddRow(GetAppIcon(ManagementComputerApp.Menu), "Today's menu", "Products available to the notepad, customers, kitchen and bar",
-            menuCount.ToString(), "OPEN MENU", () => OpenApp((int)ManagementComputerApp.Menu));
+            menuCount.ToString(), "OPEN MENU", () => NavigateToApp((int)ManagementComputerApp.Menu));
         AddRow(GetAppIcon(ManagementComputerApp.Staff), "Scheduled staff", EmployeeRoleCatalog.UsesFastFoodRoles
                 ? "Two Lobby People share clearing and delivery; register 2 supports a second Cashier"
                 : "One employee can be scheduled for each role",
             (EmployeeManager.Instance != null ? EmployeeManager.Instance.AssignedEmployeeCount : 0).ToString(),
-            "OPEN STAFF", () => OpenApp((int)ManagementComputerApp.Staff));
+            "OPEN STAFF", () => NavigateToApp((int)ManagementComputerApp.Staff));
         AddRow(GetAppIcon(ManagementComputerApp.Restock), "Inventory", "Ingredient stock shared with restaurant orders",
             InventoryManager.Instance != null ? InventoryManager.Instance.Items.Count + " items" : "Unavailable",
-            "RESTOCK", () => OpenApp((int)ManagementComputerApp.Restock));
+            "RESTOCK", () => NavigateToApp((int)ManagementComputerApp.Restock));
 
         CasualDiningPolishManager polish = CasualDiningPolishManager.EnsureInstance();
         AddRow(GetAppIcon(ManagementComputerApp.Objectives), "Restaurant rating", "Operational quality, separate from Alien Approval",
@@ -1078,10 +1086,13 @@ public sealed partial class ManagementComputerController : MonoBehaviour, IPoint
         string subtitle,
         bool editable)
     {
-        ManagementEquipmentSectionUI sectionUI = Instantiate(sectionPrefab, appWindow.Content);
+        string sectionKey = "Equipment_" + section;
+        var existingSection = appWindow.Content.Find(sectionKey);
+        ManagementEquipmentSectionUI sectionUI = existingSection != null && existingSection.gameObject.activeSelf ? existingSection.GetComponent<ManagementEquipmentSectionUI>() : Instantiate(sectionPrefab, appWindow.Content);
+        sectionUI.name = sectionKey;
         sectionUI.gameObject.SetActive(true);
         sectionUI.Bind(title, subtitle);
-        sectionUI.GetComponent<UIRevealAnimation>()?.Play();
+        if (!refreshingView) sectionUI.GetComponent<UIRevealAnimation>()?.Play();
 
         var orderedEquipment = new List<Equipment>(manager.AllEquipment);
         orderedEquipment.Sort(Equipment.CompareProgression);
@@ -1101,7 +1112,10 @@ public sealed partial class ManagementComputerController : MonoBehaviour, IPoint
                 : equipment.description;
             bool canAfford = MoneyManager.Instance != null &&
                              MoneyManager.Instance.HasEnough(equipment.cost);
-            ManagementEquipmentCardUI card = sectionUI.AddCard();
+            string cardKey = "Equipment_" + equipment.itemID;
+            var existingCard = sectionUI.GetComponentsInChildren<ManagementEquipmentCardUI>(true);
+            ManagementEquipmentCardUI card = System.Array.Find(existingCard, candidate => candidate.gameObject.activeSelf && candidate.name == cardKey);
+            if (card == null) { card = sectionUI.AddCard(); if (card != null) card.name = cardKey; }
             if (card == null)
                 continue;
 
@@ -1117,10 +1131,10 @@ public sealed partial class ManagementComputerController : MonoBehaviour, IPoint
                     manager.Purchase(captured.itemID);
                     PopulateAgain(ManagementComputerApp.Equipment);
                 });
-            card.GetComponent<UIRevealAnimation>()?.Play();
+            if (!refreshingView) card.GetComponent<UIRevealAnimation>()?.Play();
         }
 
-        sectionUI.Reflow(true);
+        sectionUI.Reflow(!refreshingView);
     }
 
     private void PopulateFinances()
@@ -1140,6 +1154,12 @@ public sealed partial class ManagementComputerController : MonoBehaviour, IPoint
             bridge != null ? bridge.IngredientCostToday : 0,
             includePaidPayroll: false);
 
+        var retainedPanel = appWindow.Content.GetComponentInChildren<ManagementFinancePanelUI>(true);
+        if (retainedPanel != null)
+        {
+            retainedPanel.RefreshData(report, money != null ? money.CompletedFinanceHistory : null);
+            return;
+        }
         GameObject panelObject = new GameObject(
             "Management Finance Panel",
             typeof(RectTransform));
@@ -1217,11 +1237,13 @@ public sealed partial class ManagementComputerController : MonoBehaviour, IPoint
         if (rowPrefab == null || appWindow == null || appWindow.Content == null)
             return;
 
-        ManagementComputerRowUI row = Instantiate(rowPrefab, appWindow.Content);
+        string key = selectedApp + ":objective:" + label;
+        if (!stableRows.TryGetValue(key, out var row) || row == null)
+        { row = Instantiate(rowPrefab, appWindow.Content); stableRows[key] = row; }
         row.gameObject.SetActive(true);
         row.ApplyPresentation(false);
         row.BindCategory(icon, label, description, category);
-        row.GetComponent<UIRevealAnimation>()?.Play(
+        if (!refreshingView) row.GetComponent<UIRevealAnimation>()?.Play(
             Mathf.Min(0.12f, Mathf.Max(0, appWindow.Content.childCount - 1) * 0.025f));
     }
 
@@ -1509,7 +1531,7 @@ public sealed partial class ManagementComputerController : MonoBehaviour, IPoint
             menuCount > 0 ? menuCount + " ITEMS AVAILABLE" : "NO USABLE ITEMS",
             menuCount > 0 ? ReadinessVisualState.Ready : ReadinessVisualState.Blocked,
             "OPEN",
-            () => OpenApp((int)ManagementComputerApp.Menu));
+            () => NavigateToApp((int)ManagementComputerApp.Menu));
 
         EmployeeManager employeeManager = EmployeeManager.Instance;
         List<EmployeeRole> missingRoles = employeeManager != null
@@ -1539,7 +1561,7 @@ public sealed partial class ManagementComputerController : MonoBehaviour, IPoint
             staffDetails,
             everyRoleCovered ? ReadinessVisualState.Ready : ReadinessVisualState.Blocked,
             "OPEN",
-            () => OpenApp((int)ManagementComputerApp.Staff));
+            () => NavigateToApp((int)ManagementComputerApp.Staff));
 
         int activeBooths = 0;
         int activeSeats = 0;
@@ -1580,7 +1602,7 @@ public sealed partial class ManagementComputerController : MonoBehaviour, IPoint
                 : "NO ACTIVE BOOTHS OR SEATS",
             hasActiveSeating ? ReadinessVisualState.Ready : ReadinessVisualState.Blocked,
             "OPEN",
-            () => OpenApp((int)ManagementComputerApp.Equipment));
+            () => NavigateToApp((int)ManagementComputerApp.Equipment));
 
         int ingredientCount = 0;
         int uncovered = 0;
@@ -1625,7 +1647,7 @@ public sealed partial class ManagementComputerController : MonoBehaviour, IPoint
             stockDetails,
             stockState,
             "CHECK",
-            () => OpenApp((int)ManagementComputerApp.Restock));
+            () => NavigateToApp((int)ManagementComputerApp.Restock));
 
         int inTransit = orders.GetContainerCountInStates(
             RestockOrderState.Ordered,
@@ -1649,7 +1671,7 @@ public sealed partial class ManagementComputerController : MonoBehaviour, IPoint
             deliveryDetails,
             deliveryState,
             "VIEW",
-            () => OpenApp((int)ManagementComputerApp.Restock));
+            () => NavigateToApp((int)ManagementComputerApp.Restock));
 
         return snapshot;
     }
@@ -1710,7 +1732,7 @@ public sealed partial class ManagementComputerController : MonoBehaviour, IPoint
         row.gameObject.SetActive(true);
         row.ApplyPresentation(false);
         row.BindReadiness(icon, title, details, state, action, callback);
-        row.GetComponent<UIRevealAnimation>()?.Play(
+        if (!refreshingView) row.GetComponent<UIRevealAnimation>()?.Play(
             Mathf.Min(0.12f, Mathf.Max(0, appWindow.Content.childCount - 1) * 0.025f));
     }
 
@@ -1720,11 +1742,13 @@ public sealed partial class ManagementComputerController : MonoBehaviour, IPoint
         if (rowPrefab == null || appWindow == null || appWindow.Content == null)
             return;
 
-        ManagementComputerRowUI row = Instantiate(rowPrefab, appWindow.Content);
+        string key = selectedApp + ":" + title;
+        if (!stableRows.TryGetValue(key, out var row) || row == null)
+        { row = Instantiate(rowPrefab, appWindow.Content); stableRows[key] = row; }
         row.gameObject.SetActive(true);
         row.ApplyPresentation(currentAppUsesCards);
         row.Bind(icon, title, details, value, action, callback, enabled);
-        row.GetComponent<UIRevealAnimation>()?.Play(
+        if (!refreshingView) row.GetComponent<UIRevealAnimation>()?.Play(
             Mathf.Min(0.12f, Mathf.Max(0, appWindow.Content.childCount - 1) * 0.025f));
     }
 
@@ -1741,7 +1765,7 @@ public sealed partial class ManagementComputerController : MonoBehaviour, IPoint
         row.gameObject.SetActive(true);
         row.ApplyPresentation(false);
         row.BindFinance(title, details, amount, kind);
-        row.GetComponent<UIRevealAnimation>()?.Play(
+        if (!refreshingView) row.GetComponent<UIRevealAnimation>()?.Play(
             Mathf.Min(0.12f, Mathf.Max(0, appWindow.Content.childCount - 1) * 0.018f));
     }
 
@@ -1763,11 +1787,7 @@ public sealed partial class ManagementComputerController : MonoBehaviour, IPoint
 
     private void PopulateAgain(ManagementComputerApp app)
     {
-        float scrollPosition = appWindow != null
-            ? appWindow.VerticalNormalizedPosition
-            : 1f;
-        OpenApp((int)app);
-        appWindow?.RestoreVerticalNormalizedPositionNextFrame(scrollPosition);
+        if (selectedApp == (int)app) RefreshActiveApp();
         RefreshStatusBar();
     }
 
@@ -1848,7 +1868,7 @@ public sealed partial class ManagementComputerController : MonoBehaviour, IPoint
             staffNotificationBadgeText.text = "!";
     }
 
-    private void OnMoneyChanged(int _) => RefreshStatusBar();
+    private void OnMoneyChanged(int _) { RefreshStatusBar(); if (IsOpen) sharedAppRefreshPending = true; }
 
     private void ShowDesktopHint(string message, bool warning = false)
     {
