@@ -14,6 +14,11 @@ public static class TutorialGameModeEntry
 
     public static string ResolveCampaignDestination(string careerScene, out bool isMenuLaunch)
     {
+        if (HasStartedRegularShift(careerScene))
+        {
+            isMenuLaunch = false;
+            return careerScene;
+        }
         if (careerScene == FineDiningScene.Career)
         {
             isMenuLaunch = PlayerPrefs.GetInt(FineDiningTutorialBridge.CompletedKey, 0) == 0 &&
@@ -66,6 +71,39 @@ public static class TutorialGameModeEntry
         AddRevisitButton(controller);
     }
 
+    public static bool HasStartedRegularShift(string restaurant)
+    {
+        if (PlayerPrefs.GetInt("DineIn_RegularShiftStarted_" + restaurant, 0) == 1) return true;
+        try
+        {
+            var account = CampaignSaveStore.ReadAccount(false);
+            var auth = PlayFabAuthManager.Instance;
+            if (auth != null && auth.IsLoggedIn && account.account != auth.PlayFabId) return false;
+            var career = restaurant == "Lobby3" ? account.fineDining : restaurant == "Lobby2" ? account.fastFood : account.casual;
+            return HasCareerProgress(career);
+        }
+        catch (Exception e) { Debug.LogWarning("[Tutorial] Career lookup deferred: " + e.Message); return false; }
+    }
+
+    private static bool HasCareerProgress(CampaignSaveStore.Snapshot career)
+    {
+        if (career == null || !CampaignSaveStore.Valid(career)) return false;
+        var data = JsonUtility.FromJson<GameSaveData>(career.save);
+        return data != null && (data.currentDay > 1 || data.lobbyCompleted || data.kitchenCompleted ||
+            data.campaignCompleted || data.fastFoodDayComplete || data.fineDiningDayComplete ||
+            data.polishLastFinalizedDay > 0 || data.successfulRestaurantDays?.Count > 0);
+    }
+
+    public static void MarkRegularShiftStarted()
+    {
+        if (!CampaignSaveStore.RuntimeCampaign || CampaignSaveStore.ProtectedSession) return;
+        string key = "DineIn_RegularShiftStarted_" + CampaignSaveStore.RestaurantScene;
+        if (PlayerPrefs.GetInt(key, 0) == 1) return;
+        PlayerPrefs.SetInt(key, 1);
+        PlayerPrefs.Save();
+        CampaignSaveStore.NotifyLocalWrite();
+    }
+
     private static void AddRevisitButton(GameModePopupController controller)
     {
         GameObject popup = controller.GetType().GetField("gamemodePopupUI", PrivateInstance)?.GetValue(controller) as GameObject;
@@ -79,6 +117,9 @@ public static class TutorialGameModeEntry
         if (source == null) return;
         Button revisit = UnityEngine.Object.Instantiate(source, source.transform.parent);
         revisit.name = "TutorialButton";
+        // Refresh on the popup, since the button itself may be hidden for a new career.
+        var availability = popup.AddComponent<TutorialReplayAvailability>();
+        availability.Bind(controller, revisit);
         revisit.onClick = new Button.ButtonClickedEvent();
         revisit.onClick.AddListener(() =>
         {
@@ -119,5 +160,19 @@ public static class TutorialGameModeEntry
         if (!CampaignCloudSync.CanEnterGameplay()) return;
         if (SceneLoader.Instance != null) SceneLoader.Instance.LoadScene(scene);
         else SceneLoader.TryLoadScene(scene, LoadSceneMode.Single, out _);
+    }
+}
+
+public sealed class TutorialReplayAvailability : MonoBehaviour
+{
+    private GameModePopupController controller;
+    private Button replay;
+    public void Bind(GameModePopupController owner, Button button) { controller = owner; replay = button; Refresh(); }
+    private void OnEnable() => Refresh();
+    private void Refresh()
+    {
+        if (controller == null || replay == null) return;
+        string restaurant = controller.SelectedRestaurantIndex == 2 ? "Lobby3" : controller.SelectedRestaurantIndex == 1 ? "Lobby2" : "Lobby1";
+        replay.gameObject.SetActive(TutorialGameModeEntry.HasStartedRegularShift(restaurant));
     }
 }

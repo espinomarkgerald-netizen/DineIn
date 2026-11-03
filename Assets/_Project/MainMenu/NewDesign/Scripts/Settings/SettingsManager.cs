@@ -25,6 +25,9 @@ namespace DineIn.NewMenu
         [SerializeField] private AudioMixer gameplayMixer;
         [SerializeField] private AudioMixerGroup defaultSfxGroup;
         public static SettingsManager Instance { get; private set; }
+        [Header("First-install graphics defaults")]
+        [SerializeField] private string desktopDefaultQuality = "High";
+        [SerializeField] private string mobileDefaultQuality = "Mid";
 
         private const string PrefGraphicsQuality = "Settings_Quality";
         private const string PrefQualityUserSet = "Settings_QualityUserSet";
@@ -52,7 +55,6 @@ namespace DineIn.NewMenu
 
         private void Start()
         {
-            if (PlayerPrefs.GetInt(PrefQualityUserSet, 0) == 0) Current.graphicsQualityIndex = ClampQualityIndex(QualitySettings.GetQualityLevel());
             ApplyAudio();
             ApplyFrameTiming();
         }
@@ -139,7 +141,8 @@ namespace DineIn.NewMenu
 
         public void LoadLocal()
         {
-            int fallbackQuality = QualitySettings.GetQualityLevel();
+            int fallbackQuality = System.Array.FindIndex(QualitySettings.names, n => n == (Application.isMobilePlatform ? mobileDefaultQuality : desktopDefaultQuality));
+            if (fallbackQuality < 0) fallbackQuality = QualitySettings.GetQualityLevel();
             Current.graphicsQualityIndex = ClampQualityIndex(PlayerPrefs.GetInt(PrefGraphicsQuality, fallbackQuality));
             Current.musicVolume = Mathf.Clamp01(PlayerPrefs.GetFloat(PrefMusicVolume, PlayerPrefs.GetFloat("Settings_Volume", 1f)));
             Current.sfxVolume = Mathf.Clamp01(PlayerPrefs.GetFloat(PrefSfxVolume, PlayerPrefs.GetFloat("Settings_Volume", DefaultSfxVolume)));
@@ -148,10 +151,9 @@ namespace DineIn.NewMenu
             LoadVoice();
             ApplyAudio();
 
-            if (PlayerPrefs.GetInt(PrefQualityUserSet, 0) == 1)
-                QualitySettings.SetQualityLevel(Current.graphicsQualityIndex, true);
-            else
-                Current.graphicsQualityIndex = ClampQualityIndex(QualitySettings.GetQualityLevel());
+            if (PlayerPrefs.GetInt(PrefQualityUserSet, 0) == 0)
+                Current.graphicsQualityIndex = ClampQualityIndex(fallbackQuality);
+            QualitySettings.SetQualityLevel(Current.graphicsQualityIndex, true);
 
             ApplyFrameTiming();
             ApplySavedDisplay();

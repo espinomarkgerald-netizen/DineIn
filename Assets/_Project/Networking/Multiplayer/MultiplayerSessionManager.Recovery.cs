@@ -14,7 +14,8 @@ public partial class MultiplayerSessionManager
     {
         recoveryPointer = MultiplayerLastRun.Load(PlayFabAuthManager.Instance?.PlayFabId, out _);
         recoveryFailed = false; reconnecting = true; restoringConnection = false;
-        admissionPending = joinInFlight = false; fallbackJoin = false;
+        admissionPending = joinInFlight = false;
+        fallbackJoin = !MultiplayerLastRun.UsesActorRejoin(recoveryPointer);
         reconnectUntil = Time.realtimeSinceStartup + automaticReconnectSeconds;
         nextReconnect = Time.realtimeSinceStartup + 1f;
         Status = "Connection lost. Reconnecting…";
@@ -52,6 +53,8 @@ public partial class MultiplayerSessionManager
         if (state != ClientState.ConnectedToMasterServer && state != ClientState.JoinedLobby) return;
         if (!PhotonBootstrap.ConnectionMatchesAccount(recoveryPointer.accountId)) return;
         Status = "Rejoining the original session…";
+        Debug.Log("[SessionRecovery] " + (fallbackJoin ? "return via new actor join" : "return via inactive actor rejoin") +
+            " room='" + recoveryPointer.room + "' " + PhotonBootstrap.ConnectionDetails);
         // No JoinOrCreate: a missing original room must never become a new session.
         joinInFlight = fallbackJoin ? PhotonNetwork.JoinRoom(recoveryPointer.room) : PhotonNetwork.RejoinRoom(recoveryPointer.room);
     }

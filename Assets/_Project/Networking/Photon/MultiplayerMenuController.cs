@@ -36,7 +36,15 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
     private void ShowJoinTab() => ShowTab(false);
     private void ShowCreateTab()
     {
-        if (PhotonNetwork.InRoom && !starting) { PhotonNetwork.LeaveRoom(false); return; }
+        if (busy || starting || abandoningOperation) return;
+        if (PhotonNetwork.InRoom && !starting)
+        {
+            busy = true; operationDeadline = Time.realtimeSinceStartup + 30f;
+            pendingAccountId = PlayFabAuthManager.Instance?.PlayFabId;
+            RefreshControls();
+            if (!PhotonNetwork.LeaveRoom(false)) Fail("Unable to leave room. Retry or close the menu.");
+            return;
+        }
         ShowTab(true);
     }
 
@@ -100,6 +108,7 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
         joinTabButton.onClick.AddListener(ShowJoinTab);
         createTabButton.onClick.AddListener(ShowCreateTab);
         foreach (var text in rosterTexts) text.richText = false;
+        BindMenuPresentation();
     }
 
     public override void OnEnable()
@@ -107,6 +116,7 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
         base.OnEnable();
         ShowJoinTab();
         RefreshRoom();
+        RefreshConnectionDetails();
         if (!string.IsNullOrEmpty(MultiplayerLastRun.MenuNotice))
         { SetStatus(MultiplayerLastRun.MenuNotice); MultiplayerLastRun.MenuNotice = null; }
     }
@@ -116,6 +126,7 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
 
     private void OnDestroy()
     {
+        UnbindMenuPresentation();
         PhotonBootstrap.ConnectionFailed -= OnConnectionFailed;
         PhotonNetwork.RemoveCallbackTarget(this);
         if (reconnectButton != null) reconnectButton.onClick.RemoveListener(ReconnectLastRun);
@@ -155,8 +166,8 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
 
     private void Create()
     {
+        if (busy || starting || abandoningOperation) return;
         if (PhotonNetwork.InRoom) { RoomAction(); return; }
-        if (busy || PhotonNetwork.InRoom) return;
         pendingRestaurant = RestaurantForSelection(restaurantDropdown.value);
         if (!MultiplayerDestinations.TryGet(pendingRestaurant, out var scene, out _))
         {
@@ -178,8 +189,8 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
 
     private void Join()
     {
+        if (busy || starting || abandoningOperation) return;
         if (PhotonNetwork.InRoom) { RoomAction(); return; }
-        if (busy || PhotonNetwork.InRoom) return;
         string code = codeInput.text.Trim().ToUpperInvariant();
         if (code.Length == 4) code = "DINE-" + code;
         if (code.Length != 9 || !code.StartsWith("DINE-") ||
@@ -194,13 +205,16 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
 
     private void Begin(bool create, string code, bool rejoin = false)
     {
+        if (abandoningOperation) { SetStatus("Finishing the previous request. Please retry shortly."); return; }
+        if (busy || starting) return;
         if (!CampaignCloudSync.CanEnterGameplay()) return;
         var account = PlayFabAuthManager.Instance;
         if (account == null || !account.IsLoggedIn || string.IsNullOrEmpty(account.PlayFabId))
         { SetStatus("Sign in before starting multiplayer."); return; }
         pendingAccountId = account.PlayFabId;
         if (!rejoin) { rejoinPointer = null; rejoinFailure = null; }
-        pendingRejoin = rejoin; fallbackRejoin = awaitingAdmission = false;
+        pendingRejoin = rejoin; awaitingAdmission = false;
+        fallbackRejoin = rejoin && !MultiplayerLastRun.UsesActorRejoin(rejoinPointer);
         PhotonNetwork.AutomaticallySyncScene = false;
         busy = true;
         operationDeadline = Time.realtimeSinceStartup + 30f;
@@ -235,7 +249,7 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
 
     private void Submit()
     {
-        if (pendingCode == null || !Ready()) return;
+        if (!busy || abandoningOperation || !gameObject.activeInHierarchy || pendingCode == null || !Ready()) return;
         string code = pendingCode;
         submittedCode = code;
         pendingCode = null;
@@ -248,7 +262,7 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
         {
             if (!MultiplayerLastRun.IsCompatible(rejoinPointer, account.PlayFabId, DateTime.UtcNow, out var reason))
             { Fail(reason); return; }
-            TraceRoom("rejoin request", code);
+            TraceRoom(fallbackRejoin ? "return via new actor join" : "return via inactive actor rejoin", code);
             SetStatus("Checking your reserved place and reconnecting...");
             if (!(fallbackRejoin ? PhotonNetwork.JoinRoom(code) : PhotonNetwork.RejoinRoom(code))) Fail("Could not start reconnecting. Please retry.");
             return;
@@ -279,6 +293,14 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
 
     public override void OnJoinedRoom()
     {
+        if (abandoningOperation || !busy || !gameObject.activeInHierarchy ||
+            PlayFabAuthManager.Instance?.IsLoggedIn != true || PlayFabAuthManager.Instance.PlayFabId != pendingAccountId)
+        {
+            TraceRoom("discarded late join", PhotonNetwork.CurrentRoom?.Name);
+            PhotonNetwork.AutomaticallySyncScene = false;
+            PhotonNetwork.LeaveRoom(false);
+            return;
+        }
         var restaurant = PhotonNetwork.CurrentRoom?.CustomProperties[RestaurantKey] as string;
         if (!OwnsMultiplayerRestaurant(restaurant))
         { rejoinFailure = "Purchase this restaurant before joining this room."; pendingRejoin = awaitingAdmission = false; PhotonNetwork.LeaveRoom(false); return; }
@@ -344,6 +366,7 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
     }
     public override void OnLeftRoom()
     {
+        TraceRoom("left room", submittedCode);
         starting = false; busy = false; pendingRejoin = false;
         PhotonNetwork.AutomaticallySyncScene = true;
         RefreshRoom();
@@ -351,34 +374,47 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
     }
     public override void OnDisconnected(DisconnectCause cause)
     {
+        TraceRoom("disconnected " + cause, submittedCode);
+        // SafeConnect intentionally disconnects an old account/settings session before
+        // reconnecting. Keep its queued room request; cancellation clears busy first.
+        if (cause == DisconnectCause.DisconnectByClientLogic && busy &&
+            PhotonBootstrap.Instance?.AccountConnectionPending == true)
+        { SetStatus("Connecting..."); return; }
+        abandoningOperation = false;
+        starting = false; startingRunId = null;
+        RefreshRoom();
         if (!string.IsNullOrEmpty(rejoinFailure))
         { string notice = rejoinFailure; rejoinFailure = null; Fail(notice); return; }
-        if (cause == DisconnectCause.DisconnectByClientLogic && busy) return;
         if (busy) Fail(PhotonBootstrap.Instance?.LastConnectionError ?? "Photon disconnected (" + cause + "). Please retry.");
+        else if (cause != DisconnectCause.DisconnectByClientLogic) SetStatus("Disconnected. Reconnect and retry.");
     }
     private void OnConnectionFailed(string message) { if (busy) Fail(message); }
     public override void OnCreateRoomFailed(short code, string message)
     {
         TraceRoom("create failed", submittedCode, code, message);
+        if (abandoningOperation || !busy) return;
         Fail(code == ErrorCode.GameIdAlreadyExists ? "Code already used. Press Create again."
             : "Could not create room (" + code + "). Reconnect and retry.");
     }
     public override void OnJoinRoomFailed(short code, string message)
     {
         TraceRoom("join failed", submittedCode, code, message);
+        if (abandoningOperation || !busy) return;
         if (!pendingRejoin) { Fail(JoinFailureMessage(code)); return; }
-        if (code == ErrorCode.JoinFailedWithRejoinerNotFound)
+        if (MultiplayerLastRun.CanFallBackToJoin(!fallbackRejoin, code))
         { fallbackRejoin = true; pendingCode = rejoinPointer.room; return; }
         bool expired = code == ErrorCode.GameDoesNotExist;
         if (expired) MultiplayerLastRun.Forget(rejoinPointer?.accountId, rejoinPointer?.runId);
         Fail(expired ? "That run or your reserved place no longer exists. Join or create a new room."
             : code == ErrorCode.JoinFailedFoundActiveJoiner || code == ErrorCode.JoinFailedPeerAlreadyJoined
                 ? "Your previous connection is still active. Wait a moment, then reconnect."
-                : "Unable to reconnect right now. Check your connection and try again.");
+                : code == ErrorCode.GameFull ? "The room is full. Ask the host to check your reserved place." :
+                code == ErrorCode.GameClosed ? "The host's room is closed to joining. Ask the host to check the session." :
+                "Unable to reconnect (" + code + "). Check your connection and try again.");
     }
 
     internal static string JoinFailureMessage(short code) =>
-        code == ErrorCode.GameDoesNotExist ? "Room not found (32758). Check the exact code and that the host is still in the room." :
+        code == ErrorCode.GameDoesNotExist ? "Room not found (32758). Check the code and host lobby, then compare region and version in Connection details on both devices." :
             code == ErrorCode.GameFull ? "Room is full." :
             code == ErrorCode.GameClosed ? "Room is closed to joining. Check with the host." :
             code == ErrorCode.JoinFailedFoundActiveJoiner || code == ErrorCode.JoinFailedPeerAlreadyJoined
@@ -387,16 +423,13 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
                 ? "Your place is reserved. Use Rejoin Session to return." :
             "Unable to join (" + code + "). Check your connection and try again.";
 
-    [System.Diagnostics.Conditional("UNITY_EDITOR"), System.Diagnostics.Conditional("DEVELOPMENT_BUILD")]
     private static void TraceRoom(string action, string code, short failure = 0, string detail = null)
     {
-        var client = PhotonNetwork.NetworkingClient;
         var room = PhotonNetwork.CurrentRoom;
-        // Application/account IDs are identifiers; never log AuthValues, tokens or credentials.
-        Debug.Log($"[Room] {action} code='{code}' account={PhotonNetwork.LocalPlayer?.UserId} " +
-            $"app={client.AppId} region={PhotonNetwork.CloudRegion} version={client.AppVersion} " +
+        // Release-safe: never log account identity, AuthValues, tokens or raw server messages.
+        Debug.Log($"[Room] {action} code='{code}' " + PhotonBootstrap.ConnectionDetails + " " +
             $"state={PhotonNetwork.NetworkClientState} room='{room?.Name}' open={room?.IsOpen} " +
-            $"players={room?.PlayerCount}/{room?.MaxPlayers} failure={failure} message={detail}");
+            $"players={room?.PlayerCount}/{room?.MaxPlayers} failure={failure}");
     }
 
     private void Fail(string message)
@@ -449,29 +482,31 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
 
     private void Update()
     {
+        if (gameObject.activeInHierarchy && Input.GetKeyDown(KeyCode.Escape)) RequestClose();
         if (Time.unscaledTime >= nextCardRefresh)
-        { nextCardRefresh = Time.unscaledTime + 1f; RefreshReconnectCard(); }
+        { nextCardRefresh = Time.unscaledTime + 1f; RefreshReconnectCard(); RefreshConnectionDetails(); }
+        if (busy && (PlayFabAuthManager.Instance?.IsLoggedIn != true || PlayFabAuthManager.Instance.PlayFabId != pendingAccountId))
+        { CancelPendingOperation(); SetStatus("Account changed. Sign in and retry."); }
         // Recover a ready connection even when the menu missed a callback while hidden.
         if (busy && pendingCode != null && Ready()
             && PlayFabAuthManager.Instance?.IsLoggedIn == true
             && PhotonBootstrap.ConnectionMatchesAccount(PlayFabAuthManager.Instance.PlayFabId)) Submit();
         if (busy && Time.realtimeSinceStartup > operationDeadline)
         {
-            if (awaitingAdmission && PhotonNetwork.InRoom)
-            { rejoinFailure = "Host admission timed out. Your session remains available to retry."; pendingRejoin = awaitingAdmission = false; PhotonNetwork.LeaveRoom(false); }
-            else Fail(PhotonBootstrap.Instance?.LastConnectionError ?? "Room request timed out. Please retry.");
+            string reason = awaitingAdmission ? "Host admission timed out. Your session remains available to retry." :
+                PhotonBootstrap.Instance?.LastConnectionError ?? "Room request timed out. Please retry.";
+            CancelPendingOperation(); SetStatus(reason);
         }
         if (starting && startingRunId != null && Time.realtimeSinceStartup > operationDeadline)
         {
-            startingRunId = null; starting = false;
-            if (PhotonNetwork.IsMasterClient) PhotonNetwork.CurrentRoom.IsOpen = true;
-            SetStatus("The run could not be registered. Ready up and retry."); RefreshControls();
+            CancelPendingOperation();
+            SetStatus("Run registration timed out. Return to the room or create a new one.");
         }
     }
 
     private void RoomAction()
     {
-        if (!PhotonNetwork.InRoom || starting) return;
+        if (!PhotonNetwork.InRoom || busy || starting || abandoningOperation) return;
         if (!SupportedRoom())
         { SetStatus("Room restaurant, destination or version is inconsistent. Leave and create a supported room."); return; }
         var players = PhotonNetwork.PlayerList;
@@ -508,6 +543,7 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
 
     private void RefreshControls()
     {
+        if (closeButton != null) closeButton.interactable = !starting;
         if (createHeading != null) createHeading.text = PhotonNetwork.InRoom ? "ROOM LOBBY" : "CREATE ROOM";
         if (joinHeading != null) joinHeading.text = PhotonNetwork.InRoom ? "ROOM LOBBY" : "JOIN ROOM";
         var roomTabLabel = joinTabButton.GetComponentInChildren<TMP_Text>();
@@ -517,7 +553,7 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
         createTabButton.interactable = !starting && !busy;
         RefreshReconnectCard();
         bool editable = !busy && !PhotonNetwork.InRoom;
-        createButton.interactable = joinButton.interactable = editable || PhotonNetwork.InRoom && !starting;
+        createButton.interactable = joinButton.interactable = !busy && !starting && !abandoningOperation && (editable || PhotonNetwork.InRoom);
         restaurantDropdown.interactable = partySizeDropdown.interactable = codeInput.interactable = editable;
         if (PhotonNetwork.InRoom)
         {

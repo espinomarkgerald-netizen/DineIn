@@ -49,6 +49,20 @@ function fixture() {
 let cases = 0;
 function test(name, action) { action(); cases++; console.log('PASS ' + name); }
 for (const spec of specs) {
+    test(spec[0] + ' solo-finish records the completed day and permanently closes that run', () => {
+        const f = fixture(), r = multiplayer(spec, 1);
+        r.participants[0].successfulDays = [1];
+        r.participants[1].completedDay = 0;
+        r.participants[1].successfulDays = [];
+        r.participants[1].disconnectDeadline = 100;
+        r.endReason = 'InsufficientPlayers';
+        r.endedUtc = '2026-11-01T00:30:00Z';
+        assert.equal(f.call('DineInPublishRunV2', r).accepted, true);
+        r.revision++;
+        r.completedDay = r.highestDay = 2;
+        r.participants[0].completedDay = r.participants[0].highestDay = 2;
+        assert.equal(f.call('DineInPublishRunV2', r).accepted, false);
+    });
     test(spec[0] + ': independent solo/multiplayer Max scores, duplicates and shorter runs', () => {
         const f = fixture(), s = solo(spec, 9), m = multiplayer(spec, 6);
         assert.equal(f.call('DineInPublishSoloRunV1', s).bestCompletedDays, 9);

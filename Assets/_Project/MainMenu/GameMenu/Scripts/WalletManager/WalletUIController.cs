@@ -46,6 +46,7 @@ public class WalletUIController : MonoBehaviour
     [Header("Display Formatting")]
     [SerializeField] private string goldPrefix = "G";
     [SerializeField] private string moneyPrefix = "$";
+    private string MoneyPrefix => moneyPrefix == "$" ? "₱" : moneyPrefix;
     [Tooltip("Shown in place of a value when logged out, cleared, or not yet loaded.")]
     [SerializeField] private string emptyValueText = "--";
 
@@ -97,7 +98,7 @@ public class WalletUIController : MonoBehaviour
     private void LateUpdate()
     {
         // The Campaign balance remains visible offline and after account changes.
-        if (normalMoneyText != null) normalMoneyText.text = moneyPrefix + CampaignSaveStore.Money;
+        if (normalMoneyText != null) normalMoneyText.text = MoneyPrefix + CampaignSaveStore.DisplayMoney.ToString("N0");
         if (CampaignCloudSync.HasConflict) SetStatus(CampaignCloudSync.Status);
     }
 
@@ -233,7 +234,7 @@ public class WalletUIController : MonoBehaviour
     private void HandleWalletUpdated(int goldCoins, int normalMoney)
     {
         if (goldCoinsText != null) goldCoinsText.text = goldPrefix + goldCoins;
-        if (normalMoneyText != null) normalMoneyText.text = moneyPrefix + normalMoney;
+        if (normalMoneyText != null) normalMoneyText.text = MoneyPrefix + CampaignSaveStore.DisplayMoney.ToString("N0");
         SetStatus("");
     }
 
@@ -255,7 +256,7 @@ public class WalletUIController : MonoBehaviour
     private void ShowEmptyValues()
     {
         if (goldCoinsText != null) goldCoinsText.text = goldPrefix + emptyValueText;
-        if (normalMoneyText != null) normalMoneyText.text = moneyPrefix + CampaignSaveStore.Money;
+        if (normalMoneyText != null) normalMoneyText.text = MoneyPrefix + CampaignSaveStore.DisplayMoney.ToString("N0");
     }
 
     private void SetStatus(string message)

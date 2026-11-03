@@ -340,6 +340,8 @@ public class GameSaveManager : MonoBehaviour
         try
         {
             var current = ReadSaveData(careerPath);
+            if (current != null && string.IsNullOrEmpty(checkpoint.dailyRewardRunId))
+                checkpoint.dailyRewardRunId = current.dailyRewardRunId;
             checkpoint.soloRankingV1 = SoloRankingV1.RestoreCheckpoint(checkpoint.soloRankingV1, current?.soloRankingV1);
         }
         catch (System.Exception error)

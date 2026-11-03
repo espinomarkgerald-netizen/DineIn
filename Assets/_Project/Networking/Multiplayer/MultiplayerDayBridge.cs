@@ -16,7 +16,7 @@ public sealed partial class MultiplayerDayBridge : MonoBehaviourPunCallbacks, IO
     {
         public string run;
         public int revision, day;
-        public bool running, closing, results, readinessActive;
+        public bool running, closing, results, readinessActive, rewardSucceeded;
         public float remaining, scale;
         public double sentAt, startedAt;
         public int[] report;
@@ -49,6 +49,23 @@ public sealed partial class MultiplayerDayBridge : MonoBehaviourPunCallbacks, IO
         && MultiplayerSessionManager.Instance.GetComponent<MultiplayerDayBridge>()?.readiness != null;
     public int CurrentDay => GameFlowManager.Instance != null ? GameFlowManager.Instance.CurrentDay : 1;
     public static bool IsActive => MultiplayerRestaurantBridge.IsActive;
+    private const string RewardFinishedKey = "restaurant.reward.finished";
+    public static bool RewardDaySucceeded => IsActive && (MultiplayerSessionManager.Instance.IsAuthority
+        ? GameFlowManager.Instance.LastRestaurantDaySucceeded
+        : MultiplayerSessionManager.Instance.GetComponent<MultiplayerDayBridge>()?.snapshot?.rewardSucceeded == true);
+    public static void MarkRewardPresentationFinished()
+    {
+        if (!IsActive || PhotonNetwork.LocalPlayer == null) return;
+        PhotonNetwork.LocalPlayer.SetCustomProperties(new Hashtable {
+            [RewardFinishedKey] = MultiplayerSessionManager.Instance.RunId + ":" + GameFlowManager.Instance.CurrentDay });
+    }
+    private bool AllRewardPresentationsFinished()
+    {
+        string token = session.RunId + ":" + CurrentDay;
+        foreach (var player in PhotonNetwork.PlayerList)
+            if (!player.IsInactive && session.ValidActor(player.ActorNumber) && !Equals(player.CustomProperties[RewardFinishedKey], token)) return false;
+        return true;
+    }
     private static bool UsesExtendedReport => IsActive &&
         (MultiplayerSessionManager.Instance.RestaurantType == "FastFood" || MultiplayerSessionManager.Instance.RestaurantType == "FineDining");
     public static bool CanCommit => IsActive && MultiplayerSessionManager.Instance.IsAuthority
@@ -87,6 +104,8 @@ public sealed partial class MultiplayerDayBridge : MonoBehaviourPunCallbacks, IO
         if (!session.IsConnected || !MultiplayerProgressionContext.LocallyPrepared) return;
         if (session.IsHostConnection)
         {
+            if (session.IsAuthority && day.HasDayResults && session.ConnectedHumanCount < 2
+                && AllRewardPresentationsFinished() && session.EndAfterSoloDay()) return;
             TickStockout();
             TickReadiness();
             if (Time.unscaledTime >= nextPublish) PublishNow();
@@ -118,7 +137,8 @@ public sealed partial class MultiplayerDayBridge : MonoBehaviourPunCallbacks, IO
     }
     public bool EveryoneReady(int readyDay)
     {
-        return readiness != null && readiness.day == readyDay && readiness.AllReady && session.AllPlayersLoaded();
+        return readiness != null && readiness.day == readyDay && readiness.AllReady
+            && session.ConnectedHumanCount >= 2 && session.AllPlayersLoaded();
     }
     public bool LocalReady => readiness != null && readiness.IsReady(session.LocalActorNumber);
     public bool VotePending => pendingVote != null;
@@ -171,7 +191,8 @@ public sealed partial class MultiplayerDayBridge : MonoBehaviourPunCallbacks, IO
     private void TickReadiness()
     {
         if (readiness == null || !session.IsAuthority) return;
-        if (readiness.day != CurrentDay || !session.AllPlayersLoaded() || CurrentRoster(out _) != readiness.roster)
+        if (readiness.day != CurrentDay || session.ConnectedHumanCount < 2
+            || !session.AllPlayersLoaded() || CurrentRoster(out _) != readiness.roster)
         { CancelReadiness("Players changed. The host can request Start Day again when everyone is ready to prepare."); return; }
         if (MultiplayerRestockBridge.Active?.StockRoomInUse == true)
         { CancelReadiness("Finish the stock-room visit before requesting Start Day."); return; }
@@ -207,6 +228,8 @@ public sealed partial class MultiplayerDayBridge : MonoBehaviourPunCallbacks, IO
         {
             if (request.action == "start" && !day.ServiceActive && !day.HasDayResults && session.AllPlayersLoaded())
             {
+                if (session.ConnectedHumanCount < 2)
+                { WarningSlideUI.Instance?.Show("Multiplayer needs at least two players. Wait for a teammate to return, or return to the menu."); return; }
                 var computer = FindFirstObjectByType<ManagementComputerController>();
                 if (MultiplayerRestockBridge.Active?.StockRoomInUse == true)
                 { WarningSlideUI.Instance?.Show("Finish the stock-room visit before requesting Start Day."); return; }
@@ -219,6 +242,9 @@ public sealed partial class MultiplayerDayBridge : MonoBehaviourPunCallbacks, IO
             }
             else if (request.action == "next" && day.HasDayResults && session.AllPlayersLoaded())
             {
+                if (!AllRewardPresentationsFinished())
+                { WarningSlideUI.Instance?.Show("Waiting for everyone to finish their daily reward."); return; }
+                if (session.ConnectedHumanCount < 2) { session.EndAfterSoloDay(); return; }
                 int before = CurrentDay;
                 MultiplayerRestaurantBridge.Active.RunSystemAction(() => GameFlowManager.Instance.CompleteRestaurantDay());
                 accepted = CurrentDay > before;
@@ -245,6 +271,7 @@ public sealed partial class MultiplayerDayBridge : MonoBehaviourPunCallbacks, IO
             || snapshot.closing != day.ClosingOut || snapshot.results != day.HasDayResults)
             MultiplayerRestaurantBridge.Active.Publish(true);
         snapshot = new Snapshot { run = session.RunId, revision = ++revision, day = CurrentDay,
+            rewardSucceeded = GameFlowManager.Instance.LastRestaurantDaySucceeded,
             running = day.ShiftRunning, closing = day.ClosingOut, results = day.HasDayResults,
             remaining = day.TimeRemaining, scale = Time.timeScale, sentAt = PhotonNetwork.Time, startedAt = startedAt,
             report = day.CaptureMultiplayerReport(),

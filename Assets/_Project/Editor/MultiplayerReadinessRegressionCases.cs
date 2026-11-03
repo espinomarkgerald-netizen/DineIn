@@ -28,12 +28,12 @@ public static class MultiplayerReadinessRegressionCases
         Check(next.id != state.id && next.Count == 1 && !next.CountingDown && !next.IsReady(7),
             "Next day reused readiness.");
         var reduced = MultiplayerDayReadiness.Create(1, 2, new[] { 2 }, "2:0");
-        Check(reduced.id != state.id && reduced.AllReady && !reduced.SetVote(state.id, 7, 5, true),
-            "Cancelled roster request can affect its replacement.");
+        Check(reduced.id != state.id && !reduced.Valid && !reduced.AllReady && !reduced.BeginCountdown(300)
+            && !reduced.SetVote(state.id, 7, 5, true), "A lone host can start another multiplayer day.");
         var style = Resources.Load<MultiplayerReadyStyle>("UI/MultiplayerReadyStyle");
         Check(style != null && style.button != null && style.pressed != null && style.font != null,
             "Ready UI lost existing Blue/Double sprites or font.");
-        Check(MultiplayerSessionManager.Protocol == "casual-session-8"
+        Check(MultiplayerSessionManager.Protocol == "shared-session-24"
             && MultiplayerSessionManager.ResultRulesVersion == "casual-session-2", "Protocol/result compatibility changed.");
     }
     private static void Check(bool okay, string message)

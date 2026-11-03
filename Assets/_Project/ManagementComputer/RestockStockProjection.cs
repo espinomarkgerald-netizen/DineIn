@@ -7,7 +7,9 @@ public enum RestockCoverageState
     Low,
     StillLow,
     Overstocked,
-    SpoilageRisk
+    SpoilageRisk,
+    Expired,
+    WrongStorage
 }
 
 /// <summary>
@@ -21,6 +23,7 @@ public sealed class RestockStockProjection
     public int OnHandUnits { get; private set; }
     public int FreshUnits { get; private set; }
     public int ExpiredUnits { get; private set; }
+    public int WrongStorageUnits { get; private set; }
     public int UnitsPerBox { get; private set; }
     public int TargetUnits { get; private set; }
     public int PendingContainers { get; private set; }
@@ -59,6 +62,7 @@ public sealed class RestockStockProjection
         {
             result.OnHandUnits = Mathf.Max(0, inventory.GetStock(item.itemType));
             result.ExpiredUnits = Mathf.Max(0, inventory.GetExpiredStock(item.itemType, day));
+            result.WrongStorageUnits = inventory.GetWrongStorageStock(item.itemType);
             result.FreshUnits = Mathf.Max(0, inventory.GetFreshStock(item.itemType, day));
             result.NextFreshExpiryDay = inventory.GetNextFreshExpiryDay(item.itemType, day);
         }
@@ -92,7 +96,11 @@ public sealed class RestockStockProjection
         bool expiringSoon = result.FreshUnits > result.TargetUnits * 2 &&
                             result.NextFreshExpiryDay > 0 &&
                             result.NextFreshExpiryDay <= day + 1;
-        if (result.ExpiredUnits > 0 || expiringSoon)
+        if (result.ExpiredUnits > 0)
+            result.State = RestockCoverageState.Expired;
+        else if (result.WrongStorageUnits > 0)
+            result.State = RestockCoverageState.WrongStorage;
+        else if (expiringSoon)
             result.State = RestockCoverageState.SpoilageRisk;
         else if (result.RecommendedContainers > 0)
             result.State = result.HasIncoming

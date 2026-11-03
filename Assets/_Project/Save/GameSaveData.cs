@@ -183,6 +183,8 @@ public class RestockStoredContainerSaveData
 public class GameSaveData
 {
     public SoloRankingV1 soloRankingV1; // Optional; missing means this career is unranked.
+    public string dailyRewardRunId;
+    public int dailyRewardDayOrdinal;
     public FineDiningReservationSave fineDiningReservations;
     public bool fineDiningDayComplete;
     public int[] fineDiningDayStats;

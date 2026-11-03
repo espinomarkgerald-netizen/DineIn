@@ -1,5 +1,6 @@
 using System;
 using Photon.Pun;
+using Photon.Realtime;
 using UnityEngine;
 
 // A local account-bound room pointer, never a restaurant save or authentication token.
@@ -14,6 +15,12 @@ public static class MultiplayerLastRun
 {
     private const string KeyPrefix = "DineIn.LastMultiplayerRun.";
     public static string MenuNotice { get; set; }
+
+    // TTL-zero rooms keep eligibility in our account-bound roster, not an inactive
+    // Photon actor. Return by JoinRoom and let the original host admit the new actor.
+    public static bool UsesActorRejoin(LastMultiplayerRun pointer) => pointer != null && pointer.playerTtlSeconds > 0;
+    public static bool CanFallBackToJoin(bool actorRejoinAttempted, short failure) => actorRejoinAttempted &&
+        (failure == ErrorCode.JoinFailedWithRejoinerNotFound || failure == ErrorCode.OperationNotAllowedInCurrentState);
 
     public static void Remember(MultiplayerRunRecord run, int actor)
     {

@@ -40,7 +40,7 @@ public sealed class DailyRewardSlotSettings : ScriptableObject
     public AudioClip reelTick, spinSound, spinLoop;
 }
 
-// Presentation-only outcome model. Live results MUST originate in the reward backend.
+// Shared outcome model used by the game reward provider and the presentation preview.
 public static class DailyRewardSlotOdds
 {
     public static int Total(int[] weights, int noPrize)

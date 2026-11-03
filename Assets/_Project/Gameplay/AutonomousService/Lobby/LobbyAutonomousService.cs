@@ -3025,8 +3025,12 @@ public class LobbyAutonomousService : MonoBehaviour
         if (character == null)
             return;
 
+        var post = character.GetComponent<StationaryStaffPost>();
+        if (post == null) post = character.AddComponent<StationaryStaffPost>();
+        post.Initialize();
+
         UnityEngine.AI.NavMeshAgent agent = character.GetComponent<UnityEngine.AI.NavMeshAgent>();
-        if (agent != null && agent.isOnNavMesh)
+        if (agent != null && agent.enabled && agent.isOnNavMesh)
         {
             agent.isStopped = true;
             agent.ResetPath();

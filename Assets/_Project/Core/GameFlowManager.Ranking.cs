@@ -17,6 +17,7 @@ public partial class GameFlowManager
         catch (Exception error) { Debug.LogWarning("[Solo ranking] Reporting deferred: " + error.Message); }
     }
     public void BeginSoloRankingRun() => RankingSafely(() => {
+        rewardRunId = Guid.NewGuid().ToString("N"); rewardDayOrdinal = 1;
         if (CampaignSaveStore.ProtectedSession) return;
         soloRanking = null; rankingAccount = rankingScene = null; rankingServiceStarted = false;
         rankingAccount = CampaignSaveStore.ReadAccountState().account;
@@ -43,6 +44,7 @@ public partial class GameFlowManager
         rankingServiceStarted = false;
     });
     private void AdvanceSoloRankingDay() => RankingSafely(() => {
+        if (restaurantSessionState == RestaurantSessionState.DayComplete) rewardDayOrdinal++;
         if (restaurantSessionState == RestaurantSessionState.DayComplete && RankingContext)
             SoloRankingV1.Advance(soloRanking);
         rankingServiceStarted = false;

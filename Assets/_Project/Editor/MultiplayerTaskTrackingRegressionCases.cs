@@ -73,7 +73,8 @@ public static class MultiplayerTaskTrackingRegressionCases
             graphic.SetAngle(90);
             using (var mesh = new VertexHelper())
             {
-                typeof(MultiplayerWorkCircleGraphic).GetMethod("OnPopulateMesh", Fields).Invoke(graphic, new object[] { mesh });
+                typeof(MultiplayerWorkCircleGraphic).GetMethod("OnPopulateMesh", Fields, null,
+                    new[] { typeof(VertexHelper) }, null).Invoke(graphic, new object[] { mesh });
                 var vertex = new UIVertex(); mesh.PopulateUIVertex(ref vertex, 0);
                 Check(Mathf.Approximately(((Vector2)vertex.position - graphic.rectTransform.rect.center).magnitude, 8f),
                     "24-unit ring did not use 4-unit thickness.");

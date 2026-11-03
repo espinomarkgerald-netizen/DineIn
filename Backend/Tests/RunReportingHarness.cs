@@ -17,7 +17,7 @@ namespace UnityEngine
     public enum NetworkReachability { NotReachable, ReachableViaLocalAreaNetwork }
     public static class Application { public static string persistentDataPath, version = "reporting-test"; public static NetworkReachability internetReachability; }
     public static class Time { public static float realtimeSinceStartup; }
-    public static class Mathf { public static float Min(float a, float b) => Math.Min(a, b); }
+    public static class Mathf { public static float Min(float a, float b) => Math.Min(a, b); public static int Max(int a, int b) => Math.Max(a, b); }
     public static class Debug { public static void LogWarning(string text) { } }
     public static class JsonUtility
     {
@@ -94,6 +94,7 @@ public class PlayFabAuthManager
 public static class MultiplayerSessionManager
 {
     public const string SceneName = "Lobby1 Multiplayer", ResultRulesVersion = "casual-session-2";
+    public const string ProtocolKey = "restaurant.protocol", Protocol = "shared-session-24", RunKey = "restaurant.run.v2";
 }
 public static class LocalSaveManager
 {
@@ -125,6 +126,8 @@ public class GameSaveData { public SoloRankingV1 soloRankingV1; }
 public partial class GameFlowManager
 {
     private string restaurantSceneName = "Lobby1";
+    private string rewardRunId;
+    private int rewardDayOrdinal = 1;
     public enum RestaurantSessionState { PreOpen, Running, DayComplete }
     private RestaurantSessionState restaurantSessionState;
     public void Scene(string name) { restaurantSceneName = CampaignSaveStore.RestaurantScene = name; }
@@ -183,6 +186,7 @@ public static class Program
             accepted = true, runId = record.runId, restaurant = record.restaurant, completedDays = record.completedDays, bestCompletedDays = best } });
     public static void Main()
     {
+        MultiplayerReturnRegression.Run();
         foreach (string scene in new[] { "Lobby1", "Lobby2", "Lobby3" })
         {
             Test(scene + " actual adapter: completion, duplicate, paid advance, retry, endless and restart", () => {

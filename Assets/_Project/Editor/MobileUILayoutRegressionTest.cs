@@ -313,10 +313,9 @@ public static class MobileUILayoutRegressionTest
             CanvasScaler scaler = root.GetComponent<CanvasScaler>();
             MobileUIAccessibility.ConfigureCanvasForMobile(scaler);
 
-            Assert(scaler.screenMatchMode == CanvasScaler.ScreenMatchMode.MatchWidthOrHeight,
-                $"{canvasName} did not use the persistent-HUD mobile policy.");
-            Assert(Mathf.Approximately(scaler.matchWidthOrHeight, 0f),
-                $"{canvasName} was not width-scaled for mobile readability.");
+            Assert(scaler.screenMatchMode == CanvasScaler.ScreenMatchMode.Expand &&
+                   scaler.referenceResolution == new Vector2(1920f, 1080f),
+                $"{canvasName} did not preserve the non-cropping persistent-HUD mobile policy.");
         }
         finally
         {
@@ -380,9 +379,11 @@ public static class MobileUILayoutRegressionTest
         ManagementComputerResponsiveLayout responsive =
             desktopPrefab.GetComponentInChildren<ManagementComputerResponsiveLayout>(true);
         Assert(responsive != null, "Management-computer desktop lost its responsive layout.");
-        Assert(responsive.AppButtons != null &&
-               responsive.AppButtons.Length == Enum.GetValues(typeof(ManagementComputerApp)).Length,
-            "Management-computer desktop no longer covers every app button.");
+        // Reservations opens automatically from its dedicated reservation station
+        // and is unavailable in the regular desktop mode.
+        int regularAppCount = Enum.GetValues(typeof(ManagementComputerApp)).Length - 1;
+        Assert(responsive.AppButtons != null && responsive.AppButtons.Length == regularAppCount,
+            "Management-computer desktop no longer covers all regular app buttons.");
 
         SerializedObject desktop = new SerializedObject(responsive);
         Assert(!desktop.FindProperty("previewMobileLayoutInEditor").boolValue,
@@ -560,11 +561,11 @@ public static class MobileUILayoutRegressionTest
             Assert(!manager.allEmployees.Exists(employee =>
                     employee != null && employee.EmployeeID == expiringID),
                 "A one-day applicant remained after their availability expired.");
-            Assert(!manager.HasUnseenApplicants,
-                "Applicant removal incorrectly raised a new-applicant notification.");
+            Assert(manager.HasUnseenApplicants && manager.ApplicantNextRefreshDay == 3,
+                "The between-refresh safety-floor replacement was not notified without shifting the full refresh date.");
             Assert(manager.allEmployees.FindAll(employee =>
-                    employee != null && !employee.hired && employee.role == EmployeeRole.Host).Count == 0,
-                "The expired applicant slot was refilled before the scheduled refresh.");
+                    employee != null && !employee.hired && employee.role == EmployeeRole.Host).Count >= 1,
+                "The minimum host applicant pool was not restored between full refreshes.");
 
             manager.MarkApplicantsSeen();
             Assert(!manager.HasUnseenApplicants,
@@ -598,12 +599,19 @@ public static class MobileUILayoutRegressionTest
                 "Declining an applicant incorrectly raised a new-applicant notification.");
 
             EmployeeData remainingHost;
-            while ((remainingHost = manager.allEmployees.Find(employee =>
-                       employee != null && !employee.hired && employee.role == EmployeeRole.Host)) != null)
+            while (manager.allEmployees.FindAll(employee =>
+                       employee != null && !employee.hired && employee.role == EmployeeRole.Host).Count > 1)
             {
+                remainingHost = manager.allEmployees.Find(employee =>
+                    employee != null && !employee.hired && employee.role == EmployeeRole.Host);
                 Assert(manager.DeclineApplicant(remainingHost),
                     "A remaining Host applicant could not be declined.");
             }
+
+            int savedHostApplicants = manager.allEmployees.FindAll(employee =>
+                employee != null && !employee.hired && employee.role == EmployeeRole.Host).Count;
+            Assert(savedHostApplicants == 1,
+                "Declining applicants did not preserve the one-candidate safety floor.");
 
             GameSaveData save = new GameSaveData();
             manager.FillSaveData(save);
@@ -618,8 +626,8 @@ public static class MobileUILayoutRegressionTest
             Assert(manager.ApplicantNextRefreshDay == 5,
                 "A legacy weekly applicant schedule was not migrated to every other day.");
             Assert(manager.allEmployees.FindAll(employee =>
-                    employee != null && !employee.hired && employee.role == EmployeeRole.Host).Count == 0,
-                "Loading the save refilled a deliberately depleted applicant role.");
+                    employee != null && !employee.hired && employee.role == EmployeeRole.Host).Count == savedHostApplicants,
+                "Loading the save changed an already-satisfied applicant safety floor.");
         }
         finally
         {

@@ -250,7 +250,7 @@ public class InventoryManager : MonoBehaviour
         for (int i = 0; i < stockBatches.Count; i++)
         {
             InventoryStockBatchSaveEntry batch = stockBatches[i];
-            if (batch != null && batch.unitsRemaining > 0 && batch.expiresDay <= currentDay)
+            if (batch != null && batch.unitsRemaining > 0 && batch.expiresDay > 0 && batch.expiresDay <= currentDay)
                 return true;
         }
 
@@ -263,7 +263,7 @@ public class InventoryManager : MonoBehaviour
         for (int i = 0; i < stockBatches.Count; i++)
         {
             InventoryStockBatchSaveEntry batch = stockBatches[i];
-            if (batch != null && batch.itemType == type &&
+            if (batch != null && batch.itemType == type && batch.expiresDay > 0 &&
                 batch.expiresDay <= currentDay)
                 total += Mathf.Max(0, batch.unitsRemaining);
         }
@@ -277,7 +277,7 @@ public class InventoryManager : MonoBehaviour
         for (int i = 0; i < stockBatches.Count; i++)
         {
             InventoryStockBatchSaveEntry batch = stockBatches[i];
-            if (batch != null && batch.itemType == type && batch.unitsRemaining > 0)
+            if (batch != null && batch.itemType == type && batch.unitsRemaining > 0 && batch.expiresDay > 0)
                 result = Mathf.Min(result, batch.expiresDay);
         }
 
@@ -287,6 +287,14 @@ public class InventoryManager : MonoBehaviour
     public int GetFreshStock(ItemType type, int currentDay)
     {
         return Mathf.Max(0, GetStock(type) - GetExpiredStock(type, currentDay));
+    }
+
+    public int GetWrongStorageStock(ItemType type)
+    {
+        int total = 0;
+        foreach (var batch in stockBatches)
+            if (batch != null && batch.itemType == type && batch.wrongStorage) total += Mathf.Max(0, batch.unitsRemaining);
+        return total;
     }
 
     public int GetNextFreshExpiryDay(ItemType type, int currentDay)

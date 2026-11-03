@@ -434,6 +434,7 @@ public partial class GameFlowManager : MonoBehaviour
     /// <summary>Called by GameDayManager after the player confirms the day-start panel.</summary>
     public void MarkRestaurantServiceStarted()
     {
+        TutorialGameModeEntry.MarkRegularShiftStarted();
         if (!useSingleRestaurantFlow)
             return;
 
@@ -551,6 +552,7 @@ public partial class GameFlowManager : MonoBehaviour
             return;
 
         CaptureSoloRanking(data);
+        CaptureRewardProgress(data);
         data.currentDay = currentDay;
         data.currentPhase = (int)currentPhase;
         data.currentDayHalf = (int)currentDayHalf;
@@ -566,6 +568,7 @@ public partial class GameFlowManager : MonoBehaviour
         if (data == null)
             return;
         LoadSoloRanking(data);
+        LoadRewardProgress(data);
 
         fastFoodServiceStarted = false;
         financeSettledDay = (data.fastFoodDayComplete && restaurantSceneName == "Lobby2") ||

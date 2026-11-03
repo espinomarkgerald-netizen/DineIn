@@ -44,6 +44,8 @@ MonoBehaviour:
     m_path: Assets/_Project/Scenes/RoleBased/Lobby3.unity
   - m_enabled: 1
     m_path: Assets/_Project/Scenes/RoleBased/Lobby3 Multiplayer.unity
+  - m_enabled: 1
+    m_path: Assets/_Project/Scenes/RoleBased/Lobby3Tutorial.unity
   m_ScriptingDefines: []
   m_PlayerSettingsYaml:
     m_Settings: []
@@ -69,7 +71,7 @@ MonoBehaviour:
         m_ExportAsGoogleAndroidProject: 0
         m_DebugSymbolLevel: 1
         m_DebugSymbolFormat: 5
-        m_CurrentDeploymentTargetId: 695LNZVCOVD6D68H
+        m_CurrentDeploymentTargetId: __builtin__target_default
         m_BuildType: 2
         m_BuildAppBundle: 0
         m_IPAddressToConnect: 

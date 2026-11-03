@@ -69,8 +69,10 @@ namespace DineIn.NewMenu
         }
         private void ApplySavedDisplay()
         {
-            if (SupportsDesktopDisplay && Current.displayWidth > 0 && Current.displayHeight > 0)
-                Screen.SetResolution(Current.displayWidth, Current.displayHeight, Current.windowMode);
+            if (!SupportsDesktopDisplay || Application.isEditor) return;
+            int width = Current.displayWidth > 0 ? Current.displayWidth : Screen.currentResolution.width;
+            int height = Current.displayHeight > 0 ? Current.displayHeight : Screen.currentResolution.height;
+            if (width > 0 && height > 0) Screen.SetResolution(width, height, Current.windowMode);
         }
         private void Changed(bool audio = false)
         {

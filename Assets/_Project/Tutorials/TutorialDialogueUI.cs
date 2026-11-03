@@ -19,6 +19,8 @@ public class TutorialDialogueUI : MonoBehaviour
     [SerializeField, Min(.01f)] private float letterBounceDuration = .075f;
 
     [Header("Big Boss Portrait Reaction")]
+    [SerializeField, Range(.3f, .9f)] private float portraitSafeHeight = .65f;
+    [SerializeField, Range(.15f, .45f)] private float portraitSafeWidth = .28f;
     [SerializeField, Min(0f)] private float portraitBopDuration = 0.22f;
     [SerializeField, Range(0.8f, 1f)] private float portraitBopStartScale = 0.94f;
     [SerializeField, Range(1f, 1.2f)] private float portraitBopPeakScale = 1.06f;
@@ -289,6 +291,28 @@ public class TutorialDialogueUI : MonoBehaviour
     }
 
     private void LateUpdate()
+    {
+        if (portraitRoutine == null && IsVisible) ApplyPortraitPose();
+        UpdatePortraitPlacement();
+        if (!IsVisible || portraitRect == null || portraitImage == null || !portraitImage.enabled) return;
+        portraitImage.preserveAspect = true;
+        Rect safe = Screen.safeArea;
+        Rect bounds = ScreenRect(portraitRect);
+        if (bounds.width <= 0 || bounds.height <= 0) return;
+        float scale = Mathf.Min(1f, safe.width * portraitSafeWidth / bounds.width, safe.height * portraitSafeHeight / bounds.height);
+        portraitRect.localScale *= scale;
+        bounds = ScreenRect(portraitRect);
+        Vector2 shift = new Vector2(Mathf.Max(0, safe.xMin - bounds.xMin) + Mathf.Min(0, safe.xMax - bounds.xMax),
+            Mathf.Max(0, safe.yMin - bounds.yMin) + Mathf.Min(0, safe.yMax - bounds.yMax));
+        if (shift.sqrMagnitude < .01f || !(portraitRect.parent is RectTransform parent)) return;
+        Canvas canvas = portraitRect.GetComponentInParent<Canvas>()?.rootCanvas;
+        Camera camera = canvas == null || canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(parent, bounds.center, camera, out var from);
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(parent, bounds.center + shift, camera, out var to);
+        portraitRect.anchoredPosition += to - from;
+    }
+
+    private void UpdatePortraitPlacement()
     {
         UpdateLetterBounce();
         if (!polishedLobby || !IsVisible || portraitPlacement == null) return;

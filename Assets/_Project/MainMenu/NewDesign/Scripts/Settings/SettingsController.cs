@@ -77,13 +77,9 @@ public class SettingsController : MonoBehaviour
     {
         int resolvedQuality = ClampQualityIndex(qualityIndex);
         ApplyQuality(resolvedQuality);
-
         PlayerPrefs.SetInt(PREF_QUALITY, resolvedQuality);
         PlayerPrefs.SetInt(PREF_QUALITY_USER_SET, 1); // this is the one true "player chose this" signal
         PlayerPrefs.Save();
-
-        if (DineIn.NewMenu.SettingsManager.Instance != null)
-            DineIn.NewMenu.SettingsManager.Instance.SetGraphicsQuality(resolvedQuality);
 
         UpdateGraphicsText();
         Debug.Log("Graphics quality set to: " + QualitySettings.names[resolvedQuality]);
@@ -230,7 +226,7 @@ public class SettingsController : MonoBehaviour
 
     private static void ApplyQuality(int qualityIndex)
     {
-        QualitySettings.SetQualityLevel(qualityIndex, true);
+        DineIn.NewMenu.SettingsManager.EnsureInstance()?.SetGraphicsQuality(qualityIndex);
     }
 
     private static int ClampQualityIndex(int qualityIndex)

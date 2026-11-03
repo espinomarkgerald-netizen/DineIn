@@ -4,13 +4,13 @@ const root=path.resolve(__dirname,'../..'),read=p=>fs.readFileSync(path.join(roo
 const ui=read('Assets/_Project/Gameplay/Rewards/DailyRewardSlotUI.cs'),settings=read('Assets/_Project/Resources/DailyRewardSlot.asset'),day=read('Assets/_Project/Gameplay/GameManager/GameManager.cs'),dev=read('Assets/_Project/Debug/DevSettingsConsole.cs');
 test('preview remains behind existing developer authorization',ui.includes('!DevSettingsConsole.HasAuthorizedDevAccess')&&dev.includes('"dailyreward" => TryRunDailyRewardCommand()'));
 test('preview does not mutate currency or save state',!ui.includes('AddUserVirtualCurrency')&&!ui.includes('AddEarnings')&&!ui.includes('MoneyManager')&&!ui.includes('RequestSave'));
-test('real rewards remain disabled without deployed provider',ui.includes('if (Backend == null')&&!ui.includes('Backend = new'));
-test('campaign offer excludes protected modes and loads',ui.includes('CampaignSaveStore.ProtectedSession')&&ui.includes('GameSaveManager.Instance.IsApplyingSave'));
+test('game provider installs through the existing reward boundary',read('Assets/_Project/Gameplay/Rewards/DailyRewardGameBackend.cs').includes('DailyRewardSlotUI.Backend = new DailyRewardGameBackend()'));
+test('offers exclude tutorial and save application',ui.includes('TutorialSceneRuntimeMarker.IsTutorialRuntimeActive')&&ui.includes('GameSaveManager.Instance?.IsApplyingSave == true'));
 test('results settle before offer and show after its callback',day.indexOf('flow.FinalizeRestaurantDayForResults(earnedStars)')<day.indexOf('DailyRewardSlotUI.TryOfferBeforeResults')&&day.includes('PresentResultsAfterReward(earnedStars, singleRestaurantFlow, multiplayer)'));
-test('only successful live campaign shifts qualify',day.includes('flow.LastRestaurantDaySucceeded')&&day.includes('!restoringResultsPresentation'));
+test('successful live days qualify with debug and restore exclusions',day.includes('flow.LastRestaurantDaySucceeded')&&day.includes('!restoringResultsPresentation')&&day.includes('!rewardDebugCompletion')&&day.includes('MultiplayerDayBridge.RewardDaySucceeded'));
 test('single spin input and duplicate resolution guards',ui.includes('if (closing || spun || waiting')&&ui.includes('!receivedResolution'));
 test('pending spin cannot strand results',ui.includes('WaitForSecondsRealtime(8)')&&ui.includes('next.interactable = true; SetButtonLabel(next, "CONTINUE")'));
-test('context changes reject late results',ui.includes('!closing && ValidContext')&&ui.includes('account == CampaignSaveStore.ReadAccountState().account'));
+test('context changes reject late results',ui.includes('!closing && ValidContext')&&ui.includes('account == PlayFabAuthManager.Instance.PlayFabId'));
 test('reduced motion skips spinning movement',ui.includes('LevelOneUIAccessibility.ReducedMotion')&&ui.includes('if (reduced) break'));
 test('all six food symbols reference existing artwork',(settings.match(/  - food: /g)||[]).length===6);
 const metaFiles=cp.execFileSync('rg',['--files','Assets','-g','*.meta'],{cwd:root,encoding:'utf8'}).split(/\r?\n/).filter(Boolean);const guids=new Set(metaFiles.map(p=>{let m=fs.readFileSync(path.join(root,p),'utf8').match(/^guid: (\w+)/m);return m?.[1]}));

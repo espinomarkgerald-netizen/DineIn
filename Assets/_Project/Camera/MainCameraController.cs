@@ -168,7 +168,7 @@ public class MainCameraController : MonoBehaviour
     private void LateUpdate()
     {
         if (cam == null) cam = Camera.main;
-        if (cam == null) return;
+        if (cam == null || !cam.isActiveAndEnabled) return;
 
         if (followTarget != null && !followTarget.gameObject.activeInHierarchy)
             StopFollowing();

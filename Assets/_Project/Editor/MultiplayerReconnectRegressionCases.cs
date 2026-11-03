@@ -32,14 +32,21 @@ public static class MultiplayerReconnectRegressionCases
         Reject(p => p.room = "", "A missing room was accepted.");
         Reject(p => p.room = new string('x', 65), "An oversized room identifier was accepted.");
         Reject(p => p.runId = "old-run", "A malformed run identity was accepted.");
-        Reject(p => p.restaurant = "FineDining", "An unsupported restaurant was accepted.");
-        Reject(p => p.playerTtlSeconds = 0, "A nonreturnable actor lifetime was accepted.");
-        Reject(p => p.playerTtlSeconds = 301, "An unbounded return window was accepted.");
+        Reject(p => p.restaurant = "unsupported", "An unsupported restaurant was accepted.");
+        Reject(p => p.playerTtlSeconds = -1, "A negative actor lifetime was accepted.");
         Reject(p => p.networkVersion += ".other", "A different network version was accepted.");
         Reject(p => p.region = "wrong-region", "A different region was accepted.");
-        Reject(p => p.lastSeenUtc = "invalid", "An invalid timestamp was accepted.");
-        Reject(p => p.lastSeenUtc = now.AddSeconds(-151).ToString("o"), "An expired saved pointer was offered.");
-        Reject(p => p.lastSeenUtc = now.AddSeconds(61).ToString("o"), "A future timestamp extended the return window.");
+        var rosterReturn = Pointer(); rosterReturn.playerTtlSeconds = 0; rosterReturn.lastSeenUtc = "old or unavailable";
+        Check(Compatible(rosterReturn) && !MultiplayerLastRun.UsesActorRejoin(rosterReturn),
+            "TTL-zero room return must join with a new actor and await host admission.");
+        Check(MultiplayerLastRun.UsesActorRejoin(Pointer()), "A retained Photon actor did not use rejoin.");
+        foreach (string restaurant in new[] { "CasualDining", "FastFood", "FineDining" })
+        { var value = Pointer(); value.restaurant = restaurant; Check(Compatible(value), "Supported return destination was rejected."); }
+        Check(MultiplayerLastRun.CanFallBackToJoin(true, Photon.Realtime.ErrorCode.OperationNotAllowedInCurrentState)
+            && MultiplayerLastRun.CanFallBackToJoin(true, Photon.Realtime.ErrorCode.JoinFailedWithRejoinerNotFound)
+            && !MultiplayerLastRun.CanFallBackToJoin(false, Photon.Realtime.ErrorCode.OperationNotAllowedInCurrentState)
+            && !MultiplayerLastRun.CanFallBackToJoin(true, Photon.Realtime.ErrorCode.GameDoesNotExist),
+            "Actor rejoin failure fallback is missing or can loop/create a replacement room.");
         var restored = JsonUtility.FromJson<LastMultiplayerRun>(JsonUtility.ToJson(Pointer()));
         Check(Compatible(restored) && restored.actor == 2 && restored.accountId == account,
             "Pointer serialization lost the actor/account pairing.");

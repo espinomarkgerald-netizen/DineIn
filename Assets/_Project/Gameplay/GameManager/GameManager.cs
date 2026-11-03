@@ -802,6 +802,7 @@ public class GameDayManager : MonoBehaviour
         if (MultiplayerDayBridge.IsActive) return false;
         if (!Application.isEditor && !Debug.isDebugBuild)
             return false;
+        rewardDebugCompletion = true;
 
         if (spawnRoutine != null)
         {
@@ -863,6 +864,8 @@ public class GameDayManager : MonoBehaviour
 
     private void ResetShiftRuntime()
     {
+        rewardDebugCompletion = false;
+        TutorialGameModeEntry.MarkRegularShiftStarted();
         groupsSpawnedThisShift = 0;
         groupsSpawnedThisMinute = 0;
         minuteWindowTimer = 0f;
@@ -1158,6 +1161,7 @@ public class GameDayManager : MonoBehaviour
     }
 
     private bool rewardResultsPending;
+    private bool rewardDebugCompletion;
     private void ShowResults()
     {
         if (rewardResultsPending) return;
@@ -1179,10 +1183,15 @@ public class GameDayManager : MonoBehaviour
                              flow.TryGetRestaurantDayOutcome(out currentResultsOutcome);
         continuePurchaseArmed = false;
 
-        // Settlement above is completed before any reward UI. The provider is disabled
-        // until an authoritative, recoverable award service is implemented and deployed.
-        if (!multiplayer && singleRestaurantFlow && flow.LastRestaurantDaySucceeded &&
-            !restoringResultsPresentation && GameSaveManager.Instance?.IsApplyingSave != true && !CampaignSaveStore.ProtectedSession)
+        if (multiplayer && MultiplayerSessionManager.Instance.IsAuthority)
+        {
+            MultiplayerSessionManager.Instance.CompleteDay(flow.CurrentDay,
+                resultsHaveOutcome && currentResultsOutcome != GameOverReason.EarthSaved ? currentResultsOutcome.ToString() : null);
+            MultiplayerSessionManager.Instance.GetComponent<MultiplayerDayBridge>()?.PublishNow();
+        }
+        bool succeeded = multiplayer ? MultiplayerDayBridge.RewardDaySucceeded : singleRestaurantFlow && flow.LastRestaurantDaySucceeded;
+        if (succeeded && !rewardDebugCompletion && !restoringResultsPresentation &&
+            (!ObserveDayOnly || observedLiveService) && GameSaveManager.Instance?.IsApplyingSave != true)
         {
             rewardResultsPending = true;
             if (DailyRewardSlotUI.TryOfferBeforeResults(() =>
@@ -1196,6 +1205,7 @@ public class GameDayManager : MonoBehaviour
     }
     private void PresentResultsAfterReward(int earnedStars, bool singleRestaurantFlow, bool multiplayer)
     {
+        if (multiplayer) MultiplayerDayBridge.MarkRewardPresentationFinished();
         var flow = GameFlowManager.Instance;
         SetPanelVisible(resultsPanel, true);
 
@@ -1216,18 +1226,7 @@ public class GameDayManager : MonoBehaviour
         ConfigureResultsActions(singleRestaurantFlow);
         if (multiplayer)
         {
-            if (MultiplayerSessionManager.Instance.IsAuthority)
-                MultiplayerSessionManager.Instance.CompleteDay(flow.CurrentDay,
-                    resultsHaveOutcome && currentResultsOutcome != GameOverReason.EarthSaved ? currentResultsOutcome.ToString() : null);
-            if (resultsActionButton != null)
-            {
-                resultsActionButton.gameObject.SetActive(true);
-                resultsActionButton.interactable = MultiplayerSessionManager.Instance.Ended || MultiplayerSessionManager.Instance.IsHostConnection;
-            }
-            if (resultsActionButtonText != null) resultsActionButtonText.text =
-                MultiplayerSessionManager.Instance.Ended ? "RETURN TO MENU"
-                    : MultiplayerSessionManager.Instance.IsHostConnection ? "NEXT DAY" : "WAITING FOR HOST";
-            if (resultsContinueButton != null) resultsContinueButton.gameObject.SetActive(false);
+            RefreshMultiplayerResultsAction();
             if (resultsHaveOutcome && currentResultsOutcome != GameOverReason.EarthSaved && resultsCashText != null)
                 resultsCashText.text = "<b>RUN RECORDED</b>\nThis session has ended. Start a fresh run from the multiplayer menu.";
             MultiplayerSessionManager.Instance.GetComponent<MultiplayerDayBridge>()?.PublishNow();
@@ -1240,6 +1239,20 @@ public class GameDayManager : MonoBehaviour
         PrepareResultStars(earnedStars);
 
         AnimateResults(earnedStars);
+    }
+
+    public void RefreshMultiplayerResultsAction()
+    {
+        if (!MultiplayerDayBridge.IsActive) return;
+        var session = MultiplayerSessionManager.Instance;
+        if (resultsActionButton != null)
+        {
+            resultsActionButton.gameObject.SetActive(true);
+            resultsActionButton.interactable = session.Ended || session.IsHostConnection;
+        }
+        if (resultsActionButtonText != null) resultsActionButtonText.text = session.Ended
+            ? "RETURN TO MENU" : session.IsHostConnection ? "NEXT DAY" : "WAITING FOR HOST";
+        if (resultsContinueButton != null) resultsContinueButton.gameObject.SetActive(false);
     }
 
     private void PopulateStandardResults(bool singleRestaurantFlow, int revenue, int targetRevenue)

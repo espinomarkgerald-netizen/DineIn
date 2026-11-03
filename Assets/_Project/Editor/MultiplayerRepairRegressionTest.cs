@@ -143,6 +143,9 @@ public static class MultiplayerRepairRegressionTest
     {
         CallStatic(typeof(RestaurantTaskClaim), "ResetRuntimeState");
         var bot = Root("bot").AddComponent<AutonomousStaffBot>();
+        // Inactive workers correctly lose their claims; this case needs a live owner.
+        bot.GetComponent<UnityEngine.AI.NavMeshAgent>().enabled = false;
+        bot.gameObject.SetActive(true);
         var target = Root("job target");
         Set(bot, "<JobGeneration>k__BackingField", 7L);
         Assert(RestaurantTaskClaim.TryClaimBot(target, bot, 0), "Bot could not reserve test target.");

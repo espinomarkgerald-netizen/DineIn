@@ -279,9 +279,19 @@ public sealed class ManagementComputerCatalogCardUI : MonoBehaviour
                 bandColor = warningBackgroundColor;
                 break;
             case RestockCoverageState.SpoilageRisk:
-                headline = "OVERSTOCKED • SPOILAGE RISK";
+                headline = "EXPIRING SOON • DAY " + projection.NextFreshExpiryDay;
+                headlineColor = warningAccentColor;
+                bandColor = warningBackgroundColor;
+                break;
+            case RestockCoverageState.Expired:
+                headline = "EXPIRED • " + projection.ExpiredUnits + " UNITS";
                 headlineColor = expiryWarningColor;
                 bandColor = lowBackgroundColor;
+                break;
+            case RestockCoverageState.WrongStorage:
+                headline = "WRONG STORAGE • " + projection.WrongStorageUnits;
+                headlineColor = expiryWarningColor;
+                bandColor = warningBackgroundColor;
                 break;
             default:
                 headline = "READY";
@@ -416,10 +426,10 @@ public sealed class ManagementComputerCatalogCardUI : MonoBehaviour
         StyleText(statusText, bodyTextColor, 13.5f, 16f, FontStyles.Bold);
         StyleText(priceText, priceTextColor, 16f, 20f, FontStyles.Bold);
         StyleText(quantityText, primaryTextColor, 18f, 22f, FontStyles.Bold);
-        StyleText(inStockLabelText, secondaryTextColor, 10.5f, 12.5f, FontStyles.Normal);
-        StyleText(neededTodayLabelText, secondaryTextColor, 10.5f, 12.5f, FontStyles.Normal);
-        StyleText(inStockValueText, primaryTextColor, 14f, 17f, FontStyles.Bold);
-        StyleText(neededTodayValueText, primaryTextColor, 14f, 17f, FontStyles.Bold);
+        StyleText(inStockLabelText, secondaryTextColor, 7f, 10f, FontStyles.Normal);
+        StyleText(neededTodayLabelText, secondaryTextColor, 7f, 10f, FontStyles.Normal);
+        StyleText(inStockValueText, primaryTextColor, 10f, 15f, FontStyles.Bold);
+        StyleText(neededTodayValueText, primaryTextColor, 10f, 15f, FontStyles.Bold);
     }
 
     private void EnsureModeVisuals()
@@ -520,12 +530,17 @@ public sealed class ManagementComputerCatalogCardUI : MonoBehaviour
         }
 
         if (titleText != null && titleText.font != null)
+        {
             text.font = titleText.font;
+            text.fontSharedMaterial = titleText.font.material;
+        }
+        text.margin = Vector4.zero;
+        text.rectTransform.localScale = Vector3.one;
         text.text = string.IsNullOrEmpty(text.text) ? initialValue : text.text;
         text.alignment = TextAlignmentOptions.Center;
         text.enableAutoSizing = true;
         text.textWrappingMode = TextWrappingModes.NoWrap;
-        text.overflowMode = TextOverflowModes.Ellipsis;
+        text.overflowMode = TextOverflowModes.Overflow;
         text.raycastTarget = false;
         SetAnchors(text.rectTransform, anchorMin, anchorMax);
         return text;
@@ -573,15 +588,15 @@ public sealed class ManagementComputerCatalogCardUI : MonoBehaviour
             new Vector2(0.055f, 0.015f), new Vector2(0.945f, 0.13f));
         {
             SetAnchors(metaText != null ? metaText.rectTransform : null,
-                new Vector2(0.07f, 0.46f), new Vector2(0.93f, 0.50f));
+                new Vector2(0.07f, 0.49f), new Vector2(0.93f, 0.52f));
             SetAnchors(statusBackground != null ? statusBackground.rectTransform : null,
-                new Vector2(0.055f, 0.37f), new Vector2(0.945f, 0.46f));
+                new Vector2(0.055f, 0.39f), new Vector2(0.945f, 0.48f));
             SetAnchors(statusText != null ? statusText.rectTransform : null,
-                new Vector2(0.075f, 0.38f), new Vector2(0.925f, 0.45f));
+                new Vector2(0.075f, 0.40f), new Vector2(0.925f, 0.47f));
             SetAnchors(restockStatsRoot.transform as RectTransform,
-                new Vector2(0.055f, 0.25f), new Vector2(0.945f, 0.37f));
+                new Vector2(0.055f, 0.22f), new Vector2(0.945f, 0.38f));
             SetAnchors(priceText != null ? priceText.rectTransform : null,
-                new Vector2(0.075f, 0.20f), new Vector2(0.925f, 0.245f));
+                new Vector2(0.075f, 0.17f), new Vector2(0.925f, 0.215f));
             SetAnchors(quantityRoot != null ? quantityRoot.transform as RectTransform : null,
                 new Vector2(0.055f, 0.04f), new Vector2(0.945f, 0.16f));
             if (minusButton != null) ((RectTransform)minusButton.transform).sizeDelta = Vector2.one * quantityButtonSize;

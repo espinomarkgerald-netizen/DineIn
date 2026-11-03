@@ -86,6 +86,7 @@ public sealed class CameraController : MonoBehaviourPun
 
     private void Update()
     {
+        if (FastFoodCookingController.Instance?.IsHelpingKitchen == true || RestockFlowCoordinator.Instance?.IsRestockRoomOpen == true) return;
         if (LobbyPauseMenu.IsAnyOpen || MultiplayerSocialUI.InputBlocked) { IsPanning = false; hasStartedDragging = false; return; }
         // NOTE: Don't worry about this blocking the UI click.
         // The Button's onClick is handled by Unity's UI system, not by this Update loop.
@@ -103,6 +104,7 @@ public sealed class CameraController : MonoBehaviourPun
 
     private void LateUpdate()
     {
+        if (FastFoodCookingController.Instance?.IsHelpingKitchen == true || RestockFlowCoordinator.Instance?.IsRestockRoomOpen == true) return;
         if (followPlayer && cameraAnchor != null)
             focusPosition = cameraAnchor.position;
 
@@ -235,6 +237,12 @@ public sealed class CameraController : MonoBehaviourPun
         smoothVelocity = Vector3.zero;
         if (cameraAnchor != null) focusPosition = cameraAnchor.position;
         Debug.Log("Camera re-centered on player.");
+    }
+
+    public void ToggleFollowMode()
+    {
+        if (followPlayer) followPlayer = false;
+        else EnterFollowMode();
     }
 
     // ---------------------- UI BINDING (FIX) ----------------------

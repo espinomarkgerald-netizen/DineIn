@@ -17,7 +17,8 @@ public static partial class CampaignSaveStore
     internal static readonly string[] ProgressPreferenceKeys = {
         "TutorialCompleted", "DineIn_FastFoodTutorial_Completed", "DineIn_FastFoodTutorial_Skipped",
         "DineIn_FastFoodTutorial_Chapter_v1", "DineIn_OfficeTutorial_Done", "DineIn_Tutorial_CurrentDay",
-        "DineIn_FineDiningTutorial_Completed", "DineIn_FineDiningTutorial_Skipped", "DineIn_FineDiningTutorial_Chapter_v1"
+        "DineIn_FineDiningTutorial_Completed", "DineIn_FineDiningTutorial_Skipped", "DineIn_FineDiningTutorial_Chapter_v1",
+        "DineIn_RegularShiftStarted_Lobby1", "DineIn_RegularShiftStarted_Lobby2", "DineIn_RegularShiftStarted_Lobby3"
     };
 
     [Serializable] public sealed class ProfileProgress
@@ -235,6 +236,7 @@ public static partial class CampaignSaveStore
     public static void NotifyLocalWrite()
     {
         if (installingAccount) return;
+        combinedMoneyExpires = 0;
         try { ReadAccount(); }
         catch (Exception e) { Debug.LogWarning("[CloudSave] Local files preserved; metadata update deferred: " + e.Message); }
         LocalWritten?.Invoke();
@@ -361,7 +363,7 @@ public static partial class CampaignSaveStore
             ((string.IsNullOrEmpty(pair.save) && string.IsNullOrEmpty(pair.checkpoint)) || Valid(pair));
         if (value == null || !Career(value.casual) || !Career(value.fastFood) ||
             (value.version >= 3 && !Career(value.fineDining)) ||
-            (value.profile?.tutorials?.Length != 6 && value.profile?.tutorials?.Length != ProgressPreferenceKeys.Length) ||
+            (value.profile?.tutorials?.Length != 6 && value.profile?.tutorials?.Length != 9 && value.profile?.tutorials?.Length != ProgressPreferenceKeys.Length) ||
             value.profile.coins < 0 || value.profile.roles == null || value.profile.ownedItemIds == null) return false;
         if (value.version >= 4 && (value.profile.restaurantProgressionVersion < 1 || value.profile.unlockedRestaurantIds == null)) return false;
         if (!LocalSaveManager.ValidApproval(value.profile.sharedApproval)) return false;
@@ -396,6 +398,7 @@ public static partial class CampaignSaveStore
             IsCreditPending || Photon.Pun.PhotonNetwork.InRoom || !ValidAccount(value, ReadAccountState().account))
             throw new InvalidOperationException("Progress cannot be restored here.");
         var before = ReadAccount(false);
+        RequireCashPurchaseHistory(value, before);
         AtomicWrite(Path.Combine(LocalDirectory, "campaign_before_cloud.json"), JsonUtility.ToJson(before));
         var state = ReadAccountState();
         state.lineage = value.lineage; state.revision = value.revision; state.savedUtc = value.savedUtc;
@@ -421,7 +424,7 @@ public static partial class CampaignSaveStore
                 new Snapshot { hash = Hash(null, null) });
             applyProfile(journal.snapshot.profile, journal.state.account);
             AtomicWrite(Path.Combine(directory, StateName), JsonUtility.ToJson(journal.state));
-            File.Delete(path); NeedsReload = true; cachedStamp = null;
+            File.Delete(path); NeedsReload = true; cachedStamp = null; combinedMoneyExpires = 0;
         }
         finally { installingAccount = false; }
     }

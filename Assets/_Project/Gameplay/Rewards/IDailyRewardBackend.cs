@@ -1,13 +1,17 @@
 using System;
 
-// Integration boundary, NOT an implemented or deployed grant service.
-// The provider must validate eligibility and atomically own run/day claims and all awards.
-// Return an existing outcome for repeated offer IDs; unknown awards must be resolved, not rerolled.
+// Game-owned claims backed by the existing PlayFab account data and wallet.
+// Classic currency calls have no idempotency key: pending GC grants are never resubmitted.
 public interface IDailyRewardBackend
 {
-    void GetEligibleOffer(string account, string restaurant, string rulesVersion, Action<string> completed);
+    void GetEligibleOffer(DailyRewardCompletionContext context, string rulesVersion, Action<string> completed);
     void ResolveSpin(string offerId, Action<DailyRewardResolution> completed);
     void Skip(string offerId);
+}
+[Serializable] public sealed class DailyRewardCompletionContext
+{
+    public string account, restaurant, mode, runId;
+    public int day;
 }
 [Serializable] public sealed class DailyRewardResolution
 {
@@ -16,4 +20,5 @@ public interface IDailyRewardBackend
     public int amount;
     public bool gold;
     public string message;
+    public string status, receiptId;
 }

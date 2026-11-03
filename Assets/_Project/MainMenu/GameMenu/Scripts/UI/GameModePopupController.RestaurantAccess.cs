@@ -7,6 +7,8 @@ public partial class GameModePopupController
 {
     [Header("Restaurant access")]
     [SerializeField, Min(1)] private int fastFoodCasualDays = 10;
+    [SerializeField, Min(1)] private int fastFoodCashPrice = 10000;
+    [SerializeField, Min(1)] private int fineDiningCashPrice = 25000;
     [SerializeField, Min(1)] private int fineDiningCasualDays = 30;
     [SerializeField, Min(1)] private int fineDiningFastFoodDays = 15;
     [Tooltip("The authored Restaurants root containing the three visible restaurant models, in selection order.")]
@@ -20,10 +22,10 @@ public partial class GameModePopupController
     }
     private readonly List<ModelAppearance>[] appearances = { new(), new(), new() };
     private RestaurantPurchaseView purchaseView;
-    private int purchaseSelection, quote, casualDays, fastDays, quoteVersion;
-    private bool dirty = true, confirming, quoteInFlight, quoteAttempted, quoteFailed, purchaseWasOwned;
+    private int purchaseSelection, casualDays, fastDays;
+    private bool dirty = true, confirming, purchaseWasOwned;
     private float nextRefresh;
-    private string appearanceSignature, purchaseAccount;
+    private string appearanceSignature, purchaseAccount, cashMessage;
     private PlayFabWalletManager subscribedWallet;
 
     private void OnEnable() { CampaignSaveStore.LocalWritten += ProgressChanged; }
@@ -34,7 +36,6 @@ public partial class GameModePopupController
         subscribedWallet = null;
         restaurantSelector?.SetPurchaseOpen(false);
         if (purchaseView != null) purchaseView.gameObject.SetActive(false);
-        quoteVersion++;
     }
     private void ProgressChanged() { dirty = true; appearanceSignature = null; }
     private bool LocalAccountReady
@@ -116,14 +117,12 @@ public partial class GameModePopupController
         if (signature != appearanceSignature) { dirty = true; RefreshRestaurantAppearance(); appearanceSignature = signature; }
         if (purchaseView == null || !purchaseView.IsOpen) return;
         if (!LocalAccountReady || purchaseAccount != LocalSaveManager.Data.progressAccount)
-        { quoteVersion++; purchaseView.Hide(); return; }
-        if (!quoteAttempted) RequestRestaurantQuote();
+        { purchaseView.Hide(); return; }
         if (Time.unscaledTime >= nextRefresh) { nextRefresh = Time.unscaledTime + .5f; RefreshRestaurantPurchase(); }
     }
     private void WalletUpdated(int gc, int money)
     {
         if (purchaseView == null || !purchaseView.IsOpen) return;
-        if (!quoteAttempted) RequestRestaurantQuote();
         RefreshRestaurantPurchase();
     }
     private static int SuccessfulDays(string file)
@@ -151,28 +150,13 @@ public partial class GameModePopupController
             purchaseView.Closed = () => restaurantSelector?.SetPurchaseOpen(false);
         }
         purchaseSelection = SelectedRestaurantIndex; purchaseAccount = LocalSaveManager.Data.progressAccount;
-        quote = 0; quoteVersion++; quoteAttempted = quoteInFlight = quoteFailed = confirming = false; dirty = true;
+        confirming = false; dirty = true; cashMessage = null;
         purchaseWasOwned = LocalSaveManager.IsRestaurantUnlocked(RestaurantIds[purchaseSelection]);
         purchaseView.Show(); restaurantSelector?.SetPurchaseOpen(true);
-        RequestRestaurantQuote();
         var wallet = PlayFabWalletManager.Instance;
         if (wallet != null && wallet.HasPendingRestaurantPurchase(RestaurantIds[purchaseSelection]))
             wallet.RecoverRestaurantPurchase(RestaurantIds[purchaseSelection], RefreshRestaurantPurchase);
         RefreshRestaurantPurchase();
-    }
-    private void RequestRestaurantQuote()
-    {
-        var wallet = PlayFabWalletManager.Instance;
-        if (purchaseView == null || !purchaseView.IsOpen || !LocalAccountReady || wallet == null || !wallet.IsCurrentWallet || quoteInFlight) return;
-        int version = ++quoteVersion; string account = purchaseAccount; int selection = purchaseSelection;
-        quoteInFlight = quoteAttempted = true;
-        wallet.GetRestaurantQuote(RestaurantIds[selection], (price, error) =>
-        {
-            if (version != quoteVersion || account != LocalSaveManager.Data.progressAccount || purchaseView == null || !purchaseView.IsOpen) return;
-            quoteInFlight = false; quoteFailed = error != null; quote = error == null ? price : 0;
-            if (error != null) Debug.LogWarning("[RestaurantAccess] Catalog quote unavailable: " + error);
-            RefreshRestaurantPurchase();
-        });
     }
     private void PurchaseSelected()
     {
@@ -182,50 +166,55 @@ public partial class GameModePopupController
         if (LocalSaveManager.IsRestaurantUnlocked(id)) { purchaseView.Hide(); return; }
         if (wallet == null || wallet.RestaurantPurchaseBusy || wallet.IsGoldCoinSpendInFlight) return;
         if (wallet.HasPendingRestaurantPurchase(id)) { wallet.RecoverRestaurantPurchase(id, RefreshRestaurantPurchase); return; }
-        if (quote <= 0) { quoteAttempted = false; RequestRestaurantQuote(); RefreshRestaurantPurchase(); return; }
         bool fine = purchaseSelection == 2;
-        if (casualDays < (fine ? fineDiningCasualDays : fastFoodCasualDays) || fine && fastDays < fineDiningFastFoodDays || !wallet.IsCurrentWallet || wallet.GoldCoins < quote) return;
+        int price = fine ? fineDiningCashPrice : fastFoodCashPrice;
+        if (!CampaignSaveStore.TryGetCombinedMoney(out long money, out _, true) || money < price) return;
+        // Refresh successful-day counts again at confirmation; the store also revalidates the snapshot.
+        casualDays = SuccessfulDays("dinein_save.json") + MultiDays(LocalSaveManager.CasualDiningId);
+        fastDays = SuccessfulDays("dinein_fastfood_save.json") + MultiDays(LocalSaveManager.FastFoodId);
+        if (casualDays < (fine ? fineDiningCasualDays : fastFoodCasualDays) || fine && fastDays < fineDiningFastFoodDays) return;
         if (!confirming) { confirming = true; RefreshRestaurantPurchase(); return; }
-        confirming = false; wallet.PurchaseRestaurant(id, quote, RefreshRestaurantPurchase); RefreshRestaurantPurchase();
+        confirming = false;
+        wallet.PurchaseRestaurant(id, price, fine ? fineDiningCasualDays : fastFoodCasualDays,
+            fine ? fineDiningFastFoodDays : 0, () => { cashMessage = wallet.RestaurantPurchaseStatus; RefreshRestaurantPurchase(); });
+        RefreshRestaurantPurchase();
     }
     private void RefreshRestaurantPurchase()
     {
         if (purchaseView == null || !purchaseView.IsOpen || purchaseAccount != LocalSaveManager.Data.progressAccount) return;
-        try
-        {
-            if (dirty)
-            {
+        try {
+            if (dirty) {
                 casualDays = SuccessfulDays("dinein_save.json") + MultiDays(LocalSaveManager.CasualDiningId);
                 fastDays = SuccessfulDays("dinein_fastfood_save.json") + MultiDays(LocalSaveManager.FastFoodId); dirty = false;
             }
             bool fine = purchaseSelection == 2; int required = fine ? fineDiningCasualDays : fastFoodCasualDays;
+            int price = fine ? fineDiningCashPrice : fastFoodCashPrice;
             var wallet = PlayFabWalletManager.Instance;
-            bool ready = wallet != null && wallet.IsCurrentWallet && LocalAccountReady;
-            bool busy = quoteInFlight || wallet != null && (wallet.RestaurantPurchaseBusy || wallet.IsGoldCoinSpendInFlight || wallet.IsRefreshing);
+            bool moneyReady = CampaignSaveStore.TryGetCombinedMoney(out long money, out var moneyError);
+            bool ready = LocalAccountReady && PlayFabAuthManager.Instance?.IsLoggedIn == true && moneyReady;
+            bool busy = CampaignSaveStore.IsCreditPending || wallet != null && (wallet.RestaurantPurchaseBusy || wallet.IsGoldCoinSpendInFlight);
             bool pending = wallet != null && wallet.HasPendingRestaurantPurchase(RestaurantIds[purchaseSelection]);
             bool unlocked = LocalSaveManager.IsRestaurantUnlocked(RestaurantIds[purchaseSelection]);
             bool experienced = casualDays >= required && (!fine || fastDays >= fineDiningFastFoodDays);
-            string requirements = "Price: " + (quote > 0 ? quote + " GC" : "Unavailable") + "   Balance: " + (ready ? wallet.GoldCoins + " GC" : "Loading") +
-                "\n\nSuccessful campaign / multiplayer days\nCasual Dining: " + casualDays + " / " + required +
-                (fine ? "\nFast Food: " + fastDays + " / " + fineDiningFastFoodDays : "");
+            string requirements = "SUCCESSFUL DAYS • CAMPAIGN / MULTIPLAYER\nCasual Dining    " + casualDays + " / " + required +
+                (fine ? "\nFast Food    " + fastDays + " / " + fineDiningFastFoodDays : "");
             string message = unlocked ? "This restaurant is yours. Select Play to choose a game mode." :
-                pending ? wallet.RestaurantPurchaseStatus ?? "A previous purchase needs to be checked. No new payment will be sent." :
-                !ready ? "Loading your account and Gold Coin balance…" :
-                quoteFailed ? "Restaurant purchases are temporarily unavailable. Please try again later." :
-                quoteInFlight ? "Checking the restaurant price…" :
-                !experienced ? "Complete " + Mathf.Max(0, required - casualDays) + " more Casual Dining days" +
-                    (fine && fastDays < fineDiningFastFoodDays ? " and " + (fineDiningFastFoodDays - fastDays) + " more Fast Food days" : "") + "." :
-                wallet.GoldCoins < quote ? "You need " + (quote - wallet.GoldCoins) + " more GC." :
-                confirming ? "Confirm this permanent restaurant purchase?" : "You meet the requirements. This restaurant can be purchased.";
-            bool action = LocalAccountReady && (unlocked || ready && !busy && (pending || quoteFailed || quote > 0 && experienced && wallet.GoldCoins >= quote));
-            purchaseView.Render(fine ? "FINE DINING" : "FAST FOOD", requirements, message,
-                unlocked ? "CONTINUE" : pending ? "CHECK PURCHASE" : quoteFailed ? "REFRESH" : confirming ? "CONFIRM" : "BUY", action, unlocked && !purchaseWasOwned);
+                pending ? !wallet.IsCurrentWallet ? "Connect and refresh your wallet to check the previous GC order." :
+                    wallet.RestaurantPurchaseStatus ?? "Check your previous GC order before paying with cash." :
+                !ready ? moneyError ?? "Sign in and finish loading your restaurant funds." :
+                busy ? "Saving your purchase…" :
+                !experienced ? "Complete the successful-day requirements to expand." :
+                money < price ? "You need ₱" + (price - money).ToString("N0") + " more Normal Money." :
+                confirming ? "Confirm purchase? Cash is drawn proportionally from your owned restaurants." :
+                cashMessage ?? "Uses combined Normal Money. GC is not charged.";
+            bool action = unlocked || ready && !busy && wallet != null && (pending ? wallet.IsCurrentWallet : experienced && money >= price);
+            purchaseView.Render(fine ? "FINE DINING" : "FAST FOOD", price, moneyReady ? money : -1, requirements, message,
+                unlocked ? "CONTINUE" : pending ? "CHECK ORDER" : confirming ? "CONFIRM" : "BUY RESTAURANT", action, unlocked && !purchaseWasOwned);
             purchaseWasOwned = unlocked;
-        }
-        catch (Exception error)
-        {
+        } catch (Exception error) {
             Debug.LogWarning("[RestaurantAccess] Progress unavailable: " + error.Message);
-            purchaseView.Render(purchaseSelection == 2 ? "FINE DINING" : "FAST FOOD", "", "Your progress needs recovery. Please return to the menu.", "BUY", false, false);
+            purchaseView.Render(purchaseSelection == 2 ? "FINE DINING" : "FAST FOOD", purchaseSelection == 2 ? fineDiningCashPrice : fastFoodCashPrice,
+                0, "", "Your progress needs recovery. Please return to the menu.", "BUY", false, false);
         }
     }
 }

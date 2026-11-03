@@ -12,8 +12,9 @@ using Hashtable = ExitGames.Client.Photon.Hashtable;
 public partial class MultiplayerSessionManager : MonoBehaviourPunCallbacks
 {
     public const string SceneName = "Lobby1 Multiplayer", RunKey = "restaurant.run.v2";
-    public const string ProtocolKey = "restaurant.protocol", Protocol = "shared-session-23";
+    public const string ProtocolKey = "restaurant.protocol", Protocol = "shared-session-24";
     public const string ResultRulesVersion = "casual-session-2";
+    public const string InsufficientPlayersReason = "InsufficientPlayers";
     public const string ReadyKey = "restaurant.ready", LoadedKey = "restaurant.loaded";
     public const int RejoinSeconds = 90;
     public static MultiplayerSessionManager Instance { get; private set; }
@@ -50,7 +51,16 @@ public partial class MultiplayerSessionManager : MonoBehaviourPunCallbacks
     public Player LocalPhotonPlayer => IsConnected ? PhotonNetwork.LocalPlayer : null;
     public int LocalActorNumber => localActor;
     public Player[] ConnectedPlayers => IsConnected ? PhotonNetwork.PlayerList : Array.Empty<Player>();
-    public int ConnectedHumanCount => Array.FindAll(ConnectedPlayers, p => !p.IsInactive).Length;
+    public int ConnectedHumanCount
+    {
+        get
+        {
+            int count = 0;
+            foreach (var player in ConnectedPlayers)
+                if (!player.IsInactive && ValidActor(player.ActorNumber)) count++;
+            return count;
+        }
+    }
     public int PartySize => run?.partySize ?? 0;
     public string RestaurantType => run?.restaurant ?? string.Empty;
     public GameObject LocalManager => CanAct && TryGetManager(localActor, out var manager)
@@ -221,6 +231,18 @@ public partial class MultiplayerSessionManager : MonoBehaviourPunCallbacks
         }
         PublishRun();
     }
+    public bool EndAfterSoloDay()
+    {
+        // Finishing a shift alone still earns its normal completion. Only the
+        // following day is forbidden; disconnected/reserved seats are not humans.
+        if (!IsAuthority || ConnectedHumanCount >= 2 || GameDayManager.Instance?.HasDayResults != true
+            || run.completedDay < GameFlowManager.Instance.CurrentDay) return false;
+        run.endReason = InsufficientPlayersReason;
+        PhotonNetwork.CurrentRoom.IsOpen = false;
+        PhotonNetwork.CurrentRoom.IsVisible = false;
+        PublishRun();
+        return true;
+    }
     private void PublishRun()
     {
         if (!IsHostConnection || run == null) return;
@@ -317,9 +339,13 @@ public partial class MultiplayerSessionManager : MonoBehaviourPunCallbacks
     {
         if (!reconnecting) return;
         joinInFlight = false;
-        if (code == ErrorCode.JoinFailedWithRejoinerNotFound) fallbackJoin = true;
+        Debug.Log("[SessionRecovery] join failed code=" + code + " " + PhotonBootstrap.ConnectionDetails);
+        if (MultiplayerLastRun.CanFallBackToJoin(!fallbackJoin, code))
+        { fallbackJoin = true; nextReconnect = 0; return; }
         else if (code == ErrorCode.GameDoesNotExist)
         { ReturnAfterRecoveryFailure("The original session has ended.", true); return; }
+        else if (code == ErrorCode.OperationNotAllowedInCurrentState)
+        { FailRecovery("Unable to reconnect (" + code + "). Retry after the connection is ready, or return to the menu."); return; }
         nextReconnect = Time.realtimeSinceStartup + 3f;
     }
     private void ReturnAfterRecoveryFailure(string message, bool definitive)

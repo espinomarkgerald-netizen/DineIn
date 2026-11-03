@@ -589,7 +589,7 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
         if (!TutorialSceneRuntimeMarker.AllowsHUDControl("CameraButton", cameraButton != null ? cameraButton.transform : null)) return;
         MainCameraController fineDiningCamera = FindFirstObjectByType<MainCameraController>();
         ManagerPlayer player = LocalHudPlayer;
-        if (fineDiningCamera != null && FineDiningReservations.For(fineDiningCamera) != null)
+        if (fineDiningCamera != null)
         {
             if (player == null) return;
             if (fineDiningCamera.FollowTarget == player.transform)
@@ -600,17 +600,10 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
             return;
         }
 
-        if (MultiplayerHUDBridge.IsActive)
-        {
-            var localPlayer = MultiplayerHUDBridge.LocalPlayer;
-            if (localPlayer != null)
-                FindFirstObjectByType<MainCameraController>()?.CenterOnWorldPoint(PlayerFocusPoint(localPlayer), false);
-            return;
-        }
         CameraController cameraController = FindFirstObjectByType<CameraController>();
         if (cameraController != null)
         {
-            cameraController.EnterFollowMode();
+            cameraController.ToggleFollowMode();
             return;
         }
 

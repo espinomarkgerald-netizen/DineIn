@@ -14,10 +14,10 @@ public sealed class MultiplayerDayReadiness
     {
         get { int count = 0; if (votes != null) foreach (bool vote in votes) if (vote) count++; return count; }
     }
-    public bool AllReady => actors != null && actors.Length > 0 && Count == actors.Length;
+    public bool AllReady => actors != null && actors.Length >= 2 && Count == actors.Length;
     public bool CountingDown => deadline >= 0;
     public bool Valid => !string.IsNullOrEmpty(id) && day > 0 && actors != null && votes != null
-        && sequences != null && actors.Length > 0 && actors.Length == votes.Length && actors.Length == sequences.Length
+        && sequences != null && actors.Length >= 2 && actors.Length == votes.Length && actors.Length == sequences.Length
         && Array.IndexOf(actors, host) >= 0 && !double.IsNaN(deadline) && !double.IsInfinity(deadline);
     public static MultiplayerDayReadiness Create(int day, int host, int[] actors, string roster)
     {

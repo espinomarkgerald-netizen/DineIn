@@ -65,7 +65,12 @@ public class FoodTrayInteractable : MonoBehaviour, IInteractable, ICancelableTas
     private float readySince;
     private float readySinceBeforeStaffPickup;
 
-    public void ConfigurePickupApproach(Transform approach) => pickupPoint = approach;
+    public void ConfigurePickupApproach(Transform approach)
+    {
+        // A missing kitchen override must keep the prefab's authored stand point,
+        // just as KitchenManager.SpawnOutputTray does on the authority.
+        if (approach != null) pickupPoint = approach;
+    }
     public Transform StandPoint => ResolveStandPoint();
     public bool AutoReturnHome => false;
     public bool IsDeliveryPickable => mode == TrayMode.Delivery;

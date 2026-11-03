@@ -79,7 +79,7 @@ public partial class PlayFabWalletManager : MonoBehaviour
     [SerializeField] private bool verboseLogging = true;
 
     public int GoldCoins { get; private set; }
-    public int NormalMoney => CampaignSaveStore.Money;
+    public int NormalMoney => (int)Math.Min(int.MaxValue, CampaignSaveStore.DisplayMoney);
 
     /// <summary>True once a successful GetUserInventory response has been applied at least once since the last login/clear.</summary>
     public bool HasLoadedWallet { get; private set; }
@@ -417,6 +417,22 @@ public partial class PlayFabWalletManager : MonoBehaviour
                 RefreshWallet();
                 onFailure?.Invoke(error.ErrorMessage);
             });
+    }
+
+    internal void CreditDailyRewardGold(int amount, string account, Action onSuccess, Action<string> onFailure)
+    {
+        var auth = PlayFabAuthManager.Instance;
+        if (amount <= 0 || auth == null || !auth.IsLoggedIn || auth.PlayFabId != account)
+        { onFailure?.Invoke("Sign in to the reward's account."); return; }
+        PlayFabClientAPI.AddUserVirtualCurrency(new AddUserVirtualCurrencyRequest {
+            VirtualCurrency = goldCurrencyCode, Amount = amount
+        }, result => {
+            if (PlayFabAuthManager.Instance?.PlayFabId == account) {
+                GoldCoins = Mathf.Max(0, result.Balance);
+                OnWalletUpdated?.Invoke(GoldCoins, NormalMoney);
+            }
+            onSuccess?.Invoke();
+        }, error => { onFailure?.Invoke(error.ErrorMessage); });
     }
 
     public void TrySetGoldCoinsDebug(int value, Action<int> onSuccess, Action<string> onFailure)

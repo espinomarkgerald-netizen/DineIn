@@ -31,7 +31,7 @@ public static class MultiplayerRoomRestockRegressionCases
         var explain = typeof(MultiplayerMenuController).GetMethod("JoinFailureMessage", BindingFlags.NonPublic | BindingFlags.Static);
         string Message(short code) => (string)explain.Invoke(null, new object[] { code });
         Check(Message(ErrorCode.JoinFailedFoundActiveJoiner).Contains("different account"), "Duplicate account failure is hidden.");
-        Check(Message(ErrorCode.JoinFailedFoundInactiveJoiner).Contains("90 seconds"), "Inactive reservation has no recovery guidance.");
+        Check(Message(ErrorCode.JoinFailedFoundInactiveJoiner).Contains("Rejoin Session"), "Inactive reservation has no recovery guidance.");
         Check(Message(ErrorCode.GameDoesNotExist).Contains("version"), "Missing/version-separated room has no build guidance.");
         Check(Message(1234).Contains("1234"), "Unknown Photon failure lost its diagnostic code.");
     }

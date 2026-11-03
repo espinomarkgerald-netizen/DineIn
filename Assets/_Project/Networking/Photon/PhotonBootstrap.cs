@@ -20,7 +20,28 @@ public class PhotonBootstrap : MonoBehaviourPunCallbacks
     private int attempt;
     private float connectionDeadline;
     private bool reconnectAfterDisconnect;
+    private bool connectionCancelled;
     public static string ConnectionVersion => Application.version + "." + MultiplayerSessionManager.Protocol;
+    public static string EffectiveConnectionVersion => ConnectionVersion + "_" + PhotonNetwork.PunVersion;
+    public static string NormalizeRegion(string region) => region?.Split('/')[0].Trim().ToLowerInvariant();
+    public static bool ConnectionSettingsMatch =>
+        PhotonNetwork.NetworkingClient.AppId == PhotonNetwork.PhotonServerSettings?.AppSettings.AppIdRealtime &&
+        PhotonNetwork.GameVersion == ConnectionVersion &&
+        PhotonNetwork.NetworkingClient.AppVersion == EffectiveConnectionVersion &&
+        NormalizeRegion(PhotonNetwork.CloudRegion) == RoomRegion;
+    public static string ConnectionDetails
+    {
+        get
+        {
+            var client = PhotonNetwork.NetworkingClient;
+            string app = client.AppId ?? "";
+            string configured = PhotonNetwork.PhotonServerSettings?.AppSettings.AppIdRealtime ?? "";
+            string Short(string value) => value.Substring(0, Math.Min(8, value.Length));
+            return $"app={Short(app)} expectedApp={Short(configured)} region={PhotonNetwork.CloudRegion ?? "disconnected"} expectedRegion={RoomRegion}\n" +
+                $"version={client.AppVersion} expectedVersion={EffectiveConnectionVersion}\n" +
+                $"protocol={MultiplayerSessionManager.Protocol} state={PhotonNetwork.NetworkClientState} platform={Application.platform} build={Short(Application.buildGUID ?? "")}";
+        }
+    }
     // A short room code has no region information. Best-region matchmaking can
     // send friends to different room lists; use the authored region or one shared default.
     public static string RoomRegion => string.IsNullOrWhiteSpace(PhotonNetwork.PhotonServerSettings?.AppSettings.FixedRegion)
@@ -37,8 +58,7 @@ public class PhotonBootstrap : MonoBehaviourPunCallbacks
             && PhotonNetwork.LocalPlayer?.UserId == accountId
             && PhotonNetwork.AuthValues?.UserId == accountId
             && PhotonNetwork.AuthValues.AuthType == expected
-            && PhotonNetwork.GameVersion == ConnectionVersion
-            && string.Equals(PhotonNetwork.CloudRegion?.Split('/')[0], RoomRegion, StringComparison.OrdinalIgnoreCase);
+            && ConnectionSettingsMatch;
     }
 
     private void Awake()
@@ -52,7 +72,7 @@ public class PhotonBootstrap : MonoBehaviourPunCallbacks
 
     private void Start()
     {
-        if (autoConnectOnStart && PlayFabAuthManager.Instance?.IsLoggedIn == true) SafeConnect();
+        if (!connectionCancelled && autoConnectOnStart && PlayFabAuthManager.Instance?.IsLoggedIn == true) SafeConnect();
     }
 
     private void Update()
@@ -64,6 +84,7 @@ public class PhotonBootstrap : MonoBehaviourPunCallbacks
 
     public void SafeConnect()
     {
+        connectionCancelled = false;
         var account = PlayFabAuthManager.Instance;
         if (account == null || !account.IsLoggedIn || string.IsNullOrEmpty(account.PlayFabId))
         { FailConnection("Sign in before connecting to multiplayer."); return; }
@@ -142,6 +163,14 @@ public class PhotonBootstrap : MonoBehaviourPunCallbacks
 
     public override void OnConnectedToMaster()
     {
+        if (connectionCancelled) { PhotonNetwork.Disconnect(); return; }
+        Debug.Log("[PhotonBootstrap] master " + ConnectionDetails);
+        if (!ConnectionSettingsMatch)
+        {
+            FailConnection("Connection version, application or region differs. Reconnect before joining.");
+            PhotonNetwork.Disconnect();
+            return;
+        }
         AccountConnectionPending = false;
         reconnectAfterDisconnect = false;
         LastConnectionError = null;
@@ -171,6 +200,16 @@ public class PhotonBootstrap : MonoBehaviourPunCallbacks
         if (!PhotonNetwork.IsConnectedAndReady) return;
         if (PhotonNetwork.InRoom) PhotonNetwork.LeaveRoom();
         else if (!PhotonNetwork.InLobby) PhotonNetwork.JoinLobby(TypedLobby.Default);
+    }
+
+    public void CancelPendingConnection()
+    {
+        attempt++;
+        connectionCancelled = true;
+        AccountConnectionPending = reconnectAfterDisconnect = false;
+        if (PhotonNetwork.NetworkClientState != ClientState.Disconnected &&
+            PhotonNetwork.NetworkClientState != ClientState.PeerCreated)
+            PhotonNetwork.Disconnect();
     }
 
     public override void OnLeftRoom()

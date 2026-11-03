@@ -70,6 +70,7 @@ public partial class ShopPanelPopulator : MonoBehaviour
     }
     private void Update()
     {
+        if (campaignBalanceText != null) campaignBalanceText.text = "₱" + CampaignSaveStore.DisplayMoney.ToString("N0");
         if (selectedItem == null) return;
 #if ENABLE_INPUT_SYSTEM
         if (UnityEngine.InputSystem.Keyboard.current?.escapeKey.wasPressedThisFrame == true) DismissPurchase();
@@ -88,7 +89,7 @@ public partial class ShopPanelPopulator : MonoBehaviour
     private void RefreshWalletView()
     {
         if (balanceText != null && !success) balanceText.text = wallet != null && wallet.IsCurrentWallet ? "G" + wallet.GoldCoins.ToString("N0") : "G--";
-        if (campaignBalanceText != null) campaignBalanceText.text = wallet != null && wallet.IsCurrentWallet ? "$" + wallet.NormalMoney.ToString("N0") : "$--";
+        if (campaignBalanceText != null) campaignBalanceText.text = "₱" + CampaignSaveStore.DisplayMoney.ToString("N0");
         RefreshCards();
     }
     private void SetShopStatus(string message) { if (shopStatus != null) shopStatus.text = message; }

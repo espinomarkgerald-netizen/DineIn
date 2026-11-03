@@ -35,7 +35,9 @@ public sealed class MultiplayerDiagnostics : MonoBehaviour
     }
     public static void TraceAction(MultiplayerActionResult result)
     {
-        if (active == null || result?.context == null || (!active.logTaskDecisions && result.Accepted)) return;
+        // Rejections are useful in release logs too; successful/per-frame metrics
+        // still require the development diagnostics component.
+        if (result?.context == null || result.Accepted && (active == null || !active.logTaskDecisions)) return;
         var c = result.context;
         if (!result.Accepted) Rejected();
         Debug.Log($"[MultiplayerAction] time={Time.realtimeSinceStartup:F2} actor={c.actor} epoch={c.loadEpoch} operation={c.operation} customer={c.customerView} order={c.orderNumber} lease={c.lease} expectedRevision={c.expectedRevision} revision={result.revision} outcome={result.outcome}");

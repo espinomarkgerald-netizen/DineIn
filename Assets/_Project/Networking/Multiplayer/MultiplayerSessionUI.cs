@@ -17,6 +17,8 @@ public sealed class MultiplayerSessionUI : MonoBehaviour
     private Button readyButton, cancelButton;
     private bool connectionWarning, endedWarning, showingRecovery;
     private float nextRefresh;
+    private RestaurantUnlockCoachUI soloEnding;
+    private bool soloEndingShown;
 
     private void Start()
     {
@@ -102,6 +104,12 @@ public sealed class MultiplayerSessionUI : MonoBehaviour
 
     private void Update()
     {
+        if (session != null && session.Ended && session.Run.endReason == MultiplayerSessionManager.InsufficientPlayersReason)
+        {
+            ShowSoloEnding();
+            HidePrompt();
+            return;
+        }
         if (session == null || canvasRoot == null) return;
         ShowConnectionChanges();
         var request = day?.Readiness;
@@ -180,6 +188,24 @@ public sealed class MultiplayerSessionUI : MonoBehaviour
         }
     }
 
+    private void ShowSoloEnding()
+    {
+        if (soloEndingShown) return;
+        soloEndingShown = true;
+        GameDayManager.Instance?.RefreshMultiplayerResultsAction();
+        var boss = RestaurantBossTips.EnsureInstance();
+        boss?.HideIdleTip();
+        soloEnding = RestaurantUnlockCoachUI.Create(boss != null ? boss.BossPortrait : null);
+        if (soloEnding == null)
+        {
+            WarningSlideUI.Instance?.Show("Big Boss: You're out of this multiplayer run. You finished the day, but you can't continue alone. Return to the menu to play with a teammate.");
+            return; // The existing ended-results button still returns to menu.
+        }
+        soloEnding.ShowAnnouncement("MULTIPLAYER RUN ENDED",
+            "You're out of this multiplayer run. You finished today's shift, but you can't continue multiplayer alone. Come back with at least one teammate. Let's return to the menu.",
+            () => { soloEnding.Hide(); session.LeaveToMenu(); });
+    }
+
     private void ShowConnectionChanges()
     {
         if (WarningSlideUI.Instance == null) return;
@@ -239,6 +265,7 @@ public sealed class MultiplayerSessionUI : MonoBehaviour
     }
     private void OnDestroy()
     {
+        if (soloEnding != null) Destroy(soloEnding.gameObject);
         if (canvasRoot == null) return;
         GameplayUIBlocker.Instance?.SetPanelBlocksGameplay(canvasRoot, false);
         Destroy(canvasRoot);

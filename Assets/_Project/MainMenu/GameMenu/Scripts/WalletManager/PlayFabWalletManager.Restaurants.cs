@@ -29,79 +29,20 @@ public partial class PlayFabWalletManager
     public bool HasPendingRestaurantPurchase(string id) => RestaurantId(id) && (File.Exists(RestaurantOrderPath(id)) ||
         LocalSaveManager.Data.ownedItemIds.Exists(x => x != null && x.StartsWith("restaurant-order:" + id + ":", StringComparison.Ordinal)));
 
-    public void GetRestaurantQuote(string id, Action<int, string> reply)
+    // New restaurant purchases use saved career cash; Classic GC orders below are recovery-only.
+    public void PurchaseRestaurant(string id, int price, int casualRequired, int fastRequired, Action changed)
     {
-        if (!RestaurantId(id) || !RestaurantContext(walletAccount)) { reply(0, "Sign in and load your account and wallet."); return; }
-        string account = walletAccount; int generation = authGeneration;
-        PlayFabClientAPI.GetCatalogItems(new GetCatalogItemsRequest { CatalogVersion = restaurantCatalogVersion, AuthenticationContext = PlayFabSettings.staticPlayer }, result =>
-        {
-            if (generation != authGeneration || !RestaurantContext(account)) return;
-            var item = result.Catalog?.Find(x => x.ItemId == id);
-            if (item == null || item.VirtualCurrencyPrices == null || !item.VirtualCurrencyPrices.TryGetValue(goldCurrencyCode, out uint price) || price == 0 || price > int.MaxValue)
-            { reply(0, "Restaurant price is not published."); return; }
-            reply((int)price, null);
-        }, error => { if (generation == authGeneration && RestaurantContext(account)) reply(0, error.ErrorMessage); });
-    }
-
-    // Caller must recheck the configured experience requirements before invoking this.
-    public void PurchaseRestaurant(string id, int price, Action changed)
-    {
-        if (!RestaurantId(id) || !RestaurantContext(walletAccount) || RestaurantPurchaseBusy || goldCoinSpendInFlight || IsRefreshing || CampaignSaveStore.IsCreditPending) return;
-        if (LocalSaveManager.IsRestaurantUnlocked(id)) return;
-        if (HasPendingRestaurantPurchase(id)) { RecoverRestaurantPurchase(id, changed); return; }
-        if (price <= 0 || GoldCoins < price) { RestaurantPurchaseStatus = "Insufficient GC or price unavailable."; changed?.Invoke(); return; }
-        var context = new PlayFabAuthenticationContext(); context.CopyFrom(PlayFabSettings.staticPlayer);
-        var order = new RestaurantOrder { account = walletAccount, restaurant = id, transaction = Guid.NewGuid().ToString("N"), price = price,
-            path = RestaurantOrderPath(id), state = RestaurantPurchaseState.PaymentUnknown };
-        int generation = authGeneration;
-        bool Current() => generation == authGeneration && RestaurantContext(order.account);
-        void Stop(string message) { if (!Current()) return; RestaurantPurchaseBusy = goldCoinSpendInFlight = false; RestaurantPurchaseStatus = message; RefreshWallet(); changed?.Invoke(); }
-        try { SaveRestaurantOrder(order); } catch (Exception) { Stop("Could not save purchase journal. Nothing charged."); return; }
-        RestaurantPurchaseBusy = goldCoinSpendInFlight = true;
-        RestaurantPurchaseStatus = "Creating purchase order…";
-        void StartOrder() => PlayFabClientAPI.StartPurchase(new StartPurchaseRequest { AuthenticationContext = context, CatalogVersion = restaurantCatalogVersion,
-            Items = new List<ItemPurchaseRequest> { new ItemPurchaseRequest { ItemId = id, Quantity = 1, Annotation = order.transaction } } }, start =>
-        {
-            if (!Current()) return;
-            order.order = start.OrderId;
-            var option = start.PaymentOptions?.Find(x => x.Currency == goldCurrencyCode && x.Price == (uint)price);
-            if (option == null) { order.state = RestaurantPurchaseState.PaymentFailed; try { SaveRestaurantOrder(order); } catch {} Stop("Price changed. Recover this unpaid order before retrying."); return; }
-            order.provider = option.ProviderName;
-            // Write-ahead marker: a crash before/after send is treated as unknown, never replayed.
-            order.paymentSent = true;
-            try { SaveRestaurantOrder(order); } catch { Stop("Payment was not sent: unable to persist order."); return; }
-            RestaurantPurchaseStatus = "Payment pending…";
-            PlayFabClientAPI.PayForPurchase(new PayForPurchaseRequest { AuthenticationContext = context, OrderId = order.order, Currency = goldCurrencyCode, ProviderName = order.provider }, paid =>
-            {
-                if (!Current()) return;
-                order.confirmationSent = true;
-                try { SaveRestaurantOrder(order); } catch { Stop("Payment status unknown; recover order status."); return; }
-                PlayFabClientAPI.ConfirmPurchase(new ConfirmPurchaseRequest { AuthenticationContext = context, OrderId = order.order }, confirmed =>
-                {
-                    if (!Current()) return;
-                    if (confirmed.Items == null || !confirmed.Items.Any(x => x.ItemId == id)) { Stop("Confirmation uncertain; recover order status."); return; }
-                    order.state = RestaurantPurchaseState.PaymentConfirmed;
-                    try { SaveRestaurantOrder(order); } catch { Stop("Confirmed payment; recover order status to save ownership."); return; }
-                    PersistRestaurantOwnership(order); Stop(RestaurantPurchaseStatus);
-                }, error => Stop("Confirmation status unknown. Recover this order; no new charge will be sent."));
-            }, error => Stop("Payment status unknown. Recover this order; payment will not be resent."));
-        }, error =>
-        {
-            if (!Current()) return;
-            // StartPurchase creates a cart only. No payment call was made.
-            order.state = RestaurantPurchaseState.PaymentFailed;
-            try { SaveRestaurantOrder(order); } catch {}
-            Stop("No payment sent. Recover the journal before retrying.");
-        });
-        PlayFabClientAPI.GetUserInventory(new GetUserInventoryRequest { AuthenticationContext = context }, inventory =>
-        {
-            if (!Current()) return;
-            if (inventory.Inventory?.Any(i => i.CatalogVersion == restaurantCatalogVersion && i.ItemId == id) == true)
-            {
-                Stop("Server inventory already contains this restaurant. No charge sent. Recover the original order or contact support."); return;
-            }
-            StartOrder();
-        }, error => Stop("Could not verify ownership. No payment sent."));
+        if (RestaurantPurchaseBusy || goldCoinSpendInFlight || CampaignSaveStore.IsCreditPending) return;
+        bool wasOwned = LocalSaveManager.IsRestaurantUnlocked(id);
+        RestaurantPurchaseBusy = true;
+        try {
+            string account = PlayFabAuthManager.Instance?.PlayFabId;
+            bool success = CampaignSaveStore.TryPurchaseRestaurantCash(account, id, price, casualRequired, fastRequired, out var message);
+            RestaurantPurchaseStatus = message;
+            if (success && !wasOwned) GameplaySfx.Milestone("restaurant:" + account + ":" + id);
+        } finally { RestaurantPurchaseBusy = false; }
+        OnWalletUpdated?.Invoke(GoldCoins, NormalMoney);
+        changed?.Invoke();
     }
 
     private void PersistRestaurantOwnership(RestaurantOrder order)

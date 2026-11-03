@@ -217,6 +217,8 @@ public sealed class RestockStorageContainer : MonoBehaviour
                 out InventoryStockBatchSaveEntry batch))
         {
             expiresDay = batch.expiresDay;
+            wrongStorage = batch.wrongStorage;
+            wrongStorage = batch.wrongStorage;
         }
         else if (expiresDay <= 0 && InventoryManager.Instance != null)
         {
@@ -238,6 +240,8 @@ public sealed class RestockStorageContainer : MonoBehaviour
                      "><b>" + (string.IsNullOrWhiteSpace(expiredLabel) ? "EXPIRED" : expiredLabel) +
                      "</b></color>";
         }
+        else if (expiresDay > 0 && expiresDay <= day + 1)
+            label += "\n<color=#FF9F1C>EXPIRING SOON • DAY " + expiresDay + "</color>";
 
         ResolveLabelReferences();
         int remainingQuantity = ResolveRemainingQuantity(out bool hasAuthoritativeBatch);

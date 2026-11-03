@@ -36,7 +36,7 @@
             !integer(record.highestDay, Math.max(1, record.completedDay), 1000001) ||
             !integer(record.revision, 1, 2147483647) || !record.participants || record.participants.length !== record.partySize ||
             typeof record.startedUtc !== "string" || !isFinite(Date.parse(record.startedUtc)) ||
-            (record.endReason && ["HostLeft", "HostDisconnected", "Bankruptcy", "ApprovalCollapsed", "EarthConqueredDay30"].indexOf(record.endReason) < 0))
+            (record.endReason && ["HostLeft", "HostDisconnected", "InsufficientPlayers", "Bankruptcy", "ApprovalCollapsed", "EarthConqueredDay30"].indexOf(record.endReason) < 0))
             return false;
         var accounts = {}, actors = {}, host = false;
         for (var i = 0; i < record.participants.length; i++) {

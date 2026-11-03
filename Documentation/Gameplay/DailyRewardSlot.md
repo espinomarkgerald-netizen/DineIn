@@ -1,4 +1,10 @@
-# Daily reward slot: implementation and live-service dependency
+# Daily reward slot
+
+## Current implementation — 3 November 2026
+
+The user requested game-code rewards using the existing PlayFab database and wallet, without Azure. `DailyRewardGameBackend` now registers automatically and persists per-day claims through PlayFab UserData. Cash uses recoverable career receipts; GC uses the existing Classic wallet API with pending-state protection against automatic retries. Successful campaign and multiplayer days show the reward before results; tutorials/debug/restored results are excluded. See [ConsistencyFixes-20261103.md](ConsistencyFixes-20261103.md) for behavior, checks, live API requirements and limitations. The notes below describe the earlier presentation-only implementation and its historical verification; they do not describe the current provider registration.
+
+## Historical presentation-only implementation
 
 The simplified daily-reward UI is implemented as an editable composition of existing game UI/button artwork and the exact existing food sprites. No generated preview screenshot is baked into the screen. The developer preview is operational in source; it does not award currency, write saves, consume an attempt, or call a server.
 

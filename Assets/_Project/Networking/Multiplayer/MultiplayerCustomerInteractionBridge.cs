@@ -624,11 +624,10 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
         if (bridge.billTarget == group && bridge.claims.IsClaimedBy(bridge.billTaskId, session.LocalActorNumber))
         {
             bridge.RetainOwnedTask(bridge.billTaskId);
-            if (hands != null && hands.HasBill && !bridge.billTransitionPending && bridge.billMover == null)
-            {
-                var booth = group.assignedBooth;
-                bridge.MoveForBill(booth != null ? booth.approachPoint != null ? booth.approachPoint : booth.transform : null, 2.75f, 6);
-            }
+            // Resume whichever physical stage the claim has reached. A printed
+            // paper still needs a counter pickup; owning the claim is not pickup.
+            if (!bridge.billTransitionPending && bridge.billMover == null)
+                bridge.BeginBillApproach();
             return true;
         }
         string requested = $"Customer:{customer.photonView.ViewID}:Bill";

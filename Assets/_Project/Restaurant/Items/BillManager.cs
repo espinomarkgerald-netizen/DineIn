@@ -257,10 +257,19 @@ public class BillManager : MonoBehaviour
         if (!MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer ||
             MultiplayerSessionManager.Instance.IsAuthority || billPaperPrefab == null) return null;
         var existing = FindBillForGroup(group);
-        if (existing != null) return existing;
+        if (existing != null)
+        {
+            if (billPickupApproach != null) existing.ConfigurePickupApproach(billPickupApproach);
+            return existing;
+        }
         var root = Instantiate(billPaperPrefab, position, rotation, billsRoot);
         var bill = root.GetComponentInChildren<BillPaper>(true);
-        if (bill != null) bill.Init(group);
+        if (bill != null)
+        {
+            // Mirror PrintLoop: both peers must approach the same authored point.
+            if (billPickupApproach != null) bill.ConfigurePickupApproach(billPickupApproach);
+            bill.Init(group);
+        }
         else Destroy(root);
         return bill;
     }

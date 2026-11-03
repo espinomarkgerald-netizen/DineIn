@@ -60,6 +60,8 @@ public static partial class CampaignSaveStore
         NeedsReload = false;
         IsCreditPending = false;
         cachedStamp = null;
+        combinedMoneyExpires = 0; combinedMoneyAccount = null; combinedMoney = 0;
+        combinedMoneyError = null;
         localDirectory = null;
         installingAccount = false;
     }

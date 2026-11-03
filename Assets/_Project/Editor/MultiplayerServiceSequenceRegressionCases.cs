@@ -27,6 +27,13 @@ public static class MultiplayerServiceSequenceRegressionCases
             (bool)available.Invoke(null, new object[] { mode, group, complaint });
         try
         {
+            var authoredPickup = new GameObject("authored tray stand point");
+            authoredPickup.transform.SetParent(trayRoot.transform);
+            typeof(FoodTrayInteractable).GetField("pickupPoint", Hidden).SetValue(pickup, authoredPickup.transform);
+            pickup.ConfigurePickupApproach(null);
+            Assert(pickup.StandPoint == authoredPickup.transform, "A guest's absent kitchen override erased the prefab pickup approach.");
+            pickup.ConfigurePickupApproach(root.transform);
+            Assert(pickup.StandPoint == root.transform, "An authored kitchen/bar approach did not override the tray stand point.");
             group.state = CustomerGroup.GroupState.OrderTaken;
             Assert(Visible(FoodTrayInteractable.TrayMode.Delivery), "A prepared meal lost its pickup action.");
             group.state = CustomerGroup.GroupState.Eating;

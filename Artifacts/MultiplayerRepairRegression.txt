@@ -1,0 +1,18 @@
+PASS: claim snapshots reject old/duplicate revisions and malformed maps
+PASS: old bot generation cannot release a replacement reservation
+PASS: one bill per order; transfer, detach and slot reservation remain consistent
+PASS: action replies match only the original actor, order, stage and lease
+PASS: money projection transfers and returns the same object without completing claims
+PASS: an authored inactive cashier initializes and opens once without losing payment input
+PASS: approval-only snapshots preserve the guest ledger without refreshing money UI
+PASS: payment snapshots cannot reopen a delivered or paid bill
+PASS: focus reuses CanvasGroup and composes with visibility
+PASS: movement ignores stale samples, buffers interpolation and bounds memory
+PASS: room protocol changes leave result rules compatible
+PASS: fresh stock and newspaper reads preserve session and issue identity
+PASS: readiness votes belong to one request and restart a withdrawn countdown
+PASS: served and carried trays suppress pickup while legitimate cleanup stays available
+PASS: actor work circles use real timing and keep unknown work indeterminate
+PASS: staff tickets, accepted orders, cleared readiness and fixed-position rings remain consistent
+PASS: shelf identity survives root changes and join failures explain recovery
+PASS: stockout outcomes count once without completed orders or guest-side mutations

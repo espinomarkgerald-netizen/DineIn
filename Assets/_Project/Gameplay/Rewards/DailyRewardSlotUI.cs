@@ -33,24 +33,29 @@ public sealed partial class DailyRewardSlotUI : MonoBehaviour
         if (!DevSettingsConsole.HasAuthorizedDevAccess || active != null) return false;
         return Create(true, null) != null;
     }
-    public static bool TryOfferBeforeResults(Action done)
+    public static bool TryOfferBeforeResults(Action done, DailyRewardCompletionContext context = null)
     {
-        if (Backend == null || active != null || CampaignSaveStore.ProtectedSession || !CampaignSaveStore.RuntimeCampaign ||
-            GameSaveManager.Instance == null || GameSaveManager.Instance.IsApplyingSave) return false;
-        string owner;
-        try { owner = CampaignSaveStore.ReadAccountState().account; }
-        catch { return false; }
+        context ??= GameFlowManager.Instance?.RewardContext();
+        if (Backend == null || active != null || context == null || TutorialSceneRuntimeMarker.IsTutorialRuntimeActive ||
+            GameSaveManager.Instance?.IsApplyingSave == true) return false;
+        string owner = context.account;
         if (string.IsNullOrEmpty(owner)) return false;
         var panel = Create(false, done);
         if (panel == null) return false;
-        panel.account = owner; panel.restaurant = CampaignSaveStore.RestaurantScene; panel.provider = Backend;
+        panel.account = owner; panel.restaurant = context.restaurant; panel.provider = Backend;
         panel.waiting = true; panel.spin.interactable = false; panel.status.text = "Checking your free spin…";
+        panel.StartCoroutine(panel.OfferTimeout());
         try
         {
-            panel.provider.GetEligibleOffer(owner, panel.restaurant, panel.settings.rulesVersion, id =>
+            panel.provider.GetEligibleOffer(context, panel.settings.rulesVersion, id =>
             {
                 if (panel == null || panel.closing || !panel.ValidContext) return;
-                if (string.IsNullOrEmpty(id)) { panel.Close(); return; }
+                if (string.IsNullOrEmpty(id)) {
+                    panel.waiting = false; panel.next.interactable = true;
+                    SetButtonLabel(panel.next, "CONTINUE");
+                    panel.status.text = "This day's reward is unavailable or already used. Your results are ready.";
+                    return;
+                }
                 panel.offer = id; panel.waiting = false; panel.spin.interactable = true;
                 panel.status.text = "MATCH 3 TO WIN";
             });
@@ -58,8 +63,17 @@ public sealed partial class DailyRewardSlotUI : MonoBehaviour
         catch (Exception error) { Debug.LogWarning("[Daily reward] Offer unavailable: " + error.Message); panel.Close(); }
         return true;
     }
-    private bool ValidContext => preview || origin == SceneManager.GetActiveScene() && !CampaignSaveStore.ProtectedSession &&
-        restaurant == CampaignSaveStore.RestaurantScene && account == CampaignSaveStore.ReadAccountState().account;
+    private bool ValidContext => preview || origin == SceneManager.GetActiveScene() && !TutorialSceneRuntimeMarker.IsTutorialRuntimeActive &&
+        restaurant == CampaignSaveStore.ActiveRestaurantScene && PlayFabAuthManager.Instance?.IsLoggedIn == true && account == PlayFabAuthManager.Instance.PlayFabId;
+    private IEnumerator OfferTimeout()
+    {
+        float deadline = Time.realtimeSinceStartup + 8f;
+        while (waiting && !spun && Time.realtimeSinceStartup < deadline) yield return null;
+        if (waiting && !spun && !closing) {
+            next.interactable = true; SetButtonLabel(next, "CONTINUE");
+            status.text = "Rewards are unavailable right now. Your day results are ready.";
+        }
+    }
     private static DailyRewardSlotUI Create(bool isPreview, Action done)
     {
         var config = Resources.Load<DailyRewardSlotSettings>("DailyRewardSlot");
@@ -116,7 +130,7 @@ public sealed partial class DailyRewardSlotUI : MonoBehaviour
     {
         if (!response.confirmed || response.prizeIndex < -1 || response.prizeIndex >= settings.prizes.Length ||
             response.prizeIndex >= 0 && (response.amount != settings.prizes[response.prizeIndex].amount || response.gold != settings.prizes[response.prizeIndex].gold))
-        { waiting = false; next.interactable = true; SetButtonLabel(next, "CONTINUE"); status.text = "Reward status unresolved. No extra attempt will be made."; yield break; }
+        { waiting = false; next.interactable = true; SetButtonLabel(next, "CONTINUE"); status.text = response.message ?? "Reward status unresolved. No extra attempt will be made."; yield break; }
         ResetPresentation();
         int[] stop = response.prizeIndex >= 0 ? new[] { response.prizeIndex, response.prizeIndex, response.prizeIndex } : new[] { random.Next(6), 0, 0 };
         if (response.prizeIndex < 0) { stop[1] = (stop[0] + 1 + random.Next(5)) % 6; stop[2] = random.Next(6); }

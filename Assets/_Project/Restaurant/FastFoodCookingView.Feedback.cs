@@ -123,8 +123,15 @@ public sealed partial class FastFoodCookingView
     private void PlayKitchenCue(AudioClip clip)
     {
         if (clip != null && opened) GameplaySfx.PlayWorldClip(clip,
-            activeStation != null ? activeStation.transform.position : transform.position,
+            KitchenSoundPosition(),
             Mathf.Clamp01(feedbackVolume * 1.25f), feedbackAudio != null ? feedbackAudio.outputAudioMixerGroup : null);
+    }
+
+    private Vector3 KitchenSoundPosition()
+    {
+        if (stationCamera != null)
+            return stationCamera.transform.position + stationCamera.transform.forward * Mathf.Max(2f, stationCamera.nearClipPlane + 1f);
+        return activeStation != null ? activeStation.transform.position : transform.position;
     }
 
     private AudioSource trackedCookingSource;
@@ -142,7 +149,7 @@ public sealed partial class FastFoodCookingView
         {
             bool restarting = audible && !source.isPlaying && source.clip != null;
             bool loopBoundary = source == trackedCookingSource && source.isPlaying && source.timeSamples < previousCookingSample;
-            GameplaySfx.MixExistingWorldSource(source, activeStation.transform.position,
+            GameplaySfx.MixExistingWorldSource(source, KitchenSoundPosition(),
                 Mathf.Clamp01(activeStation.cookingVolume * 1.25f), restarting || loopBoundary);
             if (restarting) source.Play();
             else if (!audible && source.isPlaying) source.Stop();
