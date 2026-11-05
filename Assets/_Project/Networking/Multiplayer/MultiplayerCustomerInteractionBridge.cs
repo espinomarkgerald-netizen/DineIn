@@ -422,7 +422,10 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
         if (localBill == null || awaitingBillProjection == MultiplayerCustomerSpawn.BillStage.None) return;
         var hands = session.LocalManager.GetComponent<WaiterHands>();
         bool ready = BillProjectionReady(hands, billTarget, localBill, stage, awaitingBillProjection);
-        if (!ready) return;
+        if (!ready || billProjectionContext == null
+            || !billProjectionContext.MatchesSession(session, owner) || !billProjectionContext.MatchesOrder(billTarget)
+            || claims.GetLease(billTaskId) != billProjectionContext.lease) return;
+        Debug.Log($"[Billing] Paper ready order={billTarget.currentOrderNumber} stage={stage} owner={owner}");
         awaitingBillProjection = MultiplayerCustomerSpawn.BillStage.None;
         billTransitionPending = pendingBillAction != null;
     }
@@ -433,36 +436,56 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
 
     private static bool BillProjectionReady(WaiterHands hands, CustomerGroup group, BillPaper paper,
         MultiplayerCustomerSpawn.BillStage actual, MultiplayerCustomerSpawn.BillStage expected) =>
-        paper != null && paper.Matches(group) && actual == expected
+        paper != null && paper.Matches(group) && ((actual == MultiplayerCustomerSpawn.BillStage.Carried
+            && expected == MultiplayerCustomerSpawn.BillStage.Printed && IsMatchingHeldBill(hands, group, paper))
+        || actual == expected
         && (expected == MultiplayerCustomerSpawn.BillStage.Carried ? IsMatchingHeldBill(hands, group, paper)
-            : expected == MultiplayerCustomerSpawn.BillStage.Printed && paper.GetComponentInParent<WaiterHands>(true) == null);
+            : expected == MultiplayerCustomerSpawn.BillStage.Printed && paper.GetComponentInParent<WaiterHands>(true) == null));
 
-    public static bool CanRetrieveBill(BillPaper paper)
+    private string BillWaitReason()
+    {
+        if (billPending) return "Waiting for the bill claim.";
+        if (pendingBillAction != null) return "Waiting for the host billing reply.";
+        if (awaitingBillProjection != MultiplayerCustomerSpawn.BillStage.None) return "Waiting for the bill paper to appear.";
+        if (billTransitionPending) return "Waiting for the billing transition.";
+        if (billMover != null) return "Already moving to the bill.";
+        return null;
+    }
+
+    private static string BillPickupReason(BillPaper paper)
     {
         var s = MultiplayerSessionManager.Instance;
         var bridge = s != null ? s.GetComponent<MultiplayerCustomerInteractionBridge>() : null;
-        if (bridge == null || paper == null || paper.TargetGroup == null || s.LocalManager == null || !s.CanAct) return false;
+        if (bridge == null || paper == null || paper.TargetGroup == null || s.LocalManager == null || !s.CanAct)
+            return "Billing is unavailable right now.";
         var customer = paper.TargetGroup.GetComponentInParent<MultiplayerCustomerSpawn>();
-        if (customer == null || paper.TargetGroup.HasReceivedBill) return false;
+        if (customer == null || paper.TargetGroup.HasReceivedBill) return "This customer's bill task has changed.";
         int owner = bridge.claims.GetOwner($"Customer:{customer.photonView.ViewID}:Bill");
-        return (owner == 0 || owner == s.LocalActorNumber) && !bridge.billPending
-            && !bridge.billTransitionPending && bridge.billMover == null
-            && s.LocalManager.GetComponent<WaiterHands>() is WaiterHands hands && !hands.HasBill;
+        if (owner != 0 && owner != s.LocalActorNumber) return "Another player is handling this bill.";
+        string waiting = bridge.BillWaitReason();
+        if (waiting != null) return waiting;
+        var hands = s.LocalManager.GetComponent<WaiterHands>();
+        if (hands == null || hands.HasBill || hands.HasMoney || hands.HasTray || hands.HasTicket
+            || s.LocalManager.GetComponent<BusserHands>()?.HasTray == true
+            || s.LocalManager.GetComponentInChildren<TakeoutBagInteractable>() != null)
+            return "Finish or return the item you are carrying first.";
+        return null;
     }
+
+    public static bool CanRetrieveBill(BillPaper paper) => BillPickupReason(paper) == null;
 
     public static bool TryRetrieveBill(BillPaper paper)
     {
         if (!ReviewIsMultiplayer) return false;
-        if (CanRetrieveBill(paper))
-        {
-            var bridge = MultiplayerSessionManager.Instance.GetComponent<MultiplayerCustomerInteractionBridge>();
-            if (bridge.billTarget == paper.TargetGroup && bridge.claims.IsClaimedBy(bridge.billTaskId, bridge.session.LocalActorNumber))
-                bridge.MoveForBill(paper.StandPoint, paper.GetInteractRadius(), 2);
-            else TryHandleBill(paper.TargetGroup);
-        }
+        string reason = BillPickupReason(paper);
+        Debug.Log($"[Billing] Pickup click: {reason ?? "eligible"}");
+        if (reason != null) { WarningSlideUI.Instance?.Show(reason); return true; }
+        var bridge = MultiplayerSessionManager.Instance.GetComponent<MultiplayerCustomerInteractionBridge>();
+        if (bridge.billTarget == paper.TargetGroup && bridge.claims.IsClaimedBy(bridge.billTaskId, bridge.session.LocalActorNumber))
+            bridge.MoveForBill(paper.StandPoint, paper.GetInteractRadius(), 2);
+        else TryHandleBill(paper.TargetGroup);
         return true;
     }
-
     private void BeginBillApproach()
     {
         localBill = BillManager.Instance?.FindBillForGroup(billTarget);
@@ -477,7 +500,8 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
 
     private void MoveForBill(Transform stand, float radius, int stage)
     {
-        if (billMover != null || billTransitionPending) return;
+        if (billMover != null || billTransitionPending)
+        { Debug.Log($"[Billing] Movement blocked: moving={billMover != null}, transition={billTransitionPending}, reply={pendingBillAction != null}, projection={awaitingBillProjection}"); return; }
         var mover = session.LocalManager != null ? session.LocalManager.GetComponent<PlayerMovement>() : null;
         if (mover == null || !mover.isActiveAndEnabled || stand == null || billTarget == null) { PauseBillApproach(); return; }
         int version = ++billApproachVersion;
@@ -616,7 +640,8 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
         var customer = group != null ? group.GetComponentInParent<MultiplayerCustomerSpawn>() : null;
         if (bridge == null || customer == null || session.LocalManager == null
             || group.state != CustomerGroup.GroupState.NeedsBill || group.HasReceivedBill) return true;
-        if (bridge.billPending) return true;
+        string waiting = bridge.BillWaitReason();
+        if (waiting != null) { Debug.Log($"[Billing] Customer click: {waiting}"); WarningSlideUI.Instance?.Show(waiting); return true; }
         WaiterHands.ReconcileMultiplayerHands(session.LocalManager);
         var hands = session.LocalManager.GetComponent<WaiterHands>();
         if (hands != null && hands.HasBill && hands.holdingBillFor != group)
@@ -626,6 +651,8 @@ public partial class MultiplayerCustomerInteractionBridge : MonoBehaviour, IOnEv
             bridge.RetainOwnedTask(bridge.billTaskId);
             // Resume whichever physical stage the claim has reached. A printed
             // paper still needs a counter pickup; owning the claim is not pickup.
+            var paper = BillManager.Instance?.FindBillForGroup(group);
+            if (paper != null && !IsMatchingHeldBill(hands, group, paper)) return TryRetrieveBill(paper);
             if (!bridge.billTransitionPending && bridge.billMover == null)
                 bridge.BeginBillApproach();
             return true;

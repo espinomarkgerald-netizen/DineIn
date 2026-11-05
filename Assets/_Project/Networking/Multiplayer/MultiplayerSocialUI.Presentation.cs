@@ -105,6 +105,9 @@ public sealed partial class MultiplayerSocialUI
         touchId = pointerId; heldPosition = position; pressedAt = Time.unscaledTime;
         holdProgress.fillAmount = 0f; holdProgress.gameObject.SetActive(true);
     }
+    public void CancelHudHold() => EndWheel(false, true);
+    public void MoveHudHold(int pointerId, Vector2 position)
+    { if (pointerId == touchId) heldPosition = position; }
     public void EndHudHold(int pointerId, Vector2 position, bool canceled)
     {
         if (pointerId != touchId) return;
@@ -135,24 +138,13 @@ public sealed partial class MultiplayerSocialUI
             if (TabRequested) OpenWheel(Input.mousePosition, false);
             if (touchId >= 0)
             {
-                bool found = false;
-                for (int i = 0; i < Input.touchCount; i++)
+                if (!wheelOpen && !wheelClosing)
                 {
-                    Touch touch = Input.GetTouch(i);
-                    if (touch.fingerId != touchId) continue;
-                    found = true; heldPosition = touch.position;
-                    if (touch.phase == TouchPhase.Ended || touch.phase == TouchPhase.Canceled)
-                    { EndHudHold(touchId, heldPosition, touch.phase == TouchPhase.Canceled); break; }
-                    if (!wheelOpen && !wheelClosing)
-                    {
-                        holdProgress.fillAmount = Mathf.Clamp01((Time.unscaledTime - pressedAt) / holdSeconds);
-                        if (Time.unscaledTime - pressedAt >= holdSeconds)
-                        { OpenWheel(heldPosition, true); suppressedClickFrame = Time.frameCount + 1; }
-                    }
-                    if (wheelOpen) UpdateSelection(heldPosition);
-                    break;
+                    holdProgress.fillAmount = Mathf.Clamp01((Time.unscaledTime - pressedAt) / holdSeconds);
+                    if (Time.unscaledTime - pressedAt >= holdSeconds)
+                    { OpenWheel(heldPosition, true); suppressedClickFrame = Time.frameCount + 1; }
                 }
-                if (!found) EndHudHold(touchId, heldPosition, true);
+                if (wheelOpen) UpdateSelection(heldPosition);
             }
             else if (wheelOpen)
             {

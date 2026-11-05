@@ -1,0 +1,21 @@
+DayPanel V2 detail reference audit - 2026-11-06 02:30:22
+Read-only production audit; this report is the only file written.
+PASS SpriteNames[0..36] match the previous 37-entry ordered contract.
+APPENDED index 37 IconChefOutline ea5d61feb68846c3b43fe8ca223cd0fb
+APPENDED index 38 IconClocheOutline 23c4d78b2ea4411c855d242031e3ab0a
+APPENDED index 39 IconCoin e4f66ac6c5764f73baf727ca278068d1
+PASS 40 ordered sprite GUID/fileID/type references: Assets/_Project/Scenes/RoleBased/Lobby1.unity
+PASS 40 ordered sprite GUID/fileID/type references: Assets/_Project/Scenes/RoleBased/Lobby1 Multiplayer.unity
+PASS 40 ordered sprite GUID/fileID/type references: Assets/_Project/Scenes/RoleBased/Lobby2.unity
+PASS 40 ordered sprite GUID/fileID/type references: Assets/_Project/Scenes/RoleBased/Lobby2 Multiplayer.unity
+PASS 40 ordered sprite GUID/fileID/type references: Assets/_Project/Scenes/RoleBased/Lobby3.unity
+PASS 40 ordered sprite GUID/fileID/type references: Assets/_Project/Scenes/RoleBased/Lobby3 Multiplayer.unity
+PASS 40 ordered sprite GUID/fileID/type references: Assets/_Project/Scenes/TutorialScenes/Lobby1Tutorial.unity
+PASS 40 ordered sprite GUID/fileID/type references: Assets/_Project/Scenes/RoleBased/Lobby2Tutorial.unity
+PASS 40 ordered sprite GUID/fileID/type references: Assets/_Project/Scenes/RoleBased/Lobby3Tutorial.unity
+PASS 40 ordered sprite GUID/fileID/type references: Assets/_Project/Scenes/RoleBased/Multiplayer.unity
+PASS DetailLayer uses sibling index 1 after Body or 0 without Body; text and icons remain later siblings.
+PASS Picture and Divider set raycastTarget=false; added decorative images do not intercept actions/scrolling.
+PASS EnsureDetailArtwork is gated by detailsReady; creation also checks named children. The flag resets only on explicit Author rebuild. No unbounded creation path found.
+FINAL VISUAL: landscape, portrait Large Text and zero results inspected after correcting mirrored rating rays, suppressing duplicate portrait rays, raising portrait footer doodles and softening row wells. No required text or icon collision observed in these renders.
+NOT RUN: live Play Mode, animation/audio listening, device and multi-client testing.

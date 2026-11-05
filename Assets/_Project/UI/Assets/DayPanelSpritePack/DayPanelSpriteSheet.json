@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "atlas": {
+    "file": "DayPanelSpriteSheet.png",
+    "size": { "width": 3328, "height": 1280 },
+    "unityImport": "Sprite (2D and UI), Multiple",
+    "coordinateOrigins": ["top-left", "Unity bottom-left"]
+  },
+  "sprites": [
+    { "name": "PanelFrame", "topLeft": { "x": 24, "y": 24, "width": 1536, "height": 1024 }, "unityRect": { "x": 24, "y": 232, "width": 1536, "height": 1024 }, "border": { "left": 615, "bottom": 205, "right": 615, "top": 235 }, "imageType": "Sliced" },
+    { "name": "ObjectiveRow", "topLeft": { "x": 1600, "y": 24, "width": 650, "height": 185 }, "unityRect": { "x": 1600, "y": 1071, "width": 650, "height": 185 }, "border": { "left": 150, "bottom": 35, "right": 150, "top": 35 }, "imageType": "Sliced" },
+    { "name": "ReportCardShell", "topLeft": { "x": 2300, "y": 24, "width": 390, "height": 420 }, "unityRect": { "x": 2300, "y": 836, "width": 390, "height": 420 }, "border": { "left": 44, "bottom": 44, "right": 44, "top": 70 }, "imageType": "Sliced" },
+    { "name": "RibbonCoral", "topLeft": { "x": 2740, "y": 24, "width": 480, "height": 120 }, "unityRect": { "x": 2740, "y": 1136, "width": 480, "height": 120 }, "border": { "left": 90, "bottom": 40, "right": 90, "top": 40 }, "imageType": "Sliced" },
+    { "name": "RibbonGold", "topLeft": { "x": 2740, "y": 170, "width": 480, "height": 120 }, "unityRect": { "x": 2740, "y": 990, "width": 480, "height": 120 }, "border": { "left": 90, "bottom": 40, "right": 90, "top": 40 }, "imageType": "Sliced" },
+    { "name": "PrimaryButton", "topLeft": { "x": 1600, "y": 250, "width": 545, "height": 175 }, "unityRect": { "x": 1600, "y": 855, "width": 545, "height": 175 }, "border": { "left": 130, "bottom": 60, "right": 130, "top": 60 }, "imageType": "Sliced" },
+    { "name": "SecondaryButton", "topLeft": { "x": 2180, "y": 250, "width": 345, "height": 150 }, "unityRect": { "x": 2180, "y": 880, "width": 345, "height": 150 }, "border": { "left": 85, "bottom": 50, "right": 85, "top": 50 }, "imageType": "Sliced" },
+    { "name": "IconBadge", "topLeft": { "x": 2550, "y": 250, "width": 188, "height": 180 }, "unityRect": { "x": 2550, "y": 850, "width": 188, "height": 180 }, "border": { "left": 0, "bottom": 0, "right": 0, "top": 0 }, "imageType": "Simple" },
+    { "name": "StarEmpty", "topLeft": { "x": 2760, "y": 250, "width": 150, "height": 150 }, "unityRect": { "x": 2760, "y": 880, "width": 150, "height": 150 }, "border": { "left": 0, "bottom": 0, "right": 0, "top": 0 }, "imageType": "Simple" },
+    { "name": "StarFilled", "topLeft": { "x": 2960, "y": 250, "width": 150, "height": 150 }, "unityRect": { "x": 2960, "y": 880, "width": 150, "height": 150 }, "border": { "left": 0, "bottom": 0, "right": 0, "top": 0 }, "imageType": "Simple" },
+    { "name": "StarDivider", "topLeft": { "x": 1600, "y": 480, "width": 1260, "height": 290 }, "unityRect": { "x": 1600, "y": 510, "width": 1260, "height": 290 }, "border": { "left": 0, "bottom": 0, "right": 0, "top": 0 }, "imageType": "Simple" }
+  ]
+}

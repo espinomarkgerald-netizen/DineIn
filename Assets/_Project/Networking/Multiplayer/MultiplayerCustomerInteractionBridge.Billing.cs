@@ -28,6 +28,7 @@ public partial class MultiplayerCustomerInteractionBridge
     private int billActionDay;
     private MultiplayerCustomerSpawn.BillStage awaitingBillProjection;
     private float billProjectionDeadline;
+    private MultiplayerActionContext billProjectionContext;
 
     private bool BillActionIsCurrent(int actor, BillAction action, int day) => session != null && session.IsAuthority
         && GameFlowManager.Instance != null && GameFlowManager.Instance.CurrentDay == day
@@ -56,6 +57,7 @@ public partial class MultiplayerCustomerInteractionBridge
         var context = MultiplayerActionContext.Capture(session, billTarget, operation, $"Customer:{view}:Bill", expected);
         pendingBillAction = new BillAction { request = new BillRequest { context = context, sequence = ++nextBillAction, stage = stage },
             deadline = HygieneManager.ServiceTime + 40f, retryAt = HygieneManager.ServiceTime + 1f };
+        Debug.Log($"[Billing] Request actor={context.actor} order={context.orderNumber} stage={stage} lease={context.lease}");
         DispatchBillAction();
     }
     private void DispatchBillAction()
@@ -78,15 +80,22 @@ public partial class MultiplayerCustomerInteractionBridge
         ResetBillActionDay();
         if (awaitingBillProjection != MultiplayerCustomerSpawn.BillStage.None && HygieneManager.ServiceTime >= billProjectionDeadline)
         {
-            WarningSlideUI.Instance?.Show("The bill view did not arrive. Its paper is retained; select the customer to retry.");
-            CancelBill();
+            WarningSlideUI.Instance?.Show("Waiting for the confirmed bill paper. Your pickup is retained.");
+            billProjectionDeadline = float.PositiveInfinity;
         }
         if (pendingBillAction == null) return;
+        var context = pendingBillAction.request.context;
+        if (!context.MatchesSession(session, session.LocalActorNumber) || !context.MatchesOrder(billTarget)
+            || claims.GetLease(billTaskId) != context.lease)
+        {
+            Debug.Log("[Billing] Discarded request from an expired session, order or lease.");
+            CancelBill();
+            return;
+        }
         if (HygieneManager.ServiceTime >= pendingBillAction.deadline)
         {
-            WarningSlideUI.Instance?.Show("Billing timed out. Select the bill action to retry.");
-            pendingBillAction = null; billTransitionPending = false;
-            PauseBillApproach(); return;
+            WarningSlideUI.Instance?.Show("Waiting for billing confirmation. Retrying the same action.");
+            pendingBillAction.deadline = float.PositiveInfinity;
         }
         if (HygieneManager.ServiceTime >= pendingBillAction.retryAt)
         { pendingBillAction.retryAt = HygieneManager.ServiceTime + 1f; DispatchBillAction(); }
@@ -196,7 +205,11 @@ public partial class MultiplayerCustomerInteractionBridge
     {
         if (pendingBillAction == null || reply?.result?.context == null
             || reply.result.context.actor != session.LocalActorNumber
-            || !reply.result.context.MatchesAction(pendingBillAction.request.context)) return;
+            || !reply.result.context.MatchesAction(pendingBillAction.request.context)
+            || !reply.result.context.MatchesSession(session, session.LocalActorNumber)
+            || !reply.result.context.MatchesOrder(billTarget)
+            || claims.GetLease(billTaskId) != reply.result.context.lease) return;
+        Debug.Log($"[Billing] Reply order={reply.result.context.orderNumber} stage={reply.stage} outcome={reply.result.outcome}");
         MultiplayerDiagnostics.TraceAction(reply.result);
         pendingBillAction = null;
         if (!reply.result.Accepted)
@@ -206,6 +219,7 @@ public partial class MultiplayerCustomerInteractionBridge
                 WarningSlideUI.Instance?.Show(MultiplayerActionFeedback.Message(reply.result.outcome));
             PauseBillApproach(); return;
         }
+        billProjectionContext = reply.result.context;
         ObserveBill(reply.result.context.customerView, reply.stage, reply.position, reply.rotation);
     }
 }

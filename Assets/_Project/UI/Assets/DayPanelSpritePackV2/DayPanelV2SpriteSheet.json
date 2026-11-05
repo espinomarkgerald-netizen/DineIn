@@ -1,0 +1,1091 @@
+{
+  "version": 2,
+  "atlas": {
+    "file": "DayPanelV2SpriteSheet.png",
+    "width": 4096,
+    "height": 2048,
+    "origin": "Unity bottom-left"
+  },
+  "sprites": [
+    {
+      "name": "PanelBody",
+      "file": "Components/PanelBody.png",
+      "topLeft": {
+        "x": 16,
+        "y": 16,
+        "width": 512,
+        "height": 512
+      },
+      "unityRect": {
+        "x": 16,
+        "y": 1520,
+        "width": 512,
+        "height": 512
+      },
+      "border": {
+        "left": 72,
+        "bottom": 72,
+        "right": 72,
+        "top": 72
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced"
+    },
+    {
+      "name": "StarEmpty",
+      "file": "Components/StarEmpty.png",
+      "topLeft": {
+        "x": 544,
+        "y": 16,
+        "width": 512,
+        "height": 512
+      },
+      "unityRect": {
+        "x": 544,
+        "y": 1520,
+        "width": 512,
+        "height": 512
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "right": 0,
+        "top": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple"
+    },
+    {
+      "name": "StarFilled",
+      "file": "Components/StarFilled.png",
+      "topLeft": {
+        "x": 1072,
+        "y": 16,
+        "width": 512,
+        "height": 512
+      },
+      "unityRect": {
+        "x": 1072,
+        "y": 1520,
+        "width": 512,
+        "height": 512
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "right": 0,
+        "top": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple"
+    },
+    {
+      "name": "ReportCard",
+      "file": "Components/ReportCard.png",
+      "topLeft": {
+        "x": 1600,
+        "y": 16,
+        "width": 384,
+        "height": 384
+      },
+      "unityRect": {
+        "x": 1600,
+        "y": 1648,
+        "width": 384,
+        "height": 384
+      },
+      "border": {
+        "left": 40,
+        "bottom": 40,
+        "right": 40,
+        "top": 40
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced"
+    },
+    {
+      "name": "Badge",
+      "file": "Components/Badge.png",
+      "topLeft": {
+        "x": 2000,
+        "y": 16,
+        "width": 256,
+        "height": 256
+      },
+      "unityRect": {
+        "x": 2000,
+        "y": 1776,
+        "width": 256,
+        "height": 256
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "right": 0,
+        "top": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple"
+    },
+    {
+      "name": "IconAngry",
+      "file": "Components/IconAngry.png",
+      "topLeft": {
+        "x": 2272,
+        "y": 16,
+        "width": 256,
+        "height": 256
+      },
+      "unityRect": {
+        "x": 2272,
+        "y": 1776,
+        "width": 256,
+        "height": 256
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "right": 0,
+        "top": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple"
+    },
+    {
+      "name": "IconApproval",
+      "file": "Components/IconApproval.png",
+      "topLeft": {
+        "x": 2544,
+        "y": 16,
+        "width": 256,
+        "height": 256
+      },
+      "unityRect": {
+        "x": 2544,
+        "y": 1776,
+        "width": 256,
+        "height": 256
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "right": 0,
+        "top": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple"
+    },
+    {
+      "name": "IconArrival",
+      "file": "Components/IconArrival.png",
+      "topLeft": {
+        "x": 2816,
+        "y": 16,
+        "width": 256,
+        "height": 256
+      },
+      "unityRect": {
+        "x": 2816,
+        "y": 1776,
+        "width": 256,
+        "height": 256
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "right": 0,
+        "top": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple"
+    },
+    {
+      "name": "IconCalendar",
+      "file": "Components/IconCalendar.png",
+      "topLeft": {
+        "x": 3088,
+        "y": 16,
+        "width": 256,
+        "height": 256
+      },
+      "unityRect": {
+        "x": 3088,
+        "y": 1776,
+        "width": 256,
+        "height": 256
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "right": 0,
+        "top": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple"
+    },
+    {
+      "name": "IconCash",
+      "file": "Components/IconCash.png",
+      "topLeft": {
+        "x": 3360,
+        "y": 16,
+        "width": 256,
+        "height": 256
+      },
+      "unityRect": {
+        "x": 3360,
+        "y": 1776,
+        "width": 256,
+        "height": 256
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "right": 0,
+        "top": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple"
+    },
+    {
+      "name": "IconCheck",
+      "file": "Components/IconCheck.png",
+      "topLeft": {
+        "x": 3632,
+        "y": 16,
+        "width": 256,
+        "height": 256
+      },
+      "unityRect": {
+        "x": 3632,
+        "y": 1776,
+        "width": 256,
+        "height": 256
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "right": 0,
+        "top": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple"
+    },
+    {
+      "name": "IconChef",
+      "file": "Components/IconChef.png",
+      "topLeft": {
+        "x": 16,
+        "y": 544,
+        "width": 256,
+        "height": 256
+      },
+      "unityRect": {
+        "x": 16,
+        "y": 1248,
+        "width": 256,
+        "height": 256
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "right": 0,
+        "top": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple"
+    },
+    {
+      "name": "IconChefOutline",
+      "file": "Components/IconChefOutline.png",
+      "topLeft": {
+        "x": 288,
+        "y": 544,
+        "width": 256,
+        "height": 256
+      },
+      "unityRect": {
+        "x": 288,
+        "y": 1248,
+        "width": 256,
+        "height": 256
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "right": 0,
+        "top": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple"
+    },
+    {
+      "name": "IconCloche",
+      "file": "Components/IconCloche.png",
+      "topLeft": {
+        "x": 560,
+        "y": 544,
+        "width": 256,
+        "height": 256
+      },
+      "unityRect": {
+        "x": 560,
+        "y": 1248,
+        "width": 256,
+        "height": 256
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "right": 0,
+        "top": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple"
+    },
+    {
+      "name": "IconClocheOutline",
+      "file": "Components/IconClocheOutline.png",
+      "topLeft": {
+        "x": 832,
+        "y": 544,
+        "width": 256,
+        "height": 256
+      },
+      "unityRect": {
+        "x": 832,
+        "y": 1248,
+        "width": 256,
+        "height": 256
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "right": 0,
+        "top": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple"
+    },
+    {
+      "name": "IconClock",
+      "file": "Components/IconClock.png",
+      "topLeft": {
+        "x": 1104,
+        "y": 544,
+        "width": 256,
+        "height": 256
+      },
+      "unityRect": {
+        "x": 1104,
+        "y": 1248,
+        "width": 256,
+        "height": 256
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "right": 0,
+        "top": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple"
+    },
+    {
+      "name": "IconCoin",
+      "file": "Components/IconCoin.png",
+      "topLeft": {
+        "x": 1376,
+        "y": 544,
+        "width": 256,
+        "height": 256
+      },
+      "unityRect": {
+        "x": 1376,
+        "y": 1248,
+        "width": 256,
+        "height": 256
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "right": 0,
+        "top": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple"
+    },
+    {
+      "name": "IconGrade",
+      "file": "Components/IconGrade.png",
+      "topLeft": {
+        "x": 1648,
+        "y": 544,
+        "width": 256,
+        "height": 256
+      },
+      "unityRect": {
+        "x": 1648,
+        "y": 1248,
+        "width": 256,
+        "height": 256
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "right": 0,
+        "top": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple"
+    },
+    {
+      "name": "IconGuests",
+      "file": "Components/IconGuests.png",
+      "topLeft": {
+        "x": 1920,
+        "y": 544,
+        "width": 256,
+        "height": 256
+      },
+      "unityRect": {
+        "x": 1920,
+        "y": 1248,
+        "width": 256,
+        "height": 256
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "right": 0,
+        "top": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple"
+    },
+    {
+      "name": "IconHappy",
+      "file": "Components/IconHappy.png",
+      "topLeft": {
+        "x": 2192,
+        "y": 544,
+        "width": 256,
+        "height": 256
+      },
+      "unityRect": {
+        "x": 2192,
+        "y": 1248,
+        "width": 256,
+        "height": 256
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "right": 0,
+        "top": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple"
+    },
+    {
+      "name": "IconHourglass",
+      "file": "Components/IconHourglass.png",
+      "topLeft": {
+        "x": 2464,
+        "y": 544,
+        "width": 256,
+        "height": 256
+      },
+      "unityRect": {
+        "x": 2464,
+        "y": 1248,
+        "width": 256,
+        "height": 256
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "right": 0,
+        "top": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple"
+    },
+    {
+      "name": "IconMegaphone",
+      "file": "Components/IconMegaphone.png",
+      "topLeft": {
+        "x": 2736,
+        "y": 544,
+        "width": 256,
+        "height": 256
+      },
+      "unityRect": {
+        "x": 2736,
+        "y": 1248,
+        "width": 256,
+        "height": 256
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "right": 0,
+        "top": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple"
+    },
+    {
+      "name": "IconNeutral",
+      "file": "Components/IconNeutral.png",
+      "topLeft": {
+        "x": 3008,
+        "y": 544,
+        "width": 256,
+        "height": 256
+      },
+      "unityRect": {
+        "x": 3008,
+        "y": 1248,
+        "width": 256,
+        "height": 256
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "right": 0,
+        "top": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple"
+    },
+    {
+      "name": "IconOnTime",
+      "file": "Components/IconOnTime.png",
+      "topLeft": {
+        "x": 3280,
+        "y": 544,
+        "width": 256,
+        "height": 256
+      },
+      "unityRect": {
+        "x": 3280,
+        "y": 1248,
+        "width": 256,
+        "height": 256
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "right": 0,
+        "top": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple"
+    },
+    {
+      "name": "IconOrder",
+      "file": "Components/IconOrder.png",
+      "topLeft": {
+        "x": 3552,
+        "y": 544,
+        "width": 256,
+        "height": 256
+      },
+      "unityRect": {
+        "x": 3552,
+        "y": 1248,
+        "width": 256,
+        "height": 256
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "right": 0,
+        "top": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple"
+    },
+    {
+      "name": "IconSparkle",
+      "file": "Components/IconSparkle.png",
+      "topLeft": {
+        "x": 3824,
+        "y": 544,
+        "width": 256,
+        "height": 256
+      },
+      "unityRect": {
+        "x": 3824,
+        "y": 1248,
+        "width": 256,
+        "height": 256
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "right": 0,
+        "top": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple"
+    },
+    {
+      "name": "IconTips",
+      "file": "Components/IconTips.png",
+      "topLeft": {
+        "x": 16,
+        "y": 816,
+        "width": 256,
+        "height": 256
+      },
+      "unityRect": {
+        "x": 16,
+        "y": 976,
+        "width": 256,
+        "height": 256
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "right": 0,
+        "top": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple"
+    },
+    {
+      "name": "IconUnserved",
+      "file": "Components/IconUnserved.png",
+      "topLeft": {
+        "x": 288,
+        "y": 816,
+        "width": 256,
+        "height": 256
+      },
+      "unityRect": {
+        "x": 288,
+        "y": 976,
+        "width": 256,
+        "height": 256
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "right": 0,
+        "top": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple"
+    },
+    {
+      "name": "IconWarning",
+      "file": "Components/IconWarning.png",
+      "topLeft": {
+        "x": 560,
+        "y": 816,
+        "width": 256,
+        "height": 256
+      },
+      "unityRect": {
+        "x": 560,
+        "y": 976,
+        "width": 256,
+        "height": 256
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "right": 0,
+        "top": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple"
+    },
+    {
+      "name": "TitleTab",
+      "file": "Components/TitleTab.png",
+      "topLeft": {
+        "x": 832,
+        "y": 816,
+        "width": 768,
+        "height": 160
+      },
+      "unityRect": {
+        "x": 832,
+        "y": 1072,
+        "width": 768,
+        "height": 160
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "right": 0,
+        "top": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple"
+    },
+    {
+      "name": "RowShell",
+      "file": "Components/RowShell.png",
+      "topLeft": {
+        "x": 1616,
+        "y": 816,
+        "width": 512,
+        "height": 160
+      },
+      "unityRect": {
+        "x": 1616,
+        "y": 1072,
+        "width": 512,
+        "height": 160
+      },
+      "border": {
+        "left": 40,
+        "bottom": 40,
+        "right": 40,
+        "top": 40
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced"
+    },
+    {
+      "name": "PrimaryButton",
+      "file": "Components/PrimaryButton.png",
+      "topLeft": {
+        "x": 2144,
+        "y": 816,
+        "width": 512,
+        "height": 144
+      },
+      "unityRect": {
+        "x": 2144,
+        "y": 1088,
+        "width": 512,
+        "height": 144
+      },
+      "border": {
+        "left": 72,
+        "bottom": 56,
+        "right": 72,
+        "top": 56
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced"
+    },
+    {
+      "name": "SecondaryButton",
+      "file": "Components/SecondaryButton.png",
+      "topLeft": {
+        "x": 2672,
+        "y": 816,
+        "width": 512,
+        "height": 144
+      },
+      "unityRect": {
+        "x": 2672,
+        "y": 1088,
+        "width": 512,
+        "height": 144
+      },
+      "border": {
+        "left": 72,
+        "bottom": 56,
+        "right": 72,
+        "top": 56
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced"
+    },
+    {
+      "name": "ValuePill",
+      "file": "Components/ValuePill.png",
+      "topLeft": {
+        "x": 3200,
+        "y": 816,
+        "width": 512,
+        "height": 128
+      },
+      "unityRect": {
+        "x": 3200,
+        "y": 1104,
+        "width": 512,
+        "height": 128
+      },
+      "border": {
+        "left": 64,
+        "bottom": 48,
+        "right": 64,
+        "top": 48
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced"
+    },
+    {
+      "name": "AccentRays",
+      "file": "Components/AccentRays.png",
+      "topLeft": {
+        "x": 3728,
+        "y": 816,
+        "width": 128,
+        "height": 128
+      },
+      "unityRect": {
+        "x": 3728,
+        "y": 1104,
+        "width": 128,
+        "height": 128
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "right": 0,
+        "top": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple"
+    },
+    {
+      "name": "CoachingStrip",
+      "file": "Components/CoachingStrip.png",
+      "topLeft": {
+        "x": 16,
+        "y": 1088,
+        "width": 512,
+        "height": 96
+      },
+      "unityRect": {
+        "x": 16,
+        "y": 864,
+        "width": 512,
+        "height": 96
+      },
+      "border": {
+        "left": 48,
+        "bottom": 32,
+        "right": 48,
+        "top": 32
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced"
+    },
+    {
+      "name": "RibbonCoral",
+      "file": "Components/RibbonCoral.png",
+      "topLeft": {
+        "x": 544,
+        "y": 1088,
+        "width": 512,
+        "height": 96
+      },
+      "unityRect": {
+        "x": 544,
+        "y": 864,
+        "width": 512,
+        "height": 96
+      },
+      "border": {
+        "left": 64,
+        "bottom": 24,
+        "right": 64,
+        "top": 24
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced"
+    },
+    {
+      "name": "RibbonGold",
+      "file": "Components/RibbonGold.png",
+      "topLeft": {
+        "x": 1072,
+        "y": 1088,
+        "width": 512,
+        "height": 96
+      },
+      "unityRect": {
+        "x": 1072,
+        "y": 864,
+        "width": 512,
+        "height": 96
+      },
+      "border": {
+        "left": 64,
+        "bottom": 24,
+        "right": 64,
+        "top": 24
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced"
+    },
+    {
+      "name": "ProgressFill",
+      "file": "Components/ProgressFill.png",
+      "topLeft": {
+        "x": 1600,
+        "y": 1088,
+        "width": 512,
+        "height": 48
+      },
+      "unityRect": {
+        "x": 1600,
+        "y": 912,
+        "width": 512,
+        "height": 48
+      },
+      "border": {
+        "left": 24,
+        "bottom": 16,
+        "right": 24,
+        "top": 16
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced"
+    },
+    {
+      "name": "ProgressTrack",
+      "file": "Components/ProgressTrack.png",
+      "topLeft": {
+        "x": 2128,
+        "y": 1088,
+        "width": 512,
+        "height": 48
+      },
+      "unityRect": {
+        "x": 2128,
+        "y": 912,
+        "width": 512,
+        "height": 48
+      },
+      "border": {
+        "left": 24,
+        "bottom": 16,
+        "right": 24,
+        "top": 16
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced"
+    }
+  ]
+}

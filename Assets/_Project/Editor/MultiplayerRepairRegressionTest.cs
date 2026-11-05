@@ -177,6 +177,8 @@ public static class MultiplayerRepairRegressionTest
         Assert(!a.HasBill && b.holdingBillFor == group && bill.transform.parent == b.BillHoldPoint, "Holder transfer left two owners.");
         Assert((bool)CallStatic(typeof(MultiplayerCustomerInteractionBridge), "BillProjectionReady", b, group, bill, carried, carried),
             "Actual bill holder cannot deliver the projected bill.");
+        Assert((bool)CallStatic(typeof(MultiplayerCustomerInteractionBridge), "BillProjectionReady", b, group, bill, carried, printed),
+            "A matching carried bill must resolve an earlier printing acknowledgement.");
         Assert(!(bool)CallStatic(typeof(MultiplayerCustomerInteractionBridge), "BillProjectionReady", a, group, bill, carried, carried),
             "Previous holder can still deliver another actor's bill.");
         Assert(slots[bill] == slot && manager.FindBillForGroup(group) == bill, "Carrying lost reserved return slot/identity.");

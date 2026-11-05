@@ -1,0 +1,4 @@
+Sprites: 37
+Heading: Assets/_Project/UI/Assets/DayPanelSpritePackV2/Fonts/DayPanelHeading.asset
+Body: Assets/_Project/UI/Assets/DayPanelSpritePackV2/Fonts/DayPanelBody.asset
+Currency/punctuation: ₱=True, –=True, •=True, …=True

@@ -1,0 +1,10 @@
+AUTHORED Assets/_Project/Scenes/RoleBased/Lobby1.unity
+AUTHORED Assets/_Project/Scenes/RoleBased/Lobby1 Multiplayer.unity
+AUTHORED Assets/_Project/Scenes/RoleBased/Lobby2.unity
+AUTHORED Assets/_Project/Scenes/RoleBased/Lobby2 Multiplayer.unity
+AUTHORED Assets/_Project/Scenes/RoleBased/Lobby3.unity
+AUTHORED Assets/_Project/Scenes/RoleBased/Lobby3 Multiplayer.unity
+AUTHORED Assets/_Project/Scenes/TutorialScenes/Lobby1Tutorial.unity
+AUTHORED Assets/_Project/Scenes/RoleBased/Lobby2Tutorial.unity
+AUTHORED Assets/_Project/Scenes/RoleBased/Lobby3Tutorial.unity
+AUTHORED Assets/_Project/Scenes/RoleBased/Multiplayer.unity

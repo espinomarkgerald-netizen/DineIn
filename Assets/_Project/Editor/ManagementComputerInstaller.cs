@@ -253,6 +253,8 @@ public static class ManagementComputerInstaller
 
         serialized.ApplyModifiedPropertiesWithoutUndo();
         EditorUtility.SetDirty(dayManager);
+        // Keep the shared day skin and its value bindings after the legacy setup above.
+        DayPanelSkinAuthoring.Apply(dayManager);
     }
 
     private static void ConfigureController(

@@ -1,0 +1,28 @@
+CHECKED intro-landscape interrupted/immediate-final presentation and 2 earned stars
+RENDERED intro-landscape 1920x1080
+CHECKED report-landscape interrupted/immediate-final presentation and 2 earned stars
+RENDERED report-landscape 1920x1080
+CHECKED report-zero interrupted/immediate-final presentation and 0 earned stars
+RENDERED report-zero 1920x1080
+CHECKED report-one-star interrupted/immediate-final presentation and 1 earned stars
+RENDERED report-one-star 1920x1080
+CHECKED report-large-values interrupted/immediate-final presentation and 2 earned stars
+RENDERED report-large-values 1920x1080
+CHECKED report-failure interrupted/immediate-final presentation and 2 earned stars
+RENDERED report-failure 1920x1080
+CHECKED report-victory interrupted/immediate-final presentation and 3 earned stars
+RENDERED report-victory 1920x1080
+CHECKED intro-portrait interrupted/immediate-final presentation and 2 earned stars
+RENDERED intro-portrait 1080x1920
+CHECKED report-portrait interrupted/immediate-final presentation and 2 earned stars
+RENDERED report-portrait 1080x1920
+CHECKED report-portrait-large-text interrupted/immediate-final presentation and 2 earned stars
+RENDERED report-portrait-large-text 1080x1920
+CHECKED report-portrait-bottom interrupted/immediate-final presentation and 2 earned stars
+RENDERED report-portrait-bottom 1080x1920
+CHECKED report-portrait-failure interrupted/immediate-final presentation and 2 earned stars
+RENDERED report-portrait-failure 1080x1920
+CHECKED report-recovery-prompt interrupted/immediate-final presentation and 2 earned stars
+RENDERED report-recovery-prompt 1920x1080
+CHECKED intro-long-hours interrupted/immediate-final presentation and 2 earned stars
+RENDERED intro-long-hours 1920x1080

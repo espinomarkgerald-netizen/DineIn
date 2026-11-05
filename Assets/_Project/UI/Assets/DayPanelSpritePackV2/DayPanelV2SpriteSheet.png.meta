@@ -1,0 +1,1050 @@
+fileFormatVersion: 2
+guid: 39cf9260d7034e2bb97cb7e2de0bbd70
+TextureImporter:
+  internalIDToNameTable: []
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 4096
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 0
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 4096
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 4096
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 4096
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: PanelBody
+      rect:
+        serializedVersion: 2
+        x: 16
+        y: 1520
+        width: 512
+        height: 512
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 72, y: 72, z: 72, w: 72}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 12725a3ce7923630488ea42ecaa5ebbd
+      internalID: -409554073980058987
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: StarEmpty
+      rect:
+        serializedVersion: 2
+        x: 544
+        y: 1520
+        width: 512
+        height: 512
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c9043cfe5171353d3536518f4ab38069
+      internalID: -2122462714276662979
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: StarFilled
+      rect:
+        serializedVersion: 2
+        x: 1072
+        y: 1520
+        width: 512
+        height: 512
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0f1cdc47f8112a638745095c3af4b77b
+      internalID: 609225393042764854
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ReportCard
+      rect:
+        serializedVersion: 2
+        x: 1600
+        y: 1648
+        width: 384
+        height: 384
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 40, y: 40, z: 40, w: 40}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b3931f61a6f72ae7f4a23ab6e6d6ca03
+      internalID: 1182628549116630187
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Badge
+      rect:
+        serializedVersion: 2
+        x: 2000
+        y: 1776
+        width: 256
+        height: 256
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 86a687036185e78d93e9686001d0b439
+      internalID: -8178188162179406411
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: IconAngry
+      rect:
+        serializedVersion: 2
+        x: 2272
+        y: 1776
+        width: 256
+        height: 256
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1dc5f089f399b4578830d0c353c45865
+      internalID: -5005376206535815216
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: IconApproval
+      rect:
+        serializedVersion: 2
+        x: 2544
+        y: 1776
+        width: 256
+        height: 256
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 21a1ab7655f943fa182c99f61637c38b
+      internalID: -4317346240800833091
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: IconArrival
+      rect:
+        serializedVersion: 2
+        x: 2816
+        y: 1776
+        width: 256
+        height: 256
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e54ca7c2f27c387591977ce47d04fe02
+      internalID: -4600674778559365346
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: IconCalendar
+      rect:
+        serializedVersion: 2
+        x: 3088
+        y: 1776
+        width: 256
+        height: 256
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 20773ad47a65e4646613924d51d4cc9c
+      internalID: 7931438909150377772
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: IconCash
+      rect:
+        serializedVersion: 2
+        x: 3360
+        y: 1776
+        width: 256
+        height: 256
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9073236e0924efcc6e031ed03e804510
+      internalID: -1963251503290461338
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: IconCheck
+      rect:
+        serializedVersion: 2
+        x: 3632
+        y: 1776
+        width: 256
+        height: 256
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3c68b792303060612e8a834fd5695018
+      internalID: -8199201163684812897
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: IconChef
+      rect:
+        serializedVersion: 2
+        x: 16
+        y: 1248
+        width: 256
+        height: 256
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d1c6d3c42fccdd8cfb0bfa453868818e
+      internalID: -6535967917020111178
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: IconChefOutline
+      rect:
+        serializedVersion: 2
+        x: 288
+        y: 1248
+        width: 256
+        height: 256
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7dcb454cfd9537bbf6c7e642ac1be650
+      internalID: 8150549581803069663
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: IconCloche
+      rect:
+        serializedVersion: 2
+        x: 560
+        y: 1248
+        width: 256
+        height: 256
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ed1e1c7cd83d44af660e42ff3f954988
+      internalID: -4358603050792858785
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: IconClocheOutline
+      rect:
+        serializedVersion: 2
+        x: 832
+        y: 1248
+        width: 256
+        height: 256
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: cd3b03dd70743badeb443041ba85ffe2
+      internalID: 9014064367491632844
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: IconClock
+      rect:
+        serializedVersion: 2
+        x: 1104
+        y: 1248
+        width: 256
+        height: 256
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2ad4e27d89700497bb963ebfae87f60e
+      internalID: 560023859326596
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: IconCoin
+      rect:
+        serializedVersion: 2
+        x: 1376
+        y: 1248
+        width: 256
+        height: 256
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b32e3e9d77f6afe517f34d9c879cf3f9
+      internalID: -6499945704773131879
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: IconGrade
+      rect:
+        serializedVersion: 2
+        x: 1648
+        y: 1248
+        width: 256
+        height: 256
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2a3472f68ab6162f954a109f3e7ed3e1
+      internalID: 4088645106360606767
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: IconGuests
+      rect:
+        serializedVersion: 2
+        x: 1920
+        y: 1248
+        width: 256
+        height: 256
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5d18f96cc02912ab4fdc94232780c84b
+      internalID: 6901481868257403708
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: IconHappy
+      rect:
+        serializedVersion: 2
+        x: 2192
+        y: 1248
+        width: 256
+        height: 256
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c924a69b4f20c8d15035395b34a4e236
+      internalID: -7399650780926952494
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: IconHourglass
+      rect:
+        serializedVersion: 2
+        x: 2464
+        y: 1248
+        width: 256
+        height: 256
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a407db7753da45c27cefabe3d131a0f7
+      internalID: 859884353019460870
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: IconMegaphone
+      rect:
+        serializedVersion: 2
+        x: 2736
+        y: 1248
+        width: 256
+        height: 256
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ec7b5d6b01866f22dac785cf9c8d05a7
+      internalID: -1670297897732289218
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: IconNeutral
+      rect:
+        serializedVersion: 2
+        x: 3008
+        y: 1248
+        width: 256
+        height: 256
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: bf9c2690fe78e7d803cef6a6bb613aa7
+      internalID: -8629888012163677427
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: IconOnTime
+      rect:
+        serializedVersion: 2
+        x: 3280
+        y: 1248
+        width: 256
+        height: 256
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 93a098969b5053056a62d123493b9723
+      internalID: -2083158283705241599
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: IconOrder
+      rect:
+        serializedVersion: 2
+        x: 3552
+        y: 1248
+        width: 256
+        height: 256
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 78a6364483a363271610e34739c49380
+      internalID: 3474207861969753877
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: IconSparkle
+      rect:
+        serializedVersion: 2
+        x: 3824
+        y: 1248
+        width: 256
+        height: 256
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 267fecf082fe412938a8f523dfd08822
+      internalID: 1523268349227693918
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: IconTips
+      rect:
+        serializedVersion: 2
+        x: 16
+        y: 976
+        width: 256
+        height: 256
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: abbecef48ba9400f00df4874eb826245
+      internalID: -1352798527396342978
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: IconUnserved
+      rect:
+        serializedVersion: 2
+        x: 288
+        y: 976
+        width: 256
+        height: 256
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f4291e922dfc5f94bd6742042d185e30
+      internalID: 4018923742335174422
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: IconWarning
+      rect:
+        serializedVersion: 2
+        x: 560
+        y: 976
+        width: 256
+        height: 256
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 17e368c37f714c2caed4559ee1f86c5a
+      internalID: -7575892066936398285
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: TitleTab
+      rect:
+        serializedVersion: 2
+        x: 832
+        y: 1072
+        width: 768
+        height: 160
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: bb9252e0968ed7f0b86c157c73d1259e
+      internalID: -7174951749261904712
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RowShell
+      rect:
+        serializedVersion: 2
+        x: 1616
+        y: 1072
+        width: 512
+        height: 160
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 40, y: 40, z: 40, w: 40}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fa328c8d8639f5b32e8533f83cb49221
+      internalID: 7578297534910574390
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: PrimaryButton
+      rect:
+        serializedVersion: 2
+        x: 2144
+        y: 1088
+        width: 512
+        height: 144
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 72, y: 56, z: 72, w: 56}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9ef9ac1ce2c6b0a392f0a2fa78ec8f82
+      internalID: 4840391630668541875
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SecondaryButton
+      rect:
+        serializedVersion: 2
+        x: 2672
+        y: 1088
+        width: 512
+        height: 144
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 72, y: 56, z: 72, w: 56}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b05f0a424fdade2994bf5c86d98e46ab
+      internalID: 5392484295003101810
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ValuePill
+      rect:
+        serializedVersion: 2
+        x: 3200
+        y: 1104
+        width: 512
+        height: 128
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 64, y: 48, z: 64, w: 48}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fe46bfe4688deacc31f96f73f00d879b
+      internalID: -2377531988935109975
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: AccentRays
+      rect:
+        serializedVersion: 2
+        x: 3728
+        y: 1104
+        width: 128
+        height: 128
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: cba9af385b31cc1c80483f89cfd24abd
+      internalID: 5917154911522251621
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: CoachingStrip
+      rect:
+        serializedVersion: 2
+        x: 16
+        y: 864
+        width: 512
+        height: 96
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 48, y: 32, z: 48, w: 32}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c824e2f873264f24c5c3ed88a8acd8ae
+      internalID: -7435921377504022538
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RibbonCoral
+      rect:
+        serializedVersion: 2
+        x: 544
+        y: 864
+        width: 512
+        height: 96
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 64, y: 24, z: 64, w: 24}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ae3ce4199f6dd02fb4128ecb8bb58014
+      internalID: -3365206132431389326
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RibbonGold
+      rect:
+        serializedVersion: 2
+        x: 1072
+        y: 864
+        width: 512
+        height: 96
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 64, y: 24, z: 64, w: 24}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b8462378f635b8326cebd983d3b0af4b
+      internalID: 1067156676318729413
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ProgressFill
+      rect:
+        serializedVersion: 2
+        x: 1600
+        y: 912
+        width: 512
+        height: 48
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 24, y: 16, z: 24, w: 16}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b0c3b922e21340a377a4506d83caae01
+      internalID: 1571524437737011684
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ProgressTrack
+      rect:
+        serializedVersion: 2
+        x: 2128
+        y: 912
+        width: 512
+        height: 48
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 24, y: 16, z: 24, w: 16}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: cdb564abeee5d482672210cc27669eae
+      internalID: 2068568747463865857
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 5e97eb03825dee720800000000000000
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      AccentRays: 5917154911522251621
+      Badge: -8178188162179406411
+      CoachingStrip: -7435921377504022538
+      IconAngry: -5005376206535815216
+      IconApproval: -4317346240800833091
+      IconArrival: -4600674778559365346
+      IconCalendar: 7931438909150377772
+      IconCash: -1963251503290461338
+      IconCheck: -8199201163684812897
+      IconChef: -6535967917020111178
+      IconChefOutline: 8150549581803069663
+      IconCloche: -4358603050792858785
+      IconClocheOutline: 9014064367491632844
+      IconClock: 560023859326596
+      IconCoin: -6499945704773131879
+      IconGrade: 4088645106360606767
+      IconGuests: 6901481868257403708
+      IconHappy: -7399650780926952494
+      IconHourglass: 859884353019460870
+      IconMegaphone: -1670297897732289218
+      IconNeutral: -8629888012163677427
+      IconOnTime: -2083158283705241599
+      IconOrder: 3474207861969753877
+      IconSparkle: 1523268349227693918
+      IconTips: -1352798527396342978
+      IconUnserved: 4018923742335174422
+      IconWarning: -7575892066936398285
+      PanelBody: -409554073980058987
+      PrimaryButton: 4840391630668541875
+      ProgressFill: 1571524437737011684
+      ProgressTrack: 2068568747463865857
+      ReportCard: 1182628549116630187
+      RibbonCoral: -3365206132431389326
+      RibbonGold: 1067156676318729413
+      RowShell: 7578297534910574390
+      SecondaryButton: 5392484295003101810
+      StarEmpty: -2122462714276662979
+      StarFilled: 609225393042764854
+      TitleTab: -7174951749261904712
+      ValuePill: -2377531988935109975
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

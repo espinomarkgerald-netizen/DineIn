@@ -1,0 +1,28 @@
+Day Panel V2 scene sizing validation
+Scenes: 10
+Surface chains: 20
+Expected fit: .50294113 on every surface
+Failures: 0
+
+PASS Assets/_Project/Scenes/RoleBased/Lobby1 Multiplayer.unity introSurface 972379207 fit=.50294113; 3 full-stretch ancestors before Canvas
+PASS Assets/_Project/Scenes/RoleBased/Lobby1 Multiplayer.unity resultsSurface 1547146166 fit=.50294113; 3 full-stretch ancestors before Canvas
+PASS Assets/_Project/Scenes/RoleBased/Lobby1.unity introSurface 972379207 fit=.50294113; 3 full-stretch ancestors before Canvas
+PASS Assets/_Project/Scenes/RoleBased/Lobby1.unity resultsSurface 1547146166 fit=.50294113; 3 full-stretch ancestors before Canvas
+PASS Assets/_Project/Scenes/RoleBased/Lobby2 Multiplayer.unity introSurface 1184396906 fit=.50294113; 3 full-stretch ancestors before Canvas
+PASS Assets/_Project/Scenes/RoleBased/Lobby2 Multiplayer.unity resultsSurface 1531372118 fit=.50294113; 3 full-stretch ancestors before Canvas
+PASS Assets/_Project/Scenes/RoleBased/Lobby2.unity introSurface 972379207 fit=.50294113; 3 full-stretch ancestors before Canvas
+PASS Assets/_Project/Scenes/RoleBased/Lobby2.unity resultsSurface 1547146166 fit=.50294113; 3 full-stretch ancestors before Canvas
+PASS Assets/_Project/Scenes/RoleBased/Lobby2Tutorial.unity introSurface 1013624463 fit=.50294113; 3 full-stretch ancestors before Canvas
+PASS Assets/_Project/Scenes/RoleBased/Lobby2Tutorial.unity resultsSurface 2034998223 fit=.50294113; 3 full-stretch ancestors before Canvas
+PASS Assets/_Project/Scenes/RoleBased/Lobby3 Multiplayer.unity introSurface 661163867 fit=.50294113; 3 full-stretch ancestors before Canvas
+PASS Assets/_Project/Scenes/RoleBased/Lobby3 Multiplayer.unity resultsSurface 1328723654 fit=.50294113; 3 full-stretch ancestors before Canvas
+PASS Assets/_Project/Scenes/RoleBased/Lobby3.unity introSurface 1451920876 fit=.50294113; 3 full-stretch ancestors before Canvas
+PASS Assets/_Project/Scenes/RoleBased/Lobby3.unity resultsSurface 886716665 fit=.50294113; 3 full-stretch ancestors before Canvas
+PASS Assets/_Project/Scenes/RoleBased/Lobby3Tutorial.unity introSurface 1013624463 fit=.50294113; 3 full-stretch ancestors before Canvas
+PASS Assets/_Project/Scenes/RoleBased/Lobby3Tutorial.unity resultsSurface 2034998223 fit=.50294113; 3 full-stretch ancestors before Canvas
+PASS Assets/_Project/Scenes/RoleBased/Multiplayer.unity introSurface 1793017637 fit=.50294113; 3 full-stretch ancestors before Canvas
+PASS Assets/_Project/Scenes/RoleBased/Multiplayer.unity resultsSurface 1820956443 fit=.50294113; 3 full-stretch ancestors before Canvas
+PASS Assets/_Project/Scenes/TutorialScenes/Lobby1Tutorial.unity introSurface 661163867 fit=.50294113; 3 full-stretch ancestors before Canvas
+PASS Assets/_Project/Scenes/TutorialScenes/Lobby1Tutorial.unity resultsSurface 1328723654 fit=.50294113; 3 full-stretch ancestors before Canvas
+
+PASS: all 20 surfaces have expected serialized fit; all non-Canvas ancestor chains are full stretch, zero offsets and unit scale.

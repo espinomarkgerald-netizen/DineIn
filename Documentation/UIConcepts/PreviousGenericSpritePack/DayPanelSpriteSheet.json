@@ -1,0 +1,229 @@
+{
+  "atlas": {
+    "width": 2048,
+    "height": 1120,
+    "origin": "top-left"
+  },
+  "sprites": [
+    {
+      "name": "PanelFrame",
+      "rectTopLeft": [
+        40,
+        40,
+        960,
+        640
+      ],
+      "rectUnityBottomLeft": [
+        40,
+        440,
+        960,
+        640
+      ],
+      "borderLeftBottomRightTop": [
+        96,
+        96,
+        96,
+        96
+      ],
+      "nineSlice": true
+    },
+    {
+      "name": "HeaderPlate",
+      "rectTopLeft": [
+        1040,
+        40,
+        720,
+        170
+      ],
+      "rectUnityBottomLeft": [
+        1040,
+        910,
+        720,
+        170
+      ],
+      "borderLeftBottomRightTop": [
+        78,
+        56,
+        78,
+        56
+      ],
+      "nineSlice": true
+    },
+    {
+      "name": "ObjectiveRow",
+      "rectTopLeft": [
+        1040,
+        240,
+        780,
+        150
+      ],
+      "rectUnityBottomLeft": [
+        1040,
+        730,
+        780,
+        150
+      ],
+      "borderLeftBottomRightTop": [
+        180,
+        60,
+        165,
+        60
+      ],
+      "nineSlice": true
+    },
+    {
+      "name": "ResultCard",
+      "rectTopLeft": [
+        1040,
+        430,
+        390,
+        390
+      ],
+      "rectUnityBottomLeft": [
+        1040,
+        300,
+        390,
+        390
+      ],
+      "borderLeftBottomRightTop": [
+        120,
+        58,
+        58,
+        120
+      ],
+      "nineSlice": true
+    },
+    {
+      "name": "PrimaryButton",
+      "rectTopLeft": [
+        1480,
+        430,
+        450,
+        150
+      ],
+      "rectUnityBottomLeft": [
+        1480,
+        540,
+        450,
+        150
+      ],
+      "borderLeftBottomRightTop": [
+        76,
+        58,
+        76,
+        58
+      ],
+      "nineSlice": true
+    },
+    {
+      "name": "SecondaryButton",
+      "rectTopLeft": [
+        1480,
+        620,
+        360,
+        124
+      ],
+      "rectUnityBottomLeft": [
+        1480,
+        376,
+        360,
+        124
+      ],
+      "borderLeftBottomRightTop": [
+        62,
+        48,
+        62,
+        48
+      ],
+      "nineSlice": true
+    },
+    {
+      "name": "IconBadge",
+      "rectTopLeft": [
+        1040,
+        880,
+        160,
+        160
+      ],
+      "rectUnityBottomLeft": [
+        1040,
+        80,
+        160,
+        160
+      ],
+      "borderLeftBottomRightTop": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "nineSlice": false
+    },
+    {
+      "name": "StarEmpty",
+      "rectTopLeft": [
+        1235,
+        886,
+        128,
+        128
+      ],
+      "rectUnityBottomLeft": [
+        1235,
+        106,
+        128,
+        128
+      ],
+      "borderLeftBottomRightTop": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "nineSlice": false
+    },
+    {
+      "name": "StarFilled",
+      "rectTopLeft": [
+        1400,
+        886,
+        128,
+        128
+      ],
+      "rectUnityBottomLeft": [
+        1400,
+        106,
+        128,
+        128
+      ],
+      "borderLeftBottomRightTop": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "nineSlice": false
+    },
+    {
+      "name": "Divider",
+      "rectTopLeft": [
+        1570,
+        925,
+        320,
+        36
+      ],
+      "rectUnityBottomLeft": [
+        1570,
+        159,
+        320,
+        36
+      ],
+      "borderLeftBottomRightTop": [
+        18,
+        14,
+        18,
+        14
+      ],
+      "nineSlice": true
+    }
+  ]
+}

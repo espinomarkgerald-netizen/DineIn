@@ -343,6 +343,7 @@ public class GameDayManager : MonoBehaviour
     {
         if (playButton != null && TutorialSceneRuntimeMarker.UsesMinimalHUD)
             playButton.gameObject.SetActive(TutorialSceneRuntimeMarker.AllowsHUDControl("ShiftPlayButton", playButton.transform));
+        RefreshStyledDayPanelLayout();
         if (ObserveDayOnly || (MultiplayerDayBridge.IsActive && !MultiplayerSessionManager.Instance.IsAuthority)) return;
         UpdateMoodBarsSmooth();
         UpdateContinuePurchaseConfirmation();
@@ -523,12 +524,12 @@ public class GameDayManager : MonoBehaviour
 
     public void ShowShiftIntro()
     {
+        CancelShiftIntroTransition();
         if (!shiftRunning && !closingOut)
             timeRemaining = ShiftLengthSeconds;
 
         SetPanelVisible(resultsPanel, false);
         SetPanelVisible(dayIntroPanel, true);
-        AnimatePanelIn(dayIntroPanel);
 
         bool singleRestaurantFlow = GameFlowManager.Instance != null &&
                                     GameFlowManager.Instance.UsesSingleRestaurantFlow;
@@ -578,12 +579,19 @@ public class GameDayManager : MonoBehaviour
             dayIntroSummaryRightText.text = sb.ToString().TrimEnd();
         }
 
+        if (styledDayPanels)
+        {
+            PopulateStyledDayIntro();
+            RefreshStyledDayPanelLayout(true);
+        }
+        AnimatePanelIn(dayIntroPanel);
         RefreshUI();
         SetupMoodBars(true);
     }
 
     public void ConfirmStartShift()
     {
+        if (introStartTransition) return;
         if (!TutorialSceneRuntimeMarker.AllowsHUDControl("ShiftPlayButton", playButton != null ? playButton.transform : null)) return;
         if (StartShiftInterception?.Invoke() == true) return;
         if (!CasualDiningPolishManager.EnsureInstance().TryAllowStartShift())
@@ -591,20 +599,32 @@ public class GameDayManager : MonoBehaviour
 
         RestockFlowCoordinator restock = RestockFlowCoordinator.Instance;
         if (restock != null && restock.TryShowStartReminder(
-                () => StartCoroutine(StartShiftRoutine())))
+                BeginShiftStartTransition))
         {
             return;
         }
 
-        StartCoroutine(StartShiftRoutine());
+        BeginShiftStartTransition();
     }
 
     private IEnumerator StartShiftRoutine()
     {
+        if (introStartTransition) yield break;
+        introStartTransition = true;
+        if (styledDayPanels)
+            yield return DismissStyledDayIntro();
+        if (styledDayPanels && (dayIntroPanel == null || !dayIntroPanel.activeInHierarchy))
+        {
+            introStartTransition = false;
+            shiftIntroTransitionRoutine = null;
+            yield break;
+        }
         SetPanelVisible(dayIntroPanel, false);
 
-        yield return new WaitForSecondsRealtime(0.2f);
+        if (!styledDayPanels) yield return new WaitForSecondsRealtime(0.2f);
 
+        introStartTransition = false;
+        shiftIntroTransitionRoutine = null;
         StartShift();
     }
 
@@ -1231,6 +1251,8 @@ public class GameDayManager : MonoBehaviour
                 resultsCashText.text = "<b>RUN RECORDED</b>\nThis session has ended. Start a fresh run from the multiplayer menu.";
             MultiplayerSessionManager.Instance.GetComponent<MultiplayerDayBridge>()?.PublishNow();
         }
+        if (HasDayPanelV2)
+            dayPanelV2View.BindReport(CaptureDayPanelReport(dayRevenue, targetRevenue, earnedStars));
         RefreshResultsResponsiveLayout(true);
         instantResults = restoringResultsPresentation || ObserveDayOnly && !observedLiveService || MultiplayerSessionManager.Instance?.IsRecovering == true;
         resultsCuePending = !instantResults && !restoringResultsPresentation && GameSaveManager.Instance?.IsApplyingSave != true &&
@@ -1253,6 +1275,47 @@ public class GameDayManager : MonoBehaviour
         if (resultsActionButtonText != null) resultsActionButtonText.text = session.Ended
             ? "RETURN TO MENU" : session.IsHostConnection ? "NEXT DAY" : "WAITING FOR HOST";
         if (resultsContinueButton != null) resultsContinueButton.gameObject.SetActive(false);
+        if (HasDayPanelV2) dayPanelV2View.LayoutActions(resultsActionButton, resultsContinueButton);
+    }
+
+    private DayPanelReportSnapshot CaptureDayPanelReport(int revenue, int targetRevenue, int earnedStars)
+    {
+        int day = GameFlowManager.Instance != null ? GameFlowManager.Instance.CurrentDay : 1;
+        int approval = AlienApprovalManager.Instance != null ? AlienApprovalManager.Instance.Approval : 0;
+        DailyObjectiveManager objectives = DailyObjectiveManager.Instance;
+        FineDiningReservations reservations = FineDiningReservations.For(this);
+        bool hasGrade = objectives != null && objectives.HasPreviousDayResult;
+        bool victory = resultsHaveOutcome && currentResultsOutcome == GameOverReason.EarthSaved;
+        return new DayPanelReportSnapshot(
+            title: resultsTitleText != null ? resultsTitleText.text : $"Day {day} Report",
+            status: resultsHaveOutcome ? (victory ? "CAMPAIGN COMPLETE" : "RUN ENDED") : GetShiftStatusText(),
+            coaching: GetMostUsefulImprovement(Mathf.Max(0, targetRevenue - revenue)),
+            notice: !resultsHaveOutcome ? string.Empty : victory ? "Continue your restaurant in Endless Service."
+                : MultiplayerDayBridge.IsActive ? "This session is recorded and has ended. Start a fresh run from the multiplayer menu."
+                : $"<b>Restart free:</b> Day 1 and 30% approval. Staff, stock, money, purchases and unlocks reset; your restaurant stays.\n" +
+                  $"<b>Continue • {continueGoldCoinCost} GC:</b> Keep this day, restaurant and unlocks.",
+            outcomeReason: resultsHaveOutcome ? GetDayPanelOutcomeReason(currentResultsOutcome) : string.Empty,
+            objectiveGrade: hasGrade ? objectives.LastGrade.ToString() : string.Empty,
+            day: day, revenue: revenue, targetRevenue: targetRevenue, tips: tipsEarned, cashErrors: cashErrors,
+            ordersProcessed: ordersProcessed, foodServed: foodDelivered, happy: happyCustomers,
+            neutral: neutralCustomers, angry: angryCustomers, approval: approval,
+            reservationsBooked: reservations != null ? reservations.AcceptedGroups : 0,
+            reservationsOnTime: reservations != null ? reservations.Bookings.Count(booking => booking.seatedOnTime) : 0,
+            reservationsUnserved: reservations != null ? reservations.Bookings.Count(booking => booking.status == FineDiningBookingStatus.Left) : 0,
+            earnedStars: earnedStars, hasObjectiveGrade: hasGrade, hasReservations: reservations != null,
+            isOutcome: resultsHaveOutcome, isVictory: victory);
+    }
+
+    private static string GetDayPanelOutcomeReason(GameOverReason reason)
+    {
+        return reason switch
+        {
+            GameOverReason.Bankruptcy => "Funds reached ₱0 after expenses.",
+            GameOverReason.ApprovalCollapsed => "Alien approval reached 0%.",
+            GameOverReason.EarthSaved => "You completed Day 30 with enough approval.",
+            GameOverReason.EarthConqueredDay30 => "Day 30 ended below the 40% approval target.",
+            _ => "The campaign has ended."
+        };
     }
 
     private void PopulateStandardResults(bool singleRestaurantFlow, int revenue, int targetRevenue)
@@ -1313,14 +1376,7 @@ public class GameDayManager : MonoBehaviour
 
         if (resultsSummaryText != null)
         {
-            string reason = currentResultsOutcome switch
-            {
-                GameOverReason.Bankruptcy => "Funds reached ₱0 after expenses.",
-                GameOverReason.ApprovalCollapsed => "Alien approval reached 0%.",
-                GameOverReason.EarthSaved => "You completed Day 30 with enough approval.",
-                GameOverReason.EarthConqueredDay30 => "Day 30 ended below the 40% approval target.",
-                _ => "The campaign has ended."
-            };
+            string reason = GetDayPanelOutcomeReason(currentResultsOutcome);
             resultsSummaryText.text =
                 $"<b>{(savedEarth ? "CAMPAIGN COMPLETE" : "WHY THE RUN ENDED")}</b>\n{reason}\n\n" +
                 $"<b>FINAL DAY</b>\nDay {day} • ₱{revenue} / ₱{targetRevenue}";
@@ -1465,6 +1521,7 @@ public class GameDayManager : MonoBehaviour
 
     private void LayoutRecoveryButtons()
     {
+        if (styledDayPanels) { LayoutStyledResultActions(); return; }
         if (resultsActionRect == null || resultsContinueButton == null)
             return;
 
@@ -1485,6 +1542,7 @@ public class GameDayManager : MonoBehaviour
 
     private void RestoreSingleResultsButtonLayout()
     {
+        if (styledDayPanels) { LayoutStyledResultActions(); return; }
         if (resultsActionRect == null)
             return;
 
@@ -1505,6 +1563,11 @@ public class GameDayManager : MonoBehaviour
     /// </summary>
     private void RefreshResultsResponsiveLayout(bool force = false)
     {
+        if (styledDayPanels)
+        {
+            RefreshStyledDayPanelLayout(force);
+            return;
+        }
         if (resultsPanel == null || !resultsPanel.activeInHierarchy ||
             Screen.width <= 0 || Screen.height <= 0)
         {
@@ -2030,12 +2093,14 @@ public class GameDayManager : MonoBehaviour
 
     private void SetResultsPrompt(string message)
     {
+        if (HasDayPanelV2) dayPanelV2View.SetNotice(message);
         if (resultsStarsText != null)
             resultsStarsText.text = message;
     }
 
     private void SetOutcomeStatusText()
     {
+        if (HasDayPanelV2 && resultsHaveOutcome) dayPanelV2View.ResetNotice();
         if (resultsStarsText == null || !resultsHaveOutcome)
             return;
 
@@ -2065,6 +2130,11 @@ public class GameDayManager : MonoBehaviour
     private readonly Dictionary<RectTransform, Vector3> panelPresentationScales = new();
     private void PrepareResultStars(int earnedStars)
     {
+        if (HasDayPanelV2)
+        {
+            dayPanelV2View.Prepare(false, instantResults || LevelOneUIAccessibility.ReducedMotion, earnedStars);
+            return;
+        }
         Image[] stars = { star1, star2, star3 };
         Transform starRoot = null;
         for (int i = 0; i < stars.Length; i++)
@@ -2090,11 +2160,19 @@ public class GameDayManager : MonoBehaviour
         if (panelAnimationRoutine != null)
             StopCoroutine(panelAnimationRoutine);
 
+        animatingDayPanel = resultsPanel;
         panelAnimationRoutine = StartCoroutine(AnimateResultsRoutine(earnedStars));
     }
 
     private IEnumerator AnimateResultsRoutine(int earnedStars)
     {
+        if (styledDayPanels)
+        {
+            yield return AnimateStyledResultsRoutine(earnedStars);
+            panelAnimationRoutine = null;
+            animatingDayPanel = null;
+            yield break;
+        }
         TMP_Text[] totals = { resultsSummaryText, resultsCustomersText, resultsCashText };
         foreach (var text in totals) if (text != null)
         {
@@ -2324,6 +2402,7 @@ public class GameDayManager : MonoBehaviour
         }
         else
         {
+            CancelStyledDayPanelPresentation(panel);
             if (panel == resultsPanel)
             {
                 if (panelAnimationRoutine != null) StopCoroutine(panelAnimationRoutine);
@@ -2341,11 +2420,18 @@ public class GameDayManager : MonoBehaviour
     {
         if (panelAnimationRoutine != null)
             StopCoroutine(panelAnimationRoutine);
-        panelAnimationRoutine = StartCoroutine(AnimatePanelRoutine(panel));
+        animatingDayPanel = panel;
+        panelAnimationRoutine = StartCoroutine(panel == dayIntroPanel && styledDayPanels
+            ? AnimateStyledIntroRoutine() : AnimatePanelRoutine(panel));
     }
 
     private IEnumerator AnimatePanelRoutine(GameObject panel)
     {
+        if (styledDayPanels)
+        {
+            yield return AnimateStyledPanelRoutine(panel);
+            yield break;
+        }
         GameObject root = GetPanelPresentationRoot(panel);
         if (root == null)
             yield break;
@@ -2408,5 +2494,554 @@ public class GameDayManager : MonoBehaviour
         if (progressBar != null)
             progressBar.value = CalculateProgress01();
     }
-}
 
+    [Header("Day Panel Presentation")]
+    [SerializeField] private DayPanelView dayPanelV2View;
+    [SerializeField] private bool styledDayPanels;
+    [SerializeField] private RectTransform dayIntroSurface;
+    [SerializeField] private RectTransform resultsSurface;
+    [SerializeField] private TMP_Text dayIntroDetailsText;
+    [SerializeField] private Sprite dayPanelSecondaryButtonSprite;
+    [SerializeField] private RectTransform[] dayIntroRevealRoots = new RectTransform[0];
+    [SerializeField] private RectTransform[] resultsRevealRoots = new RectTransform[0];
+    [SerializeField, Min(.05f)] private float dayPanelEnterSeconds = .28f;
+    [SerializeField, Min(.05f)] private float dayPanelSectionSeconds = .18f;
+    [SerializeField, Min(0f)] private float dayPanelSectionStagger = .06f;
+    [SerializeField, Min(.05f)] private float dayPanelStarSeconds = .24f;
+    [SerializeField, Range(0f, .2f)] private float dayPanelDismissSeconds = .16f;
+
+    private GameObject animatingDayPanel;
+    private bool introStartTransition;
+    private Coroutine shiftIntroTransitionRoutine;
+    private Vector2Int dayPanelScreen = new Vector2Int(-1, -1);
+    private Rect dayPanelSafeArea;
+    private bool introWasVisible, resultsWereVisible, dayPanelLargeText;
+    private readonly Dictionary<RectTransform, Vector2> dayPanelRestPositions = new();
+    private static readonly Color DayPanelInk = new Color(.055f, .11f, .20f, 1f);
+
+    private TMP_Text[] IntroSectionTexts => new[] { dayIntroSummaryLeftText, dayIntroSummaryMiddleText, dayIntroSummaryRightText };
+    private TMP_Text[] ResultSectionTexts => new[] { resultsSummaryText, resultsCustomersText, resultsCashText };
+    private bool HasDayPanelV2 => styledDayPanels && dayPanelV2View != null;
+
+    private void PopulateStyledDayIntro()
+    {
+        if (HasDayPanelV2)
+        {
+            dayPanelV2View.BindIntro(new DayPanelIntroSnapshot(
+                dayIntroTitleText != null ? dayIntroTitleText.text : "Start Day",
+                FormatCompactDayHours(openingHour, closingHour),
+                DailyFinanceBridge.Instance != null ? DailyFinanceBridge.Instance.TotalRequiredEarningsToday : 0,
+                maxCustomersToSpawn, maxGroupsPerMinute, realSecondsPerGameHour));
+            return;
+        }
+        if (dayIntroSummaryLeftText != null)
+            dayIntroSummaryLeftText.text = $"{FormatClock(openingHour)}\n– {FormatClock(closingHour)}";
+        if (dayIntroSummaryMiddleText != null)
+            dayIntroSummaryMiddleText.text = "₱" + (DailyFinanceBridge.Instance != null
+                ? DailyFinanceBridge.Instance.TotalRequiredEarningsToday : 0).ToString("N0");
+        if (dayIntroSummaryRightText != null)
+            dayIntroSummaryRightText.text = "STOCK\n& STAFF";
+        if (dayIntroDetailsText != null)
+            dayIntroDetailsText.text = $"<b>{maxCustomersToSpawn} customers • {maxGroupsPerMinute} groups/min</b>\n" +
+                "1 real minute = 1 in-game hour. Prepare stock and staff, then press PLAY.\n" +
+                "Keep guests satisfied, avoid angry walkouts, and review your report after service.";
+    }
+
+    private static string FormatCompactDayHours(int opening, int closing)
+    {
+        int start = ((opening % 24) + 24) % 24;
+        int end = ((closing % 24) + 24) % 24;
+        int startHour = (start + 11) % 12 + 1;
+        int endHour = (end + 11) % 12 + 1;
+        string startPeriod = start < 12 ? "AM" : "PM";
+        string endPeriod = end < 12 ? "AM" : "PM";
+        return startPeriod == endPeriod
+            ? $"{startHour}–{endHour} {endPeriod}"
+            : $"{startHour} {startPeriod}–{endHour} {endPeriod}";
+    }
+
+    private void RefreshStyledDayPanelLayout(bool force = false)
+    {
+        if (!styledDayPanels || Screen.width <= 0 || Screen.height <= 0) return;
+        bool introVisible = dayIntroPanel != null && dayIntroPanel.activeInHierarchy;
+        bool resultVisible = resultsPanel != null && resultsPanel.activeInHierarchy;
+        bool changed = dayPanelScreen != new Vector2Int(Screen.width, Screen.height) ||
+            dayPanelSafeArea != Screen.safeArea || dayPanelLargeText != LevelOneUIAccessibility.LargeText;
+        if (!force && !changed && introVisible == introWasVisible && resultVisible == resultsWereVisible) return;
+        // A rotation/resize finishes the current cosmetic sequence instead of retaining stale offsets.
+        if (changed && animatingDayPanel != null) CancelStyledDayPanelPresentation(animatingDayPanel);
+        dayPanelScreen = new Vector2Int(Screen.width, Screen.height);
+        dayPanelSafeArea = Screen.safeArea;
+        dayPanelLargeText = LevelOneUIAccessibility.LargeText;
+        introWasVisible = introVisible;
+        resultsWereVisible = resultVisible;
+        bool portrait = IsResultsLayoutPortrait();
+        if (HasDayPanelV2)
+        {
+            dayPanelV2View.RefreshLayout(portrait, LevelOneUIAccessibility.LargeText);
+            dayPanelV2View.LayoutActions(resultsActionButton, resultsContinueButton);
+            return;
+        }
+        if (introVisible && dayIntroSurface != null)
+        {
+            FitDayPanel(dayIntroPanel, dayIntroSurface, portrait, 1.05f);
+            PlaceDayRect(dayIntroTitleText != null ? dayIntroTitleText.rectTransform : null, .31f, .835f, .69f, .943f);
+            var texts = IntroSectionTexts;
+            for (int i = 0; i < dayIntroRevealRoots.Length && i < 3; i++)
+            {
+                float top = .805f - i * .19f;
+                float rowWidth = portrait ? .88f : .60f;
+                // ObjectiveRow contains a round badge and a value pill. Preserve its native aspect.
+                float rowHeight = dayIntroSurface.rect.width * rowWidth * 185f / 650f / dayIntroSurface.rect.height;
+                PlaceDayRect(dayIntroRevealRoots[i], (1 - rowWidth) * .5f, top - rowHeight, (1 + rowWidth) * .5f, top);
+                if (i < texts.Length && texts[i] != null)
+                {
+                    PlaceDayRect(texts[i].rectTransform, .675f, .14f, .97f, .86f);
+                    StyleDayText(texts[i], dayIntroSurface.rect.height * .031f, TextAlignmentOptions.Center, true);
+                }
+            }
+            PlaceDayRect(dayIntroDetailsText != null ? dayIntroDetailsText.rectTransform : null, .13f, .188f, .87f, .244f);
+            StyleDayText(dayIntroDetailsText, dayIntroSurface.rect.height * .018f, TextAlignmentOptions.Center, true);
+            PlaceDayRect(playButton != null ? playButton.transform as RectTransform : null, .315f, .063f, .685f, .185f);
+            StyleDayText(dayIntroTitleText, dayIntroSurface.rect.height * .067f, TextAlignmentOptions.Center, false, true);
+            StyleDayButton(playButton, dayIntroSurface.rect.height * .047f);
+            CacheDaySectionPositions(dayIntroRevealRoots, IntroSectionTexts);
+        }
+        if (resultVisible && resultsSurface != null)
+        {
+            FitDayPanel(resultsPanel, resultsSurface, portrait);
+            float height = resultsSurface.rect.height;
+            PlaceDayRect(resultsTitleText != null ? resultsTitleText.rectTransform : null, .275f, .843f, .725f, .943f);
+            PlaceDayRect(resultsStarsText != null ? resultsStarsText.rectTransform : null, .13f, .782f, .87f, .834f);
+            StyleDayText(resultsTitleText, height * .061f, TextAlignmentOptions.Center, false, true);
+            StyleDayText(resultsStarsText, height * .023f, TextAlignmentOptions.Center, false);
+            LayoutDayStarLayers(portrait);
+            RectTransform columns = resultsSummaryText != null ? resultsSummaryText.transform.parent as RectTransform : null;
+            if (columns != null)
+            {
+                var layout = columns.GetComponent<LayoutGroup>();
+                if (layout != null) layout.enabled = false;
+                PlaceDayRect(columns, 0, 0, 1, 1);
+            }
+            TMP_Text[] texts = ResultSectionTexts;
+            for (int i = 0; i < 3; i++)
+            {
+                float x0 = portrait ? .09f : .065f + i * .292f;
+                float x1 = portrait ? .91f : x0 + .285f;
+                float y0 = portrait ? (i == 0 ? .535f : i == 1 ? .385f : .18f) : .227f;
+                float y1 = portrait ? (i == 0 ? .675f : i == 1 ? .53f : .38f) : .625f;
+                if (i < resultsRevealRoots.Length)
+                    PlaceDayRect(resultsRevealRoots[i], x0, y0, x1, y1);
+                if (texts[i] != null)
+                {
+                    PlaceDayRect(texts[i].rectTransform, x0 + .012f, y0 + .012f, x1 - .012f,
+                        y1 - (portrait ? .035f : .065f));
+                    StyleDayText(texts[i], height * (portrait ? .023f : .026f), TextAlignmentOptions.TopLeft, true);
+                }
+            }
+            LayoutStyledResultActions();
+            CacheDaySectionPositions(resultsRevealRoots, ResultSectionTexts);
+        }
+        Canvas.ForceUpdateCanvases();
+        if (introVisible && dayIntroSurface != null) RefreshDaySpriteDensity(dayIntroSurface);
+        if (resultVisible && resultsSurface != null) RefreshDaySpriteDensity(resultsSurface);
+    }
+
+    private void CacheDaySectionPositions(RectTransform[] roots, TMP_Text[] texts)
+    {
+        foreach (var root in roots) if (root != null) dayPanelRestPositions[root] = root.anchoredPosition;
+        foreach (var text in texts) if (text != null) dayPanelRestPositions[text.rectTransform] = text.rectTransform.anchoredPosition;
+    }
+
+    private static void PlaceDayRect(RectTransform rect, float left, float bottom, float right, float top)
+    {
+        if (rect == null) return;
+        rect.anchorMin = new Vector2(left, bottom);
+        rect.anchorMax = new Vector2(right, top);
+        rect.pivot = new Vector2(.5f, .5f);
+        rect.offsetMin = rect.offsetMax = Vector2.zero;
+        rect.localScale = Vector3.one;
+        rect.localRotation = Quaternion.identity;
+    }
+
+    private static void FitDayPanel(GameObject panel, RectTransform surface, bool portrait, float landscapeAspect = 1.5f)
+    {
+        var root = GetPanelPresentationRoot(panel)?.transform as RectTransform;
+        if (root == null) return;
+        PlaceDayRect(root, 0, 0, 1, 1);
+        if (panel.transform != root) PlaceDayRect(panel.transform as RectTransform, 0, 0, 1, 1);
+        Rect safe = Screen.safeArea;
+        float availableWidth = root.rect.width * safe.width / Screen.width * .94f;
+        float availableHeight = root.rect.height * safe.height / Screen.height * .94f;
+        float aspect = portrait ? .69f : landscapeAspect;
+        float width = Mathf.Min(availableWidth, availableHeight * aspect);
+        surface.anchorMin = surface.anchorMax = new Vector2(.5f, .5f);
+        surface.pivot = new Vector2(.5f, .5f);
+        surface.sizeDelta = new Vector2(width, width / aspect);
+        surface.anchoredPosition = new Vector2((safe.center.x / Screen.width - .5f) * root.rect.width,
+            (safe.center.y / Screen.height - .5f) * root.rect.height);
+        surface.localScale = Vector3.one;
+        surface.localRotation = Quaternion.identity;
+    }
+
+    private static void StyleDayText(TMP_Text text, float maxSize, TextAlignmentOptions alignment, bool wrap, bool light = false)
+    {
+        if (text == null) return;
+        // These authored SDF atlases contain Latin text, without a global Unicode fallback.
+        // Keep every amount and sentence readable without modifying shared font assets or game values.
+        if (text.font != null)
+        {
+            if (!text.font.HasCharacter('₱')) text.text = text.text.Replace("₱", "PHP ");
+            if (!text.font.HasCharacter('•')) text.text = text.text.Replace("•", "|");
+            if (!text.font.HasCharacter('–')) text.text = text.text.Replace("–", "-");
+        }
+        text.color = light ? new Color(1f, .97f, .88f) : DayPanelInk;
+        text.enableAutoSizing = true;
+        text.fontSizeMax = Mathf.Max(10, maxSize * (LevelOneUIAccessibility.LargeText ? 1.15f : 1));
+        text.fontSizeMin = Mathf.Max(7, text.fontSizeMax * .58f);
+        text.alignment = alignment;
+        text.textWrappingMode = wrap ? TextWrappingModes.Normal : TextWrappingModes.NoWrap;
+        text.overflowMode = TextOverflowModes.Ellipsis;
+        text.raycastTarget = false;
+        text.margin = new Vector4(3, 2, 3, 2);
+    }
+
+    private static void StyleDayButton(Button button, float textSize)
+    {
+        if (button == null) return;
+        var text = button.GetComponentInChildren<TMP_Text>(true);
+        StyleDayText(text, textSize, TextAlignmentOptions.Center, false, true);
+        if (text != null) PlaceDayRect(text.rectTransform, .07f, .12f, .93f, .88f);
+    }
+
+    private static void RefreshDaySpriteDensity(RectTransform surface)
+    {
+        foreach (Image image in surface.GetComponentsInChildren<Image>(true))
+        {
+            if (image.type != Image.Type.Sliced || image.sprite == null) continue;
+            Rect rect = image.rectTransform.rect;
+            image.pixelsPerUnitMultiplier = Mathf.Max(.01f, Mathf.Max(image.sprite.rect.width / Mathf.Max(1, rect.width),
+                image.sprite.rect.height / Mathf.Max(1, rect.height)));
+        }
+    }
+
+    private void LayoutDayStarLayers(bool portrait)
+    {
+        var earnedRoot = star1 != null ? star1.transform.parent as RectTransform : null;
+        if (earnedRoot == null) return;
+        // Existing outline and earned layers remain aligned; unrelated skin groups are not star layers.
+        foreach (Transform child in resultsSurface)
+        {
+            var layer = child as RectTransform;
+            if (layer == null || !IsResultsStarLayer(layer, earnedRoot)) continue;
+            PlaceDayRect(layer, .32f, portrait ? .681f : .665f, .68f, portrait ? .78f : .774f);
+            for (int i = 0; i < layer.childCount; i++)
+            {
+                var image = layer.GetChild(i).GetComponent<Image>();
+                if (image == null) continue;
+                PlaceDayRect(image.rectTransform, i / 3f, 0, (i + 1) / 3f, 1);
+                image.rectTransform.offsetMin = new Vector2(4, 1);
+                image.rectTransform.offsetMax = new Vector2(-4, -1);
+                image.preserveAspect = true;
+            }
+        }
+    }
+
+    private void LayoutStyledResultActions()
+    {
+        if (HasDayPanelV2)
+        {
+            dayPanelV2View.LayoutActions(resultsActionButton, resultsContinueButton);
+            return;
+        }
+        if (!styledDayPanels || resultsSurface == null) return;
+        bool recovery = resultsContinueButton != null && resultsContinueButton.gameObject.activeSelf;
+        PlaceDayRect(resultsActionButton != null ? resultsActionButton.transform as RectTransform : null,
+            recovery ? .15f : .30f, .065f, recovery ? .49f : .70f, .18f);
+        if (recovery) PlaceDayRect(resultsContinueButton.transform as RectTransform, .51f, .065f, .85f, .18f);
+        StyleDayButton(resultsActionButton, resultsSurface.rect.height * .037f);
+        StyleDayButton(resultsContinueButton, resultsSurface.rect.height * .032f);
+        if (resultsContinueButton != null && dayPanelSecondaryButtonSprite != null)
+        {
+            Image image = resultsContinueButton.GetComponent<Image>();
+            if (image != null) { image.sprite = dayPanelSecondaryButtonSprite; image.type = Image.Type.Sliced; }
+        }
+    }
+
+    private static CanvasGroup DayGroup(Component component)
+    {
+        if (component == null) return null;
+        var group = component.GetComponent<CanvasGroup>();
+        return group != null ? group : component.gameObject.AddComponent<CanvasGroup>();
+    }
+
+    private static float DayPop(float t)
+    {
+        t = Mathf.Clamp01(t) - 1;
+        return 1 + 2.4f * t * t * t + 1.4f * t * t;
+    }
+
+    private IEnumerator AnimateStyledPanelRoutine(GameObject panel)
+    {
+        var root = GetPanelPresentationRoot(panel);
+        RectTransform surface = panel == dayIntroPanel ? dayIntroSurface : resultsSurface;
+        if (root == null || surface == null) yield break;
+        Vector3 fittedScale = HasDayPanelV2 ? dayPanelV2View.FittedScale(panel == dayIntroPanel) : Vector3.one;
+        CanvasGroup group = DayGroup(root.transform);
+        group.blocksRaycasts = true;
+        group.interactable = false;
+        UISubtlePressFeedback.EnsureButtons(root.transform);
+        if (!LevelOneUIAccessibility.ReducedMotion)
+        {
+            for (float elapsed = 0; elapsed < dayPanelEnterSeconds; elapsed += LevelOneUIAccessibility.UnscaledAnimationDeltaTime)
+            {
+                if (LevelOneUIAccessibility.ReducedMotion) break;
+                float t = Mathf.Clamp01(elapsed / Mathf.Max(.05f, dayPanelEnterSeconds));
+                group.alpha = 1 - Mathf.Pow(1 - t, 3);
+                surface.localScale = fittedScale * Mathf.LerpUnclamped(.92f, 1, DayPop(t));
+                yield return null;
+            }
+        }
+        group.alpha = 1;
+        group.interactable = true;
+        surface.localScale = fittedScale;
+    }
+
+    private void SetDaySection(RectTransform rect, float progress)
+    {
+        if (rect == null) return;
+        if (!dayPanelRestPositions.ContainsKey(rect)) dayPanelRestPositions[rect] = rect.anchoredPosition;
+        DayGroup(rect).alpha = progress;
+        rect.localScale = Vector3.one * Mathf.Lerp(.975f, 1, progress);
+        rect.anchoredPosition = dayPanelRestPositions[rect] + Vector2.down * (1 - progress) * 8;
+    }
+
+    private void SetDaySections(RectTransform[] roots, TMP_Text[] texts, float progress)
+    {
+        for (int i = 0; i < 3; i++) SetDaySectionPair(roots, texts, i, progress);
+    }
+
+    private void SetDaySectionPair(RectTransform[] roots, TMP_Text[] texts, int i, float progress)
+    {
+        RectTransform rect = i < roots.Length ? roots[i] : null;
+        SetDaySection(rect, progress);
+        if (i < texts.Length && texts[i] != null)
+        {
+            texts[i].maxVisibleCharacters = int.MaxValue;
+            if (rect == null || !texts[i].transform.IsChildOf(rect)) SetDaySection(texts[i].rectTransform, progress);
+        }
+    }
+
+    private IEnumerator RevealDaySections(RectTransform[] roots, TMP_Text[] texts)
+    {
+        float duration = Mathf.Max(.05f, dayPanelSectionSeconds);
+        float total = duration + dayPanelSectionStagger * 2;
+        for (float elapsed = 0; elapsed < total && !LevelOneUIAccessibility.ReducedMotion;
+            elapsed += LevelOneUIAccessibility.UnscaledAnimationDeltaTime)
+        {
+            for (int i = 0; i < 3; i++)
+            {
+                float t = Mathf.Clamp01((elapsed - dayPanelSectionStagger * i) / duration);
+                SetDaySectionPair(roots, texts, i, 1 - Mathf.Pow(1 - t, 3));
+            }
+            yield return null;
+        }
+        SetDaySections(roots, texts, 1);
+    }
+
+    private IEnumerator AnimateStyledIntroRoutine()
+    {
+        if (HasDayPanelV2)
+        {
+            dayPanelV2View.Prepare(true, LevelOneUIAccessibility.ReducedMotion, 0);
+            yield return AnimateStyledPanelRoutine(dayIntroPanel);
+            yield return RevealDayPanelV2Sections(true);
+            dayPanelV2View.Finish(true);
+            panelAnimationRoutine = null;
+            animatingDayPanel = null;
+            yield break;
+        }
+        var texts = IntroSectionTexts;
+        SetDaySections(dayIntroRevealRoots, texts, LevelOneUIAccessibility.ReducedMotion ? 1 : 0);
+        yield return AnimateStyledPanelRoutine(dayIntroPanel);
+        yield return RevealDaySections(dayIntroRevealRoots, texts);
+        panelAnimationRoutine = null;
+        animatingDayPanel = null;
+    }
+
+    private IEnumerator AnimateStyledResultsRoutine(int earnedStars)
+    {
+        if (HasDayPanelV2)
+        {
+            if (instantResults)
+            {
+                ResetStyledDayPanel(resultsPanel);
+                resultsCuePending = false;
+                yield break;
+            }
+            yield return AnimateStyledPanelRoutine(resultsPanel);
+            if (resultsCuePending)
+            {
+                resultsCuePending = false;
+                GameplaySfx.Play(GameplaySfx.Cue.EndDay);
+            }
+            yield return RevealDayPanelV2Sections(false);
+            bool celebrateV2 = !resultsHaveOutcome || currentResultsOutcome == GameOverReason.EarthSaved;
+            for (int i = 0; i < Mathf.Clamp(earnedStars, 0, 3); i++)
+            {
+                if (celebrateV2 && !LevelOneUIAccessibility.ReducedMotion)
+                {
+                    for (float elapsed = 0; elapsed < dayPanelStarSeconds; elapsed += LevelOneUIAccessibility.UnscaledAnimationDeltaTime)
+                    {
+                        if (LevelOneUIAccessibility.ReducedMotion) break;
+                        dayPanelV2View.SetStarProgress(i, Mathf.Clamp01(elapsed / Mathf.Max(.05f, dayPanelStarSeconds)));
+                        yield return null;
+                    }
+                }
+                dayPanelV2View.SetStarProgress(i, 1);
+                if (celebrateV2 && !LevelOneUIAccessibility.ReducedMotion)
+                    yield return new WaitForSecondsRealtime(.08f);
+            }
+            dayPanelV2View.Finish(false);
+            yield break;
+        }
+        var texts = ResultSectionTexts;
+        SetDaySections(resultsRevealRoots, texts, instantResults || LevelOneUIAccessibility.ReducedMotion ? 1 : 0);
+        if (instantResults)
+        {
+            ResetStyledDayPanel(resultsPanel);
+            resultsCuePending = false;
+            yield break;
+        }
+        yield return AnimateStyledPanelRoutine(resultsPanel);
+        if (resultsCuePending)
+        {
+            resultsCuePending = false;
+            GameplaySfx.Play(GameplaySfx.Cue.EndDay);
+        }
+        yield return RevealDaySections(resultsRevealRoots, texts);
+        bool celebrate = !resultsHaveOutcome || currentResultsOutcome == GameOverReason.EarthSaved;
+        foreach (Image star in new[] { star1, star2, star3 })
+        {
+            if (star == null || !star.gameObject.activeSelf) continue;
+            Vector3 scale = GetAuthoredResultsScale(star.rectTransform);
+            if (celebrate && !LevelOneUIAccessibility.ReducedMotion)
+            {
+                for (float elapsed = 0; elapsed < dayPanelStarSeconds; elapsed += LevelOneUIAccessibility.UnscaledAnimationDeltaTime)
+                {
+                    if (LevelOneUIAccessibility.ReducedMotion) break;
+                    star.transform.localScale = scale * Mathf.Max(0, DayPop(elapsed / Mathf.Max(.05f, dayPanelStarSeconds)));
+                    yield return null;
+                }
+            }
+            star.transform.localScale = scale;
+            if (celebrate && !LevelOneUIAccessibility.ReducedMotion) yield return new WaitForSecondsRealtime(.08f);
+        }
+    }
+
+    private IEnumerator RevealDayPanelV2Sections(bool intro)
+    {
+        float sectionSeconds = Mathf.Max(.05f, dayPanelSectionSeconds);
+        float metricSeconds = intro ? 0 : .45f;
+        float duration = Mathf.Max(sectionSeconds + dayPanelSectionStagger * 2, metricSeconds);
+        for (float elapsed = 0; elapsed < duration && !LevelOneUIAccessibility.ReducedMotion;
+             elapsed += LevelOneUIAccessibility.UnscaledAnimationDeltaTime)
+        {
+            for (int i = 0; i < 3; i++)
+            {
+                float t = Mathf.Clamp01((elapsed - dayPanelSectionStagger * i) / sectionSeconds);
+                dayPanelV2View.SetSectionProgress(intro, i, 1 - Mathf.Pow(1 - t, 3));
+            }
+            if (!intro)
+            {
+                float t = Mathf.Clamp01(elapsed / metricSeconds);
+                dayPanelV2View.SetMetricProgress(1 - Mathf.Pow(1 - t, 3));
+            }
+            yield return null;
+        }
+        for (int i = 0; i < 3; i++) dayPanelV2View.SetSectionProgress(intro, i, 1);
+        if (!intro) dayPanelV2View.SetMetricProgress(1);
+    }
+
+    private IEnumerator DismissStyledDayIntro()
+    {
+        CancelStyledDayPanelPresentation(dayIntroPanel);
+        var root = GetPanelPresentationRoot(dayIntroPanel);
+        CanvasGroup group = root != null ? DayGroup(root.transform) : null;
+        if (group == null || dayIntroSurface == null) { yield return new WaitForSecondsRealtime(.2f); yield break; }
+        Vector3 fittedScale = HasDayPanelV2 ? dayPanelV2View.FittedScale(true) : Vector3.one;
+        group.interactable = false;
+        group.blocksRaycasts = true;
+        float duration = Mathf.Clamp(dayPanelDismissSeconds, 0, .2f);
+        // Preserve the existing 0.2 second pre-service transition, including reduced motion.
+        for (float elapsed = 0; elapsed < .2f; elapsed += LevelOneUIAccessibility.UnscaledAnimationDeltaTime)
+        {
+            float t = duration > 0 ? Mathf.Clamp01(elapsed / duration) : 1;
+            group.alpha = 1 - t;
+            if (!LevelOneUIAccessibility.ReducedMotion) dayIntroSurface.localScale = fittedScale * Mathf.Lerp(1, .97f, t);
+            yield return null;
+        }
+    }
+
+    private void BeginShiftStartTransition()
+    {
+        if (introStartTransition || shiftIntroTransitionRoutine != null || !isActiveAndEnabled) return;
+        shiftIntroTransitionRoutine = StartCoroutine(StartShiftRoutine());
+    }
+
+    private void CancelShiftIntroTransition()
+    {
+        if (shiftIntroTransitionRoutine != null) StopCoroutine(shiftIntroTransitionRoutine);
+        shiftIntroTransitionRoutine = null;
+        introStartTransition = false;
+        CancelStyledDayPanelPresentation(dayIntroPanel);
+    }
+
+    private void ResetStyledDayPanel(GameObject panel)
+    {
+        if (!styledDayPanels || panel == null) return;
+        var root = GetPanelPresentationRoot(panel);
+        if (root != null)
+        {
+            var group = DayGroup(root.transform);
+            group.alpha = 1;
+            group.interactable = true;
+            group.blocksRaycasts = true;
+            root.transform.localScale = Vector3.one;
+        }
+        bool intro = panel == dayIntroPanel;
+        var surface = intro ? dayIntroSurface : resultsSurface;
+        if (surface != null) surface.localScale = HasDayPanelV2 ? dayPanelV2View.FittedScale(intro) : Vector3.one;
+        if (HasDayPanelV2)
+        {
+            dayPanelV2View.Finish(intro);
+            return;
+        }
+        SetDaySections(intro ? dayIntroRevealRoots : resultsRevealRoots,
+            intro ? IntroSectionTexts : ResultSectionTexts, 1);
+        if (!intro) foreach (var star in new[] { star1, star2, star3 })
+            if (star != null) star.transform.localScale = GetAuthoredResultsScale(star.rectTransform);
+    }
+
+    private void CancelStyledDayPanelPresentation(GameObject panel)
+    {
+        if (!styledDayPanels) return;
+        if (animatingDayPanel == panel)
+        {
+            if (panelAnimationRoutine != null) StopCoroutine(panelAnimationRoutine);
+            panelAnimationRoutine = null;
+            animatingDayPanel = null;
+            if (panel == resultsPanel) resultsCuePending = false;
+        }
+        ResetStyledDayPanel(panel);
+    }
+
+    private void OnDisable()
+    {
+        CancelShiftIntroTransition();
+        CancelStyledDayPanelPresentation(dayIntroPanel);
+        CancelStyledDayPanelPresentation(resultsPanel);
+        introStartTransition = false;
+    }
+
+}
