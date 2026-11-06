@@ -24,6 +24,7 @@ public sealed class PlayerTaskBubbleFocus : MonoBehaviour
     private bool[] captionIdentifiers;
     private bool hasIcon;
     private bool passiveStatus;
+    private bool localDeliveryAction;
     private int priority;
     private long sequence;
     private bool expanded;
@@ -183,6 +184,8 @@ public sealed class PlayerTaskBubbleFocus : MonoBehaviour
 
     private int ResolvePriority()
     {
+        // This flag is supplied only by the strict local held-tray match in TableNumberUI.
+        if (localDeliveryAction) return -1;
         var session = MultiplayerSessionManager.Instance;
         if (session != null && session.IsMultiplayerSession && session.RestaurantType == "FineDining")
         {
@@ -217,7 +220,7 @@ public sealed class PlayerTaskBubbleFocus : MonoBehaviour
         for (int i = 0; i < captions.Length; i++)
         {
             captionEnabled[i] = captions[i].enabled;
-            captionIdentifiers[i] = int.TryParse(captions[i].text.Trim().TrimStart('#'), out _);
+            captionIdentifiers[i] = int.TryParse((captions[i].text ?? string.Empty).Trim().TrimStart('#'), out _);
         }
         hasIcon = false;
         var button = GetComponentInChildren<Selectable>(true);
@@ -231,6 +234,20 @@ public sealed class PlayerTaskBubbleFocus : MonoBehaviour
                 image.GetComponentInChildren<TMP_Text>(true) == null)
             { hasIcon = true; break; }
         }
+    }
+
+    public void SetLocalDeliveryAction(bool available)
+    {
+        localDeliveryAction = available;
+        refreshedFrame = -1;
+    }
+
+    public void RefreshPresentation()
+    {
+        RestoreCaptions();
+        CacheCaptions();
+        if (settings != null && follow != null) follow.ConfigureFineDiningSizing(settings);
+        refreshedFrame = -1;
     }
 
     private void SetCompact(bool value)

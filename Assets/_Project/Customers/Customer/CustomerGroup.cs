@@ -3021,6 +3021,9 @@ public partial class CustomerGroup : MonoBehaviour
             Debug.LogWarning("[CustomerGroup] Moods object not found in prefab");
         }
 
+        CustomerCommentBubble.Apply(thoughtBubbleInstance, text,
+            faceSprite == angryFaceSprite ? 2 : faceSprite == unhappyFaceSprite ? 1 : 0,
+            faceSprite, FineDiningReservations.For(this));
         thoughtRoutine = StartCoroutine(HideThoughtBubbleAfterDelay());
     }
 
@@ -3073,6 +3076,9 @@ public partial class CustomerGroup : MonoBehaviour
             Debug.LogWarning("[CustomerGroup] Moods object not found in prefab");
         }
 
+        CustomerCommentBubble.Apply(thoughtBubbleInstance, text,
+            faceSprite == angryFaceSprite ? 2 : faceSprite == unhappyFaceSprite ? 1 : 0,
+            faceSprite, FineDiningReservations.For(this));
         thoughtRoutine = StartCoroutine(HideThoughtBubbleAfterDelay());
     }
 

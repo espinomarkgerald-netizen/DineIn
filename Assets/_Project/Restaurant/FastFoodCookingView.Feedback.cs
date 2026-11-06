@@ -21,9 +21,7 @@ public sealed partial class FastFoodCookingView
 
     void InitializeUIFeedback()
     {
-        foreach (var button in canvas.GetComponentsInChildren<UnityEngine.UI.Button>(true))
-            if (button.GetComponent<UISubtlePressFeedback>() == null)
-                button.gameObject.AddComponent<UISubtlePressFeedback>();
+        UISubtlePressFeedback.EnsureButtons(canvas.transform);
         noticeRestPosition = notification.anchoredPosition;
         noticeVisibility = notification.GetComponent<CanvasGroup>();
         if (noticeVisibility == null) noticeVisibility = notification.gameObject.AddComponent<CanvasGroup>();
@@ -32,6 +30,8 @@ public sealed partial class FastFoodCookingView
     void PulseUI(RectTransform target)
     {
         if (target == null || !target.gameObject.activeInHierarchy) return;
+        var animator = target.GetComponent<ButtonAnimator>();
+        if (animator != null) { animator.PlayConfirmation(); return; }
         var pulse = target.GetComponent<UISubtlePressFeedback>();
         if (pulse == null) pulse = target.gameObject.AddComponent<UISubtlePressFeedback>();
         pulse.PlayConfirmation();

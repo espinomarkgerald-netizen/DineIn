@@ -8,6 +8,21 @@ public class BillBubbleUI : MonoBehaviour
 
     private CustomerGroup group;
     private bool requested;
+    private bool showingHeldBill;
+
+    private void Update()
+    {
+        var hands = WaiterHands.ActivePlayerHands;
+        bool held = hands != null && hands.HasBill && hands.holdingBillFor == group;
+        if (group != null && showingHeldBill != held) ApplyArtwork(held);
+    }
+
+    private void ApplyArtwork(bool held)
+    {
+        showingHeldBill = held;
+        GameplayActionButtonSkin.Apply(GetComponentInChildren<UnityEngine.UI.Button>(true),
+            "IconAskForBill", held ? "Give bill" : "Ask for bill", "Gold", tableNumberText);
+    }
 
     /// <summary>Initializes the bill bubble and sets the table number label.</summary>
     public void Init(CustomerGroup g)
@@ -15,6 +30,8 @@ public class BillBubbleUI : MonoBehaviour
         group = g;
         requested = false;
         SetTableNumber(g != null ? g.currentOrderNumber : -1);
+        var hands = WaiterHands.ActivePlayerHands;
+        ApplyArtwork(hands != null && hands.HasBill && hands.holdingBillFor == group);
         PlayerTaskBubbleFocus.Bind(gameObject, group);
     }
 

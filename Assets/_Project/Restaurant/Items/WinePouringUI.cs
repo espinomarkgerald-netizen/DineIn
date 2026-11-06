@@ -171,6 +171,8 @@ public sealed class WinePouringUI : MonoBehaviour
         if (successMark != null) successMark.gameObject.SetActive(false);
         if (targetMarker != null) targetMarker.gameObject.SetActive(true);
         if (instruction != null) instruction.text = waterService ? "Drag the pitcher over the glass" : "Drag the bottle over the glass";
+        GameplayActionButtonSkin.HintIcon(instruction, "IconDragToPour");
+        GameplayActionButtonSkin.TryAttach(backButton);
         SetPourVisible(false);
         SetVisible(true);
         transform.SetAsLastSibling();

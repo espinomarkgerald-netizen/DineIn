@@ -23,6 +23,7 @@ public class BagPickupUIButton : MonoBehaviour
 
         if (button != null)
         {
+            GameplayActionButtonSkin.Apply(button, "IconTakeout", "Pick up", "Green", orderNumberText);
             button.onClick.RemoveListener(OnClick);
             button.onClick.AddListener(OnClick);
         }

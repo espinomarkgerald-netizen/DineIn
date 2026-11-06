@@ -1,0 +1,1110 @@
+{
+  "version": 1,
+  "atlas": {
+    "guid": "93304b07c2fb4d9693807c5860b1e674",
+    "file": "RestaurantControlsV1.png",
+    "height": 2048,
+    "padding": 16,
+    "origin": "Unity bottom-left",
+    "width": 2048
+  },
+  "sprites": [
+    {
+      "name": "ButtonGreenReady",
+      "file": "Components/ButtonGreenReady.png",
+      "topLeft": {
+        "width": 480,
+        "height": 192,
+        "x": 16,
+        "y": 16
+      },
+      "unityRect": {
+        "width": 480,
+        "height": 192,
+        "x": 16,
+        "y": 1840
+      },
+      "border": {
+        "left": 128,
+        "bottom": 56,
+        "top": 56,
+        "right": 128
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced",
+      "fileID": 21300000,
+      "spriteID": "2058548ab52c473c97ad06e07e19bb18"
+    },
+    {
+      "name": "ButtonGreenPressed",
+      "file": "Components/ButtonGreenPressed.png",
+      "topLeft": {
+        "width": 480,
+        "height": 192,
+        "x": 512,
+        "y": 16
+      },
+      "unityRect": {
+        "width": 480,
+        "height": 192,
+        "x": 512,
+        "y": 1840
+      },
+      "border": {
+        "left": 128,
+        "bottom": 56,
+        "top": 56,
+        "right": 128
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced",
+      "fileID": 21300002,
+      "spriteID": "3cea490f05a44fc4b4d9f3aa3f8de279"
+    },
+    {
+      "name": "ButtonGreenDisabled",
+      "file": "Components/ButtonGreenDisabled.png",
+      "topLeft": {
+        "width": 480,
+        "height": 192,
+        "x": 1008,
+        "y": 16
+      },
+      "unityRect": {
+        "width": 480,
+        "height": 192,
+        "x": 1008,
+        "y": 1840
+      },
+      "border": {
+        "left": 128,
+        "bottom": 56,
+        "top": 56,
+        "right": 128
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced",
+      "fileID": 21300004,
+      "spriteID": "6c5b2c6dcd6e47a3aa80d56a338f4914"
+    },
+    {
+      "name": "ButtonGreenFocused",
+      "file": "Components/ButtonGreenFocused.png",
+      "topLeft": {
+        "width": 480,
+        "height": 192,
+        "x": 1504,
+        "y": 16
+      },
+      "unityRect": {
+        "width": 480,
+        "height": 192,
+        "x": 1504,
+        "y": 1840
+      },
+      "border": {
+        "left": 128,
+        "bottom": 56,
+        "top": 56,
+        "right": 128
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced",
+      "fileID": 21300006,
+      "spriteID": "57b758141f0049808176f3209fa81e63"
+    },
+    {
+      "name": "ButtonCyanReady",
+      "file": "Components/ButtonCyanReady.png",
+      "topLeft": {
+        "width": 480,
+        "height": 192,
+        "x": 16,
+        "y": 224
+      },
+      "unityRect": {
+        "width": 480,
+        "height": 192,
+        "x": 16,
+        "y": 1632
+      },
+      "border": {
+        "left": 128,
+        "bottom": 56,
+        "top": 56,
+        "right": 128
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced",
+      "fileID": 21300008,
+      "spriteID": "1d9a6766375b4e4585f0511bd5a07434"
+    },
+    {
+      "name": "ButtonCyanPressed",
+      "file": "Components/ButtonCyanPressed.png",
+      "topLeft": {
+        "width": 480,
+        "height": 192,
+        "x": 512,
+        "y": 224
+      },
+      "unityRect": {
+        "width": 480,
+        "height": 192,
+        "x": 512,
+        "y": 1632
+      },
+      "border": {
+        "left": 128,
+        "bottom": 56,
+        "top": 56,
+        "right": 128
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced",
+      "fileID": 21300010,
+      "spriteID": "063e9ccf62794dd28554c4f174f1781b"
+    },
+    {
+      "name": "ButtonCyanDisabled",
+      "file": "Components/ButtonCyanDisabled.png",
+      "topLeft": {
+        "width": 480,
+        "height": 192,
+        "x": 1008,
+        "y": 224
+      },
+      "unityRect": {
+        "width": 480,
+        "height": 192,
+        "x": 1008,
+        "y": 1632
+      },
+      "border": {
+        "left": 128,
+        "bottom": 56,
+        "top": 56,
+        "right": 128
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced",
+      "fileID": 21300012,
+      "spriteID": "5fbc2f1655b74e87b8fd86043c359178"
+    },
+    {
+      "name": "ButtonCyanFocused",
+      "file": "Components/ButtonCyanFocused.png",
+      "topLeft": {
+        "width": 480,
+        "height": 192,
+        "x": 1504,
+        "y": 224
+      },
+      "unityRect": {
+        "width": 480,
+        "height": 192,
+        "x": 1504,
+        "y": 1632
+      },
+      "border": {
+        "left": 128,
+        "bottom": 56,
+        "top": 56,
+        "right": 128
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced",
+      "fileID": 21300014,
+      "spriteID": "62868f3e382f4248a853b8a8a360692e"
+    },
+    {
+      "name": "ButtonGoldReady",
+      "file": "Components/ButtonGoldReady.png",
+      "topLeft": {
+        "width": 480,
+        "height": 192,
+        "x": 16,
+        "y": 432
+      },
+      "unityRect": {
+        "width": 480,
+        "height": 192,
+        "x": 16,
+        "y": 1424
+      },
+      "border": {
+        "left": 128,
+        "bottom": 56,
+        "top": 56,
+        "right": 128
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced",
+      "fileID": 21300016,
+      "spriteID": "6bc6acf70c78456b91cd9d499e9fa3ab"
+    },
+    {
+      "name": "ButtonGoldPressed",
+      "file": "Components/ButtonGoldPressed.png",
+      "topLeft": {
+        "width": 480,
+        "height": 192,
+        "x": 512,
+        "y": 432
+      },
+      "unityRect": {
+        "width": 480,
+        "height": 192,
+        "x": 512,
+        "y": 1424
+      },
+      "border": {
+        "left": 128,
+        "bottom": 56,
+        "top": 56,
+        "right": 128
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced",
+      "fileID": 21300018,
+      "spriteID": "c8ace3bf9d0f421785b0d231eda07bcc"
+    },
+    {
+      "name": "ButtonGoldDisabled",
+      "file": "Components/ButtonGoldDisabled.png",
+      "topLeft": {
+        "width": 480,
+        "height": 192,
+        "x": 1008,
+        "y": 432
+      },
+      "unityRect": {
+        "width": 480,
+        "height": 192,
+        "x": 1008,
+        "y": 1424
+      },
+      "border": {
+        "left": 128,
+        "bottom": 56,
+        "top": 56,
+        "right": 128
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced",
+      "fileID": 21300020,
+      "spriteID": "0b7907105c674ed69558aa663950995b"
+    },
+    {
+      "name": "ButtonGoldFocused",
+      "file": "Components/ButtonGoldFocused.png",
+      "topLeft": {
+        "width": 480,
+        "height": 192,
+        "x": 1504,
+        "y": 432
+      },
+      "unityRect": {
+        "width": 480,
+        "height": 192,
+        "x": 1504,
+        "y": 1424
+      },
+      "border": {
+        "left": 128,
+        "bottom": 56,
+        "top": 56,
+        "right": 128
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced",
+      "fileID": 21300022,
+      "spriteID": "6ea50fcd310641b985081fccaaaf341e"
+    },
+    {
+      "name": "ButtonCoralReady",
+      "file": "Components/ButtonCoralReady.png",
+      "topLeft": {
+        "width": 480,
+        "height": 192,
+        "x": 16,
+        "y": 640
+      },
+      "unityRect": {
+        "width": 480,
+        "height": 192,
+        "x": 16,
+        "y": 1216
+      },
+      "border": {
+        "left": 128,
+        "bottom": 56,
+        "top": 56,
+        "right": 128
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced",
+      "fileID": 21300024,
+      "spriteID": "4834ee2b1e1041b1bbb2bf344183f61d"
+    },
+    {
+      "name": "ButtonCoralPressed",
+      "file": "Components/ButtonCoralPressed.png",
+      "topLeft": {
+        "width": 480,
+        "height": 192,
+        "x": 512,
+        "y": 640
+      },
+      "unityRect": {
+        "width": 480,
+        "height": 192,
+        "x": 512,
+        "y": 1216
+      },
+      "border": {
+        "left": 128,
+        "bottom": 56,
+        "top": 56,
+        "right": 128
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced",
+      "fileID": 21300026,
+      "spriteID": "8cd262ca1f5b48b5afccc7cb15568b53"
+    },
+    {
+      "name": "ButtonCoralDisabled",
+      "file": "Components/ButtonCoralDisabled.png",
+      "topLeft": {
+        "width": 480,
+        "height": 192,
+        "x": 1008,
+        "y": 640
+      },
+      "unityRect": {
+        "width": 480,
+        "height": 192,
+        "x": 1008,
+        "y": 1216
+      },
+      "border": {
+        "left": 128,
+        "bottom": 56,
+        "top": 56,
+        "right": 128
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced",
+      "fileID": 21300028,
+      "spriteID": "d42f7a5c42174e55abad2ddf8f7cec67"
+    },
+    {
+      "name": "ButtonCoralFocused",
+      "file": "Components/ButtonCoralFocused.png",
+      "topLeft": {
+        "width": 480,
+        "height": 192,
+        "x": 1504,
+        "y": 640
+      },
+      "unityRect": {
+        "width": 480,
+        "height": 192,
+        "x": 1504,
+        "y": 1216
+      },
+      "border": {
+        "left": 128,
+        "bottom": 56,
+        "top": 56,
+        "right": 128
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced",
+      "fileID": 21300030,
+      "spriteID": "fc7880273e95491d9705576c0187d0a3"
+    },
+    {
+      "name": "IconWineRefill",
+      "file": "Components/IconWineRefill.png",
+      "topLeft": {
+        "width": 256,
+        "height": 256,
+        "x": 16,
+        "y": 864.0
+      },
+      "unityRect": {
+        "width": 256,
+        "height": 256,
+        "x": 16,
+        "y": 928.0
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "top": 0,
+        "right": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple",
+      "fileID": 21300032,
+      "spriteID": "e517de56a8004bcf8a3468ca1c6bc8c6"
+    },
+    {
+      "name": "IconWaterRefill",
+      "file": "Components/IconWaterRefill.png",
+      "topLeft": {
+        "width": 256,
+        "height": 256,
+        "x": 288,
+        "y": 864.0
+      },
+      "unityRect": {
+        "width": 256,
+        "height": 256,
+        "x": 288,
+        "y": 928.0
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "top": 0,
+        "right": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple",
+      "fileID": 21300034,
+      "spriteID": "dd396dbb3ec84fb5a1c7785da4ca16a4"
+    },
+    {
+      "name": "IconDragToPour",
+      "file": "Components/IconDragToPour.png",
+      "topLeft": {
+        "width": 256,
+        "height": 256,
+        "x": 560,
+        "y": 864.0
+      },
+      "unityRect": {
+        "width": 256,
+        "height": 256,
+        "x": 560,
+        "y": 928.0
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "top": 0,
+        "right": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple",
+      "fileID": 21300036,
+      "spriteID": "a1b58e340dc04c5d83f04b89a1875db1"
+    },
+    {
+      "name": "IconFillTarget",
+      "file": "Components/IconFillTarget.png",
+      "topLeft": {
+        "width": 256,
+        "height": 256,
+        "x": 832,
+        "y": 864.0
+      },
+      "unityRect": {
+        "width": 256,
+        "height": 256,
+        "x": 832,
+        "y": 928.0
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "top": 0,
+        "right": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple",
+      "fileID": 21300038,
+      "spriteID": "cc3b5f8852864da9afc64f4288a27625"
+    },
+    {
+      "name": "IconGrill",
+      "file": "Components/IconGrill.png",
+      "topLeft": {
+        "width": 256,
+        "height": 256,
+        "x": 1104,
+        "y": 864.0
+      },
+      "unityRect": {
+        "width": 256,
+        "height": 256,
+        "x": 1104,
+        "y": 928.0
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "top": 0,
+        "right": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple",
+      "fileID": 21300040,
+      "spriteID": "2047f01f45b746c68fabc98facb255be"
+    },
+    {
+      "name": "IconFryer",
+      "file": "Components/IconFryer.png",
+      "topLeft": {
+        "width": 256,
+        "height": 256,
+        "x": 1376,
+        "y": 864.0
+      },
+      "unityRect": {
+        "width": 256,
+        "height": 256,
+        "x": 1376,
+        "y": 928.0
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "top": 0,
+        "right": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple",
+      "fileID": 21300042,
+      "spriteID": "97c1c72b571c41c2b66534284d6e4a60"
+    },
+    {
+      "name": "IconAssembly",
+      "file": "Components/IconAssembly.png",
+      "topLeft": {
+        "width": 256,
+        "height": 256,
+        "x": 16,
+        "y": 1136.0
+      },
+      "unityRect": {
+        "width": 256,
+        "height": 256,
+        "x": 16,
+        "y": 656.0
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "top": 0,
+        "right": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple",
+      "fileID": 21300044,
+      "spriteID": "91947200f78545a1a07f94ecada85cf9"
+    },
+    {
+      "name": "IconTakeout",
+      "file": "Components/IconTakeout.png",
+      "topLeft": {
+        "width": 256,
+        "height": 256,
+        "x": 288,
+        "y": 1136.0
+      },
+      "unityRect": {
+        "width": 256,
+        "height": 256,
+        "x": 288,
+        "y": 656.0
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "top": 0,
+        "right": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple",
+      "fileID": 21300046,
+      "spriteID": "b32d10461ae44f41bb5c555ffecd7e93"
+    },
+    {
+      "name": "IconRestock",
+      "file": "Components/IconRestock.png",
+      "topLeft": {
+        "width": 256,
+        "height": 256,
+        "x": 560,
+        "y": 1136.0
+      },
+      "unityRect": {
+        "width": 256,
+        "height": 256,
+        "x": 560,
+        "y": 656.0
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "top": 0,
+        "right": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple",
+      "fileID": 21300048,
+      "spriteID": "66d8f9d896944e61b341a53c43d994dd"
+    },
+    {
+      "name": "IconCooking",
+      "file": "Components/IconCooking.png",
+      "topLeft": {
+        "width": 256,
+        "height": 256,
+        "x": 832,
+        "y": 1136.0
+      },
+      "unityRect": {
+        "width": 256,
+        "height": 256,
+        "x": 832,
+        "y": 656.0
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "top": 0,
+        "right": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple",
+      "fileID": 21300050,
+      "spriteID": "6a0f833db25b45088ebe6b343e5ee20e"
+    },
+    {
+      "name": "IconReady",
+      "file": "Components/IconReady.png",
+      "topLeft": {
+        "width": 256,
+        "height": 256,
+        "x": 1104,
+        "y": 1136.0
+      },
+      "unityRect": {
+        "width": 256,
+        "height": 256,
+        "x": 1104,
+        "y": 656.0
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "top": 0,
+        "right": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple",
+      "fileID": 21300052,
+      "spriteID": "a25970bfe9fd4812934143c0c4a8072e"
+    },
+    {
+      "name": "IconBurnt",
+      "file": "Components/IconBurnt.png",
+      "topLeft": {
+        "width": 256,
+        "height": 256,
+        "x": 1376,
+        "y": 1136.0
+      },
+      "unityRect": {
+        "width": 256,
+        "height": 256,
+        "x": 1376,
+        "y": 656.0
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "top": 0,
+        "right": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple",
+      "fileID": 21300054,
+      "spriteID": "8cecfe50a1be4579914403a6168c6b07"
+    },
+    {
+      "name": "IconReservations",
+      "file": "Components/IconReservations.png",
+      "topLeft": {
+        "width": 256,
+        "height": 256,
+        "x": 16,
+        "y": 1408.0
+      },
+      "unityRect": {
+        "width": 256,
+        "height": 256,
+        "x": 16,
+        "y": 384.0
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "top": 0,
+        "right": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple",
+      "fileID": 21300056,
+      "spriteID": "6e8e92bf91ed42e5950e3314b64dfea3"
+    },
+    {
+      "name": "IconAcceptReservation",
+      "file": "Components/IconAcceptReservation.png",
+      "topLeft": {
+        "width": 256,
+        "height": 256,
+        "x": 288,
+        "y": 1408.0
+      },
+      "unityRect": {
+        "width": 256,
+        "height": 256,
+        "x": 288,
+        "y": 384.0
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "top": 0,
+        "right": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple",
+      "fileID": 21300058,
+      "spriteID": "0fc11b85082844b7a70b389aca2b22a5"
+    },
+    {
+      "name": "IconDeclineRequest",
+      "file": "Components/IconDeclineRequest.png",
+      "topLeft": {
+        "width": 256,
+        "height": 256,
+        "x": 560,
+        "y": 1408.0
+      },
+      "unityRect": {
+        "width": 256,
+        "height": 256,
+        "x": 560,
+        "y": 384.0
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "top": 0,
+        "right": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple",
+      "fileID": 21300060,
+      "spriteID": "66b13b6af34b4461a002675941e3d2d4"
+    },
+    {
+      "name": "IconBack",
+      "file": "Components/IconBack.png",
+      "topLeft": {
+        "width": 256,
+        "height": 256,
+        "x": 832,
+        "y": 1408.0
+      },
+      "unityRect": {
+        "width": 256,
+        "height": 256,
+        "x": 832,
+        "y": 384.0
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "top": 0,
+        "right": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple",
+      "fileID": 21300062,
+      "spriteID": "19c483bcf6cb468d97aa8f595a282e48"
+    },
+    {
+      "name": "IconWaiting",
+      "file": "Components/IconWaiting.png",
+      "topLeft": {
+        "width": 256,
+        "height": 256,
+        "x": 1104,
+        "y": 1408.0
+      },
+      "unityRect": {
+        "width": 256,
+        "height": 256,
+        "x": 1104,
+        "y": 384.0
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "top": 0,
+        "right": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple",
+      "fileID": 21300064,
+      "spriteID": "32e3df7161f14738b8295dd39f6d63dc"
+    },
+    {
+      "name": "IconCleaning",
+      "file": "Components/IconCleaning.png",
+      "topLeft": {
+        "width": 256,
+        "height": 256,
+        "x": 1376,
+        "y": 1408.0
+      },
+      "unityRect": {
+        "width": 256,
+        "height": 256,
+        "x": 1376,
+        "y": 384.0
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "top": 0,
+        "right": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple",
+      "fileID": 21300066,
+      "spriteID": "b60297af7af34201868770b9b32bdca9"
+    },
+    {
+      "name": "TableBadge",
+      "file": "Components/TableBadge.png",
+      "topLeft": {
+        "width": 384,
+        "height": 128,
+        "x": 16,
+        "y": 1744
+      },
+      "unityRect": {
+        "width": 384,
+        "height": 128,
+        "x": 16,
+        "y": 176
+      },
+      "border": {
+        "left": 64,
+        "bottom": 32,
+        "top": 32,
+        "right": 64
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced",
+      "fileID": 21300068,
+      "spriteID": "04ced05b77dc471eb893160543ead417"
+    },
+    {
+      "name": "HoldProgressRing",
+      "file": "Components/HoldProgressRing.png",
+      "topLeft": {
+        "width": 256,
+        "height": 256,
+        "x": 432,
+        "y": 1744
+      },
+      "unityRect": {
+        "width": 256,
+        "height": 256,
+        "x": 432,
+        "y": 48
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "top": 0,
+        "right": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple",
+      "fileID": 21300070,
+      "spriteID": "c083c0bb46014113b35b2216461db75f"
+    }
+  ],
+  "uses": [
+    {
+      "icons": [
+        "WineRefill",
+        "WaterRefill",
+        "DragToPour",
+        "FillTarget"
+      ],
+      "behavior": "Indicators for existing drag-to-pour UI, not a new Pour button",
+      "area": "Fine Dining"
+    },
+    {
+      "icons": [
+        "Grill",
+        "Fryer",
+        "Assembly",
+        "Takeout",
+        "Restock",
+        "Cleaning"
+      ],
+      "behavior": "Existing stations, service and maintenance",
+      "area": "Fast Food"
+    },
+    {
+      "mapping": {
+        "Preparing": "IconAssembly",
+        "Waiting": "IconWaiting",
+        "Complete": "IconReady",
+        "Ready": "IconReady",
+        "Cooking": "IconCooking",
+        "Burnt": "IconBurnt"
+      },
+      "area": "Cooking states"
+    },
+    {
+      "icons": [
+        "Reservations",
+        "AcceptReservation",
+        "DeclineRequest",
+        "Back"
+      ],
+      "behavior": "Existing reservation management actions",
+      "area": "Reservations"
+    }
+  ],
+  "labelsBaked": false,
+  "states": [
+    "Ready",
+    "Pressed",
+    "Disabled",
+    "Focused"
+  ],
+  "integration": "Buttons and icons only; no scene or gameplay changes. Full pouring illustrations excluded."
+}

@@ -1,0 +1,160 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f83a593328d94cfbbba3049750e4e094, type: 3}
+  m_Name: GameplayActionButtons
+  m_EditorClassIdentifier: 
+  sprites:
+  - name: ButtonCoralDisabled
+    sprite: {fileID: 21300000, guid: 7ad179996b524db9883f2076c32afe62, type: 3}
+  - name: ButtonCoralFocused
+    sprite: {fileID: 21300000, guid: 87336d24466c48d2a2acc7928036c308, type: 3}
+  - name: ButtonCoralPressed
+    sprite: {fileID: 21300000, guid: c4d8dbfad0e2474ead2820698f6bf944, type: 3}
+  - name: ButtonCoralReady
+    sprite: {fileID: 21300000, guid: 1c4c525d679a473f89a0208ea6895d30, type: 3}
+  - name: ButtonCyanDisabled
+    sprite: {fileID: 21300000, guid: 541101770d4d46b5a70927c7dcdc8315, type: 3}
+  - name: ButtonCyanFocused
+    sprite: {fileID: 21300000, guid: c7c704e41a944a008147a2394411b26f, type: 3}
+  - name: ButtonCyanPressed
+    sprite: {fileID: 21300000, guid: bb2f2efd3f3b410baf9f0c5d9be38f41, type: 3}
+  - name: ButtonCyanReady
+    sprite: {fileID: 21300000, guid: 52e9c0fda9f64384b252a3187198b176, type: 3}
+  - name: ButtonGoldDisabled
+    sprite: {fileID: 21300000, guid: 506aabd917ea4e0899a806fd763c7091, type: 3}
+  - name: ButtonGoldFocused
+    sprite: {fileID: 21300000, guid: 1725681946fe40c2ab5d90cf5a411347, type: 3}
+  - name: ButtonGoldPressed
+    sprite: {fileID: 21300000, guid: 4591e09901084e5ab589c63d3c5c6c07, type: 3}
+  - name: ButtonGoldReady
+    sprite: {fileID: 21300000, guid: caa61fe3e9e4429388d4d065fde794aa, type: 3}
+  - name: ButtonGreenDisabled
+    sprite: {fileID: 21300000, guid: f495da8e8b124d49b38e3e0a816fa582, type: 3}
+  - name: ButtonGreenFocused
+    sprite: {fileID: 21300000, guid: 0236c7eb552c4f46ae59405910d19ad7, type: 3}
+  - name: ButtonGreenPressed
+    sprite: {fileID: 21300000, guid: 8a599293ed6148cfb92bf42d62431bb6, type: 3}
+  - name: ButtonGreenReady
+    sprite: {fileID: 21300000, guid: a305c558d08e433d85d7cb9444cd0d41, type: 3}
+  - name: HoldProgressRing
+    sprite: {fileID: 21300000, guid: cee50911121047b7a9f6bf9388fb85c7, type: 3}
+  - name: IconAskForBill
+    sprite: {fileID: 21300000, guid: ca0d3e760b0c45f1b803f5ec5004664c, type: 3}
+  - name: IconCamera
+    sprite: {fileID: 21300000, guid: 30d0106b16b34c959ec82fd2f8583bdf, type: 3}
+  - name: IconClean
+    sprite: {fileID: 21300000, guid: bfcb66cff9c6452d80bf22e0980dcb73, type: 3}
+  - name: IconClose
+    sprite: {fileID: 21300000, guid: 6131d4700f294f80bb0b1001eca847a8, type: 3}
+  - name: IconCollectBill
+    sprite: {fileID: 21300000, guid: 086b857455134a9da7c55e726eba4540, type: 3}
+  - name: IconCollectPayment
+    sprite: {fileID: 21300000, guid: 019194477e9b445b8e568f950a6f1f8e, type: 3}
+  - name: IconManage
+    sprite: {fileID: 21300000, guid: 916517d589214ccbaa0a15b33f0f2ee8, type: 3}
+  - name: IconPause
+    sprite: {fileID: 21300000, guid: bed310bd929445fabcede7961d437c1d, type: 3}
+  - name: IconPickUp
+    sprite: {fileID: 21300000, guid: 8035659d32304f2b99f801373e2394d3, type: 3}
+  - name: IconServeFood
+    sprite: {fileID: 21300000, guid: 29bbdf8796bd4b0382d01c2a0aeb2f61, type: 3}
+  - name: IconTakeOrder
+    sprite: {fileID: 21300000, guid: a7993d19b9e54668894e8db575e47dd7, type: 3}
+  - name: IconTasks
+    sprite: {fileID: 21300000, guid: dfed2cefdccb451884b2e35934d0c615, type: 3}
+  - name: PopoverPanel
+    sprite: {fileID: 21300000, guid: 00651797cd38422ea552dc8bf919ebb6, type: 3}
+  - name: PopoverPointer
+    sprite: {fileID: 21300000, guid: a29a97852b224a1fb034af5d54c4de58, type: 3}
+  - name: TableBadge
+    sprite: {fileID: 21300000, guid: 298f54b9e6b84550ac3a72cbe90c7fcf, type: 3}
+  - name: TableNumberBubble
+    sprite: {fileID: 21300000, guid: f286f4382cc8400c9aef815b53e0d823, type: 3}
+  - name: IconAcceptReservation
+    sprite: {fileID: 21300000, guid: b4eee50cffa84a42b56e788de1861265, type: 3}
+  - name: IconAssembly
+    sprite: {fileID: 21300000, guid: 70f6cfde27424f4b8fe37ebe3aefd2b8, type: 3}
+  - name: IconBack
+    sprite: {fileID: 21300000, guid: 415e35fa35f54d1396be8b058a18fc5f, type: 3}
+  - name: IconBurnt
+    sprite: {fileID: 21300000, guid: e2c292dd5cb6438c96116b61141fca98, type: 3}
+  - name: IconCleaning
+    sprite: {fileID: 21300000, guid: 7991ef17c9b84ff6819d9449baf0f44f, type: 3}
+  - name: IconCooking
+    sprite: {fileID: 21300000, guid: 067b1d8417034a98b5c1bfd553974ebb, type: 3}
+  - name: IconDeclineRequest
+    sprite: {fileID: 21300000, guid: bfed2039a4a34c30996062a68a123a40, type: 3}
+  - name: IconDragToPour
+    sprite: {fileID: 21300000, guid: 3bed7a71cc1f42f2ae2d09c25b46d69d, type: 3}
+  - name: IconFillTarget
+    sprite: {fileID: 21300000, guid: 0d3b38cda5e74f32bc41a5e4968130fa, type: 3}
+  - name: IconFryer
+    sprite: {fileID: 21300000, guid: a05ae0ddb40f4d15ab2c1bf950e2786e, type: 3}
+  - name: IconGrill
+    sprite: {fileID: 21300000, guid: a35dddecca424cfea879f71763e1dbb9, type: 3}
+  - name: IconReady
+    sprite: {fileID: 21300000, guid: c4fd3ebbcf36476fae0da26ce7044cd0, type: 3}
+  - name: IconReservations
+    sprite: {fileID: 21300000, guid: 15a4f4e1be11423b82d84471803c8a7c, type: 3}
+  - name: IconRestock
+    sprite: {fileID: 21300000, guid: d3eca942552543c4a8a05ae9f464388c, type: 3}
+  - name: IconTakeout
+    sprite: {fileID: 21300000, guid: 79eebee471954722b29f36d4bdeccf8e, type: 3}
+  - name: IconWaiting
+    sprite: {fileID: 21300000, guid: 485cb034297944218a0c3ee8f80672d6, type: 3}
+  - name: IconWaterRefill
+    sprite: {fileID: 21300000, guid: 73703c2627f64f06ae37d340f35e3507, type: 3}
+  - name: IconWineRefill
+    sprite: {fileID: 21300000, guid: 76206a4b13eb4c3ba1dde5c8d8465bdb, type: 3}
+  - name: CommentAngryBadge
+    sprite: {fileID: 21300000, guid: 7df00935247042f8bb2f1f07b0de7c84, type: 3}
+  - name: CommentAngryPanel
+    sprite: {fileID: 21300000, guid: 08baf24a4aa64ce69446f5e9fdc87135, type: 3}
+  - name: CommentAngryTail
+    sprite: {fileID: 21300000, guid: 7f6a33b43af5496b8262dc3297183425, type: 3}
+  - name: CommentHappyBadge
+    sprite: {fileID: 21300000, guid: 4a1d237f98714d829ef3b9c0495c7aef, type: 3}
+  - name: CommentHappyPanel
+    sprite: {fileID: 21300000, guid: 7b2c534dbc224045804d4ac77590a55d, type: 3}
+  - name: CommentHappyTail
+    sprite: {fileID: 21300000, guid: 15ce6808f1b8458f8509438d5298bbb9, type: 3}
+  - name: CommentNeutralBadge
+    sprite: {fileID: 21300000, guid: 15817c50cc184674aff3cf7ea711effa, type: 3}
+  - name: CommentNeutralPanel
+    sprite: {fileID: 21300000, guid: df49ebdbc2384bc894cea93b94ead658, type: 3}
+  - name: CommentNeutralTail
+    sprite: {fileID: 21300000, guid: 065c27d72c624ef885353b332b044037, type: 3}
+  - name: CommentHappyFace
+    sprite: {fileID: 21300000, guid: f1945110ff774781a9867073ca5ba10e, type: 3}
+  - name: CommentNeutralFace
+    sprite: {fileID: 21300000, guid: 51266772d095490cb032056b1ed5b2f6, type: 3}
+  - name: CommentAngryFace
+    sprite: {fileID: 21300000, guid: 76f41aa630fa4868b02cfd2a6da116ed, type: 3}
+  - name: PatienceTrack
+    sprite: {fileID: 21300000, guid: 07b7971e78384dac89d19611b5ff79dd, type: 3}
+  headingFont: {fileID: 11400000, guid: 2cb410dc028b86144be819f36ca7d8d1, type: 2}
+  headingMaterial: {fileID: 2100000, guid: dffc484a0b2a489c98bc71a79e3e2ac9, type: 2}
+  bodyFont: {fileID: 11400000, guid: 6e1f10b7e118faf45901758c1ae43feb, type: 2}
+  bodyMaterial: {fileID: 2100000, guid: f7bf7b0e47934bee9f1e4ddd19dbb79c, type: 2}
+  labelSize: 28
+  worldVisualScale: 1.1
+  fineDiningVisualScale: 1.4
+  detailSize: 22
+  worldButtonWidth: 280
+  maximumWorldWidth: 440
+  changeFadeSeconds: 0.15
+  commentWidth: 388
+  commentFontSize: 26
+  commentMinimumHeight: 136
+  fineDiningCommentWidth: 300
+  patienceBarHeight: 20
+  patienceBarGap: 12

@@ -461,7 +461,7 @@ public class WaiterHands : MonoBehaviour
             !group.HasConfirmedOrder || group.IsPlayerReviewingOrder)
             return false;
 
-        if (!holdingTray.Matches(group))
+        if (holdingTray.TargetGroup != group || !holdingTray.Matches(group))
         {
             if (!MultiplayerServiceActions.IsActive || MultiplayerSessionManager.Instance.LocalManager == gameObject)
                 WarningSlideUI.Instance?.Show($"This order is for table {holdingTray.orderNumber}.");

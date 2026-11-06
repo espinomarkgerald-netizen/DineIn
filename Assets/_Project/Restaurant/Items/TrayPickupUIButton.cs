@@ -19,6 +19,7 @@ public class TrayPickupUIButton : MonoBehaviour
 
         if (button != null)
         {
+            GameplayActionButtonSkin.Apply(button, "IconPickUp", "Pick up", "Green", tableNumberText);
             button.onClick.RemoveListener(OnClick);
             button.onClick.AddListener(OnClick);
         }

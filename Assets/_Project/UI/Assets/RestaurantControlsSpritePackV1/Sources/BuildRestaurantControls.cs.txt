@@ -1,0 +1,52 @@
+using System;
+using System.IO;
+using System.Drawing;
+using System.Drawing.Imaging;
+using System.Drawing.Drawing2D;
+using System.Drawing.Text;
+public static class BuildRestaurantControls {
+ static Color Ink=Color.FromArgb(10,30,62),Cream=Color.FromArgb(255,246,226),Cyan=Color.FromArgb(23,193,222);
+ static GraphicsPath Round(float x,float y,float w,float h,float r){var p=new GraphicsPath();float d=r*2;p.AddArc(x,y,d,d,180,90);p.AddArc(x+w-d,y,d,d,270,90);p.AddArc(x+w-d,y+h-d,d,d,0,90);p.AddArc(x,y+h-d,d,d,90,90);p.CloseFigure();return p;}
+ static void Box(Graphics g,RectangleF r,float radius,Color fill,Color edge,float line){using(var p=Round(r.X,r.Y,r.Width,r.Height,radius))using(var b=new SolidBrush(fill))using(var pen=new Pen(edge,line)){g.FillPath(b,p);g.DrawPath(pen,p);}}
+ static Bitmap Canvas(int w,int h){return new Bitmap(w,h,PixelFormat.Format32bppArgb);}
+ static Graphics G(Bitmap b){var g=Graphics.FromImage(b);g.Clear(Color.Transparent);g.SmoothingMode=SmoothingMode.AntiAlias;g.InterpolationMode=InterpolationMode.HighQualityBicubic;g.PixelOffsetMode=PixelOffsetMode.HighQuality;return g;}
+ static void Save(Bitmap b,string path){b.Save(path,ImageFormat.Png);b.Dispose();}
+ static Bitmap Extract(Bitmap src,Rectangle cell,int width,int height,bool button){int l=cell.Right,t=cell.Bottom,r=cell.Left,b=cell.Top;
+  int n=cell.Width*cell.Height;var pixels=new Color[n];var groups=new int[n];var queue=new int[n];var counts=new int[n+1];int group=0,largest=0;
+  for(int y=0;y<cell.Height;y++)for(int x=0;x<cell.Width;x++)pixels[y*cell.Width+x]=src.GetPixel(cell.X+x,cell.Y+y);
+  for(int i=0;i<n;i++){if(groups[i]!=0||pixels[i].A<128)continue;int head=0,tail=0;group++;queue[tail++]=i;groups[i]=group;
+   while(head<tail){int p=queue[head++],x=p%cell.Width,y=p/cell.Width;for(int dy=-1;dy<=1;dy++)for(int dx=-1;dx<=1;dx++){int xx=x+dx,yy=y+dy;if(xx<0||yy<0||xx>=cell.Width||yy>=cell.Height)continue;int next=yy*cell.Width+xx;if(groups[next]==0&&pixels[next].A>=128){groups[next]=group;queue[tail++]=next;}}}
+   counts[group]=tail;largest=Math.Max(largest,tail);
+  }
+  using(var clean=Canvas(cell.Width,cell.Height)){
+   for(int y=0;y<cell.Height;y++)for(int x=0;x<cell.Width;x++){bool keep=false;for(int dy=-1;dy<=1&&!keep;dy++)for(int dx=-1;dx<=1;dx++){int xx=x+dx,yy=y+dy;if(xx>=0&&yy>=0&&xx<cell.Width&&yy<cell.Height){int id=groups[yy*cell.Width+xx];if(id>0&&counts[id]>=Math.Max(16,largest*.03))keep=true;}}
+    if(keep){clean.SetPixel(x,y,pixels[y*cell.Width+x]);if(pixels[y*cell.Width+x].A>=200){l=Math.Min(l,cell.X+x);r=Math.Max(r,cell.X+x);t=Math.Min(t,cell.Y+y);b=Math.Max(b,cell.Y+y);}}
+   }
+  if(r<l||b<t)throw new Exception("Empty cell");var output=Canvas(width,height);float scale=button?1.1f:Math.Min((width-48f)/(r-l+1),(height-48f)/(b-t+1));
+  int dw=(int)Math.Round((r-l+1)*scale),dh=(int)Math.Round((b-t+1)*scale);if(dw>width-12||dh>height-12)throw new Exception("Artwork does not fit its canvas");
+  using(var g=G(output))g.DrawImage(clean,new Rectangle((width-dw)/2,(height-dh)/2,dw,dh),new Rectangle(l-cell.X,t-cell.Y,r-l+1,b-t+1),GraphicsUnit.Pixel);return output;}
+ }
+ static void Nine(Graphics g,Bitmap b,Rectangle d){int[] sx={0,128,352,480},sy={0,56,136,192};float k=d.Height/192f;int[] dx={d.X,d.X+(int)Math.Round(128*k),d.Right-(int)Math.Round(128*k),d.Right},dy={d.Y,d.Y+(int)Math.Round(56*k),d.Bottom-(int)Math.Round(56*k),d.Bottom};g.InterpolationMode=InterpolationMode.NearestNeighbor;for(int y=0;y<3;y++)for(int x=0;x<3;x++)g.DrawImage(b,new Rectangle(dx[x],dy[y],dx[x+1]-dx[x],dy[y+1]-dy[y]),new Rectangle(sx[x],sy[y],sx[x+1]-sx[x],sy[y+1]-sy[y]),GraphicsUnit.Pixel);g.InterpolationMode=InterpolationMode.HighQualityBicubic;}
+ public static void Run(string root,string baseRoot,string icons,string waiting,string fontPath){Directory.CreateDirectory(root+"/Components");Directory.CreateDirectory(root+"/Sources");
+  string[] colors={"Green","Cyan","Gold","Coral"},states={"Ready","Pressed","Disabled","Focused"};
+  foreach(string color in colors)foreach(string state in states)File.Copy(baseRoot+"/Components/Button"+color+state+".png",root+"/Components/Button"+color+state+".png",false);
+  string[] names={"WineRefill","WaterRefill","DragToPour","FillTarget","Grill","Fryer","Assembly","Takeout","Restock","Cooking","Ready","Burnt","Reservations","AcceptReservation","DeclineRequest","Back","Waiting","Cleaning"};
+  using(var src=new Bitmap(icons))for(int i=0;i<16;i++)Save(Extract(src,new Rectangle((i%4)*src.Width/4,(i/4)*src.Height/4,src.Width/4,src.Height/4),256,256,false),root+"/Components/Icon"+names[i]+".png");
+  File.Copy(waiting,root+"/Components/IconWaiting.png");File.Copy(baseRoot+"/Components/IconClean.png",root+"/Components/IconCleaning.png");
+  foreach(string utility in new[]{"TableBadge","HoldProgressRing"})File.Copy(baseRoot+"/Components/"+utility+".png",root+"/Components/"+utility+".png");
+  var atlas=Canvas(2048,2048);using(var g=G(atlas)){for(int y=0;y<4;y++)for(int x=0;x<4;x++)using(var b=new Bitmap(root+"/Components/Button"+colors[y]+states[x]+".png"))g.DrawImageUnscaled(b,16+x*496,16+y*208);
+   for(int i=0;i<names.Length;i++)using(var b=new Bitmap(root+"/Components/Icon"+names[i]+".png"))g.DrawImageUnscaled(b,16+(i%6)*272,864+(i/6)*272);
+   using(var b=new Bitmap(root+"/Components/TableBadge.png"))g.DrawImageUnscaled(b,16,1744);using(var b=new Bitmap(root+"/Components/HoldProgressRing.png"))g.DrawImageUnscaled(b,432,1744);
+  }Save(atlas,root+"/RestaurantControlsV1.png");
+  var preview=Canvas(1600,1050);using(var g=G(preview))using(var fonts=new PrivateFontCollection()){fonts.AddFontFile(fontPath);g.Clear(Color.FromArgb(244,236,217));using(var title=new Font(fonts.Families[0],36))using(var label=new Font(fonts.Families[0],26))using(var ink=new SolidBrush(Ink))using(var white=new SolidBrush(Cream)){
+   g.DrawString("DINE IN / RESTAURANT CONTROLS",title,ink,40,22);g.DrawString("Pouring icons, cooking stations and reservations - artwork only",new Font("Arial",17),ink,44,83);
+   string[] items={"WineRefill","WaterRefill","DragToPour","Grill","Fryer","Assembly","Takeout","Restock","Reservations","AcceptReservation","DeclineRequest","Back"};
+   string[] texts={"WINE REFILL","WATER REFILL","DRAG TO POUR","GRILL","FRY","ASSEMBLY","TAKEOUT","RESTOCK","RESERVATIONS","ACCEPT","DECLINE","BACK"};
+   string[] fills={"Cyan","Cyan","Cyan","Cyan","Cyan","Green","Green","Gold","Cyan","Green","Coral","Cyan"};
+   for(int i=0;i<items.Length;i++){int x=24+(i%3)*524,y=126+(i/3)*158;using(var b=new Bitmap(root+"/Components/Button"+fills[i]+"Ready.png"))Nine(g,b,new Rectangle(x,y,506,118));using(var icon=new Bitmap(root+"/Components/Icon"+items[i]+".png"))g.DrawImage(icon,new Rectangle(x+16,y+13,92,92));g.DrawString(texts[i],label,white,x+117,y+39);}
+   string[] status={"FillTarget","Waiting","Cooking","Ready","Burnt","Cleaning"};string[] captions={"Fill marker","Waiting","Cooking","Ready / Complete","Burnt","Cleaning"};
+   for(int i=0;i<status.Length;i++){int x=48+i*258;using(var b=new Bitmap(root+"/Components/Icon"+status[i]+".png"))g.DrawImage(b,new Rectangle(x+24,798,132,132));g.DrawString(captions[i],new Font("Arial",17,FontStyle.Bold),ink,x,946);}
+   g.DrawString("All labels are preview-only; actual controls and pouring interaction stay unchanged.",new Font("Arial",16),ink,44,1007);
+  }}Save(preview,root+"/RestaurantControlsV1.preview.png");
+ }
+}

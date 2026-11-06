@@ -1,0 +1,50 @@
+using System;
+using System.IO;
+using System.Drawing;
+using System.Drawing.Imaging;
+using System.Drawing.Drawing2D;
+using System.Drawing.Text;
+public static class BuildActionPack {
+ static Color Ink=Color.FromArgb(10,30,62),Cream=Color.FromArgb(255,246,226),Cyan=Color.FromArgb(23,193,222);
+ static GraphicsPath Round(float x,float y,float w,float h,float r){var p=new GraphicsPath();float d=r*2;p.AddArc(x,y,d,d,180,90);p.AddArc(x+w-d,y,d,d,270,90);p.AddArc(x+w-d,y+h-d,d,d,0,90);p.AddArc(x,y+h-d,d,d,90,90);p.CloseFigure();return p;}
+ static void Box(Graphics g,RectangleF r,float radius,Color fill,Color edge,float line){using(var p=Round(r.X,r.Y,r.Width,r.Height,radius))using(var b=new SolidBrush(fill))using(var pen=new Pen(edge,line)){g.FillPath(b,p);g.DrawPath(pen,p);}}
+ static Bitmap Canvas(int w,int h){return new Bitmap(w,h,PixelFormat.Format32bppArgb);}
+ static Graphics G(Bitmap b){var g=Graphics.FromImage(b);g.Clear(Color.Transparent);g.SmoothingMode=SmoothingMode.AntiAlias;g.InterpolationMode=InterpolationMode.HighQualityBicubic;g.PixelOffsetMode=PixelOffsetMode.HighQuality;return g;}
+ static void Save(Bitmap b,string path){b.Save(path,ImageFormat.Png);b.Dispose();}
+ static Bitmap Extract(Bitmap src,Rectangle cell,int width,int height,bool button){int l=cell.Right,t=cell.Bottom,r=cell.Left,b=cell.Top;
+  int n=cell.Width*cell.Height;var pixels=new Color[n];var groups=new int[n];var queue=new int[n];var counts=new int[n+1];int group=0,largest=0;
+  for(int y=0;y<cell.Height;y++)for(int x=0;x<cell.Width;x++)pixels[y*cell.Width+x]=src.GetPixel(cell.X+x,cell.Y+y);
+  for(int i=0;i<n;i++){if(groups[i]!=0||pixels[i].A<128)continue;int head=0,tail=0;group++;queue[tail++]=i;groups[i]=group;
+   while(head<tail){int p=queue[head++],x=p%cell.Width,y=p/cell.Width;for(int dy=-1;dy<=1;dy++)for(int dx=-1;dx<=1;dx++){int xx=x+dx,yy=y+dy;if(xx<0||yy<0||xx>=cell.Width||yy>=cell.Height)continue;int next=yy*cell.Width+xx;if(groups[next]==0&&pixels[next].A>=128){groups[next]=group;queue[tail++]=next;}}}
+   counts[group]=tail;largest=Math.Max(largest,tail);
+  }
+  using(var clean=Canvas(cell.Width,cell.Height)){
+   for(int y=0;y<cell.Height;y++)for(int x=0;x<cell.Width;x++){bool keep=false;for(int dy=-1;dy<=1&&!keep;dy++)for(int dx=-1;dx<=1;dx++){int xx=x+dx,yy=y+dy;if(xx>=0&&yy>=0&&xx<cell.Width&&yy<cell.Height){int id=groups[yy*cell.Width+xx];if(id>0&&counts[id]>=Math.Max(16,largest*.03))keep=true;}}
+    if(keep){clean.SetPixel(x,y,pixels[y*cell.Width+x]);if(pixels[y*cell.Width+x].A>=200){l=Math.Min(l,cell.X+x);r=Math.Max(r,cell.X+x);t=Math.Min(t,cell.Y+y);b=Math.Max(b,cell.Y+y);}}
+   }
+  if(r<l||b<t)throw new Exception("Empty cell");var output=Canvas(width,height);float scale=button?1.1f:Math.Min((width-48f)/(r-l+1),(height-48f)/(b-t+1));
+  int dw=(int)Math.Round((r-l+1)*scale),dh=(int)Math.Round((b-t+1)*scale);if(dw>width-12||dh>height-12)throw new Exception("Artwork does not fit its canvas");
+  using(var g=G(output))g.DrawImage(clean,new Rectangle((width-dw)/2,(height-dh)/2,dw,dh),new Rectangle(l-cell.X,t-cell.Y,r-l+1,b-t+1),GraphicsUnit.Pixel);return output;}
+ }
+ static void Nine(Graphics g,Bitmap b,Rectangle d){int[] sx={0,128,352,480},sy={0,56,136,192};float k=d.Height/192f;int[] dx={d.X,d.X+(int)Math.Round(128*k),d.Right-(int)Math.Round(128*k),d.Right},dy={d.Y,d.Y+(int)Math.Round(56*k),d.Bottom-(int)Math.Round(56*k),d.Bottom};g.InterpolationMode=InterpolationMode.NearestNeighbor;for(int y=0;y<3;y++)for(int x=0;x<3;x++)g.DrawImage(b,new Rectangle(dx[x],dy[y],dx[x+1]-dx[x],dy[y+1]-dy[y]),new Rectangle(sx[x],sy[y],sx[x+1]-sx[x],sy[y+1]-sy[y]),GraphicsUnit.Pixel);g.InterpolationMode=InterpolationMode.HighQualityBicubic;}
+ public static void Run(string root,string buttons,string icons,string fontPath){Directory.CreateDirectory(root+"/Components");Directory.CreateDirectory(root+"/Sources");
+  string[] colors={"Green","Cyan","Gold","Coral"},states={"Ready","Pressed","Disabled","Focused"};
+  using(var src=new Bitmap(buttons))for(int y=0;y<4;y++)for(int x=0;x<4;x++)Save(Extract(src,new Rectangle(x*src.Width/4,y*src.Height/4,src.Width/4,src.Height/4),480,192,true),root+"/Components/Button"+colors[y]+states[x]+".png");
+  string[] names={"TakeOrder","Clean","AskForBill","CollectBill","CollectPayment","PickUp","ServeFood","Pause","Camera","Tasks","Manage","Close"};
+  using(var src=new Bitmap(icons))for(int i=0;i<12;i++){int y=i/4;int top=y*src.Height/3,end=(y+1)*src.Height/3;Save(Extract(src,new Rectangle((i%4)*src.Width/4,top,src.Width/4,end-top),256,256,false),root+"/Components/Icon"+names[i]+".png");}
+  var bubble=Canvas(256,256);using(var g=G(bubble)){g.FillEllipse(new SolidBrush(Ink),8,8,240,240);g.FillEllipse(new SolidBrush(Cyan),15,15,226,226);g.FillEllipse(new SolidBrush(Color.White),25,25,206,206);g.FillEllipse(new SolidBrush(Cream),30,30,196,196);}Save(bubble,root+"/Components/TableNumberBubble.png");
+  var badge=Canvas(384,128);using(var g=G(badge)){Box(g,new RectangleF(8,8,368,112),50,Ink,Cream,5);}Save(badge,root+"/Components/TableBadge.png");
+  var panel=Canvas(512,512);using(var g=G(panel)){Box(g,new RectangleF(8,8,496,496),58,Ink,Ink,5);Box(g,new RectangleF(15,15,482,482),52,Cyan,Cyan,3);Box(g,new RectangleF(25,25,462,462),44,Cream,Color.White,4);}Save(panel,root+"/Components/PopoverPanel.png");
+  var pointer=Canvas(80,48);using(var g=G(pointer)){var pts=new[]{new Point(5,5),new Point(75,5),new Point(40,42)};using(var p=new Pen(Ink,7)){p.LineJoin=LineJoin.Round;g.FillPolygon(new SolidBrush(Cyan),pts);g.DrawLines(p,new[]{pts[0],pts[2],pts[1]});}g.FillPolygon(new SolidBrush(Cream),new[]{new Point(15,0),new Point(65,0),new Point(40,28)});}Save(pointer,root+"/Components/PopoverPointer.png");
+  var ring=Canvas(256,256);using(var g=G(ring))using(var pen=new Pen(Cyan,15))g.DrawEllipse(pen,18,18,220,220);Save(ring,root+"/Components/HoldProgressRing.png");
+  var atlas=Canvas(2048,2048);using(var g=G(atlas)){for(int y=0;y<4;y++)for(int x=0;x<4;x++)using(var b=new Bitmap(root+"/Components/Button"+colors[y]+states[x]+".png"))g.DrawImageUnscaled(b,16+x*496,16+y*208);for(int i=0;i<12;i++)using(var b=new Bitmap(root+"/Components/Icon"+names[i]+".png"))g.DrawImageUnscaled(b,16+(i%6)*272,864+(i/6)*272);
+   string[] extra={"TableNumberBubble","TableBadge","PopoverPanel","PopoverPointer","HoldProgressRing"};int[] xs={16,288,688,1216,1312};for(int i=0;i<extra.Length;i++)using(var b=new Bitmap(root+"/Components/"+extra[i]+".png"))g.DrawImageUnscaled(b,xs[i],1432);
+  }Save(atlas,root+"/ActionButtonsV1.png");
+  var preview=Canvas(1280,800);using(var g=G(preview))using(var fonts=new PrivateFontCollection()){fonts.AddFontFile(fontPath);g.Clear(Color.FromArgb(244,236,217));using(var title=new Font(fonts.Families[0],38))using(var label=new Font(fonts.Families[0],30))using(var ink=new SolidBrush(Ink))using(var white=new SolidBrush(Cream)){
+   g.DrawString("DINE IN / ACTION BUTTON ASSETS",title,ink,40,24);g.DrawString("Blank shells + separate icons + editable labels",new Font("Arial",16),ink,44,82);
+   string[] action={"TakeOrder","Clean","AskForBill","CollectBill","CollectPayment","PickUp","ServeFood"},labels={"TAKE ORDER","CLEAN","ASK FOR BILL","COLLECT BILL","COLLECT PAYMENT","PICK UP","SERVE FOOD"},color={"Cyan","Cyan","Gold","Gold","Green","Green","Green"};
+   for(int i=0;i<7;i++){int x=32+(i%2)*624,y=136+(i/2)*150;using(var b=new Bitmap(root+"/Components/Button"+color[i]+"Ready.png"))Nine(g,b,new Rectangle(x,y,590,124));using(var icon=new Bitmap(root+"/Components/Icon"+action[i]+".png"))g.DrawImage(icon,new Rectangle(x+28,y+14,96,96));g.DrawString(labels[i],label,white,x+142,y+39);}
+   using(var b=new Bitmap(root+"/Components/TableNumberBubble.png"))g.DrawImage(b,new Rectangle(704,574,128,128));g.DrawString("04",title,ink,736,611);g.DrawString("TABLE NUMBER",label,ink,850,604);g.DrawString("Labels here are preview-only",new Font("Arial",15),ink,850,650);
+  }}Save(preview,root+"/ActionButtonsV1.preview.png");
+ }
+}

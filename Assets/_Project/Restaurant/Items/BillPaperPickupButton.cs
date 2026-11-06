@@ -18,6 +18,7 @@ public class BillPaperPickupButton : MonoBehaviour
 
         if (button != null)
         {
+            GameplayActionButtonSkin.Apply(button, "IconCollectBill", "Collect bill", "Gold", tableNumberText);
             button.onClick.RemoveListener(OnClick);
             button.onClick.AddListener(OnClick);
         }

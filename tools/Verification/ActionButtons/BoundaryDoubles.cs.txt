@@ -1,0 +1,88 @@
+// Isolated Unity verification boundaries, never imported into the game.
+using System;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+public class FastFoodCookingView : MonoBehaviour {}
+public class ManagementReservationPanel : MonoBehaviour {}
+public class ManagementReservationCard : MonoBehaviour {}
+public class WinePouringUI : MonoBehaviour { public UnityEngine.UI.Button backButton; }
+public class BoothMessCleanUI : MonoBehaviour {}
+public class ButtonAnimator : MonoBehaviour { public void SetBaseColor(Color c) {} }
+public static class LevelOneUIAccessibility {
+ public static bool LargeText, ReducedMotion;
+ public static float UnscaledAnimationDeltaTime => .02f;
+}
+namespace DineIn.NewMenu { public static class SettingsManager {
+ public static float UIScaleMultiplier => 1f;
+ public static float UnscaledCanvasFactor(Canvas c) => 1f;
+} }
+public static class GameplayUIBlocker { public static bool IsBlocked() => false; }
+public static class UIRoot { public static Canvas GameplayCanvasOrNull() => null; }
+public static class MultiplayerRestockView { public static bool Active => false; }
+public class FineDiningReservations : MonoBehaviour {
+ public float customerBubbleWidth=160f, compactCustomerBubbleScale=.55f, customerBubbleTouchPadding=12f, urgentCustomerBubblePatience=.3f, customerBubbleVerticalGap=8f;
+ public int maxExpandedCustomerBubbles=3;
+ public static FineDiningReservations For(Component c) => c != null ? c.GetComponent<FineDiningReservations>() : null;
+}
+public static class FineDiningScene { public static bool Contains(Scene s) => true; }
+public class CustomerGroup : MonoBehaviour {
+ public enum GroupState { OrderTaken, Waiting, WaitingToOrder, NeedsBill, Leaving }
+ public GroupState state=GroupState.OrderTaken;
+ public bool IsTakeout, IsPlayerReviewingOrder, HasWineRefillRequest, isSelected;
+ public bool AllowsStaffFoodDelivery=true, HasConfirmedOrder=true;
+ public float FineDiningBubblePatience01=1f;
+ public int currentOrderNumber=12;
+ public Booth assignedBooth;
+}
+public class FoodTray : MonoBehaviour { public CustomerGroup TargetGroup; public int orderNumber; }
+public class MoneyPickup : MonoBehaviour { public CustomerGroup TargetGroup; }
+public class Booth : MonoBehaviour { public CustomerGroup CurrentGroup; public Transform approachPoint; }
+public class MultiplayerCustomerSpawn : MonoBehaviour { public bool HasLocalDeliveryGuidance; }
+public class MultiplayerSessionManager : MonoBehaviour {
+ public static MultiplayerSessionManager Instance;
+ public bool IsMultiplayerSession; public GameObject LocalManager;
+ public string RestaurantType; public int LocalActorNumber=1;
+}
+public class MultiplayerTaskClaims : MonoBehaviour {
+ public class Claim { public bool committed; }
+ public int GetPresentationOwner(string task) => 0;
+ public bool IsPending(string task) => false;
+ public Claim GetBotClaim(string task) => null;
+}
+public static class MultiplayerCustomerInteractionBridge { public static bool ReviewIsMultiplayer => MultiplayerSessionManager.Instance != null && MultiplayerSessionManager.Instance.IsMultiplayerSession; }
+public static class RestaurantTaskClaim {
+ public static event Action PlayerTaskChanged;
+ public static bool PlayerHasActiveTask => false;
+ public static bool IsClaimedByPlayer(UnityEngine.Object o) => false;
+ public static string GetMultiplayerTaskId(UnityEngine.Object o) => null;
+}
+public class WaiterHands : MonoBehaviour {
+ public static WaiterHands ActivePlayerHands;
+ public static event Action<WaiterHands> OnHandsStateChanged;
+ public FoodTray holdingTray; public Transform TrayHoldPoint => transform;
+ public void Changed() => OnHandsStateChanged?.Invoke(this);
+}
+public class TakeoutBagInteractable : MonoBehaviour {
+ public static TakeoutBagInteractable LocalHeldBag; public static bool PlayerHasHeldBag;
+ public CustomerGroup TargetGroup;
+}
+public static class TutorialCustomerFlowBridge { public static bool Allowed=true; public static bool AllowsServiceUI(string id) => Allowed; }
+public static class StaffRole { public enum Role { Waiter, Chef } }
+public class RoleManager : MonoBehaviour {
+ public static RoleManager Instance; public bool Waiter=true; public PlayerMovement player;
+ public bool IsActiveRoleType(StaffRole.Role r) => Waiter;
+ public PlayerMovement GetActivePlayerMovement() => player;
+}
+public interface IInteractable { Transform StandPoint {get;} bool CanInteract(); void Interact(PlayerMovement m); float GetInteractRadius(); }
+public class BoothDeliverInteractable : MonoBehaviour, IInteractable {
+ public bool Allowed=true; public int Delivered;
+ public Transform StandPoint=>transform; public bool CanInteract()=>Allowed;
+ public void Interact(PlayerMovement m){Delivered++;} public float GetInteractRadius()=>.5f;
+}
+public class CustomerDeliverInteractable : BoothDeliverInteractable {}
+public class PlayerMovement : MonoBehaviour {
+ public UnityEngine.AI.NavMeshAgent Agent; public Action Arrive, Cancel;
+ public int Walks;
+ public void UI_MoveTo(IInteractable i) {Walks++;}
+ public bool UI_MoveToAction(Transform stand,float radius,Action arrive,Action cancel=null) { Walks++; Arrive=arrive; Cancel=cancel; return true; }
+}

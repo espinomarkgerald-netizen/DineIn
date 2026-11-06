@@ -1,0 +1,5 @@
+PASS: 33 individual PNG dimensions, transparent corners and valid slice-border sums.
+PASS: 33 atlas rectangles are in bounds, nonoverlapping and have correct Unity bottom-left coordinate conversion.
+PASS: Unity 6000.0.40f1 imported all 33 named atlas sprites and 33 individual PNG sprites. Every name, rect, border, pivot and atlas local file ID matches the manifest. No gameplay integration or Play Mode test run.
+VISUAL: individual icons, atlas and assembled preview inspected; labels and sample number are preview-only.
+NOT RUN: scene integration, gameplay, live button animations, device UI or the proposed serving feature.

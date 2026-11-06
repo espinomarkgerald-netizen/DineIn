@@ -1,0 +1,198 @@
+{
+  "width": 1024,
+  "sprites": [
+    {
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "border": [
+        80,
+        80,
+        80,
+        80
+      ],
+      "rect": {
+        "y": 752,
+        "width": 512,
+        "x": 16,
+        "height": 256
+      },
+      "name": "CommentHappyPanel",
+      "guid": "7b2c534dbc224045804d4ac77590a55d",
+      "file": "Components/CommentHappyPanel.png"
+    },
+    {
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "border": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "rect": {
+        "y": 912,
+        "width": 128,
+        "x": 560,
+        "height": 96
+      },
+      "name": "CommentHappyTail",
+      "guid": "15ce6808f1b8458f8509438d5298bbb9",
+      "file": "Components/CommentHappyTail.png"
+    },
+    {
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "border": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "rect": {
+        "y": 880,
+        "width": 128,
+        "x": 720,
+        "height": 128
+      },
+      "name": "CommentHappyBadge",
+      "guid": "4a1d237f98714d829ef3b9c0495c7aef",
+      "file": "Components/CommentHappyBadge.png"
+    },
+    {
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "border": [
+        80,
+        80,
+        80,
+        80
+      ],
+      "rect": {
+        "y": 480,
+        "width": 512,
+        "x": 16,
+        "height": 256
+      },
+      "name": "CommentNeutralPanel",
+      "guid": "df49ebdbc2384bc894cea93b94ead658",
+      "file": "Components/CommentNeutralPanel.png"
+    },
+    {
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "border": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "rect": {
+        "y": 768,
+        "width": 128,
+        "x": 560,
+        "height": 96
+      },
+      "name": "CommentNeutralTail",
+      "guid": "065c27d72c624ef885353b332b044037",
+      "file": "Components/CommentNeutralTail.png"
+    },
+    {
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "border": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "rect": {
+        "y": 736,
+        "width": 128,
+        "x": 720,
+        "height": 128
+      },
+      "name": "CommentNeutralBadge",
+      "guid": "15817c50cc184674aff3cf7ea711effa",
+      "file": "Components/CommentNeutralBadge.png"
+    },
+    {
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "border": [
+        80,
+        80,
+        80,
+        80
+      ],
+      "rect": {
+        "y": 208,
+        "width": 512,
+        "x": 16,
+        "height": 256
+      },
+      "name": "CommentAngryPanel",
+      "guid": "08baf24a4aa64ce69446f5e9fdc87135",
+      "file": "Components/CommentAngryPanel.png"
+    },
+    {
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "border": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "rect": {
+        "y": 624,
+        "width": 128,
+        "x": 560,
+        "height": 96
+      },
+      "name": "CommentAngryTail",
+      "guid": "7f6a33b43af5496b8262dc3297183425",
+      "file": "Components/CommentAngryTail.png"
+    },
+    {
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "border": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "rect": {
+        "y": 592,
+        "width": 128,
+        "x": 720,
+        "height": 128
+      },
+      "name": "CommentAngryBadge",
+      "guid": "7df00935247042f8bb2f1f07b0de7c84",
+      "file": "Components/CommentAngryBadge.png"
+    }
+  ],
+  "atlas": "CustomerCommentsV1.png",
+  "version": 1,
+  "origin": "Unity bottom-left",
+  "height": 1024
+}

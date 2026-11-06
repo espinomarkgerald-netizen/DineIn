@@ -148,6 +148,12 @@ public class OrderBubbleUI : MonoBehaviour
                 drinkImage.preserveAspect = true;
             }
         }
+        GameplayActionButtonSkin.Apply(openButton,
+            drinks ? group.IsWaterPourRequest ? "IconWaterRefill" : "IconWineRefill" : "IconTakeOrder",
+            drinks ? group.HasWineRefillRequest ? group.IsWaterPourRequest ? "Pour water" : "Pour wine" : "Take drink order" : "Take order",
+            "Cyan");
+        var skin = openButton != null ? openButton.GetComponent<GameplayActionButtonSkin>() : null;
+        if (skin != null && patienceSlider != null && !drinks) skin.PlaceProgress(patienceSlider);
         if (openButton != null && group != null)
             PlayerTaskBubbleFocus.Bind(openButton.gameObject, group);
     }

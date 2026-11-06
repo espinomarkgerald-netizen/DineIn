@@ -193,6 +193,7 @@ internal sealed class InGameButtonAnimationInstaller : MonoBehaviour
         for (int i = 0; i < buttons.Length; i++)
         {
             Button button = buttons[i];
+            GameplayActionButtonSkin.TryAttach(button);
             GameplayButtonSound.Ensure(button);
             if (button == null || button.GetComponent<ButtonAnimator>() != null ||
                 button.GetComponent<UISubtlePressFeedback>() != null || button.GetComponent<Animator>() != null) continue;

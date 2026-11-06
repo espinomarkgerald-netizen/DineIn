@@ -35,7 +35,7 @@ public class CustomerDeliverInteractable : MonoBehaviour, IInteractable
         if (group.state != CustomerGroup.GroupState.OrderTaken) return false;
 
         var tray = hands.holdingTray;
-        return tray != null && tray.Matches(group);
+        return tray != null && tray.TargetGroup == group && tray.Matches(group);
     }
 
     public void Interact(PlayerMovement mover)

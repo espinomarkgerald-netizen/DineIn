@@ -244,6 +244,11 @@ public sealed partial class FastFoodCookingView : MonoBehaviour
             activeStation.status.transform.parent.gameObject.SetActive(p!=null && p.stage!=FastFoodCookingStage.Waiting && p.stage!=FastFoodCookingStage.Preparing);
             activeStation.status.text=p==null?idleStatus:string.Format(foodStatusFormat,p.recipe.DisplayName,stageNames[(int)p.stage],
                 p.stage==FastFoodCookingStage.Cooking?TimeLabel(State.cookSeconds-p.elapsed):p.stage==FastFoodCookingStage.Ready?TimeLabel(State.overcookSeconds-p.elapsed):"");
+            GameplayActionButtonSkin.HintIcon(activeStation.status, p == null ? "IconWaiting" :
+                p.stage == FastFoodCookingStage.Burnt ? "IconBurnt" :
+                p.stage == FastFoodCookingStage.Ready || p.stage == FastFoodCookingStage.Complete ? "IconReady" :
+                p.stage == FastFoodCookingStage.Cooking ? "IconCooking" :
+                p.stage == FastFoodCookingStage.Preparing ? "IconAssembly" : "IconWaiting");
         }
         if(discardTarget!=null)discardTarget.gameObject.SetActive(false);
         if(discardBox!=null)discardBox.gameObject.SetActive(State.PlayerWork.Any(x=>x.player&&x.stage==FastFoodCookingStage.Burnt));

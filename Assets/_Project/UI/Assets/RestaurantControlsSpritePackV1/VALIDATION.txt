@@ -1,0 +1,6 @@
+PASS:36 PNG dimensions, transparent corners and valid slice-border sums.
+PASS:Atlas rectangles are in bounds, nonoverlapping and have correct Unity bottom-left coordinates.
+PASS:All16 button backgrounds are byte-identical to the approved ActionButtonSpritePackV1 PNGs.
+PASS: Unity 6000.0.40f1 imported all 36 named atlas sprites and 36 individual PNG sprites. Every name, rect, border, pivot and atlas local file ID matches the manifest. No gameplay integration or Play Mode test run.
+VISUAL:generated icon grid, assembled preview and atlas inspected. Preview lettering is separate from production sprites.
+NOT RUN:gameplay integration, live pouring, device controls or action behavior. No game scripts or scene bindings changed.

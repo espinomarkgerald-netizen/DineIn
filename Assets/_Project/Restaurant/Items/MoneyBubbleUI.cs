@@ -109,6 +109,11 @@ public class MoneyBubbleUI : MonoBehaviour
 
         SetTableNumber(m != null && m.TargetGroup != null ? m.TargetGroup.currentOrderNumber : -1);
 
+        // Preserve the authored card symbol and cash amount; neither pickup nor card
+        // submission is treated here as an authoritative credited payment.
+        GameplayActionButtonSkin.Apply(button, "IconCollectPayment", "Collect payment", "Gold",
+            tableNumberText, amountText, cardPayment ? cardIcon : null);
+
         if (button != null)
         {
             button.onClick.RemoveAllListeners();

@@ -1,0 +1,204 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using TMPro;
+using UnityEditor;
+using UnityEditor.SceneManagement;
+using UnityEngine;
+using UnityEngine.UI;
+using UnityEngine.SceneManagement;
+using Object=UnityEngine.Object;
+
+public static class ActionButtonsUnityCheck
+{
+ static List<string> checks=new(); static string output; static int assertions;
+ static void Assert(bool pass,string what){assertions++;if(!pass)throw new Exception(what);}
+ static void Call(object o,string method){o.GetType().GetMethod(method,BindingFlags.Instance|BindingFlags.NonPublic)?.Invoke(o,null);}
+ static void Field(object o,string field,object value){o.GetType().GetField(field,BindingFlags.Instance|BindingFlags.NonPublic).SetValue(o,value);}
+ static T Make<T>(string name) where T:Component => new GameObject(name,typeof(T)).GetComponent<T>();
+ public static void Run()
+ {
+  output=Path.Combine(Path.GetDirectoryName(Application.dataPath),"CheckOutput");Directory.CreateDirectory(output);
+  try {
+   AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
+   var art=GameplayActionButtonArt.Shared; Assert(art!=null,"Resources artwork missing");
+   Assert(art.headingFont!=null&&art.bodyFont!=null,"Font references missing");
+   foreach(var mat in new[]{art.headingMaterial,art.bodyMaterial}) {Assert(mat!=null&&mat.IsKeywordEnabled("OUTLINE_ON"),"Enabled outline material");Assert(mat.GetColor("_OutlineColor")==Color.black&&mat.GetFloat("_OutlineWidth")>=.2f,"Visible black letter outline");}
+   Assert(art.headingFont.HasCharacters("Take order Collect payment Serve food 123",out uint[] missingHeading,false,true),"Heading glyph coverage");
+   Assert(art.bodyFont.HasCharacters("₱2,147,483,647",out uint[] missingBody,false,true),"Currency glyph coverage");
+   foreach(var entry in art.sprites)Assert(entry.sprite!=null,"Missing sprite: "+entry.name);
+   foreach(string color in new[]{"Green","Cyan","Gold","Coral"})foreach(string state in new[]{"Ready","Pressed","Disabled","Focused"})
+    Assert(art.Find("Button"+color+state).border==new Vector4(128,56,128,56),"9 slice: "+color+state);
+   var comments=AssetDatabase.LoadAllAssetsAtPath("Assets/Art/CustomerCommentSpritePackV1/CustomerCommentsV1.png").OfType<Sprite>().ToArray();
+   Assert(comments.Length==9,"Named comment atlas sprites");
+   foreach(var mood in new[]{"Happy","Neutral","Angry"})Assert(art.Find("Comment"+mood+"Panel").border==new Vector4(80,80,80,80),"Comment panel slice border");
+   checks.Add("PASS: production sprite references, button/comment slice borders and both fonts resolve in Unity.");
+   Behavior();
+   PanelControls();
+   Anchoring();
+   RenderReception();
+   Render("landscape",1440,900,false);
+   Render("large-text",1440,1000,true);
+   Render("portrait",600,1500,true);
+   Render("attached-actions",1280,900,false);
+   RenderComments("comments",1440,1000,false);
+   RenderComments("comments-portrait-large",600,1500,true);
+   RenderComments("comments-long-portrait",600,1500,true,3);
+   File.WriteAllText(Path.Combine(output,"report.txt"),string.Join("\n",checks)+"\nAssertions: "+assertions+"\nBoundary doubles model eligibility and navigation only. No live service, device, authority, reconnect or audio listening test was run.");
+   EditorApplication.Exit(0);
+  } catch(Exception e) {File.WriteAllText(Path.Combine(output,"report.txt"),string.Join("\n",checks)+"\nFAIL: "+e);Debug.LogException(e);EditorApplication.Exit(1);}
+ }
+ static void Behavior()
+ {
+  EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
+  var roles=Make<RoleManager>("roles");RoleManager.Instance=roles;roles.player=Make<PlayerMovement>("player");
+  var hands=roles.player.gameObject.AddComponent<WaiterHands>();WaiterHands.ActivePlayerHands=hands;
+  var group=Make<CustomerGroup>("customer");var booth=Make<Booth>("booth");group.assignedBooth=booth;booth.CurrentGroup=group;
+  var delivery=booth.gameObject.AddComponent<BoothDeliverInteractable>();
+  var root=new GameObject("Table bound",typeof(RectTransform));var button=new GameObject("Button",typeof(RectTransform),typeof(Image),typeof(Button)).GetComponent<Button>();button.transform.SetParent(root.transform,false);button.targetGraphic=button.GetComponent<Image>();((RectTransform)button.transform).sizeDelta=new Vector2(80,60);
+  var skin=button.gameObject.AddComponent<GameplayActionButtonSkin>();Call(skin,"Awake");
+  var number=Make<TextMeshProUGUI>("number");number.transform.SetParent(button.transform,false);
+  var ui=root.AddComponent<TableNumberUI>();Field(ui,"numberText",number);ui.SetGroup(group);ui.SetNumber(12);ui.SetBooth(booth);Call(ui,"OnEnable");
+  Func<bool> eligible=()=> (bool)typeof(TableNumberUI).GetMethod("CanShowServe",BindingFlags.NonPublic|BindingFlags.Instance).Invoke(ui,null);
+  Assert(!eligible(),"No tray cannot serve");
+  var tray=Make<FoodTray>("food");tray.TargetGroup=group;tray.orderNumber=12;tray.transform.SetParent(hands.transform,false);hands.holdingTray=tray;hands.Changed();
+  Assert(eligible(),"Matching successfully held tray should serve");
+  ui.OnClickMoveToTable();Assert(roles.player.Walks==1 && delivery.Delivered==0 && roles.player.Arrive!=null,"Click must walk, not deliver immediately");
+  var arrival=roles.player.Arrive;tray.TargetGroup=Make<CustomerGroup>("replacement same number");arrival();Assert(delivery.Delivered==0,"Retargeted food must not deliver on arrival");
+  Assert(!eligible(),"Same order number with wrong customer");tray.TargetGroup=group;
+  tray.orderNumber=13;Assert(!eligible(),"Wrong order");tray.orderNumber=12;
+  booth.CurrentGroup=tray.TargetGroup=Make<CustomerGroup>("reused table");Assert(!eligible(),"Reused booth with same number");booth.CurrentGroup=group;tray.TargetGroup=group;
+  group.assignedBooth=null;Assert(!eligible(),"Reassigned booth");group.assignedBooth=booth;
+  roles.Waiter=false;Assert(!eligible(),"Wrong role");roles.Waiter=true;
+  group.IsTakeout=true;Assert(!eligible(),"Takeout must keep its own guidance");group.IsTakeout=false;
+  group.HasConfirmedOrder=false;Assert(!eligible(),"Unconfirmed order");group.HasConfirmedOrder=true;
+  group.IsPlayerReviewingOrder=true;Assert(!eligible(),"Order review");group.IsPlayerReviewingOrder=false;
+  group.AllowsStaffFoodDelivery=false;Assert(!eligible(),"Unavailable staff delivery");group.AllowsStaffFoodDelivery=true;
+  TutorialCustomerFlowBridge.Allowed=false;Assert(!eligible(),"Tutorial blocks");TutorialCustomerFlowBridge.Allowed=true;
+  tray.gameObject.SetActive(false);Assert(!eligible(),"Inactive/destroying food");tray.gameObject.SetActive(true);
+  tray.transform.SetParent(null);Assert(!eligible(),"Put-down with stale hands reference");tray.transform.SetParent(hands.transform,false);
+  hands.holdingTray=null;hands.Changed();Assert(!eligible(),"Empty hands reset");hands.holdingTray=tray;hands.Changed();
+  delivery.Allowed=false;Assert(!eligible(),"Existing delivery rejection");delivery.Allowed=true;
+  var session=Make<MultiplayerSessionManager>("session");MultiplayerSessionManager.Instance=session;session.IsMultiplayerSession=true;session.LocalManager=roles.player.gameObject;
+  var network=group.gameObject.AddComponent<MultiplayerCustomerSpawn>();ui.SetGroup(group);
+  Assert(!eligible(),"Remote/recovering carrier guidance hidden");network.HasLocalDeliveryGuidance=true;Assert(eligible(),"Local matching network guidance");network.HasLocalDeliveryGuidance=false;Assert(!eligible(),"Carrier recovery clears action");
+  session.IsMultiplayerSession=false;MultiplayerSessionManager.Instance=null;Object.DestroyImmediate(network);ui.SetGroup(group);
+  hands.Changed();ui.OnClickMoveToTable();roles.player.Arrive();Assert(delivery.Delivered==1,"Valid arrival routes exactly one existing delivery handler");
+  group.state=CustomerGroup.GroupState.Leaving;Assert(!eligible(),"Completed/departed group");
+  var passive=Make<TableNumberUI>("Passive tray identifier");passive.SetNumber(99);Call(passive,"LateUpdate");Assert(passive!=null,"Tray identifier must not be treated as a table action");
+  var focus=Make<PlayerTaskBubbleFocus>("focus");Call(focus,"Awake");focus.SetLocalDeliveryAction(true);Assert((int)typeof(PlayerTaskBubbleFocus).GetMethod("ResolvePriority",BindingFlags.NonPublic|BindingFlags.Instance).Invoke(focus,null)==-1,"Serve guidance priority");
+  checks.Add("PASS: production TableNumberUI eligibility, held-item changes, local network guidance, deferred delivery/revalidation, table reuse and passive tray identifier checks (gameplay boundaries doubled).");
+  RoleManager.Instance=null;WaiterHands.ActivePlayerHands=null;
+ }
+ static void PanelControls()
+ {
+  var reservation=Make<ManagementReservationPanel>("Reservation panel");var reservedButton=Make<Button>("Requests tab");reservedButton.transform.SetParent(reservation.transform,false);GameplayActionButtonSkin.TryAttach(reservedButton);Assert(reservedButton.GetComponent<GameplayActionButtonSkin>()==null,"Reservation panel must be excluded completely");
+  var card=Make<ManagementReservationCard>("Clickable reservation card");var cardButton=card.gameObject.AddComponent<Button>();GameplayActionButtonSkin.TryAttach(cardButton);Assert(card.GetComponent<GameplayActionButtonSkin>()==null,"Whole reservation cards must retain party information");
+  var go=new GameObject("ConfirmReservation",typeof(RectTransform),typeof(Image),typeof(Button));var button=go.GetComponent<Button>();button.targetGraphic=go.GetComponent<Image>();((RectTransform)go.transform).sizeDelta=new Vector2(230,72);
+  var original=Make<TextMeshProUGUI>("Editable caption");original.transform.SetParent(go.transform,false);original.text="Confirm Reservation";
+  var skin=go.AddComponent<GameplayActionButtonSkin>();Call(skin,"Awake");GameplayActionButtonSkin.Apply(button,"IconAcceptReservation",original.text,"Green");
+  skin.UseCaption(original);
+  int clicked=0;button.onClick.AddListener(()=>clicked++);button.onClick.Invoke();Assert(clicked==1,"Original Button listener must run once");
+  foreach(string text in new[]{"Confirm Reservation","Selected","Unavailable","REQUESTS (999)"}) {original.text=text;Call(skin,"LateUpdate");original.ForceMeshUpdate();Assert(original.enabled&&original.gameObject.activeSelf&&!original.isTextOverflowing,"Dynamic panel caption layout: "+text);}
+  Assert(button.spriteState.pressedSprite.name=="ButtonGreenPressed"&&button.spriteState.disabledSprite.name=="ButtonGreenDisabled"&&button.spriteState.highlightedSprite.name=="ButtonGreenFocused","Native Button state sprites");
+  button.interactable=false;Assert(button.image.overrideSprite==button.spriteState.disabledSprite,"Native disabled state");button.interactable=true;
+  checks.Add("PASS: dynamic panel captions retain their TMP references, original Button callback, native disabled/state sprites and reservation card content protection.");
+ }
+ static void Anchoring()
+ {
+  EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);LevelOneUIAccessibility.ReducedMotion=true;
+  var camera=Make<Camera>("Anchor camera");camera.orthographic=true;camera.orthographicSize=500;camera.transform.position=new Vector3(0,0,-100);camera.nearClipPlane=.01f;var rt=new RenderTexture(1400,1000,24);camera.targetTexture=rt;rt.Create();
+  var source=AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/OrderAlertUI.prefab");var root=Object.Instantiate(source);var follow=root.GetComponent<UIFollowWorldPoint>();Call(follow,"Awake");
+  var button=root.GetComponentInChildren<Button>(true);var skin=button.gameObject.AddComponent<GameplayActionButtonSkin>();Call(skin,"Awake");GameplayActionButtonSkin.Apply(button,"IconTakeOrder","Take order");skin.PlaceProgress(root.GetComponentInChildren<Slider>(true));
+  var target=new GameObject("Moving customer").transform;target.position=new Vector3(0,350,0);follow.InitAboveTarget(target,Vector3.zero,camera,8);Field(follow,"revealElapsed",1f);Call(follow,"LateUpdate");
+  Func<Vector2> offset=()=> (Vector2)camera.WorldToScreenPoint(root.transform.position)-(Vector2)camera.WorldToScreenPoint(target.position);
+  Vector2 original=offset();target.position+=new Vector3(40,20,0);Call(follow,"LateUpdate");Assert(Vector2.Distance(offset(),original)<.05f,"Action must follow target through HUD zone without clamping");
+  camera.transform.position+=new Vector3(50,0,0);Call(follow,"LateUpdate");Assert(Vector2.Distance(offset(),original)<.05f,"Camera pan retains target attachment");
+  camera.orthographicSize=650;Call(follow,"LateUpdate");Assert(Vector2.Distance(offset(),original)<.05f,"Zoom preserves readable target-relative offset");
+  target.position=new Vector3(10000,0,0);Call(follow,"LateUpdate");Assert(root.GetComponent<CanvasGroup>().alpha==0&&!root.GetComponent<CanvasGroup>().blocksRaycasts,"Offscreen target must hide its action");
+  target.position=Vector3.zero;Call(follow,"LateUpdate");Assert(root.GetComponent<CanvasGroup>().alpha>0,"Returning target restores its action");
+  rt.Release();Object.DestroyImmediate(rt);checks.Add("PASS: real world-follow target movement through HUD zone, camera pan/zoom, offscreen hide/input removal and return. No screen-edge clamping or cross-table relocation.");
+ }
+ static void RenderReception()
+ {
+  EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
+  var camera=Make<Camera>("Reception camera");camera.orthographic=true;camera.orthographicSize=250;camera.transform.position=new Vector3(0,0,-100);camera.clearFlags=CameraClearFlags.SolidColor;camera.backgroundColor=new Color(.07f,.12f,.2f);camera.nearClipPlane=.01f;
+  var rt=new RenderTexture(1000,500,24);camera.targetTexture=rt;rt.Create();
+  for(int i=0;i<2;i++){
+   var root=Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/CustomerGreetBubble.prefab"));var follow=root.GetComponent<UIFollowWorldPoint>();Call(follow,"Awake");var button=root.GetComponentInChildren<Button>(true);var caption=button.GetComponentInChildren<TMP_Text>(true);string label=i==0?"Greet Customer":"Seat Table";caption.text=label;
+   var skin=button.gameObject.AddComponent<GameplayActionButtonSkin>();Call(skin,"Awake");GameplayActionButtonSkin.Apply(button,"",label,i==0?"Cyan":"Green",customIcon:AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Art/"+(i==0?"greet":"table")+".png"));skin.UseCaption(caption);Call(skin,"OnDisable");
+   var target=new GameObject("Reception guest").transform;target.position=new Vector3(i==0?-250:250,-50,0);follow.InitAboveTarget(target,Vector3.zero,camera,10);Field(follow,"revealElapsed",1f);Call(follow,"LateUpdate");Canvas.ForceUpdateCanvases();caption.ForceMeshUpdate();Assert(caption.text==label&&caption.gameObject.activeInHierarchy&&!caption.isTextOverflowing,"Original tutorial-visible reception label");
+  }
+  camera.Render();var prior=RenderTexture.active;RenderTexture.active=rt;var pixels=new Texture2D(1000,500,TextureFormat.RGBA32,false);pixels.ReadPixels(new Rect(0,0,1000,500),0,0);pixels.Apply();File.WriteAllBytes(Path.Combine(output,"reception.png"),pixels.EncodeToPNG());RenderTexture.active=prior;Object.DestroyImmediate(pixels);rt.Release();Object.DestroyImmediate(rt);
+  checks.Add("PASS: real reception prefab with matching Greet Customer / Seat Table presentation, original caption refs, existing icons and outlined text. Live greeting/seating handlers were not exercised.");
+ }
+ static void RenderComments(string name,int width,int height,bool large,int start=0)
+ {
+  EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
+  LevelOneUIAccessibility.LargeText=large;LevelOneUIAccessibility.ReducedMotion=true;
+  var camera=Make<Camera>("Comment camera");camera.orthographic=true;camera.orthographicSize=height*.5f;camera.transform.position=new Vector3(0,0,-100);camera.clearFlags=CameraClearFlags.SolidColor;camera.backgroundColor=new Color(.07f,.12f,.2f);camera.nearClipPlane=.01f;camera.farClipPlane=1000;
+  var rt=new RenderTexture(width,height,24);camera.targetTexture=rt;rt.Create();
+  var texts=new[]{"Thank you for the lovely service!","This can be cleaned more.","We waited too long for our food.","Wonderful service! (+₱2,147,483,647 tip)","The food was delicious and the staff made our whole group feel very welcome."};
+  var follows=new List<UIFollowWorldPoint>();var roots=new List<GameObject>();
+  int count=width<800?Mathf.Min(start==0?3:2,texts.Length-start):texts.Length;
+  for(int n=0;n<count;n++){
+   int i=start+n;
+   var source=AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/CustomerComments.prefab");var root=Object.Instantiate(source);var follow=root.GetComponent<UIFollowWorldPoint>();Call(follow,"Awake");
+   var text=root.GetComponentInChildren<TMP_Text>(true);text.text=texts[i];
+   var target=new GameObject("Guest").transform;int cols=width<800?1:2;target.position=new Vector3((n%cols-(cols-1)*.5f)*(width/(float)cols),height*.5f-300-(n/cols)*(height-480)/((count+cols-1)/cols),0);
+   follow.InitAboveTarget(target,Vector3.zero,camera,8f);
+   var profile=i%2==0?Make<FineDiningReservations>("Fine Dining"):null;
+   var view=CustomerCommentBubble.Apply(root,text,i<3?i:0,null,profile);Assert(view!=null,"Comment artwork applies to real prefab");follows.Add(follow);roots.Add(root);
+   Field(follow,"revealElapsed",1f);Call(follow,"LateUpdate");Canvas.ForceUpdateCanvases();text.ForceMeshUpdate();
+   Assert(text.text==texts[i]&&!text.isTextOverflowing,"Comment text overflow or modification: "+texts[i]);
+   int currency=text.text.IndexOf('₱');if(currency>=0){int end=currency+1;while(end<text.text.Length&&(char.IsDigit(text.text[end])||text.text[end]==','))end++;int line=-1;foreach(var c in text.textInfo.characterInfo)if(c.index>=currency&&c.index<end){if(line<0)line=c.lineNumber;Assert(c.lineNumber==line,"Currency amount must not wrap between digits");}}
+   Assert(!text.enableAutoSizing&&text.font==GameplayActionButtonArt.Shared.bodyFont,"Readable comment typography");
+   foreach(var graphic in root.GetComponentsInChildren<Graphic>(true))Assert(!graphic.raycastTarget,"Comments must not block gameplay input");
+  }
+  foreach(var f in follows)Call(f,"LateUpdate");
+  Canvas.ForceUpdateCanvases();
+  foreach(var f in follows)Assert((bool)typeof(UIFollowWorldPoint).GetField("stickToTarget",BindingFlags.Instance|BindingFlags.NonPublic).GetValue(f),"Comments must remain attached to their customer");
+  Canvas.ForceUpdateCanvases();camera.Render();var prior=RenderTexture.active;RenderTexture.active=rt;var pixels=new Texture2D(width,height,TextureFormat.RGBA32,false);pixels.ReadPixels(new Rect(0,0,width,height),0,0);pixels.Apply();File.WriteAllBytes(Path.Combine(output,name+".png"),pixels.EncodeToPNG());RenderTexture.active=prior;Object.DestroyImmediate(pixels);rt.Release();Object.DestroyImmediate(rt);
+  checks.Add("PASS: real CustomerComments prefab, all mood artwork, long comments, currency/tip text and nonblocking raycasts: "+name+". Message timing/outcome code is not simulated.");
+ }
+ static void Render(string name,int width,int height,bool large,bool crowded=false)
+ {
+  EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
+  LevelOneUIAccessibility.LargeText=large;LevelOneUIAccessibility.ReducedMotion=true;
+  var camera=Make<Camera>("UI camera");camera.orthographic=true;camera.orthographicSize=height*.5f;camera.transform.position=new Vector3(0,0,-100);camera.clearFlags=CameraClearFlags.SolidColor;camera.backgroundColor=new Color(.07f,.12f,.2f);camera.nearClipPlane=.01f;camera.farClipPlane=1000;
+  var rt=new RenderTexture(width,height,24);camera.targetTexture=rt;rt.Create();
+  var follows=new List<UIFollowWorldPoint>();var roots=new List<GameObject>();
+  var labels=new[]{"Take order","Pick up","Ask for bill","Collect bill","Collect payment","Serve food","Pour water","Pour wine","Take drink order"};
+  var icons=new[]{"IconTakeOrder","IconPickUp","IconAskForBill","IconCollectBill","IconCollectPayment","IconServeFood","IconWaterRefill","IconWineRefill","IconWineRefill"};
+  int cols=width<800?1:3;int rows=(labels.Length+cols-1)/cols;
+  for(int i=0;i<labels.Length;i++) {
+   string prefab=i==0?"OrderAlertUI":i==1?"TrayUi":i==2||i==3?"BillAlertUI":"TableNumber";
+   var source=AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/"+prefab+".prefab");Assert(source!=null,"Real prefab missing");
+   var root=Object.Instantiate(source);roots.Add(root);var follow=root.GetComponent<UIFollowWorldPoint>();Assert(follow!=null,"Real follow ancestry missing");Call(follow,"Awake");
+   var b=root.GetComponentInChildren<Button>(true);int callbacks=b.onClick.GetPersistentEventCount();
+   var skin=b.gameObject.AddComponent<GameplayActionButtonSkin>();Call(skin,"Awake");
+   var num=root.GetComponentInChildren<TMP_Text>(true);num.text=i==0?"12":"123";
+   TMP_Text detail=null;if(i==4){detail=Make<TextMeshProUGUI>("Amount");detail.transform.SetParent(b.transform,false);detail.text="₱2,147,483,647";}
+   GameplayActionButtonSkin.Apply(b,icons[i],labels[i],i==1||i==5?"Green":i>=2&&i<=4?"Gold":"Cyan",i==0?null:num,detail);
+   if(i==0){var bar=root.GetComponentInChildren<Slider>(true);var fill=bar.fillRect.GetComponent<Image>();fill.color=Color.yellow;skin.PlaceProgress(bar);Assert(fill.color==Color.yellow,"Patience tint preserved");bar.SetValueWithoutNotify(.72f);fill.color=Color.green;Assert(bar.normalizedValue==.72f,"Real patience value retained");var corners=new Vector3[4];bar.GetComponent<RectTransform>().GetWorldCorners(corners);float bottom=corners.Min(c=>b.transform.InverseTransformPoint(c).y);Assert(bottom>((RectTransform)b.transform).rect.yMax,"Patience bar above action");Assert(bar.GetComponent<RectTransform>().rect.height>=20f,"Thicker patience bar");Assert(!bar.interactable,"Patience remains a status indicator");}
+   Call(skin,"OnDisable");Assert(b.onClick.GetPersistentEventCount()==callbacks,"Persistent callbacks changed");
+   var target=new GameObject("Anchor "+i).transform;target.position=new Vector3((i%cols-(cols-1)*.5f)*(width/(float)cols),height*.5f-250-(i/cols)*((height-380)/(float)rows),0);
+   if(crowded)target.position=new Vector3((i%3-1)*12,(i/3-1)*16,0);
+   follow.InitAboveTarget(target,Vector3.zero,camera,8f);follows.Add(follow);
+  }
+  Canvas.ForceUpdateCanvases();foreach(var f in follows){Field(f,"revealElapsed",1f);Call(f,"LateUpdate");}
+  Canvas.ForceUpdateCanvases();
+  if(crowded) {
+   var bounds=new List<Rect>();var corners=new Vector3[4];
+   foreach(var root in roots){Vector2 min=new Vector2(float.PositiveInfinity,float.PositiveInfinity),max=new Vector2(float.NegativeInfinity,float.NegativeInfinity);
+    foreach(var g in root.GetComponentsInChildren<Graphic>(false))if(g.enabled){g.rectTransform.GetWorldCorners(corners);foreach(var corner in corners){Vector2 p=camera.WorldToScreenPoint(corner);min=Vector2.Min(min,p);max=Vector2.Max(max,p);}}
+    var rect=Rect.MinMaxRect(min.x,min.y,max.x,max.y);foreach(var other in bounds)Assert(!rect.Overlaps(other),"Crowded action controls overlap");bounds.Add(rect);
+   }
+  }
+  foreach(var root in roots)foreach(var text in root.GetComponentsInChildren<TMP_Text>(false))if(text.enabled){text.ForceMeshUpdate();Assert(!text.isTextOverflowing,name+" text overflow: "+text.text+" rect="+text.rectTransform.rect+" preferred="+text.preferredWidth+","+text.preferredHeight);}
+  camera.Render();var prior=RenderTexture.active;RenderTexture.active=rt;var pixels=new Texture2D(width,height,TextureFormat.RGBA32,false);pixels.ReadPixels(new Rect(0,0,width,height),0,0);pixels.Apply();File.WriteAllBytes(Path.Combine(output,name+".png"),pixels.EncodeToPNG());RenderTexture.active=prior;Object.DestroyImmediate(pixels);rt.Release();Object.DestroyImmediate(rt);
+  checks.Add("PASS: native Unity render and TMP overflow checks: "+name+" "+width+"x"+height+". Real OrderAlertUI/TrayUi/BillAlertUI/TableNumber prefab ancestry and production follow/layout sources; actual live camera/input not simulated.");
+ }
+}

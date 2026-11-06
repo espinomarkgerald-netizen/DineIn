@@ -15,6 +15,8 @@ public class CustomerGreetBubbleUI : MonoBehaviour
     [SerializeField] private Sprite assignSprite;
 
     private CustomerGroup group;
+    private GameplayActionButtonSkin actionSkin;
+    private bool seatingArtwork;
 
     public void Init(CustomerGroup g)
     {
@@ -45,6 +47,14 @@ public class CustomerGreetBubbleUI : MonoBehaviour
         {
             label.text = "Seat Table";
             icon.sprite = assignSprite;
+        }
+        if (button != null && (actionSkin == null || seatingArtwork != group.hasBeenGreeted))
+        {
+            actionSkin = GameplayActionButtonSkin.Apply(button, string.Empty, label.text,
+                group.hasBeenGreeted ? "Green" : "Cyan", customIcon: icon.sprite);
+            actionSkin?.UseCaption(label);
+            seatingArtwork = group.hasBeenGreeted;
+            PlayerTaskBubbleFocus.Bind(button.gameObject, group)?.RefreshPresentation();
         }
     }
 

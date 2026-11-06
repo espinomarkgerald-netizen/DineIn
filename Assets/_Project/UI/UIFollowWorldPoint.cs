@@ -63,6 +63,7 @@ public class UIFollowWorldPoint : MonoBehaviour
     private CanvasGroup canvasGroup;
     private Canvas worldCanvas;
     private Vector3 authoredScale = Vector3.one;
+    public Vector3 AuthoredScale => authoredScale;
     private float sourceCanvasScaleFactor = 1f;
     private bool worldSpaceInitialized;
     private bool receivesPointerInput;
@@ -71,6 +72,8 @@ public class UIFollowWorldPoint : MonoBehaviour
 
     private FineDiningReservations fineDiningSizing;
     private float fineDiningFrameWidth;
+    private float fineDiningReadabilityScale = 1f;
+    private float fineDiningWidthOverride;
     private Graphic fineDiningFrame;
     private bool compactCustomerPresentation;
 
@@ -95,7 +98,7 @@ public class UIFollowWorldPoint : MonoBehaviour
     private void ConfigureCustomerTouchPadding()
     {
         if (!Application.isMobilePlatform || fineDiningSizing == null || fineDiningFrame == null) return;
-        float width = fineDiningSizing.customerBubbleWidth * (compactCustomerPresentation
+        float width = fineDiningSizing.customerBubbleWidth * fineDiningReadabilityScale * (compactCustomerPresentation
             ? Mathf.Clamp(fineDiningSizing.compactCustomerBubbleScale, .25f, 1f) : 1f);
         // Padding remains the same visible size when the artwork switches to a compact marker.
         float padding = fineDiningSizing.customerBubbleTouchPadding * fineDiningFrame.rectTransform.rect.width /
@@ -132,16 +135,28 @@ public class UIFollowWorldPoint : MonoBehaviour
         fineDiningSizing = settings;
         fineDiningFrameWidth = width * Mathf.Abs(authoredScale.x);
         fineDiningFrame = frame;
+        var actionSkin = button != null ? button.GetComponent<GameplayActionButtonSkin>() : null;
+        fineDiningReadabilityScale = actionSkin != null ? actionSkin.FineDiningVisualScale : 1f;
         KeepAttachedToTarget();
         if (button != null) ConfigureCustomerTouchPadding();
     }
 
     public bool IsWorldSpace => worldSpaceInitialized;
+    public void ConfigureCommentSizing(FineDiningReservations settings, Graphic frame, float readableWidth)
+    {
+        if (settings == null || frame == null || !FineDiningScene.Contains(settings.gameObject.scene)) return;
+        ConfigureFineDiningSizing(settings);
+        fineDiningFrame = frame;
+        fineDiningFrameWidth = frame.rectTransform.rect.width * Mathf.Abs(authoredScale.x);
+        fineDiningWidthOverride = readableWidth;
+        KeepAttachedToTarget();
+    }
     public void KeepAttachedToTarget()
     {
         stickToTarget = true;
         avoidBubbleOverlaps = false;
     }
+
     private float taskAlpha = 1f;
     private bool taskInteractable = true;
     public void SetTaskFocus(float alpha, bool interactable)
@@ -333,7 +348,7 @@ public class UIFollowWorldPoint : MonoBehaviour
     {
         Vector3 screenPos = cam.WorldToScreenPoint(target.position + worldOffset);
 
-        if (screenPos.z < 0f)
+        if (screenPos.z < 0f || (stickToTarget && !cam.pixelRect.Contains(screenPos)))
         {
             SetVisible(false);
             return;
@@ -455,7 +470,7 @@ public class UIFollowWorldPoint : MonoBehaviour
         {
             // Cancel camera zoom once; do not also apply canvas, mobile, or HUD scale.
             float viewportScale = Mathf.Max(1, cam != null ? cam.pixelHeight : Screen.height) / 1080f;
-            float visualWidth = fineDiningSizing.customerBubbleWidth * (compactCustomerPresentation
+            float visualWidth = fineDiningWidthOverride > 0f ? fineDiningWidthOverride : fineDiningSizing.customerBubbleWidth * fineDiningReadabilityScale * (compactCustomerPresentation
                 ? Mathf.Clamp(fineDiningSizing.compactCustomerBubbleScale, .25f, 1f) : 1f);
             return ResolveWorldUnitsPerScreenPixel(anchorPosition) *
                 visualWidth * viewportScale / fineDiningFrameWidth;

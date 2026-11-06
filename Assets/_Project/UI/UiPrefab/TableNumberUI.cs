@@ -1,5 +1,6 @@
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class TableNumberUI : MonoBehaviour
 {
@@ -8,19 +9,41 @@ public class TableNumberUI : MonoBehaviour
     private CustomerGroup group;
     private MultiplayerCustomerSpawn networkCustomer;
     private bool multiplayerGuidance;
+    private bool tableBound, serveAvailable, presentationInitialized;
+    private int displayedNumber;
+    private Button actionButton;
+    private BoothDeliverInteractable boothDelivery;
+    private CustomerDeliverInteractable customerDelivery;
+
+    private void OnEnable()
+    {
+        WaiterHands.OnHandsStateChanged += OnHandsChanged;
+        presentationInitialized = false;
+        RefreshPresentation();
+    }
+    private void OnDisable()
+    {
+        WaiterHands.OnHandsStateChanged -= OnHandsChanged;
+        GetComponentInParent<PlayerTaskBubbleFocus>()?.SetLocalDeliveryAction(false);
+    }
+    private void OnHandsChanged(WaiterHands _) => RefreshPresentation();
 
     public void SetGroup(CustomerGroup value)
     {
         group = value;
+        tableBound = true;
         networkCustomer = value != null ? value.GetComponentInParent<MultiplayerCustomerSpawn>() : null;
         var session = MultiplayerSessionManager.Instance;
         multiplayerGuidance = networkCustomer != null || (session != null && session.IsMultiplayerSession);
         if (FineDiningReservations.For(value) != null)
             PlayerTaskBubbleFocus.Bind(gameObject, value, true);
+        RefreshPresentation();
     }
 
     private void LateUpdate()
     {
+        // FoodTray also uses this component for a passive identifier, without SetGroup.
+        if (!tableBound) return;
         // A table number only represents food that is still pending. This
         // self-check also removes an orphaned UI instance if a delivery event
         // changed the group state but missed the normal visual cleanup call.
@@ -34,22 +57,74 @@ public class TableNumberUI : MonoBehaviour
         }
         if (group == null || !pendingDelivery
             || (multiplayerGuidance && (networkCustomer == null || !networkCustomer.HasLocalDeliveryGuidance)))
+        {
             Destroy(gameObject);
+            return;
+        }
+        RefreshPresentation();
     }
 
     public void SetNumber(int number)
     {
+        displayedNumber = number;
         if (numberText != null)
             numberText.text = number.ToString();
+        RefreshPresentation();
     }
 
     public void SetBooth(Booth b)
     {
         booth = b;
+        boothDelivery = b != null ? b.GetComponentInChildren<BoothDeliverInteractable>(true) : null;
+        customerDelivery = b != null ? b.GetComponentInChildren<CustomerDeliverInteractable>(true) : null;
+        RefreshPresentation();
+    }
+
+    private bool CanShowServe()
+    {
+        if (!tableBound || group == null || !group.isActiveAndEnabled || group.IsTakeout || booth == null ||
+            group.state != CustomerGroup.GroupState.OrderTaken || group.assignedBooth != booth ||
+            !group.AllowsStaffFoodDelivery || !group.HasConfirmedOrder || group.IsPlayerReviewingOrder ||
+            booth.CurrentGroup != group || group.currentOrderNumber != displayedNumber ||
+            !TutorialCustomerFlowBridge.AllowsServiceUI("DeliveryPopup")) return false;
+        var session = MultiplayerSessionManager.Instance;
+        bool network = multiplayerGuidance || (session != null && session.IsMultiplayerSession);
+        if (network)
+        {
+            if (networkCustomer == null || !networkCustomer.HasLocalDeliveryGuidance) return false;
+        }
+        else if (RoleManager.Instance == null || !RoleManager.Instance.IsActiveRoleType(StaffRole.Role.Waiter)) return false;
+        var hands = WaiterHands.ActivePlayerHands;
+        var tray = hands != null ? hands.holdingTray : null;
+        if (tray == null || !tray.gameObject.activeInHierarchy || tray.TargetGroup != group ||
+            tray.orderNumber != group.currentOrderNumber || !tray.transform.IsChildOf(hands.TrayHoldPoint)) return false;
+        // Retain the delivery owners' current eligibility/claim and network rules as well.
+        return (!group.HasWineRefillRequest && boothDelivery != null && boothDelivery.CanInteract()) ||
+            (customerDelivery != null && customerDelivery.CanInteract());
+    }
+
+    private void RefreshPresentation()
+    {
+        if (!tableBound || group == null || booth == null) return;
+        bool available = CanShowServe();
+        if (presentationInitialized && available == serveAvailable) return;
+        if (actionButton == null) actionButton = GetComponentInChildren<Button>(true);
+        if (actionButton == null) return;
+        var skin = available
+            ? GameplayActionButtonSkin.Apply(actionButton, "IconServeFood", "Serve food", "Green", numberText)
+            : GameplayActionButtonSkin.TableNumber(actionButton, numberText);
+        if (skin == null) return;
+        serveAvailable = available;
+        presentationInitialized = true;
+        var focus = PlayerTaskBubbleFocus.Bind(gameObject, group, !available);
+        focus?.SetLocalDeliveryAction(available);
+        focus?.RefreshPresentation();
     }
 
     public void OnClickMoveToTable()
     {
+        // A click on an expired Serve prompt must not fall through into ordinary navigation.
+        if (serveAvailable && !CanShowServe()) { RefreshPresentation(); return; }
         if (!TutorialCustomerFlowBridge.AllowsServiceUI("DeliveryPopup")) return;
         if (booth == null) return;
 
@@ -68,6 +143,20 @@ public class TableNumberUI : MonoBehaviour
             player = RoleManager.Instance.GetActivePlayerMovement();
         }
         if (player == null) return;
+
+        if (serveAvailable)
+        {
+            IInteractable delivery = !group.HasWineRefillRequest && boothDelivery != null && boothDelivery.CanInteract()
+                ? boothDelivery : customerDelivery;
+            if (delivery == null || !delivery.CanInteract()) return;
+            // Use the existing deferred movement owner. Revalidate the same customer,
+            // order and held tray on arrival, before invoking its real delivery handler.
+            player.UI_MoveToAction(delivery.StandPoint, delivery.GetInteractRadius(), () =>
+            {
+                if (this != null && CanShowServe() && delivery.CanInteract()) delivery.Interact(player);
+            }, () => { if (this != null) RefreshPresentation(); });
+            return;
+        }
 
         BoothDeliverInteractable boothDeliver = booth.GetComponent<BoothDeliverInteractable>();
         if (boothDeliver == null)
