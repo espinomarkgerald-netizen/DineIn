@@ -21,4 +21,5 @@ public interface IDailyRewardBackend
     public bool gold;
     public string message;
     public string status, receiptId;
+    public bool HasSelectedOutcome => confirmed || status == "selected" || status == "pending";
 }

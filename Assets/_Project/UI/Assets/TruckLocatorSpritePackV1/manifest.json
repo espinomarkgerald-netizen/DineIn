@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "name": "TruckLocatorSpritePackV1",
+  "sprites": [
+    {
+      "name": "TruckLocatorButton",
+      "file": "Components/TruckLocatorButton.png",
+      "rect": [0, 0, 1254, 1254],
+      "pivot": [0.5, 0.5],
+      "border": [0, 0, 0, 0],
+      "preserveAspect": true,
+      "suggestedUiSize": [68, 68]
+    }
+  ]
+}

@@ -182,7 +182,7 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
 
     private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        if (scene.name == LobbySceneName || scene.name == "Lobby3" || FastFoodScene.Contains(scene) || (MultiplayerRestockBridge.IsActive
+        if (scene.name == LobbySceneName || scene.name == "Lobby1Tutorial" || FineDiningScene.Contains(scene) || FastFoodScene.Contains(scene) || (MultiplayerRestockBridge.IsActive
             && scene == MultiplayerSessionManager.Instance.gameObject.scene))
         {
             lobbyScene = scene;
@@ -280,8 +280,7 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
         // Resolve the visible restaurant before changing the active scene. This also
         // covers a coordinator installed after the restaurant's sceneLoaded callback.
         Scene source = SceneManager.GetActiveScene();
-        if (source.name == LobbySceneName || source.name == FineDiningScene.Career ||
-            source.name == FineDiningScene.Multiplayer || FastFoodScene.Contains(source))
+        if (source.name == LobbySceneName || source.name == "Lobby1Tutorial" || FineDiningScene.Contains(source) || FastFoodScene.Contains(source))
             lobbyScene = source;
         if (!lobbyScene.IsValid() || !lobbyScene.isLoaded)
         {
@@ -750,7 +749,7 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
             freezerEntrance = bindings.FreezerEntrance;
             return;
         }
-        if (lobbyScene.name == FineDiningScene.Career || lobbyScene.name == FineDiningScene.Multiplayer)
+        if (FineDiningScene.Contains(lobbyScene))
         {
             foreach (var root in lobbyScene.GetRootGameObjects())
             {

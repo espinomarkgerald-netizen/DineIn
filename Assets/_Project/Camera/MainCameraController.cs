@@ -169,6 +169,12 @@ public class MainCameraController : MonoBehaviour
     {
         if (cam == null) cam = Camera.main;
         if (cam == null || !cam.isActiveAndEnabled) return;
+        if (deferredTaskPlayer != null && !PanInputBlocked)
+        {
+            var player = deferredTaskPlayer; deferredTaskPlayer = null;
+            if (player.isActiveAndEnabled && player.IsPlayerControlled() && player.CommandVersion == deferredTaskVersion && player.CurrentTarget != null)
+                FollowAcceptedTask(player);
+        }
 
         if (followTarget != null && !followTarget.gameObject.activeInHierarchy)
             StopFollowing();
@@ -241,10 +247,32 @@ public class MainCameraController : MonoBehaviour
 
     public void StopFollowing()
     {
+        deferredTaskPlayer = null;
         followTarget = null;
         followLocalOffset = Vector3.zero;
         targetRigPos = transform.position;
         rigVel = Vector3.zero;
+    }
+
+    private PlayerMovement deferredTaskPlayer;
+    private uint deferredTaskVersion;
+    public void FollowAcceptedTask(PlayerMovement player)
+    {
+        if (player == null || !player.IsPlayerControlled()) return;
+        if (cam == null) cam = GetComponentInChildren<Camera>(true);
+        if (cam == null || !cam.isActiveAndEnabled || PanInputBlocked)
+        { deferredTaskPlayer = player; deferredTaskVersion = player.CommandVersion; return; }
+        CustomerDrawerView.ReleaseCameraFocus();
+        SetFollowSuspended(false);
+        deferredTaskPlayer = null;
+        SetFollowTarget(player.transform, Vector3.up);
+    }
+
+    public void FrameWorldTarget(Vector3 position)
+    {
+        CustomerDrawerView.ReleaseCameraFocus();
+        StopFollowing(); SetFollowSuspended(false);
+        CenterOnWorldPoint(position);
     }
 
     // Temporary scripted framing keeps the selected follow target for resuming.
@@ -377,8 +405,8 @@ public class MainCameraController : MonoBehaviour
             return;
 
         panGestureReported = true;
-        if (followTarget != null && !followSuspended)
-            StopFollowing();
+        CustomerDrawerView.ReleaseCameraFocus();
+        StopFollowing();
         Vector2 reportedMovement = accumulatedPanPixels.sqrMagnitude > 0.001f
             ? accumulatedPanPixels
             : screenDelta;

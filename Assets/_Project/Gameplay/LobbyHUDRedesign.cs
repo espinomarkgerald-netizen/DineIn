@@ -349,6 +349,12 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
         if(CustomerDrawerArt.Shared!=null)CustomerDrawerArt.Shared.PlayPanelSound();
     }
 
+    public void OpenCustomerDrawer()
+    {
+        // World selection owns its one cue; use the same slide without a second panel sound.
+        if (!liveExpanded) { liveExpanded = true; CustomerDrawer?.SetExpanded(true); }
+    }
+
     private void CaptureAuthoredLayout()
     {
         if (!preserveAuthoredSafeArea)
@@ -539,7 +545,7 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
 
         Booth booth = component.GetComponentInParent<Booth>();
         if (booth != null)
-            return booth.CurrentGroup != null ? booth.CurrentGroup.InspectionTableLabel : "Awaiting number";
+            return "Table";
 
         return NicifyObjectName(component.gameObject.name, "Work Station");
     }

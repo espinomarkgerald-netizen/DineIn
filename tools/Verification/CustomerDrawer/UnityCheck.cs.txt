@@ -40,6 +40,9 @@ public static class CustomerDrawerUnityCheck
  {var g=Make<CustomerGroup>(name);g.state=state;g.members.Add(null);g.members.Add(null);var profile=ScriptableObject.CreateInstance<CustomerTypeProfile>();profile.hideFlags=HideFlags.HideAndDontSave;profile.displayName="Green group";profile.customerImage=AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Portraits/1.png");Set(g,"profileGreen",profile);return g;}
  static void Snapshots()
  {
+  CameraAndPlayerRing();
+  BagOwnership();
+  HiringCapacity();
   EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
   var g=Group("actual group",CustomerGroup.GroupState.ReadyToOrder);Set(g,"ordinaryOrderPatience",80f);Set(g,"ordinaryOrderRemaining",32f);
   var s=g.CaptureInspection();Assert(s.Members==2&&s.PatienceKnown&&s.PatienceActive&&Mathf.Approximately(s.Patience,.4f),"Read existing active order timer");
@@ -111,6 +114,13 @@ public static class CustomerDrawerUnityCheck
   Assert(tc[2].x<=bc[0].x || tc[0].y>=bc[2].y,"Re-docked task stays clear of changed clipboard bounds");
   Vector2 settledDock=taskRoot.anchoredPosition;Call(hud,"RefreshCompactDock",false);
   Assert(Vector2.Distance(settledDock,taskRoot.anchoredPosition)<.01f,"Unchanged dock remains stable");
+  var visibleArt=Rect("Clipboard visible artwork",clipboard,-30,-10,120,110);visibleArt.gameObject.AddComponent<Image>();
+  foreach(float scale in new[]{.8f,1.2f}) {
+   taskRoot.localScale=Vector3.one*scale;taskRoot.position=clipboard.position;Canvas.ForceUpdateCanvases();
+   Call(hud,"LateUpdate");Canvas.ForceUpdateCanvases();taskRoot.GetWorldCorners(tc);visibleArt.GetWorldCorners(bc);
+   Assert(tc[2].x<=bc[0].x || tc[0].y>=bc[2].y || tc[2].y<=bc[0].y,"Task stays clear during slide/scale and oversized clipboard artwork");
+  }
+  Save(camera,rt,name+"-animated-dock",width,height);
   Object.DestroyImmediate(hudObject);
   view.SetExpanded(false);Assert(Get(view,"selected")==null,"Closing clears selection");
   view.RefreshGroups(Array.Empty<CustomerGroup>());foreach(var g in gs)g.state=CustomerGroup.GroupState.Leaving;view.RefreshGroups(gs);Assert(((IDictionary)Get(view,"rows")).Count==0,"Zero groups releases rows");
@@ -119,6 +129,58 @@ public static class CustomerDrawerUnityCheck
  static void ValidateText(RectTransform root)
  {
   foreach(var t in root.GetComponentsInChildren<TMP_Text>()) {t.ForceMeshUpdate();Assert(t.rectTransform.rect.width>0&&t.rectTransform.rect.height>0,"Text has positive bounds: "+t.name);Assert(t.preferredHeight<=t.rectTransform.rect.height+3,"Text vertical layout: "+t.name+" wants "+t.preferredHeight+" has "+t.rectTransform.rect.height);}
+ }
+ static void HiringCapacity()
+ {
+  var restaurant=typeof(CampaignSaveStore).GetProperty("RestaurantScene");var originalRestaurant=restaurant.GetValue(null);
+  var instance=typeof(EquipmentManager).GetProperty("Instance");var originalEquipment=instance.GetValue(null);
+  var cache=typeof(FastFoodProgressionSettings).GetField("cached",BindingFlags.Static|BindingFlags.NonPublic);var oldConfig=cache.GetValue(null);
+  var config=ScriptableObject.CreateInstance<FastFoodProgressionSettings>();var equipment=Make<EquipmentManager>("Isolated equipment capacity");
+  try {
+   restaurant.SetValue(null,"Lobby2");cache.SetValue(null,config);instance.SetValue(null,equipment);
+   Assert(!FastFoodProgressionSettings.HasSecondCashier,"Equipment unlock alone does not open cashier slot");
+   Assert(StaffHiringProgressionSettings.Limit(EmployeeRole.Cashier,3,1)==1,"Unpurchased register retains one cashier position");
+   ((HashSet<string>)Get(equipment,"purchased")).Add(FastFoodProgressionSettings.SecondCashierID);
+   Assert(FastFoodProgressionSettings.HasSecondCashier,"Purchased register opens active slot before Day 15");
+   Assert(StaffHiringProgressionSettings.Limit(EmployeeRole.Cashier,3,1)==2,"Purchased register opens second hire before Day 15");
+   Assert(StaffHiringProgressionSettings.Limit(EmployeeRole.Cashier,3,3)==3,"Existing hires are preserved");
+   ((HashSet<string>)Get(equipment,"purchased")).Clear();Assert(StaffHiringProgressionSettings.Limit(EmployeeRole.Cashier,3,2)==2,"Legacy hires survive without a purchased register");
+  } finally {restaurant.SetValue(null,originalRestaurant);instance.SetValue(null,originalEquipment);cache.SetValue(null,oldConfig);Object.DestroyImmediate(equipment.gameObject);Object.DestroyImmediate(config);}
+ }
+ static void BagOwnership()
+ {
+  var player=Make<WaiterHands>("Player bag hands");var staff=Make<WaiterHands>("Worker bag hands");
+  var bag=Make<TakeoutBagInteractable>("Ownership regression bag");
+  var held=typeof(TakeoutBagInteractable).GetProperty("HeldBag");var original=held.GetValue(null);
+  try {
+   held.SetValue(null,bag);Set(bag,"isHeld",true);Set(bag,"heldByPlayer",true);
+   // Use the hands transform if the isolated worker has no authored hold socket.
+   var hold=typeof(WaiterHands).GetField("trayHoldPoint",flags);if(hold!=null){hold.SetValue(player,player.transform);hold.SetValue(staff,staff.transform);}
+   bag.transform.SetParent(player.TrayHoldPoint,false);
+   Assert(!bag.IsHeldByStaff(staff),"Staff cannot resume a player-held takeout bag");
+   var service=Make<LobbyAutonomousService>("Takeout ownership service");Set(service,"waiterHands",staff);
+   var delivery=(IEnumerator)Call(service,"DeliverTakeoutBag",bag);Assert(!delivery.MoveNext(),"Bot delivery refuses player-held bag before any movement or state mutation");
+   Call(service,"AbortTakeoutService",null,bag,"ownership regression");Assert(bag!=null && bag.IsHeldByPlayer,"Bot abort cannot destroy or clear player bag");
+   Set(bag,"heldByPlayer",false);bag.transform.SetParent(staff.TrayHoldPoint,false);
+   Assert(bag.IsHeldByStaff(staff),"Actual worker hold socket authorizes staff ownership");Assert(!bag.IsHeldByStaff(player),"A different worker cannot claim held bag ownership");
+   Object.DestroyImmediate(service.gameObject);
+  } finally {held.SetValue(null,original);Object.DestroyImmediate(bag.gameObject);Object.DestroyImmediate(player.gameObject);Object.DestroyImmediate(staff.gameObject);}
+ }
+ static void CameraAndPlayerRing()
+ {
+  var rig=Make<MainCameraController>("Camera task-follow regression");var camera=Make<Camera>("Gameplay camera");camera.transform.SetParent(rig.transform,false);camera.transform.rotation=Quaternion.Euler(45,0,0);
+  Set(rig,"cam",camera);Set(rig,"useBounds",false);
+  var player=Make<PlayerMovement>("Local player identity");player.SetPlayerControlled(true);
+  rig.SetFollowSuspended(true);rig.FollowAcceptedTask(player);
+  Assert(rig.FollowTarget==player.transform && !rig.FollowSuspended,"Accepted local task re-enables player follow");
+  player.UnlockTask();Assert(rig.FollowTarget==player.transform,"Task completion retains follow");
+  Set(rig,"isDragging",true);Call(rig,"RecordPanGesture",new Vector2(1000,0));Assert(rig.FollowTarget==null,"Manual pan releases task follow");
+  rig.FollowAcceptedTask(player);Assert(rig.FollowTarget==player.transform,"Next accepted task restores follow");
+  rig.FrameWorldTarget(new Vector3(20,0,20));Assert(rig.FollowTarget==null && !rig.FollowSuspended,"Truck/scripted framing releases follow");
+  var ring=player.transform.Find("Local player ground ring");Assert(ring!=null && ring.gameObject.activeSelf,"Local character gets a ground ring");
+  player.SetPlayerControlled(true);Assert(player.transform.Cast<Transform>().Count(t=>t.name=="Local player ground ring")==1,"Local player ring is not duplicated");
+  player.SetPlayerControlled(false);Assert(!ring.gameObject.activeSelf,"Nonlocal staff do not show local-player ring");rig.FollowAcceptedTask(player);Assert(rig.FollowTarget==null,"Nonlocal actors cannot request task follow");
+  Object.DestroyImmediate(player.gameObject);Object.DestroyImmediate(rig.gameObject);
  }
  static void Newspaper(int width,int height,bool large)
  {
@@ -173,6 +235,15 @@ public static class CustomerDrawerUnityCheck
   independent[2].verticalNormalizedPosition=.25f;Canvas.ForceUpdateCanvases();Assert(independent[0].content.anchoredPosition==left,"Market scrolling cannot shift results");Assert(independent[2].transform.parent.position==titlePosition,"Market heading stays fixed");
   string longBody=body.Replace("MARTINI","VERY LONG SUPPLIER PRODUCT NAME").Replace("₱2904","₱2147483647");Call(presenter,"Populate",new NewspaperIssueSaveEntry{day=12,renderedContent=longBody});view.RefreshLayout(true);Canvas.ForceUpdateCanvases();ValidateText(frame);
   Save(camera,rt,"newspaper-"+(large?"portrait-long":"desktop-long"),width,height);
+  // Reuse the inactive hierarchy, as actual day-to-day opening does.
+  var overlay=(GameObject)Get(presenter,"overlayRoot");overlay.SetActive(false);
+  Call(presenter,"Populate",new NewspaperIssueSaveEntry{day=13,sourceDay=12,headline="SECOND DAY REPORT",renderedContent=longBody});
+  Assert((bool)Get(view,"layoutDirty"),"Inactive newspaper population remains dirty until activation");
+  overlay.SetActive(true);view.RefreshLayout();Canvas.ForceUpdateCanvases();ValidateNewspaperLayout(view);
+  Assert(!(bool)Get(view,"layoutDirty"),"Reopened newspaper completes fresh measurements");
+  Save(camera,rt,"newspaper-reopened-"+(large?"portrait":"desktop"),width,height);
+  Assert(new DailyRewardResolution{status="pending"}.HasSelectedOutcome,"Saved pending reward may settle visually without credit confirmation");
+  Assert(!new DailyRewardResolution{status="eligible"}.HasSelectedOutcome,"Unselected offer cannot display a fabricated result");
   ValidateNewspaperLayout(view);config.newspaperBodySize+=6;view.RefreshLayout();Canvas.ForceUpdateCanvases();ValidateNewspaperLayout(view);
   Call(presenter,"Populate",new NewspaperIssueSaveEntry{day=1,renderedContent="<b>MARKET WATCH</b>\nPRICES STABLE\nNo supplier price changed today."});view.RefreshLayout(true);Assert(view.GetComponentsInChildren<TMP_Text>().Any(t=>t.text.Contains("PRICES STABLE")),"Stable price report retains original message");Assert(!view.GetComponentsInChildren<TMP_Text>().Any(t=>t.name=="Supplier item"),"Stable prices do not fabricate product rows");
   Call(presenter,"Populate",new NewspaperIssueSaveEntry{day=1,renderedContent="<b>MARKET WATCH</b>\nPRICE INCREASE\nUnrecognized archived price format"});view.RefreshLayout(true);Assert(view.GetComponentsInChildren<TMP_Text>().Any(t=>t.text.Contains("Unrecognized archived price format")),"Unfamiliar market data remains readable");

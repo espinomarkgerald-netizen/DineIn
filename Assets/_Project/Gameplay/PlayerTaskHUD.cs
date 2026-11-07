@@ -884,6 +884,11 @@ public sealed class PlayerTaskHUD : MonoBehaviour
             panelImage.color = panelColor;
     }
 
+    private void LateUpdate()
+    {
+        if (compactPanel != null) compactPanel.KeepClearOf(buttonRect);
+    }
+
     private void RefreshCompactDock(bool force)
     {
         if(compactPanel==null || panelRect.parent is not RectTransform safe || safe.rect.width<160 || safe.rect.height<180)return;

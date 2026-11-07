@@ -31,6 +31,10 @@ public class TakeoutBagInteractable : MonoBehaviour, IInteractable
     private bool heldByPlayer;
     private GameObject uiInstance;
     private bool claimedByStaff;
+    private bool deliveryPrompt;
+    public bool IsHeldByStaff(WaiterHands hands) => isHeld && !heldByPlayer && hands != null &&
+        HeldBag == this && transform.IsChildOf(hands.TrayHoldPoint);
+    public bool IsHeldByPlayer => isHeld && heldByPlayer;
 
     public CustomerGroup TargetGroup => targetGroup;
     public int OrderNumber => orderNumber;
@@ -250,7 +254,9 @@ public class TakeoutBagInteractable : MonoBehaviour, IInteractable
 
         if (isHeld)
         {
-            HideUI();
+            if (heldByPlayer && LocalHeldBag == this && targetGroup != null && targetGroup.isActiveAndEnabled)
+                ShowDeliveryUI();
+            else HideUI();
             return;
         }
 
@@ -398,8 +404,44 @@ public class TakeoutBagInteractable : MonoBehaviour, IInteractable
             PlayerTaskBubbleFocus.Bind(actionButton.gameObject, this);
     }
 
+    private void ShowDeliveryUI()
+    {
+        if (deliveryPrompt && uiInstance != null) return;
+        var delivery = targetGroup.GetComponent<TakeoutCustomerInteractable>();
+        if (delivery == null || !delivery.CanInteract()) { HideUI(); return; }
+        ShowUI();
+        if (uiInstance == null) return;
+        var button = uiInstance.GetComponentInChildren<Button>(true);
+        if (button == null) { HideUI(); return; }
+        deliveryPrompt = true;
+        var follow = uiInstance.GetComponentInChildren<UIFollowWorldPoint>(true);
+        if (follow != null) follow.InitAboveTarget(delivery.StandPoint, Vector3.up * .6f, Camera.main, 8);
+        TMPro.TMP_Text identifier = null;
+        foreach(var text in uiInstance.GetComponentsInChildren<TMPro.TMP_Text>(true))
+            if(text.text == orderNumber.ToString()) { identifier=text; break; }
+        GameplayActionButtonSkin.Apply(button,"IconServeFood","Give takeout","Green",identifier);
+        button.onClick = new Button.ButtonClickedEvent();
+        button.onClick.AddListener(() =>
+        {
+            if (!delivery.CanInteract()) { HideUI(); return; }
+            var session = MultiplayerSessionManager.Instance;
+            var mover = MultiplayerServiceActions.IsActive ? session?.LocalManager?.GetComponent<PlayerMovement>() :
+                ManagerPlayer.Active != null ? ManagerPlayer.Active.Movement : RoleManager.Instance?.GetActivePlayerMovement();
+            if (mover == null) return;
+            bool accepted = mover.UI_MoveToAction(delivery.StandPoint, delivery.GetInteractRadius(), () =>
+            {
+                if (this != null && delivery != null && delivery.CanInteract()) delivery.Interact(mover);
+                if (follow != null) follow.SetActionPending(false);
+            }, () => { if (follow != null) follow.SetActionPending(false); });
+            if (accepted && follow != null) follow.SetActionPending(true);
+        });
+        var focus = PlayerTaskBubbleFocus.Bind(button.gameObject,this);
+        focus?.SetLocalDeliveryAction(true);focus?.Refresh();
+    }
+
     private void HideUI()
     {
+        deliveryPrompt = false;
         if (uiInstance != null)
             Destroy(uiInstance);
 

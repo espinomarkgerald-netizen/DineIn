@@ -158,7 +158,11 @@ public sealed class DailyNewspaperPresenter : MonoBehaviour
         if (canvasRoot == null || overlayRoot == null)
             return;
 
+        canvasRoot.SetActive(true);
+        overlayRoot.SetActive(true);
+        Canvas.ForceUpdateCanvases();
         Populate(issue);
+        landscape?.RefreshLayout(true);
         displayedIssueDay = issue.day;
         RefreshArchiveButtons();
         canvasRoot.SetActive(true);

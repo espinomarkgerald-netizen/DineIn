@@ -424,9 +424,7 @@ public sealed partial class CasualDiningProgressHUD : MonoBehaviour
         string dayLabel;
         if (flow != null && flow.UsesSingleRestaurantFlow)
         {
-            dayLabel = flow.IsEndlessRestaurantMode
-                ? "ENDLESS"
-                : $"DAY {flow.CurrentDay}";
+            dayLabel = $"DAY {flow.CurrentDay}";
         }
         else
         {

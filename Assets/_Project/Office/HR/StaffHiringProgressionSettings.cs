@@ -21,6 +21,8 @@ public sealed class StaffHiringProgressionSettings : ScriptableObject
         if (CampaignSaveStore.ProtectedSession && !FastFoodMultiplayerSession.IsActive ||
             (role != EmployeeRole.Busser && role != EmployeeRole.Cashier)) return normalLimit;
         // Preserve existing staff without opening additional slots beyond the milestone cap.
+        if (role == EmployeeRole.Cashier && FastFoodProgressionSettings.Current != null)
+            return Mathf.Max(hiredCount, FastFoodProgressionSettings.HasSecondCashier ? 2 : 1);
         return Mathf.Max(hiredCount, CurrentDay >= UnlockDay(role) ? 2 : 1);
     }
 }

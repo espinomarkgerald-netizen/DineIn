@@ -445,7 +445,16 @@ public class PlayerMovement : MonoBehaviour
         if (!TryStartPath(currentDestination))
             FailCurrentMove("That task cannot be reached from here.");
         else
+        {
             TapOutlineSelector.PresentFor(this, target);
+            if (isPlayerControlled && target is not ClickToMoveTarget)
+            {
+                AcceptedLocalTask?.Invoke(this);
+                var camera = Camera.main != null ? Camera.main.GetComponentInParent<MainCameraController>() : null;
+                if (camera == null) camera = FindFirstObjectByType<MainCameraController>();
+                camera?.FollowAcceptedTask(this);
+            }
+        }
     }
 
     private void TickArrival()
@@ -956,7 +965,12 @@ public class PlayerMovement : MonoBehaviour
     public void SetPlayerControlled(bool value)
     {
         isPlayerControlled = value;
+        var indicator = GetComponent<RoleIndicator>();
+        if (value && indicator == null) indicator = gameObject.AddComponent<RoleIndicator>();
+        if (indicator != null) { if (value) indicator.enabled = true; indicator.SetLocalPlayer(value); }
     }
+
+    public static event Action<PlayerMovement> AcceptedLocalTask;
 
     public void BeginAutoFinish()
     {

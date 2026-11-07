@@ -18,6 +18,7 @@ public sealed class CompactTaskPanelView : MonoBehaviour
     private string key;
     private bool lastLarge;
     private readonly Vector3[] dockCorners=new Vector3[4];
+    private readonly System.Collections.Generic.List<Graphic> clipboardGraphics=new();
     public void DockBeside(RectTransform button)
     {
         if(frame==null || button==null || frame.parent is not RectTransform safe)return;
@@ -34,6 +35,25 @@ public sealed class CompactTaskPanelView : MonoBehaviour
         if(root==null||CustomerDrawerArt.Shared==null)return null;
         var view=root.GetComponent<CompactTaskPanelView>();if(view==null)view=root.gameObject.AddComponent<CompactTaskPanelView>();
         view.Initialize(root,oldAction,oldDetail);return view;
+    }
+    // Measure final rendered transforms, including inherited scale and clipboard artwork.
+    public void KeepClearOf(RectTransform button)
+    {
+        if(frame==null || !frame.gameObject.activeInHierarchy || button==null || frame.parent is not RectTransform safe)return;
+        Bounds BoundsOf(RectTransform root,bool graphics)
+        {
+            root.GetWorldCorners(dockCorners);var b=new Bounds(safe.InverseTransformPoint(dockCorners[0]),Vector3.zero);
+            foreach(var c in dockCorners)b.Encapsulate(safe.InverseTransformPoint(c));
+            if(graphics){root.GetComponentsInChildren(false,clipboardGraphics);foreach(var g in clipboardGraphics)if(g.enabled){g.rectTransform.GetWorldCorners(dockCorners);foreach(var c in dockCorners)b.Encapsulate(safe.InverseTransformPoint(c));}}
+            return b;
+        }
+        var target=BoundsOf(button,true);var panel=BoundsOf(frame,false);float gap=art.taskButtonGap,pad=art.contentPadding;
+        if(panel.max.x<=target.min.x-gap || panel.min.x>=target.max.x+gap || panel.max.y<=target.min.y-gap || panel.min.y>=target.max.y+gap)return;
+        float dx=target.min.x-gap-panel.max.x;
+        Vector3 move=panel.min.x+dx>=safe.rect.xMin+pad ? new Vector3(dx,0,0) : new Vector3(0,target.max.y+gap-panel.min.y,0);
+        if(move.y>0 && panel.max.y+move.y>safe.rect.yMax-pad && target.min.y-gap-panel.size.y>=safe.rect.yMin+pad)
+            move=new Vector3(0,target.min.y-gap-panel.max.y,0);
+        frame.localPosition+=move;
     }
     private void Initialize(RectTransform root,TMP_Text oldAction,TMP_Text oldDetail)
     {

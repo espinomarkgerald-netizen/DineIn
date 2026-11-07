@@ -92,6 +92,9 @@ public sealed class ManagementComputerHRPanel : MonoBehaviour
 
     public void Bind(EmployeeManager configuredManager, bool canEdit)
     {
+        if (purchaseSource != null) purchaseSource.PurchasesChanged -= OnPurchasesChanged;
+        purchaseSource = EquipmentManager.Instance;
+        if (purchaseSource != null) purchaseSource.PurchasesChanged += OnPurchasesChanged;
         MultiplayerRestaurantBridge.StateChanged -= RefreshMultiplayerView;
         MultiplayerRestaurantBridge.StateChanged += RefreshMultiplayerView;
         BeforeBind?.Invoke(this);
@@ -123,6 +126,7 @@ public sealed class ManagementComputerHRPanel : MonoBehaviour
 
     private void OnDestroy()
     {
+        if (purchaseSource != null) purchaseSource.PurchasesChanged -= OnPurchasesChanged;
         MultiplayerRestaurantBridge.StateChanged -= RefreshMultiplayerView;
         if (manager != null)
             manager.ApplicantsRefreshed -= RefreshApplicantBadge;
@@ -456,6 +460,9 @@ public sealed class ManagementComputerHRPanel : MonoBehaviour
 
     private bool refreshPending;
     private bool updating;
+    private EquipmentManager purchaseSource;
+    private void OnPurchasesChanged() => refreshPending = true;
+    private void OnEnable() { if (manager != null) refreshPending = true; }
     public void RefreshData() => RefreshCurrentView();
     private void LateUpdate()
     {

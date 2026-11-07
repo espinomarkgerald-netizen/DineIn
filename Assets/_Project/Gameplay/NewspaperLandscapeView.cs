@@ -24,6 +24,9 @@ public sealed class NewspaperLandscapeView : MonoBehaviour
     private Vector2 lastSize; private bool lastLarge;
     private TMP_FontAsset bodyFont;
     private int lastTypography;
+    private bool layoutDirty = true;
+    private void OnEnable() { layoutDirty = true; }
+    private void OnDisable() { layoutDirty = true; }
     private void LateUpdate() => RefreshLayout();
     private int TypographySignature()
     {
@@ -65,6 +68,7 @@ public sealed class NewspaperLandscapeView : MonoBehaviour
     private Image Image(string name,Transform parent,string icon,Color? color=null){var im=Node(name,parent).gameObject.AddComponent<Image>();im.sprite=icon!=null?settings?.NewspaperIcon(icon):null;im.preserveAspect=icon!=null;im.color=color??Color.white;im.raycastTarget=false;return im;}
     public void Populate(string article)
     {
+        layoutDirty = true;
         foreach(var s in sections)Dispose(s.root.gameObject);sections.Clear();
         string clean=Regex.Replace(article??"",@"</?size(?:=[^>]+)?>","");var headings=new List<Match>();
         foreach(Match m in Regex.Matches(clean,@"<b>(?<h>[^<]+)</b>"))if(Identify(m.Groups["h"].Value,out _,out _,out _))headings.Add(m);
@@ -152,10 +156,11 @@ public sealed class NewspaperLandscapeView : MonoBehaviour
     }
     public void RefreshLayout(bool force=false)
     {
+        if (!gameObject.activeInHierarchy) { layoutDirty = true; return; }
         if(paper==null||paper.parent is not RectTransform parent||parent.rect.width<=0||parent.rect.height<=0)return;
         Vector2 wanted=settings!=null?settings.newspaperSize:new Vector2(1560,930),size=new(Mathf.Min(wanted.x,parent.rect.width*.90f),Mathf.Min(wanted.y,parent.rect.height*.88f));
         int typography=TypographySignature();
-        bool large=LevelOneUIAccessibility.LargeText;if(!force&&size==lastSize&&large==lastLarge&&typography==lastTypography)return;lastSize=size;lastLarge=large;lastTypography=typography;paper.sizeDelta=size;Canvas.ForceUpdateCanvases();
+        bool large=LevelOneUIAccessibility.LargeText;if(!force&&!layoutDirty&&size==lastSize&&large==lastLarge&&typography==lastTypography)return;layoutDirty=false;lastSize=size;lastLarge=large;lastTypography=typography;paper.sizeDelta=size;Canvas.ForceUpdateCanvases();
         float width=area.rect.width,height=area.rect.height,gap=settings!=null?settings.newspaperColumnGap:28,f=large?1.2f:1;
         float fs=(settings!=null?settings.newspaperBodySize:24)*f,hs=(settings!=null?settings.newspaperSectionSize:32)*f;
         bool narrow=width<850;float available=width-gap*2;Vector3 weights=settings!=null?settings.newspaperColumnWeights:new Vector3(.29f,.30f,.41f);

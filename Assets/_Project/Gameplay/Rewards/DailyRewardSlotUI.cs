@@ -43,6 +43,11 @@ public sealed partial class DailyRewardSlotUI : MonoBehaviour
         var panel = Create(false, done);
         if (panel == null) return false;
         panel.account = owner; panel.restaurant = context.restaurant; panel.provider = Backend;
+        if (panel.provider is DailyRewardGameBackend)
+        {
+            var wallet = PlayFabWalletManager.EnsureInstance();
+            if (!wallet.IsCurrentWallet && !wallet.IsRefreshing) wallet.RefreshWallet();
+        }
         panel.waiting = true; panel.spin.interactable = false; panel.status.text = "Checking your free spin…";
         panel.StartCoroutine(panel.OfferTimeout());
         try
@@ -101,17 +106,6 @@ public sealed partial class DailyRewardSlotUI : MonoBehaviour
     private void StartSpin()
     {
         if (closing || spun || waiting || GameplaySfx.PresentationSuspended) return;
-        if (!preview && provider is DailyRewardGameBackend)
-        {
-            var wallet = PlayFabWalletManager.EnsureInstance();
-            if (!wallet.IsCurrentWallet)
-            {
-                if (!wallet.IsRefreshing) wallet.RefreshWallet();
-                status.text = "Preparing rewards. Tap SPIN to retry when connected.";
-                next.interactable = true;
-                return;
-            }
-        }
         spun = true; waiting = true; spin.interactable = false; next.interactable = false;
         status.text = "Spinning…";
         GameplaySfx.PlayUiClip(settings.spinSound, settings.audioLevel);
@@ -124,6 +118,7 @@ public sealed partial class DailyRewardSlotUI : MonoBehaviour
         }
         else
         {
+            StartCoroutine(AnimatePendingReels());
             // The provider owns award recovery; never retry with a new offer or add currency here.
             try { provider.ResolveSpin(offer, response =>
                 { if (this != null && !closing && ValidContext && response != null && !receivedResolution)
@@ -135,13 +130,32 @@ public sealed partial class DailyRewardSlotUI : MonoBehaviour
     private IEnumerator AllowPendingExit()
     {
         yield return new WaitForSecondsRealtime(8);
-        if (waiting && !closing) { next.interactable = true; SetButtonLabel(next, "CONTINUE"); status.text = "Reward pending. Your results are available; do not spin again."; }
+        if (waiting && !closing) { next.interactable = true; SetButtonLabel(next, "CONTINUE"); status.text = "Finishing your reward…"; }
+    }
+    private IEnumerator AnimatePendingReels()
+    {
+        float elapsed=0;
+        int last=-1;
+        while (!receivedResolution && !closing && ValidContext)
+        {
+            if (!GameplaySfx.PresentationSuspended)
+            {
+                elapsed+=Time.unscaledDeltaTime;
+                int cycle=Mathf.FloorToInt(elapsed/.09f);
+                if (!LevelOneUIAccessibility.ReducedMotion && cycle!=last)
+                {
+                    for(int i=0;i<3;i++)for(int k=0;k<3;k++)SetSymbol(i,k,(cycle+i+k)%settings.prizes.Length,0);
+                    last=cycle;
+                }
+            }
+            yield return null;
+        }
     }
     private IEnumerator Spin(DailyRewardResolution response)
     {
-        if (!response.confirmed || response.prizeIndex < -1 || response.prizeIndex >= settings.prizes.Length ||
+        if (!response.HasSelectedOutcome || response.prizeIndex < -1 || response.prizeIndex >= settings.prizes.Length ||
             response.prizeIndex >= 0 && (response.amount != settings.prizes[response.prizeIndex].amount || response.gold != settings.prizes[response.prizeIndex].gold))
-        { waiting = false; next.interactable = true; SetButtonLabel(next, "CONTINUE"); status.text = response.message ?? "Reward status unresolved. No extra attempt will be made."; yield break; }
+        { waiting = false; next.interactable = true; SetButtonLabel(next, "CONTINUE"); status.text = "Finishing your reward…"; yield break; }
         ResetPresentation();
         int[] stop = response.prizeIndex >= 0 ? new[] { response.prizeIndex, response.prizeIndex, response.prizeIndex } : new[] { random.Next(6), 0, 0 };
         if (response.prizeIndex < 0) { stop[1] = (stop[0] + 1 + random.Next(5)) % 6; stop[2] = random.Next(6); }
@@ -187,7 +201,8 @@ public sealed partial class DailyRewardSlotUI : MonoBehaviour
             yield return null;
         }
         GameplaySfx.SetUiLoop(reelAudio, settings.spinLoop, settings.audioLevel, false);
-        yield return Celebrate(response);
+        if (response.confirmed) yield return Celebrate(response);
+        else status.text = "Prize saved • Finishing your reward…";
         waiting = false; next.interactable = true; SetButtonLabel(next, "CONTINUE");
     }
 

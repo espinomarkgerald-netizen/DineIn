@@ -42,7 +42,9 @@ public sealed class CustomerDrawerView : MonoBehaviour
         !GameplayUIBlocker.IsBlocked() && !GameplaySfx.PresentationSuspended;
     public bool IsOpen => expanded;
     private static CustomerDrawerView Current => LobbyHUDRedesign.Instance!=null?LobbyHUDRedesign.Instance.CustomerDrawer:null;
-    private static bool WorldInspectionAllowed => Current!=null && Current.Usable && !TutorialOwnsWorldTarget;
+    private static bool WorldInspectionAllowed => Current!=null && Current.gameObject.activeInHierarchy &&
+        Current.ownerGroup!=null && Current.ownerGroup.alpha>.9f && !GameplayUIBlocker.IsBlocked() &&
+        !GameplaySfx.PresentationSuspended && !TutorialOwnsWorldTarget;
     private static bool TutorialOwnsWorldTarget {
         get {
             var t=TutorialSystem.Instance;
@@ -168,6 +170,8 @@ public sealed class CustomerDrawerView : MonoBehaviour
     private void SelectGroup(CustomerGroup group)
     {
         if(group==null || !group.CaptureInspection().Visible)return;
+        LobbyHUDRedesign.Instance?.OpenCustomerDrawer();
+        if(!groups.Contains(group))RefreshGroups(FindObjectsByType<CustomerGroup>(FindObjectsSortMode.InstanceID));
         ClearFocus();selected=group;details=true;Layout();RefreshData();SwitchContent(true,true);
     }
     private void ShowList(bool animate)
@@ -237,6 +241,7 @@ public sealed class CustomerDrawerView : MonoBehaviour
         if(focusedCamera==null)focusedCamera=FindFirstObjectByType<MainCameraController>();
         if(focusedCamera==null)return;
         originalSuspended=focusedCamera.FollowSuspended;
+        focusedCamera.StopFollowing();
         focusedCamera.SetFollowSuspended(true);
         focusedCamera.CenterOnWorldPoint(position,LevelOneUIAccessibility.ReducedMotion);
         if(!LevelOneUIAccessibility.ReducedMotion) {
@@ -246,6 +251,7 @@ public sealed class CustomerDrawerView : MonoBehaviour
     }
     private void ClearOutline(){if(focusedOutline!=null && focusedOutline.OutlineColor==Color.white){focusedOutline.OutlineColor=outlineColor;focusedOutline.enabled=outlineEnabled;}focusedOutline=null;highlightUntil=0;}
     private void ClearFocus(){ClearOutline();if(focusedCamera!=null)focusedCamera.SetFollowSuspended(originalSuspended);focusedCamera=null;}
+    public static void ReleaseCameraFocus() => Current?.ClearFocus();
     private static void Set(TMP_Text text,string value){if(text!=null && text.text!=value)text.text=value;}
 
     private sealed class Row

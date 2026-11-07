@@ -854,7 +854,7 @@ public class LobbyAutonomousService : MonoBehaviour
             return true;
         }
 
-        if (TakeoutBagInteractable.HasHeldBag)
+        if (TakeoutBagInteractable.HeldBag != null && TakeoutBagInteractable.HeldBag.IsHeldByStaff(hands))
         {
             waiter.StartTask(DeliverTakeoutBag(TakeoutBagInteractable.HeldBag));
             return true;
@@ -1551,6 +1551,7 @@ public class LobbyAutonomousService : MonoBehaviour
 
     private IEnumerator DeliverTakeoutBag(TakeoutBagInteractable bag)
     {
+        if (bag == null || bag.IsHeldByPlayer || TakeoutBagInteractable.HeldBag == bag && !bag.IsHeldByStaff(waiterHands)) yield break;
         CustomerGroup group = bag != null ? bag.TargetGroup : null;
         if (bag == null)
             yield break;
@@ -1589,6 +1590,7 @@ public class LobbyAutonomousService : MonoBehaviour
             }
         }
 
+        if (!bag.IsHeldByStaff(waiterHands)) yield break;
         waiter.SetCarrying(true);
 
         if (!IsTakeoutBagDeliveryReady(group))
@@ -1614,6 +1616,7 @@ public class LobbyAutonomousService : MonoBehaviour
         yield return waiter.FaceTowards(GetGroupCenter(group));
         yield return waiter.WorkFor(tableServiceSeconds);
 
+        if (bag == null || !bag.IsHeldByStaff(waiterHands)) { waiter.SetCarrying(false); yield break; }
         if (IsTakeoutBagDeliveryReady(group) && bag.TryDeliverTo(group))
         {
             waiter.SetCarrying(false);
@@ -1635,6 +1638,7 @@ public class LobbyAutonomousService : MonoBehaviour
         TakeoutBagInteractable bag,
         string reason)
     {
+        if (bag != null && (bag.IsHeldByPlayer || TakeoutBagInteractable.HeldBag == bag && !bag.IsHeldByStaff(waiterHands))) return;
         if (bag != null)
         {
             if (TakeoutBagInteractable.HeldBag == bag)
