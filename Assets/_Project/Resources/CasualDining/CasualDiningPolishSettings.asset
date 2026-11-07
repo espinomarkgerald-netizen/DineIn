@@ -29,9 +29,74 @@ MonoBehaviour:
   statPointsPerPromotion: 3
   applicantRefreshDays: 2
   newspaperName: THE GALACTIC GAZETTE
+  newspaperSize: {x: 1560, y: 930}
+  newspaperBodyFont: {fileID: 11400000, guid: 4b093cff7147474198c9b9b1aee22148, type: 2}
+  newspaperColumnWeights: {x: 0.29, y: 0.30, z: 0.41}
+  newspaperBodySize: 24
+  newspaperSectionSize: 32
+  newspaperColumnGap: 28
+  newspaperPaper: {fileID: 21300000, guid: e053b0d1725a447fbc72f1ca01bba766, type: 3}
+  newspaperInset: {fileID: 21300000, guid: f6ab0bbc9637466c83cff7ab260d035f, type: 3}
+  newspaperPartyTag: {fileID: 21300000, guid: b1fb85c4ff834f5a82d98bc5a42f75ae, type: 3}
+  newspaperNavigation: {fileID: 21300000, guid: 58d0dac4e9914852a06b2e09576b7fc1, type: 3}
+  newspaperIcons:
+  - name: StarEmpty
+    sprite: {fileID: 21300000, guid: aca8f59f0e364b7c815c055608097ce9, type: 3}
+  - name: StarFilled
+    sprite: {fileID: 21300000, guid: 4933bd41a89840ae9ec5d13a8b07141f, type: 3}
+  - name: StarHalf
+    sprite: {fileID: 21300000, guid: 82591621f003466c879bbded4bfbf07e, type: 3}
+  - name: IconAngry
+    sprite: {fileID: 21300000, guid: 86f267fad3d8470f887d8a7627511ad8, type: 3}
+  - name: IconApproval
+    sprite: {fileID: 21300000, guid: a9af00866a0147d99881982728d38394, type: 3}
+  - name: IconCash
+    sprite: {fileID: 21300000, guid: 0f1edec540224bdbaaa9d1514601f9f5, type: 3}
+  - name: IconCheck
+    sprite: {fileID: 21300000, guid: 22961658f6e04526a4c43ece14ac4be0, type: 3}
+  - name: IconChef
+    sprite: {fileID: 21300000, guid: 51e267a36e0e40ac958277b09a293c7f, type: 3}
+  - name: IconCloche
+    sprite: {fileID: 21300000, guid: d6b052aa3264445da091d09a63152b59, type: 3}
+  - name: IconClock
+    sprite: {fileID: 21300000, guid: 2a34e9233fb94593bbe917196e235f30, type: 3}
+  - name: IconClose
+    sprite: {fileID: 21300000, guid: 3de20ffc1f0f4d86a8316a14f972b6e4, type: 3}
+  - name: IconGreetCustomer
+    sprite: {fileID: 21300000, guid: a7c41827c6e74d0da3e39dca33f4866b, type: 3}
+  - name: IconGuests
+    sprite: {fileID: 21300000, guid: 7d5353c7d5f640c1add7dc33de0934ca, type: 3}
+  - name: IconHappy
+    sprite: {fileID: 21300000, guid: 90f78b723fa24efc9e48bda4454268a3, type: 3}
+  - name: IconMegaphone
+    sprite: {fileID: 21300000, guid: 57cc751ca4b142ae8cb2451d85526eb9, type: 3}
+  - name: IconNeutral
+    sprite: {fileID: 21300000, guid: fab28dd9747849c9a67446cab81ec2a3, type: 3}
+  - name: IconOrder
+    sprite: {fileID: 21300000, guid: c85688211c2d43219fc0d2ac3c6618e8, type: 3}
+  - name: IconQuote
+    sprite: {fileID: 21300000, guid: 6be2d8ef8a254788a38c541e403a21b1, type: 3}
+  - name: IconReceipt
+    sprite: {fileID: 21300000, guid: 63d777d5d9af41a487c1023cd2691424, type: 3}
+  - name: IconRestock
+    sprite: {fileID: 21300000, guid: 4efae94dd8c8419dbe042a72fe16d7e3, type: 3}
+  - name: IconSeatCustomer
+    sprite: {fileID: 21300000, guid: 78348a4c7e614e218bf2ddbc02fd575e, type: 3}
+  - name: IconTrendDown
+    sprite: {fileID: 21300000, guid: e3d9a620d1a344f5ab0d433d062861e4, type: 3}
+  - name: IconTrendSteady
+    sprite: {fileID: 21300000, guid: 7f32b54e5a634cb0b500b7d56a2485a7, type: 3}
+  - name: IconTrendUp
+    sprite: {fileID: 21300000, guid: 990f09153dac4f4894905bc80557f681, type: 3}
+  - name: IconWarning
+    sprite: {fileID: 21300000, guid: a9fd1c319a8844f181b16d269f03bf61, type: 3}
+  - name: IconNext
+    sprite: {fileID: 21300000, guid: e762ad9339ac42bdac1e1ad23fca982a, type: 3}
+  - name: IconPrevious
+    sprite: {fileID: 21300000, guid: ce46c47555104995a0fe5e820a26fbe6, type: 3}
   alienReporterName: Xylo-7, Alien Correspondent
   recentTemplateExclusionDays: 5
-  openingAnimationSeconds: 0.78
+  openingAnimationSeconds: 0.3
   paperRustleSound: {fileID: 0}
   paperSlapSound: {fileID: 0}
   pageTurnSound: {fileID: 0}

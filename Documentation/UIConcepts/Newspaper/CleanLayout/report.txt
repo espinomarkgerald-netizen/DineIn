@@ -1,0 +1,3 @@
+PASS: 754 assertions using production runtime assembly, sprites and fonts.
+Read-only state/timers, observer unavailable projection, stable cached rows, scroll restoration, departure, table reuse, compact scroll layout and native desktop/portrait renders. Newspaper saved-content preservation, legacy fallback, metric icons, five-star rating, responsive layout and Greet/Seat presentation with non-clickable party tag passed.
+NOT RUN: live world pointer dispatch, gameplay scenes, network transport, device, animation playback or audio listening.

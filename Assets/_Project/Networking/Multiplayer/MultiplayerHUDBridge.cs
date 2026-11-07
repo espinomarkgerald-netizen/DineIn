@@ -50,8 +50,17 @@ public sealed class MultiplayerHUDBridge : MonoBehaviour
         var claims = session.GetComponent<MultiplayerTaskClaims>();
         string task = claims != null ? claims.GetTaskForActor(session.LocalActorNumber) : null;
         if (session.CanAct && task != null) detail = claims.Describe(task) + " — " + detail;
+        string icon=null,shortAction=null,destination=null,table=null;
+        var hands=session.LocalManager!=null?session.LocalManager.GetComponent<WaiterHands>():null;
+        if(session.CanAct && hands!=null && activity.phase!=MultiplayerActorActivity.Phase.AwaitingAuthority && activity.phase!=MultiplayerActorActivity.Phase.Reviewing) {
+            CustomerGroup group=null;
+            if(hands.HasMoney){icon="IconCash";shortAction="Take payment";destination="To cashier";group=hands.HeldMoney!=null?hands.HeldMoney.TargetGroup:hands.holdingMoneyFor;}
+            else if(hands.HasBill){icon="IconReceipt";shortAction="Give bill";destination="To customer";group=hands.holdingBillFor;}
+            else if(hands.HasTray){icon="IconTable";shortAction="Serve food";destination="To customer";group=hands.holdingTray!=null?hands.holdingTray.TargetGroup:null;}
+            if(group!=null)table=group.CaptureInspection().TableLabel;
+        }
         PlayerTaskGuidance.SetTask(TaskSource, task ?? action, action, detail, 10000,
-            activity.target, PlayerTaskCategory.Service);
+            activity.target, PlayerTaskCategory.Service,icon,shortAction,destination,table);
     }
 
     private void OnDestroy()

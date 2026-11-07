@@ -51,6 +51,7 @@ public class WaiterAssignController : MonoBehaviour
 
     private void HandleTap(Vector2 screenPos)
     {
+        if(CustomerDrawerView.BlocksWorldPointer || CustomerDrawerView.TryCaptureWorldPress(screenPos))return;
         Camera cam = Camera.main;
         if (cam == null)
         {

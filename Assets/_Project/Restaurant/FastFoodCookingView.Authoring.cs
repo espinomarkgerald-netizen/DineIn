@@ -182,6 +182,8 @@ public sealed partial class FastFoodCookingView
                     image.name=="Go to Restock" ? "Green" : "Grey";
             UnityEditor.Undo.RecordObject(image,"Use natural kitchen sprite");
             image.sprite=Get(color,"depth_flat"); image.color=Color.white;
+            if (image.name=="Viewport" && image.transform.parent!=null && image.transform.parent.name=="Supplies scroll")
+                image.color=Color.clear;
             image.type=UnityEngine.UI.Image.Type.Sliced; image.pixelsPerUnitMultiplier=1;
             UnityEditor.EditorUtility.SetDirty(image);
             if(button==null)continue;
@@ -271,6 +273,7 @@ public sealed partial class FastFoodCookingView
         Fixed((RectTransform)serve.transform,new Vector2(.5f,0),new Vector2(.5f,0),new Vector2(0,194),new Vector2(240,56));
         hotbarContainer=Find("Supplies scroll");
         Fixed(hotbarContainer,new Vector2(.5f,0),new Vector2(.5f,0),new Vector2(0,28),new Vector2(760,152));
+        RemoveHotbarBackdrop();
         var scroll=hotbarContainer.GetComponent<UnityEngine.UI.ScrollRect>();
         scroll.horizontal=true; scroll.vertical=false;
         Stretch(scroll.viewport,Vector2.zero,Vector2.one);

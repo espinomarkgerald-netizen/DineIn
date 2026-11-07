@@ -63,7 +63,7 @@ public class UIFollowWorldPoint : MonoBehaviour
     private CanvasGroup canvasGroup;
     private Canvas worldCanvas;
     private Vector3 authoredScale = Vector3.one;
-    public Vector3 AuthoredScale => authoredScale;
+    public Vector3 AuthoredScale => rect != null ? authoredScale : transform.localScale;
     private float sourceCanvasScaleFactor = 1f;
     private bool worldSpaceInitialized;
     private bool receivesPointerInput;
@@ -76,6 +76,17 @@ public class UIFollowWorldPoint : MonoBehaviour
     private float fineDiningWidthOverride;
     private Graphic fineDiningFrame;
     private bool compactCustomerPresentation;
+    private Graphic screenSizingFrame;
+    private float screenSizingWidth;
+
+    // Opt-in for approved world artwork in every restaurant. Width is in pixels at 1080p.
+    public void ConfigureScreenSizing(Graphic frame, float readableWidth)
+    {
+        if (frame == null || readableWidth <= 0f) return;
+        screenSizingFrame = frame;
+        screenSizingWidth = readableWidth;
+        KeepAttachedToTarget();
+    }
 
     public bool IsCustomerPresentationOnScreen
     {
@@ -133,17 +144,29 @@ public class UIFollowWorldPoint : MonoBehaviour
                                rect.InverseTransformPoint(graphicWorldCorners[0]).x);
         if (width <= .001f) return;
         fineDiningSizing = settings;
-        fineDiningFrameWidth = width * Mathf.Abs(authoredScale.x);
         fineDiningFrame = frame;
-        var actionSkin = button != null ? button.GetComponent<GameplayActionButtonSkin>() : null;
-        fineDiningReadabilityScale = actionSkin != null ? actionSkin.FineDiningVisualScale : 1f;
+        RefreshFineDiningActionMetrics();
         KeepAttachedToTarget();
         if (button != null) ConfigureCustomerTouchPadding();
+    }
+
+    /// <summary>Re-measures the styled action after its layout changes the target graphic's local width.</summary>
+    public void RefreshFineDiningActionMetrics()
+    {
+        if (fineDiningSizing == null || fineDiningFrame == null || rect == null) return;
+        fineDiningFrame.rectTransform.GetWorldCorners(graphicWorldCorners);
+        float width = Mathf.Abs(rect.InverseTransformPoint(graphicWorldCorners[2]).x -
+                                rect.InverseTransformPoint(graphicWorldCorners[0]).x);
+        if (width > .001f) fineDiningFrameWidth = width * Mathf.Abs(authoredScale.x);
+        var button = GetComponentInChildren<Selectable>(true);
+        var actionSkin = button != null ? button.GetComponent<GameplayActionButtonSkin>() : null;
+        fineDiningReadabilityScale = actionSkin != null ? actionSkin.FineDiningVisualScale : 1f;
     }
 
     public bool IsWorldSpace => worldSpaceInitialized;
     public void ConfigureCommentSizing(FineDiningReservations settings, Graphic frame, float readableWidth)
     {
+        ConfigureScreenSizing(frame, readableWidth);
         if (settings == null || frame == null || !FineDiningScene.Contains(settings.gameObject.scene)) return;
         ConfigureFineDiningSizing(settings);
         fineDiningFrame = frame;
@@ -158,6 +181,15 @@ public class UIFollowWorldPoint : MonoBehaviour
     }
 
     private float taskAlpha = 1f;
+    private bool actionPending;
+    private float pendingAlpha = 1f;
+    [SerializeField, Min(.01f)] private float acceptedDismissSeconds = .14f;
+    public void SetActionPending(bool pending)
+    {
+        actionPending = pending;
+        if (!pending) pendingAlpha = 1f;
+        if (pending && canvasGroup != null) { canvasGroup.interactable = false; canvasGroup.blocksRaycasts = false; }
+    }
     private bool taskInteractable = true;
     public void SetTaskFocus(float alpha, bool interactable)
     { taskAlpha = Mathf.Clamp01(alpha); taskInteractable = interactable; }
@@ -466,6 +498,17 @@ public class UIFollowWorldPoint : MonoBehaviour
 
     private float ResolveWorldScale(Vector3 anchorPosition)
     {
+        if (screenSizingFrame != null && screenSizingWidth > 0f)
+        {
+            screenSizingFrame.rectTransform.GetWorldCorners(graphicWorldCorners);
+            float width = Mathf.Abs(rect.InverseTransformPoint(graphicWorldCorners[2]).x -
+                                    rect.InverseTransformPoint(graphicWorldCorners[0]).x) * Mathf.Abs(authoredScale.x);
+            float compact = fineDiningSizing != null && compactCustomerPresentation
+                ? Mathf.Clamp(fineDiningSizing.compactCustomerBubbleScale, .25f, 1f) : 1f;
+            if (width > .001f)
+                return ResolveWorldUnitsPerScreenPixel(anchorPosition) * screenSizingWidth * compact *
+                    (Mathf.Max(1, cam.pixelHeight) / 1080f) * DineIn.NewMenu.SettingsManager.UIScaleMultiplier / width;
+        }
         if (fineDiningSizing != null && fineDiningFrameWidth > .001f)
         {
             // Cancel camera zoom once; do not also apply canvas, mobile, or HUD scale.
@@ -615,9 +658,11 @@ public class UIFollowWorldPoint : MonoBehaviour
         if (canvasGroup == null)
             return;
 
-        canvasGroup.alpha = value ? taskAlpha * (placeAboveTarget ? revealProgress : 1f) : 0f;
-        canvasGroup.blocksRaycasts = value && taskInteractable && (!worldSpaceInitialized || receivesPointerInput);
-        canvasGroup.interactable = value && taskInteractable && (!worldSpaceInitialized || receivesPointerInput);
+        pendingAlpha = Mathf.MoveTowards(pendingAlpha, actionPending ? 0f : 1f,
+            Time.unscaledDeltaTime / (LevelOneUIAccessibility.ReducedMotion ? .06f : acceptedDismissSeconds));
+        canvasGroup.alpha = value ? pendingAlpha * taskAlpha * (placeAboveTarget ? revealProgress : 1f) : 0f;
+        canvasGroup.blocksRaycasts = value && !actionPending && taskInteractable && (!worldSpaceInitialized || receivesPointerInput);
+        canvasGroup.interactable = value && !actionPending && taskInteractable && (!worldSpaceInitialized || receivesPointerInput);
     }
 }
 

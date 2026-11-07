@@ -201,7 +201,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 6a054b75a415d284f8db012cdbec0fe7, type: 3}
+  m_Sprite: {fileID: 21300000, guid: dd52cd91b53c4c28b74c789dbf416bb7, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -450,8 +450,8 @@ MonoBehaviour:
   button: {fileID: 1959428949616623614}
   label: {fileID: 5686889550630659314}
   icon: {fileID: 2245354756644430321}
-  greetSprite: {fileID: 21300000, guid: 6a054b75a415d284f8db012cdbec0fe7, type: 3}
-  assignSprite: {fileID: 21300000, guid: ff6db7998b6b5a942a439889996ffa7f, type: 3}
+  greetSprite: {fileID: 21300000, guid: dd52cd91b53c4c28b74c789dbf416bb7, type: 3}
+  assignSprite: {fileID: 21300000, guid: a1c2d27b3a7c4b6abbc47aa5b2e5f9a9, type: 3}
 --- !u!1 &8410509280006390760
 GameObject:
   m_ObjectHideFlags: 0

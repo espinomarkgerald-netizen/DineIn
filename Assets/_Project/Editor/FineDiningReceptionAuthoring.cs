@@ -171,9 +171,16 @@ public static class FineDiningReceptionAuthoring
         {
             ConfigureRoot(root, new Vector2(152, 168), true);
             Ensure<Button>(root).targetGraphic = root.GetComponent<Image>();
+            root.GetComponent<Image>().sprite=LoadSprite("Assets/_Project/UI/Assets/ActionButtonSpritePackV1/Components/ButtonCyanReady.png");
+            root.GetComponent<Image>().type=Image.Type.Sliced;root.GetComponent<Image>().pixelsPerUnitMultiplier=2;
             Ensure<CustomerGreetBubbleUI>(root);
             var icon = EnsureImage(root.transform, "TableIcon", LoadSprite(TableArt), new Vector2(100, 100), new Vector2(0, 14));
             icon.preserveAspect = true;
+            var captionRect=EnsureRect(root.transform,"Reception action");
+            var caption=Ensure<TextMeshProUGUI>(captionRect.gameObject);caption.raycastTarget=false;
+            root.GetComponent<CustomerGreetBubbleUI>().BindArtwork(root.GetComponent<Button>(),caption,icon,
+                LoadSprite("Assets/_Project/UI/Assets/RestaurantControlsSpritePackV1/Components/IconGreetCustomer.png"),
+                LoadSprite("Assets/_Project/UI/Assets/RestaurantControlsSpritePackV1/Components/IconSeatCustomer.png"));
             var details = EnsureRect(root.transform, "Details");
             details.anchorMin = details.anchorMax = new Vector2(1, .5f);
             details.pivot = new Vector2(0, .5f);

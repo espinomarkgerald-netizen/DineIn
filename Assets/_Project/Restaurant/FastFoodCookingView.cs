@@ -78,23 +78,41 @@ public sealed partial class FastFoodCookingView : MonoBehaviour
         RestockFlowCoordinator.Instance?.IsRestockRoomOpen != true &&
         (!FastFoodCookingController.IsMultiplayer || MultiplayerSessionManager.Instance.CanAct &&
             ManagerPlayer.Active.Movement != null && !ManagerPlayer.Active.Movement.IsTaskLocked);
-    public bool IsAuthored => canvas != null && ingredientTemplate != null && ticketTemplate != null && stations.Length == 3 && stations.All(s=>s!=null && s.stationCamera!=null && s.preparation!=null);
+    public bool IsAuthored => canvas != null && selection != null && station != null && help != null && notification != null && ingredientTemplate != null && ticketTemplate != null && stations.Length == 3 && stations.All(s=>s!=null && s.stationCamera!=null && s.preparation!=null && s.labels!=null);
 
     private void Awake() { owner=GetComponent<FastFoodCookingController>(); }
     private void Start()
     {
         if(owner==null || !owner.Active) { if(canvas!=null)canvas.gameObject.SetActive(false); enabled=false; return; }
-        if (!IsAuthored) { Debug.LogError("Kitchen presentation is missing. Run Dine In > Fast Food > Create Editable Kitchen in Lobby2.",this); enabled=false; return; }
+        if (!IsAuthored) { if(canvas!=null)canvas.gameObject.SetActive(false); Debug.LogError("Kitchen presentation is missing. Run Dine In > Fast Food > Create Editable Kitchen in Lobby2.",this); enabled=false; return; }
         canvas.gameObject.SetActive(true);
         if(cleaningProgressAnchor==null)cleaningProgressAnchor=station.Find("Station Navigation Label") as RectTransform;
-        InitializeUIFeedback();
         selection.gameObject.SetActive(false); station.gameObject.SetActive(false); help.gameObject.SetActive(false);
+        HideNoticeImmediate();
         foreach(var rig in stations) { rig.gameObject.SetActive(false); rig.labels.gameObject.SetActive(false); }
+        InitializeUIFeedback();
+        RemoveHotbarBackdrop();
+    }
+    private void RemoveHotbarBackdrop()
+    {
+        if (hotbarContainer == null) return;
+        var image = hotbarContainer.GetComponent<UnityEngine.UI.Image>();
+        if (image != null) image.color = Color.clear;
+        var scroll = hotbarContainer.GetComponent<UnityEngine.UI.ScrollRect>();
+        if (scroll != null && scroll.viewport != null)
+        {
+            var viewportImage = scroll.viewport.GetComponent<UnityEngine.UI.Image>();
+            if (viewportImage != null) viewportImage.color = Color.clear;
+        }
     }
     public void EnterGrill() { Enter(FastFoodStationMode.Grill); }
     public void EnterFry() { Enter(FastFoodStationMode.Fry); }
     public void EnterAssembler() { Enter(FastFoodStationMode.Assembler); }
-    public void ToggleNotices() => ShowNotice(!notification.gameObject.activeSelf || !noticeVisibility.blocksRaycasts);
+    public void ToggleNotices()
+    {
+        if (!opened || notification == null || noticeVisibility == null) return;
+        ShowNotice(!notification.gameObject.activeSelf || !noticeVisibility.blocksRaycasts);
+    }
     public void GoToRestock()
     {
         if (FastFoodTutorialBridge.Active && FastFoodTutorialBridge.Instance.RouteRestockToComputer()) return;

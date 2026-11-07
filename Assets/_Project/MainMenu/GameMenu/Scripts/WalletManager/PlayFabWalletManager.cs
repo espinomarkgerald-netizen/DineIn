@@ -112,6 +112,14 @@ public partial class PlayFabWalletManager : MonoBehaviour
         DontDestroyOnLoad(gameObject);
     }
 
+    public static PlayFabWalletManager EnsureInstance()
+    {
+        if (Instance != null) return Instance;
+        var existing = FindFirstObjectByType<PlayFabWalletManager>(FindObjectsInactive.Include);
+        if (existing != null) { existing.gameObject.SetActive(true); return existing; }
+        return new GameObject("PlayFab Wallet").AddComponent<PlayFabWalletManager>();
+    }
+
     private void Start()
     {
         PlayerCustomizationData.ProfileChanged += CacheCostumeOwnership;

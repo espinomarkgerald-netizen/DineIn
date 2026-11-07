@@ -9,6 +9,8 @@ public sealed class GameplayButtonSound : MonoBehaviour, IPointerClickHandler, I
 {
     public enum SoundContext { Automatic, Menu, Computer, Hud }
     public SoundContext soundContext;
+    [Tooltip("A panel transition owner supplies the single cue for this button.")]
+    public bool suppressClick;
     private Button button;
     private GameplaySfx.ButtonFamily Family()
     {
@@ -38,6 +40,7 @@ public sealed class GameplayButtonSound : MonoBehaviour, IPointerClickHandler, I
     // or disabled its button before this listener runs, so do not recheck that state.
     private void Activated()
     {
+        if(suppressClick)return;
         if (playedFrame == Time.frameCount) return;
         playedFrame = Time.frameCount;
         GameplaySfx.ButtonClick(Family());

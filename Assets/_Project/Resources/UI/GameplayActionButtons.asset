@@ -81,6 +81,10 @@ MonoBehaviour:
     sprite: {fileID: 21300000, guid: f286f4382cc8400c9aef815b53e0d823, type: 3}
   - name: IconAcceptReservation
     sprite: {fileID: 21300000, guid: b4eee50cffa84a42b56e788de1861265, type: 3}
+  - name: IconGreetCustomer
+    sprite: {fileID: 21300000, guid: dd52cd91b53c4c28b74c789dbf416bb7, type: 3}
+  - name: IconSeatCustomer
+    sprite: {fileID: 21300000, guid: a1c2d27b3a7c4b6abbc47aa5b2e5f9a9, type: 3}
   - name: IconAssembly
     sprite: {fileID: 21300000, guid: 70f6cfde27424f4b8fe37ebe3aefd2b8, type: 3}
   - name: IconBack
@@ -145,16 +149,18 @@ MonoBehaviour:
   headingMaterial: {fileID: 2100000, guid: dffc484a0b2a489c98bc71a79e3e2ac9, type: 2}
   bodyFont: {fileID: 11400000, guid: 6e1f10b7e118faf45901758c1ae43feb, type: 2}
   bodyMaterial: {fileID: 2100000, guid: f7bf7b0e47934bee9f1e4ddd19dbb79c, type: 2}
-  labelSize: 28
+  labelSize: 24
   worldVisualScale: 1.1
   fineDiningVisualScale: 1.4
   detailSize: 22
-  worldButtonWidth: 280
-  maximumWorldWidth: 440
+  worldButtonWidth: 200
+  maximumWorldWidth: 280
+  worldButtonHeight: 60
+  numberBubbleSize: 72
   changeFadeSeconds: 0.15
-  commentWidth: 388
-  commentFontSize: 26
-  commentMinimumHeight: 136
+  commentWidth: 300
+  commentFontSize: 20
+  commentMinimumHeight: 100
   fineDiningCommentWidth: 300
-  patienceBarHeight: 20
+  patienceBarHeight: 12
   patienceBarGap: 12

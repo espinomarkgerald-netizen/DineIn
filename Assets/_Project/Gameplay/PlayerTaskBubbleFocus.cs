@@ -131,7 +131,7 @@ public sealed class PlayerTaskBubbleFocus : MonoBehaviour
 
         bool competingTask = !MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer &&
                              target != null &&
-                             RestaurantTaskClaim.PlayerHasActiveTask &&
+                             !localDeliveryAction && RestaurantTaskClaim.PlayerHasActiveTask &&
                              !RestaurantTaskClaim.IsClaimedByPlayer(target);
 
         float alpha = competingTask ? Mathf.Clamp(BackgroundAlpha, 0.08f, 0.75f) : 1f;

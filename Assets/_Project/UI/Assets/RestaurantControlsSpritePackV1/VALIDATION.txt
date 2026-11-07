@@ -1,6 +1,10 @@
-PASS:36 PNG dimensions, transparent corners and valid slice-border sums.
-PASS:Atlas rectangles are in bounds, nonoverlapping and have correct Unity bottom-left coordinates.
-PASS:All16 button backgrounds are byte-identical to the approved ActionButtonSpritePackV1 PNGs.
-PASS: Unity 6000.0.40f1 imported all 36 named atlas sprites and 36 individual PNG sprites. Every name, rect, border, pivot and atlas local file ID matches the manifest. No gameplay integration or Play Mode test run.
-VISUAL:generated icon grid, assembled preview and atlas inspected. Preview lettering is separate from production sprites.
-NOT RUN:gameplay integration, live pouring, device controls or action behavior. No game scripts or scene bindings changed.
+Original 36-sprite pack: PNG geometry, transparency, slice borders, atlas rectangles and Unity sprite metadata were validated; all 16 button backgrounds matched the approved action pack.
+
+Reception update (2026-11-07):
+PASS: 38 atlas sprites import in Unity 6000.0.40f1. New names, 256px rects, centered pivots and local file IDs 21300072/21300074 resolve.
+PASS: Original 36 names, sprite IDs, local file IDs and atlas rectangles are preserved.
+PASS: Approved coral-hand and matte olive-table artwork is normalized to transparent 256px canvases, with transparent corners and consistent padding.
+PASS: Shared reception prefab and Fine Dining waiting-area marker reference the new sprites. Reservation management remains excluded.
+PASS: Runtime and Editor source compilation. Isolated Unity verification exits 0 with 499 assertions, including stable Fine Dining action widths across initial prefab widths and repeated wine/water/drink-label changes.
+VISUAL: Production-art reception render inspected; editable labels fit with outlined fonts. Sources and artwork preview inspected.
+NOT RUN: Main game Play Mode, live greeting/seating/pouring actions, device input, multiplayer authority/reconnect, or audio listening. Isolated gameplay boundaries use doubles.

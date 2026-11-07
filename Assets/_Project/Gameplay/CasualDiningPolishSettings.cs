@@ -1,4 +1,5 @@
 using UnityEngine;
+using TMPro;
 
 [CreateAssetMenu(
     fileName = "CasualDiningPolishSettings",
@@ -30,6 +31,15 @@ public sealed class CasualDiningPolishSettings : ScriptableObject
 
     [Header("Newspaper")]
     public string newspaperName = "THE GALACTIC GAZETTE";
+    public Vector2 newspaperSize = new Vector2(1560, 930);
+    public TMP_FontAsset newspaperBodyFont;
+    public Vector3 newspaperColumnWeights = new Vector3(.29f,.30f,.41f);
+    [Min(16)] public float newspaperBodySize = 24;
+    [Min(20)] public float newspaperSectionSize = 28;
+    [Min(8)] public float newspaperColumnGap = 28;
+    public Sprite newspaperPaper, newspaperInset, newspaperPartyTag, newspaperNavigation;
+    public CustomerDrawerArt.Entry[] newspaperIcons;
+    public Sprite NewspaperIcon(string name) { if(newspaperIcons!=null)foreach(var entry in newspaperIcons)if(entry.name==name)return entry.sprite;return null; }
     public string alienReporterName = "Xylo-7, Alien Correspondent";
     [Range(1, 15)] public int recentTemplateExclusionDays = 5;
     [Min(0.1f)] public float openingAnimationSeconds = 0.78f;

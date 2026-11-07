@@ -1,0 +1,112 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7cb99bb4a2a04d54bf3cdac151a49520, type: 3}
+  m_Name: CustomerDrawerArt
+  m_EditorClassIdentifier:
+  sprites:
+  - name: ChevronLeft
+    sprite: {fileID: 21300000, guid: 3faad2b5a755468e9c35d55ebdc5faff, type: 3}
+  - name: ChevronRight
+    sprite: {fileID: 21300000, guid: f78e313d9a52430aaf5b12d9b3f1c4a1, type: 3}
+  - name: Divider
+    sprite: {fileID: 21300000, guid: b85e408298464e83b89b2f8e2a78eeaa, type: 3}
+  - name: HeaderTab
+    sprite: {fileID: 21300000, guid: 705c4dd0b3f841e5b772c73676cfb39a, type: 3}
+  - name: HoverRow
+    sprite: {fileID: 21300000, guid: 2b0bb702b65543468a1f6e9cd67b50fd, type: 3}
+  - name: IconAngry
+    sprite: {fileID: 21300000, guid: 1573b2703cda4f4b8ae4556b8ec2326d, type: 3}
+  - name: IconCash
+    sprite: {fileID: 21300000, guid: 40eb6de56a7d4d1eb6b91c418d472cee, type: 3}
+  - name: IconCashier
+    sprite: {fileID: 21300000, guid: c7d97949aff44f0daf94b7c5f4a2f896, type: 3}
+  - name: IconCheck
+    sprite: {fileID: 21300000, guid: dc8951ac091643349b3957c5e25d90da, type: 3}
+  - name: IconCloche
+    sprite: {fileID: 21300000, guid: d6712f6759444fac9c94eeee3fac9940, type: 3}
+  - name: IconClock
+    sprite: {fileID: 21300000, guid: a579031588d54914b27fadd8d960b70b, type: 3}
+  - name: IconGuests
+    sprite: {fileID: 21300000, guid: 89b04cfa8f0745d88005bf39a87a3794, type: 3}
+  - name: IconHappy
+    sprite: {fileID: 21300000, guid: 2019aebe9a7740508e6c799602bccf2c, type: 3}
+  - name: IconLocationPin
+    sprite: {fileID: 21300000, guid: 5abb9a07774b432494a2e7e8b05f825d, type: 3}
+  - name: IconNeutral
+    sprite: {fileID: 21300000, guid: 2890155814ba426cb344d1c95272c0e2, type: 3}
+  - name: IconReceipt
+    sprite: {fileID: 21300000, guid: 784b531672bd4d1c8e874fbc87b319e1, type: 3}
+  - name: IconTable
+    sprite: {fileID: 21300000, guid: 977d05f7c3be411bb5f7d2cad5fa89c5, type: 3}
+  - name: IconWaiting
+    sprite: {fileID: 21300000, guid: 039d886f5b8c465eb5b11ad47069528c, type: 3}
+  - name: NavButtonDisabled
+    sprite: {fileID: 21300000, guid: aaf1216c41354bf1ad85000b2689fc38, type: 3}
+  - name: NavButtonFocused
+    sprite: {fileID: 21300000, guid: 62cc40ebba5a450ba9bb3c62894814bb, type: 3}
+  - name: NavButtonPressed
+    sprite: {fileID: 21300000, guid: ad96b057d0444595a54b1fd41f90d0c1, type: 3}
+  - name: NavButtonReady
+    sprite: {fileID: 21300000, guid: 368e631771dd4c028127e5e356f23a51, type: 3}
+  - name: PanelFrame
+    sprite: {fileID: 21300000, guid: 4b7624e32d0b4bdd8e3bb32ec9b8389a, type: 3}
+  - name: PatienceFillCoral
+    sprite: {fileID: 21300000, guid: 373fe6be945a4c0c9508336e52d6e2bd, type: 3}
+  - name: PatienceFillGold
+    sprite: {fileID: 21300000, guid: 142ffae525604de7a72c2d36088c2c59, type: 3}
+  - name: PatienceFillGreen
+    sprite: {fileID: 21300000, guid: a9e330e4eed140db87039593807128d3, type: 3}
+  - name: PatienceFillTintable
+    sprite: {fileID: 21300000, guid: b5038f8d1cbf4832b143e8c962af7531, type: 3}
+  - name: PatienceTrack
+    sprite: {fileID: 21300000, guid: 533fda108aca4e5a9a7f01cd3ea09603, type: 3}
+  - name: PointerLeft
+    sprite: {fileID: 21300000, guid: ad93033c2dc84dd5878eac41c6fa2d02, type: 3}
+  - name: PointerRight
+    sprite: {fileID: 21300000, guid: 59e52730a6ed45078df3a65dc7762432, type: 3}
+  - name: PortraitTile
+    sprite: {fileID: 21300000, guid: bf16e58364ed418ab3896566365323db, type: 3}
+  - name: ScrollThumb
+    sprite: {fileID: 21300000, guid: 76cdee38fced463c93e495deb6590959, type: 3}
+  - name: ScrollTrack
+    sprite: {fileID: 21300000, guid: 81421af7bd49499580e5b2b69043d204, type: 3}
+  - name: SecondaryButtonDisabled
+    sprite: {fileID: 21300000, guid: a527152fe89742bdb81854bd6d64d9d8, type: 3}
+  - name: SecondaryButtonFocused
+    sprite: {fileID: 21300000, guid: 8af81c40907349d69f3dc124abef93db, type: 3}
+  - name: SecondaryButtonPressed
+    sprite: {fileID: 21300000, guid: d8ca39d11e6943018e032ad348c36831, type: 3}
+  - name: SecondaryButtonReady
+    sprite: {fileID: 21300000, guid: 158c91a0234a4c068a64da6cc921567a, type: 3}
+  - name: SelectedRow
+    sprite: {fileID: 21300000, guid: 238c410055ba4ad5bef29a53388d24ac, type: 3}
+  - name: StatusStrip
+    sprite: {fileID: 21300000, guid: c39c5fd765f34d04869bd3ae74fb073a, type: 3}
+  - name: TableBadge
+    sprite: {fileID: 21300000, guid: fc3ae43c3cf14f128800f21c518e53b9, type: 3}
+  headingFont: {fileID: 11400000, guid: 2cb410dc028b86144be819f36ca7d8d1, type: 2}
+  bodyFont: {fileID: 11400000, guid: 6e1f10b7e118faf45901758c1ae43feb, type: 2}
+  listSize: {x: 345, y: 345}
+  detailsSize: {x: 345, y: 380}
+  taskSize: {x: 276, y: 138}
+  headingSize: 23
+  bodySize: 19
+  smallSize: 16
+  contentPadding: 12
+  taskButtonGap: 12
+  patienceHeight: 13
+  contentFade: 0.12
+  patienceSmooth: 0.15
+  panelSeconds: 0.2
+  panelSoundGain: 0.18
+  panelSound: {fileID: 8300000, guid: b036d46e531f520190ac2c4e98ea4720, type: 3}
+  ink: {r: 0.06, g: 0.14, b: 0.27, a: 1}

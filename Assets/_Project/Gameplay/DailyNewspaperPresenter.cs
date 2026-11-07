@@ -31,11 +31,13 @@ public sealed class DailyNewspaperPresenter : MonoBehaviour
     private Text headlineText;
     private Text bylineText;
     private Text bodyText;
+    private NewspaperLandscapeView landscape;
     private Button closeButton;
     private Button previousButton;
     private Button nextButton;
     private Text previousLabel;
     private Text nextLabel;
+    private Text footerIssueText;
     private ScrollRect articleScroll;
     private AudioSource audioSource;
     private AudioClip fallbackRustle;
@@ -78,6 +80,7 @@ public sealed class DailyNewspaperPresenter : MonoBehaviour
             nextVisibilityRefresh = Time.unscaledTime + VisibilityRefreshSeconds;
             RefreshVisibility();
         }
+        if(IsOpen && landscape!=null)landscape.RefreshLayout();
 
         if (IsOpen && !MultiplayerSocialUI.InputBlocked && Input.GetKeyDown(KeyCode.Escape))
         {
@@ -162,7 +165,7 @@ public sealed class DailyNewspaperPresenter : MonoBehaviour
         newspaperButtonRoot.SetActive(false);
         overlayRoot.SetActive(true);
         if (closeButton != null)
-            closeButton.interactable = false;
+            closeButton.interactable = true;
 
         animationVersion++;
         PlayPaperSound(settings != null ? settings.paperRustleSound : null, ref fallbackRustle,
@@ -210,6 +213,7 @@ public sealed class DailyNewspaperPresenter : MonoBehaviour
 
         while (version == animationVersion)
         {
+            reducedMotion |= LevelOneUIAccessibility.ReducedMotion;
             elapsed += LevelOneUIAccessibility.UnscaledAnimationDeltaTime;
             float normalized = Mathf.Clamp01(elapsed / duration);
             float eased = reducedMotion
@@ -225,10 +229,10 @@ public sealed class DailyNewspaperPresenter : MonoBehaviour
 
             if (paperRect != null)
             {
-                paperRect.localScale = Vector3.one * Mathf.Lerp(0.12f, 1f, eased);
+                paperRect.localScale = reducedMotion?Vector3.one:Vector3.one * Mathf.Lerp(0.12f, 1f, eased);
                 paperRect.localEulerAngles = reducedMotion
                     ? Vector3.zero
-                    : new Vector3(0f, 0f, Mathf.Lerp(405f, 0f, Mathf.Clamp01(normalized)));
+                    : new Vector3(0f, 0f, Mathf.Lerp(-3f, 0f, Mathf.Clamp01(normalized)));
             }
 
             if (!slapPlayed && normalized >= 0.72f)
@@ -289,23 +293,28 @@ public sealed class DailyNewspaperPresenter : MonoBehaviour
             return;
         displayedIssueDay = issue.day;
         displayedIssueId = issue.issueID;
+        if(footerIssueText!=null)footerIssueText.text="ISSUE "+issue.day;
         int largeTextBonus = LevelOneUIAccessibility.LargeText ? 4 : 0;
         bool highContrast = LevelOneUIAccessibility.HighContrast;
         if (paperImage != null)
+        {
+            paperImage.sprite=highContrast?null:settings!=null?settings.newspaperPaper:null;
             paperImage.color = highContrast ? Color.white : new Color(0.97f, 0.93f, 0.80f, 1f);
+            if(paperImage.sprite!=null)paperImage.color=Color.white;
+        }
         if (mastheadText != null)
         {
             mastheadText.text = settings != null && !string.IsNullOrWhiteSpace(settings.newspaperName)
                 ? settings.newspaperName
                 : "THE GALACTIC GAZETTE";
-            mastheadText.fontSize = 42 + largeTextBonus;
+            mastheadText.fontSize = 60 + largeTextBonus;
         }
         if (issueText != null)
-            issueText.text = "ISSUE " + issue.day.ToString("00") + "  •  RESTAURANT DAY " + issue.day;
+            issueText.text = "DAY " + issue.day + " EDITION" + (issue.sourceDay>0?"  •  REPORTING DAY "+issue.sourceDay:"  •  OPENING EDITION");
         if (headlineText != null)
         {
             headlineText.text = issue.headline ?? string.Empty;
-            headlineText.fontSize = 30 + largeTextBonus;
+            headlineText.fontSize = 38 + largeTextBonus;
         }
         if (bylineText != null)
             bylineText.text = "Reported by " + (issue.byline ?? "Alien Correspondent");
@@ -321,6 +330,7 @@ public sealed class DailyNewspaperPresenter : MonoBehaviour
             Canvas.ForceUpdateCanvases();
             articleScroll.verticalNormalizedPosition = 1f;
         }
+        if(landscape!=null)landscape.Populate(PrepareDisplayContent(issue.renderedContent));
     }
 
     private static string PrepareDisplayContent(string raw)
@@ -466,7 +476,8 @@ public sealed class DailyNewspaperPresenter : MonoBehaviour
         paperRect.anchorMax = new Vector2(0.5f, 0.5f);
         paperRect.pivot = new Vector2(0.5f, 0.5f);
         paperRect.anchoredPosition = Vector2.zero;
-        paperRect.sizeDelta = new Vector2(760f, 940f);
+        paperRect.sizeDelta = settings!=null?settings.newspaperSize:new Vector2(1440,840);
+        if(settings!=null && settings.newspaperPaper!=null){paperImage.sprite=settings.newspaperPaper;paperImage.type=Image.Type.Sliced;paperImage.color=Color.white;}
         Shadow shadow = paper.AddComponent<Shadow>();
         shadow.effectColor = new Color(0f, 0f, 0f, 0.55f);
         shadow.effectDistance = new Vector2(12f, -14f);
@@ -515,15 +526,15 @@ public sealed class DailyNewspaperPresenter : MonoBehaviour
             TextAnchor.MiddleCenter,
             new Color(0.08f, 0.07f, 0.06f, 1f));
         headlineText.resizeTextForBestFit = true;
-        headlineText.resizeTextMinSize = 20;
-        headlineText.resizeTextMaxSize = 32;
+        headlineText.resizeTextMinSize = 24;
+        headlineText.resizeTextMaxSize = 40;
         SetAnchored(headlineText.rectTransform, new Vector2(0.055f, 0.705f), new Vector2(0.945f, 0.82f));
 
         bylineText = CreateText(
             "Byline",
             paper.transform,
             string.Empty,
-            17,
+            20,
             FontStyle.Italic,
             TextAnchor.MiddleCenter,
             new Color(0.27f, 0.22f, 0.18f, 1f));
@@ -531,6 +542,16 @@ public sealed class DailyNewspaperPresenter : MonoBehaviour
 
         BuildScrollView(paper.transform);
         BuildCloseButton(paper.transform);
+        SetAnchored(mastheadText.rectTransform,new Vector2(.06f,.91f),new Vector2(.91f,.98f));
+        mastheadText.resizeTextForBestFit=true;mastheadText.resizeTextMinSize=28;mastheadText.resizeTextMaxSize=64;
+        SetAnchored(issueText.rectTransform,new Vector2(.06f,.875f),new Vector2(.94f,.91f));
+        SetAnchored(divider.GetComponent<RectTransform>(),new Vector2(.05f,.86f),new Vector2(.95f,.865f));
+        SetAnchored(dividerThin.GetComponent<RectTransform>(),new Vector2(.05f,.853f),new Vector2(.95f,.857f));
+        SetAnchored(headlineText.rectTransform,new Vector2(.055f,.775f),new Vector2(.945f,.85f));
+        SetAnchored(bylineText.rectTransform,new Vector2(.08f,.74f),new Vector2(.92f,.775f));
+        SetAnchored((RectTransform)articleScroll.transform,new Vector2(.055f,.115f),new Vector2(.945f,.735f));
+        landscape=paper.AddComponent<NewspaperLandscapeView>();
+        landscape.Initialize(paperRect,articleScroll,bodyText,settings,newspaperFont);
     }
 
     private void BuildScrollView(Transform parent)
@@ -589,12 +610,14 @@ public sealed class DailyNewspaperPresenter : MonoBehaviour
 
     private void BuildArchiveButtons(Transform parent)
     {
+        footerIssueText=CreateText("Edition",parent,"",22,FontStyle.Bold,TextAnchor.MiddleCenter,new Color(.10f,.16f,.24f));
+        SetAnchored(footerIssueText.rectTransform,new Vector2(.34f,.025f),new Vector2(.66f,.095f));
         previousButton = CreateFooterButton(
             "Previous Issue",
             parent,
             new Vector2(0.055f, 0.025f),
             new Vector2(0.30f, 0.095f),
-            "‹ PREVIOUS",
+            "‹ PREVIOUS ISSUE",
             out previousLabel);
         previousButton.onClick.AddListener(() => OpenAdjacentIssue(-1));
 
@@ -603,7 +626,7 @@ public sealed class DailyNewspaperPresenter : MonoBehaviour
             parent,
             new Vector2(0.70f, 0.025f),
             new Vector2(0.945f, 0.095f),
-            "NEXT ›",
+            "NEXT ISSUE ›",
             out nextLabel);
         nextButton.onClick.AddListener(() => OpenAdjacentIssue(1));
     }
@@ -621,24 +644,31 @@ public sealed class DailyNewspaperPresenter : MonoBehaviour
             parent,
             new Color(0.28f, 0.20f, 0.13f, 1f));
         SetAnchored(root.GetComponent<RectTransform>(), anchorMin, anchorMax);
+        var surface=root.GetComponent<Image>();if(settings!=null && settings.newspaperNavigation!=null){surface.sprite=settings.newspaperNavigation;surface.type=Image.Type.Sliced;surface.color=Color.white;}
         Button button = root.AddComponent<Button>();
         root.AddComponent<ButtonAnimator>();
+        GameplayButtonSound.Ensure(button);
+        button.GetComponent<GameplayButtonSound>().suppressClick=true; // Page turn owns this interaction's cue.
         label = CreateText(
             "Label",
             root.transform,
             labelValue,
-            18,
+            22,
             FontStyle.Bold,
             TextAnchor.MiddleCenter,
             Color.white);
         Stretch(label.rectTransform, 8f, 4f, 8f, 4f);
+        label.color=new Color(.10f,.16f,.24f);
         return button;
     }
 
     private void OpenAdjacentIssue(int direction)
     {
         if (manager == null || manager.NewspaperIssues == null)
+        {
+            if(previousButton!=null)previousButton.interactable=false;if(nextButton!=null)nextButton.interactable=false;
             return;
+        }
         int currentIndex = -1;
         for (int i = 0; i < manager.NewspaperIssues.Count; i++)
         {
@@ -665,7 +695,10 @@ public sealed class DailyNewspaperPresenter : MonoBehaviour
     private void RefreshArchiveButtons()
     {
         if (manager == null || manager.NewspaperIssues == null)
+        {
+            if(previousButton!=null)previousButton.interactable=false;if(nextButton!=null)nextButton.interactable=false;
             return;
+        }
         int index = -1;
         for (int i = 0; i < manager.NewspaperIssues.Count; i++)
         {
@@ -682,12 +715,12 @@ public sealed class DailyNewspaperPresenter : MonoBehaviour
             nextButton.interactable = index >= 0 && index < manager.NewspaperIssues.Count - 1;
         if (previousLabel != null)
             previousLabel.color = previousButton != null && previousButton.interactable
-                ? Color.white
-                : new Color(1f, 1f, 1f, 0.45f);
+                ? new Color(.10f,.16f,.24f)
+                : new Color(.4f,.4f,.4f,.65f);
         if (nextLabel != null)
             nextLabel.color = nextButton != null && nextButton.interactable
-                ? Color.white
-                : new Color(1f, 1f, 1f, 0.45f);
+                ? new Color(.10f,.16f,.24f)
+                : new Color(.4f,.4f,.4f,.65f);
     }
 
     private void BuildCloseButton(Transform parent)

@@ -1,0 +1,3 @@
+PASS: 509 transparency/bounds/source-integrity checks. 27 sprites. Original reused PNGs are byte-identical.
+
+Integration update: seven scalable surfaces and existing polish-settings bindings added. Runtime/Editor compilation and 554 isolated production-code assertions passed, including newspaper content/layout and reception Greet/Seat presentation. Individual production PNGs/metas and fonts imported in the isolated project; named icon-atlas native import was not separately tested. Native newspaper desktop/portrait renders were reviewed. Live gameplay, multiplayer transactions, animation playback, device testing and audio listening remain unverified. See Documentation/Gameplay/GamePolishPlan.md.

@@ -1052,6 +1052,64 @@
       "imageType": "Simple",
       "fileID": 21300070,
       "spriteID": "c083c0bb46014113b35b2216461db75f"
+    },
+    {
+      "name": "IconGreetCustomer",
+      "file": "Components/IconGreetCustomer.png",
+      "topLeft": {
+        "x": 704,
+        "y": 1744,
+        "width": 256,
+        "height": 256
+      },
+      "unityRect": {
+        "x": 704,
+        "y": 48,
+        "width": 256,
+        "height": 256
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "top": 0,
+        "right": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple",
+      "fileID": 21300072,
+      "spriteID": "b0a50952cecb4c8f82365bd6a8d216d5"
+    },
+    {
+      "name": "IconSeatCustomer",
+      "file": "Components/IconSeatCustomer.png",
+      "topLeft": {
+        "x": 976,
+        "y": 1744,
+        "width": 256,
+        "height": 256
+      },
+      "unityRect": {
+        "x": 976,
+        "y": 48,
+        "width": 256,
+        "height": 256
+      },
+      "border": {
+        "left": 0,
+        "bottom": 0,
+        "top": 0,
+        "right": 0
+      },
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple",
+      "fileID": 21300074,
+      "spriteID": "8eed1ffa9e21468d8184694a15f0038a"
     }
   ],
   "uses": [
@@ -1097,6 +1155,14 @@
       ],
       "behavior": "Existing reservation management actions",
       "area": "Reservations"
+    },
+    {
+      "icons": [
+        "IconGreetCustomer",
+        "IconSeatCustomer"
+      ],
+      "behavior": "Greet and seat presentation states; the existing action handlers remain authoritative",
+      "area": "Reception actions"
     }
   ],
   "labelsBaked": false,
@@ -1106,5 +1172,5 @@
     "Disabled",
     "Focused"
   ],
-  "integration": "Buttons and icons only; no scene or gameplay changes. Full pouring illustrations excluded."
+  "integration": "Reception icons are bound to the existing Greet Customer / Seat Table presentation; action handlers and reservation management are unchanged."
 }

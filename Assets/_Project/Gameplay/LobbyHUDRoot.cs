@@ -78,7 +78,7 @@ public sealed class LobbyHUDRoot : MonoBehaviour
             controls.UseCombinedAuthoredLayout();
             // Scale before binding so panel animations retain the mobile size.
             // Keep the actual tutorial target and all child text in the same rect.
-            if (MobileUISettings.UseMobileLayout &&
+            if (CustomerDrawerArt.Shared==null && MobileUISettings.UseMobileLayout &&
                 controls.transform.Find("SafeArea/TaskMessage") is RectTransform taskPanel)
                 taskPanel.localScale *= Mathf.Max(0.1f, mobileTaskPanelScale);
             PlayerTaskHUD.EnsureCombinedBinding(controls);

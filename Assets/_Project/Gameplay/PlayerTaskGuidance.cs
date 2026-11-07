@@ -19,6 +19,7 @@ public readonly struct PlayerTaskView
     public readonly int Priority;
     public readonly UnityEngine.Object Target;
     public readonly PlayerTaskCategory Category;
+    public readonly string Icon, ShortAction, Destination, Table;
 
     public bool IsValid => !string.IsNullOrWhiteSpace(Key) &&
                            !string.IsNullOrWhiteSpace(Action);
@@ -30,7 +31,7 @@ public readonly struct PlayerTaskView
         string detail,
         int priority,
         UnityEngine.Object target,
-        PlayerTaskCategory category)
+        PlayerTaskCategory category, string icon=null, string shortAction=null, string destination=null, string table=null)
     {
         Source = source;
         Key = key;
@@ -39,6 +40,7 @@ public readonly struct PlayerTaskView
         Priority = priority;
         Target = target;
         Category = category;
+        Icon=icon;ShortAction=shortAction;Destination=destination;Table=table;
     }
 }
 
@@ -80,7 +82,7 @@ public static class PlayerTaskGuidance
         string detail,
         int priority,
         UnityEngine.Object target,
-        PlayerTaskCategory category)
+        PlayerTaskCategory category, string icon=null, string shortAction=null, string destination=null, string table=null)
     {
         if (string.IsNullOrWhiteSpace(source))
             return;
@@ -98,7 +100,7 @@ public static class PlayerTaskGuidance
             string.IsNullOrWhiteSpace(detail) ? string.Empty : detail.Trim(),
             priority,
             target,
-            category);
+            category,icon,shortAction,destination,table);
         SelectCurrent();
     }
 
@@ -144,6 +146,6 @@ public static class PlayerTaskGuidance
                a.Detail == b.Detail &&
                a.Priority == b.Priority &&
                a.Target == b.Target &&
-               a.Category == b.Category;
+               a.Category == b.Category && a.Icon==b.Icon && a.ShortAction==b.ShortAction && a.Destination==b.Destination && a.Table==b.Table;
     }
 }

@@ -12,6 +12,7 @@ public class CustomerGroupClickable : MonoBehaviour
 
     private void OnMouseDown()
     {
+        if(CustomerDrawerView.BlocksCustomerClick)return;
         if (MultiplayerCustomerInteractionBridge.ReviewIsMultiplayer)
         {
             var events = UnityEngine.EventSystems.EventSystem.current;

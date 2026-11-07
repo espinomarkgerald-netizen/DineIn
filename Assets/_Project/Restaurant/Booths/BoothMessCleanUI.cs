@@ -367,7 +367,11 @@ public class BoothMessCleanUI : MonoBehaviour, IPointerDownHandler, IPointerUpHa
 
         Canvas canvas = GetComponentInParent<Canvas>();
         if (canvas != null && canvas.renderMode == RenderMode.WorldSpace && cam != null)
+        {
             canvas.worldCamera = cam;
+            canvas.overrideSorting = true;
+            canvas.sortingOrder = 110;
+        }
     }
 
     private bool CanCurrentPlayerClean(out string blockedReason)
@@ -515,6 +519,8 @@ public class BoothMessCleanUI : MonoBehaviour, IPointerDownHandler, IPointerUpHa
         caption.fontSizeMax = Mathf.Clamp(label.fontSize, 3f, 6f); caption.fontSizeMin = caption.fontSizeMax * .65f;
         caption.fontSize = caption.fontSizeMax; caption.overflowMode = TextOverflowModes.Ellipsis;
         caption.text = text;
+        var skin = GameplayActionButtonSkin.Apply(button, text == "Ask staff" ? "IconWaiting" : "IconClean", text, "Cyan");
+        if (skin != null) skin.UseCaption(caption);
         return button;
     }
 }

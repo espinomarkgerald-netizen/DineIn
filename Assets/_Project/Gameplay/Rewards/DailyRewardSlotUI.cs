@@ -101,6 +101,17 @@ public sealed partial class DailyRewardSlotUI : MonoBehaviour
     private void StartSpin()
     {
         if (closing || spun || waiting || GameplaySfx.PresentationSuspended) return;
+        if (!preview && provider is DailyRewardGameBackend)
+        {
+            var wallet = PlayFabWalletManager.EnsureInstance();
+            if (!wallet.IsCurrentWallet)
+            {
+                if (!wallet.IsRefreshing) wallet.RefreshWallet();
+                status.text = "Preparing rewards. Tap SPIN to retry when connected.";
+                next.interactable = true;
+                return;
+            }
+        }
         spun = true; waiting = true; spin.interactable = false; next.interactable = false;
         status.text = "Spinning…";
         GameplaySfx.PlayUiClip(settings.spinSound, settings.audioLevel);

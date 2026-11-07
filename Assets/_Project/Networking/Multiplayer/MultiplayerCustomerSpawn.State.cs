@@ -23,6 +23,8 @@ public partial class MultiplayerCustomerSpawn
         public float stockWaitRemaining;
         public double eatingAt;
         public float eatingDuration, patience;
+        public bool inspectionKnown, inspectionActive;
+        public float inspectionPatience;
         public Vector3 queuePosition, paperPosition;
         public Quaternion paperRotation;
     }
@@ -32,11 +34,19 @@ public partial class MultiplayerCustomerSpawn
     private ServiceState pendingServiceState;
     private PhotonMessageInfo pendingServiceInfo;
     private float nextServiceBaseline;
+    private float nextInspectionSample;
+    private bool sampledInspectionActive;
+    private float sampledInspectionPatience;
 
     private void PublishServiceState()
     {
         using var measurement = MultiplayerDiagnostics.CustomerState.Auto();
         if (!simulating || session == null || !session.IsAuthority || Group == null) return;
+        if(Time.unscaledTime>=nextInspectionSample) {
+            nextInspectionSample=Time.unscaledTime+.25f;
+            var inspection=Group.CaptureInspection();sampledInspectionActive=inspection.PatienceActive;
+            sampledInspectionPatience=Mathf.Round(inspection.Patience*100f)/100f;
+        }
         var paper = BillManager.Instance?.FindBillForGroup(Group);
         var holder = paper != null ? paper.GetComponentInParent<WaiterHands>(true) : null;
         BillOwnerActor = session.GetComponent<MultiplayerTaskClaims>().GetOwner($"Customer:{photonView.ViewID}:Bill");
@@ -66,6 +76,7 @@ public partial class MultiplayerCustomerSpawn
             isFastFood = Group.FastFood != null, fastFood = Group.CaptureFastFoodState(),
             fineDining = Group.CaptureFineDiningState(), takeoutQueue = (int)Group.CurrentTakeoutQueueState };
         state.carrier = CarrierActorNumber; state.carrierRecovery = CarrierNeedsRecovery;
+        state.inspectionKnown=true;state.inspectionActive=sampledInspectionActive;state.inspectionPatience=sampledInspectionPatience;
         var kitchen = MultiplayerWorldRegistry.Kitchen;
         if (Group.HasConfirmedOrder && kitchen != null && kitchen.TryGetForecast(Group.currentOrderNumber, out var forecast) && forecast.Group == Group)
         {
@@ -153,6 +164,7 @@ public partial class MultiplayerCustomerSpawn
         var served = MultiplayerWorldRegistry.Kitchen?.GetPreparedResult(state.orderNumber);
         if (served != null && Group.state == CustomerGroup.GroupState.Eating) Group.PresentObservedServed(served);
         appliedServiceRevision = state.revision; pendingServiceState = null;
+        Group.PresentInspectionPatience(state.inspectionKnown,state.inspectionActive,state.inspectionPatience);
         Group.ReconcileMultiplayerBubbles(this);
         Group.PresentFastFoodPatience();
         if (state.waitingForStock) Group.PresentStockWait(true, state.stockWaitRemaining);

@@ -13,15 +13,17 @@ public class LobbyTaskTracker : MonoBehaviour
         public string main;
         public string helper;
         public UnityEngine.Object target;
+        public string icon,shortAction,destination,table;
 
         public bool IsValid => !string.IsNullOrWhiteSpace(main);
 
-        public TaskInfo(string key, string main, string helper, UnityEngine.Object target = null)
+        public TaskInfo(string key, string main, string helper, UnityEngine.Object target = null,string icon=null,string shortAction=null,string destination=null,string table=null)
         {
             this.key = key;
             this.main = main;
             this.helper = helper;
             this.target = target;
+            this.icon=icon;this.shortAction=shortAction;this.destination=destination;this.table=table;
         }
     }
 
@@ -132,9 +134,7 @@ public class LobbyTaskTracker : MonoBehaviour
             return;
         }
 
-        if (task.key == currentTaskKey && task.main == currentTaskMain && task.helper == currentTaskHelper)
-            return;
-
+        // SetTask compares the complete view, including reassigned table metadata.
         currentTaskKey = task.key;
         currentTaskMain = task.main;
         currentTaskHelper = task.helper;
@@ -146,7 +146,7 @@ public class LobbyTaskTracker : MonoBehaviour
             showHelperText ? task.helper : string.Empty,
             100,
             task.target,
-            PlayerTaskCategory.Service);
+            PlayerTaskCategory.Service,task.icon,task.shortAction,task.destination,task.table);
     }
 
     private TaskInfo ResolveTask()
@@ -164,8 +164,9 @@ public class LobbyTaskTracker : MonoBehaviour
             return new TaskInfo(
                 tableNumber > 0 ? "held_money_" + tableNumber : "held_money",
                 "TAKE PAYMENT  >  CASHIER",
-                tableNumber > 0 ? "FROM TABLE " + tableNumber : "PROCESS THE CUSTOMER PAYMENT",
-                hands.HeldMoney != null ? hands.HeldMoney : group
+                group!=null?"FROM "+group.CaptureInspection().TableLabel:"PROCESS THE CUSTOMER PAYMENT",
+                hands.HeldMoney != null ? hands.HeldMoney : group,
+                "IconCash","Take payment","To cashier",group!=null?group.CaptureInspection().TableLabel:null
             );
         }
 
@@ -178,7 +179,7 @@ public class LobbyTaskTracker : MonoBehaviour
                 tableNumber > 0 ? "held_bill_" + tableNumber : "held_bill",
                 tableNumber > 0 ? "GIVE BILL  >  TABLE " + tableNumber : "GIVE BILL  >  CORRECT TABLE",
                 "MATCH THE TABLE NUMBER",
-                group
+                group,"IconReceipt","Give bill","To customer",group!=null?group.CaptureInspection().TableLabel:null
             );
         }
 
@@ -191,7 +192,7 @@ public class LobbyTaskTracker : MonoBehaviour
                 tableNumber > 0 ? "held_tray_" + tableNumber : "held_tray",
                 tableNumber > 0 ? "DELIVER ORDER  >  TABLE " + tableNumber : "DELIVER ORDER  >  CORRECT TABLE",
                 tableNumber > 0 ? "ORDER #" + tableNumber : "MATCH THE ORDER NUMBER",
-                tray
+                tray,"IconTable","Serve food","To customer",tray!=null && tray.TargetGroup!=null?tray.TargetGroup.CaptureInspection().TableLabel:null
             );
         }
 
@@ -203,7 +204,7 @@ public class LobbyTaskTracker : MonoBehaviour
                 bag != null ? "deliver_takeout_" + bag.GetInstanceID() : "deliver_takeout",
                 number > 0 ? "DELIVER TAKEOUT  >  ORDER #" + number : "DELIVER TAKEOUT ORDER",
                 "FIND THE WAITING TAKEOUT CUSTOMER",
-                bag);
+                bag,"IconReceipt","Deliver takeout","To customer",number>0?"Order #"+number:null);
         }
 
         UnityEngine.Object activeTarget = RestaurantTaskClaim.ActivePlayerTarget;
@@ -213,11 +214,12 @@ public class LobbyTaskTracker : MonoBehaviour
         if (activeTarget is CustomerGroup groupTarget)
         {
             int number = groupTarget.currentOrderNumber;
-            string table = number > 0 ? "TABLE " + number : "CUSTOMER GROUP";
+            string table = groupTarget.CaptureInspection().TableLabel;
 
             if (groupTarget.HasWineRefillRequest)
                 return new TaskInfo("wine_refill_" + groupTarget.GetInstanceID(),
-                    "POUR WINE", "APPROACH THE TABLE, THEN DRAG THE BOTTLE OVER THE GLASS", groupTarget);
+                    groupTarget.IsWaterPourRequest?"POUR WATER":"POUR WINE", "APPROACH THE TABLE, THEN DRAG TO POUR", groupTarget,
+                    groupTarget.IsWaterPourRequest?"IconWaterRefill":"IconWineRefill",groupTarget.IsWaterPourRequest?"Pour water":"Pour wine","To customer",table);
 
             if (!groupTarget.hasBeenGreeted)
             {
@@ -225,7 +227,7 @@ public class LobbyTaskTracker : MonoBehaviour
                     "greet_group_" + groupTarget.GetInstanceID(),
                     "GREET WAITING GROUP",
                     "MEET THEM AT THE RECEPTION AREA",
-                    groupTarget);
+                    groupTarget,"IconGreetCustomer","Greet group","At reception");
             }
 
             if (groupTarget.IsReceptionClaimedByPlayer ||
@@ -235,7 +237,7 @@ public class LobbyTaskTracker : MonoBehaviour
                     "seat_group_" + groupTarget.GetInstanceID(),
                     "CHOOSE A TABLE",
                     "SEAT THE WAITING CUSTOMER GROUP",
-                    groupTarget);
+                    groupTarget,"IconSeatCustomer","Choose a table","Seat the group");
             }
 
             if (groupTarget.state == CustomerGroup.GroupState.ReadyToOrder ||
@@ -246,7 +248,7 @@ public class LobbyTaskTracker : MonoBehaviour
                     "take_order_" + groupTarget.GetInstanceID(),
                     "TAKE ORDER  >  " + table,
                     "CONFIRM THE CUSTOMER'S ORDER",
-                    groupTarget);
+                    groupTarget,"IconTakeOrder","Take order","To customer",table);
             }
 
             if (groupTarget.state == CustomerGroup.GroupState.NeedsBill)
@@ -257,22 +259,22 @@ public class LobbyTaskTracker : MonoBehaviour
                     return new TaskInfo(
                         "pickup_bill_" + groupTarget.GetInstanceID(),
                         "PICK UP BILL  >  CASHIER",
-                        number > 0 ? "FOR TABLE " + number : "CHECK THE TABLE NUMBER",
-                        groupTarget);
+                        "FOR "+table,
+                        groupTarget,"IconReceipt","Collect bill","To cashier",table);
                 }
 
                 return new TaskInfo(
                     "request_bill_" + groupTarget.GetInstanceID(),
                     "REQUEST BILL  >  " + table,
                     "THEN PICK IT UP AT THE CASHIER",
-                    groupTarget);
+                    groupTarget,"IconReceipt","Ask for bill","To customer",table);
             }
 
             return new TaskInfo(
                 "help_group_" + groupTarget.GetInstanceID(),
                 "HELP  >  " + table,
                 "FINISH THE CURRENT CUSTOMER STEP",
-                groupTarget);
+                groupTarget,"IconGuests","Help customer","To customer",table);
         }
 
         if (activeTarget is FoodTray trayTarget)
@@ -281,8 +283,8 @@ public class LobbyTaskTracker : MonoBehaviour
             return new TaskInfo(
                 "pickup_tray_" + trayTarget.GetInstanceID(),
                 "PICK UP ORDER  >  COUNTER",
-                number > 0 ? "FOR TABLE " + number : "CHECK THE ORDER NUMBER",
-                trayTarget);
+                number > 0 ? "ORDER #" + number : "CHECK THE ORDER NUMBER",
+                trayTarget,"IconCloche","Pick up food","At counter",trayTarget.TargetGroup!=null?trayTarget.TargetGroup.CaptureInspection().TableLabel:null);
         }
 
         if (activeTarget is MoneyPickup moneyTarget)
@@ -290,9 +292,9 @@ public class LobbyTaskTracker : MonoBehaviour
             int number = moneyTarget.TargetGroup != null ? moneyTarget.TargetGroup.currentOrderNumber : -1;
             return new TaskInfo(
                 "collect_money_" + moneyTarget.GetInstanceID(),
-                number > 0 ? "COLLECT PAYMENT  >  TABLE " + number : "COLLECT CUSTOMER PAYMENT",
+                "COLLECT CUSTOMER PAYMENT",
                 "THEN TAKE IT TO THE CASHIER",
-                moneyTarget);
+                moneyTarget,"IconCash","Collect payment","To customer",moneyTarget.TargetGroup!=null?moneyTarget.TargetGroup.CaptureInspection().TableLabel:null);
         }
 
         if (activeTarget is Booth boothTarget)
@@ -301,7 +303,7 @@ public class LobbyTaskTracker : MonoBehaviour
                 "clean_booth_" + boothTarget.GetInstanceID(),
                 "CLEAN DIRTY TABLE",
                 "HOLD THE CLEAN BUTTON UNTIL COMPLETE",
-                boothTarget);
+                boothTarget,"IconClean","Clean table",null,boothTarget.CurrentGroup!=null?boothTarget.CurrentGroup.InspectionTableLabel:"Awaiting number");
         }
 
         if (activeTarget is TakeoutBagInteractable takeoutTarget)
@@ -311,7 +313,7 @@ public class LobbyTaskTracker : MonoBehaviour
                 "takeout_" + takeoutTarget.GetInstanceID(),
                 number > 0 ? "PICK UP TAKEOUT  >  ORDER #" + number : "PICK UP TAKEOUT ORDER",
                 "DELIVER IT TO THE WAITING CUSTOMER",
-                takeoutTarget);
+                takeoutTarget,"IconReceipt","Pick up takeaway","At counter",number>0?"Order #"+number:null);
         }
 
         return default;

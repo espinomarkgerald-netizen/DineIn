@@ -92,6 +92,7 @@ public class TapOutlineSelector : MonoBehaviour
 
     private void HandleTap(Vector3 screenPos, int pointerId)
     {
+        if(CustomerDrawerView.BlocksWorldPointer)return;
         // Block UI clicks
         if (EventSystem.current != null)
         {

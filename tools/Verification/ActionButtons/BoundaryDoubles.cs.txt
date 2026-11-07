@@ -52,7 +52,7 @@ public class MultiplayerTaskClaims : MonoBehaviour {
 public static class MultiplayerCustomerInteractionBridge { public static bool ReviewIsMultiplayer => MultiplayerSessionManager.Instance != null && MultiplayerSessionManager.Instance.IsMultiplayerSession; }
 public static class RestaurantTaskClaim {
  public static event Action PlayerTaskChanged;
- public static bool PlayerHasActiveTask => false;
+ public static bool PlayerHasActiveTask { get; set; }
  public static bool IsClaimedByPlayer(UnityEngine.Object o) => false;
  public static string GetMultiplayerTaskId(UnityEngine.Object o) => null;
 }
@@ -86,3 +86,5 @@ public class PlayerMovement : MonoBehaviour {
  public void UI_MoveTo(IInteractable i) {Walks++;}
  public bool UI_MoveToAction(Transform stand,float radius,Action arrive,Action cancel=null) { Walks++; Arrive=arrive; Cancel=cancel; return true; }
 }
+// Closed/absent inspection drawer boundary; delivery eligibility remains production code.
+public static class CustomerDrawerView { public static bool TryInspectGroupFromUI(CustomerGroup group)=>false; }

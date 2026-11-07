@@ -266,6 +266,7 @@ public class PlayerMovement : MonoBehaviour
 
     private void TryClickInteractable(Vector2 screenPos)
     {
+        if(CustomerDrawerView.BlocksWorldPointer || CustomerDrawerView.TryCaptureWorldPress(screenPos))return;
         if (taskLocked)
             return;
 

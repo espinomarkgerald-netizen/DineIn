@@ -26,6 +26,16 @@ public sealed partial class FastFoodRestaurant
     internal int NetworkWaiting(CustomerGroup group) => waitingSlots.TryGetValue(group, out var slot) ? slot : -1;
     internal int NetworkPickup(CustomerGroup group) => Array.IndexOf(customerPickupSlots, ReservedPickupFor(group));
     internal float NetworkSeatWait(CustomerGroup group) => seatWait.TryGetValue(group, out var elapsed) ? elapsed : 0f;
+    // Read the same deadlines used by Update; inspection never advances or starts them.
+    internal bool TryGetInspectionPatience(CustomerGroup group,out float value)
+    {
+        value=0;
+        if(group.FastFoodAwaitingSeat && group.state!=CustomerGroup.GroupState.WalkingToBooth && seatWait.TryGetValue(group,out var seated))
+        {value=Mathf.Clamp01(1-seated/Mathf.Max(1,seatWaitSeconds));return true;}
+        if(!HygieneManager.KitchenPaused && !group.FastFoodAwaitingSeat && !group.IsCollectingFastFoodTray && readyWait.TryGetValue(group,out var ready))
+        {value=Mathf.Clamp01(1-ready/Mathf.Max(1,readyFoodWaitSeconds));return true;}
+        return false;
+    }
     internal float NetworkReadyWait(CustomerGroup group) => readyWait.TryGetValue(group, out var elapsed) ? elapsed : 0f;
     internal void PresentCustomer(CustomerGroup group, CustomerGroup.FastFoodNetworkState state)
     {

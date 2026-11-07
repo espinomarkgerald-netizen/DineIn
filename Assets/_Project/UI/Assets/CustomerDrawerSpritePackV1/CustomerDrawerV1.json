@@ -1,0 +1,1243 @@
+{
+  "version": 1,
+  "atlas": "CustomerDrawerV1.png",
+  "atlasGuid": "b7d58a8761b54baf81b31805251dc3ed",
+  "width": 2048,
+  "height": 2048,
+  "origin": "Unity bottom-left",
+  "padding": 16,
+  "labelsBaked": false,
+  "recommendedPixelsPerUnitMultiplier": 2,
+  "compactLayout": {
+    "referenceViewport": [
+      1670,
+      940
+    ],
+    "listSize": [
+      300,
+      300
+    ],
+    "detailsSize": [
+      300,
+      330
+    ],
+    "taskSize": [
+      240,
+      120
+    ]
+  },
+  "sprites": [
+    {
+      "name": "ChevronLeft",
+      "file": "Components/ChevronLeft.png",
+      "guid": "3faad2b5a755468e9c35d55ebdc5faff",
+      "topLeft": {
+        "x": 16,
+        "y": 16,
+        "width": 64,
+        "height": 64
+      },
+      "rect": {
+        "x": 16,
+        "y": 1968,
+        "width": 64,
+        "height": 64
+      },
+      "border": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple",
+      "fileID": 21300000,
+      "spriteID": "8685c2b907654c8188ab7499debb675a"
+    },
+    {
+      "name": "ChevronRight",
+      "file": "Components/ChevronRight.png",
+      "guid": "f78e313d9a52430aaf5b12d9b3f1c4a1",
+      "topLeft": {
+        "x": 96,
+        "y": 16,
+        "width": 64,
+        "height": 64
+      },
+      "rect": {
+        "x": 96,
+        "y": 1968,
+        "width": 64,
+        "height": 64
+      },
+      "border": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple",
+      "fileID": 21300002,
+      "spriteID": "a03e20eef4b14753bec31401c642b655"
+    },
+    {
+      "name": "Divider",
+      "file": "Components/Divider.png",
+      "guid": "b85e408298464e83b89b2f8e2a78eeaa",
+      "topLeft": {
+        "x": 176,
+        "y": 16,
+        "width": 256,
+        "height": 8
+      },
+      "rect": {
+        "x": 176,
+        "y": 2024,
+        "width": 256,
+        "height": 8
+      },
+      "border": [
+        4,
+        3,
+        4,
+        3
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced",
+      "fileID": 21300004,
+      "spriteID": "b66893c904284c24873f02224f29451e"
+    },
+    {
+      "name": "HeaderTab",
+      "file": "Components/HeaderTab.png",
+      "guid": "705c4dd0b3f841e5b772c73676cfb39a",
+      "topLeft": {
+        "x": 448,
+        "y": 16,
+        "width": 384,
+        "height": 80
+      },
+      "rect": {
+        "x": 448,
+        "y": 1952,
+        "width": 384,
+        "height": 80
+      },
+      "border": [
+        32,
+        24,
+        32,
+        24
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced",
+      "fileID": 21300006,
+      "spriteID": "4142ce218f8e49f189f5f1a0227d557e"
+    },
+    {
+      "name": "HoverRow",
+      "file": "Components/HoverRow.png",
+      "guid": "2b0bb702b65543468a1f6e9cd67b50fd",
+      "topLeft": {
+        "x": 848,
+        "y": 16,
+        "width": 256,
+        "height": 96
+      },
+      "rect": {
+        "x": 848,
+        "y": 1936,
+        "width": 256,
+        "height": 96
+      },
+      "border": [
+        16,
+        16,
+        16,
+        16
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced",
+      "fileID": 21300008,
+      "spriteID": "80a8e28496c84f85ac54f68e186a06f3"
+    },
+    {
+      "name": "IconAngry",
+      "file": "Components/IconAngry.png",
+      "guid": "1573b2703cda4f4b8ae4556b8ec2326d",
+      "topLeft": {
+        "x": 1120,
+        "y": 16,
+        "width": 256,
+        "height": 256
+      },
+      "rect": {
+        "x": 1120,
+        "y": 1776,
+        "width": 256,
+        "height": 256
+      },
+      "border": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple",
+      "fileID": 21300010,
+      "spriteID": "ed91c1132b6744b29c2a387ed00e9db0",
+      "source": "Assets/_Project/UI/Assets/DayPanelSpritePackV2/Components/IconAngry.png"
+    },
+    {
+      "name": "IconCash",
+      "file": "Components/IconCash.png",
+      "guid": "40eb6de56a7d4d1eb6b91c418d472cee",
+      "topLeft": {
+        "x": 1392,
+        "y": 16,
+        "width": 256,
+        "height": 256
+      },
+      "rect": {
+        "x": 1392,
+        "y": 1776,
+        "width": 256,
+        "height": 256
+      },
+      "border": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple",
+      "fileID": 21300012,
+      "spriteID": "6d3bcb897af94a609f3c89c59c5ee0cd",
+      "source": "Assets/_Project/UI/Assets/DayPanelSpritePackV2/Components/IconCash.png"
+    },
+    {
+      "name": "IconCashier",
+      "file": "Components/IconCashier.png",
+      "guid": "c7d97949aff44f0daf94b7c5f4a2f896",
+      "topLeft": {
+        "x": 1664,
+        "y": 16,
+        "width": 256,
+        "height": 256
+      },
+      "rect": {
+        "x": 1664,
+        "y": 1776,
+        "width": 256,
+        "height": 256
+      },
+      "border": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple",
+      "fileID": 21300014,
+      "spriteID": "65e08b751e3f4845a7963f2043182e91"
+    },
+    {
+      "name": "IconCheck",
+      "file": "Components/IconCheck.png",
+      "guid": "dc8951ac091643349b3957c5e25d90da",
+      "topLeft": {
+        "x": 16,
+        "y": 288,
+        "width": 256,
+        "height": 256
+      },
+      "rect": {
+        "x": 16,
+        "y": 1504,
+        "width": 256,
+        "height": 256
+      },
+      "border": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple",
+      "fileID": 21300016,
+      "spriteID": "e761db691ae2448ca951177ec10b6b78",
+      "source": "Assets/_Project/UI/Assets/DayPanelSpritePackV2/Components/IconCheck.png"
+    },
+    {
+      "name": "IconCloche",
+      "file": "Components/IconCloche.png",
+      "guid": "d6712f6759444fac9c94eeee3fac9940",
+      "topLeft": {
+        "x": 288,
+        "y": 288,
+        "width": 256,
+        "height": 256
+      },
+      "rect": {
+        "x": 288,
+        "y": 1504,
+        "width": 256,
+        "height": 256
+      },
+      "border": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple",
+      "fileID": 21300018,
+      "spriteID": "3b04c468a97749d3949d29563ae5b05f",
+      "source": "Assets/_Project/UI/Assets/DayPanelSpritePackV2/Components/IconCloche.png"
+    },
+    {
+      "name": "IconClock",
+      "file": "Components/IconClock.png",
+      "guid": "a579031588d54914b27fadd8d960b70b",
+      "topLeft": {
+        "x": 560,
+        "y": 288,
+        "width": 256,
+        "height": 256
+      },
+      "rect": {
+        "x": 560,
+        "y": 1504,
+        "width": 256,
+        "height": 256
+      },
+      "border": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple",
+      "fileID": 21300020,
+      "spriteID": "23c28531783c4eca9f4303d3325ec429",
+      "source": "Assets/_Project/UI/Assets/DayPanelSpritePackV2/Components/IconClock.png"
+    },
+    {
+      "name": "IconGuests",
+      "file": "Components/IconGuests.png",
+      "guid": "89b04cfa8f0745d88005bf39a87a3794",
+      "topLeft": {
+        "x": 832,
+        "y": 288,
+        "width": 256,
+        "height": 256
+      },
+      "rect": {
+        "x": 832,
+        "y": 1504,
+        "width": 256,
+        "height": 256
+      },
+      "border": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple",
+      "fileID": 21300022,
+      "spriteID": "84fd0acb35e6432b8fc3842f477994c2",
+      "source": "Assets/_Project/UI/Assets/DayPanelSpritePackV2/Components/IconGuests.png"
+    },
+    {
+      "name": "IconHappy",
+      "file": "Components/IconHappy.png",
+      "guid": "2019aebe9a7740508e6c799602bccf2c",
+      "topLeft": {
+        "x": 1104,
+        "y": 288,
+        "width": 256,
+        "height": 256
+      },
+      "rect": {
+        "x": 1104,
+        "y": 1504,
+        "width": 256,
+        "height": 256
+      },
+      "border": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple",
+      "fileID": 21300024,
+      "spriteID": "24d401a5f9804be2b2f45dd5b641ed66",
+      "source": "Assets/_Project/UI/Assets/DayPanelSpritePackV2/Components/IconHappy.png"
+    },
+    {
+      "name": "IconLocationPin",
+      "file": "Components/IconLocationPin.png",
+      "guid": "5abb9a07774b432494a2e7e8b05f825d",
+      "topLeft": {
+        "x": 1376,
+        "y": 288,
+        "width": 128,
+        "height": 128
+      },
+      "rect": {
+        "x": 1376,
+        "y": 1632,
+        "width": 128,
+        "height": 128
+      },
+      "border": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple",
+      "fileID": 21300026,
+      "spriteID": "539c47ad708f4c8a80054179321828f7"
+    },
+    {
+      "name": "IconNeutral",
+      "file": "Components/IconNeutral.png",
+      "guid": "2890155814ba426cb344d1c95272c0e2",
+      "topLeft": {
+        "x": 1520,
+        "y": 288,
+        "width": 256,
+        "height": 256
+      },
+      "rect": {
+        "x": 1520,
+        "y": 1504,
+        "width": 256,
+        "height": 256
+      },
+      "border": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple",
+      "fileID": 21300028,
+      "spriteID": "821c685ca15e45f1b7f7acfe3bc4762b",
+      "source": "Assets/_Project/UI/Assets/DayPanelSpritePackV2/Components/IconNeutral.png"
+    },
+    {
+      "name": "IconReceipt",
+      "file": "Components/IconReceipt.png",
+      "guid": "784b531672bd4d1c8e874fbc87b319e1",
+      "topLeft": {
+        "x": 16,
+        "y": 560,
+        "width": 256,
+        "height": 256
+      },
+      "rect": {
+        "x": 16,
+        "y": 1232,
+        "width": 256,
+        "height": 256
+      },
+      "border": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple",
+      "fileID": 21300030,
+      "spriteID": "4d8a978a65a943aba6688d08d5664304",
+      "source": "Assets/_Project/UI/Assets/ActionButtonSpritePackV1/Components/IconCollectBill.png"
+    },
+    {
+      "name": "IconTable",
+      "file": "Components/IconTable.png",
+      "guid": "977d05f7c3be411bb5f7d2cad5fa89c5",
+      "topLeft": {
+        "x": 288,
+        "y": 560,
+        "width": 256,
+        "height": 256
+      },
+      "rect": {
+        "x": 288,
+        "y": 1232,
+        "width": 256,
+        "height": 256
+      },
+      "border": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple",
+      "fileID": 21300032,
+      "spriteID": "0095cd2c1c0e477993a10975af426da5",
+      "source": "Assets/_Project/UI/Assets/RestaurantControlsSpritePackV1/Components/IconSeatCustomer.png"
+    },
+    {
+      "name": "IconWaiting",
+      "file": "Components/IconWaiting.png",
+      "guid": "039d886f5b8c465eb5b11ad47069528c",
+      "topLeft": {
+        "x": 560,
+        "y": 560,
+        "width": 256,
+        "height": 256
+      },
+      "rect": {
+        "x": 560,
+        "y": 1232,
+        "width": 256,
+        "height": 256
+      },
+      "border": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple",
+      "fileID": 21300034,
+      "spriteID": "6d6a26fbec51453a9cc3bbcc98a0c1ae",
+      "source": "Assets/_Project/UI/Assets/RestaurantControlsSpritePackV1/Components/IconWaiting.png"
+    },
+    {
+      "name": "NavButtonDisabled",
+      "file": "Components/NavButtonDisabled.png",
+      "guid": "aaf1216c41354bf1ad85000b2689fc38",
+      "topLeft": {
+        "x": 832,
+        "y": 560,
+        "width": 256,
+        "height": 64
+      },
+      "rect": {
+        "x": 832,
+        "y": 1424,
+        "width": 256,
+        "height": 64
+      },
+      "border": [
+        24,
+        16,
+        24,
+        16
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced",
+      "fileID": 21300036,
+      "spriteID": "f02a105528e74db292b94a982f144065"
+    },
+    {
+      "name": "NavButtonFocused",
+      "file": "Components/NavButtonFocused.png",
+      "guid": "62cc40ebba5a450ba9bb3c62894814bb",
+      "topLeft": {
+        "x": 1104,
+        "y": 560,
+        "width": 256,
+        "height": 64
+      },
+      "rect": {
+        "x": 1104,
+        "y": 1424,
+        "width": 256,
+        "height": 64
+      },
+      "border": [
+        24,
+        16,
+        24,
+        16
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced",
+      "fileID": 21300038,
+      "spriteID": "de69b43c232441da80dcddf2fada1aa4"
+    },
+    {
+      "name": "NavButtonPressed",
+      "file": "Components/NavButtonPressed.png",
+      "guid": "ad96b057d0444595a54b1fd41f90d0c1",
+      "topLeft": {
+        "x": 1376,
+        "y": 560,
+        "width": 256,
+        "height": 64
+      },
+      "rect": {
+        "x": 1376,
+        "y": 1424,
+        "width": 256,
+        "height": 64
+      },
+      "border": [
+        24,
+        16,
+        24,
+        16
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced",
+      "fileID": 21300040,
+      "spriteID": "ea1bd6e74dae407d8f6d25fd52a183ae"
+    },
+    {
+      "name": "NavButtonReady",
+      "file": "Components/NavButtonReady.png",
+      "guid": "368e631771dd4c028127e5e356f23a51",
+      "topLeft": {
+        "x": 1648,
+        "y": 560,
+        "width": 256,
+        "height": 64
+      },
+      "rect": {
+        "x": 1648,
+        "y": 1424,
+        "width": 256,
+        "height": 64
+      },
+      "border": [
+        24,
+        16,
+        24,
+        16
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced",
+      "fileID": 21300042,
+      "spriteID": "404e9921d37e4c948b0aa521eee03ec9"
+    },
+    {
+      "name": "PanelFrame",
+      "file": "Components/PanelFrame.png",
+      "guid": "4b7624e32d0b4bdd8e3bb32ec9b8389a",
+      "topLeft": {
+        "x": 16,
+        "y": 832,
+        "width": 512,
+        "height": 512
+      },
+      "rect": {
+        "x": 16,
+        "y": 704,
+        "width": 512,
+        "height": 512
+      },
+      "border": [
+        48,
+        48,
+        48,
+        48
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced",
+      "fileID": 21300044,
+      "spriteID": "d98f5adf5a764bbe9aa4cc99798688f5"
+    },
+    {
+      "name": "PatienceFillCoral",
+      "file": "Components/PatienceFillCoral.png",
+      "guid": "373fe6be945a4c0c9508336e52d6e2bd",
+      "topLeft": {
+        "x": 544,
+        "y": 832,
+        "width": 256,
+        "height": 32
+      },
+      "rect": {
+        "x": 544,
+        "y": 1184,
+        "width": 256,
+        "height": 32
+      },
+      "border": [
+        16,
+        12,
+        16,
+        12
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced",
+      "fileID": 21300046,
+      "spriteID": "0bc82775d07b439699e1fea45a94413b"
+    },
+    {
+      "name": "PatienceFillGold",
+      "file": "Components/PatienceFillGold.png",
+      "guid": "142ffae525604de7a72c2d36088c2c59",
+      "topLeft": {
+        "x": 816,
+        "y": 832,
+        "width": 256,
+        "height": 32
+      },
+      "rect": {
+        "x": 816,
+        "y": 1184,
+        "width": 256,
+        "height": 32
+      },
+      "border": [
+        16,
+        12,
+        16,
+        12
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced",
+      "fileID": 21300048,
+      "spriteID": "5630b315d2d94556b973fb105bb73842"
+    },
+    {
+      "name": "PatienceFillGreen",
+      "file": "Components/PatienceFillGreen.png",
+      "guid": "a9e330e4eed140db87039593807128d3",
+      "topLeft": {
+        "x": 1088,
+        "y": 832,
+        "width": 256,
+        "height": 32
+      },
+      "rect": {
+        "x": 1088,
+        "y": 1184,
+        "width": 256,
+        "height": 32
+      },
+      "border": [
+        16,
+        12,
+        16,
+        12
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced",
+      "fileID": 21300050,
+      "spriteID": "8b1a8a57d9bf42d2b5a61a0044c86119"
+    },
+    {
+      "name": "PatienceFillTintable",
+      "file": "Components/PatienceFillTintable.png",
+      "guid": "b5038f8d1cbf4832b143e8c962af7531",
+      "topLeft": {
+        "x": 1360,
+        "y": 832,
+        "width": 256,
+        "height": 32
+      },
+      "rect": {
+        "x": 1360,
+        "y": 1184,
+        "width": 256,
+        "height": 32
+      },
+      "border": [
+        16,
+        12,
+        16,
+        12
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced",
+      "fileID": 21300052,
+      "spriteID": "b3b88862bd424a67af4b8ffbff4f7192"
+    },
+    {
+      "name": "PatienceTrack",
+      "file": "Components/PatienceTrack.png",
+      "guid": "533fda108aca4e5a9a7f01cd3ea09603",
+      "topLeft": {
+        "x": 1632,
+        "y": 832,
+        "width": 256,
+        "height": 32
+      },
+      "rect": {
+        "x": 1632,
+        "y": 1184,
+        "width": 256,
+        "height": 32
+      },
+      "border": [
+        16,
+        12,
+        16,
+        12
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced",
+      "fileID": 21300054,
+      "spriteID": "7b1d95b36d184403b106f292792b946a"
+    },
+    {
+      "name": "PointerLeft",
+      "file": "Components/PointerLeft.png",
+      "guid": "ad93033c2dc84dd5878eac41c6fa2d02",
+      "topLeft": {
+        "x": 1904,
+        "y": 832,
+        "width": 40,
+        "height": 56
+      },
+      "rect": {
+        "x": 1904,
+        "y": 1160,
+        "width": 40,
+        "height": 56
+      },
+      "border": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple",
+      "fileID": 21300056,
+      "spriteID": "6054d8cd800e46b49dbc463b38f98985"
+    },
+    {
+      "name": "PointerRight",
+      "file": "Components/PointerRight.png",
+      "guid": "59e52730a6ed45078df3a65dc7762432",
+      "topLeft": {
+        "x": 1960,
+        "y": 832,
+        "width": 40,
+        "height": 56
+      },
+      "rect": {
+        "x": 1960,
+        "y": 1160,
+        "width": 40,
+        "height": 56
+      },
+      "border": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Simple",
+      "fileID": 21300058,
+      "spriteID": "071e67b164464051bb10790c1f0964da"
+    },
+    {
+      "name": "PortraitTile",
+      "file": "Components/PortraitTile.png",
+      "guid": "bf16e58364ed418ab3896566365323db",
+      "topLeft": {
+        "x": 16,
+        "y": 1360,
+        "width": 128,
+        "height": 128
+      },
+      "rect": {
+        "x": 16,
+        "y": 560,
+        "width": 128,
+        "height": 128
+      },
+      "border": [
+        24,
+        24,
+        24,
+        24
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced",
+      "fileID": 21300060,
+      "spriteID": "37ca8afcc87043baa4275edcac1d655a"
+    },
+    {
+      "name": "ScrollThumb",
+      "file": "Components/ScrollThumb.png",
+      "guid": "76cdee38fced463c93e495deb6590959",
+      "topLeft": {
+        "x": 160,
+        "y": 1360,
+        "width": 24,
+        "height": 64
+      },
+      "rect": {
+        "x": 160,
+        "y": 624,
+        "width": 24,
+        "height": 64
+      },
+      "border": [
+        8,
+        12,
+        8,
+        12
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced",
+      "fileID": 21300062,
+      "spriteID": "2c5d0f387dee4b3aba133dd84b1d05b8"
+    },
+    {
+      "name": "ScrollTrack",
+      "file": "Components/ScrollTrack.png",
+      "guid": "81421af7bd49499580e5b2b69043d204",
+      "topLeft": {
+        "x": 200,
+        "y": 1360,
+        "width": 24,
+        "height": 128
+      },
+      "rect": {
+        "x": 200,
+        "y": 560,
+        "width": 24,
+        "height": 128
+      },
+      "border": [
+        8,
+        12,
+        8,
+        12
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced",
+      "fileID": 21300064,
+      "spriteID": "94639bd0d65b4ba4b7460fcf0645ab09"
+    },
+    {
+      "name": "SecondaryButtonDisabled",
+      "file": "Components/SecondaryButtonDisabled.png",
+      "guid": "a527152fe89742bdb81854bd6d64d9d8",
+      "topLeft": {
+        "x": 240,
+        "y": 1360,
+        "width": 384,
+        "height": 96
+      },
+      "rect": {
+        "x": 240,
+        "y": 592,
+        "width": 384,
+        "height": 96
+      },
+      "border": [
+        64,
+        32,
+        64,
+        32
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced",
+      "fileID": 21300066,
+      "spriteID": "4bf0c534dc364df2a4458725754dd940"
+    },
+    {
+      "name": "SecondaryButtonFocused",
+      "file": "Components/SecondaryButtonFocused.png",
+      "guid": "8af81c40907349d69f3dc124abef93db",
+      "topLeft": {
+        "x": 640,
+        "y": 1360,
+        "width": 384,
+        "height": 96
+      },
+      "rect": {
+        "x": 640,
+        "y": 592,
+        "width": 384,
+        "height": 96
+      },
+      "border": [
+        64,
+        32,
+        64,
+        32
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced",
+      "fileID": 21300068,
+      "spriteID": "3fff58852ddf47878aa43d97b24465c0"
+    },
+    {
+      "name": "SecondaryButtonPressed",
+      "file": "Components/SecondaryButtonPressed.png",
+      "guid": "d8ca39d11e6943018e032ad348c36831",
+      "topLeft": {
+        "x": 1040,
+        "y": 1360,
+        "width": 384,
+        "height": 96
+      },
+      "rect": {
+        "x": 1040,
+        "y": 592,
+        "width": 384,
+        "height": 96
+      },
+      "border": [
+        64,
+        32,
+        64,
+        32
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced",
+      "fileID": 21300070,
+      "spriteID": "e2f11c9f7705481db3ec9ff7fd853703"
+    },
+    {
+      "name": "SecondaryButtonReady",
+      "file": "Components/SecondaryButtonReady.png",
+      "guid": "158c91a0234a4c068a64da6cc921567a",
+      "topLeft": {
+        "x": 1440,
+        "y": 1360,
+        "width": 384,
+        "height": 96
+      },
+      "rect": {
+        "x": 1440,
+        "y": 592,
+        "width": 384,
+        "height": 96
+      },
+      "border": [
+        64,
+        32,
+        64,
+        32
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced",
+      "fileID": 21300072,
+      "spriteID": "dee8be8fa90d4fb285f745719f90b664"
+    },
+    {
+      "name": "SelectedRow",
+      "file": "Components/SelectedRow.png",
+      "guid": "238c410055ba4ad5bef29a53388d24ac",
+      "topLeft": {
+        "x": 16,
+        "y": 1504,
+        "width": 256,
+        "height": 96
+      },
+      "rect": {
+        "x": 16,
+        "y": 448,
+        "width": 256,
+        "height": 96
+      },
+      "border": [
+        16,
+        16,
+        16,
+        16
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced",
+      "fileID": 21300074,
+      "spriteID": "c74930419d1448d6ae575a809952584b"
+    },
+    {
+      "name": "StatusStrip",
+      "file": "Components/StatusStrip.png",
+      "guid": "c39c5fd765f34d04869bd3ae74fb073a",
+      "topLeft": {
+        "x": 288,
+        "y": 1504,
+        "width": 384,
+        "height": 72
+      },
+      "rect": {
+        "x": 288,
+        "y": 472,
+        "width": 384,
+        "height": 72
+      },
+      "border": [
+        24,
+        20,
+        24,
+        20
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced",
+      "fileID": 21300076,
+      "spriteID": "7c82c42e6de2427daaf819933ab71e00"
+    },
+    {
+      "name": "TableBadge",
+      "file": "Components/TableBadge.png",
+      "guid": "fc3ae43c3cf14f128800f21c518e53b9",
+      "topLeft": {
+        "x": 688,
+        "y": 1504,
+        "width": 192,
+        "height": 64
+      },
+      "rect": {
+        "x": 688,
+        "y": 480,
+        "width": 192,
+        "height": 64
+      },
+      "border": [
+        24,
+        16,
+        24,
+        16
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "imageType": "Sliced",
+      "fileID": 21300078,
+      "spriteID": "fa3e5456742840739de568cc7fc5b290"
+    }
+  ],
+  "portraitSource": "Use each live CustomerTypeProfile.customerImage; PortraitTile is a blank container, not a generated customer portrait."
+}

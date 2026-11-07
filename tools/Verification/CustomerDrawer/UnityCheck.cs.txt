@@ -1,0 +1,200 @@
+using System;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Collections;
+using System.Collections.Generic;
+using TMPro;
+using UnityEditor;
+using UnityEditor.SceneManagement;
+using UnityEngine;
+using UnityEngine.UI;
+using Object=UnityEngine.Object;
+
+public static class CustomerDrawerUnityCheck
+{
+ static int assertions; static string output; static CustomerDrawerArt art;
+ static BindingFlags flags=BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic;
+ static void Assert(bool value,string label){assertions++;if(!value)throw new Exception(label);}
+ static object Get(object o,string name)=>o.GetType().GetField(name,flags).GetValue(o);
+ static void Set(object o,string name,object value)=>o.GetType().GetField(name,flags).SetValue(o,value);
+ static object Call(object o,string name,params object[] args)=>o.GetType().GetMethod(name,flags).Invoke(o,args);
+ static T Make<T>(string name)where T:Component=>new GameObject(name,typeof(T)).GetComponent<T>();
+ public static void Run()
+ {
+  output=Path.Combine(Path.GetDirectoryName(Application.dataPath),"CheckOutput");Directory.CreateDirectory(output);
+  try {
+   art=ScriptableObject.CreateInstance<CustomerDrawerArt>();art.hideFlags=HideFlags.HideAndDontSave;
+   art.sprites=AssetDatabase.FindAssets("t:Sprite",new[]{"Assets/Art"}).Select(id=>AssetDatabase.LoadAssetAtPath<Sprite>(AssetDatabase.GUIDToAssetPath(id))).Where(s=>s!=null).Select(s=>new CustomerDrawerArt.Entry{name=s.name,sprite=s}).ToArray();
+   art.headingFont=AssetDatabase.LoadAssetAtPath<TMP_FontAsset>("Assets/Fonts/DayPanelHeading.asset");art.bodyFont=AssetDatabase.LoadAssetAtPath<TMP_FontAsset>("Assets/Fonts/DayPanelBodyBold.asset");
+   typeof(CustomerDrawerArt).GetField("cached",BindingFlags.Static|BindingFlags.NonPublic).SetValue(null,art);
+   Assert(art.sprites.Length==40,"40 production sprites");Assert(art.headingFont!=null&&art.bodyFont!=null,"Production font references");
+   Assert(art.bodyFont.HasCharacters("₱12,345 – Waiting for water",out uint[] missing,false,true),"Body glyph coverage");
+   PlayerPrefs.SetInt("DineIn.ReducedMotion",1);PlayerPrefs.SetInt("DineIn.LargeText",0);
+   Snapshots();Render("desktop",1670,940,false);Render("portrait-large",600,1100,true);Render("narrow-safe",320,780,true);Newspaper(1600,1000,false);Newspaper(600,1200,true);Reception();
+   File.WriteAllText(Path.Combine(output,"report.txt"),"PASS: "+assertions+" assertions using production runtime assembly, sprites and fonts.\nRead-only state/timers, observer unavailable projection, stable cached rows, scroll restoration, departure, table reuse, compact scroll layout and native desktop/portrait renders. Newspaper saved-content preservation, legacy fallback, metric icons, five-star rating, responsive layout and Greet/Seat presentation with non-clickable party tag passed.\nNOT RUN: live world pointer dispatch, gameplay scenes, network transport, device, animation playback or audio listening.");
+   EditorApplication.Exit(0);
+  }catch(Exception e){File.WriteAllText(Path.Combine(output,"report.txt"),"FAIL after "+assertions+" assertions: "+e);Debug.LogException(e);EditorApplication.Exit(1);}
+ }
+ static CustomerGroup Group(string name,CustomerGroup.GroupState state)
+ {var g=Make<CustomerGroup>(name);g.state=state;g.members.Add(null);g.members.Add(null);var profile=ScriptableObject.CreateInstance<CustomerTypeProfile>();profile.hideFlags=HideFlags.HideAndDontSave;profile.displayName="Green group";profile.customerImage=AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Portraits/1.png");Set(g,"profileGreen",profile);return g;}
+ static void Snapshots()
+ {
+  EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
+  var g=Group("actual group",CustomerGroup.GroupState.ReadyToOrder);Set(g,"ordinaryOrderPatience",80f);Set(g,"ordinaryOrderRemaining",32f);
+  var s=g.CaptureInspection();Assert(s.Members==2&&s.PatienceKnown&&s.PatienceActive&&Mathf.Approximately(s.Patience,.4f),"Read existing active order timer");
+  Assert((float)Get(g,"ordinaryOrderRemaining")==32f && g.state==CustomerGroup.GroupState.ReadyToOrder,"Snapshot cannot advance gameplay");
+  Assert(s.ReactionMood==-1,"No fabricated happy reaction");
+  g.SetOrderPause(true);Assert(!g.CaptureInspection().PatienceActive,"Paused timer is not timed");g.SetOrderPause(false);
+  g.IsNetworkObserver=true;Assert(!g.CaptureInspection().PatienceKnown,"Old/incomplete observer state is unavailable");
+  g.PresentInspectionPatience(true,true,.37f);Assert(Mathf.Approximately(g.CaptureInspection().Patience,.37f),"Observer uses accepted projection");
+  g.PresentInspectionPatience(false,false,0);Assert(!g.CaptureInspection().PatienceKnown,"Missing observer field stays unavailable");
+  foreach(var state in new[]{CustomerGroup.GroupState.Spawning,CustomerGroup.GroupState.Leaving,CustomerGroup.GroupState.AngryLeft,CustomerGroup.GroupState.UnhappyLeft}){g.state=state;Assert(!g.CaptureInspection().Visible,"Departure not listed: "+state);}
+  g.state=CustomerGroup.GroupState.Eating;g.IsNetworkObserver=false;Assert(!g.CaptureInspection().PatienceActive,"Eating has no fabricated patience");
+  var booth=Make<Booth>("Booth 6");g.assignedBooth=booth;Set(booth,"currentGroup",g);
+  g.currentOrderNumber=25;Assert(g.CaptureInspection().TableLabel=="Table 25","Drawer label matches the floating order identifier rather than the booth asset name");
+  g.currentOrderNumber=0;Assert(g.CaptureInspection().TableLabel=="Awaiting number","No fabricated table number before order assignment");
+  var mobileGroup=Group("Spawn-root group",CustomerGroup.GroupState.ReadyToOrder);mobileGroup.transform.position=new Vector3(900,0,900);mobileGroup.members.Clear();
+  Assert(!mobileGroup.TryGetInspectionPosition(out _,out _),"Missing members cannot target a stale spawn root");
+  var first=Make<CustomerAgent>("Live customer one");first.transform.position=new Vector3(10,0,20);var second=Make<CustomerAgent>("Live customer two");second.transform.position=new Vector3(14,0,24);mobileGroup.members.Add(first);mobileGroup.members.Add(second);
+  Assert(mobileGroup.TryGetInspectionPosition(out var center,out _) && Vector3.Distance(center,new Vector3(12,0,22))<.01f,"Find frames live member positions");
+  second.gameObject.SetActive(false);Assert(mobileGroup.TryGetInspectionPosition(out center,out _) && center==first.transform.position,"Inactive customer excluded from camera centroid");
+  mobileGroup.assignedBooth=booth;Set(booth,"currentGroup",mobileGroup);mobileGroup.state=CustomerGroup.GroupState.WalkingToBooth;
+  Assert(mobileGroup.TryGetInspectionPosition(out center,out _) && center==first.transform.position,"Assigned but unseated customers are found at their live position");
+  mobileGroup.state=CustomerGroup.GroupState.Seated;Assert(mobileGroup.TryGetInspectionPosition(out center,out _) && center==booth.transform.position,"Seated customer frames the assigned table");Set(booth,"currentGroup",g);
+  Assert(g.CaptureInspection().Table==booth,"Actual assigned table");Set(booth,"currentGroup",null);
+  Assert(g.CaptureInspection().Table==null,"Released/reused table is not attributed to old group");
+  g.state=CustomerGroup.GroupState.ReadyToOrder;Set(g,"<WaitingForStock>k__BackingField",true);Set(g,"<StockWaitRemaining>k__BackingField",RestaurantStockout.WaitSeconds*.5f);
+  Assert(g.CaptureInspection().Status=="Waiting for stock"&&Mathf.Approximately(g.CaptureInspection().Patience,.5f),"Read actual stock deadline");
+  Set(g,"<WaitingForStock>k__BackingField",false);
+  var expected=new Dictionary<CustomerGroup.GroupState,string>{{CustomerGroup.GroupState.WalkingToLobby,"Arriving"},{CustomerGroup.GroupState.Waiting,"Waiting to seat"},{CustomerGroup.GroupState.WalkingToBooth,"Walking to table"},{CustomerGroup.GroupState.WaitingToOrder,"Browsing menu"},{CustomerGroup.GroupState.Seated,"Seated"},{CustomerGroup.GroupState.ReadyToOrder,"Ready to order"},{CustomerGroup.GroupState.OrderTaken,"Waiting for food"},{CustomerGroup.GroupState.Eating,"Eating"},{CustomerGroup.GroupState.NeedsBill,"Waiting for bill"}};
+  foreach(var pair in expected){g.state=pair.Key;Assert(g.CaptureInspection().Status==pair.Value,"Service stage: "+pair.Key);}
+ }
+ static RectTransform Rect(string name,Transform parent,float x,float y,float w,float h)
+ {var r=new GameObject(name,typeof(RectTransform)).GetComponent<RectTransform>();r.SetParent(parent,false);r.anchorMin=r.anchorMax=r.pivot=new Vector2(0,1);r.anchoredPosition=new Vector2(x,-y);r.sizeDelta=new Vector2(w,h);return r;}
+ static void Render(string name,int width,int height,bool large)
+ {
+  EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);PlayerPrefs.SetInt("DineIn.LargeText",large?1:0);
+  var camera=Make<Camera>("UI camera");camera.orthographic=true;camera.orthographicSize=height*.5f;camera.transform.position=new Vector3(0,0,-100);camera.clearFlags=CameraClearFlags.SolidColor;camera.backgroundColor=new Color(.08f,.13f,.18f);camera.nearClipPlane=.01f;camera.farClipPlane=1000;
+  var rt=new RenderTexture(width,height,24);camera.targetTexture=rt;rt.Create();
+  var canvas=Make<Canvas>("Safe UI canvas");canvas.renderMode=RenderMode.ScreenSpaceCamera;canvas.worldCamera=camera;canvas.planeDistance=10;canvas.gameObject.AddComponent<GraphicRaycaster>();var host=canvas.gameObject.AddComponent<CanvasGroup>();
+  Canvas.ForceUpdateCanvases();
+  var root=Rect("Customer drawer",canvas.transform,24,large?150:300,345,345);root.gameObject.AddComponent<Image>();var view=root.gameObject.AddComponent<CustomerDrawerView>();view.Initialize(host);
+  view.SetExpanded(true);Assert(!(bool)Get(view,"details"),"Open starts in list");Assert(root.sizeDelta.x<=345,"Compact width");
+  var gs=new CustomerGroup[8];for(int i=0;i<gs.Length;i++){gs[i]=Group("Group "+i,i%2==0?CustomerGroup.GroupState.ReadyToOrder:CustomerGroup.GroupState.Eating);Set(gs[i],"ordinaryOrderPatience",100f);Set(gs[i],"ordinaryOrderRemaining",86f-i*8);}
+  view.RefreshGroups(gs);Canvas.ForceUpdateCanvases();
+  var rows=(IDictionary)Get(view,"rows");Assert(rows.Count==8,"Many groups have cached rows; actual="+rows.Count+" active="+gs[0].isActiveAndEnabled+" visible="+gs[0].CaptureInspection().Visible+" scene="+gs[0].gameObject.scene.handle+" current="+UnityEngine.SceneManagement.SceneManager.GetActiveScene().handle+" frame="+Get(view,"frame")+" art="+CustomerDrawerArt.Shared);var first=rows[gs[0]];
+  view.RefreshGroups(gs.Reverse().ToArray());Assert(ReferenceEquals(rows[gs[0]],first),"Updates retain row instances");
+  var order=(IList)Get(view,"groups");Assert(order[0]==gs[0],"Stable arrival ordering");
+  var scroll=(ScrollRect)Get(view,"listScroll");scroll.verticalNormalizedPosition=1;
+  Save(camera,rt,name+"-list",width,height);ValidateText(root);
+  scroll.verticalNormalizedPosition=.4f;float prior=scroll.verticalNormalizedPosition;
+  Call(view,"SelectGroup",gs[0]);Canvas.ForceUpdateCanvases();Assert((bool)Get(view,"details"),"List selects details");
+  Save(camera,rt,name+"-details",width,height);ValidateText(root);
+  var profile=(CustomerTypeProfile)Get(gs[0],"profileGreen");profile.displayName="A visiting family with a much longer customer type label";Call(view,"RefreshData");Canvas.ForceUpdateCanvases();ValidateText(root);profile.displayName="Green group";Call(view,"RefreshData");
+  Call(view,"ShowList",false);Canvas.ForceUpdateCanvases();Assert(Mathf.Abs(scroll.verticalNormalizedPosition-prior)<.02f,"Back restores scroll");
+  Call(view,"SelectGroup",gs[0]);gs[0].state=CustomerGroup.GroupState.Leaving;view.RefreshGroups(gs);Assert(!(bool)Get(view,"details")&&Get(view,"selected")==null,"Selected departure returns without replacement");
+  var taskRoot=Rect("Compact task",canvas.transform,large?24:width-430,large?Mathf.Min(650,height-160):400,276,138);taskRoot.gameObject.AddComponent<Image>();
+  var task=CompactTaskPanelView.Attach(taskRoot,null,null);task.Render(new PlayerTaskView("test","payment","Take payment to cashier","From the assigned table. Confirm the correct bill before payment.",100,null,PlayerTaskCategory.Service,"IconCash","Take payment","To cashier","Table 6"),null,false);
+  Assert(taskRoot.sizeDelta==art.taskSize,"Task stays compact");Canvas.ForceUpdateCanvases();ValidateText(taskRoot);Save(camera,rt,name+"-task",width,height);
+  var clipboard=Rect("Clipboard dock",canvas.transform,width-70,Mathf.Min(420,height-220),60,90);Canvas.ForceUpdateCanvases();task.DockBeside(clipboard);Canvas.ForceUpdateCanvases();
+  var tc=new Vector3[4];var bc=new Vector3[4];taskRoot.GetWorldCorners(tc);clipboard.GetWorldCorners(bc);
+  Assert(tc[2].x<=bc[0].x || tc[0].y>=bc[2].y,"Task dock avoids the clipboard on narrow and wide screens");
+  Save(camera,rt,name+"-docked-task",width,height);
+  var hudObject=new GameObject("Dock owner lifecycle check");hudObject.SetActive(false);
+  var hud=hudObject.AddComponent<PlayerTaskHUD>();Set(hud,"compactPanel",task);Set(hud,"panelRect",taskRoot);Set(hud,"buttonRect",clipboard);Set(hud,"panelOpen",true);
+  Call(hud,"RefreshCompactDock",true);Vector2 beforeDock=taskRoot.anchoredPosition;
+  clipboard.anchoredPosition+=new Vector2(-35,30);clipboard.localScale=Vector3.one*1.15f;Canvas.ForceUpdateCanvases();
+  Call(hud,"RefreshCompactDock",false);Canvas.ForceUpdateCanvases();
+  Assert(Vector2.Distance(beforeDock,taskRoot.anchoredPosition)>1f,"Dock refreshes after clipboard movement/scale without a viewport resize");
+  taskRoot.GetWorldCorners(tc);clipboard.GetWorldCorners(bc);
+  Assert(tc[2].x<=bc[0].x || tc[0].y>=bc[2].y,"Re-docked task stays clear of changed clipboard bounds");
+  Vector2 settledDock=taskRoot.anchoredPosition;Call(hud,"RefreshCompactDock",false);
+  Assert(Vector2.Distance(settledDock,taskRoot.anchoredPosition)<.01f,"Unchanged dock remains stable");
+  Object.DestroyImmediate(hudObject);
+  view.SetExpanded(false);Assert(Get(view,"selected")==null,"Closing clears selection");
+  view.RefreshGroups(Array.Empty<CustomerGroup>());foreach(var g in gs)g.state=CustomerGroup.GroupState.Leaving;view.RefreshGroups(gs);Assert(((IDictionary)Get(view,"rows")).Count==0,"Zero groups releases rows");
+  rt.Release();Object.DestroyImmediate(rt);
+ }
+ static void ValidateText(RectTransform root)
+ {
+  foreach(var t in root.GetComponentsInChildren<TMP_Text>()) {t.ForceMeshUpdate();Assert(t.rectTransform.rect.width>0&&t.rectTransform.rect.height>0,"Text has positive bounds: "+t.name);Assert(t.preferredHeight<=t.rectTransform.rect.height+3,"Text vertical layout: "+t.name+" wants "+t.preferredHeight+" has "+t.rectTransform.rect.height);}
+ }
+ static void Newspaper(int width,int height,bool large)
+ {
+  NewspaperChecked(width,height,large);
+ }
+ static void ValidateNewspaperLayout(NewspaperLandscapeView view)
+ {
+  foreach(var t in view.GetComponentsInChildren<TMP_Text>(false)) {
+   t.ForceMeshUpdate(true,true);
+   Assert(t.GetRenderedValues(false).y<=t.rectTransform.rect.height+3,"Generated newspaper text fits allocated height: "+t.name);
+  }
+  var bottoms=new Dictionary<int,float>();
+  foreach(var section in (IList)Get(view,"sections")) {
+   int col=(int)Get(section,"column");var root=(RectTransform)Get(section,"root");
+   if(bottoms.TryGetValue(col,out float bottom))Assert(root.anchoredPosition.y<=bottom-1,"Newspaper sections do not overlap");
+   bottoms[col]=root.anchoredPosition.y-root.rect.height;
+   foreach(var graphic in root.GetComponentsInChildren<Graphic>(false)) {
+    if(!graphic.enabled || graphic.transform==root)continue;
+    var corners=new Vector3[4];graphic.rectTransform.GetWorldCorners(corners);
+    Assert(corners.All(c=>root.InverseTransformPoint(c).y>=-root.rect.height-3),"Newspaper section contains its content: "+graphic.name);
+   }
+  }
+ }
+ static void NewspaperChecked(int width,int height,bool large)
+ {
+  EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);PlayerPrefs.SetInt("DineIn.LargeText",large?1:0);
+  var config=ScriptableObject.CreateInstance<CasualDiningPolishSettings>();config.hideFlags=HideFlags.HideAndDontSave;
+  config.newspaperBodyFont=AssetDatabase.LoadAssetAtPath<TMP_FontAsset>("Assets/Newspaper/Fonts/NewspaperBody.asset");config.newspaperSectionSize=32;
+  Assert(config.newspaperBodyFont!=null && config.newspaperBodyFont.faceInfo.styleName=="Regular","Actual regular-weight TMP font loads");
+  Assert(config.newspaperBodyFont.HasCharacter('₱',true),"Peso glyph resolves through configured fallback");
+  config.newspaperIcons=AssetDatabase.FindAssets("t:Sprite",new[]{"Assets/Newspaper/Components"}).Select(id=>AssetDatabase.LoadAssetAtPath<Sprite>(AssetDatabase.GUIDToAssetPath(id))).Where(s=>s!=null).Select(s=>new CustomerDrawerArt.Entry{name=s.name,sprite=s}).ToArray();
+  config.newspaperPaper=AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Newspaper/Surfaces/PaperBody.png");config.newspaperInset=AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Newspaper/Surfaces/PriorityStrip.png");
+  config.newspaperNavigation=AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Newspaper/Surfaces/NavigationShell.png");
+  Assert(config.newspaperIcons.Length==27 && config.newspaperPaper!=null,"Newspaper production icons and surface");
+  var camera=Make<Camera>("News camera");camera.orthographic=true;camera.orthographicSize=height*.5f;camera.transform.position=new Vector3(0,0,-100);camera.clearFlags=CameraClearFlags.SolidColor;camera.backgroundColor=new Color(.08f,.13f,.18f);
+  var rt=new RenderTexture(width,height,24);camera.targetTexture=rt;rt.Create();
+  var presenter=Make<DailyNewspaperPresenter>("Newspaper owner");Set(presenter,"settings",config);Call(presenter,"BuildUI");
+  var canvas=(Canvas)Get(presenter,"canvas");canvas.renderMode=RenderMode.ScreenSpaceCamera;canvas.worldCamera=camera;canvas.planeDistance=10;((GameObject)Get(presenter,"canvasRoot")).SetActive(true);((GameObject)Get(presenter,"overlayRoot")).SetActive(true);Canvas.ForceUpdateCanvases();
+  string body="<size=26><b>◎ APPROVAL WATCH</b></size>\n100% NO CHANGE\nActual saved story.\n\n<b>RESTAURANT RATING</b>\n★★★★½ 4.5 / 5\nIMPROVING\n\n<b>SHIFT SNAPSHOT</b>\n12 SERVED · 7 HAPPY · 0 ANGRY\n12 GROUPS SEATED · 12 ORDERS DONE\n2 PATIENCE LOST\n\n<b>VOICE FROM THE QUEUE</b>\nA saved customer quotation.\n\n<b>MARKET WATCH</b>\nPRICE INCREASE\nActual ingredient ₱120 / BOX +10%\n\n<b>BOSS ORDER: SHORTEN THE QUEUE</b>\nSeat waiting groups sooner.\n\n<b>STAFF SPOTLIGHT</b>\nRecorded employee · 85% PERFORMANCE";
+  body=body.Replace("PRICE INCREASE\nActual ingredient ₱120 / BOX +10%","▼ PRICE DECREASE\nMARTINI ₱2904 / BOX -12%\nA strong moon harvest expanded today's supply.\n\n▼ PRICE DECREASE\nCREAM ₱1020 / BOX -15%\nA calm trade route lowered delivery costs.\n\n▲ PRICE INCREASE\nLEMON ₱940 / BOX +10%\nSupplier prices increased.\n\nLOCKED AT CHECKOUT Today's order keeps today's price.");
+  body=body.Replace("100% NO CHANGE","71%").Replace("Actual saved story.","No complaints were recorded. Human approval stands at 71%.").Replace("12 SERVED","9 SERVED").Replace("7 HAPPY","8 HAPPY").Replace("12 GROUPS SEATED","9 GROUPS SEATED").Replace("12 ORDERS DONE","8 ORDERS DONE").Replace("2 PATIENCE LOST","! 2 WRONG ORDERS\nCheck tickets before food reaches a table.").Replace("SHORTEN THE QUEUE","CHECK ORDER TICKETS").Replace("Seat waiting groups sooner.","Verify each order before food reaches a table.").Replace("Recorded employee · 85% PERFORMANCE","CHRISTIAN · 100% PERFORMANCE");
+  var issue=new NewspaperIssueSaveEntry{day=8,sourceDay=7,headline="COSMIC DINERS DELIVER THEIR VERDICT",byline="Xylo-7, Alien Correspondent",renderedContent=body};Call(presenter,"Populate",issue);
+  Assert(issue.renderedContent==body,"Newspaper presentation preserves saved content");Assert(((Text)Get(presenter,"issueText")).text.Contains("REPORTING DAY 7"),"Report day distinguished from edition day");
+  var view=(NewspaperLandscapeView)Get(presenter,"landscape");view.RefreshLayout(true);var sections=(IList)Get(view,"sections");Assert(sections.Count==10,"All saved sections, service alert and supplementary notes retained");
+  var independent=(ScrollRect[])Get(view,"columns");Assert(independent.Length==3,"Three independent column viewports");
+  Assert(view.GetComponentsInChildren<TMP_Text>().Count(t=>t.name=="Supplier item")==3,"Three market rows parsed");Assert(view.GetComponentsInChildren<TMP_Text>().Any(t=>t.text=="₱2,904"),"Currency thousands formatting");
+  Assert(view.GetComponentsInChildren<Image>().Count(i=>i.name.StartsWith("Rating star "))==5,"Exactly five real rating slots");
+  Call(presenter,"RefreshArchiveButtons");Assert(!((Button)Get(presenter,"nextButton")).interactable,"Unavailable archive navigation is disabled");
+  var frame=(RectTransform)Get(presenter,"paperRect");ValidateText(frame);ValidateNewspaperLayout(view);Assert(frame.rect.width<=((RectTransform)frame.parent).rect.width,"Paper fits parent width");
+  var scroll=(ScrollRect)Get(presenter,"articleScroll");Assert(scroll.content.rect.height>0,"Article content scrolls");Save(camera,rt,"newspaper-"+(large?"portrait-large":"desktop"),width,height);
+  Vector2 left=independent[0].content.anchoredPosition;Vector3 titlePosition=independent[2].transform.parent.position;
+  independent[2].verticalNormalizedPosition=.25f;Canvas.ForceUpdateCanvases();Assert(independent[0].content.anchoredPosition==left,"Market scrolling cannot shift results");Assert(independent[2].transform.parent.position==titlePosition,"Market heading stays fixed");
+  string longBody=body.Replace("MARTINI","VERY LONG SUPPLIER PRODUCT NAME").Replace("₱2904","₱2147483647");Call(presenter,"Populate",new NewspaperIssueSaveEntry{day=12,renderedContent=longBody});view.RefreshLayout(true);Canvas.ForceUpdateCanvases();ValidateText(frame);
+  Save(camera,rt,"newspaper-"+(large?"portrait-long":"desktop-long"),width,height);
+  ValidateNewspaperLayout(view);config.newspaperBodySize+=6;view.RefreshLayout();Canvas.ForceUpdateCanvases();ValidateNewspaperLayout(view);
+  Call(presenter,"Populate",new NewspaperIssueSaveEntry{day=1,renderedContent="<b>MARKET WATCH</b>\nPRICES STABLE\nNo supplier price changed today."});view.RefreshLayout(true);Assert(view.GetComponentsInChildren<TMP_Text>().Any(t=>t.text.Contains("PRICES STABLE")),"Stable price report retains original message");Assert(!view.GetComponentsInChildren<TMP_Text>().Any(t=>t.name=="Supplier item"),"Stable prices do not fabricate product rows");
+  Call(presenter,"Populate",new NewspaperIssueSaveEntry{day=1,renderedContent="<b>MARKET WATCH</b>\nPRICE INCREASE\nUnrecognized archived price format"});view.RefreshLayout(true);Assert(view.GetComponentsInChildren<TMP_Text>().Any(t=>t.text.Contains("Unrecognized archived price format")),"Unfamiliar market data remains readable");
+  Call(presenter,"Populate",new NewspaperIssueSaveEntry{day=1,headline="Opening day",renderedContent="Legacy issue without recognized headings"});Assert(((IList)Get(view,"sections")).Count==1,"Legacy article fallback is retained");
+  Object.DestroyImmediate(config);rt.Release();Object.DestroyImmediate(rt);
+ }
+ static void Reception()
+ {
+  EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);PlayerPrefs.SetInt("DineIn.LargeText",0);
+  var actions=ScriptableObject.CreateInstance<GameplayActionButtonArt>();actions.hideFlags=HideFlags.HideAndDontSave;actions.headingFont=art.headingFont;actions.bodyFont=art.bodyFont;
+  actions.sprites=AssetDatabase.FindAssets("t:Sprite",new[]{"Assets/Actions"}).Select(id=>AssetDatabase.LoadAssetAtPath<Sprite>(AssetDatabase.GUIDToAssetPath(id))).Where(s=>s!=null).Select(s=>new GameplayActionButtonArt.Entry{name=s.name,sprite=s}).ToArray();
+  typeof(GameplayActionButtonArt).GetField("cached",BindingFlags.Static|BindingFlags.NonPublic).SetValue(null,actions);
+  var root=new GameObject("Reception",typeof(RectTransform),typeof(Image),typeof(Button));((RectTransform)root.transform).sizeDelta=new Vector2(280,96);
+  var skin=root.AddComponent<GameplayActionButtonSkin>();Call(skin,"Awake");var ui=root.AddComponent<CustomerGreetBubbleUI>();var g=Group("Reserved group",CustomerGroup.GroupState.Waiting);
+  Set(g,"<FineDiningReservationId>k__BackingField","fixture");Set(g,"reservationGuestName","Casey party");Set(g,"reservationArrivalMinute",1020);
+  ui.Init(g);Assert(((TMP_Text)Get(ui,"label")).text=="Greet Customer","Missing legacy caption is repaired");Assert(root.GetComponent<Image>().sprite==actions.Find("ButtonCyanReady"),"Reception uses action pill, no old balloon");
+  var tag=root.transform.Find("Details");Assert(tag!=null && tag.gameObject.activeSelf,"Compact party tag exists");Assert(tag.GetComponentInChildren<TMP_Text>().text.Contains("Casey party"),"Party tag uses real reception identity");
+  g.hasBeenGreeted=true;ui.Refresh();Assert(((TMP_Text)Get(ui,"label")).text=="Seat Table" && root.GetComponent<Image>().sprite==actions.Find("ButtonGreenReady"),"Seating state uses green action pill");
+  Assert(g.state==CustomerGroup.GroupState.Waiting && g.assignedBooth==null,"Presentation does not seat or move the customer");
+  Assert(!tag.GetComponent<Image>().raycastTarget && !tag.GetComponentInChildren<TMP_Text>().raycastTarget,"Party tag cannot submit clicks");
+  Object.DestroyImmediate(actions);
+ }
+ static void Save(Camera camera,RenderTexture rt,string name,int width,int height)
+ {Canvas.ForceUpdateCanvases();camera.Render();var prev=RenderTexture.active;RenderTexture.active=rt;var tex=new Texture2D(width,height,TextureFormat.RGBA32,false);tex.ReadPixels(new Rect(0,0,width,height),0,0);tex.Apply();File.WriteAllBytes(Path.Combine(output,name+".png"),tex.EncodeToPNG());RenderTexture.active=prev;Object.DestroyImmediate(tex);}
+}

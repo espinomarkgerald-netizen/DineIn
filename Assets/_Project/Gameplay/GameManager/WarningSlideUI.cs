@@ -86,6 +86,14 @@ public class WarningSlideUI : MonoBehaviour
         if (string.IsNullOrWhiteSpace(message))
             return;
 
+        // Validate before revealing the root: incomplete references must not leave an empty banner.
+        if (panel == null || messageText == null || canvasGroup == null)
+        {
+            ApplyHiddenImmediate();
+            Debug.LogWarning("[WarningSlideUI] Missing references. Cannot show warning.", this);
+            return;
+        }
+
         if (rootObject != null && !rootObject.activeSelf)
             rootObject.SetActive(true);
 
@@ -95,16 +103,12 @@ public class WarningSlideUI : MonoBehaviour
         if (panel != null && !panel.gameObject.activeSelf)
             panel.gameObject.SetActive(true);
 
-        if (panel == null || messageText == null || canvasGroup == null)
-        {
-            Debug.LogWarning("[WarningSlideUI] Missing references. Cannot show warning.", this);
-            return;
-        }
-
         if (attention && (showRoutine == null || messageText.text != message)) GameplaySfx.Play(GameplaySfx.Cue.Blocked);
         Debug.Log("[WarningSlideUI] Show: " + message, this);
 
         messageText.text = message;
+        messageText.enabled = true;
+        messageText.gameObject.SetActive(true);
 
         if (showRoutine != null)
             StopCoroutine(showRoutine);
@@ -164,5 +168,12 @@ public class WarningSlideUI : MonoBehaviour
 
         if (canvasGroup != null)
             canvasGroup.alpha = 0f;
+    }
+
+    private void OnDisable()
+    {
+        if (showRoutine != null) StopCoroutine(showRoutine);
+        showRoutine = null;
+        ApplyHiddenImmediate();
     }
 }

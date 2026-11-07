@@ -12,6 +12,11 @@ public partial class CustomerGroup
     private TMP_Text reservationIndicatorText;
     private string reservationGuestName;
     private int reservationArrivalMinute;
+    public string ReceptionPartyCaption {
+        get { var booking=FineDiningReservations.For(this)?.Booking(FineDiningReservationId);
+            if(booking==null && string.IsNullOrWhiteSpace(reservationGuestName))return IsNetworkObserver?"Reservation details syncing":"Reservation details unavailable";
+            return (booking!=null?booking.guestName:reservationGuestName)+"\n"+FineDiningReservations.Clock(booking!=null?booking.arrivalMinute:reservationArrivalMinute)+"  •  "+Size+(Size==1?" guest":" guests"); }
+    }
 
     private bool HasProtectedReservationReception =>
         !hasBeenAssigned && !string.IsNullOrEmpty(FineDiningReservationId) &&
@@ -178,15 +183,11 @@ public partial class CustomerGroup
         }
         reservationIndicatorInstance.SetActive(CustomerGreetBubbleSpawner.Instance == null ||
             !CustomerGreetBubbleSpawner.Instance.IsShowingFor(this));
-        bool showDetails = isSelected || receptionTaskOwner != ReceptionTaskOwner.None;
+        bool showDetails = true;
         if (reservationIndicatorDetails != null) reservationIndicatorDetails.SetActive(showDetails);
         if (showDetails && reservationIndicatorText != null)
         {
-            var booking = FineDiningReservations.For(this)?.Booking(FineDiningReservationId);
-            string guest = booking != null ? booking.guestName : reservationGuestName;
-            int arrival = booking != null ? booking.arrivalMinute : reservationArrivalMinute;
-            reservationIndicatorText.text = guest + "\n" + FineDiningReservations.Clock(arrival) +
-                "  •  " + Size + (Size == 1 ? " guest" : " guests");
+            reservationIndicatorText.text = ReceptionPartyCaption;
         }
     }
 

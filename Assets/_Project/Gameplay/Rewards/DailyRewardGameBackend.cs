@@ -68,6 +68,7 @@ public sealed class DailyRewardGameBackend : IDailyRewardBackend
     }
     public void ResolveSpin(string offerId, Action<DailyRewardResolution> completed)
     {
+        PlayFabWalletManager.EnsureInstance();
         if (!claims.TryGetValue(offerId, out var claim) || !Current(claim.account) || !inFlight.Add(offerId)) return;
         void Finish(bool confirmed, string message)
         {

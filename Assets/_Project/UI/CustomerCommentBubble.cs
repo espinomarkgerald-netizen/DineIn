@@ -76,8 +76,8 @@ public sealed class CustomerCommentBubble : MonoBehaviour
     {
         largeText = LevelOneUIAccessibility.LargeText;
         previousMessage = message.text;
-        float padding = 28f * unit;
-        float badgeSize = 68f * unit;
+        float padding = 18f * unit;
+        float badgeSize = 48f * unit;
         message.fontSize = art.commentFontSize * unit * (largeText ? 1.2f : 1f);
         float textWidth = art.commentWidth * unit - padding * 2f - badgeSize - 16f * unit;
         // A long tip amount is an atomic value, even with Large Text enabled.
@@ -91,12 +91,12 @@ public sealed class CustomerCommentBubble : MonoBehaviour
         Place(panel.rectTransform, Vector2.zero, new Vector2(width, height));
         Place(tail.rectTransform, new Vector2(24f * unit, -height * .5f - 12f * unit), new Vector2(80f, 56f) * unit);
         Place(badge.rectTransform, new Vector2(-width * .5f + padding + badgeSize * .5f, 0f), Vector2.one * badgeSize);
-        Place(face.rectTransform, Vector2.zero, Vector2.one * 56f * unit);
+        Place(face.rectTransform, Vector2.zero, Vector2.one * 40f * unit);
         Place(message.rectTransform, new Vector2(width * .5f - padding - textWidth * .5f, 0f), new Vector2(textWidth, height - padding * 2f));
         if (follow != null)
         {
             follow.RefreshVisualBounds();
-            follow.ConfigureCommentSizing(settings, panel, art.fineDiningCommentWidth * width / (art.commentWidth * unit));
+            follow.ConfigureCommentSizing(settings, panel, width / unit);
             follow.KeepAttachedToTarget();
         }
     }

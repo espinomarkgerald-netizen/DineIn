@@ -869,6 +869,7 @@ public partial class CustomerGroup : MonoBehaviour
 
     private void Awake()
     {
+        InspectionArrivalTime=Time.realtimeSinceStartupAsDouble;
         receptionTaskOwner = ReceptionTaskOwner.None;
         isOrderPaused = false;
         BuildGroupUIAnchor();

@@ -67,6 +67,9 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
     [SerializeField] private Color ink = new Color(0.04f, 0.12f, 0.19f, 1f);
 
     private bool liveExpanded;
+    public CustomerDrawerView CustomerDrawer { get; private set; }
+    private CanvasGroup customerPanelGroup;
+    private int customerScene=-1;
     private Vector2 livePanelVelocity;
     private Vector2 liveToggleVelocity;
     private float nextCountRefresh;
@@ -162,7 +165,17 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
         WireButtons();
         CaptureAuthoredVisibility();
         CaptureAuthoredLayout();
-        liveExpanded = livePanelStartsExpanded;
+        if(CustomerDrawerArt.Shared!=null && livePanel!=null) {
+            CustomerDrawer=livePanel.GetComponent<CustomerDrawerView>();
+            if(CustomerDrawer==null)CustomerDrawer=livePanel.gameObject.AddComponent<CustomerDrawerView>();
+            CustomerDrawer.Initialize(hudGroup);
+            customerPanelGroup=livePanel.GetComponent<CanvasGroup>();
+            if(customerPanelGroup==null)customerPanelGroup=livePanel.gameObject.AddComponent<CanvasGroup>();
+            panelAnimationSeconds=CustomerDrawerArt.Shared.panelSeconds;
+            if(livePanelToggle!=null){GameplayButtonSound.Ensure(livePanelToggle);livePanelToggle.GetComponent<GameplayButtonSound>().suppressClick=true;}
+        }
+        liveExpanded = CustomerDrawer!=null?false:livePanelStartsExpanded;
+        CustomerDrawer?.SetExpanded(liveExpanded);
         ApplyPanelImmediate();
         ApplySafeArea(true);
         RefreshCounts();
@@ -234,6 +247,8 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
 
     public void RefreshVisibility()
     {
+        int sceneHandle=SceneManager.GetActiveScene().handle;
+        if(customerScene!=sceneHandle){customerScene=sceneHandle;if(CustomerDrawer!=null){liveExpanded=false;CustomerDrawer.SetExpanded(false,true);}}
         string activeScene = SceneManager.GetActiveScene().name;
         bool inLobby = activeScene == LobbySceneName || FineDiningScene.Contains(activeScene) || FastFoodScene.Contains(activeScene) || MultiplayerHUDBridge.IsActive;
         inLobby |= TutorialSceneRuntimeMarker.UsesMinimalHUD && activeScene != "RestockScene";
@@ -330,6 +345,8 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
     private void ToggleLivePanel()
     {
         liveExpanded = !liveExpanded;
+        CustomerDrawer?.SetExpanded(liveExpanded);
+        if(CustomerDrawerArt.Shared!=null)CustomerDrawerArt.Shared.PlayPanelSound();
     }
 
     private void CaptureAuthoredLayout()
@@ -367,6 +384,13 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
         if (livePanel == null || liveToggleRect == null)
             return;
 
+        if(CustomerDrawer!=null){
+            livePanelHiddenPosition=livePanelShownPosition+Vector2.left*(livePanel.rect.width+40);
+            liveToggleShownPosition=new Vector2(livePanelShownPosition.x+livePanel.rect.width-4,livePanelShownPosition.y);
+            liveToggleHiddenPosition=new Vector2(8,livePanelShownPosition.y);
+            liveToggleRect.sizeDelta=new Vector2(44,60);
+            if(customerPanelGroup!=null){customerPanelGroup.alpha=LevelOneUIAccessibility.ReducedMotion?(liveExpanded?1:0):Mathf.MoveTowards(customerPanelGroup.alpha,liveExpanded?1:0,Time.unscaledDeltaTime/panelAnimationSeconds);customerPanelGroup.blocksRaycasts=customerPanelGroup.alpha>.01f;customerPanelGroup.interactable=liveExpanded;}
+        }
         Vector2 panelTarget = liveExpanded ? livePanelShownPosition : livePanelHiddenPosition;
         Vector2 toggleTarget = liveExpanded ? liveToggleShownPosition : liveToggleHiddenPosition;
         if (LevelOneUIAccessibility.ReducedMotion)
@@ -392,6 +416,7 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
 
     private void ApplyPanelImmediate()
     {
+        if(CustomerDrawer!=null){livePanelHiddenPosition=livePanelShownPosition+Vector2.left*(livePanel.rect.width+40);if(customerPanelGroup!=null)customerPanelGroup.alpha=liveExpanded?1:0;}
         if (livePanel != null)
             livePanel.anchoredPosition = liveExpanded ? livePanelShownPosition : livePanelHiddenPosition;
         if (liveToggleRect != null)
@@ -402,6 +427,7 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
 
     private void RefreshCounts()
     {
+        if(CustomerDrawer!=null){if(CustomerDrawer.IsOpen && livePanel.gameObject.activeInHierarchy)CustomerDrawer.RefreshGroups(FindObjectsByType<CustomerGroup>(FindObjectsSortMode.InstanceID));return;}
         if (liveCountsText == null)
             return;
 
@@ -513,12 +539,12 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
 
         Booth booth = component.GetComponentInParent<Booth>();
         if (booth != null)
-            return GetBoothDisplayName(booth.gameObject.name);
+            return booth.CurrentGroup != null ? booth.CurrentGroup.InspectionTableLabel : "Awaiting number";
 
         return NicifyObjectName(component.gameObject.name, "Work Station");
     }
 
-    private static string GetBoothDisplayName(string rawName)
+    public static string GetBoothDisplayName(string rawName)
     {
         bool isLongTable = !string.IsNullOrWhiteSpace(rawName) &&
                            rawName.IndexOf(

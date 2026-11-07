@@ -1,0 +1,15 @@
+PASS: production sprite references, button/comment slice borders and both fonts resolve in Unity.
+PASS: production TableNumberUI eligibility, held-item changes, local network guidance, deferred delivery/revalidation, table reuse and passive tray identifier checks (gameplay boundaries doubled).
+PASS: dynamic panel captions retain their TMP references, original Button callback, native disabled/state sprites and reservation card content protection.
+PASS: real world-follow target movement through HUD zone, camera pan/zoom, offscreen hide/input removal and return. No screen-edge clamping or cross-table relocation.
+PASS: shared/Fine Dining explicit screen sizing across camera zoom, alternate authored widths and repeated wine/water/drink-label changes; eligible delivery bypasses only presentation focus, not gameplay validation.
+PASS: real reception prefab with matching Greet Customer / Seat Table presentation, original caption refs, existing icons and outlined text. Live greeting/seating handlers were not exercised.
+PASS: native Unity render and TMP overflow checks: landscape 1440x900. Real OrderAlertUI/TrayUi/BillAlertUI/TableNumber prefab ancestry and production follow/layout sources; actual live camera/input not simulated.
+PASS: native Unity render and TMP overflow checks: large-text 1440x1000. Real OrderAlertUI/TrayUi/BillAlertUI/TableNumber prefab ancestry and production follow/layout sources; actual live camera/input not simulated.
+PASS: native Unity render and TMP overflow checks: portrait 600x1500. Real OrderAlertUI/TrayUi/BillAlertUI/TableNumber prefab ancestry and production follow/layout sources; actual live camera/input not simulated.
+PASS: native Unity render and TMP overflow checks: attached-actions 1280x900. Real OrderAlertUI/TrayUi/BillAlertUI/TableNumber prefab ancestry and production follow/layout sources; actual live camera/input not simulated.
+PASS: real CustomerComments prefab, all mood artwork, long comments, currency/tip text and nonblocking raycasts: comments. Message timing/outcome code is not simulated.
+PASS: real CustomerComments prefab, all mood artwork, long comments, currency/tip text and nonblocking raycasts: comments-portrait-large. Message timing/outcome code is not simulated.
+PASS: real CustomerComments prefab, all mood artwork, long comments, currency/tip text and nonblocking raycasts: comments-long-portrait. Message timing/outcome code is not simulated.
+Assertions: 758
+Boundary doubles model eligibility and navigation only. No live service, device, authority, reconnect or audio listening test was run.

@@ -83,6 +83,10 @@ public sealed class PlayerTaskHUD : MonoBehaviour
     [SerializeField, Range(0.08f, 0.75f)] private float backgroundTaskBubbleAlpha = 0.28f;
 
     private FastFoodRestaurant fastFoodStatus;
+    private CompactTaskPanelView compactPanel;
+    private Vector2 compactSafeSize;
+    private readonly Vector3[] compactButtonCorners = new Vector3[4];
+    private Vector3 compactButtonLow, compactButtonHigh;
     private float nextFastFoodStatusAt;
     private Coroutine panelRoutine;
     private Coroutine buttonRoutine;
@@ -133,6 +137,8 @@ public sealed class PlayerTaskHUD : MonoBehaviour
         }
         else {normalKitchenButton.Apply(buttonRect);normalKitchenPanel.Apply(panelRect);authoredPanelSlideOffset=normalSlideOffset;}
         kitchenLayoutActive=active;
+        if(compactPanel!=null)panelRect.sizeDelta=CustomerDrawerArt.Shared.taskSize;
+        RefreshCompactDock(true);
         CaptureAuthoredPresentation();ApplyPanelImmediate(panelOpen);
     }
 
@@ -325,6 +331,9 @@ public sealed class PlayerTaskHUD : MonoBehaviour
 
         CaptureAuthoredPresentation();
         RefreshLobbyLayout(true);
+        compactPanel=CompactTaskPanelView.Attach(panelRect,taskText,detailText);
+        RefreshCompactDock(true);
+        if(compactPanel!=null)CaptureAuthoredPresentation();
         ApplyPanelImmediate(false);
         SetBadge(false);
         RefreshSceneVisibility();
@@ -411,6 +420,7 @@ public sealed class PlayerTaskHUD : MonoBehaviour
         if (MultiplayerDayBridge.IsActive && supportedSceneVisible != MultiplayerLobbyVisible)
             RefreshSceneVisibility();
         RefreshLobbyLayout(false);
+        RefreshCompactDock(false);
         PlayerTaskBubbleFocus.BackgroundAlpha = backgroundTaskBubbleAlpha;
 
         bool blocked = hideWhileGameplayUIBlocked && GameplayUIBlocker.IsBlocked();
@@ -449,6 +459,7 @@ public sealed class PlayerTaskHUD : MonoBehaviour
             {
                 nextFastFoodStatusAt = Time.unscaledTime + .5f;
                 if (detailText != null) detailText.text = fastFoodStatus.ServiceSummary;
+                compactPanel?.Render(default,fastFoodStatus.ServiceSummary,false);
             }
             return;
         }
@@ -565,10 +576,11 @@ public sealed class PlayerTaskHUD : MonoBehaviour
             SetBadge(false);
             reminderAt = float.PositiveInfinity;
 
-            if (completedTask && animate && !multiplayer)
+            if (completedTask && animate && !multiplayer && compactPanel==null)
                 StartCompletionPresentation();
             else
                 ApplyIdleStyle();
+            compactPanel?.Render(default,fastFoodStatus!=null?fastFoodStatus.ServiceSummary:null,false);
             return;
         }
 
@@ -581,7 +593,7 @@ public sealed class PlayerTaskHUD : MonoBehaviour
         RestoreAuthoredColors();
 
         string compositeKey = task.Source + ":" + task.Key;
-        bool completedPreviousStep = animate && !multiplayer &&
+        bool completedPreviousStep = compactPanel==null && animate && !multiplayer &&
                                      !string.IsNullOrEmpty(currentCompositeKey) &&
                                      compositeKey != currentCompositeKey;
         bool newStep = compositeKey != currentCompositeKey;
@@ -594,6 +606,7 @@ public sealed class PlayerTaskHUD : MonoBehaviour
             detailText.text = task.Detail;
             detailText.gameObject.SetActive(!string.IsNullOrWhiteSpace(task.Detail));
         }
+        compactPanel?.Render(task,null,animate);
 
         if (!preserveAuthoredPresentation && taskIcon != null)
             taskIcon.color = activeButtonColor;
@@ -631,6 +644,7 @@ public sealed class PlayerTaskHUD : MonoBehaviour
                 detailText.gameObject.SetActive(true);
             }
             ShowPanel(2f, false);
+            compactPanel?.Render(default,fastFoodStatus!=null?fastFoodStatus.ServiceSummary:null,false);
             return;
         }
 
@@ -677,6 +691,7 @@ public sealed class PlayerTaskHUD : MonoBehaviour
     {
         if (panelRoutine != null)
             StopCoroutine(panelRoutine);
+        if(LevelOneUIAccessibility.ReducedMotion){panelRoutine=null;ApplyPanelImmediate(show);return;}
         panelRoutine = StartCoroutine(PanelTransition(show));
     }
 
@@ -695,6 +710,7 @@ public sealed class PlayerTaskHUD : MonoBehaviour
 
         while (elapsed < slideSeconds)
         {
+            if(LevelOneUIAccessibility.ReducedMotion)break;
             elapsed += LevelOneUIAccessibility.UnscaledAnimationDeltaTime;
             float t = Mathf.Clamp01(elapsed / slideSeconds);
             float eased = t * t * (3f - 2f * t);
@@ -735,7 +751,7 @@ public sealed class PlayerTaskHUD : MonoBehaviour
 
     private void PlayButtonBounce()
     {
-        if (buttonRect == null)
+        if (buttonRect == null || LevelOneUIAccessibility.ReducedMotion)
             return;
         if (buttonRoutine != null)
             StopCoroutine(buttonRoutine);
@@ -747,6 +763,7 @@ public sealed class PlayerTaskHUD : MonoBehaviour
         float elapsed = 0f;
         while (elapsed < buttonBounceSeconds)
         {
+            if(LevelOneUIAccessibility.ReducedMotion)break;
             elapsed += LevelOneUIAccessibility.UnscaledAnimationDeltaTime;
             float t = Mathf.Clamp01(elapsed / buttonBounceSeconds);
             float scaleMultiplier;
@@ -781,6 +798,7 @@ public sealed class PlayerTaskHUD : MonoBehaviour
 
         if (badgeRoutine != null)
             StopCoroutine(badgeRoutine);
+        if(LevelOneUIAccessibility.ReducedMotion){reminderBadgeRect.localScale=authoredBadgeScale;badgeRoutine=null;return;}
         badgeRoutine = StartCoroutine(BadgePop());
     }
 
@@ -791,6 +809,7 @@ public sealed class PlayerTaskHUD : MonoBehaviour
         reminderBadgeRect.localScale = Vector3.zero;
         while (elapsed < duration)
         {
+            if(LevelOneUIAccessibility.ReducedMotion)break;
             elapsed += LevelOneUIAccessibility.UnscaledAnimationDeltaTime;
             float t = Mathf.Clamp01(elapsed / duration);
             float scale = t < 0.65f
@@ -812,6 +831,7 @@ public sealed class PlayerTaskHUD : MonoBehaviour
 
     private IEnumerator CompletionPresentation()
     {
+        compactPanel?.ShowConfirmedCompletion();
         if (taskText != null)
             taskText.text = "CURRENT TASK\nTASK COMPLETE";
         if (detailText != null)
@@ -824,7 +844,7 @@ public sealed class PlayerTaskHUD : MonoBehaviour
         // restored for the next task.
         if (taskIcon != null)
             taskIcon.color = completionColor;
-        if (panelImage != null)
+        if (panelImage != null && compactPanel==null)
             panelImage.color = completionColor;
 
         PlayButtonBounce();
@@ -864,9 +884,27 @@ public sealed class PlayerTaskHUD : MonoBehaviour
             panelImage.color = panelColor;
     }
 
+    private void RefreshCompactDock(bool force)
+    {
+        if(compactPanel==null || panelRect.parent is not RectTransform safe || safe.rect.width<160 || safe.rect.height<180)return;
+        if(buttonRect==null)return;
+        // Decorative bounce/slide owns its transform until it settles. Re-dock afterward.
+        if(!force && (buttonRoutine!=null || panelRoutine!=null))return;
+        buttonRect.GetWorldCorners(compactButtonCorners);
+        Vector3 low=safe.InverseTransformPoint(compactButtonCorners[0]),high=safe.InverseTransformPoint(compactButtonCorners[2]);
+        if(!force && compactSafeSize==safe.rect.size &&
+            (compactButtonLow-low).sqrMagnitude<.01f && (compactButtonHigh-high).sqrMagnitude<.01f)return;
+        compactSafeSize=safe.rect.size;
+        compactButtonLow=low;compactButtonHigh=high;
+        if(panelRoutine!=null){StopCoroutine(panelRoutine);panelRoutine=null;}
+        if(buttonRoutine!=null){StopCoroutine(buttonRoutine);buttonRoutine=null;if(buttonRect!=null)buttonRect.localScale=authoredButtonScale;}
+        panelRect.localScale=Vector3.one;compactPanel.DockBeside(buttonRect);
+        CaptureAuthoredPresentation();ApplyPanelImmediate(panelOpen);
+    }
+
     private void CaptureAuthoredPresentation()
     {
-        if (!preserveAuthoredPresentation || panelRect == null)
+        if ((!preserveAuthoredPresentation && compactPanel==null) || panelRect == null)
             return;
 
         // The RectTransform saved in Prefab Mode is the visible position.
@@ -901,7 +939,7 @@ public sealed class PlayerTaskHUD : MonoBehaviour
 
     private void RefreshLobbyLayout(bool force)
     {
-        if (preserveAuthoredPresentation)
+        if (preserveAuthoredPresentation || compactPanel!=null)
         {
             effectivePanelShownPosition = panelShownPosition;
             effectivePanelHiddenPosition = panelHiddenPosition;

@@ -107,7 +107,15 @@ public class TableNumberUI : MonoBehaviour
     {
         if (!tableBound || group == null || booth == null) return;
         bool available = CanShowServe();
-        if (presentationInitialized && available == serveAvailable) return;
+        if (presentationInitialized && available == serveAvailable)
+        {
+            // Claim changes can alter input without changing the displayed caption.
+            var existingFocus = GetComponent<PlayerTaskBubbleFocus>();
+            if (existingFocus == null) existingFocus = GetComponentInParent<PlayerTaskBubbleFocus>();
+            existingFocus?.SetLocalDeliveryAction(available);
+            existingFocus?.Refresh();
+            return;
+        }
         if (actionButton == null) actionButton = GetComponentInChildren<Button>(true);
         if (actionButton == null) return;
         var skin = available
@@ -123,6 +131,7 @@ public class TableNumberUI : MonoBehaviour
 
     public void OnClickMoveToTable()
     {
+        if(!serveAvailable && CustomerDrawerView.TryInspectGroupFromUI(group))return;
         // A click on an expired Serve prompt must not fall through into ordinary navigation.
         if (serveAvailable && !CanShowServe()) { RefreshPresentation(); return; }
         if (!TutorialCustomerFlowBridge.AllowsServiceUI("DeliveryPopup")) return;
@@ -151,10 +160,14 @@ public class TableNumberUI : MonoBehaviour
             if (delivery == null || !delivery.CanInteract()) return;
             // Use the existing deferred movement owner. Revalidate the same customer,
             // order and held tray on arrival, before invoking its real delivery handler.
-            player.UI_MoveToAction(delivery.StandPoint, delivery.GetInteractRadius(), () =>
+            var pendingFollow = GetComponentInParent<UIFollowWorldPoint>();
+            if (pendingFollow == null) pendingFollow = GetComponentInChildren<UIFollowWorldPoint>(true);
+            bool accepted = player.UI_MoveToAction(delivery.StandPoint, delivery.GetInteractRadius(), () =>
             {
                 if (this != null && CanShowServe() && delivery.CanInteract()) delivery.Interact(player);
-            }, () => { if (this != null) RefreshPresentation(); });
+                if (pendingFollow != null) pendingFollow.SetActionPending(false);
+            }, () => { if (pendingFollow != null) pendingFollow.SetActionPending(false); if (this != null) RefreshPresentation(); });
+            if (accepted && pendingFollow != null) pendingFollow.SetActionPending(true);
             return;
         }
 

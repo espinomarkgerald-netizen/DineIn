@@ -12,6 +12,7 @@ foreach($pack in @('ActionButtonSpritePackV1','RestaurantControlsSpritePackV1','
  Copy-Item -LiteralPath "$project/Assets/_Project/UI/Assets/$pack/Components" -Destination $dest -Recurse -Force
 }
 Copy-Item -LiteralPath "$project/Assets/_Project/UI/Assets/CustomerCommentSpritePackV1/CustomerCommentsV1.png","$project/Assets/_Project/UI/Assets/CustomerCommentSpritePackV1/CustomerCommentsV1.png.meta" -Destination "$isolated/Assets/Art/CustomerCommentSpritePackV1" -Force
+Copy-Item -LiteralPath "$project/Assets/_Project/UI/Assets/RestaurantControlsSpritePackV1/RestaurantControlsV1.png","$project/Assets/_Project/UI/Assets/RestaurantControlsSpritePackV1/RestaurantControlsV1.png.meta" -Destination "$isolated/Assets/Art/RestaurantControlsSpritePackV1" -Force
 foreach($mood in @('Happy','Neutral','Angry')) {Copy-Item -LiteralPath "$project/Assets/_Project/UI/Assets/DayPanelSpritePackV2/Components/Icon$mood.png","$project/Assets/_Project/UI/Assets/DayPanelSpritePackV2/Components/Icon$mood.png.meta" -Destination "$isolated/Assets/Art" -Force}
 foreach($file in @('Assets/_Project/UI/Assets/DayPanelSpritePackV2/Components/ProgressTrack.png','Assets/_Project/UI/Assets/Legacy/Bubbles/greet.png','Assets/_Project/UI/Assets/Legacy/Bubbles/table.png')) {Copy-Item -LiteralPath (Join-Path $project $file),(Join-Path $project ($file+'.meta')) -Destination "$isolated/Assets/Art" -Force}
 $res="$isolated/Assets/Resources/UI";New-Item -ItemType Directory -Force -Path $res | Out-Null
@@ -22,6 +23,7 @@ foreach($font in @('DayPanelHeading','DayPanelBodyBold')) { Copy-Item -LiteralPa
 foreach($font in @('Assets/_Project/UI/Assets/Fonts/Fonts/LilitaOne-Regular.ttf','Assets/_Project/UI/Assets/DayPanelSpritePackV2/Fonts/Sources/NunitoSans-ExtraBold.ttf')) {Copy-Item -LiteralPath (Join-Path $project $font),(Join-Path $project ($font+'.meta')) -Destination $fonts -Force}
 New-Item -ItemType Directory -Force -Path "$isolated/Assets/TextMesh Pro/Resources","$isolated/Assets/Prefabs" | Out-Null
 Copy-Item -LiteralPath "$project/Assets/_Project/UI/Assets/Legacy/Bubbles/CustomerGreetBubble.prefab" -Destination "$isolated/Assets/Prefabs" -Force
+Copy-Item -LiteralPath "$project/Assets/_Project/ManagementComputer/Prefabs/FineDiningReservationIndicator.prefab" -Destination "$isolated/Assets/Prefabs" -Force
 Copy-Item -LiteralPath "$project/Assets/TextMesh Pro/Shaders" -Destination "$isolated/Assets/TextMesh Pro" -Recurse -Force
 Copy-Item -LiteralPath "$project/Assets/TextMesh Pro/Resources" -Destination "$isolated/Assets/TextMesh Pro" -Recurse -Force
 foreach($prefab in @('Assets/_Project/Restaurant/Assets/Customers/Icons/OrderAlertUI.prefab','Assets/_Project/Restaurant/Assets/Customers/Icons/TableNumber.prefab','Assets/_Project/Restaurant/Assets/Customers/Icons/BillAlertUI.prefab','Assets/_Project/Restaurant/Assets/Level1/UI/TrayUi.prefab','Assets/_Project/Restaurant/Assets/Customers/Icons/CustomerComments.prefab')) {Copy-Item -LiteralPath (Join-Path $project $prefab) -Destination "$isolated/Assets/Prefabs" -Force}
@@ -29,7 +31,9 @@ Copy-Item -LiteralPath "$project/ProjectSettings/ProjectVersion.txt" -Destinatio
 $ugui=Get-ChildItem -LiteralPath "$project/Library/PackageCache" -Directory -Filter 'com.unity.ugui@*' | Select-Object -First 1
 $manifest=@{dependencies=@{'com.unity.ugui'=('file:'+$ugui.FullName.Replace('\','/'));'com.unity.modules.ai'='1.0.0';'com.unity.modules.ui'='1.0.0';'com.unity.modules.imageconversion'='1.0.0'}}|ConvertTo-Json -Depth 4
 [IO.File]::WriteAllText("$isolated/Packages/manifest.json",$manifest)
+$startedAt=Get-Date
 $process=Start-Process -FilePath $Unity -ArgumentList @('-batchmode','-projectPath',('"'+$isolated+'"'),'-executeMethod','ActionButtonsUnityCheck.Run','-logFile',('"'+$project+'/Temp/ActionButtonsCheck.log"')) -WindowStyle Hidden -Wait -PassThru
 Write-Output "Unity verification exit: $($process.ExitCode)"
-if(Test-Path -LiteralPath "$isolated/CheckOutput/report.txt") {Get-Content -LiteralPath "$isolated/CheckOutput/report.txt"}
+if((Test-Path -LiteralPath "$isolated/CheckOutput/report.txt") -and (Get-Item -LiteralPath "$isolated/CheckOutput/report.txt").LastWriteTime -ge $startedAt) {Get-Content -LiteralPath "$isolated/CheckOutput/report.txt"}
+else {Write-Output 'No fresh verification report was generated.'}
 exit $process.ExitCode

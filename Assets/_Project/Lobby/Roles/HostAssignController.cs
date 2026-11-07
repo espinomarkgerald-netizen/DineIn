@@ -50,6 +50,7 @@ public class HostAssignController : MonoBehaviour
 
     private void HandleTap(Vector2 screenPos)
     {
+        if(CustomerDrawerView.BlocksWorldPointer || CustomerDrawerView.TryCaptureWorldPress(screenPos))return;
         Debug.Log("[HostAssign] HandleTap called");
 
         Camera cam = Camera.main;

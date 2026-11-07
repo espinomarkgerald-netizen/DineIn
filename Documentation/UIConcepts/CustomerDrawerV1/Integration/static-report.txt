@@ -1,0 +1,1 @@
+PASS: 196 sprite/font/resource, source-guard and shared-HUD reference checks. Scene references are static coverage, not live mode testing.

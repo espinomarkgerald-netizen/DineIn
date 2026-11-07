@@ -105,7 +105,7 @@ public sealed class PlayerTaskRestockSource : MonoBehaviour
             detail,
             taskPriority,
             RestockOrderManager.Instance,
-            PlayerTaskCategory.Restock);
+            PlayerTaskCategory.Restock,"IconReceipt");
     }
 
     private static string BoxCount(int count)

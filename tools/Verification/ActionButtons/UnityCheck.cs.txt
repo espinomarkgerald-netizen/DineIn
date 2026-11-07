@@ -29,6 +29,15 @@ public static class ActionButtonsUnityCheck
    Assert(art.headingFont.HasCharacters("Take order Collect payment Serve food 123",out uint[] missingHeading,false,true),"Heading glyph coverage");
    Assert(art.bodyFont.HasCharacters("₱2,147,483,647",out uint[] missingBody,false,true),"Currency glyph coverage");
    foreach(var entry in art.sprites)Assert(entry.sprite!=null,"Missing sprite: "+entry.name);
+   var receptionAtlas=AssetDatabase.LoadAllAssetsAtPath("Assets/Art/RestaurantControlsSpritePackV1/RestaurantControlsV1.png").OfType<Sprite>().ToArray();
+   Assert(receptionAtlas.Length==38,"Restaurant control atlas has 38 sprites");
+   var waitingMarker=AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/FineDiningReservationIndicator.prefab");
+   Assert(waitingMarker.transform.Find("TableIcon").GetComponent<Image>().sprite==art.Find("IconSeatCustomer"),"Waiting-area marker uses approved seating sprite");
+   foreach(string name in new[]{"IconGreetCustomer","IconSeatCustomer"}) {
+    var sprite=receptionAtlas.Single(s=>s.name==name);Assert(art.Find(name)!=null,"Reception resource icon: "+name);
+    AssetDatabase.TryGetGUIDAndLocalFileIdentifier(sprite,out string guid,out long id);Assert(id==(name=="IconGreetCustomer"?21300072:21300074),"Stable reception atlas ID");
+    Assert(sprite.rect.size==new Vector2(256,256)&&sprite.pivot==new Vector2(128,128),"Reception sprite geometry");
+   }
    foreach(string color in new[]{"Green","Cyan","Gold","Coral"})foreach(string state in new[]{"Ready","Pressed","Disabled","Focused"})
     Assert(art.Find("Button"+color+state).border==new Vector4(128,56,128,56),"9 slice: "+color+state);
    var comments=AssetDatabase.LoadAllAssetsAtPath("Assets/Art/CustomerCommentSpritePackV1/CustomerCommentsV1.png").OfType<Sprite>().ToArray();
@@ -38,6 +47,7 @@ public static class ActionButtonsUnityCheck
    Behavior();
    PanelControls();
    Anchoring();
+   StableActionSizing();
    RenderReception();
    Render("landscape",1440,900,false);
    Render("large-text",1440,1000,true);
@@ -94,6 +104,16 @@ public static class ActionButtonsUnityCheck
  }
  static void PanelControls()
  {
+  var kitchen=Make<FastFoodCookingView>("Kitchen");
+  var kitchenButton=Make<Button>("Exit kitchen");kitchenButton.transform.SetParent(kitchen.transform,false);
+  var kitchenCaption=Make<TextMeshProUGUI>("Kitchen caption");kitchenCaption.transform.SetParent(kitchenButton.transform,false);kitchenCaption.text="Exit kitchen";
+  GameplayActionButtonSkin.TryAttach(kitchenButton);
+  Assert(kitchenButton.GetComponent<GameplayActionButtonSkin>()==null && kitchenCaption.text=="Exit kitchen","Authored kitchen controls are excluded from generic styling");
+  var inactive=new GameObject("Inactive action",typeof(RectTransform),typeof(Image),typeof(Button));inactive.SetActive(false);
+  var inactiveButton=inactive.GetComponent<Button>();inactiveButton.targetGraphic=inactive.GetComponent<Image>();
+  var inactiveCaption=Make<TextMeshProUGUI>("Inactive caption");inactiveCaption.transform.SetParent(inactive.transform,false);inactiveCaption.text="Clean";
+  var inactiveSkin=GameplayActionButtonSkin.Apply(inactiveButton,"IconClean","Clean");inactiveSkin.UseCaption(inactiveCaption);
+  Assert(inactiveCaption.enabled && inactiveCaption.gameObject.activeSelf,"Inactive authored actions initialize before UseCaption");
   var reservation=Make<ManagementReservationPanel>("Reservation panel");var reservedButton=Make<Button>("Requests tab");reservedButton.transform.SetParent(reservation.transform,false);GameplayActionButtonSkin.TryAttach(reservedButton);Assert(reservedButton.GetComponent<GameplayActionButtonSkin>()==null,"Reservation panel must be excluded completely");
   var card=Make<ManagementReservationCard>("Clickable reservation card");var cardButton=card.gameObject.AddComponent<Button>();GameplayActionButtonSkin.TryAttach(cardButton);Assert(card.GetComponent<GameplayActionButtonSkin>()==null,"Whole reservation cards must retain party information");
   var go=new GameObject("ConfirmReservation",typeof(RectTransform),typeof(Image),typeof(Button));var button=go.GetComponent<Button>();button.targetGraphic=go.GetComponent<Image>();((RectTransform)go.transform).sizeDelta=new Vector2(230,72);
@@ -121,6 +141,43 @@ public static class ActionButtonsUnityCheck
   target.position=Vector3.zero;Call(follow,"LateUpdate");Assert(root.GetComponent<CanvasGroup>().alpha>0,"Returning target restores its action");
   rt.Release();Object.DestroyImmediate(rt);checks.Add("PASS: real world-follow target movement through HUD zone, camera pan/zoom, offscreen hide/input removal and return. No screen-edge clamping or cross-table relocation.");
  }
+ static void StableActionSizing()
+ {
+  EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);LevelOneUIAccessibility.ReducedMotion=true;
+  var camera=Make<Camera>("Sizing camera");camera.orthographic=true;camera.orthographicSize=500;camera.transform.position=new Vector3(0,0,-100);camera.nearClipPlane=.01f;
+  var rt=new RenderTexture(1440,1080,24);camera.targetTexture=rt;rt.Create();
+  var settings=Make<FineDiningReservations>("Fine Dining sizing");var target=new GameObject("Table anchor").transform;
+  foreach(bool fineDining in new[]{false,true}) foreach(float zoom in new[]{300f,650f}) foreach(float authoredWidth in new[]{150f,420f}) foreach(float sourceScale in new[]{.01f,1f}) {
+   camera.orthographicSize=zoom;
+   var root=Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/OrderAlertUI.prefab"));root.transform.localScale=Vector3.one*sourceScale;var follow=root.GetComponent<UIFollowWorldPoint>();Call(follow,"Awake");
+   var button=root.GetComponentInChildren<Button>(true);((RectTransform)button.transform).SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal,authoredWidth);
+   follow.InitAboveTarget(target,Vector3.zero,camera,8);if(fineDining)follow.ConfigureFineDiningSizing(settings);
+   var actionSkin=button.gameObject.AddComponent<GameplayActionButtonSkin>();Call(actionSkin,"Awake");
+   foreach(string label in new[]{"Pour wine","Pour water","Take drink order","Pour wine"}) {
+    var skin=GameplayActionButtonSkin.Apply(button,"IconWineRefill",label);Call(skin,"OnDisable");Field(follow,"revealElapsed",1f);Call(follow,"LateUpdate");Canvas.ForceUpdateCanvases();
+    var corners=new Vector3[4];((RectTransform)button.transform).GetWorldCorners(corners);
+    float pixels=Vector2.Distance(camera.WorldToScreenPoint(corners[0]),camera.WorldToScreenPoint(corners[3]));
+    float unit=(float)typeof(GameplayActionButtonSkin).GetField("unit",BindingFlags.NonPublic|BindingFlags.Instance).GetValue(skin);
+    float expected=((RectTransform)button.transform).rect.width/unit;
+    Assert(Mathf.Abs(pixels-expected)<1f && pixels>=199f && pixels<=281f,"Explicit action width across restaurant/zoom/prefab/state: "+fineDining+" "+zoom+" "+authoredWidth+" "+label+" "+pixels);
+    var focus=PlayerTaskBubbleFocus.Bind(root,target);
+    Call(focus,"Awake");
+    RestaurantTaskClaim.PlayerHasActiveTask=true;focus.SetLocalDeliveryAction(false);focus.Refresh();Call(follow,"LateUpdate");
+    if(!fineDining)Assert(!root.GetComponent<CanvasGroup>().interactable,"Unrelated active tasks still suppress non-delivery controls");
+    focus.SetLocalDeliveryAction(true);focus.Refresh();Call(follow,"LateUpdate");
+    Assert(root.GetComponent<CanvasGroup>().interactable,"Strictly eligible held-tray delivery remains clickable during a tray claim");
+    RestaurantTaskClaim.PlayerHasActiveTask=false;
+   }
+   var number=Make<TextMeshProUGUI>("Passive number");number.transform.SetParent(button.transform,false);number.text="4";
+   GameplayActionButtonSkin.TableNumber(button,number);Call(follow,"LateUpdate");
+   var numberCorners=new Vector3[4];((RectTransform)button.transform).GetWorldCorners(numberCorners);
+   float numberPixels=Vector2.Distance(camera.WorldToScreenPoint(numberCorners[0]),camera.WorldToScreenPoint(numberCorners[3]));
+   Assert(Mathf.Abs(numberPixels-GameplayActionButtonArt.Shared.numberBubbleSize)<1f,"Passive number uses its own consistent screen size");
+   Object.DestroyImmediate(root);
+  }
+  camera.targetTexture=null;rt.Release();Object.DestroyImmediate(rt);
+  checks.Add("PASS: shared/Fine Dining explicit screen sizing across camera zoom, alternate authored widths and repeated wine/water/drink-label changes; eligible delivery bypasses only presentation focus, not gameplay validation.");
+ }
  static void RenderReception()
  {
   EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
@@ -128,7 +185,7 @@ public static class ActionButtonsUnityCheck
   var rt=new RenderTexture(1000,500,24);camera.targetTexture=rt;rt.Create();
   for(int i=0;i<2;i++){
    var root=Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/CustomerGreetBubble.prefab"));var follow=root.GetComponent<UIFollowWorldPoint>();Call(follow,"Awake");var button=root.GetComponentInChildren<Button>(true);var caption=button.GetComponentInChildren<TMP_Text>(true);string label=i==0?"Greet Customer":"Seat Table";caption.text=label;
-   var skin=button.gameObject.AddComponent<GameplayActionButtonSkin>();Call(skin,"Awake");GameplayActionButtonSkin.Apply(button,"",label,i==0?"Cyan":"Green",customIcon:AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Art/"+(i==0?"greet":"table")+".png"));skin.UseCaption(caption);Call(skin,"OnDisable");
+   var skin=button.gameObject.AddComponent<GameplayActionButtonSkin>();Call(skin,"Awake");GameplayActionButtonSkin.Apply(button,i==0?"IconGreetCustomer":"IconSeatCustomer",label,i==0?"Cyan":"Green");skin.UseCaption(caption);Call(skin,"OnDisable");
    var target=new GameObject("Reception guest").transform;target.position=new Vector3(i==0?-250:250,-50,0);follow.InitAboveTarget(target,Vector3.zero,camera,10);Field(follow,"revealElapsed",1f);Call(follow,"LateUpdate");Canvas.ForceUpdateCanvases();caption.ForceMeshUpdate();Assert(caption.text==label&&caption.gameObject.activeInHierarchy&&!caption.isTextOverflowing,"Original tutorial-visible reception label");
   }
   camera.Render();var prior=RenderTexture.active;RenderTexture.active=rt;var pixels=new Texture2D(1000,500,TextureFormat.RGBA32,false);pixels.ReadPixels(new Rect(0,0,1000,500),0,0);pixels.Apply();File.WriteAllBytes(Path.Combine(output,"reception.png"),pixels.EncodeToPNG());RenderTexture.active=prior;Object.DestroyImmediate(pixels);rt.Release();Object.DestroyImmediate(rt);
@@ -172,8 +229,12 @@ public static class ActionButtonsUnityCheck
   var follows=new List<UIFollowWorldPoint>();var roots=new List<GameObject>();
   var labels=new[]{"Take order","Pick up","Ask for bill","Collect bill","Collect payment","Serve food","Pour water","Pour wine","Take drink order"};
   var icons=new[]{"IconTakeOrder","IconPickUp","IconAskForBill","IconCollectBill","IconCollectPayment","IconServeFood","IconWaterRefill","IconWineRefill","IconWineRefill"};
-  int cols=width<800?1:3;int rows=(labels.Length+cols-1)/cols;
-  for(int i=0;i<labels.Length;i++) {
+  // Keep independent sample anchors apart; the portrait fixture shows representative
+  // actions rather than cramming nine world targets into one narrow camera view.
+  var sampleIndices=width<800?new[]{0,4,5,8}:Enumerable.Range(0,labels.Length).ToArray();
+  int cols=width<800?1:3;int rows=(sampleIndices.Length+cols-1)/cols;
+  for(int sample=0;sample<sampleIndices.Length;sample++) {
+   int i=sampleIndices[sample];
    string prefab=i==0?"OrderAlertUI":i==1?"TrayUi":i==2||i==3?"BillAlertUI":"TableNumber";
    var source=AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/"+prefab+".prefab");Assert(source!=null,"Real prefab missing");
    var root=Object.Instantiate(source);roots.Add(root);var follow=root.GetComponent<UIFollowWorldPoint>();Assert(follow!=null,"Real follow ancestry missing");Call(follow,"Awake");
@@ -184,13 +245,13 @@ public static class ActionButtonsUnityCheck
    GameplayActionButtonSkin.Apply(b,icons[i],labels[i],i==1||i==5?"Green":i>=2&&i<=4?"Gold":"Cyan",i==0?null:num,detail);
    if(i==0){var bar=root.GetComponentInChildren<Slider>(true);var fill=bar.fillRect.GetComponent<Image>();fill.color=Color.yellow;skin.PlaceProgress(bar);Assert(fill.color==Color.yellow,"Patience tint preserved");bar.SetValueWithoutNotify(.72f);fill.color=Color.green;Assert(bar.normalizedValue==.72f,"Real patience value retained");var corners=new Vector3[4];bar.GetComponent<RectTransform>().GetWorldCorners(corners);float bottom=corners.Min(c=>b.transform.InverseTransformPoint(c).y);Assert(bottom>((RectTransform)b.transform).rect.yMax,"Patience bar above action");Assert(bar.GetComponent<RectTransform>().rect.height>=20f,"Thicker patience bar");Assert(!bar.interactable,"Patience remains a status indicator");}
    Call(skin,"OnDisable");Assert(b.onClick.GetPersistentEventCount()==callbacks,"Persistent callbacks changed");
-   var target=new GameObject("Anchor "+i).transform;target.position=new Vector3((i%cols-(cols-1)*.5f)*(width/(float)cols),height*.5f-250-(i/cols)*((height-380)/(float)rows),0);
+   var target=new GameObject("Anchor "+i).transform;target.position=new Vector3((sample%cols-(cols-1)*.5f)*(width/(float)cols),height*.5f-250-(sample/cols)*((height-380)/(float)rows),0);
    if(crowded)target.position=new Vector3((i%3-1)*12,(i/3-1)*16,0);
    follow.InitAboveTarget(target,Vector3.zero,camera,8f);follows.Add(follow);
   }
   Canvas.ForceUpdateCanvases();foreach(var f in follows){Field(f,"revealElapsed",1f);Call(f,"LateUpdate");}
   Canvas.ForceUpdateCanvases();
-  if(crowded) {
+  {
    var bounds=new List<Rect>();var corners=new Vector3[4];
    foreach(var root in roots){Vector2 min=new Vector2(float.PositiveInfinity,float.PositiveInfinity),max=new Vector2(float.NegativeInfinity,float.NegativeInfinity);
     foreach(var g in root.GetComponentsInChildren<Graphic>(false))if(g.enabled){g.rectTransform.GetWorldCorners(corners);foreach(var corner in corners){Vector2 p=camera.WorldToScreenPoint(corner);min=Vector2.Min(min,p);max=Vector2.Max(max,p);}}

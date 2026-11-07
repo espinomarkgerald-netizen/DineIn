@@ -30,6 +30,7 @@ public sealed class GameplayActionButtonSkin : MonoBehaviour
         if (target == null || GameplayActionButtonArt.Shared == null) return null;
         var skin = target.GetComponent<GameplayActionButtonSkin>();
         if (skin == null) skin = target.gameObject.AddComponent<GameplayActionButtonSkin>();
+        skin.Initialize();
         skin.ShowNumber(number);
         return skin;
     }
@@ -40,6 +41,7 @@ public sealed class GameplayActionButtonSkin : MonoBehaviour
         if (target == null || GameplayActionButtonArt.Shared == null) return null;
         var skin = target.GetComponent<GameplayActionButtonSkin>();
         if (skin == null) skin = target.gameObject.AddComponent<GameplayActionButtonSkin>();
+        skin.Initialize();
         skin.Configure(iconName, label, color, number, value, customIcon);
         return skin;
     }
@@ -54,10 +56,10 @@ public sealed class GameplayActionButtonSkin : MonoBehaviour
         if (target.GetComponent<ManagementReservationCard>() != null) return;
         // Only these existing restaurant panels opt into generic caption styling.
         // Customer bubbles are configured by their actual owners with their identifier refs.
-        bool kitchen = target.GetComponentInParent<FastFoodCookingView>(true) != null;
+        if (target.GetComponentInParent<FastFoodCookingView>(true) != null) return;
         var pour = target.GetComponentInParent<WinePouringUI>(true);
         bool cleaning = target.GetComponentInParent<BoothMessCleanUI>(true) != null;
-        if (!kitchen && !cleaning && (pour == null || target != pour.backButton)) return;
+        if (!cleaning && (pour == null || target != pour.backButton)) return;
         var text = target.GetComponentInChildren<TMP_Text>(true);
         if (text == null) return;
         string label = text.text;
@@ -76,6 +78,12 @@ public sealed class GameplayActionButtonSkin : MonoBehaviour
 
     private void Awake()
     {
+        Initialize();
+    }
+
+    private void Initialize()
+    {
+        if (button != null) return;
         button = GetComponent<Button>();
         rect = (RectTransform)transform;
         frame = button.targetGraphic as Image;
@@ -113,7 +121,7 @@ public sealed class GameplayActionButtonSkin : MonoBehaviour
         frame.color = Color.white;
         frame.type = Image.Type.Sliced;
         frame.preserveAspect = false;
-        frame.pixelsPerUnitMultiplier = 2f / unit;
+        frame.pixelsPerUnitMultiplier = 4f / unit;
         frame.sprite = art.Find("Button" + color + "Ready");
         frame.overrideSprite = null;
         button.targetGraphic = frame;
@@ -151,7 +159,7 @@ public sealed class GameplayActionButtonSkin : MonoBehaviour
         frame.overrideSprite = null;
         button.transition = Selectable.Transition.ColorTint;
         button.colors = ColorBlock.defaultColorBlock;
-        float size = 96f * unit;
+        float size = art.numberBubbleSize * unit;
         rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, size);
         rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, size);
         if (identifier != null)
@@ -186,10 +194,13 @@ public sealed class GameplayActionButtonSkin : MonoBehaviour
 
     public void UseCaption(TMP_Text existing)
     {
-        if (existing == null || existing == caption) return;
+        if (existing == null || existing == caption || art == null || content == null) return;
+        if (caption != null)
+        {
         caption.gameObject.SetActive(false);
         if (Application.isPlaying) Destroy(caption.gameObject);
         else DestroyImmediate(caption.gameObject);
+        }
         caption = existing;
         caption.gameObject.SetActive(true);
         Style(caption, true);
@@ -245,8 +256,8 @@ public sealed class GameplayActionButtonSkin : MonoBehaviour
         bool large = LevelOneUIAccessibility.LargeText;
         caption.fontSize = art.labelSize * unit * (large ? 1.2f : 1f);
         caption.textWrappingMode = TextWrappingModes.NoWrap;
-        float iconWidth = icon.enabled ? 64f * unit : 0f;
-        float padding = 70f * unit;
+        float iconWidth = icon.enabled ? 34f * unit : 0f;
+        float padding = 64f * unit;
         float preferred = caption.GetPreferredValues(caption.text).x;
         if (detail != null)
         {
@@ -268,11 +279,11 @@ public sealed class GameplayActionButtonSkin : MonoBehaviour
         float detailHeight = hasDetail ? Mathf.Max(28f * unit, detail.GetPreferredValues(detail.text).y + 4f * unit) : 0f;
         float captionHeight = textHeight + 4f * unit;
         float gap = 8f * unit;
-        float height = Mathf.Max(96f * unit, captionHeight + (hasDetail ? detailHeight + gap : 0) + 30f * unit);
+        float height = Mathf.Max(art.worldButtonHeight * unit, captionHeight + (hasDetail ? detailHeight + gap : 0) + 16f * unit);
         // Panel buttons keep their authored allocation; grow only floating world prompts.
         if (world) rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, height);
         else height = rect.rect.height;
-        Place(icon.rectTransform, content.transform, new Vector2(0, .5f), new Vector2(36f * unit + iconWidth * .5f, 0), Vector2.one * 60f * unit);
+        Place(icon.rectTransform, content.transform, new Vector2(0, .5f), new Vector2(30f * unit + iconWidth * .5f, 0), Vector2.one * 34f * unit);
         Place(caption.rectTransform, content.transform, new Vector2(.5f, .5f), new Vector2(iconWidth * .5f, hasDetail ? (detailHeight + gap) * .5f : 0), new Vector2(textWidth, captionHeight));
         if (detail != null)
         {
@@ -299,12 +310,17 @@ public sealed class GameplayActionButtonSkin : MonoBehaviour
         previousSize = rect.rect.size;
         layingOut = false;
         PositionProgress();
+        if (follow != null) follow.RefreshFineDiningActionMetrics();
         RefreshBounds();
     }
 
     private void RefreshBounds()
     {
-        if (follow != null) { follow.RefreshVisualBounds(); follow.KeepAttachedToTarget(); }
+        if (follow != null)
+        {
+            follow.ConfigureScreenSizing(frame, rect.rect.width / unit);
+            follow.RefreshVisualBounds(); follow.KeepAttachedToTarget();
+        }
         var focus = GetComponentInParent<PlayerTaskBubbleFocus>();
         if (focus != null) focus.RefreshPresentation();
     }

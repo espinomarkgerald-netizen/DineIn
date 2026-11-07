@@ -1,0 +1,86 @@
+[
+  {
+    "height": 640,
+    "name": "PaperBody",
+    "border": [
+      32,
+      32,
+      32,
+      32
+    ],
+    "guid": "e053b0d1725a447fbc72f1ca01bba766",
+    "width": 1024
+  },
+  {
+    "height": 256,
+    "name": "ColumnInset",
+    "border": [
+      16,
+      16,
+      16,
+      16
+    ],
+    "guid": "b713c5e7c6ea4e6ba5052f235c330da1",
+    "width": 384
+  },
+  {
+    "height": 128,
+    "name": "PriorityStrip",
+    "border": [
+      16,
+      16,
+      16,
+      16
+    ],
+    "guid": "f6ab0bbc9637466c83cff7ab260d035f",
+    "width": 512
+  },
+  {
+    "height": 96,
+    "name": "MarketRow",
+    "border": [
+      16,
+      16,
+      16,
+      16
+    ],
+    "guid": "202f5f2b55fd47afabf766ba65218fdd",
+    "width": 512
+  },
+  {
+    "height": 256,
+    "name": "QuoteFrame",
+    "border": [
+      16,
+      16,
+      16,
+      16
+    ],
+    "guid": "afd0b7f1807e4970b00d1c389916679b",
+    "width": 384
+  },
+  {
+    "height": 96,
+    "name": "PartyTag",
+    "border": [
+      16,
+      16,
+      16,
+      16
+    ],
+    "guid": "b1fb85c4ff834f5a82d98bc5a42f75ae",
+    "width": 384
+  },
+  {
+    "height": 64,
+    "name": "NavigationShell",
+    "border": [
+      16,
+      16,
+      16,
+      16
+    ],
+    "guid": "58d0dac4e9914852a06b2e09576b7fc1",
+    "width": 256
+  }
+]
