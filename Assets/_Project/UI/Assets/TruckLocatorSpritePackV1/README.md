@@ -9,6 +9,6 @@
 - No labels, numbers, arrows, or exclamation glyphs are baked in. Keep any direction cue separate.
 - Generated from the actual project truck illustration and existing action-button/icon references. Original art is preserved.
 
-This asset is supplied for later shared-prefab integration. RestockTruckOffscreenIndicator.prefab and its script are unchanged. The current script has restaurant/mode visibility conditions; adding this sprite alone does not extend those conditions or make the indicator clickable.
+Integrated into RestockTruckOffscreenIndicator.prefab. Its runtime owner binds a real button with existing click feedback, safe-area placement and click-to-center framing. It appears for ready, offscreen deliveries in supported gameplay contexts; tutorial lessons retain their HUD restrictions. See Documentation/Gameplay/GamePolishPlan.md for verification boundaries.
 
 Validation performed: PNG dimensions, transparent corner pixels, Sprite importer mode/type, zero nine-slice borders. Live Unity appearance and small-screen readability were not tested.

@@ -33,6 +33,12 @@ public class TutorialSceneRuntimeMarker : MonoBehaviour
         string action = step.ActionKey;
         switch (key)
         {
+            case "TruckIndicator":
+                return tutorial.CurrentPhase == TutorialSystem.TutorialPhase.NormalGameplay ||
+                    action != null && action.StartsWith("Restock.", StringComparison.Ordinal) ||
+                    FastFoodTutorialBridge.Active &&
+                    (FastFoodTutorialBridge.Instance.CurrentLesson?.action == FastFoodTutorialBridge.ActionKind.Truck ||
+                     FastFoodTutorialBridge.Instance.CurrentLesson?.action == FastFoodTutorialBridge.ActionKind.CollectDelivery);
             case "CameraButton":
                 return target == "CameraButton" || action == "Camera.Focus";
             case "LivePanel":

@@ -169,6 +169,12 @@ public class MainCameraController : MonoBehaviour
     {
         if (cam == null) cam = Camera.main;
         if (cam == null || !cam.isActiveAndEnabled) return;
+        if (followTarget != null && !PanInputBlocked && followTarget.TryGetComponent<PlayerMovement>(out var followedPlayer) && !followedPlayer.IsPlayerControlled())
+        {
+            var local = ManagerPlayer.Active != null ? ManagerPlayer.Active.Movement : RoleManager.Instance?.GetActivePlayerMovement();
+            if (local != null && local != followedPlayer && local.IsPlayerControlled())
+                SetFollowTarget(local.transform, followLocalOffset);
+        }
         if (deferredTaskPlayer != null && !PanInputBlocked)
         {
             var player = deferredTaskPlayer; deferredTaskPlayer = null;
@@ -255,6 +261,8 @@ public class MainCameraController : MonoBehaviour
     }
 
     private PlayerMovement deferredTaskPlayer;
+    [Header("Task follow")]
+    [SerializeField] private Vector3 taskFollowOffset = Vector3.up;
     private uint deferredTaskVersion;
     public void FollowAcceptedTask(PlayerMovement player)
     {
@@ -265,7 +273,7 @@ public class MainCameraController : MonoBehaviour
         CustomerDrawerView.ReleaseCameraFocus();
         SetFollowSuspended(false);
         deferredTaskPlayer = null;
-        SetFollowTarget(player.transform, Vector3.up);
+        SetFollowTarget(player.transform, taskFollowOffset);
     }
 
     public void FrameWorldTarget(Vector3 position)
