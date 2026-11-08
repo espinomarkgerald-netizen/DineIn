@@ -78,13 +78,15 @@ public class UIFollowWorldPoint : MonoBehaviour
     private bool compactCustomerPresentation;
     private Graphic screenSizingFrame;
     private float screenSizingWidth;
+    private float fineDiningNumberWidth;
 
     // Opt-in for approved world artwork in every restaurant. Width is in pixels at 1080p.
-    public void ConfigureScreenSizing(Graphic frame, float readableWidth)
+    public void ConfigureScreenSizing(Graphic frame, float readableWidth, float fineDiningPassiveNumberWidth = 0f)
     {
         if (frame == null || readableWidth <= 0f) return;
         screenSizingFrame = frame;
         screenSizingWidth = readableWidth;
+        fineDiningNumberWidth = fineDiningPassiveNumberWidth;
         KeepAttachedToTarget();
     }
 
@@ -505,8 +507,10 @@ public class UIFollowWorldPoint : MonoBehaviour
                                     rect.InverseTransformPoint(graphicWorldCorners[0]).x) * Mathf.Abs(authoredScale.x);
             float compact = fineDiningSizing != null && compactCustomerPresentation
                 ? Mathf.Clamp(fineDiningSizing.compactCustomerBubbleScale, .25f, 1f) : 1f;
+            float targetWidth = fineDiningSizing != null && fineDiningNumberWidth > 0f
+                ? fineDiningNumberWidth : screenSizingWidth * compact;
             if (width > .001f)
-                return ResolveWorldUnitsPerScreenPixel(anchorPosition) * screenSizingWidth * compact *
+                return ResolveWorldUnitsPerScreenPixel(anchorPosition) * targetWidth *
                     (Mathf.Max(1, cam.pixelHeight) / 1080f) * DineIn.NewMenu.SettingsManager.UIScaleMultiplier / width;
         }
         if (fineDiningSizing != null && fineDiningFrameWidth > .001f)

@@ -20,6 +20,12 @@ public class CustomerGreetBubbleUI : MonoBehaviour
     private GameplayActionButtonSkin actionSkin;
     private bool seatingArtwork;
     private Sprite partyTagArtwork;
+    private string displayedPartyTag;
+
+    internal bool SeatingBlocked => group != null && group.hasBeenGreeted &&
+        FineDiningReservations.For(group) != null &&
+        (!group.ReservedSeatingActionAvailable ||
+         string.IsNullOrEmpty(group.FineDiningReservationId) && !group.FineDiningSeatingAvailable);
 
     public void Init(CustomerGroup g)
     {
@@ -52,8 +58,24 @@ public class CustomerGreetBubbleUI : MonoBehaviour
 
     private void RefreshPartyTag()
     {
-        if(group==null || string.IsNullOrEmpty(group.FineDiningReservationId))return;
+        if (group == null) return;
+        bool reserved = !string.IsNullOrEmpty(group.FineDiningReservationId);
+        string detail = reserved ? group.ReceptionPartyCaption : string.Empty;
+        if (SeatingBlocked)
+        {
+            string reason = reserved ? "Waiting for reserved table." :
+                FineDiningReservations.For(group).NoSeatingMessage(group.Size);
+            detail = reserved ? detail + "\n" + reason : reason;
+        }
+        if (displayedPartyTag == detail) return;
+        displayedPartyTag = detail;
         var tag=transform.Find("Details") as RectTransform;
+        if (string.IsNullOrEmpty(detail))
+        {
+            if (tag != null) tag.gameObject.SetActive(false);
+            GetComponentInParent<UIFollowWorldPoint>()?.RefreshVisualBounds();
+            return;
+        }
         if(tag==null){tag=new GameObject("Details",typeof(RectTransform),typeof(Image)).GetComponent<RectTransform>();tag.SetParent(transform,false);}
         var background=tag.GetComponent<Image>();background.enabled=true;background.raycastTarget=false;background.color=new Color(1,.97f,.9f);
         if(partyTagArtwork!=null || CustomerDrawerArt.Shared!=null){background.sprite=partyTagArtwork!=null?partyTagArtwork:CustomerDrawerArt.Shared.Find("PortraitTile");background.type=Image.Type.Sliced;background.pixelsPerUnitMultiplier=2;}
@@ -64,7 +86,7 @@ public class CustomerGreetBubbleUI : MonoBehaviour
         tag.anchorMin=tag.anchorMax=new Vector2(.5f,0);tag.pivot=new Vector2(.5f,1);tag.anchoredPosition=new Vector2(0,-8*unit);tag.sizeDelta=new Vector2(rect.rect.width,partyTagMinimumHeight*unit);
         text.rectTransform.anchorMin=Vector2.zero;text.rectTransform.anchorMax=Vector2.one;text.rectTransform.offsetMin=new Vector2(8,4)*unit;text.rectTransform.offsetMax=new Vector2(-8,-4)*unit;
         text.font=CustomerDrawerArt.Shared!=null?CustomerDrawerArt.Shared.bodyFont:GameplayActionButtonArt.Shared.bodyFont;text.fontSize=partyTagFontSize*unit;text.enableAutoSizing=false;text.textWrappingMode=TextWrappingModes.Normal;text.overflowMode=TextOverflowModes.Overflow;text.alignment=TextAlignmentOptions.Center;text.color=new Color(.06f,.14f,.25f);text.raycastTarget=false;
-        text.text=group.ReceptionPartyCaption;tag.gameObject.SetActive(true);text.gameObject.SetActive(true);text.enabled=true;
+        text.text=detail;tag.gameObject.SetActive(true);text.gameObject.SetActive(true);text.enabled=true;
         tag.sizeDelta=new Vector2(tag.sizeDelta.x,Mathf.Max(partyTagMinimumHeight*unit,text.GetPreferredValues(text.text,tag.rect.width-16*unit,0).y+8*unit));
         GetComponentInParent<UIFollowWorldPoint>()?.RefreshVisualBounds();
     }
@@ -90,14 +112,19 @@ public class CustomerGreetBubbleUI : MonoBehaviour
                 group.hasBeenGreeted ? "Green" : "Cyan", customIcon: icon.sprite);
             actionSkin?.UseCaption(label);
             seatingArtwork = group.hasBeenGreeted;
+            displayedPartyTag = null;
             PlayerTaskBubbleFocus.Bind(button.gameObject, group)?.RefreshPresentation();
         }
+        if (button != null && GetComponentInParent<MultiplayerTaskPresentation>() == null)
+            button.interactable = !SeatingBlocked;
+        else if (button != null && SeatingBlocked)
+            button.interactable = false;
         RefreshPartyTag();
     }
 
     private void OnClick()
     {
-        if (group == null || !group.ReadyForReceptionInteraction) return;
+        if (group == null || !group.ReadyForReceptionInteraction || SeatingBlocked) return;
         var session = MultiplayerSessionManager.Instance;
         if (session != null && session.IsMultiplayerSession)
         {
@@ -149,7 +176,17 @@ public class CustomerGreetBubbleUI : MonoBehaviour
 
                 CustomerGreetBubbleSpawner.Instance?.SetVisibleAndRefresh(targetGroup, false);
 
-                movementManager.Movement.UI_MoveToAction(
+                bool restored = false;
+                void RestoreRejectedGreeting()
+                {
+                    if (restored || targetGroup == null) return;
+                    restored = true;
+                    targetGroup.ReleasePlayerReceptionTask();
+                    RestaurantTaskClaim.ReleasePlayer(targetGroup);
+                    CustomerGreetBubbleSpawner.Instance?.SetVisibleAndRefresh(targetGroup, true);
+                }
+
+                bool accepted = movementManager.Movement.UI_MoveToAction(
                     greetingStandPoint,
                     GreetingInteractRadius,
                     () =>
@@ -163,13 +200,8 @@ public class CustomerGreetBubbleUI : MonoBehaviour
                         CustomerGreetBubbleSpawner.Instance?.SetVisibleAndRefresh(targetGroup, true);
                         Debug.Log($"Greeted group: {targetGroup.name}");
                     },
-                    () =>
-                    {
-                        if (targetGroup == null) return;
-                        targetGroup.ReleasePlayerReceptionTask();
-                        RestaurantTaskClaim.ReleasePlayer(targetGroup);
-                        CustomerGreetBubbleSpawner.Instance?.SetVisibleAndRefresh(targetGroup, true);
-                    });
+                    RestoreRejectedGreeting);
+                if (!accepted) RestoreRejectedGreeting();
                 return;
             }
 

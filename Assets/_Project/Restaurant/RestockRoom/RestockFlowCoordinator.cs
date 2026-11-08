@@ -147,6 +147,7 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
 
     private void Start()
     {
+        EnsureLocator();
         HandleSceneLoaded(SceneManager.GetActiveScene(), LoadSceneMode.Single);
     }
 
@@ -1013,6 +1014,12 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
         if (target == null)
             return;
 
+        EnsureLocator();
+        truckIndicator?.Bind(target);
+    }
+
+    private void EnsureLocator()
+    {
         if (truckIndicator == null)
         {
             RestockTruckOffscreenIndicator prefab =
@@ -1025,7 +1032,6 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
             }
         }
 
-        truckIndicator?.Bind(target);
     }
 
     private RestockStockRoomEntrance CreateEntrance(

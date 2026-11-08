@@ -224,7 +224,6 @@ public sealed class GameplayActionButtonSkin : MonoBehaviour
             if (graphic.GetComponentInParent<Slider>() != null) continue;
             var ownerButton = graphic.GetComponentInParent<Button>();
             if (ownerButton != null && ownerButton != button) continue;
-            if (graphic.name == "Task ownership" || (graphic.transform.parent != null && graphic.transform.parent.name == "Task ownership")) continue;
             graphic.enabled = false;
             if (graphic is TMP_Text) graphic.gameObject.SetActive(false);
         }
@@ -318,7 +317,7 @@ public sealed class GameplayActionButtonSkin : MonoBehaviour
     {
         if (follow != null)
         {
-            follow.ConfigureScreenSizing(frame, rect.rect.width / unit);
+            follow.ConfigureScreenSizing(frame, rect.rect.width / unit, numberOnly ? art.fineDiningNumberBubbleSize : 0f);
             follow.RefreshVisualBounds(); follow.KeepAttachedToTarget();
         }
         var focus = GetComponentInParent<PlayerTaskBubbleFocus>();

@@ -258,11 +258,11 @@ public sealed partial class FastFoodCookingView
             collider.size=new Vector3(width,Mathf.Max(.05f,height),bounds.size.y*scale);
         }
         var header=Find("Station Header");
-        Fixed(header,new Vector2(0,1),new Vector2(0,1),new Vector2(156,-24),new Vector2(650,112));
-        Stretch(heading.rectTransform,new Vector2(.035f,.60f),new Vector2(.965f,.94f)); heading.fontSize=24;
-        Stretch(progress.rectTransform,new Vector2(.035f,.20f),new Vector2(.965f,.62f)); progress.fontSize=26;
+        Fixed(header,new Vector2(0,1),new Vector2(0,1),taskCardPosition,taskCardSize);
+        Fixed(heading.rectTransform,new Vector2(0,1),new Vector2(0,1),new Vector2(24,-4),new Vector2(412,30)); heading.fontSize=24;
+        Fixed(progress.rectTransform,new Vector2(0,1),new Vector2(0,1),new Vector2(84,-43),new Vector2(356,64)); progress.fontSize=26;
         heading.alignment=progress.alignment=TextAlignmentOptions.MidlineLeft;
-        Stretch((RectTransform)progressFill.transform.parent,new Vector2(.035f,.09f),new Vector2(.965f,.14f));
+        Fixed((RectTransform)progressFill.transform.parent,new Vector2(0,1),new Vector2(0,1),new Vector2(22,24-taskCardSize.y),new Vector2(taskCardSize.x-44,12));
         Fixed(Find("Stations"),Vector2.one,Vector2.one,new Vector2(-210,-24),new Vector2(164,64));
         Fixed(Find("Exit Kitchen"),Vector2.one,Vector2.one,new Vector2(-32,-24),new Vector2(164,64));
         Fixed((RectTransform)noticeButtonLabel.transform.parent,Vector2.one,Vector2.one,new Vector2(-32,-100),new Vector2(164,52));
@@ -426,7 +426,8 @@ public sealed partial class FastFoodCookingView
     public void ApplyTicketLayoutInEditor()
     {
         tickets.anchorMin=tickets.anchorMax=tickets.pivot=new Vector2(0,1);
-        tickets.anchoredPosition=new Vector2(32,-168); tickets.sizeDelta=new Vector2(380,320);
+        tickets.anchoredPosition=new Vector2(taskCardPosition.x,taskCardPosition.y-taskCardSize.y-taskTicketGap);
+        tickets.sizeDelta=new Vector2(taskTicketSize.x,Mathf.Max(taskTicketSize.y,ticketTemplate.minimumHeight+16));
         var layout=ticketContent.GetComponent<UnityEngine.UI.HorizontalLayoutGroup>();
         layout.childForceExpandHeight=false;
     }

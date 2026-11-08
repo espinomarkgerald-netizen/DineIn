@@ -18,13 +18,13 @@ MonoBehaviour:
   clean: {fileID: 8300000, guid: bbbd711ee03577a050650ae5332b731a, type: 3}
   success: {fileID: 8300000, guid: b54a1dc4db054b65fd39133489bab0b2, type: 3}
   error: {fileID: 8300000, guid: f66945437fb3bd9cfdf49b98573da6dc, type: 3}
-  volume: 0.45
+  volume: 0.8
   minimumInterval: 0.15
-  serveLevel: 0.94
-  paymentLevel: 1
-  cleanLevel: 0.81
+  serveLevel: 0.8
+  paymentLevel: 0.8
+  cleanLevel: 0.8
   successLevel: 0.8
-  errorLevel: 0.65
+  errorLevel: 0.8
   click: {fileID: 8300000, guid: ebaddf91658964604dfec3a9bedb20c1, type: 3}
   panel: {fileID: 8300000, guid: b036d46e531f520190ac2c4e98ea4720, type: 3}
   info: {fileID: 8300000, guid: b880396b3861241438f96ba7d21b8df8, type: 3}
@@ -35,20 +35,23 @@ MonoBehaviour:
   declined: {fileID: 8300000, guid: f8662e1ebddf4ef78c2f5ca532adcb56, type: 3}
   mistake: {fileID: 8300000, guid: f66945437fb3bd9cfdf49b98573da6dc, type: 3}
   ambience: {fileID: 8300000, guid: 2ed68a4ce6005ffe5b2b0e354127f1b4, type: 3}
-  clickLevel: 0.6
-  panelLevel: 0.4
-  infoLevel: 0.45
-  notificationLevel: 0.6
-  excellentLevel: 0.9
-  endDayLevel: 0.85
-  blockedLevel: 0.6
-  declinedLevel: 0.7
-  mistakeLevel: 0.65
+  clickLevel: 0.8
+  hudClickLevel: 0.8
+  computerClickLevel: 0.8
+  menuClickLevel: 0.8
+  panelLevel: 0.8
+  infoLevel: 0.8
+  notificationLevel: 0.8
+  excellentLevel: 0.8
+  endDayLevel: 0.8
+  blockedLevel: 0.8
+  declinedLevel: 0.8
+  mistakeLevel: 0.8
   maximumPan: 0.35
   voiceCount: 8
   minimumPitch: 0.985
   maximumPitch: 1.015
-  ambienceLevel: 0.025
+  ambienceLevel: 0.0324
   ambienceFadeSeconds: 1
   ambienceCrossfadeSeconds: 3
   minimumAmbiencePitch: 0.995
@@ -132,22 +135,22 @@ MonoBehaviour:
   - {fileID: 8300000, guid: a000f07537a651e973207bc7c08bcefc, type: 3}
   - {fileID: 8300000, guid: 1e2414d31a0c49151b0b0da9be43d161, type: 3}
   waterPour: {fileID: 8300000, guid: 58cf6c332637610048c230da21323564, type: 3}
-  waterPourLevel: 0.65
-  cratePlacementLevel: 0.85
+  waterPourLevel: 0.6747
+  cratePlacementLevel: 0.8
   cratePlacements:
   - {fileID: 8300000, guid: fd37038ea4c578ab32c5d209da4827b5, type: 3}
   - {fileID: 8300000, guid: 22cb252eb3f1ed27d3193b45e33feac0, type: 3}
   - {fileID: 8300000, guid: e6dc07426306925b9d4fa4dc0c9b9677, type: 3}
   tip: {fileID: 8300000, guid: 29874c67eab956bb6a4c573b3bc3435b, type: 3}
-  tipLevel: 0.85
+  tipLevel: 0.8
   deliveryHold: {fileID: 8300000, guid: 20a7e3328893467fb4b0be1532a13458, type: 3}
   hotbarArrival: {fileID: 8300000, guid: e1d18662f612f605014cb003eb96395c, type: 3}
   selection: {fileID: 8300000, guid: 51306bf7c16746eb19f49c1cc66db4a9, type: 3}
   conversation: {fileID: 8300000, guid: bcd7d34c106b4148d53e6629ad478f12, type: 3}
-  deliveryHoldLevel: 0.35
-  hotbarArrivalLevel: 0.6
-  selectionLevel: 0.35
-  conversationLevel: 0.12
+  deliveryHoldLevel: 0.2302
+  hotbarArrivalLevel: 0.8
+  selectionLevel: 0.8
+  conversationLevel: 0.1181
   conversationFadeSeconds: 0.6
   conversationGapSeconds: 2
   conversationEnterZoom: 0.35

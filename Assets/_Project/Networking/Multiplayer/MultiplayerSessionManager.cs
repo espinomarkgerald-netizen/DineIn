@@ -28,6 +28,8 @@ public partial class MultiplayerSessionManager : MonoBehaviourPunCallbacks
     [SerializeField, Range(10f, 60f)] private float automaticReconnectSeconds = 30f;
     [SerializeField, Range(10f, 60f)] private float restorationTimeoutSeconds = 25f;
     private bool leaving, reconnecting, restoringConnection;
+    public bool RemovalPending { get; private set; }
+    public bool HasConnectionInterruption { get; private set; }
     private float restoreUntil, nextRebind, nextRemember;
     private bool leaveInactive;
     public bool IsRecovering => reconnecting || restoringConnection || recoveryFailed;
@@ -44,7 +46,7 @@ public partial class MultiplayerSessionManager : MonoBehaviourPunCallbacks
     public bool IsAuthority => IsHostConnection && !Ended;
     public bool Ended => run != null && !string.IsNullOrEmpty(run.endReason);
     public bool CanAct => IsConnected && !Ended && run != null && !leaving && !reconnecting
-        && !restoringConnection && !recoveryFailed && !intentionalLeavePending && ValidActor(localActor)
+        && !restoringConnection && !recoveryFailed && !intentionalLeavePending && !RemovalPending && ValidActor(localActor)
         && gameplay?.ReadyForInput == true;
     public string RunId => run?.runId ?? string.Empty;
     public MultiplayerRunRecord Run => run;
@@ -104,7 +106,7 @@ public partial class MultiplayerSessionManager : MonoBehaviourPunCallbacks
 
     private void Update()
     {
-        if (run == null || leaving) return;
+        if (run == null || leaving || RemovalPending) return;
         var auth = PlayFabAuthManager.Instance;
         var participant = run.participants.Find(p => p.accountId == auth?.PlayFabId);
         if (participant?.kicked == true) { ReturnAfterRecoveryFailure(RemovedMessage, true); return; }
@@ -308,7 +310,7 @@ public partial class MultiplayerSessionManager : MonoBehaviourPunCallbacks
     public override void OnDisconnected(DisconnectCause cause)
     {
         managers.Clear();
-        if (leaving || Ended || run == null) return;
+        if (leaving || RemovalPending || Ended || run == null) return;
         StopSimulation();
         if (localActor == run.hostActor) { EndLocal("HostDisconnected"); return; }
         gameplay?.ConnectionLost();
@@ -351,6 +353,17 @@ public partial class MultiplayerSessionManager : MonoBehaviourPunCallbacks
     private void ReturnAfterRecoveryFailure(string message, bool definitive)
     {
         if (leaving) return;
+        if (message == RemovedMessage)
+        {
+            if (RemovalPending) return;
+            RemovalPending = true;
+            ForgetLastRun();
+            reconnecting = restoringConnection = recoveryFailed = false;
+            GetComponent<MultiplayerVoiceController>()?.StopVoice();
+            StopSimulation();
+            Status = RemovedMessage;
+            return;
+        }
         if (definitive) ForgetLastRun();
         MultiplayerLastRun.MenuNotice = message;
         leaving = true;
@@ -365,7 +378,7 @@ public partial class MultiplayerSessionManager : MonoBehaviourPunCallbacks
         if (run == null) return;
         MultiplayerLastRun.Forget(PlayFabAuthManager.Instance?.PlayFabId, run.runId);
     }
-    public override void OnLeftRoom() { managers.Clear(); if (!leaving && !Ended) EndLocal("LeftRoom"); }
+    public override void OnLeftRoom() { managers.Clear(); if (!leaving && !RemovalPending && !Ended) EndLocal("LeftRoom"); }
     private void EndLocal(string reason)
     {
         reconnecting = restoringConnection = false;
@@ -385,6 +398,14 @@ public partial class MultiplayerSessionManager : MonoBehaviourPunCallbacks
     public void LeaveToMenu()
     {
         if (leaving) return;
+        if (RemovalPending)
+        {
+            ForgetLastRun();
+            leaveInactive = false;
+            leaving = true;
+            StartCoroutine(LeaveRoutine());
+            return;
+        }
         leaveInactive = run != null && !Ended && localActor != run.hostActor;
         if (leaveInactive && IsConnected) MultiplayerLastRun.Remember(run, localActor);
         if (IsHostConnection && !Ended) { run.endReason = "HostLeft"; PublishRun(); }
@@ -421,12 +442,12 @@ public partial class MultiplayerSessionManager : MonoBehaviourPunCallbacks
     {
         if (run == null) return;
         if (localActor == run.hostActor && !Ended) { run.endReason = "HostLeft"; run.endedUtc = DateTime.UtcNow.ToString("o"); run.revision++; }
-        if (localActor == run.hostActor || Ended) ForgetLastRun();
+        if (RemovalPending || localActor == run.hostActor || Ended) ForgetLastRun();
         else if (IsConnected) MultiplayerLastRun.Remember(run, localActor);
         MultiplayerRunRecords.Record(run, localActor, localActor == run.hostActor, Ended);
     }
     private void OnApplicationPause(bool paused)
-    { if (paused && run != null && !Ended && IsConnected) MultiplayerLastRun.Remember(run, localActor); }
+    { if (paused && !RemovalPending && run != null && !Ended && IsConnected) MultiplayerLastRun.Remember(run, localActor); }
     private void OnDestroy()
     {
         managers.Clear();

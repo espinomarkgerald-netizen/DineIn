@@ -1,0 +1,130 @@
+{
+  "atlas": "MultiplayerNoticesV1.png",
+  "size": [
+    1254,
+    1254
+  ],
+  "version": 1,
+  "sprites": [
+    {
+      "border": [
+        55,
+        55,
+        55,
+        55
+      ],
+      "name": "PanelBody",
+      "file": "Components/PanelBody.png",
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "rectTopLeft": [
+        12,
+        200,
+        388,
+        384
+      ]
+    },
+    {
+      "border": [
+        47,
+        33,
+        47,
+        33
+      ],
+      "name": "HeaderTab",
+      "file": "Components/HeaderTab.png",
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "rectTopLeft": [
+        427,
+        339,
+        378,
+        118
+      ]
+    },
+    {
+      "border": [
+        41,
+        33,
+        41,
+        33
+      ],
+      "name": "PrimaryButton",
+      "file": "Components/PrimaryButton.png",
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "rectTopLeft": [
+        817,
+        339,
+        408,
+        120
+      ]
+    },
+    {
+      "border": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "name": "DisconnectedCable",
+      "file": "Components/DisconnectedCable.png",
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "rectTopLeft": [
+        10,
+        750,
+        402,
+        180
+      ]
+    },
+    {
+      "border": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "name": "RemovedDoor",
+      "file": "Components/RemovedDoor.png",
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "rectTopLeft": [
+        439,
+        711,
+        343,
+        265
+      ]
+    },
+    {
+      "border": [
+        39,
+        31,
+        39,
+        31
+      ],
+      "name": "StatusStrip",
+      "file": "Components/StatusStrip.png",
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "rectTopLeft": [
+        809,
+        813,
+        413,
+        96
+      ]
+    }
+  ]
+}

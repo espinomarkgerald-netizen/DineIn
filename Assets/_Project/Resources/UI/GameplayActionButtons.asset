@@ -157,6 +157,7 @@ MonoBehaviour:
   maximumWorldWidth: 280
   worldButtonHeight: 60
   numberBubbleSize: 72
+  fineDiningNumberBubbleSize: 64
   changeFadeSeconds: 0.15
   commentWidth: 300
   commentFontSize: 20

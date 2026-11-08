@@ -9,8 +9,9 @@ public sealed class GameplaySfx : ScriptableObject
     public AudioClip click, panel, info, notification, excellent, endDay, blocked, declined, mistake, ambience;
     [Header("UI sound families (multiple clips, no immediate repeat)")]
     public AudioClip[] menuClicks, computerClicks, hudClicks;
+    [Range(0f, 1f)] public float menuClickLevel = .8f, computerClickLevel = .8f, hudClickLevel = .8f;
     public AudioClip[] cratePlacements;
-    [Range(0f, 1f)] public float cratePlacementLevel = .85f;
+    [Range(0f, 1f)] public float cratePlacementLevel = .8f;
     private static int previousCrate = -1;
     public static void CratePlaced()
     {
@@ -23,7 +24,7 @@ public sealed class GameplaySfx : ScriptableObject
         PlayUiClip(clips[index], settings.volume * settings.cratePlacementLevel);
     }
     public AudioClip deliveryHold, hotbarArrival, selection, conversation;
-    [Range(0f, 1f)] public float deliveryHoldLevel = .35f, hotbarArrivalLevel = .6f, selectionLevel = .35f, conversationLevel = .12f;
+    [Range(0f, 1f)] public float deliveryHoldLevel = .35f, hotbarArrivalLevel = .8f, selectionLevel = .8f, conversationLevel = .12f;
     [Min(.1f)] public float conversationFadeSeconds = .6f, conversationGapSeconds = 2f;
     [Range(0, 1)] public float conversationEnterZoom = .35f, conversationExitZoom = .45f;
     private static int selectionFrame = -1;
@@ -60,7 +61,7 @@ public sealed class GameplaySfx : ScriptableObject
         if (amount > 0) group?.PresentPayment(amount);
     }
     public AudioClip waterPour, tip;
-    [Range(0f, 1f)] public float tipLevel = .85f;
+    [Range(0f, 1f)] public float tipLevel = .8f;
     [Range(0f, 1f)] public float waterPourLevel = .65f;
     public enum ButtonFamily { Menu, Computer, Hud }
     private static readonly System.Random uiRandom = new System.Random();
@@ -75,7 +76,9 @@ public sealed class GameplaySfx : ScriptableObject
         int key = (int)family, index = uiRandom.Next(clips.Length);
         if (clips.Length > 1 && index == previousUiClip[key]) index = (index + 1 + uiRandom.Next(clips.Length - 1)) % clips.Length;
         previousUiClip[key] = index;
-        PlayUiClip(clips[index], settings.volume * settings.clickLevel);
+        float level = family == ButtonFamily.Computer ? settings.computerClickLevel
+            : family == ButtonFamily.Hud ? settings.hudClickLevel : settings.menuClickLevel;
+        PlayUiClip(clips[index], settings.volume * level);
         lastButtonTime = Time.unscaledTime;
     }
     public static void SetUiLoop(AudioSource source, AudioClip clip, float level, bool active)
@@ -96,12 +99,12 @@ public sealed class GameplaySfx : ScriptableObject
         if (!source.isPlaying && settings.waterPour != null)
             player.StartUiLoop(source, settings.waterPour, settings.volume * settings.waterPourLevel);
     }
-    [Range(0f, 1f)] public float volume = .45f;
+    [Range(0f, 1f)] public float volume = .8f;
     [Min(0f)] public float minimumInterval = .15f;
     [Header("Cue levels")]
-    [Range(0f, 1f)] public float serveLevel = .94f, paymentLevel = 1f, cleanLevel = .81f, successLevel = .8f, errorLevel = .65f;
-    [Range(0f, 1f)] public float clickLevel = .6f, panelLevel = .4f, infoLevel = .45f, notificationLevel = .6f;
-    [Range(0f, 1f)] public float excellentLevel = .9f, endDayLevel = .85f, blockedLevel = .6f, declinedLevel = .7f, mistakeLevel = .65f;
+    [Range(0f, 1f)] public float serveLevel = .8f, paymentLevel = .8f, cleanLevel = .8f, successLevel = .8f, errorLevel = .8f;
+    [Range(0f, 1f)] public float clickLevel = .8f, panelLevel = .8f, infoLevel = .8f, notificationLevel = .8f;
+    [Range(0f, 1f)] public float excellentLevel = .8f, endDayLevel = .8f, blockedLevel = .8f, declinedLevel = .8f, mistakeLevel = .8f;
     [Header("Camera-relative world sound")]
     public AnimationCurve distanceFalloff = new AnimationCurve(new Keyframe(0, 1), new Keyframe(1, .55f), new Keyframe(2, .1f), new Keyframe(3, 0));
     public AnimationCurve zoomFalloff = AnimationCurve.Linear(0, 1, 1, .6f);

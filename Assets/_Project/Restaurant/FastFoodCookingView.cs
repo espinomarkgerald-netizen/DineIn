@@ -92,6 +92,7 @@ public sealed partial class FastFoodCookingView : MonoBehaviour
         foreach(var rig in stations) { rig.gameObject.SetActive(false); rig.labels.gameObject.SetActive(false); }
         InitializeUIFeedback();
         RemoveHotbarBackdrop();
+        InitializeTaskCard();
     }
     private void RemoveHotbarBackdrop()
     {
@@ -282,6 +283,7 @@ public sealed partial class FastFoodCookingView : MonoBehaviour
         noticeButtonLabel.transform.parent.gameObject.SetActive(needsNotice);
         if(!needsNotice && notification.gameObject.activeSelf)HideNoticeImmediate();
         if(State.Mode!=FastFoodStationMode.Assembler) RefreshProductionHeader();
+        RefreshTaskCard();
         if(hotbarContainer!=null && Mathf.Abs(((RectTransform)hotbarContainer.parent).rect.width-hotbarParentWidth)>1)FitHotbar();
         UpdateKitchenAudio();
         string signature=ProductionSignature()+":"+State.Mode+":"+(p==null?"idle":p.recipe.ProductId+":"+p.stage+":"+p.ingredientStep)+":"+
@@ -724,4 +726,86 @@ public sealed partial class FastFoodCookingView : MonoBehaviour
         selection.gameObject.SetActive(false); station.gameObject.SetActive(false); help.gameObject.SetActive(false);
     }
     private void OnDisable() { Exit(); }
+}
+
+public sealed partial class FastFoodCookingView
+{
+    [Header("Kitchen task card")]
+    [SerializeField] private Vector2 taskCardPosition = new Vector2(156, -24);
+    [SerializeField] private Vector2 taskCardSize = new Vector2(460,220);
+    [SerializeField, Min(0)] private float taskInstructionMinimumHeight = 64;
+    [SerializeField, Min(0)] private float taskContentGap = 12;
+    [SerializeField] private Vector2 taskTicketSize = new Vector2(410,360);
+    [SerializeField, Min(0)] private float taskTicketGap = 12;
+    private TMP_Text taskInstruction;
+    private UnityEngine.UI.Image taskFoodIcon;
+    private void InitializeTaskCard()
+    {
+        var art=CustomerDrawerArt.Shared;
+        if(art==null || heading==null || progress==null)return;
+        var root=(RectTransform)heading.transform.parent;
+        root.anchorMin=root.anchorMax=new Vector2(0,1);
+        root.pivot=new Vector2(0,1);
+        root.anchoredPosition=taskCardPosition;
+        root.sizeDelta=taskCardSize;
+        var background=root.GetComponent<UnityEngine.UI.Image>();
+        if(background!=null){background.sprite=art.Find("PanelFrame");background.type=UnityEngine.UI.Image.Type.Sliced;background.color=Color.white;background.pixelsPerUnitMultiplier=2;}
+        var tab=CustomerDrawerUI.Image("Kitchen station tab",root,"HeaderTab");
+        CustomerDrawerUI.Place(tab.rectTransform,12,0,taskCardSize.x-24,38);
+        tab.transform.SetAsFirstSibling();
+        heading.font=art.headingFont;heading.color=Color.white;heading.fontSize=24;
+        CustomerDrawerUI.Place(heading.rectTransform,24,4,taskCardSize.x-48,30);
+        heading.textWrappingMode=TextWrappingModes.NoWrap;
+        progress.font=art.headingFont;progress.color=art.ink;progress.fontSize=26;
+        CustomerDrawerUI.Place(progress.rectTransform,84,43,taskCardSize.x-104,64);
+        progress.textWrappingMode=TextWrappingModes.Normal;
+        taskFoodIcon=CustomerDrawerUI.Image("Task food",root,"IconCloche",false);
+        CustomerDrawerUI.Place(taskFoodIcon.rectTransform,20,48,54,54);
+        taskInstruction=CustomerDrawerUI.Text("Task instruction",root,"",false);
+        taskInstruction.fontSize=19;
+        taskInstruction.textWrappingMode=TextWrappingModes.Normal;
+        CustomerDrawerUI.Place(taskInstruction.rectTransform,22,119,taskCardSize.x-44,taskInstructionMinimumHeight);
+        var track=(RectTransform)progressFill.transform.parent;
+        CustomerDrawerUI.Place(track,22,taskCardSize.y-24,taskCardSize.x-44,12);
+        var trackImage=track.GetComponent<UnityEngine.UI.Image>();
+        if(trackImage!=null){trackImage.sprite=art.Find("PatienceTrack");trackImage.type=UnityEngine.UI.Image.Type.Sliced;trackImage.color=Color.white;}
+        progressFill.sprite=art.Find("PatienceFillTintable");progressFill.color=new Color32(0,185,231,255);
+        // Keep the ticket directly below the task card; the old saved stretched
+        // header anchors and independent ticket offset otherwise separate them.
+        tickets.anchorMin=tickets.anchorMax=tickets.pivot=new Vector2(0,1);
+        tickets.anchoredPosition=new Vector2(taskCardPosition.x,taskCardPosition.y-taskCardSize.y-taskTicketGap);
+        tickets.sizeDelta=taskTicketSize;
+        tickets.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical,
+            Mathf.Max(taskTicketSize.y,ticketTemplate.minimumHeight+16));
+    }
+    private void RefreshTaskCard()
+    {
+        if(taskInstruction==null)return;
+        Recipe recipe=State.PlayerPortion?.recipe??State.PlayerWork.FirstOrDefault()?.recipe;
+        if(State.Mode==FastFoodStationMode.Assembler)
+        {
+            var ticket=State.PlayerTicket;
+            progress.text=ticket==null?waitingAssignment:$"Build order #{ticket.number}\n{ticket.portions.Count(x=>x.placed)} / {ticket.portions.Count} added";
+            taskInstruction.text="Drag food and drinks onto the tray";
+            taskFoodIcon.sprite=CustomerDrawerArt.Shared.Find("IconCloche");
+        }
+        else
+        {
+            var work=State.PlayerWork;
+            int count=work.Count(x=>State.PrepReady?x.stage==FastFoodCookingStage.Complete:x.proteinReady||x.stage==FastFoodCookingStage.Ready||x.stage==FastFoodCookingStage.Complete);
+            progress.text=recipe==null?idleProduction:$"{recipe.DisplayName}\n{count} / {work.Count} {(State.PrepReady?"assembled":"cooked")}";
+            taskInstruction.text=lastInstruction??"";
+            taskFoodIcon.sprite=recipe!=null?recipe.sprite:CustomerDrawerArt.Shared.Find("IconCloche");
+        }
+        float titleHeight=Mathf.Max(64,progress.GetPreferredValues(progress.text,taskCardSize.x-104,Mathf.Infinity).y);
+        float instructionTop=43+titleHeight+taskContentGap;
+        float instructionHeight=Mathf.Max(taskInstructionMinimumHeight,
+            taskInstruction.GetPreferredValues(taskInstruction.text,taskCardSize.x-44,Mathf.Infinity).y);
+        float height=Mathf.Max(taskCardSize.y,instructionTop+instructionHeight+taskContentGap+24);
+        CustomerDrawerUI.Place(progress.rectTransform,84,43,taskCardSize.x-104,titleHeight);
+        CustomerDrawerUI.Place(taskInstruction.rectTransform,22,instructionTop,taskCardSize.x-44,instructionHeight);
+        CustomerDrawerUI.Place((RectTransform)progressFill.transform.parent,22,height-24,taskCardSize.x-44,12);
+        ((RectTransform)heading.transform.parent).SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical,height);
+        tickets.anchoredPosition=new Vector2(taskCardPosition.x,taskCardPosition.y-height-taskTicketGap);
+    }
 }

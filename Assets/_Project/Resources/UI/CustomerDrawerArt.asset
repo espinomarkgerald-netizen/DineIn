@@ -102,7 +102,10 @@ MonoBehaviour:
   bodySize: 19
   smallSize: 16
   contentPadding: 12
-  taskButtonGap: 12
+  taskButtonGap: 8
+  taskClipboardSprite: {fileID: 21300000, guid: 81ec0493af3ded542adf35e386bd22ee, type: 3}
+  taskClipboardInkBounds: {x: 0.319, y: 0.243, z: 0.361, w: 0.525}
+  taskPanelInkInset: {x: 6, y: 9, z: 7, w: 6}
   patienceHeight: 13
   contentFade: 0.12
   patienceSmooth: 0.15

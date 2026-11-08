@@ -543,3 +543,50 @@ Changed source/assets: PlayerMovement.cs, MainCameraController.cs, CustomerDrawe
 Verification: runtime and Editor compilation passed with existing unused-field warnings; git diff --check passed. The isolated production-assembly Unity suite passed 1,716 assertions, including the new camera/ring state cases and existing drawer/task/reward/newspaper regressions. Shared sprite GUID/import references and all nine scene camera-controller references were inspected. Final tutorial gating/editable focus-field edits were compiled after that suite. No live truck click, final truck parking/bounds framing, actual accepted/rejected player input, deferred kitchen/restock camera transition, phone swipe/pinch behavior, respawn/role-switch visual playback, host/guest/reconnect, ground-ring floor visibility or audio listening was tested. Test method calls do not establish live input or authority acceptance.
 
 Manual acceptance: restart Play Mode after import. With a delivery ready, pan away on every edge and check the badge remains clear of HUD/safe areas, then click it and confirm the truck is centered without walking/collecting. Check each restaurant's actual parking pose fits its camera bounds. Start a pickup, serving, reception, billing, cleaning or restock task; follow should center once and continue after completion. Swipe/drag to release, then start another task to restore. Check pinch-only zoom and UI clicks do not unlock or fall through. Combine Find customer, drawer close, truck framing, new task, pause and station entry/exit; old camera ownership must not snap back. Verify one white circle under only the local character across role change/respawn/reconnect and no floor flicker. Repeat applicable campaign/tutorial and multiplayer host/guest cases. These live checks remain unverified.
+
+## Multiplayer connection/removal notice — 2026-11-08
+
+- Added Resources/UI/MultiplayerConnectionNotice prefab with editable artwork/font references, copy, size, font sizes and transition timings. The view assembles its UI children from these authored prefab settings.
+- Existing MultiplayerSessionUI owns notice refresh/priority. Initial guest synchronization does not report a lost connection. Recovery notices close only after CanAct; Retry uses existing recovery. Host connection loss retains the existing terminal outcome.
+- Confirmed host removal sets RemovalPending, stops simulation/voice, clears saved recovery and waits for Return. Return uses the existing leave routine without remembering the removed run. Pause/quit cannot save that pointer again.
+- Added eased entrance/exit, status crossfade, Reduced Motion fade, safe area sizing, Large Text support and standard button feedback. Info once per interruption/removal; Success only when restored; no status-refresh sounds.
+- Checks: runtime and Editor Roslyn compilation passed; all six sprite references and shell borders checked; Lobby1/2/3 Multiplayer scene session-owner references checked.
+- Not run: live Unity render, reconnect/kick with two clients, mobile safe-area/input, audio listening. The main editor and saves were preserved.
+- Manual: interrupt guest connection then restore; let recovery fail and Retry; kick guest and confirm notice remains until Return; test mute/Reduced Motion and portrait/Large Text. Confirm ready prompt resumes normally and gameplay remains blocked during recovery.
+
+## Soundtrack and playback balance
+
+- Fuzzball Parade plays in the menus. The three restaurants switch between their assigned preparation and service tracks using the existing shift state, including its multiplayer projection. Hard Boiled and Zazie are imported as unassigned tracks.
+- Decoded audio was measured in 50 ms windows. Music uses per-track gain to reach approximately -28 dBFS active RMS before the Music slider. Shared SFX use measured per-cue or per-family gains before the SFX slider, with separate levels for short cues, confirmations, and background sounds. The source recordings were retained.
+- Checked the menu and restaurant scene bindings and compiled against local Unity references. Listening, Unity scene playback, and multiplayer audio checks require a live session.
+
+## Fine Dining unread reservation locator
+
+- The shared locator shows the matte bell and booking slip with a live unread count when reception is offscreen. It uses the existing station notification and synchronized booking state, with truck and Serve Food placement priority.
+- The supplied bell plays through GameplaySfx on new requests. Initial guest snapshots and recovery are silent.
+- Runtime compilation and prefab/scene reference checks passed. In-game positioning, live host/guest behavior, and audio listening remain unverified.
+
+## Fine Dining seating popup and table numbers
+
+- Greeted Fine Dining parties keep the Seat Table presentation while seating is blocked, with a measured explanation under the button. The shared multiplayer presenter also honors this blocked state. The reception indicator uses the same action presenter for refreshes.
+- Fine Dining passive table numbers have an editable 64-pixel size at a 1080-pixel viewport and bypass compact action scaling. Matching tray delivery continues using the existing action checks.
+- Runtime and Editor source compilation passed, along with diff checks. Play Mode greeting, table release, walk-ins, cancelled selection, receptionist takeover, and multiplayer host/guest remain unverified. Check two-digit badges and zoom in the Game view.
+
+## 2026-11-08 - Partially clipped locator targets
+- Replaced any-frustum-intersection suppression in the shared truck, Serve Food, and reservation locator with projected world-bounds coverage of camera pixelRect intersected with Screen.safeArea. Editable prefab defaults: 24 px inset at 1080 viewport height, hide at 75%, reappear below 65%.
+- Eight corner projections reject near-plane crossing/behind-camera targets; each destination retains independent hysteresis. Eligibility loss/new destinations reset the initial threshold. Placement conflicts do not change visibility hysteresis. Existing eligibility, arrows, counts, framing, and placement priorities preserved.
+- Truck bounds reuse its cached presentation renderers. Shared RestockFlowCoordinator resource binding covers existing applicable restaurant/mode routes without scene changes; reservations remain Fine Dining only.
+- Passed runtime and Editor C# compilation with local Unity references; targeted diff whitespace checks; 25 isolated math-model assertions (edges, corners, exact thresholds, hysteresis, resolution scaling, portrait safe viewport), plus shared-call-site/near-plane source checks.
+- NOT RUN: Unity Play Mode, rendered projection comparisons, tapping/frame-to-hide checks, live host/guest/reconnect, device panning/zoom, audio listening. Manual check: pan truck/table/reception across edges, verify stable 75/65 transitions, tap to frame, then pan away; repeat portrait/safe areas. No editor control or save changes.
+
+## Kitchen card reference polish - 2026-11-08
+- Shared FastFoodCookingView applies existing CustomerDrawerArt frame/header/track and fonts to its explicitly bound station card. Live recipe icon, quantities and existing instructions remain state-driven. Measured text heights move the progress track and ticket region to accommodate wrapping.
+- FastFoodCookingTicketView applies the matching ticket frame/header, larger counts, timer in header and footer hint, retaining existing scrolling, progress smoothing and ticket motion. Existing audio ownership retained.
+- Runtime and Editor compilation passed; final runtime recompiled after measured-height adjustment. Unity visual matching, portrait/Large Text and campaign/tutorial/multiplayer interaction have NOT been observed. No claim of pixel-exact reference matching until Play Mode review. No new completion cue or check animation added in this pass.
+
+## SFX loudness pass — 2026-11-08
+- Normalized 38 supplied/generated SFX assets in place; retained paths, GUIDs and importer metadata. Music untouched. Offline target -23 LUFS, -3 dBTP processing ceiling; sub-400ms cues use -23 dBFS RMS fallback. MP3 encoding can overshoot the processing ceiling: measured exported peaks remain below -1 dBTP.
+- Shared foreground gain is now .8 master x .8 cue (.64), replacing inconsistent cue attenuation. Kitchen foreground .512 x 1.25 = .64; reward, reservation bell and truck horn .64. Serialized Fast Food variants and class defaults agree. Background/continuous loops retain softer contextual levels; world distance attenuation and player mixer controls remain intact.
+- Tool: Tools/Audio/balance-sfx.cjs. Measurement report: Tools/Audio/sfx-balance-report.json. Original audio backup: Temp/SfxBalanceOriginals (local, not versioned). Do not rerun from processed files after deleting that backup; restore original source audio first.
+- Passed: 38 encoded-asset measurements (LUFS within .8 dB; short-cue RMS within .2 dB; true peaks below -1 dBTP), runtime and Editor source compilation. This is not a guarantee against summed-bus clipping under simultaneous effects.
+- NOT RUN: Unity listening, live multiplayer/device playback, mute/slider interaction. Manual: compare menu clicks, kitchen placement/ready, serve/payment, reservation bell, horn and reward at the same SFX slider level; then check simultaneous cues and mute. No desktop/editor control performed.

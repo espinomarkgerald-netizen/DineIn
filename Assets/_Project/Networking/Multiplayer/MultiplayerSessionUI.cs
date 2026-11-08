@@ -19,6 +19,7 @@ public sealed class MultiplayerSessionUI : MonoBehaviour
     private float nextRefresh;
     private RestaurantUnlockCoachUI soloEnding;
     private bool soloEndingShown;
+    private MultiplayerConnectionNotice notice;
 
     private void Start()
     {
@@ -27,6 +28,9 @@ public sealed class MultiplayerSessionUI : MonoBehaviour
         style = Resources.Load<MultiplayerReadyStyle>("UI/MultiplayerReadyStyle");
         pause = FindFirstObjectByType<LobbyPauseMenu>();
         BuildPrompt();
+        var noticePrefab = Resources.Load<MultiplayerConnectionNotice>("UI/MultiplayerConnectionNotice");
+        if (noticePrefab != null) notice = Instantiate(noticePrefab, transform, false);
+        else Debug.LogError("Missing UI/MultiplayerConnectionNotice prefab.", this);
     }
 
     private void BuildPrompt()
@@ -104,6 +108,11 @@ public sealed class MultiplayerSessionUI : MonoBehaviour
 
     private void Update()
     {
+        if (session != null && notice != null)
+        {
+            notice.Refresh(session);
+            if (notice.IsVisible) { HidePrompt(); return; }
+        }
         if (session != null && session.Ended && session.Run.endReason == MultiplayerSessionManager.InsufficientPlayersReason)
         {
             ShowSoloEnding();
@@ -111,7 +120,7 @@ public sealed class MultiplayerSessionUI : MonoBehaviour
             return;
         }
         if (session == null || canvasRoot == null) return;
-        ShowConnectionChanges();
+        if (notice == null || session.Ended) ShowConnectionChanges();
         var request = day?.Readiness;
         // The persistent HUD may finish Start after this scene-owned component.
         if (pause == null) pause = FindFirstObjectByType<LobbyPauseMenu>();
@@ -271,7 +280,7 @@ public sealed class MultiplayerSessionUI : MonoBehaviour
         Destroy(canvasRoot);
     }
 
-    private void OnDisable() => HidePrompt();
+    private void OnDisable() { HidePrompt(); if (notice != null) notice.HideImmediately(); }
     private void HidePrompt()
     {
         if (canvasRoot == null) return;

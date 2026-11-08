@@ -12,6 +12,7 @@ public partial class MultiplayerSessionManager
 
     private void StartRecovery()
     {
+        HasConnectionInterruption = true;
         recoveryPointer = MultiplayerLastRun.Load(PlayFabAuthManager.Instance?.PlayFabId, out _);
         recoveryFailed = false; reconnecting = true; restoringConnection = false;
         admissionPending = joinInFlight = false;
@@ -22,7 +23,7 @@ public partial class MultiplayerSessionManager
     }
     public void RetryRecovery()
     {
-        if (leaving || Ended || !recoveryFailed) return;
+        if (leaving || RemovalPending || Ended || !recoveryFailed) return;
         if (IsConnected && ValidActor(localActor))
         { recoveryFailed = false; BeginRestoration(); return; }
         StartRecovery();

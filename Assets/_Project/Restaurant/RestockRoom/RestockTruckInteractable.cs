@@ -20,7 +20,7 @@ public sealed class RestockTruckInteractable : MonoBehaviour, IInteractable
     [SerializeField] private AudioClip arrivalHornClip;
     [Tooltip("Routes the horn through the player-adjustable SFX mixer.")]
     [SerializeField] private AudioMixerGroup sfxMixerGroup;
-    [SerializeField, Range(0f, 1f)] private float hornVolume = .15f;
+    [SerializeField, Range(0f, 1f)] private float hornVolume = .64f;
     [SerializeField, Min(0.05f)] private float secondBeepDelay = 0.32f;
 
     [Header("Departure")]
@@ -171,12 +171,17 @@ public sealed class RestockTruckInteractable : MonoBehaviour, IInteractable
 
     public bool IsVisibleFrom(Camera camera)
     {
-        if (camera == null)
-            return false;
+        return camera != null && TryGetVisibleBounds(out Bounds bounds) &&
+            GeometryUtility.TestPlanesAABB(GeometryUtility.CalculateFrustumPlanes(camera), bounds);
+    }
 
-        Renderer[] renderers = GetComponentsInChildren<Renderer>(true);
+    public bool TryGetVisibleBounds(out Bounds combined)
+    {
+        if (presentationRenderers == null)
+            presentationRenderers = GetComponentsInChildren<Renderer>(true);
+        Renderer[] renderers = presentationRenderers;
         bool hasBounds = false;
-        Bounds combined = default;
+        combined = default;
         for (int i = 0; i < renderers.Length; i++)
         {
             Renderer renderer = renderers[i];
@@ -194,9 +199,7 @@ public sealed class RestockTruckInteractable : MonoBehaviour, IInteractable
             }
         }
 
-        return hasBounds && GeometryUtility.TestPlanesAABB(
-            GeometryUtility.CalculateFrustumPlanes(camera),
-            combined);
+        return hasBounds;
     }
 
     private void HandleOrderDelivered(RestockOrderSaveData _)

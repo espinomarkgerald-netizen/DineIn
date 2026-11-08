@@ -52,7 +52,8 @@ public class CustomerGreetBubbleSpawner : MonoBehaviour
     public void Show(CustomerGroup group, Camera cam)
     {
         if (group != null && !group.ReadyForReceptionInteraction) return;
-        if (group != null && !group.ReservedSeatingActionAvailable) return;
+        if (group != null && FineDiningReservations.For(group) != null &&
+            (group.IsReceptionClaimedByBot || RestaurantTaskClaim.IsClaimedByBot(group))) return;
         if (BoothAssignArrowManager.Instance != null && BoothAssignArrowManager.Instance.IsSelectingFor(group)) return;
         if (MultiplayerDayBridge.IsActive)
         {
@@ -167,7 +168,7 @@ public class CustomerGreetBubbleSpawner : MonoBehaviour
         if (!requestedVisible || currentGroup == null) return false;
         if (FineDiningReservations.For(currentGroup) == null) return true;
         return currentGroup.CanBeSeated && currentGroup.ReadyForReceptionInteraction &&
-            currentGroup.ReservedSeatingActionAvailable &&
+            !currentGroup.IsReceptionClaimedByBot && !RestaurantTaskClaim.IsClaimedByBot(currentGroup) &&
             (BoothAssignArrowManager.Instance == null || !BoothAssignArrowManager.Instance.IsSelectingFor(currentGroup));
     }
 

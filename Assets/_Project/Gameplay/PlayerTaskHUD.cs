@@ -84,9 +84,6 @@ public sealed class PlayerTaskHUD : MonoBehaviour
 
     private FastFoodRestaurant fastFoodStatus;
     private CompactTaskPanelView compactPanel;
-    private Vector2 compactSafeSize;
-    private readonly Vector3[] compactButtonCorners = new Vector3[4];
-    private Vector3 compactButtonLow, compactButtonHigh;
     private float nextFastFoodStatusAt;
     private Coroutine panelRoutine;
     private Coroutine buttonRoutine;
@@ -138,8 +135,9 @@ public sealed class PlayerTaskHUD : MonoBehaviour
         else {normalKitchenButton.Apply(buttonRect);normalKitchenPanel.Apply(panelRect);authoredPanelSlideOffset=normalSlideOffset;}
         kitchenLayoutActive=active;
         if(compactPanel!=null)panelRect.sizeDelta=CustomerDrawerArt.Shared.taskSize;
-        RefreshCompactDock(true);
-        CaptureAuthoredPresentation();ApplyPanelImmediate(panelOpen);
+        if (compactPanel != null) RefreshCompactDock(true);
+        else CaptureAuthoredPresentation();
+        ApplyPanelImmediate(panelOpen);
     }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -332,8 +330,11 @@ public sealed class PlayerTaskHUD : MonoBehaviour
         CaptureAuthoredPresentation();
         RefreshLobbyLayout(true);
         compactPanel=CompactTaskPanelView.Attach(panelRect,taskText,detailText);
-        RefreshCompactDock(true);
-        if(compactPanel!=null)CaptureAuthoredPresentation();
+        if (compactPanel != null)
+        {
+            authoredPanelScale = panelRect.localScale;
+            RefreshCompactDock(true);
+        }
         ApplyPanelImmediate(false);
         SetBadge(false);
         RefreshSceneVisibility();
@@ -385,11 +386,13 @@ public sealed class PlayerTaskHUD : MonoBehaviour
     private void OnEnable()
     {
         PlayerTaskGuidance.Changed += HandleTaskChanged;
+        Canvas.willRenderCanvases += RefreshRenderedDock;
     }
 
     private void OnDisable()
     {
         PlayerTaskGuidance.Changed -= HandleTaskChanged;
+        Canvas.willRenderCanvases -= RefreshRenderedDock;
     }
 
     private void OnDestroy()
@@ -420,7 +423,6 @@ public sealed class PlayerTaskHUD : MonoBehaviour
         if (MultiplayerDayBridge.IsActive && supportedSceneVisible != MultiplayerLobbyVisible)
             RefreshSceneVisibility();
         RefreshLobbyLayout(false);
-        RefreshCompactDock(false);
         PlayerTaskBubbleFocus.BackgroundAlpha = backgroundTaskBubbleAlpha;
 
         bool blocked = hideWhileGameplayUIBlocked && GameplayUIBlocker.IsBlocked();
@@ -691,6 +693,7 @@ public sealed class PlayerTaskHUD : MonoBehaviour
     {
         if (panelRoutine != null)
             StopCoroutine(panelRoutine);
+        RefreshCompactDock(true, apply: false);
         if(LevelOneUIAccessibility.ReducedMotion){panelRoutine=null;ApplyPanelImmediate(show);return;}
         panelRoutine = StartCoroutine(PanelTransition(show));
     }
@@ -728,6 +731,8 @@ public sealed class PlayerTaskHUD : MonoBehaviour
         if (!show && panelRoot != null)
             panelRoot.SetActive(false);
         panelRoutine = null;
+        if (show && compactPanel != null)
+            RefreshCompactDock(true);
     }
 
     private void ApplyPanelImmediate(bool show)
@@ -884,28 +889,47 @@ public sealed class PlayerTaskHUD : MonoBehaviour
             panelImage.color = panelColor;
     }
 
-    private void LateUpdate()
+    private void RefreshRenderedDock()
     {
-        if (compactPanel != null) compactPanel.KeepClearOf(buttonRect);
+        if (compactPanel == null || !panelOpen && panelRoutine == null) return;
+        if (panelRoutine != null || buttonRoutine != null)
+            compactPanel.KeepClearOf(buttonRect, taskIcon);
+        else
+            RefreshCompactDock(false);
     }
 
-    private void RefreshCompactDock(bool force)
+    private void RefreshCompactDock(bool force, bool apply = true)
     {
-        if(compactPanel==null || panelRect.parent is not RectTransform safe || safe.rect.width<160 || safe.rect.height<180)return;
-        if(buttonRect==null)return;
-        // Decorative bounce/slide owns its transform until it settles. Re-dock afterward.
-        if(!force && (buttonRoutine!=null || panelRoutine!=null))return;
-        buttonRect.GetWorldCorners(compactButtonCorners);
-        Vector3 low=safe.InverseTransformPoint(compactButtonCorners[0]),high=safe.InverseTransformPoint(compactButtonCorners[2]);
-        if(!force && compactSafeSize==safe.rect.size &&
-            (compactButtonLow-low).sqrMagnitude<.01f && (compactButtonHigh-high).sqrMagnitude<.01f)return;
-        compactSafeSize=safe.rect.size;
-        compactButtonLow=low;compactButtonHigh=high;
-        if(panelRoutine!=null){StopCoroutine(panelRoutine);panelRoutine=null;}
-        if(buttonRoutine!=null){StopCoroutine(buttonRoutine);buttonRoutine=null;if(buttonRect!=null)buttonRect.localScale=authoredButtonScale;}
-        panelRect.localScale=Vector3.one;compactPanel.DockBeside(buttonRect);
-        CaptureAuthoredPresentation();ApplyPanelImmediate(panelOpen);
+        if (compactPanel == null || panelRect == null || buttonRect == null) return;
+        if (!force && (buttonRoutine != null || panelRoutine != null)) return;
+        Vector3 previousScale = panelRect.localScale;
+        panelRect.localScale = authoredPanelScale;
+        panelShownPosition = effectivePanelShownPosition = compactPanel.DockedPosition(buttonRect, taskIcon);
+        panelHiddenPosition = effectivePanelHiddenPosition = panelShownPosition + authoredPanelSlideOffset;
+        panelRect.localScale = apply && panelOpen ? authoredPanelScale : previousScale;
+        if (!apply) return;
+        Vector2 position = panelOpen ? panelShownPosition : panelHiddenPosition;
+        if ((panelRect.anchoredPosition - position).sqrMagnitude > .0001f)
+            panelRect.anchoredPosition = position;
     }
+
+#if UNITY_EDITOR
+    [ContextMenu("Log Current Task Dock")]
+    private void LogCurrentTaskDock()
+    {
+        if (compactPanel == null || buttonRect == null || panelRect.parent is not RectTransform space) return;
+        Canvas canvas = panelRect.GetComponentInParent<Canvas>();
+        Camera camera = canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay ? canvas.worldCamera : null;
+        Vector2 ScreenPoint(Vector3 point) => RectTransformUtility.WorldToScreenPoint(camera, space.TransformPoint(point));
+        Bounds clipboard = compactPanel.ClipboardBounds(buttonRect, taskIcon, space);
+        Bounds panel = compactPanel.PanelBounds(space);
+        Debug.Log($"[Task dock] clipboard {taskIcon}, panel {panelRect}, canvas scale {canvas?.scaleFactor}, " +
+            $"clipboard screen {ScreenPoint(clipboard.min)} to {ScreenPoint(clipboard.max)}, " +
+            $"panel screen {ScreenPoint(panel.min)} to {ScreenPoint(panel.max)}, " +
+            $"endpoint {effectivePanelShownPosition}, actual {panelRect.anchoredPosition}, " +
+            $"open {panelOpen}, sliding {panelRoutine != null}", this);
+    }
+#endif
 
     private void CaptureAuthoredPresentation()
     {

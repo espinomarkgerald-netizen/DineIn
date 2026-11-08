@@ -36,7 +36,7 @@ public sealed class DailyRewardSlotSettings : ScriptableObject
     public Prize[] prizes;
     [Min(.3f)] public float spinSeconds = 2.2f;
     [Min(.02f)] public float reelStagger = .3f;
-    [Range(0, 1)] public float audioLevel = .22f;
+    [Range(0, 1)] public float audioLevel = .64f;
     public AudioClip reelTick, spinSound, spinLoop;
 }
 

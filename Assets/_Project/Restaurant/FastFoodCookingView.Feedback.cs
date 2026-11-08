@@ -7,7 +7,7 @@ public sealed partial class FastFoodCookingView
     [Header("Cozy action feedback")]
     [SerializeField] private AudioSource feedbackAudio;
     [SerializeField] private AudioClip placementSound, readySound, finishedSound;
-    [SerializeField, Range(0, 1)] private float feedbackVolume = .32f;
+    [SerializeField, Range(0, 1)] private float feedbackVolume = .512f;
     [SerializeField, Min(0)] private float placementSeconds = .18f;
     [SerializeField, Min(0)] private float placementLift = .065f;
     private FastFoodCookingState.Portion acceptedPortion;

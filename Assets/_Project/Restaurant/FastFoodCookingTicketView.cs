@@ -24,7 +24,12 @@ public sealed class FastFoodCookingTicketView : MonoBehaviour
     {
         var grid=products!=null?products.GetComponent<UnityEngine.UI.GridLayoutGroup>():null;
         if(grid==null)return;
-        int columns=grid.constraint==UnityEngine.UI.GridLayoutGroup.Constraint.FixedColumnCount?Mathf.Max(1,grid.constraintCount):3;
+        // Three columns work well for six-item tickets, but force a four-item
+        // order into an unbalanced 3+1 layout. Use a compact 2x2 for four items.
+        int columns=count==4?2:Mathf.Clamp(count,1,3);
+        grid.constraint=UnityEngine.UI.GridLayoutGroup.Constraint.FixedColumnCount;
+        grid.constraintCount=columns;
+        grid.childAlignment=TextAnchor.UpperCenter;
         int rows=Mathf.CeilToInt((float)count/columns);
         float height=Mathf.Max(minimumHeight,166+rows*grid.cellSize.y+Mathf.Max(0,rows-1)*grid.spacing.y+grid.padding.vertical);
         var rect=(RectTransform)transform;rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical,height);
@@ -35,7 +40,7 @@ public sealed class FastFoodCookingTicketView : MonoBehaviour
     Vector2 restingPosition, exitStart;
     float exitAlpha;
     float Travel => motion!=null?Mathf.Max(slideDistance,motion.rect.width+16):slideDistance;
-    void Awake() { if(motion!=null)restingPosition=motion.anchoredPosition; }
+    void Awake() { FastFoodTicketAppearance.Apply(this); if(motion!=null)restingPosition=motion.anchoredPosition; }
     void OnEnable()
     {
         animationTime=0; leaving=false; progressInitialized=false; progressVelocity=0;
@@ -71,4 +76,39 @@ public sealed class FastFoodCookingTicketView : MonoBehaviour
     public FastFoodCookingDragHandle productTemplate;
     public string titleFormat = "#{0} · {1}", timerFormat = "{0} · {1}", quantityFormat = "{0}/{1}";
     public string playerText = "YOUR ORDER", staffText = "STAFF", waitingText = "Waiting / cooking", preparingText = "Staff preparing";
+}
+
+public static class FastFoodTicketAppearance
+{
+    public static void Apply(FastFoodCookingTicketView ticket)
+    {
+        var art=CustomerDrawerArt.Shared;if(art==null)return;
+        var root=ticket.motion!=null?ticket.motion:(RectTransform)ticket.transform;
+        if(root.Find("Order header")!=null)return;
+        var image=root.GetComponent<UnityEngine.UI.Image>();
+        if(image!=null){image.sprite=art.Find("PanelFrame");image.type=UnityEngine.UI.Image.Type.Sliced;image.color=Color.white;image.pixelsPerUnitMultiplier=2;}
+        var tab=CustomerDrawerUI.Image("Order header",root,"HeaderTab");
+        tab.rectTransform.anchorMin=new Vector2(.04f,1);tab.rectTransform.anchorMax=new Vector2(.96f,1);
+        tab.rectTransform.pivot=new Vector2(.5f,1);tab.rectTransform.anchoredPosition=new Vector2(0,-8);tab.rectTransform.sizeDelta=new Vector2(0,40);tab.transform.SetAsFirstSibling();
+        foreach(var label in new[]{ticket.title,ticket.timer}){label.font=art.headingFont;label.color=Color.white;label.fontSize=24;label.textWrappingMode=TextWrappingModes.NoWrap;}
+        Place(ticket.title.rectTransform,.07f,.65f);Place(ticket.timer.rectTransform,.68f,.94f);
+        ticket.title.alignment=TextAlignmentOptions.MidlineLeft;ticket.timer.alignment=TextAlignmentOptions.MidlineRight;
+        var item=ticket.productTemplate;
+        if(item!=null)
+        {
+            var surface=item.GetComponent<UnityEngine.UI.Image>();
+            if(surface!=null){surface.sprite=art.Find("HoverRow");surface.type=UnityEngine.UI.Image.Type.Sliced;surface.color=new Color(1,.96f,.86f);}
+            item.count.font=art.headingFont;item.count.fontSize=24;item.count.color=art.ink;
+        }
+        var footer=CustomerDrawerUI.Text("Ticket hint",root,"Match the ticket to finish");
+        footer.fontSize=18;footer.alignment=TextAlignmentOptions.Center;
+        footer.rectTransform.anchorMin=new Vector2(.05f,0);footer.rectTransform.anchorMax=new Vector2(.95f,0);
+        footer.rectTransform.pivot=new Vector2(.5f,0);footer.rectTransform.anchoredPosition=new Vector2(0,12);footer.rectTransform.sizeDelta=new Vector2(0,28);
+        if(ticket.progressFill!=null)ticket.progressFill.transform.parent.gameObject.SetActive(false);
+    }
+    private static void Place(RectTransform rect,float left,float right)
+    {
+        rect.anchorMin=new Vector2(left,1);rect.anchorMax=new Vector2(right,1);rect.pivot=new Vector2(.5f,1);
+        rect.anchoredPosition=new Vector2(0,-10);rect.sizeDelta=new Vector2(0,36);
+    }
 }

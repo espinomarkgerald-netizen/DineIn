@@ -12,7 +12,23 @@ public sealed class CustomerDrawerArt : ScriptableObject
     public Vector2 listSize=new(345,345),detailsSize=new(345,380),taskSize=new(276,138);
     [Min(16)] public float headingSize=23,bodySize=19,smallSize=16;
     [Min(6)] public float contentPadding=12;
-    [Min(4)] public float taskButtonGap=12;
+    [Min(4)] public float taskButtonGap=8;
+    public Sprite taskClipboardSprite;
+    private static readonly Vector4 DefaultTaskClipboardInk = new Vector4(.319f, .243f, .361f, .525f);
+    [SerializeField, Tooltip("Visible clipboard bounds in normalized texture coordinates (left, bottom, width, height).")]
+    private Vector4 taskClipboardInkBounds = DefaultTaskClipboardInk;
+    public Rect TaskClipboardInk
+    {
+        get
+        {
+            Vector4 bounds = taskClipboardInkBounds;
+            if (!(bounds.x >= 0f && bounds.y >= 0f && bounds.z > 0f && bounds.w > 0f
+                  && bounds.x + bounds.z <= 1f && bounds.y + bounds.w <= 1f))
+                bounds = DefaultTaskClipboardInk;
+            return new Rect(bounds.x, bounds.y, bounds.z, bounds.w);
+        }
+    }
+    public Vector4 taskPanelInkInset = new Vector4(6, 9, 7, 6);
     [Min(8)] public float patienceHeight=13;
     [Min(.05f)] public float contentFade=.12f,patienceSmooth=.15f,panelSeconds=.20f;
     [Range(0,1)] public float panelSoundGain=.18f;

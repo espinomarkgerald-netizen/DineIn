@@ -1,0 +1,291 @@
+{
+  "targetLUFS": -23,
+  "peakCeilingDb": -3,
+  "clips": [
+    {
+      "file": "Assets/_Project/Audio/Supplied/20-Minute Loop Of Restaurant Noise.mp3",
+      "method": "integrated LUFS",
+      "beforeLUFS": "-44.58",
+      "afterLUFS": "-23.39",
+      "truePeak": "-1.82"
+    },
+    {
+      "file": "Assets/_Project/Audio/Supplied/Aliens talking.mp3",
+      "method": "integrated LUFS",
+      "beforeLUFS": "-21.24",
+      "afterLUFS": "-23.26",
+      "truePeak": "-11.34"
+    },
+    {
+      "file": "Assets/_Project/Audio/Supplied/Bad Ting!.mp3",
+      "method": "integrated LUFS",
+      "beforeLUFS": "-36.82",
+      "afterLUFS": "-23.32",
+      "truePeak": "-7.30"
+    },
+    {
+      "file": "Assets/_Project/Audio/Supplied/Blocked.mp3",
+      "method": "integrated LUFS",
+      "beforeLUFS": "-32.05",
+      "afterLUFS": "-23.35",
+      "truePeak": "-6.82"
+    },
+    {
+      "file": "Assets/_Project/Audio/Supplied/Click.mp3",
+      "method": "integrated LUFS",
+      "beforeLUFS": "-34.24",
+      "afterLUFS": "-23.24",
+      "truePeak": "-6.31"
+    },
+    {
+      "file": "Assets/_Project/Audio/Supplied/computer-1.wav",
+      "method": "short-cue RMS fallback",
+      "beforeLUFS": "-inf",
+      "afterLUFS": "-inf",
+      "truePeak": "-8.47",
+      "afterRmsDb": -23
+    },
+    {
+      "file": "Assets/_Project/Audio/Supplied/computer-2.wav",
+      "method": "short-cue RMS fallback",
+      "beforeLUFS": "-inf",
+      "afterLUFS": "-inf",
+      "truePeak": "-8.57",
+      "afterRmsDb": -23
+    },
+    {
+      "file": "Assets/_Project/Audio/Supplied/computer-3.wav",
+      "method": "short-cue RMS fallback",
+      "beforeLUFS": "-inf",
+      "afterLUFS": "-inf",
+      "truePeak": "-8.89",
+      "afterRmsDb": -23
+    },
+    {
+      "file": "Assets/_Project/Audio/Supplied/Declined.mp3",
+      "method": "integrated LUFS",
+      "beforeLUFS": "-27.49",
+      "afterLUFS": "-23.29",
+      "truePeak": "-11.21"
+    },
+    {
+      "file": "Assets/_Project/Audio/Supplied/Delivery Handling.wav",
+      "method": "short-cue RMS fallback",
+      "beforeLUFS": "-inf",
+      "afterLUFS": "-inf",
+      "truePeak": "-5.73",
+      "afterRmsDb": -23
+    },
+    {
+      "file": "Assets/_Project/Audio/Supplied/End Day Resuts.mp3",
+      "method": "integrated LUFS",
+      "beforeLUFS": "-26.00",
+      "afterLUFS": "-23.29",
+      "truePeak": "-10.97"
+    },
+    {
+      "file": "Assets/_Project/Audio/Supplied/Excellent.mp3",
+      "method": "integrated LUFS",
+      "beforeLUFS": "-26.46",
+      "afterLUFS": "-23.26",
+      "truePeak": "-6.90"
+    },
+    {
+      "file": "Assets/_Project/Audio/Supplied/Hotbar Arrival.wav",
+      "method": "short-cue RMS fallback",
+      "beforeLUFS": "-inf",
+      "afterLUFS": "-inf",
+      "truePeak": "-9.06",
+      "afterRmsDb": -23
+    },
+    {
+      "file": "Assets/_Project/Audio/Supplied/hud-1.wav",
+      "method": "short-cue RMS fallback",
+      "beforeLUFS": "-inf",
+      "afterLUFS": "-inf",
+      "truePeak": "-9.47",
+      "afterRmsDb": -23
+    },
+    {
+      "file": "Assets/_Project/Audio/Supplied/hud-2.wav",
+      "method": "short-cue RMS fallback",
+      "beforeLUFS": "-inf",
+      "afterLUFS": "-inf",
+      "truePeak": "-9.48",
+      "afterRmsDb": -23
+    },
+    {
+      "file": "Assets/_Project/Audio/Supplied/hud-3.wav",
+      "method": "short-cue RMS fallback",
+      "beforeLUFS": "-inf",
+      "afterLUFS": "-inf",
+      "truePeak": "-9.39",
+      "afterRmsDb": -23
+    },
+    {
+      "file": "Assets/_Project/Audio/Supplied/Info.mp3",
+      "method": "integrated LUFS",
+      "beforeLUFS": "-30.35",
+      "afterLUFS": "-23.25",
+      "truePeak": "-5.72"
+    },
+    {
+      "file": "Assets/_Project/Audio/Supplied/menu-1.wav",
+      "method": "short-cue RMS fallback",
+      "beforeLUFS": "-inf",
+      "afterLUFS": "-inf",
+      "truePeak": "-9.29",
+      "afterRmsDb": -23
+    },
+    {
+      "file": "Assets/_Project/Audio/Supplied/menu-2.wav",
+      "method": "short-cue RMS fallback",
+      "beforeLUFS": "-inf",
+      "afterLUFS": "-inf",
+      "truePeak": "-9.16",
+      "afterRmsDb": -23
+    },
+    {
+      "file": "Assets/_Project/Audio/Supplied/menu-3.wav",
+      "method": "short-cue RMS fallback",
+      "beforeLUFS": "-inf",
+      "afterLUFS": "-inf",
+      "truePeak": "-9.04",
+      "afterRmsDb": -23
+    },
+    {
+      "file": "Assets/_Project/Audio/Supplied/Neutral Ting!.mp3",
+      "method": "integrated LUFS",
+      "beforeLUFS": "-39.21",
+      "afterLUFS": "-23.21",
+      "truePeak": "-7.02"
+    },
+    {
+      "file": "Assets/_Project/Audio/Supplied/Notification.mp3",
+      "method": "integrated LUFS",
+      "beforeLUFS": "-25.06",
+      "afterLUFS": "-23.26",
+      "truePeak": "-8.68"
+    },
+    {
+      "file": "Assets/_Project/Audio/Supplied/Panel Open Effect.mp3",
+      "method": "integrated LUFS",
+      "beforeLUFS": "-40.45",
+      "afterLUFS": "-23.25",
+      "truePeak": "-5.78"
+    },
+    {
+      "file": "Assets/_Project/Audio/Supplied/Payment Register.wav",
+      "method": "short-cue RMS fallback",
+      "beforeLUFS": "-inf",
+      "afterLUFS": "-inf",
+      "truePeak": "-8.66",
+      "afterRmsDb": -23
+    },
+    {
+      "file": "Assets/_Project/Audio/Supplied/Pouring Water Into Glass.mp3",
+      "method": "integrated LUFS",
+      "beforeLUFS": "-27.88",
+      "afterLUFS": "-23.70",
+      "truePeak": "-2.79"
+    },
+    {
+      "file": "Assets/_Project/Audio/Supplied/Success.mp3",
+      "method": "integrated LUFS",
+      "beforeLUFS": "-26.71",
+      "afterLUFS": "-23.28",
+      "truePeak": "-11.08"
+    },
+    {
+      "file": "Assets/_Project/Audio/Supplied/Tip Coins.wav",
+      "method": "short-cue RMS fallback",
+      "beforeLUFS": "-inf",
+      "afterLUFS": "-inf",
+      "truePeak": "-9.03",
+      "afterRmsDb": -23
+    },
+    {
+      "file": "Assets/_Project/Audio/Supplied/World Selection.wav",
+      "method": "short-cue RMS fallback",
+      "beforeLUFS": "-inf",
+      "afterLUFS": "-inf",
+      "truePeak": "-10.14",
+      "afterRmsDb": -23
+    },
+    {
+      "file": "Assets/_Project/Resources/Audio/Clean.wav",
+      "method": "short-cue RMS fallback",
+      "beforeLUFS": "-inf",
+      "afterLUFS": "-inf",
+      "truePeak": "-8.85",
+      "afterRmsDb": -23
+    },
+    {
+      "file": "Assets/_Project/Resources/Audio/Error.wav",
+      "method": "short-cue RMS fallback",
+      "beforeLUFS": "-inf",
+      "afterLUFS": "-inf",
+      "truePeak": "-13.44",
+      "afterRmsDb": -23
+    },
+    {
+      "file": "Assets/_Project/Resources/Audio/Payment.wav",
+      "method": "short-cue RMS fallback",
+      "beforeLUFS": "-inf",
+      "afterLUFS": "-inf",
+      "truePeak": "-10.56",
+      "afterRmsDb": -23
+    },
+    {
+      "file": "Assets/_Project/Resources/Audio/ReservationBell.mp3",
+      "method": "integrated LUFS",
+      "beforeLUFS": "-13.14",
+      "afterLUFS": "-23.29",
+      "truePeak": "-14.88"
+    },
+    {
+      "file": "Assets/_Project/Restaurant/CookingAssets/Feedback/Dish Complete.wav",
+      "method": "integrated LUFS",
+      "beforeLUFS": "-23.55",
+      "afterLUFS": "-22.95",
+      "truePeak": "-9.53"
+    },
+    {
+      "file": "Assets/_Project/Restaurant/CookingAssets/Feedback/Gentle Ready.wav",
+      "method": "short-cue RMS fallback",
+      "beforeLUFS": "-inf",
+      "afterLUFS": "-inf",
+      "truePeak": "-10.73",
+      "afterRmsDb": -23
+    },
+    {
+      "file": "Assets/_Project/Restaurant/CookingAssets/Feedback/Quiet Sizzle.wav",
+      "method": "integrated LUFS",
+      "beforeLUFS": "-18.27",
+      "afterLUFS": "-22.99",
+      "truePeak": "-14.54"
+    },
+    {
+      "file": "Assets/_Project/Restaurant/CookingAssets/Feedback/Soft Placement.wav",
+      "method": "short-cue RMS fallback",
+      "beforeLUFS": "-inf",
+      "afterLUFS": "-inf",
+      "truePeak": "-11.18",
+      "afterRmsDb": -23
+    },
+    {
+      "file": "Assets/_Project/Gameplay/Rewards/Art/ReelLoop.wav",
+      "method": "integrated LUFS",
+      "beforeLUFS": "-26.95",
+      "afterLUFS": "-22.95",
+      "truePeak": "-15.98"
+    },
+    {
+      "file": "Assets/_Project/Audio/sfx/TruckHorn.mp3",
+      "method": "integrated LUFS",
+      "beforeLUFS": "-8.86",
+      "afterLUFS": "-23.27",
+      "truePeak": "-14.61"
+    }
+  ]
+}

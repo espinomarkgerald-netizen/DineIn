@@ -1,6 +1,5 @@
 ﻿using System.Collections;
 using UnityEngine;
-using TMPro;
 using UnityEngine.AI;
 
 public partial class CustomerGroup
@@ -8,8 +7,7 @@ public partial class CustomerGroup
     private Transform receptionEscortLeader;
     private float receptionStandUntil;
     private GameObject reservationIndicatorInstance;
-    private GameObject reservationIndicatorDetails;
-    private TMP_Text reservationIndicatorText;
+    private CustomerGreetBubbleUI reservationIndicatorAction;
     private string reservationGuestName;
     private int reservationArrivalMinute;
     public string ReceptionPartyCaption {
@@ -154,16 +152,15 @@ public partial class CustomerGroup
         }
         if (!ReservedSeatingActionAvailable)
         {
-            if (reservationIndicatorInstance != null) reservationIndicatorInstance.SetActive(false);
             if (IsReceptionClaimedByPlayer)
             {
                 ReleasePlayerReceptionTask();
                 RestaurantTaskClaim.ReleasePlayer(this);
             }
-            return;
         }
         // The table arrow replaces the reception marker, including direct marker clicks.
-        if (BoothAssignArrowManager.Instance != null && BoothAssignArrowManager.Instance.IsSelectingFor(this))
+        if (IsReceptionClaimedByBot || RestaurantTaskClaim.IsClaimedByBot(this) ||
+            BoothAssignArrowManager.Instance != null && BoothAssignArrowManager.Instance.IsSelectingFor(this))
         {
             if (reservationIndicatorInstance != null) reservationIndicatorInstance.SetActive(false);
             return;
@@ -174,28 +171,20 @@ public partial class CustomerGroup
             if (prefab == null) return;
             reservationIndicatorInstance = Instantiate(prefab);
             reservationIndicatorInstance.name = name + "_Reservation";
-            reservationIndicatorInstance.GetComponent<CustomerGreetBubbleUI>()?.Init(this);
+            reservationIndicatorAction = reservationIndicatorInstance.GetComponentInChildren<CustomerGreetBubbleUI>(true);
+            reservationIndicatorAction?.Init(this);
             var follow = reservationIndicatorInstance.GetComponentInChildren<UIFollowWorldPoint>(true);
             if (follow != null) ConfigureCustomerBubble(follow);
-            var details = reservationIndicatorInstance.transform.Find("Details");
-            reservationIndicatorDetails = details != null ? details.gameObject : null;
-            reservationIndicatorText = details != null ? details.GetComponentInChildren<TMP_Text>(true) : null;
         }
         reservationIndicatorInstance.SetActive(CustomerGreetBubbleSpawner.Instance == null ||
             !CustomerGreetBubbleSpawner.Instance.IsShowingFor(this));
-        bool showDetails = true;
-        if (reservationIndicatorDetails != null) reservationIndicatorDetails.SetActive(showDetails);
-        if (showDetails && reservationIndicatorText != null)
-        {
-            reservationIndicatorText.text = ReceptionPartyCaption;
-        }
+        if (reservationIndicatorInstance.activeSelf) reservationIndicatorAction?.Refresh();
     }
 
     private void ClearFineDiningReceptionIndicator()
     {
         if (reservationIndicatorInstance != null) Destroy(reservationIndicatorInstance);
         reservationIndicatorInstance = null;
-        reservationIndicatorDetails = null;
-        reservationIndicatorText = null;
+        reservationIndicatorAction = null;
     }
 }

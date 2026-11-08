@@ -1,0 +1,62 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &1000
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1001}
+  - component: {fileID: 1002}
+  m_Layer: 5
+  m_Name: MultiplayerConnectionNotice
+  m_TagString: Untagged
+  m_IsActive: 1
+--- !u!224 &1001
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1000}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 1}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &1002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1000}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9be3bc7c863848c2a0cd73c5c1231056, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  panelSprite: {fileID: 21300000, guid: b3ed31a1e5104f0d84e7d931fa9399f1, type: 3}
+  headerSprite: {fileID: 21300000, guid: 5fbde89070a3406d89154226ff3222ca, type: 3}
+  disconnectedSprite: {fileID: 21300000, guid: 58b689fb4a3c48a29bec5ca1bdc92801, type: 3}
+  removedSprite: {fileID: 21300000, guid: f6a40b03421d4e26b2585603ce93cb78, type: 3}
+  buttonSprite: {fileID: 21300000, guid: b59a0087518c4626aeac7c996e079d87, type: 3}
+  stripSprite: {fileID: 21300000, guid: ca62000371034c6eab817a2ccc8e97f0, type: 3}
+  headingFont: {fileID: 11400000, guid: 2cb410dc028b86144be819f36ca7d8d1, type: 2}
+  bodyFont: {fileID: 11400000, guid: eeba7f66db197bb4fa22fd01ddc2ab5c, type: 2}
+  panelSize: {x: 620, y: 540}
+  enterSeconds: 0.22
+  exitSeconds: 0.16
+  statusFadeSeconds: 0.12
+  headingSize: 38
+  bodySize: 25
+  buttonSize: 28
+  disconnectedCopy: Trying to reconnect to your restaurant...
+  removedCopy: You were removed from this restaurant by the host.

@@ -82,7 +82,15 @@ public class TableNumberUI : MonoBehaviour
 
     private bool CanShowServe()
     {
-        if (!tableBound || group == null || !group.isActiveAndEnabled || group.IsTakeout || booth == null ||
+        return tableBound && CanShowServe(group, booth, displayedNumber, networkCustomer, multiplayerGuidance,
+            boothDelivery, customerDelivery);
+    }
+
+    internal static bool CanShowServe(CustomerGroup group, Booth booth, int displayedNumber,
+        MultiplayerCustomerSpawn networkCustomer, bool multiplayerGuidance,
+        BoothDeliverInteractable boothDelivery, CustomerDeliverInteractable customerDelivery)
+    {
+        if (group == null || !group.isActiveAndEnabled || group.IsTakeout || booth == null ||
             group.state != CustomerGroup.GroupState.OrderTaken || group.assignedBooth != booth ||
             !group.AllowsStaffFoodDelivery || !group.HasConfirmedOrder || group.IsPlayerReviewingOrder ||
             booth.CurrentGroup != group || group.currentOrderNumber != displayedNumber ||

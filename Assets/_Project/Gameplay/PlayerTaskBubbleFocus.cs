@@ -25,6 +25,7 @@ public sealed class PlayerTaskBubbleFocus : MonoBehaviour
     private bool hasIcon;
     private bool passiveStatus;
     private bool localDeliveryAction;
+    private CustomerGreetBubbleUI receptionAction;
     private int priority;
     private long sequence;
     private bool expanded;
@@ -71,6 +72,7 @@ public sealed class PlayerTaskBubbleFocus : MonoBehaviour
         if (changed)
         {
             focus.sequence = ++nextSequence;
+            focus.receptionAction = focus.GetComponentInChildren<CustomerGreetBubbleUI>(true);
             focus.CacheCaptions();
         }
         if (profile != null && focus.follow != null)
@@ -252,6 +254,8 @@ public sealed class PlayerTaskBubbleFocus : MonoBehaviour
 
     private void SetCompact(bool value)
     {
+        if (settings != null && receptionAction != null)
+            value = false;
         follow.SetCompactCustomerPresentation(value);
         if (captions == null || passiveStatus || !hasIcon) return;
         for (int i = 0; i < captions.Length; i++)

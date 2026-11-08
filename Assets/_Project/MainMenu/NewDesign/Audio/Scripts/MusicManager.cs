@@ -21,9 +21,14 @@ public class MusicManager : MonoBehaviour
     [SerializeField] private AudioClip defaultTrack;
     [SerializeField] private bool playOnStart = true;
     [SerializeField] private bool loop = true;
+    [SerializeField] private bool playInMultiplayer = true;
+    [SerializeField] private AudioClip serviceTrack;
+    [SerializeField, Range(0f, 1f)] private float serviceTrackVolume = 1f;
 
     private static MusicManager menuInstance;
     private DineIn.NewMenu.SettingsManager subscribedSettings;
+    private float prepTrackVolume;
+    private AudioClip requestedRestaurantTrack;
 
     private void Awake()
     {
@@ -52,6 +57,7 @@ public class MusicManager : MonoBehaviour
 
         musicSource.loop = loop;
         musicSource.playOnAwake = false;
+        prepTrackVolume = musicSource.volume;
     }
 
     private void Start()
@@ -63,12 +69,31 @@ public class MusicManager : MonoBehaviour
         if (DineIn.NewMenu.SettingsManager.Instance != null)
             ApplyVolume(DineIn.NewMenu.SettingsManager.Instance.Current.musicVolume);
 
-        if (playOnStart)
-            Play(defaultTrack != null ? defaultTrack : musicSource.clip);
+        if (playOnStart && (playInMultiplayer || !MultiplayerDayBridge.IsActive))
+        {
+            if (serviceTrack != null) RefreshRestaurantTrack();
+            else Play(defaultTrack != null ? defaultTrack : musicSource.clip);
+        }
 
         subscribedSettings = DineIn.NewMenu.SettingsManager.Instance;
         if (subscribedSettings != null)
             subscribedSettings.OnSettingsLoaded += HandleSettingsLoaded;
+    }
+
+    private void Update()
+    {
+        if (playOnStart && serviceTrack != null) RefreshRestaurantTrack();
+    }
+
+    private void RefreshRestaurantTrack()
+    {
+        var day = GameDayManager.Instance;
+        bool serving = day != null && day.ServiceActive;
+        AudioClip track = serving ? serviceTrack : defaultTrack;
+        if (track == null || requestedRestaurantTrack == track) return;
+        requestedRestaurantTrack = track;
+        musicSource.volume = serving ? serviceTrackVolume : prepTrackVolume;
+        Play(track);
     }
 
     private void OnDestroy()

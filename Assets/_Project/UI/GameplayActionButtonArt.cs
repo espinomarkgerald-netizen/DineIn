@@ -20,6 +20,7 @@ public sealed class GameplayActionButtonArt : ScriptableObject
     [Min(200f)] public float maximumWorldWidth = 280f;
     [Min(40f)] public float worldButtonHeight = 60f;
     [Min(40f)] public float numberBubbleSize = 72f;
+    [Min(40f)] public float fineDiningNumberBubbleSize = 64f;
     [Min(.01f)] public float changeFadeSeconds = .15f;
     [Min(12f)] public float patienceBarHeight = 12f;
     [Min(4f)] public float patienceBarGap = 12f;

@@ -43,52 +43,13 @@ public sealed class MultiplayerTaskPresentation : MonoBehaviour
     private void OnDisable() => LiveCount--;
     private string task;
     private UnityEngine.UI.Button[] buttons;
-    [SerializeField, Min(8f)] private float ownershipFontSize = 14f;
-    private TMPro.TextMeshProUGUI ownershipText;
-    private UnityEngine.UI.Image ownershipBackground;
+    private CustomerGreetBubbleUI receptionAction;
     private MultiplayerTaskClaims claimSource;
-    private float nextStatusRefresh;
-    private string shownStatus;
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetRuntimeState()
     {
         bubbles.Clear();
         LiveCount = 0;
-    }
-    private void EnsureOwnershipLabel()
-    {
-        // Fine Dining already limits expanded bubbles and shows actor work circles.
-        // Adding a second label under each compact marker obscures nearby tables.
-        if (MultiplayerSessionManager.Instance?.RestaurantType == "FineDining")
-        {
-            if (ownershipBackground != null) ownershipBackground.gameObject.SetActive(false);
-            return;
-        }
-        if (ownershipText != null || buttons == null || buttons.Length == 0 || buttons[0] == null) return;
-        var parent = buttons[0].transform as RectTransform;
-        if (parent == null) return;
-        var existingText = parent.GetComponentInChildren<TMPro.TMP_Text>(true);
-        var badge = new GameObject("Task ownership", typeof(RectTransform), typeof(UnityEngine.UI.Image));
-        var rect = (RectTransform)badge.transform;
-        rect.SetParent(parent, false);
-        rect.anchorMin = new Vector2(0, 0); rect.anchorMax = new Vector2(1, 0);
-        rect.pivot = new Vector2(0.5f, 1);
-        rect.anchoredPosition = new Vector2(0, -3);
-        rect.sizeDelta = new Vector2(20, ownershipFontSize * 2.5f);
-        ownershipBackground = badge.GetComponent<UnityEngine.UI.Image>();
-        ownershipBackground.raycastTarget = false;
-        var label = new GameObject("Label", typeof(RectTransform), typeof(TMPro.TextMeshProUGUI));
-        var textRect = (RectTransform)label.transform;
-        textRect.SetParent(rect, false);
-        textRect.anchorMin = Vector2.zero; textRect.anchorMax = Vector2.one;
-        textRect.offsetMin = new Vector2(4, 2); textRect.offsetMax = new Vector2(-4, -2);
-        ownershipText = label.GetComponent<TMPro.TextMeshProUGUI>();
-        ownershipText.font = existingText != null ? existingText.font : TMPro.TMP_Settings.defaultFontAsset;
-        ownershipText.fontSize = ownershipFontSize;
-        ownershipText.alignment = TMPro.TextAlignmentOptions.Center;
-        ownershipText.color = Color.white; ownershipText.richText = false;
-        ownershipText.raycastTarget = false;
-        ownershipText.overflowMode = TMPro.TextOverflowModes.Ellipsis;
     }
     public static void Bind(GameObject root, string id, string kind = null)
     {
@@ -113,6 +74,7 @@ public sealed class MultiplayerTaskPresentation : MonoBehaviour
     private void Awake()
     {
         buttons = GetComponentsInChildren<UnityEngine.UI.Button>(true);
+        receptionAction = GetComponentInChildren<CustomerGreetBubbleUI>(true);
     }
     private void LateUpdate()
     {
@@ -127,20 +89,9 @@ public sealed class MultiplayerTaskPresentation : MonoBehaviour
         var bot = claims.GetBotClaim(task);
         bool available = owner == 0 && (bot == null || !bot.committed);
         bool own = owner == session.LocalActorNumber;
-        if (Time.unscaledTime >= nextStatusRefresh)
-        {
-            nextStatusRefresh = Time.unscaledTime + 0.1f;
-            EnsureOwnershipLabel();
-            string status = claims.Describe(task);
-            if (ownershipText != null && shownStatus != status)
-            {
-                shownStatus = status; ownershipText.text = status;
-                ownershipBackground.color = claims.IsPending(task) ? new Color(0.48f, 0.30f, 0.04f, 0.96f)
-                    : own ? new Color(0.03f, 0.38f, 0.25f, 0.96f) : new Color(0.06f, 0.18f, 0.25f, 0.96f);
-            }
-        }
         foreach (var button in buttons) if (button != null)
             button.interactable = session.CanAct && !claims.IsPending(task) && !MultiplayerRestockView.Active
-                && !MultiplayerDayBridge.PreparationLocked && (available || own);
+                && !MultiplayerDayBridge.PreparationLocked && (available || own)
+                && (receptionAction == null || !receptionAction.SeatingBlocked);
     }
 }

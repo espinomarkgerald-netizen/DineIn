@@ -18,17 +18,96 @@ public sealed class CompactTaskPanelView : MonoBehaviour
     private string key;
     private bool lastLarge;
     private readonly Vector3[] dockCorners=new Vector3[4];
-    private readonly System.Collections.Generic.List<Graphic> clipboardGraphics=new();
-    public void DockBeside(RectTransform button)
+    public Bounds ClipboardBounds(RectTransform button, Image artwork, RectTransform space)
     {
-        if(frame==null || button==null || frame.parent is not RectTransform safe)return;
+        if (artwork == null || !artwork.isActiveAndEnabled)
+            return BoundsIn(button, space);
+
+        Rect rect = artwork.GetPixelAdjustedRect();
+        Sprite sprite = artwork.overrideSprite;
+        if (sprite != null && artwork.type == UnityEngine.UI.Image.Type.Simple)
+        {
+            Vector2 size = sprite.rect.size;
+            if (artwork.preserveAspect && size.x > 0 && size.y > 0 && rect.width > 0 && rect.height > 0)
+            {
+                float ratio = size.x / size.y;
+                Vector2 fitted = rect.width / rect.height > ratio
+                    ? new Vector2(rect.height * ratio, rect.height)
+                    : new Vector2(rect.width, rect.width / ratio);
+                rect.position += Vector2.Scale(rect.size - fitted, artwork.rectTransform.pivot);
+                rect.size = fitted;
+            }
+            if (sprite == art.taskClipboardSprite)
+            {
+                Rect ink = art.TaskClipboardInk;
+                rect = new Rect(rect.x + rect.width * ink.x, rect.y + rect.height * ink.y,
+                    rect.width * ink.width, rect.height * ink.height);
+            }
+            else if (size.x > 0 && size.y > 0)
+            {
+                Vector4 padding = UnityEngine.Sprites.DataUtility.GetPadding(sprite);
+                rect = Rect.MinMaxRect(
+                    rect.xMin + rect.width * padding.x / size.x,
+                    rect.yMin + rect.height * padding.y / size.y,
+                    rect.xMax - rect.width * padding.z / size.x,
+                    rect.yMax - rect.height * padding.w / size.y);
+            }
+        }
+        return BoundsIn(artwork.rectTransform, space, rect);
+    }
+
+    internal Bounds PanelBounds(RectTransform space)
+    {
+        if (panelArtwork == null) return BoundsIn(frame, space);
+        Rect rect = panelArtwork.GetPixelAdjustedRect();
+        // The transparent border is inside the preserved region of this sliced sprite.
+        float pixelsPerUnit = panelArtwork.pixelsPerUnit * panelArtwork.pixelsPerUnitMultiplier;
+        Vector4 inset = art.taskPanelInkInset / pixelsPerUnit;
+        rect = Rect.MinMaxRect(rect.xMin + inset.x, rect.yMin + inset.y,
+            rect.xMax - inset.z, rect.yMax - inset.w);
+        return BoundsIn(frame, space, rect);
+    }
+
+    private Bounds BoundsIn(RectTransform root, RectTransform space, Rect? localRect = null)
+    {
+        if (localRect is Rect rect)
+        {
+            dockCorners[0] = root.TransformPoint(new Vector3(rect.xMin, rect.yMin));
+            dockCorners[1] = root.TransformPoint(new Vector3(rect.xMin, rect.yMax));
+            dockCorners[2] = root.TransformPoint(new Vector3(rect.xMax, rect.yMax));
+            dockCorners[3] = root.TransformPoint(new Vector3(rect.xMax, rect.yMin));
+        }
+        else root.GetWorldCorners(dockCorners);
+
+        var bounds = new Bounds(space.InverseTransformPoint(dockCorners[0]), Vector3.zero);
+        for (int i = 1; i < dockCorners.Length; i++)
+            bounds.Encapsulate(space.InverseTransformPoint(dockCorners[i]));
+        return bounds;
+    }
+
+    public Vector2 DockedPosition(RectTransform button, Image artwork)
+    {
+        if (button == null || frame.parent is not RectTransform safe) return frame.anchoredPosition;
         float pad=art.contentPadding,gap=art.taskButtonGap;
-        frame.sizeDelta=new Vector2(Mathf.Min(art.taskSize.x,Mathf.Max(160,safe.rect.width-pad*2)),art.taskSize.y);
-        button.GetWorldCorners(dockCorners);Vector3 low=safe.InverseTransformPoint(dockCorners[0]),high=safe.InverseTransformPoint(dockCorners[2]);
-        float left=low.x-gap-frame.rect.width,centerY=(low.y+high.y)*.5f;
-        if(left<safe.rect.xMin+pad){left=Mathf.Clamp(low.x,safe.rect.xMin+pad,safe.rect.xMax-pad-frame.rect.width);centerY=high.y+gap+frame.rect.height*.5f;}
-        centerY=Mathf.Clamp(centerY,safe.rect.yMin+pad+frame.rect.height*.5f,safe.rect.yMax-pad-frame.rect.height*.5f);
-        frame.localPosition=new Vector3(left+frame.pivot.x*frame.rect.width,centerY+(frame.pivot.y-.5f)*frame.rect.height,frame.localPosition.z);Layout();
+        Vector2 size = new Vector2(Mathf.Min(art.taskSize.x, Mathf.Max(1f, safe.rect.width - pad * 2)), art.taskSize.y);
+        if (frame.sizeDelta != size)
+        {
+            frame.sizeDelta = size;
+            Layout();
+        }
+        Bounds target = ClipboardBounds(button, artwork, safe);
+        Bounds panel = PanelBounds(safe);
+        float left = target.min.x - gap - panel.size.x;
+        float centerY = target.center.y;
+        if (left < safe.rect.xMin + pad)
+        {
+            left = Mathf.Clamp(target.min.x, safe.rect.xMin + pad, safe.rect.xMax - pad - panel.size.x);
+            centerY = target.max.y + gap + panel.extents.y;
+            if (centerY + panel.extents.y > safe.rect.yMax - pad)
+                centerY = target.min.y - gap - panel.extents.y;
+        }
+        centerY = Mathf.Clamp(centerY, safe.rect.yMin + pad + panel.extents.y, safe.rect.yMax - pad - panel.extents.y);
+        return frame.anchoredPosition + new Vector2(left - panel.min.x, centerY - panel.center.y);
     }
     public static CompactTaskPanelView Attach(RectTransform root,TMP_Text oldAction,TMP_Text oldDetail)
     {
@@ -37,17 +116,10 @@ public sealed class CompactTaskPanelView : MonoBehaviour
         view.Initialize(root,oldAction,oldDetail);return view;
     }
     // Measure final rendered transforms, including inherited scale and clipboard artwork.
-    public void KeepClearOf(RectTransform button)
+    public void KeepClearOf(RectTransform button, Image artwork)
     {
         if(frame==null || !frame.gameObject.activeInHierarchy || button==null || frame.parent is not RectTransform safe)return;
-        Bounds BoundsOf(RectTransform root,bool graphics)
-        {
-            root.GetWorldCorners(dockCorners);var b=new Bounds(safe.InverseTransformPoint(dockCorners[0]),Vector3.zero);
-            foreach(var c in dockCorners)b.Encapsulate(safe.InverseTransformPoint(c));
-            if(graphics){root.GetComponentsInChildren(false,clipboardGraphics);foreach(var g in clipboardGraphics)if(g.enabled){g.rectTransform.GetWorldCorners(dockCorners);foreach(var c in dockCorners)b.Encapsulate(safe.InverseTransformPoint(c));}}
-            return b;
-        }
-        var target=BoundsOf(button,true);var panel=BoundsOf(frame,false);float gap=art.taskButtonGap,pad=art.contentPadding;
+        var target=ClipboardBounds(button,artwork,safe);var panel=PanelBounds(safe);float gap=art.taskButtonGap,pad=art.contentPadding;
         if(panel.max.x<=target.min.x-gap || panel.min.x>=target.max.x+gap || panel.max.y<=target.min.y-gap || panel.min.y>=target.max.y+gap)return;
         float dx=target.min.x-gap-panel.max.x;
         Vector3 move=panel.min.x+dx>=safe.rect.xMin+pad ? new Vector3(dx,0,0) : new Vector3(0,target.max.y+gap-panel.min.y,0);
@@ -55,11 +127,12 @@ public sealed class CompactTaskPanelView : MonoBehaviour
             move=new Vector3(0,target.min.y-gap-panel.max.y,0);
         frame.localPosition+=move;
     }
+    private Image panelArtwork;
     private void Initialize(RectTransform root,TMP_Text oldAction,TMP_Text oldDetail)
     {
         if(frame!=null)return;frame=root;art=CustomerDrawerArt.Shared;legacyAction=oldAction;legacyDetail=oldDetail;
         frame.localScale=Vector3.one;frame.sizeDelta=art.taskSize;
-        var image=GetComponent<Image>();if(image!=null){image.sprite=art.Find("PanelFrame");image.type=UnityEngine.UI.Image.Type.Sliced;image.pixelsPerUnitMultiplier=2;image.color=Color.white;image.raycastTarget=true;}
+        panelArtwork=GetComponent<Image>();if(panelArtwork!=null){panelArtwork.sprite=art.Find("PanelFrame");panelArtwork.type=UnityEngine.UI.Image.Type.Sliced;panelArtwork.pixelsPerUnitMultiplier=2;panelArtwork.color=Color.white;panelArtwork.raycastTarget=true;}
         if(legacyAction!=null)legacyAction.enabled=false;if(legacyDetail!=null)legacyDetail.enabled=false;
         Header(frame,"CURRENT TASK");scroll=Scroll("Task content",frame,out content);contentGroup=content.gameObject.AddComponent<CanvasGroup>();
         icon=Image("Action icon",content,"IconReceipt",false);action=Text("Action text",content,"",true);

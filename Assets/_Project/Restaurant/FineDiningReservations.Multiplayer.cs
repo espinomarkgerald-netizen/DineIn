@@ -51,6 +51,8 @@ public sealed partial class FineDiningReservations
     {
         if (!IsMultiplayerObserver || snapshot?.schedule?.bookings == null || GameFlowManager.Instance == null
             || snapshot.schedule.day != GameFlowManager.Instance.CurrentDay) return false;
+        bool canNotify = observedReservations?.schedule?.day == snapshot.schedule.day
+            && MultiplayerSessionManager.Instance?.CanAct == true;
         int unread = UnreadRequests;
         if (state.day != snapshot.schedule.day) locallyViewedBookings.Clear();
         state = snapshot.schedule;
@@ -58,7 +60,7 @@ public sealed partial class FineDiningReservations
         lastArrivalMinute = snapshot.lastArrival;
         ResolveObservedParties();
         Changed?.Invoke();
-        if (UnreadRequests > unread) NewRequests?.Invoke();
+        if (canNotify && UnreadRequests > unread) NewRequests?.Invoke();
         return true;
     }
 
