@@ -41,6 +41,7 @@ public sealed class CustomerDrawerView : MonoBehaviour
     private bool Usable => expanded && gameObject.activeInHierarchy && ownerGroup!=null && ownerGroup.alpha>.9f &&
         !GameplayUIBlocker.IsBlocked() && !GameplaySfx.PresentationSuspended;
     public bool IsOpen => expanded;
+    internal RectTransform GroupCountRect => count != null ? count.rectTransform : null;
     private static CustomerDrawerView Current => LobbyHUDRedesign.Instance!=null?LobbyHUDRedesign.Instance.CustomerDrawer:null;
     private static bool WorldInspectionAllowed => Current!=null && Current.gameObject.activeInHierarchy &&
         Current.ownerGroup!=null && Current.ownerGroup.alpha>.9f && !GameplayUIBlocker.IsBlocked() &&

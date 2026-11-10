@@ -7,6 +7,7 @@ public partial class ShopPanelPopulator
     [Header("Purchase confirmation")]
     [SerializeField] private GameObject purchaseRoot, successCheck;
     [SerializeField] private AnimatedPanel purchasePanel;
+    [SerializeField] private RestaurantPurchaseView.Art restaurantAccessArt;
     [SerializeField] private UnityEngine.UI.Image purchaseIcon;
     [SerializeField] private TMP_Text purchaseHeading, purchaseName, purchaseDetails, purchaseStatus, confirmLabel, cancelLabel;
     [SerializeField] private UnityEngine.UI.Button confirmButton, cancelButton, purchaseClose;
@@ -22,7 +23,11 @@ public partial class ShopPanelPopulator
 
     public RestaurantPurchaseView CreateRestaurantPurchaseView(Transform parent)
     {
-        if (purchaseRoot == null || purchasePanel == null) return null;
+        if (purchaseRoot == null)
+        {
+            Debug.LogError("[RestaurantAccess] Missing purchase template field: purchaseRoot.", this);
+            return null;
+        }
         var clone = Instantiate(purchaseRoot, parent, false);
         clone.name = "Restaurant Purchase";
         T Map<T>(T original) where T : Component
@@ -32,17 +37,52 @@ public partial class ShopPanelPopulator
             Transform current = original.transform;
             while (current != purchaseRoot.transform)
             {
-                if (current == null) throw new System.InvalidOperationException("Purchase template reference is outside its root.");
+                if (current == null) return null;
                 indices.Push(current.GetSiblingIndex()); current = current.parent;
             }
             current = clone.transform;
-            while (indices.Count > 0) current = current.GetChild(indices.Pop());
+            while (indices.Count > 0)
+            {
+                int index = indices.Pop();
+                if (index >= current.childCount) return null;
+                current = current.GetChild(index);
+            }
             return current.GetComponent<T>();
         }
+
+        var missing = new System.Collections.Generic.List<string>();
+        T Required<T>(T original, string field) where T : Component
+        {
+            var mapped = Map(original);
+            if (mapped == null) missing.Add(field);
+            else if (mapped is TMP_Text label && (label.font == null || label.font.material == null))
+                missing.Add(field + " (font or material)");
+            return mapped;
+        }
+
+        var panel = Required(purchasePanel, nameof(purchasePanel));
+        var heading = Required(purchaseHeading, nameof(purchaseHeading));
+        var itemName = Required(purchaseName, nameof(purchaseName));
+        var details = Required(purchaseDetails, nameof(purchaseDetails));
+        var status = Required(purchaseStatus, nameof(purchaseStatus));
+        var buyLabel = Required(confirmLabel, nameof(confirmLabel));
+        var backLabel = Required(cancelLabel, nameof(cancelLabel));
+        var buy = Required(confirmButton, nameof(confirmButton));
+        var back = Required(cancelButton, nameof(cancelButton));
+        if (heading != null && !(heading.transform.parent is RectTransform))
+            missing.Add(nameof(purchaseHeading) + " (card parent)");
+        if (missing.Count > 0)
+        {
+            Debug.LogError("[RestaurantAccess] Missing purchase template fields: " + string.Join(", ", missing), this);
+            clone.SetActive(false);
+            Destroy(clone);
+            return null;
+        }
+
         var view = clone.AddComponent<RestaurantPurchaseView>();
         var clonedCheck = successCheck != null ? Map(successCheck.transform)?.gameObject : null;
-        view.Configure(Map(purchasePanel), Map(purchaseHeading), Map(purchaseName), Map(purchaseDetails), Map(purchaseStatus),
-            Map(confirmLabel), Map(cancelLabel), Map(confirmButton), Map(cancelButton), Map(purchaseClose), Map(purchaseIcon), clonedCheck);
+        view.Configure(panel, heading, itemName, details, status, buyLabel, backLabel,
+            buy, back, Map(purchaseClose), Map(purchaseIcon), clonedCheck, restaurantAccessArt);
         return view;
     }
 

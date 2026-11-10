@@ -19750,6 +19750,13 @@ MonoBehaviour:
   fineDiningCasualDays: 30
   fineDiningFastFoodDays: 15
   restaurantModels: {fileID: 1450056258}
+  lockedRestaurantMaterial: {fileID: 2100000, guid: de8b7d46975245489d272ecf8aef08eb, type: 2}
+  restaurantMenuCamera: {fileID: 271896077}
+  restaurantPlayLabel: {fileID: 770198923}
+  restaurantLockedPadlock: {fileID: 21300000, guid: b9ddf157ca3a41b8a3c04a5cfa76a4d0, type: 3}
+  restaurantRequirementsLock: {fileID: 21300000, guid: 8a498a4140c34419ae67a9c5e6760b14, type: 3}
+  restaurantLockedText: LOCKED
+  restaurantRequirementsText: View Requirements
 --- !u!1 &520055192
 GameObject:
   m_ObjectHideFlags: 0
@@ -42688,7 +42695,7 @@ MonoBehaviour:
   - {fileID: 1708111420}
   - {fileID: 1129648131}
   - {fileID: 1192612487}
-  moveSpeed: 5.5
+  moveSpeed: 7.92
   promenadePath:
   - {x: -7.7257233, y: 0.12000275, z: -10.11}
   - {x: -7.7122803, y: 0.12000275, z: -9.760358}
@@ -43129,18 +43136,6 @@ MonoBehaviour:
       - m_Target: {fileID: 520018224}
         m_TargetAssemblyTypeName: GameModePopupController, Assembly-CSharp
         m_MethodName: ShowPopup
-        m_Mode: 1
-        m_Arguments:
-          m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
-          m_IntArgument: 0
-          m_FloatArgument: 0
-          m_StringArgument: 
-          m_BoolArgument: 0
-        m_CallState: 2
-      - m_Target: {fileID: 904888443}
-        m_TargetAssemblyTypeName: AnimatedPanel, Assembly-CSharp
-        m_MethodName: Open
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -55206,6 +55201,23 @@ MonoBehaviour:
   purchaseRoot: {fileID: 8300000035}
   successCheck: {fileID: 8300000087}
   purchasePanel: {fileID: 8300000043}
+  restaurantAccessArt:
+    frame: {fileID: 21300000, guid: 5d84f90d1d4c4559be5030e065ce2413, type: 3}
+    title: {fileID: 21300000, guid: 8b74e5ee3b02466883e956bb06b29f8d, type: 3}
+    ribbon: {fileID: 21300000, guid: 88f55c3469ef44fb991af742671be758, type: 3}
+    ownedRibbon: {fileID: 21300000, guid: 80c058c3370c425b89b148e3d2cfb23a, type: 3}
+    chip: {fileID: 21300000, guid: 09ab4cda20f04edeaa3daada94f2f444, type: 3}
+    cash: {fileID: 21300000, guid: 84e52a8778cd4dcd986f1d28a2ddff48, type: 3}
+    calendar: {fileID: 21300000, guid: 4112882af8bc4baa8473a6b1e3ddf60d, type: 3}
+    track: {fileID: 21300000, guid: 07b7971e78384dac89d19611b5ff79dd, type: 3}
+    fill: {fileID: 21300000, guid: 7b139d1550b34e48abc6c9f87260d72b, type: 3}
+    backButton: {fileID: 21300000, guid: a322a5e1f451494786f3a8c5f44c8cfd, type: 3}
+    buyButton: {fileID: 21300000, guid: 2022b54ff50d4f22a4bb931a179824b8, type: 3}
+    sparkle: {fileID: 21300000, guid: 54268066efee4817a592ff2d3bc9c0a0, type: 3}
+    fastFood: {fileID: 21300000, guid: f8f794511c98da1408ce436d44d7c9f0, type: 3}
+    fineDining: {fileID: 21300000, guid: 5d3fa4c0a17fe6347bf6348e65cdb5d5, type: 3}
+    headingFont: {fileID: 11400000, guid: 2cb410dc028b86144be819f36ca7d8d1, type: 2}
+    bodyFont: {fileID: 11400000, guid: 6e1f10b7e118faf45901758c1ae43feb, type: 2}
   purchaseIcon: {fileID: 8300000050}
   purchaseHeading: {fileID: 8300000046}
   purchaseName: {fileID: 8300000054}
@@ -58453,8 +58465,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: 
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 0}
-  m_sharedMaterial: {fileID: 3717423296635901333, guid: 78f97b0e3ca0e3d4295c4602ecbb0baa, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: 8a89fa14b10d46a99122fd4f73fca9a2, type: 2}
+  m_sharedMaterial: {fileID: 2140474, guid: 8a89fa14b10d46a99122fd4f73fca9a2, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -58589,8 +58601,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: 
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 0}
-  m_sharedMaterial: {fileID: 3717423296635901333, guid: 78f97b0e3ca0e3d4295c4602ecbb0baa, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: 8a89fa14b10d46a99122fd4f73fca9a2, type: 2}
+  m_sharedMaterial: {fileID: 2140474, guid: 8a89fa14b10d46a99122fd4f73fca9a2, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []

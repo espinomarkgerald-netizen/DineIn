@@ -234,6 +234,7 @@ public class GameDayManager : MonoBehaviour
     }
 
     public bool ShiftRunning => shiftRunning;
+    internal bool IsShiftIntroVisible => dayIntroPanel != null && dayIntroPanel.activeInHierarchy;
     public int OpeningHour => openingHour;
     public int ClosingHour => closingHour;
     public bool ServiceActive => shiftRunning || closingOut;

@@ -169,6 +169,7 @@ public class RestaurantSelector : MonoBehaviour
     public void BeginCustomization()
     {
         customizing = true; CancelPresentation();
+        if (restaurantNameLabel != null) restaurantNameLabel.enabled = false;
         pendingCategory = -1; reactionCooldown = 0;
         if (animatePresentation) moveCoroutine = StartCoroutine(FaceCamera());
     }
@@ -221,6 +222,7 @@ public class RestaurantSelector : MonoBehaviour
     public void EndCustomization(bool applied)
     {
         customizing = false; pendingCategory = -1; CancelPresentation(); UpdateSelectionArrows();
+        if (restaurantNameLabel != null) restaurantNameLabel.enabled = true;
         if (character == null) return;
         if (travelPoints.Length > currentIndex && travelPoints[currentIndex] != null && Vector3.Distance(character.position, travelPoints[currentIndex].position) > .01f)
             MoveToCurrentPoint();
@@ -250,6 +252,7 @@ public class RestaurantSelector : MonoBehaviour
     {
         if (moveCoroutine != null) StopCoroutine(moveCoroutine);
         moveCoroutine = null; customizing = false; pendingCategory = -1;
+        if (restaurantNameLabel != null) restaurantNameLabel.enabled = true;
         if (presentationGraph.IsValid()) presentationGraph.Destroy();
         activeClip = null; actionWeight = actionRemaining = 0; continuousAction = false;
     }

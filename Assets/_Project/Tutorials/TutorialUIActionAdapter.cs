@@ -287,18 +287,9 @@ public sealed class TutorialUIActionAdapter : MonoBehaviour
                        computer.AppWindow.FooterButton.gameObject.activeInHierarchy;
             }
             case "Shift.OpenDayIntro":
-            {
-                RectTransform play = null;
-                foreach (RectTransform candidate in FindObjectsByType<RectTransform>(
-                             FindObjectsInactive.Include, FindObjectsSortMode.None))
-                    if (candidate.name == "PlayButton")
-                    {
-                        play = candidate;
-                        break;
-                    }
+                // The next tutorial step reveals Play. This action only opens the panel.
                 return FindManagementComputer()?.IsOpen == false &&
-                       play != null && play.gameObject.activeInHierarchy;
-            }
+                       GameDayManager.Instance?.IsShiftIntroVisible == true;
             case "Shift.Start":
                 return GameDayManager.Instance != null && GameDayManager.Instance.ShiftRunning;
 

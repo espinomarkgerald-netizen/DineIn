@@ -102,6 +102,9 @@ public sealed class TutorialSceneBindings : MonoBehaviour
     /// </summary>
     public void PrepareForStep(string key)
     {
+        if (gameObject.scene.name == "Lobby1Tutorial" && (key == "LivePanel" || key == "LiveCounts"))
+            LobbyHUDRedesign.Instance?.RevealCustomerDrawerForTutorial();
+
         if (key == "StaffApplicantsButton" || key == "StaffApplicantCard" ||
             key == "StaffHire" || key == "StaffSalary" || key == "StaffRating")
         {
@@ -236,7 +239,8 @@ public sealed class TutorialSceneBindings : MonoBehaviour
             case "LivePanel":
                 return ResolveControl("LivePanel");
             case "LiveCounts":
-                return ResolveControl("LivePanel/Counts");
+                return LobbyHUDRedesign.Instance?.CustomerDrawer?.GroupCountRect ??
+                       ResolveControl("LivePanel/Counts");
             case "NewspaperButton":
             case "TaskButton":
             case "TaskMessage":

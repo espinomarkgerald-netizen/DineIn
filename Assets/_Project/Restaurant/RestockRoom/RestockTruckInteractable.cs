@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using TMPro;
 using UnityEngine;
@@ -32,6 +33,7 @@ public sealed class RestockTruckInteractable : MonoBehaviour, IInteractable
     public Transform StandPoint => standPoint != null ? standPoint : transform;
     public bool AutoReturnHome => false;
     public bool IsParked => isParked;
+    public event Action ArrivalCompleted;
     public bool ParkingConfigured => parkingConfigured;
     // The collection approach must be checked at the parked pose, even while the
     // truck and its child stand point are travelling along the arrival animation.
@@ -270,6 +272,7 @@ public sealed class RestockTruckInteractable : MonoBehaviour, IInteractable
         arrivalRoutine = null;
         PlayArrivalHorn();
         RefreshStatus();
+        ArrivalCompleted?.Invoke();
     }
 
     private void PlaceAtApproachPosition()

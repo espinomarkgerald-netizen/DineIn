@@ -355,6 +355,13 @@ public sealed class LobbyHUDRedesign : MonoBehaviour
         if (!liveExpanded) { liveExpanded = true; CustomerDrawer?.SetExpanded(true); }
     }
 
+    internal void RevealCustomerDrawerForTutorial()
+    {
+        OpenCustomerDrawer();
+        // Tutorial focus measures the drawer immediately and pauses the HUD update.
+        ApplyPanelImmediate();
+    }
+
     private void CaptureAuthoredLayout()
     {
         if (!preserveAuthoredSafeArea)

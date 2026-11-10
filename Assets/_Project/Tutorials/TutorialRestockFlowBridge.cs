@@ -46,7 +46,8 @@ public sealed class TutorialRestockFlowBridge : MonoBehaviour
     private RectTransform boxFocus;
     private bool boxActionsWereHidden;
     private RectTransform truckFocus;
-    private Transform truckTarget;
+    private RestockTruckInteractable deliveryTruck;
+    private bool deliveryPanPending;
     private RectTransform shelfFocus;
     private RectTransform slotFocus;
     private ShelfGrid lessonGrid;
@@ -320,6 +321,45 @@ public sealed class TutorialRestockFlowBridge : MonoBehaviour
         ensureHud.Invoke(coordinator, null);
         createLobby.Invoke(coordinator, null);
         bootstrapped = true;
+        BindDeliveryTruck();
+    }
+
+    private void OnEnable()
+    {
+        if (bootstrapped) BindDeliveryTruck();
+    }
+
+    private void BindDeliveryTruck()
+    {
+        if (!isActiveAndEnabled || deliveryTruck != null) return;
+        foreach (var truck in FindObjectsByType<RestockTruckInteractable>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+        {
+            if (truck.gameObject.scene != gameObject.scene) continue;
+            deliveryTruck = truck;
+            deliveryTruck.ArrivalCompleted += OnDeliveryArrived;
+            deliveryPanPending = truck.IsParked && truck.HasReadyDelivery;
+            break;
+        }
+    }
+
+    private void OnDeliveryArrived() => deliveryPanPending = true;
+
+    private void PanToArrivedDelivery(TutorialSystem.TutorialStep step)
+    {
+        // The wait and truck steps follow the management computer's close step.
+        if (!deliveryPanPending || tutorial.IsExiting || LobbyPauseMenu.BlocksTutorialInput ||
+            (step.ActionKey != "Restock.WaitForDelivery" && step.WorldTargetKey != "RestockTruck") ||
+            GetComponent<TutorialSceneBindings>()?.Computer?.IsOpen == true)
+            return;
+
+        deliveryPanPending = false;
+        if (deliveryTruck == null || !deliveryTruck.IsParked || !deliveryTruck.HasReadyDelivery) return;
+        var camera = FindFirstObjectByType<MainCameraController>();
+        if (camera == null || !camera.isActiveAndEnabled) return;
+
+        camera.StopFollowing();
+        camera.CenterOnWorldPoint(TutorialWorldTargetGeometry.Center(deliveryTruck.transform),
+            LevelOneUIAccessibility.ReducedMotion);
     }
 
     private void Update()
@@ -355,6 +395,7 @@ public sealed class TutorialRestockFlowBridge : MonoBehaviour
         if (tutorial == null || tutorial.CurrentStep == null) return;
 
         TutorialSystem.TutorialStep step = tutorial.CurrentStep;
+        PanToArrivedDelivery(step);
         if (observedStep != step)
         {
             observedStep = step;
@@ -554,9 +595,8 @@ public sealed class TutorialRestockFlowBridge : MonoBehaviour
             return ResolveWorld("RestockDryEntrance"); // Suggested entrance; both remain usable.
         if (key == "RestockTruck")
         {
-            if (truckTarget == null)
-                truckTarget = FindFirstObjectByType<RestockTruckInteractable>(FindObjectsInactive.Include)?.transform;
-            return truckTarget;
+            if (deliveryTruck == null && bootstrapped) BindDeliveryTruck();
+            return deliveryTruck != null ? deliveryTruck.transform : null;
         }
         if (key == "RestockDryEntrance" || key == "RestockFrozenEntrance")
         {
@@ -764,6 +804,9 @@ public sealed class TutorialRestockFlowBridge : MonoBehaviour
 
     private void OnDisable()
     {
+        if (deliveryTruck != null) deliveryTruck.ArrivalCompleted -= OnDeliveryArrived;
+        deliveryTruck = null;
+        deliveryPanPending = false;
         if (normalChoiceBox != null) normalChoiceBox.InspectionChoiceMade -= ObserveInspectionChoice;
         if (spoiledBox != null)
         {

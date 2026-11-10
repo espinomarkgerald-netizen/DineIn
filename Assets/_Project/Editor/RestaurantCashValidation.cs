@@ -75,9 +75,9 @@ public static class RestaurantCashValidation
             var view = shop.CreateRestaurantPurchaseView(canvas.transform);
             Require(view != null,"Shop purchase template missing.");
             foreach (bool fine in new[] { false,true }) {
-                view.Render(fine?"FINE DINING":"FAST FOOD", fine?25000:10000, 123456789,
-                    "SUCCESSFUL DAYS • CAMPAIGN / MULTIPLAYER\nCasual Dining    30 / 30"+(fine?"\nFast Food    15 / 15":""),
-                    "Confirm purchase? Cash is drawn proportionally from your owned restaurants.", "BUY RESTAURANT", true,false);
+                view.Render(fine, fine ? 25000 : 10000, 123456789, 30, fine ? 30 : 10, 15, fine ? 15 : 0,
+                    "Confirm purchase? Cash is drawn proportionally from your owned restaurants.",
+                    "BUY RESTAURANT", true, false, false);
                 Canvas.ForceUpdateCanvases();
                 var texts = typeof(RestaurantPurchaseView).GetFields(BindingFlags.Instance|BindingFlags.NonPublic)
                     .Where(f=>f.FieldType==typeof(TMP_Text)).Select(f=>(TMP_Text)f.GetValue(view)).ToArray();

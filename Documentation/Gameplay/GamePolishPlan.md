@@ -590,3 +590,9 @@ Manual acceptance: restart Play Mode after import. With a delivery ready, pan aw
 - Tool: Tools/Audio/balance-sfx.cjs. Measurement report: Tools/Audio/sfx-balance-report.json. Original audio backup: Temp/SfxBalanceOriginals (local, not versioned). Do not rerun from processed files after deleting that backup; restore original source audio first.
 - Passed: 38 encoded-asset measurements (LUFS within .8 dB; short-cue RMS within .2 dB; true peaks below -1 dBTP), runtime and Editor source compilation. This is not a guarantee against summed-bus clipping under simultaneous effects.
 - NOT RUN: Unity listening, live multiplayer/device playback, mute/slider interaction. Manual: compare menu clicks, kitchen placement/ready, serve/payment, reservation bell, horn and reward at the same SFX slider level; then check simultaneous cues and mute. No desktop/editor control performed.
+
+
+## Restaurant access reference polish - 2026-11-10
+- NewGameMenu restaurant access uses the Day Panel V2 frame, ribbon, cash and calendar icons, progress sprites, and action artwork. Fast Food and Fine Dining previews are rendered from the scene's existing FBX models.
+- Reuses the existing panel transition and button feedback, with a short ribbon pop that respects reduced motion. Purchase, eligibility, and save flows continue to supply panel state.
+- Static art reference and transparency checks passed. Unity compilation and Play Mode layout, safe areas, reduced motion, and purchase interaction are unverified.
