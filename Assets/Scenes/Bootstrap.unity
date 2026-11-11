@@ -223,7 +223,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fe6b868bab47164ca21db43cbc1a1ea, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  firstSceneToLoad: NewMainMenu
+  firstSceneToLoad: LoreIntro
   bootstrapLoadingScreen: {fileID: 0}
   menuSceneName: NewMainMenu
   gameplaySceneName: Multiplayer

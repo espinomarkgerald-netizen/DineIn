@@ -20,6 +20,7 @@ public static class VerifiedAndroidBuild
     private static readonly string[] AndroidScenes =
     {
         "Assets/Scenes/Bootstrap.unity",
+        "Assets/Scenes/LoreIntro.unity",
         "Assets/_Project/Scenes/NewMenu/NewMainMenu.unity",
         "Assets/_Project/Scenes/NewMenu/NewGameMenu.unity",
         "Assets/_Project/Scenes/RoleBased/Lobby1.unity",
