@@ -190,6 +190,8 @@ public static class ManagementComputerSmokeTest
             Button appButton = GetAppButton(responsive, i);
             Assert(appButton != null && appButton.interactable,
                 "App button " + i + " is missing or not interactable");
+            if (i == (int)ManagementComputerApp.Staff)
+                VerifyCasualDiningRosterRestoreUnlocksStaff(EmployeeManager.Instance);
             appButton.onClick.Invoke();
             Canvas.ForceUpdateCanvases();
             LayoutRebuilder.ForceRebuildLayoutImmediate(controller.AppWindow.Content);
@@ -360,6 +362,15 @@ public static class ManagementComputerSmokeTest
         GameDayManager.Instance.StartShift();
         Assert(GameDayManager.Instance.ServiceActive,
             "The day intro Play action did not allow restaurant service to start");
+        EmployeeManager employees = EmployeeManager.Instance;
+        Assert(employees != null && employees.SlotsLocked,
+            "Starting restaurant service did not lock staff decisions for the shift");
+        EmployeeData applicantDuringShift = employees.allEmployees.Find(employee =>
+            employee != null && !employee.hired);
+        Assert(applicantDuringShift != null,
+            "No applicant was available to verify the active-shift staff lock");
+        Assert(!employees.HireApplicant(applicantDuringShift),
+            "An applicant was hired after restaurant service started");
 
         if (!propagationProductWasAvailable)
             MenuAvailabilityManager.Instance.SetProductAvailable(propagationProduct, false);
@@ -374,6 +385,25 @@ public static class ManagementComputerSmokeTest
             if (item != null && inventory.GetStock(item.itemType) <= 0)
                 inventory.AddStock(item.itemType, Mathf.Max(1, item.unitsPerBox));
         }
+    }
+
+    private static void VerifyCasualDiningRosterRestoreUnlocksStaff(EmployeeManager manager)
+    {
+        Assert(manager != null, "EmployeeManager missing for the post-tutorial staff-lock regression");
+        GameDayManager dayManager = GameDayManager.Instance;
+        Assert(dayManager != null && !dayManager.ServiceActive && !MultiplayerRestaurantBridge.IsActive &&
+               !GameSaveManager.IsPersistenceSuspended,
+            "Post-tutorial staff-lock regression requires solo pre-shift roster restoration");
+
+        GameSaveData roster = new GameSaveData();
+        manager.FillSaveData(roster);
+        FieldInfo lockField = typeof(EmployeeManager).GetField(
+            "<SlotsLocked>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert(lockField != null, "EmployeeManager staff-lock field could not be resolved for regression setup");
+        lockField.SetValue(manager, true);
+        manager.ApplySaveData(roster);
+        Assert(!manager.SlotsLocked,
+            "Restoring the Casual Dining pre-shift roster retained a stale tutorial staff lock");
     }
 
     private static void VerifyRealPointerClick(

@@ -15,6 +15,13 @@ public sealed class FastFoodCookingTicketView : MonoBehaviour
     [Min(.01f)] public float progressSmoothSeconds=.18f;
     float progressTarget,progressVelocity;
     bool progressInitialized;
+    internal void HideCountdown()
+    {
+        timer.enabled = false;
+        var titleRect = title.rectTransform;
+        titleRect.anchorMax = new Vector2(timer.rectTransform.anchorMax.x, titleRect.anchorMax.y);
+    }
+
     public void SetProgress(float value)
     {
         progressTarget=Mathf.Clamp01(value);

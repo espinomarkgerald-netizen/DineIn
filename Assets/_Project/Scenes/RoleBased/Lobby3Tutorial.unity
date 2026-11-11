@@ -230201,7 +230201,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  padding: {x: 8, y: 8}
+  padding: {x: 0, y: 0}
   focusColor: {r: 1, g: 0.8, b: 0.15, a: 1}
   borderWidth: 5
   transitionDuration: 0.24

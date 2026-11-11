@@ -176,6 +176,7 @@ public sealed class TutorialSystem : MonoBehaviour
     private RectTransform ExternalWorldFocusProxy => IsFineDining ? FineDiningTutorialBridge.Instance?.WorldFocusProxy : FastFoodTutorialBridge.Instance?.WorldFocusProxy;
     private bool ExternalDragging => IsFineDining ? FineDiningTutorialBridge.Instance?.Dragging == true : FastFoodTutorialBridge.Instance?.Dragging == true;
     private bool ExternalFreeNavigation => IsFineDining ? FineDiningTutorialBridge.Instance?.FreeNavigation == true : FastFoodTutorialBridge.Instance?.FreeNavigation == true;
+    private bool SeatingCameraOwnsFraming => IsFineDining && FineDiningTutorialBridge.Instance?.OwnsSeatingCamera == true;
     private string ExternalFocusGroup => IsFineDining ? FineDiningTutorialBridge.Instance?.FocusGroup : FastFoodTutorialBridge.Instance?.FocusGroup;
     private string ExternalTravelKey => IsFineDining ? FineDiningTutorialBridge.Instance?.TravelKey : FastFoodTutorialBridge.Instance?.TravelKey;
     private RectTransform ResolveExternalUI(string key) => IsFineDining ? FineDiningTutorialBridge.Instance?.ResolveUI(key) : FastFoodTutorialBridge.Instance?.ResolveUI(key);
@@ -929,7 +930,7 @@ public sealed class TutorialSystem : MonoBehaviour
             uiFocusMask?.PrepareGroup(ExternalFocusGroup);
             var candidate = ResolveExternalUI(step.UITargetKey);
             var worldCandidate = ResolveExternalWorld(step.WorldTargetKey);
-            if (worldCandidate != null && (IsFineDining || ExternalTravelKey != null) && cameraController != null &&
+            if (!SeatingCameraOwnsFraming && worldCandidate != null && (IsFineDining || ExternalTravelKey != null) && cameraController != null &&
                 cameraController.isActiveAndEnabled && cameraController.Cam != null && !TargetVisible(worldCandidate, 0f) && !framedWorld)
             {
                 framedWorld = true;
@@ -1125,6 +1126,7 @@ public sealed class TutorialSystem : MonoBehaviour
 
     private Transform WorldFramingTarget()
     {
+        if (SeatingCameraOwnsFraming) return null;
         if (currentWorldFocus != null && !(currentWorldFocus is RectTransform)) return currentWorldFocus;
         Canvas canvas = currentUIFocus != null ? currentUIFocus.GetComponentInParent<Canvas>() : null;
         return canvas != null && canvas.renderMode == RenderMode.WorldSpace ? currentUIFocus : null;
@@ -1471,7 +1473,7 @@ public sealed class TutorialSystem : MonoBehaviour
             task != null && currentWorldFocus != null &&
                 (task is Component component && TargetsMatch(currentWorldFocus, component.transform) ||
                  task.StandPoint != null && TargetsMatch(currentWorldFocus, task.StandPoint)));
-        moving &= intended;
+        moving &= intended && !SeatingCameraOwnsFraming;
         if (!moving)
         {
             if (travelling)

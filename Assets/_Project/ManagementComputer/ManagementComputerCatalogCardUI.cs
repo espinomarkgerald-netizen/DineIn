@@ -7,6 +7,9 @@ using UnityEngine.UI;
 /// <summary>Editable portrait card shared by the Menu and Restock apps.</summary>
 public sealed class ManagementComputerCatalogCardUI : MonoBehaviour
 {
+    private static readonly System.Text.RegularExpressions.Regex PackCountSuffix =
+        new System.Text.RegularExpressions.Regex(@"\s+[xX×]\s*[0-9]+\s*$");
+
     [SerializeField] private Image background;
     [SerializeField] private Button cardButton;
     [SerializeField] private Image icon;
@@ -167,7 +170,7 @@ public sealed class ManagementComputerCatalogCardUI : MonoBehaviour
         ApplyRestockReadability();
         SetIcon(item != null ? item.sprite : null);
         SetText(titleText, item != null
-            ? $"{item.displayName} ×{Mathf.Max(1, item.unitsPerBox)}"
+            ? $"{PackCountSuffix.Replace(item.displayName ?? string.Empty, string.Empty)} ×{Mathf.Max(1, item.unitsPerBox)}"
             : "Missing item");
         SetText(metaText, item != null
             ? $"{Mathf.Max(1, item.unitsPerBox)} units • {item.requiredStorage}"

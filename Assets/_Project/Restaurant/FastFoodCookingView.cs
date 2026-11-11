@@ -291,7 +291,8 @@ public sealed partial class FastFoodCookingView : MonoBehaviour
         if(drag==null && signature!=lastSignature) { lastSignature=signature; RebuildControls(p,t); }
         foreach(var entry in ticketLabels)
         {
-            entry.view.timer.text=string.Format(entry.view.timerFormat,TimeLabel(State.deadlineSeconds-entry.ticket.elapsed),entry.ticket.player?entry.view.playerText:entry.ticket.portions.Any(x=>x.stage!=FastFoodCookingStage.Complete)?entry.view.waitingText:entry.view.preparingText);
+            if (entry.view.timer.enabled)
+                entry.view.timer.text=string.Format(entry.view.timerFormat,TimeLabel(State.deadlineSeconds-entry.ticket.elapsed),entry.ticket.player?entry.view.playerText:entry.ticket.portions.Any(x=>x.stage!=FastFoodCookingStage.Complete)?entry.view.waitingText:entry.view.preparingText);
             entry.view.SetProgress((float)entry.ticket.portions.Count(x=>x.placed)/Mathf.Max(1,entry.ticket.portions.Count));
         }
         foreach(var entry in ticketProducts)
@@ -315,7 +316,14 @@ public sealed partial class FastFoodCookingView : MonoBehaviour
                 slot.count.text=string.Format(slot.stockFormat,slot.item.displayName,units);
             }
     }
-    private static string TimeLabel(float seconds) { int s=Mathf.CeilToInt(Mathf.Max(0,seconds)); return (s/60)+":"+(s%60).ToString("00"); }
+    private static bool CanShowCountdown(float seconds) => seconds < int.MaxValue && !float.IsNegativeInfinity(seconds);
+
+    private static string TimeLabel(float seconds)
+    {
+        if (!CanShowCountdown(seconds)) return "—";
+        int roundedSeconds = Mathf.CeilToInt(Mathf.Max(0, seconds));
+        return (roundedSeconds / 60) + ":" + (roundedSeconds % 60).ToString("00");
+    }
     private void Clear(Transform parent) { foreach(Transform child in parent) { child.gameObject.SetActive(false); Destroy(child.gameObject); } }
     private GameObject SpawnVisual(GameObject template, Transform anchor, bool draggable=false, FastFoodCookingState.Portion portion=null)
     {
@@ -370,6 +378,7 @@ public sealed partial class FastFoodCookingView : MonoBehaviour
         card.entranceDelay=LevelOneUIAccessibility.ReducedMotion?Mathf.Min(.08f,enterAfter):enterAfter;
         card.gameObject.SetActive(true);
         card.title.text=string.Format(card.titleFormat,ticket.number,card.playerText);
+        if (!CanShowCountdown(State.deadlineSeconds)) card.HideCountdown();
         foreach(var group in ticket.portions.GroupBy(x=>x.recipe))
         {
             var product=Instantiate(card.productTemplate,card.products);product.gameObject.SetActive(true);

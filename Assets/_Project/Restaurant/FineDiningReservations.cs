@@ -496,10 +496,25 @@ public sealed partial class FineDiningReservations : MonoBehaviour
     /// <summary>Prepares a request, never accepts it. The player still uses the real reservation panel.</summary>
     public FineDiningBooking PrepareTutorialBooking(string guestName, int size)
     {
-        if (!IsTutorialScene || dayManager == null || parties.Values.Any(party => party != null)) return null;
-        var table = tables?.Where(candidate => candidate != null && candidate.Usable && candidate.Capacity >= size)
-            .OrderBy(candidate => candidate.Capacity).FirstOrDefault();
-        if (table == null || size < 1) return null;
+        if (!IsTutorialScene || dayManager == null || size < 1 || parties.Values.Any(party => party != null)) return null;
+
+        // The waiting area component lives on the service bindings object.
+        Vector3 waitingCenter = Vector3.zero;
+        int approachCount = 0;
+        foreach (var seat in waitingArea?.seats ?? Array.Empty<FineDiningWaitingArea.Seat>())
+        {
+            if (seat?.approach == null) continue;
+            waitingCenter += seat.approach.position;
+            approachCount++;
+        }
+        if (approachCount > 0) waitingCenter /= approachCount;
+
+        var table = tables?.Where(candidate => candidate != null && candidate.Usable &&
+                candidate.Capacity >= size && candidate.booth.IsAvailableFor(size))
+            .OrderBy(candidate => approachCount > 0
+                ? (candidate.booth.approachPoint.position - waitingCenter).sqrMagnitude : 0f)
+            .ThenBy(candidate => candidate.Capacity).FirstOrDefault();
+        if (table == null) return null;
         state = new FineDiningReservationSave
         {
             day = GameFlowManager.Instance != null ? GameFlowManager.Instance.CurrentDay : 1,

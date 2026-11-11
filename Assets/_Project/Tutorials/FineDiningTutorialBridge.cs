@@ -128,7 +128,9 @@ public sealed class FineDiningTutorialBridge : MonoBehaviour
     private Renderer[] tableFocusRenderers;
     private bool seatingCameraActive;
     private Transform seatingCameraTarget;
+    private bool seatingCameraIncludesParty;
     private float seatingOriginalZoom;
+    internal bool OwnsSeatingCamera => seatingCameraActive;
     private static int retryChapter = -1;
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetSession() { Instance = null; retryChapter = -1; }
@@ -139,6 +141,16 @@ public sealed class FineDiningTutorialBridge : MonoBehaviour
     private bool HoldingLessonTray => Hands != null && Hands.holdingTray != null && Hands.holdingTray.TargetGroup == party;
     private bool SelectingTable => party != null && ManagerPlayer.Active != null &&
         ManagerPlayer.Active.GetComponent<RoleBasedAssignController>()?.IsSelectingBooth(party) == true;
+
+    private Booth ReservedSeatingBooth
+    {
+        get
+        {
+            string tableId = booking?.tableId;
+            return string.IsNullOrEmpty(tableId) ? null :
+                reservations.tables?.FirstOrDefault(table => table != null && table.tableId == tableId)?.booth;
+        }
+    }
 
     private void Awake()
     {
@@ -224,6 +236,7 @@ public sealed class FineDiningTutorialBridge : MonoBehaviour
         int index = tutorial.CurrentStepIndex;
         if (index < 0 || index >= lessons.Length || lessons[index].id != step.Id)
         { Fail("This lesson's setup is incomplete. Retry the chapter."); return; }
+        if (lessons[index].action != ActionKind.SeatReservation) RestoreSeatingCamera();
         current = lessons[index];
         passiveElapsed = 0;
         ClearWaitingStatus();
@@ -394,18 +407,7 @@ public sealed class FineDiningTutorialBridge : MonoBehaviour
     {
         if (!Initialized || current?.action != ActionKind.SeatReservation || party == null ||
             cameraController == null || leaving || resetPending || failure != null || LobbyPauseMenu.IsAnyOpen) return;
-        if (SelectingTable && booking != null)
-        {
-            var table = reservations.tables?.FirstOrDefault(t => t != null && t.tableId == booking.tableId);
-            if (table?.booth == null) return;
-            BeginSeatingCamera();
-            if (seatingCameraTarget != table.booth.transform)
-            {
-                seatingCameraTarget = table.booth.transform;
-                cameraController.CenterOnWorldPoint(TutorialWorldTargetGeometry.Center(seatingCameraTarget));
-            }
-        }
-        else if (party.HasBeenAssigned && !party.TutorialSeated)
+        if (party.HasBeenAssigned && !party.TutorialSeated)
         {
             BeginSeatingCamera();
             // Follow the customers still walking, rather than the player left at the service point.
@@ -416,12 +418,67 @@ public sealed class FineDiningTutorialBridge : MonoBehaviour
                 { center += member.transform.position; count++; }
             if (count > 0) cameraController.CenterOnWorldPoint(center / count);
         }
-        else if (!party.HasBeenAssigned) seatingCameraTarget = null;
+        else if (!party.HasBeenAssigned)
+        {
+            bool selecting = SelectingTable;
+            bool seatPromptReady = tutorial.IsWaitingForGameplayAction && !tutorial.IsGuidedTravelActive &&
+                party.hasBeenGreeted && party.CanBeSeated && party.ReadyForReceptionInteraction;
+            if (!selecting && !seatPromptReady)
+            {
+                RestoreSeatingCamera();
+                return;
+            }
+
+            var booth = ReservedSeatingBooth;
+            if (booth == null)
+            {
+                RestoreSeatingCamera();
+                return;
+            }
+            FocusSeatingTable(booth.transform, includeParty: !selecting);
+        }
     }
+
+    private void FocusSeatingTable(Transform table, bool includeParty)
+    {
+        var camera = cameraController.Cam;
+        // The rig clamps its pan using the current zoom while the lens settles.
+        // Reissue the destination during that move so a temporary clamp cannot strand it.
+        bool zoomSettled = camera == null ||
+            Mathf.Abs(camera.orthographicSize - cameraController.GetTargetOrthographicSize()) < .01f;
+        if (seatingCameraTarget == table && seatingCameraIncludesParty == includeParty &&
+            cameraController.FollowSuspended && zoomSettled) return;
+        seatingCameraTarget = table;
+        seatingCameraIncludesParty = includeParty;
+        BeginSeatingCamera();
+
+        Vector3 tableCenter = TutorialWorldTargetGeometry.Center(table);
+        Vector3 center = tableCenter;
+        if (includeParty && party.UIAnchor != null && camera != null)
+        {
+            // Keep the reception action in view until the player enters table selection.
+            Vector3 separation = party.UIAnchor.position - tableCenter;
+            center += separation * .5f;
+            float horizontal = Mathf.Abs(Vector3.Dot(separation, camera.transform.right)) / camera.aspect;
+            float vertical = Mathf.Abs(Vector3.Dot(separation, camera.transform.up));
+            float fitSize = Mathf.Max(horizontal, vertical) * .8f;
+            cameraController.SetTargetOrthographicSize(Mathf.Max(seatingOriginalZoom * seatingCameraZoom, fitSize));
+        }
+        cameraController.CenterOnWorldPoint(center);
+    }
+
     private void BeginSeatingCamera()
     {
         if (!seatingCameraActive)
-        { seatingOriginalZoom = cameraController.GetTargetOrthographicSize(); seatingCameraActive = true; }
+            seatingOriginalZoom = cameraController.GetTargetOrthographicSize();
+
+        if (!seatingCameraActive || !cameraController.FollowSuspended)
+        {
+            // Accepting a task resumes player follow and can leave a deferred follow request.
+            cameraController.StopFollowing();
+            cameraController.SetFollowSuspended(true);
+        }
+        seatingCameraActive = true;
         cameraController.SetTargetOrthographicSize(seatingOriginalZoom * seatingCameraZoom);
     }
     private void RestoreSeatingCamera()
@@ -485,7 +542,7 @@ public sealed class FineDiningTutorialBridge : MonoBehaviour
             case "Reservation:Panel": return Panel != null ? Panel.transform as RectTransform : null;
             case "Computer:Exit": return bindings?.ResolveUI("ManagementExit");
             case "Drink:Order":
-                return PlayerTaskBubbleFocus.GuidanceTarget(party);
+                return ResolveTaskButton(party);
             case "Drink:Quantity": return Checklist?.TutorialReviewOpen == true
                 ? Checklist.TutorialReviewBackTarget
                 : Checklist?.TutorialQuantityTarget(Runtime(drink)) ?? Checklist?.TutorialCheckOrderTarget;
@@ -496,11 +553,23 @@ public sealed class FineDiningTutorialBridge : MonoBehaviour
             case "Pour:Pitcher": return reservations.PourUI?.IsOpen == true ? reservations.PourUI.TutorialBottleRect : null;
             case "Pour:Line": return reservations.PourUI?.IsOpen == true ? reservations.PourUI.TutorialTargetMarkerRect : null;
             case "Pour:Glass": return reservations.PourUI?.IsOpen == true ? reservations.PourUI.TutorialGlassRect : null;
-            case "World:Party": return SelectingTable ? null : PlayerTaskBubbleFocus.GuidanceTarget(party);
-            case "World:Bar": return current.action == ActionKind.PickUpDrink ? PlayerTaskBubbleFocus.GuidanceTarget(PreparedTray) : null;
+            case "World:Party":
+                if (SelectingTable) return null;
+                return current.action == ActionKind.SeatReservation
+                    ? ResolveTaskButton(party) : PlayerTaskBubbleFocus.GuidanceTarget(party);
+            case "World:Bar":
+                return current.action == ActionKind.PickUpDrink ? ResolveTaskButton(PreparedTray) : null;
             default: return null;
         }
     }
+
+    private static RectTransform ResolveTaskButton(UnityEngine.Object task)
+    {
+        // The focus component sits on the floating bubble, whose size can differ from the skinned button.
+        var bubble = PlayerTaskBubbleFocus.GuidanceTarget(task);
+        return bubble != null ? bubble.GetComponentInChildren<Button>()?.transform as RectTransform : null;
+    }
+
     public bool TryGetTargetBounds(Transform target, out Bounds bounds, out Transform space)
     {
         bounds = default;
@@ -579,8 +648,8 @@ public sealed class FineDiningTutorialBridge : MonoBehaviour
             case "World:Party":
             case "World:TableNumber":
             case "Drink:Order":
-                if (SelectingTable && booking != null)
-                    return reservations.tables.FirstOrDefault(t => t != null && t.tableId == booking.tableId)?.booth?.transform;
+                if (SelectingTable && current.action == ActionKind.SeatReservation)
+                    return ReservedSeatingBooth?.transform;
                 return party != null ? party.assignedBooth != null ? party.assignedBooth.transform : party.UIAnchor : null;
             case "Pour:Glass": return reservations.PourUI?.IsOpen == true ? reservations.PourUI.TutorialGlassRect : null;
             default: return null;

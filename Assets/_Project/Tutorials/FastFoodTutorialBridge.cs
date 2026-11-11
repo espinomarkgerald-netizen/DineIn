@@ -100,6 +100,8 @@ public sealed class FastFoodTutorialBridge : MonoBehaviour
     private TutorialSceneBindings bindings;
     private ManagementComputerCatalogPanelUI cartPanel;
     private RestockTruckInteractable deliveryTruck;
+    private MainCameraController deliveryArrivalCamera;
+    private bool deliveryPanStarted;
     private RestockStockRoomEntrance freezerEntrance;
     private RestockFlowHUD restockHUD;
     private RestockOrderSaveData purchasedOrder;
@@ -379,7 +381,13 @@ public sealed class FastFoodTutorialBridge : MonoBehaviour
         {
             // Count only time actually spent awaiting the parked truck, not time reading or paused.
             waitingSeconds += Time.deltaTime;
-            if (waitingSeconds > dependencyAllowance) { Fail("The delivery truck could not arrive. Retry this chapter."); return; }
+            if (waitingSeconds > dependencyAllowance)
+            {
+                Fail(Truck != null && Truck.IsParked
+                    ? "The delivery view could not open. Retry this chapter."
+                    : "The delivery truck could not arrive. Retry this chapter.");
+                return;
+            }
         }
         if (current.action == ActionKind.Freezer && RestockFlowCoordinator.Instance?.IsTransitioning == true)
         {
@@ -420,7 +428,7 @@ public sealed class FastFoodTutorialBridge : MonoBehaviour
             case ActionKind.Discard: return p != null && p.stage == FastFoodCookingStage.Waiting && p.slot < 0;
             case ActionKind.RestockOpen: return computerTravelRequested && Computer != null && Computer.IsOpen;
             case ActionKind.Purchase: return PurchaseSatisfied();
-            case ActionKind.Delivery: return purchasedOrder != null && purchasedOrder.state == RestockOrderState.Delivered && Truck != null && Truck.IsParked;
+            case ActionKind.Delivery: return TryFrameArrivedDelivery();
             case ActionKind.Truck: return CollectionControl != null;
             case ActionKind.CollectDelivery: return purchasedOrder != null && purchasedOrder.state == RestockOrderState.Collected &&
                 RestockOrderManager.Instance.GetHotbarContainerCount(restockItem.requiredStorage) == 1;
@@ -583,6 +591,12 @@ public sealed class FastFoodTutorialBridge : MonoBehaviour
             space = target;
             bounds = new Bounds(target.InverseTransformPoint(grid.GetCellWorldPosition(restockColumn, restockRow)),
                 new Vector3(grid.cellWidth, .02f, grid.cellDepth));
+            return true;
+        }
+        if (current?.action == ActionKind.Truck && deliveryTruck != null && target == deliveryTruck.transform &&
+            deliveryTruck.TryGetVisibleBounds(out bounds))
+        {
+            space = null;
             return true;
         }
         return view.TryTutorialBounds(target, current?.action == ActionKind.Place ? PlacementPortion() : null, out bounds, out space);
@@ -837,6 +851,46 @@ public sealed class FastFoodTutorialBridge : MonoBehaviour
             button.interactable = required != null && button.transform == required;
         }
     }
+    private bool TryFrameArrivedDelivery()
+    {
+        if (purchasedOrder == null || purchasedOrder.state != RestockOrderState.Delivered ||
+            Computer?.IsOpen == true || view.IsOpen) return false;
+
+        var truck = Truck;
+        if (truck == null || !truck.IsParked || !truck.HasReadyDelivery) return false;
+
+        if (deliveryArrivalCamera == null)
+            deliveryArrivalCamera = FindObjectsByType<MainCameraController>(FindObjectsSortMode.None)
+                .FirstOrDefault(controller => controller.gameObject.scene == gameObject.scene && controller.isActiveAndEnabled);
+        var rig = deliveryArrivalCamera;
+        var camera = rig != null ? rig.Cam : null;
+        if (camera == null || !rig.isActiveAndEnabled || !camera.isActiveAndEnabled) return false;
+
+        if (!deliveryPanStarted)
+        {
+            deliveryPanStarted = true;
+            bool snap = LevelOneUIAccessibility.ReducedMotion;
+            rig.StopFollowing();
+            Vector3 center = truck.transform.position;
+            if (truck.TryGetVisibleBounds(out Bounds bounds))
+            {
+                center = bounds.center;
+                float halfWidth = Vector3.Dot(bounds.extents, AbsComponents(camera.transform.right));
+                float halfHeight = Vector3.Dot(bounds.extents, AbsComponents(camera.transform.up));
+                float fitSize = Mathf.Max(halfWidth / camera.aspect, halfHeight) * 1.15f;
+                rig.SetTargetOrthographicSize(Mathf.Max(rig.GetTargetOrthographicSize(), fitSize), snap);
+            }
+            rig.CenterOnWorldPoint(center, snap);
+        }
+
+        // The truck step opens the spotlight once the camera reaches its new framing.
+        return (rig.transform.position - rig.GetRigTargetPosition()).sqrMagnitude < .01f &&
+            Mathf.Abs(camera.orthographicSize - rig.GetTargetOrthographicSize()) < .1f;
+    }
+
+    private static Vector3 AbsComponents(Vector3 value) =>
+        new Vector3(Mathf.Abs(value.x), Mathf.Abs(value.y), Mathf.Abs(value.z));
+
     private void PrepareRestock()
     {
         // This runs only after TutorialDayContext has captured the career and
@@ -847,6 +901,7 @@ public sealed class FastFoodTutorialBridge : MonoBehaviour
         restockItem = FastFoodCookingState.Steps(Runtime(fries))[0].item;
         Computer?.CloseComputer(); // Only the disposable tutorial's scene-local cart.
         cartPanel = null; purchasedOrder = null; computerTravelRequested = false;
+        deliveryPanStarted = false;
         InventoryManager.Instance.ResetStock();
         RestockOrderManager.EnsureInstance().ApplySaveData(new GameSaveData());
         var purchasing = new GameSaveData { currentDay = 1, currentPhase = 0,

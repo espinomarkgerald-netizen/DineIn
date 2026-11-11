@@ -967,9 +967,16 @@ public sealed partial class ManagementComputerController : MonoBehaviour, IPoint
         panel.Bind(manager, editable);
         panel.GetComponent<UIRevealAnimation>()?.Play();
 
+        string lockMessage = IsShiftActive
+            ? "HR decisions are locked while the shift is running."
+            : manager.SlotsLocked
+                ? "Staff decisions are locked until the next preparation phase."
+                : MultiplayerRestaurantBridge.IsActive && MultiplayerRestaurantBridge.IsObserver
+                    ? "Only the host can manage staff."
+                    : "Staff management is temporarily unavailable.";
         appWindow.SetMessage(editable
             ? "Hire applicants within each role's shown limit. Choose your active staff before opening."
-            : "HR decisions are locked while the shift is running.");
+            : lockMessage);
     }
 
     private void PopulateMenu()

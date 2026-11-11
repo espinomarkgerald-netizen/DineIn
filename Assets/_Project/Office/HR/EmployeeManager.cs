@@ -389,10 +389,12 @@ public class EmployeeManager : MonoBehaviour
         if (data?.employees == null)
             return;
 
-        // Campaign loads resume preparation. Do not carry a prior scene or tutorial
-        // slot lock into this restaurant, or alter disposable/network restoration.
-        if ((CampaignSaveStore.IsFastFood || CampaignSaveStore.IsFineDining) &&
-            !GameSaveManager.IsPersistenceSuspended && !MultiplayerRestaurantBridge.IsActive)
+        // A restored solo roster resumes preparation in every restaurant. The
+        // staff lock is transient and must not leak out of a tutorial or prior
+        // scene; preserve active-shift and disposable/network locks.
+        if (!GameSaveManager.IsPersistenceSuspended &&
+            !MultiplayerRestaurantBridge.IsActive &&
+            (GameDayManager.Instance == null || !GameDayManager.Instance.ServiceActive))
             SlotsLocked = false;
         allEmployees.Clear();
         foreach (EmployeeSaveEntry entry in data.employees)
