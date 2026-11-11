@@ -318,6 +318,7 @@ public class WalletUIController : MonoBehaviour
     /// <summary>Wire to the button/toggle that opens the wallet or shop panel.</summary>
     public void OpenWalletOrShopPanel()
     {
+        if (DeveloperPracticeSession.IsActive) return;
         ShowPanel();
 
         if (PlayFabWalletManager.Instance == null)

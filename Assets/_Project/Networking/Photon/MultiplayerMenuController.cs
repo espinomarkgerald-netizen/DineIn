@@ -205,6 +205,7 @@ public partial class MultiplayerMenuController : MonoBehaviourPunCallbacks
 
     private void Begin(bool create, string code, bool rejoin = false)
     {
+        if (DeveloperPracticeSession.IsActive) { SetStatus("Exit Practice before joining multiplayer."); return; }
         if (abandoningOperation) { SetStatus("Finishing the previous request. Please retry shortly."); return; }
         if (busy || starting) return;
         if (!CampaignCloudSync.CanEnterGameplay()) return;

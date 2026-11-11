@@ -159,6 +159,7 @@ public class SceneLoader : MonoBehaviour
     {
         operation = null;
         string path = ScenePath(sceneName);
+        if (!DeveloperPracticeSession.AllowsScene(System.IO.Path.GetFileNameWithoutExtension(path), mode)) return false;
         if (HasPendingLoad || (!reload && IsSceneLoaded(path))) return false;
         if (string.IsNullOrEmpty(path) || !Application.CanStreamedLevelBeLoaded(path))
         { Debug.LogError($"[SceneLoader] Scene '{sceneName}' is not available in the active build profile."); return false; }
@@ -204,6 +205,7 @@ public class SceneLoader : MonoBehaviour
 
     private void RequestLoad(string sceneName, bool reload = false)
     {
+        if (!DeveloperPracticeSession.AllowsScene(System.IO.Path.GetFileNameWithoutExtension(sceneName), LoadSceneMode.Single)) return;
         if (Debug.isDebugBuild)
             Debug.Log($"[SceneLoader] requestedScene={sceneName} currentActiveScene={SceneManager.GetActiveScene().name} currentlyLoading={isLoading || HasPendingLoad} pendingScene={pendingScene} requestSource={new System.Diagnostics.StackTrace(1, false)} frame={Time.frameCount} loadGeneration={loadGeneration}");
         if (isLoading || HasPendingLoad || (!reload && IsSceneLoaded(sceneName))) return;

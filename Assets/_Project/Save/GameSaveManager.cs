@@ -235,6 +235,7 @@ public class GameSaveManager : MonoBehaviour
 
     public bool CommitRestaurantResults()
     {
+        if (DeveloperPracticeSession.IsActive) return IsPersistenceSuspended;
         if (!CampaignSaveStore.RuntimeCampaign || IsApplyingSave || !HasCompletedInitialLoad) return false;
 #if UNITY_EDITOR
         if (SuppressWritesForTests) return true;

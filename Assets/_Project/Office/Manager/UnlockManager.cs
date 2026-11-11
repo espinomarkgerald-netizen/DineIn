@@ -123,7 +123,7 @@ public class UnlockManager : MonoBehaviour
         unlockedRecipes.Clear();
         unlockedEquipment.Clear();
         bool restoreRestaurantIngredients = !CampaignSaveStore.ProtectedSession || MultiplayerProgressionContext.IsActive
-            || MultiplayerProgressionContext.RestorationInProgress;
+            || MultiplayerProgressionContext.RestorationInProgress || DeveloperPracticeSession.IsActive;
         if (restoreRestaurantIngredients) unlockedIngredients.Clear();
         unlockedKitchenItems.Clear();
 

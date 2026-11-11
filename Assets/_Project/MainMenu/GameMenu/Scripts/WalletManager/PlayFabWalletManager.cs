@@ -279,6 +279,11 @@ public partial class PlayFabWalletManager : MonoBehaviour
     /// Never retry an uncertain purchase automatically; refresh inventory to recover its entitlement.</summary>
     public void TryPurchaseCostume(ShopItemData item, int confirmedPrice, Action onSuccess, Action<string> onFailure)
     {
+        if (DeveloperPracticeSession.IsActive)
+        {
+            onFailure?.Invoke("Shop purchases are unavailable during practice.");
+            return;
+        }
         var costume = item == null ? null : DineIn.Appearance.AppearanceCatalog.Find(
             DineIn.Appearance.AppearanceCatalog.Load()?.costumes, item.cosmeticUnlockId);
         if (item == null || item.category != ShopCategory.Cosmetic || item.price <= 0 ||
@@ -372,6 +377,11 @@ public partial class PlayFabWalletManager : MonoBehaviour
     /// </summary>
     public void TrySpendGoldCoins(int amount, Action onSuccess, Action<string> onFailure)
     {
+        if (DeveloperPracticeSession.IsActive)
+        {
+            onFailure?.Invoke("Gold Coins are unavailable during practice.");
+            return;
+        }
         if (amount <= 0)
         {
             onFailure?.Invoke("Invalid Gold Coin amount.");

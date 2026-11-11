@@ -20,6 +20,9 @@ public sealed class CameraWindowTransparency : MonoBehaviour
 
     [Tooltip("Also fade when the pointer is over this wall or divider.")]
     [SerializeField] private bool fadeOnPointer;
+    [Tooltip("Use only sightlines to a 3 by 3 grid inside this transform's local XZ footprint.")]
+    [SerializeField] private bool useRestaurantSightlines;
+    [SerializeField] private Transform restaurantSightlineGrid;
 
     [Header("Opacity")]
     [Tooltip("Alpha while the player is nearby or obscured, in 0-255 units.")]
@@ -34,6 +37,7 @@ public sealed class CameraWindowTransparency : MonoBehaviour
     private Material[][] transparentMaterials;
     private bool faded;
     private float currentAlpha;
+    private bool usingTransparentMaterials;
 
     private void Awake()
     {
@@ -45,18 +49,30 @@ public sealed class CameraWindowTransparency : MonoBehaviour
         CacheMaterials();
         faded = false;
         currentAlpha = Mathf.Clamp01(opaqueAlpha / 255f);
-        for (int i = 0; i < renderers.Length; i++)
-            if (renderers[i] != null) renderers[i].sharedMaterials = transparentMaterials[i];
+        SetTransparentMaterials(!useRestaurantSightlines);
         ApplyOpacity(currentAlpha);
     }
 
     private void LateUpdate()
     {
         Camera cameraToUse = targetCamera != null ? targetCamera : Camera.main;
-        if (cameraToUse == null || renderers == null || renderers.Length == 0)
+        if (renderers == null || renderers.Length == 0)
             return;
 
-        bool shouldFade = false;
+        if (useRestaurantSightlines)
+        {
+            UpdateOpacity(cameraToUse != null && BlocksRestaurant(cameraToUse));
+            return;
+        }
+
+        if (cameraToUse == null)
+            return;
+
+        UpdateOpacity(ShouldFadeWindow(cameraToUse));
+    }
+
+    private bool ShouldFadeWindow(Camera cameraToUse)
+    {
         Transform focus = player != null ? player : ManagerPlayer.Active != null ? ManagerPlayer.Active.transform : null;
 
         for (int i = 0; i < renderers.Length; i++)
@@ -70,8 +86,7 @@ public sealed class CameraWindowTransparency : MonoBehaviour
                 renderer.bounds.IntersectRay(cameraToUse.ScreenPointToRay(Input.mousePosition));
             if (pointerOver || OverlapsCameraCentre(cameraToUse, renderer.bounds))
             {
-                shouldFade = true;
-                break;
+                return true;
             }
             if (focus == null) continue;
 
@@ -87,20 +102,65 @@ public sealed class CameraWindowTransparency : MonoBehaviour
             bool obscuresPlayer = bounds.IntersectRay(sight, out float hitDistance) && hitDistance < targetDistance;
             if (distance <= playerWorkDistance + (faded ? restorePadding : 0f) || obscuresPlayer)
             {
-                shouldFade = true;
-                break;
+                return true;
             }
         }
 
+        return false;
+    }
+
+    private bool BlocksRestaurant(Camera cameraToUse)
+    {
+        if (!cameraToUse.isActiveAndEnabled || restaurantSightlineGrid == null ||
+            !restaurantSightlineGrid.gameObject.activeInHierarchy)
+            return false;
+
+        for (int x = -1; x <= 1; x++)
+        for (int z = -1; z <= 1; z++)
+        {
+            Vector3 target = restaurantSightlineGrid.TransformPoint(new Vector3(x * 0.4f, 0f, z * 0.4f));
+            Vector3 viewport = cameraToUse.WorldToViewportPoint(target);
+            if (viewport.z <= cameraToUse.nearClipPlane || viewport.z > cameraToUse.farClipPlane ||
+                viewport.x < 0f || viewport.x > 1f || viewport.y < 0f || viewport.y > 1f)
+                continue;
+
+            Ray sight = cameraToUse.ViewportPointToRay(viewport);
+            float targetDistance = Vector3.Dot(target - sight.origin, sight.direction);
+            foreach (Renderer renderer in renderers)
+            {
+                if (renderer != null && renderer.enabled && renderer.gameObject.activeInHierarchy &&
+                    renderer.bounds.IntersectRay(sight, out float hitDistance) &&
+                    hitDistance >= 0f && hitDistance < targetDistance)
+                    return true;
+            }
+        }
+        return false;
+    }
+
+    private void UpdateOpacity(bool shouldFade)
+    {
         faded = shouldFade;
         float targetAlpha = Mathf.Clamp01((faded ? fadedAlpha : opaqueAlpha) / 255f);
         float speed = Mathf.Abs(opaqueAlpha - fadedAlpha) / 255f / Mathf.Max(0.01f, fadeSeconds);
         float nextAlpha = Mathf.MoveTowards(currentAlpha, targetAlpha, speed * Time.unscaledDeltaTime);
+        if (useRestaurantSightlines)
+            SetTransparentMaterials(nextAlpha < Mathf.Clamp01(opaqueAlpha / 255f));
         if (!Mathf.Approximately(currentAlpha, nextAlpha))
         {
             currentAlpha = nextAlpha;
             ApplyOpacity(currentAlpha);
         }
+    }
+
+    private void SetTransparentMaterials(bool useTransparent)
+    {
+        if (usingTransparentMaterials == useTransparent)
+            return;
+
+        usingTransparentMaterials = useTransparent;
+        var materials = useTransparent ? transparentMaterials : originalMaterials;
+        for (int i = 0; i < renderers.Length; i++)
+            if (renderers[i] != null) renderers[i].sharedMaterials = materials[i];
     }
 
     private bool OverlapsCameraCentre(Camera cameraToUse, Bounds bounds)
@@ -230,8 +290,7 @@ public sealed class CameraWindowTransparency : MonoBehaviour
     private void OnDisable()
     {
         if (renderers == null) return;
-        for (int i = 0; i < renderers.Length; i++)
-            if (renderers[i] != null) renderers[i].sharedMaterials = originalMaterials[i];
+        SetTransparentMaterials(false);
         faded = false;
     }
 }

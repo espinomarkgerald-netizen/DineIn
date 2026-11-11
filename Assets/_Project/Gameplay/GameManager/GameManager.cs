@@ -633,7 +633,8 @@ public class GameDayManager : MonoBehaviour
     {
         var fastFood = FastFoodRestaurant.For(this);
         if (fastFood != null && (GameSaveManager.Instance == null || GameFlowManager.Instance == null ||
-            !GameSaveManager.Instance.HasCompletedInitialLoad || (!MultiplayerDayBridge.IsActive && CampaignSaveStore.NeedsReload)))
+            !GameSaveManager.Instance.HasCompletedInitialLoad || (!DeveloperPracticeSession.CanRunCommands &&
+                !MultiplayerDayBridge.IsActive && CampaignSaveStore.NeedsReload)))
         { ShowWarning("Restaurant progress is not ready. Please wait for loading to finish."); return; }
         if (fastFood != null && !fastFood.ValidateServiceSetup(out var setupProblem))
         {
@@ -821,7 +822,7 @@ public class GameDayManager : MonoBehaviour
     public bool EndDayNowDebug()
     {
         if (MultiplayerDayBridge.IsActive) return false;
-        if (!Application.isEditor && !Debug.isDebugBuild)
+        if (!DevSettingsConsole.HasAuthorizedDevAccess && !DeveloperPracticeSession.CanRunCommands)
             return false;
         rewardDebugCompletion = true;
 
@@ -1475,7 +1476,7 @@ public class GameDayManager : MonoBehaviour
         if (resultsActionButtonText != null)
             resultsActionButtonText.text = GetResultsActionLabel(singleRestaurantFlow);
 
-        bool showPaidContinue = resultsHaveOutcome &&
+        bool showPaidContinue = !DeveloperPracticeSession.IsActive && resultsHaveOutcome &&
                                 currentResultsOutcome != GameOverReason.EarthSaved && !MultiplayerDayBridge.IsActive;
         if (!showPaidContinue)
         {
@@ -1984,6 +1985,7 @@ public class GameDayManager : MonoBehaviour
 
     private void OnContinueWithGoldCoinsPressed()
     {
+        if (DeveloperPracticeSession.IsActive) return;
         if (MultiplayerDayBridge.IsActive) return;
         if (!resultsHaveOutcome || currentResultsOutcome == GameOverReason.EarthSaved)
             return;

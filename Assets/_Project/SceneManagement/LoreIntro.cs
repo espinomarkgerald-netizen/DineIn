@@ -1,4 +1,5 @@
 using System.Collections;
+using MenuSettingsManager = DineIn.NewMenu.SettingsManager;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
@@ -181,8 +182,21 @@ public sealed class LoreIntro : MonoBehaviour
 
     private void PlayPreparedVideo(VideoPlayer source)
     {
-        if (!leaving)
-            source.Play();
+        if (leaving)
+            return;
+
+        if (clip.audioTrackCount > 0)
+        {
+            // Direct video audio bypasses the music mixer and AudioListener.
+            var settings = MenuSettingsManager.Instance?.Current;
+            float music = settings?.musicVolume ?? Mathf.Clamp01(
+                PlayerPrefs.GetFloat("Settings_MusicVolume", PlayerPrefs.GetFloat("Settings_Volume", 1f)));
+            float master = settings?.masterVolume ?? Mathf.Clamp01(PlayerPrefs.GetFloat("Settings_MasterVolume", 1f));
+            bool muted = settings?.muteAll ?? (PlayerPrefs.GetInt("Settings_MuteAll", 0) != 0);
+            source.SetDirectAudioVolume(0, muted ? 0f : music * master);
+        }
+
+        source.Play();
     }
 
     private void CompleteVideo(VideoPlayer source) => Finish();

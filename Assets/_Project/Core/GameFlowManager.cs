@@ -535,8 +535,9 @@ public partial class GameFlowManager : MonoBehaviour
 
     public bool TrySetCurrentDayDebug(int day)
     {
-        if (!DevSettingsConsole.HasAuthorizedDevAccess || MultiplayerRestaurantBridge.IsActive ||
-            !CampaignSaveStore.RuntimeCampaign || CampaignSaveStore.NeedsReload ||
+        bool practice = DeveloperPracticeSession.CanRunCommands;
+        if ((!practice && (!DevSettingsConsole.HasAuthorizedDevAccess ||
+            !CampaignSaveStore.RuntimeCampaign || CampaignSaveStore.NeedsReload)) || MultiplayerRestaurantBridge.IsActive ||
             GameSaveManager.Instance == null || !GameSaveManager.Instance.HasCompletedInitialLoad ||
             GameSaveManager.Instance.IsApplyingSave) return false;
         if (day < 1 || day > 30)

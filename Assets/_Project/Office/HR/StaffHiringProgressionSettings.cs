@@ -18,7 +18,7 @@ public sealed class StaffHiringProgressionSettings : ScriptableObject
 
     public static int Limit(EmployeeRole role, int normalLimit, int hiredCount)
     {
-        if (CampaignSaveStore.ProtectedSession && !FastFoodMultiplayerSession.IsActive ||
+        if (CampaignSaveStore.ProtectedSession && !FastFoodMultiplayerSession.IsActive && !DeveloperPracticeSession.IsActive ||
             (role != EmployeeRole.Busser && role != EmployeeRole.Cashier)) return normalLimit;
         // Preserve existing staff without opening additional slots beyond the milestone cap.
         if (role == EmployeeRole.Cashier && FastFoodProgressionSettings.Current != null)

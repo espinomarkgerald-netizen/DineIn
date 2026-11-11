@@ -30,8 +30,9 @@ public static class EmployeeRoleCatalog
         { EmployeeRole.Host, EmployeeRole.Waiter, EmployeeRole.Cashier, EmployeeRole.Busser, EmployeeRole.Pianist };
     public static IReadOnlyList<EmployeeRole> LobbyRoles => UsesFineDiningRoles ? FineDiningLobbyRoles : LobbyRoleArray;
     public static bool UsesFineDiningRoles => FineDiningTutorialBridge.Active ||
-        CampaignSaveStore.IsFineDining && !CampaignSaveStore.ProtectedSession;
-    public static bool UsesFastFoodRoles => FastFoodMultiplayerSession.IsActive || CampaignSaveStore.IsFastFood && !CampaignSaveStore.ProtectedSession;
+        CampaignSaveStore.IsFineDining && (!CampaignSaveStore.ProtectedSession || DeveloperPracticeSession.IsActive);
+    public static bool UsesFastFoodRoles => FastFoodMultiplayerSession.IsActive ||
+        CampaignSaveStore.IsFastFood && (!CampaignSaveStore.ProtectedSession || DeveloperPracticeSession.IsActive);
     private static readonly EmployeeRole[] FastFoodKitchenRoles =
         { EmployeeRole.GrillStation, EmployeeRole.FryStation, EmployeeRole.FastFoodAssembler };
     public static IReadOnlyList<EmployeeRole> KitchenRoles => UsesFastFoodRoles ? FastFoodKitchenRoles :

@@ -10,16 +10,16 @@ using UnityEngine;
 
 public static class MockDefenseBuild
 {
-    [MenuItem("Dine In/Build/Mock Defense Android")]
+    [MenuItem("Dine In/Build/Release Android")]
     public static void Android() => Build(BuildTarget.Android);
-    [MenuItem("Dine In/Build/Mock Defense Windows")]
+    [MenuItem("Dine In/Build/Release Windows")]
     public static void Windows() => Build(BuildTarget.StandaloneWindows64);
     static void Build(BuildTarget target)
     {
         bool android=target==BuildTarget.Android;
-        string name="Thesis B Mock Def Build " + (android?"Android":"Windows");
-        string path=Path.GetFullPath("Builds/Mock Defense/"+name+"/"+name+(android?".apk":".exe"));
-        string resultPath="Logs/"+(android?"MockDefenseAndroid":"MockDefenseWindows")+".result";
+        string name="Dine In";
+        string path=Path.GetFullPath("Builds/Release/"+(android?"Android":"Windows")+"/"+name+(android?".apk":".exe"));
+        string resultPath="Logs/"+(android?"ReleaseAndroid":"ReleaseWindows")+".result";
         bool customKey=PlayerSettings.Android.useCustomKeystore;
         bool bundle=EditorUserBuildSettings.buildAppBundle;
         try
@@ -39,8 +39,7 @@ public static class MockDefenseBuild
             var report=BuildPipeline.BuildPlayer(new BuildPlayerOptions {
                 scenes=paths,locationPathName=path,target=target,
                 targetGroup=android?BuildTargetGroup.Android:BuildTargetGroup.Standalone,
-                options=BuildOptions.None,
-                extraScriptingDefines=android?Array.Empty<string>():new[]{"DINEIN_PRESENTATION_BUILD"}
+                options=BuildOptions.None
             });
             var s=report.summary;
             File.WriteAllText(resultPath,$"Result={s.result}\nDevelopment={(s.options & BuildOptions.Development)!=0}\nOutput={path}\nErrors={s.totalErrors}\nWarnings={s.totalWarnings}\nDuration={s.totalTime}\n");

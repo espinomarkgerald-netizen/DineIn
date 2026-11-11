@@ -26,6 +26,9 @@ public sealed class DeveloperSettingsView : MonoBehaviour
     private Option pending;
     private int pendingValue;
     private bool bound;
+    private Button practiceButton;
+    private TMP_Text practiceTitle;
+    private bool confirmPractice;
     public void Bind(DevSettingsConsole console)
     {
         if(bound)return;
@@ -36,7 +39,42 @@ public sealed class DeveloperSettingsView : MonoBehaviour
         cancel.onClick.AddListener(()=>confirmation.SetActive(false));
         confirm.onClick.AddListener(ExecutePending);
         InstallRewardPreviewOption();
+        InstallPracticeOption();
         SelectTab(0);
+    }
+
+    private void InstallPracticeOption()
+    {
+        if (!DeveloperPracticeSession.IsWindows || options.Length == 0 || options[0].button == null)
+            return;
+        Transform original = options[0].button.transform.parent;
+        var row = Instantiate(original.gameObject, original.parent);
+        row.name = "Practice";
+        row.transform.SetSiblingIndex(original.GetSiblingIndex());
+        practiceButton = row.GetComponentInChildren<Button>(true);
+        var labels = row.GetComponentsInChildren<TMP_Text>(true);
+        foreach (var input in row.GetComponentsInChildren<TMP_InputField>(true))
+            input.gameObject.SetActive(false);
+        foreach (var label in labels)
+        {
+            if (label.GetComponentInParent<TMP_InputField>(true) != null) continue;
+            if (label.transform.IsChildOf(practiceButton.transform)) label.text = "Select";
+            else if (practiceTitle == null) practiceTitle = label;
+            else label.text = "Practice controls are available in solo restaurants.";
+        }
+        practiceButton.onClick.RemoveAllListeners();
+        practiceButton.onClick.AddListener(() =>
+        {
+            pending = null;
+            confirmPractice = true;
+            warning.text = DeveloperPracticeSession.IsActive
+                ? "Exit Practice and return to the game menu?"
+                : "Start a fresh practice session in this restaurant? Your current shift will end. Practice progress won’t save.";
+            confirmation.SetActive(true);
+            confirmation.transform.SetAsLastSibling();
+        });
+        GameplayButtonSound.Ensure(practiceButton);
+        row.SetActive(true);
     }
     private void InstallRewardPreviewOption()
     {
@@ -55,8 +93,20 @@ public sealed class DeveloperSettingsView : MonoBehaviour
         GameplayButtonSound.Ensure(button);
         row.SetActive(true);
     }
-    private void OnEnable() { if(owner!=null)owner.TryExecuteCode("status()"); }
-    private void OnDisable() { if(confirmation!=null) confirmation.SetActive(false); pending=null; }
+    private void OnEnable()
+    {
+        if (owner == null) return;
+        foreach (var option in options)
+            option.button.interactable = owner.CanUseCommand(option.command);
+        if (practiceButton != null)
+        {
+            practiceButton.interactable = DeveloperPracticeSession.IsActive || DeveloperPracticeSession.CanStart;
+            if (practiceTitle != null)
+                practiceTitle.text = DeveloperPracticeSession.IsActive ? "Exit Practice" : "Start Practice";
+        }
+        owner.TryExecuteCode("status()");
+    }
+    private void OnDisable() { if(confirmation!=null) confirmation.SetActive(false); pending=null; confirmPractice=false; }
     public void SelectTab(int index)
     {
         for(int i=0;i<pages.Length;i++)
@@ -67,6 +117,7 @@ public sealed class DeveloperSettingsView : MonoBehaviour
     }
     private void Prepare(Option option)
     {
+        confirmPractice=false;
         pending=option; pendingValue=option.fixedValue;
         if(option.needsValue && option.input!=null && !int.TryParse(option.input.text,out pendingValue))
         { result.text="Enter a whole number."; pending=null; return; }
@@ -76,6 +127,13 @@ public sealed class DeveloperSettingsView : MonoBehaviour
     }
     private void ExecutePending()
     {
+        if (confirmPractice)
+        {
+            confirmPractice = false;
+            confirmation.SetActive(false);
+            owner.TryExecuteCode("practice()");
+            return;
+        }
         if(pending==null)return;
         var option=pending; pending=null;
         confirmation.SetActive(false);

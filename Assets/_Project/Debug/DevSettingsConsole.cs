@@ -60,6 +60,7 @@ public class DevSettingsConsole : MonoBehaviour
     private Canvas devCanvas;
     private PlayFabAuthManager subscribedAuthManager;
     private string verifiedPlayFabId;
+    private string checkedPlayFabId;
     private string pendingVerificationPlayFabId;
     private bool playerBuildAccessVerified;
     private bool verificationInFlight;
@@ -92,15 +93,6 @@ public class DevSettingsConsole : MonoBehaviour
     {
         activeConsole = this;
 
-        // No player-facing developer entry or window on Android.
-        if (IsAndroidPlayer())
-        {
-            if (panelRoot != null) panelRoot.SetActive(false);
-            if (androidOpenButton != null) androidOpenButton.gameObject.SetActive(false);
-            enabled = false;
-            return;
-        }
-
         if (developerWindowPrefab == null) developerWindowPrefab = Resources.Load<DeveloperSettingsView>("UI/DeveloperSettings");
         if (developerWindowPrefab != null)
         {
@@ -126,7 +118,7 @@ public class DevSettingsConsole : MonoBehaviour
         }
 
         if (panelRoot != null)
-            panelRoot.SetActive(openPanelOnStart);
+            panelRoot.SetActive(openPanelOnStart && CanOpenPanel());
 
         devCanvas = panelRoot != null ? panelRoot.GetComponentInParent<Canvas>(true) : null;
         if (devCanvas != null)
@@ -204,7 +196,7 @@ public class DevSettingsConsole : MonoBehaviour
 
     public void OpenPanel()
     {
-        if (!CanExecuteCommands())
+        if (!CanOpenPanel())
         {
             ClosePanel();
             return;
@@ -249,7 +241,7 @@ public class DevSettingsConsole : MonoBehaviour
 
     public bool TryExecuteCode(string raw)
     {
-        if (!CanExecuteCommands())
+        if (!CanOpenPanel())
         {
             SetConsoleMessage(developmentBuildOnlyMessage, errorColor);
             return false;
@@ -289,7 +281,7 @@ public class DevSettingsConsole : MonoBehaviour
         bool knownNoValueCommand = normalized switch
         {
             "endday" or "gameover" or "zerostocks" or "startday" or "resetrun" or
-            "recover" or "save" or "status" or "help" or
+            "recover" or "save" or "status" or "help" or "practice" or
             "wrongorder" or "burntfood" or "cardpayment" or "dailyreward" => true,
             _ => false
         };
@@ -300,6 +292,23 @@ public class DevSettingsConsole : MonoBehaviour
         if (expectsValue != hasValue)
         {
             SetConsoleMessage(invalidSyntaxMessage, errorColor);
+            return false;
+        }
+
+        if (normalized == "practice")
+        {
+            if (DeveloperPracticeSession.IsActive ? DeveloperPracticeSession.TryExit() : DeveloperPracticeSession.TryStart())
+            {
+                ClosePanel();
+                return true;
+            }
+            SetConsoleMessage("Open a solo restaurant before starting practice.", errorColor);
+            return false;
+        }
+
+        if (!CanUseCommand(normalized))
+        {
+            SetConsoleMessage("This action requires an eligible practice session or verified developer access.", errorColor);
             return false;
         }
 
@@ -726,7 +735,7 @@ public class DevSettingsConsole : MonoBehaviour
         if (Application.isEditor)
             return allowToggleInEditor;
 
-        return IsDesktopPlayer() && CanExecuteCommands();
+        return IsDesktopPlayer() && CanOpenPanel();
     }
 
     private bool WasTogglePressedThisFrame()
@@ -740,19 +749,25 @@ public class DevSettingsConsole : MonoBehaviour
 
     private bool CanExecuteCommands()
     {
-        if (Application.isEditor || IsWindowsDebugBuild())
+        if (DeveloperPracticeSession.IsActive)
+            return false;
+        if (Application.isEditor)
             return true;
 
-        return (IsDesktopPlayer() || IsAndroidPlayer()) && playerBuildAccessVerified;
+        return (IsDesktopPlayer() || IsAndroidPlayer()) && playerBuildAccessVerified &&
+            subscribedAuthManager != null && subscribedAuthManager.IsLoggedIn &&
+            string.Equals(verifiedPlayFabId, subscribedAuthManager.PlayFabId, StringComparison.Ordinal);
     }
 
-    private static bool IsWindowsDebugBuild()
+    private bool CanOpenPanel() => DeveloperPracticeSession.IsWindows || CanExecuteCommands();
+
+    internal bool CanUseCommand(string command)
     {
-#if UNITY_STANDALONE_WIN && (DEVELOPMENT_BUILD || DINEIN_PRESENTATION_BUILD)
-        return true;
-#else
-        return false;
-#endif
+        if (command is "status" or "help") return CanOpenPanel();
+        if (CanExecuteCommands()) return true;
+        return DeveloperPracticeSession.CanRunCommands && command is
+            ("day" or "approval" or "reputation" or "money" or "addmoney" or "fillstocks" or
+             "zerostocks" or "timescale" or "startday" or "endday" or "resetrun");
     }
 
     private static bool IsDesktopPlayer()
@@ -800,7 +815,7 @@ public class DevSettingsConsole : MonoBehaviour
 
     private void RefreshPlayerBuildAuthorization()
     {
-        if (Application.isEditor || IsWindowsDebugBuild())
+        if (Application.isEditor)
         {
             ApplyAuthorizationState();
             return;
@@ -813,8 +828,7 @@ public class DevSettingsConsole : MonoBehaviour
             return;
         }
 
-        if (playerBuildAccessVerified &&
-            string.Equals(verifiedPlayFabId, auth.PlayFabId, StringComparison.Ordinal))
+        if (string.Equals(checkedPlayFabId, auth.PlayFabId, StringComparison.Ordinal))
         {
             ApplyAuthorizationState();
             return;
@@ -855,6 +869,7 @@ public class DevSettingsConsole : MonoBehaviour
 
         playerBuildAccessVerified = verified;
         verifiedPlayFabId = verified ? requestedPlayFabId : null;
+        checkedPlayFabId = currentSessionMatches ? requestedPlayFabId : null;
         ApplyAuthorizationState();
     }
 
@@ -880,18 +895,23 @@ public class DevSettingsConsole : MonoBehaviour
         pendingVerificationPlayFabId = null;
         playerBuildAccessVerified = false;
         verifiedPlayFabId = null;
+        checkedPlayFabId = null;
         ApplyAuthorizationState();
     }
 
     private void ApplyAuthorizationState()
     {
-        bool canExecute = CanExecuteCommands();
-
+        bool showMobileButton = IsAndroidPlayer() && CanExecuteCommands();
+        if (showMobileButton && createAndroidOpenButton)
+            CreateAndroidOpenButton();
         if (androidOpenButton != null)
-            androidOpenButton.gameObject.SetActive(false);
+        {
+            BindAndroidOpenButton();
+            androidOpenButton.gameObject.SetActive(showMobileButton);
+        }
 
-        if (!canExecute && panelRoot != null && panelRoot.activeSelf)
-            panelRoot.SetActive(false);
+        if (!CanOpenPanel() && panelRoot != null && panelRoot.activeSelf)
+            ClosePanel();
     }
 
     public static bool IsVerifiedAuthorizedAccount(
@@ -909,8 +929,22 @@ public class DevSettingsConsole : MonoBehaviour
 
     private void CreateAndroidOpenButton()
     {
-        if (devCanvas == null || androidOpenButton != null)
+        if (androidOpenButton != null)
             return;
+
+        // The window owns its own canvas and is inactive until opened.
+        var launcher = new GameObject("Authorized Mobile Dev Launcher",
+            typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
+        launcher.layer = 5;
+        launcher.transform.SetParent(transform, false);
+        var launcherCanvas = launcher.GetComponent<Canvas>();
+        launcherCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        launcherCanvas.overrideSorting = true;
+        launcherCanvas.sortingOrder = 32766;
+        var scaler = launcher.GetComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1920, 1080);
+        scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.Expand;
 
         GameObject buttonObject = new GameObject(
             "AuthorizedMobileDevButton",
@@ -920,7 +954,7 @@ public class DevSettingsConsole : MonoBehaviour
             typeof(Button),
             typeof(Shadow));
         buttonObject.layer = 5;
-        buttonObject.transform.SetParent(devCanvas.transform, false);
+        buttonObject.transform.SetParent(launcher.transform, false);
         buttonObject.transform.SetAsLastSibling();
 
         androidOpenButtonRect = buttonObject.GetComponent<RectTransform>();
