@@ -320,6 +320,9 @@ public sealed class TutorialUIActionAdapter : MonoBehaviour
             case "Management.MenuPriceChanged":
                 return editCommitted && !input.isFocused && TryReadChangedPrice(out int finalPrice) && finalPrice == committedPrice;
             case "Management.MenuSavePrice":
+                // Lobby1 advances from the actual Save callback so an unsaved
+                // draft or a corrected price cannot bypass Big Boss's dialogue.
+                if (TutorialSystem.Instance?.IsLobbyMenuPriceSaveStep == true) return false;
                 return recipe != null && recipe == PriceEditedRecipe && expectedSavedPrice >= 0 &&
                        recipe.EffectiveSellPrice == expectedSavedPrice;
             case "Management.MenuAvailability":

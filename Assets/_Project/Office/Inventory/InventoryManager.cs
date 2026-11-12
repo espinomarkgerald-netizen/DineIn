@@ -5,6 +5,8 @@ using System.Linq;
 
 public class InventoryManager : MonoBehaviour
 {
+    private const int PhysicalStockInventoryVersion = 3;
+
     public static InventoryManager Instance;
 
     [Header("Inventory Setup")]
@@ -48,7 +50,7 @@ public class InventoryManager : MonoBehaviour
         for (int i = stockBatches.Count - 1; i >= 0; i--)
         {
             var batch = stockBatches[i];
-            if (batch == null) continue;
+            if (batch == null || batch.isLegacyStock) continue;
             foreach (var item in catalog)
             {
                 if (item == null || item.itemType != batch.itemType) continue;
@@ -471,7 +473,7 @@ public class InventoryManager : MonoBehaviour
             {
                 int amount = Mathf.Max(1, item.unitsPerBox);
                 inventory[item.itemType] = amount;
-                CreateBatch(item, amount, CurrentDay, out _, out _);
+                CreateBatch(item, amount, CurrentDay, out _, out _, isLegacyStock: true);
                 changedItems.Add(item.itemType);
             }
         }
@@ -488,7 +490,7 @@ public class InventoryManager : MonoBehaviour
 
         data.inventoryStocks.Clear();
         data.inventoryStockBatches.Clear();
-        data.inventorySystemVersion = 2;
+        data.inventorySystemVersion = PhysicalStockInventoryVersion;
         data.discardedUnitsToday = Mathf.Max(0, DiscardedUnitsToday);
 
         foreach (var kvp in inventory)
@@ -541,6 +543,18 @@ public class InventoryManager : MonoBehaviour
         }
 
 
+        bool migratePhysicalStock = data.inventorySystemVersion < PhysicalStockInventoryVersion;
+        var placedBatchIds = new HashSet<string>(StringComparer.Ordinal);
+        if (migratePhysicalStock && data.restockStoredContainers != null)
+        {
+            foreach (var placement in data.restockStoredContainers)
+            {
+                if (placement != null && !string.IsNullOrWhiteSpace(placement.containerID) &&
+                    !string.IsNullOrWhiteSpace(placement.shelfID) && placement.column >= 0 && placement.row >= 0)
+                    placedBatchIds.Add(placement.stockBatchID);
+            }
+        }
+
         if (data.inventoryStockBatches != null)
         {
             for (int i = 0; i < data.inventoryStockBatches.Count; i++)
@@ -550,6 +564,8 @@ public class InventoryManager : MonoBehaviour
                     continue;
 
                 InventoryStockBatchSaveEntry clone = CloneBatch(source);
+                if (migratePhysicalStock)
+                    clone.isLegacyStock = !placedBatchIds.Contains(clone.batchID);
                 if (data.saveSchemaVersion < 3)
                 {
                     ItemData legacyItem = FindItem(clone.itemType);
@@ -591,7 +607,8 @@ public class InventoryManager : MonoBehaviour
         int amount,
         int receivedDay,
         out string batchID,
-        out int expiresDay)
+        out int expiresDay,
+        bool isLegacyStock = false)
     {
         receivedDay = Mathf.Max(1, receivedDay);
         batchID = Guid.NewGuid().ToString("N");
@@ -604,7 +621,8 @@ public class InventoryManager : MonoBehaviour
             receivedDay = receivedDay,
             expiresDay = expiresDay,
             wrongStorage = false,
-            currentStorage = item.requiredStorage
+            currentStorage = item.requiredStorage,
+            isLegacyStock = isLegacyStock
         });
     }
 
@@ -650,7 +668,7 @@ public class InventoryManager : MonoBehaviour
             int missing = Mathf.Max(0, entry.Value - batchUnits);
             ItemData item = FindItem(entry.Key);
             if (missing > 0 && item != null)
-                CreateBatch(item, missing, currentDay, out _, out _);
+                CreateBatch(item, missing, currentDay, out _, out _, isLegacyStock: true);
             else if (batchUnits > entry.Value)
                 ConsumeBatches(entry.Key, batchUnits - entry.Value);
         }
@@ -676,7 +694,8 @@ public class InventoryManager : MonoBehaviour
             receivedDay = Mathf.Max(1, source.receivedDay),
             expiresDay = Mathf.Max(1, source.expiresDay),
             wrongStorage = source.wrongStorage,
-            currentStorage = source.currentStorage
+            currentStorage = source.currentStorage,
+            isLegacyStock = source.isLegacyStock
         };
     }
 }

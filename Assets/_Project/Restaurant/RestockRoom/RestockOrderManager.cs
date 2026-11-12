@@ -80,8 +80,7 @@ public sealed class RestockOrderManager : MonoBehaviour
         public int columns, rows;
     }
 
-    // Called on room entry by the local owner or multiplayer authority. Restores
-    // starter/legacy stock without adding units or resetting expiry dates.
+    // Restore shelf placements and fit starter boxes around existing reservations.
     public void ReconcileStorageRecords(StorageShelf[] shelves, IReadOnlyList<ItemData> catalog)
     {
         var inventory = InventoryManager.Instance;
@@ -101,9 +100,25 @@ public sealed class RestockOrderManager : MonoBehaviour
             { represented.Remove(entry.stockBatchID); storedContainers.RemoveAt(i); changed = true; continue; }
             i++;
         }
+        var config = FindFirstObjectByType<ManagementComputerController>()?.RestockStorage;
+        int RemainingSlots(RestockStorageType type)
+        {
+            int cells = 0;
+            foreach (var shelf in shelves)
+                if (shelf.storage == type) cells += shelf.columns * shelf.rows;
+            var usage = GetCapacityUsage(type, catalog);
+            return Mathf.Min(cells, config != null ? config.GetCapacity(type) : cells)
+                   - usage.Stored - usage.Reserved;
+        }
+
+        int drySlots = RemainingSlots(RestockStorageType.Dry);
+        int frozenSlots = RemainingSlots(RestockStorageType.Frozen);
         foreach (var batch in inventory.StockBatches)
         {
-            if (batch == null || batch.unitsRemaining <= 0 || represented.Contains(batch.batchID)) continue;
+            if (batch == null || batch.isLegacyStock || batch.unitsRemaining <= 0 ||
+                represented.Contains(batch.batchID)) continue;
+            bool frozen = batch.currentStorage == RestockStorageType.Frozen;
+            if ((frozen ? frozenSlots : drySlots) <= 0) continue;
             ItemData item = null;
             foreach (var candidate in catalog) if (candidate != null && candidate.itemType == batch.itemType) { item = candidate; break; }
             if (item == null || item.worldContainerPrefab == null) continue;
@@ -122,6 +137,8 @@ public sealed class RestockOrderManager : MonoBehaviour
                             wrongStorage = batch.wrongStorage, rotationY = item.worldContainerPrefab.transform.eulerAngles.y
                         });
                         represented.Add(batch.batchID); placed = changed = true;
+                        if (frozen) frozenSlots--;
+                        else drySlots--;
                     }
                 if (placed) break;
             }
@@ -339,7 +356,8 @@ public sealed class RestockOrderManager : MonoBehaviour
         RestockStorageType shelfStorage,
         out string message,
         out string stockBatchID,
-        out int expiresDay)
+        out int expiresDay,
+        RestaurantStorageConfig storage = null)
     {
         message = string.Empty;
         stockBatchID = string.Empty;
@@ -361,12 +379,20 @@ public sealed class RestockOrderManager : MonoBehaviour
             return false;
         }
 
-        var storage = FindFirstObjectByType<ManagementComputerController>()?.RestockStorage;
-        int used = InventoryManager.Instance.GetStorageContainerCount(shelfStorage, CurrentCatalog?.Ingredients);
-        if (storage != null && used >= storage.GetCapacity(shelfStorage))
+        if (storage == null)
+            storage = FindFirstObjectByType<ManagementComputerController>()?.RestockStorage;
+        if (storage != null)
         {
-            message = $"{shelfStorage} storage is full ({used}/{storage.GetCapacity(shelfStorage)} occupied).";
-            return false;
+            var usage = GetCapacityUsage(shelfStorage, CurrentCatalog?.Ingredients);
+            int capacity = storage.GetCapacity(shelfStorage);
+            // A delivery uses its existing reservation in the correct room.
+            // A placement in the other room must leave its reservations intact.
+            int used = shelfStorage == item.requiredStorage ? usage.Stored : usage.Stored + usage.Reserved;
+            if (used >= capacity)
+            {
+                message = $"{shelfStorage} storage is full or reserved ({used}/{capacity}).";
+                return false;
+            }
         }
 
         for (int o = 0; o < orders.Count; o++)
@@ -485,6 +511,23 @@ public sealed class RestockOrderManager : MonoBehaviour
         }
 
         return total;
+    }
+
+    public (int Stored, int Reserved) GetCapacityUsage(
+        RestockStorageType storageType, IReadOnlyList<ItemData> itemCatalog)
+    {
+        var inventory = InventoryManager.Instance;
+        var placedBatches = new HashSet<string>(StringComparer.Ordinal);
+        if (inventory != null)
+        {
+            foreach (var placement in storedContainers)
+            {
+                if (placement != null && placement.storageType == storageType &&
+                    inventory.TryGetBatch(placement.stockBatchID, out var batch) && batch.unitsRemaining > 0)
+                    placedBatches.Add(batch.batchID);
+            }
+        }
+        return (placedBatches.Count, GetReservedContainers(storageType, itemCatalog));
     }
 
     public void FillSaveData(GameSaveData data)

@@ -596,3 +596,15 @@ Manual acceptance: restart Play Mode after import. With a delivery ready, pan aw
 - NewGameMenu restaurant access uses the Day Panel V2 frame, ribbon, cash and calendar icons, progress sprites, and action artwork. Fast Food and Fine Dining previews are rendered from the scene's existing FBX models.
 - Reuses the existing panel transition and button feedback, with a short ribbon pop that respects reduced motion. Purchase, eligibility, and save flows continue to supply panel state.
 - Static art reference and transparency checks passed. Unity compilation and Play Mode layout, safe areas, reduced motion, and purchase interaction are unverified.
+
+## Restock capacity and footer feedback — 2026-11-12
+
+- Existing shelf placements and pending orders count against capacity. Older stock without a shelf placement remains usable and no longer fills shelf slots. The restock window shows the capacity warning in its existing footer.
+- Passed Unity C# compilation with project references, static footer binding checks, and an isolated C# fixture for migration, discarding boxes, checkout charges, reservations, and placement.
+- The existing Day 30 save, Unity Play Mode, and live multiplayer remain unverified. Check the restock footer and place a one-box order in the Editor before rebuilding Android.
+
+## Customer and task status text fit — 2026-11-12
+
+- Customer table/status badges and compact task destination/table badges now stay on one line, auto-shrinking within a readable lower bound and ellipsizing only if the available width is still insufficient. This prevents wrapped label text from spilling into adjacent status lines.
+- Static layout/source checks and Unity runtime C# compilation passed using the generated Unity response file, with output written to a temporary folder. The compile reported existing warnings in unrelated files.
+- Live Game view visual confirmation remains unverified. Manually check the Customer Details list with “Awaiting number” and “Walking to table”, and the Current Task card with “At counter” and “Not seated”, at desktop and narrow/mobile UI scales.

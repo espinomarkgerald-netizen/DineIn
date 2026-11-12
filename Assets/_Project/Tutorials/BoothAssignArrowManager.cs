@@ -136,9 +136,8 @@ public class BoothAssignArrowManager : MonoBehaviour
 
     public Transform GetSuggestionTarget(CustomerGroup group)
     {
-        if (activeSuggestedBooth != null && IsValidBooth(activeSuggestedBooth, group) && activeAnchor != null)
-            return activeAnchor.transform;
-        return GetSuggestedBooth(group)?.transform;
+        return IsSelectingFor(group) && group.assignedBooth == null && activeAnchor != null &&
+            IsValidBooth(activeSuggestedBooth, group) ? activeAnchor.transform : null;
     }
 
     private static Vector3 CalculateLiveTableAnchor(Booth booth)

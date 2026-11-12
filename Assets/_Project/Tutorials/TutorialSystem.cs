@@ -166,7 +166,7 @@ public sealed class TutorialSystem : MonoBehaviour
     public bool IsFineDining => gameObject.scene.name == FineDiningScene.Tutorial;
     private bool HasExternalBridge => IsFastFood || IsFineDining;
     private string TaskSource => HasExternalBridge ? gameObject.scene.name : "Lobby1Tutorial";
-    public bool IsPresentationBusy => computerCloseGuidance || waitingForNext || transitioning || recovering || travelling || externalTargetPending || focusTransitionPending;
+    public bool IsPresentationBusy => computerCloseGuidance || waitingForNext || transitioning || recovering || travelling || externalTargetPending || focusTransitionPending || IsFramingLobbyTarget;
     public bool IsAwaitingExternalTarget => externalTargetPending;
     [Tooltip("Later-level tutorials: explain with informational focus, then hand off to the real action.")]
     [SerializeField] private bool explainWithFocus;
@@ -324,7 +324,7 @@ public sealed class TutorialSystem : MonoBehaviour
     public int StepCount => steps != null ? steps.Length : 0;
     public bool IsOpeningComplete => openingComplete;
     public bool IsWaitingForGameplayAction =>
-        waitingForPlayerAction;
+        waitingForPlayerAction && !IsFramingLobbyTarget;
     public bool AreUnrelatedInteractionsRestricted =>
         !recovering && !skeletonEndpointReached && !tutorialCompleted && isActiveAndEnabled &&
         CurrentStep != null && CurrentStep.RestrictUnrelatedInteractions;
@@ -650,6 +650,16 @@ public sealed class TutorialSystem : MonoBehaviour
                Input.GetKey(KeyCode.Return) || Input.GetKey(KeyCode.Space));
         yield return null;
         if (CurrentStep != step || revision != presentationRevision) yield break;
+        if (showingMenuPriceCorrection)
+        {
+            showingMenuPriceCorrection = false;
+            handoffRoutine = null;
+            transitioning = false;
+            uiFocusMask?.SetDialogueInput(false);
+            uiFocusMask?.Hold();
+            CompleteCurrentStepAndAdvance();
+            yield break;
+        }
         if (step.StepType == TutorialStepType.WaitForGameplayAction && currentUIFocus != null)
         {
             bool ready = false;
@@ -683,7 +693,7 @@ public sealed class TutorialSystem : MonoBehaviour
         TutorialStep step = CurrentStep;
         GameplayActionReported?.Invoke(action, context);
 
-        if (step == null || CurrentStep != step || transitioning || recovering || !waitingForPlayerAction || !string.IsNullOrEmpty(step.ActionKey))
+        if (step == null || CurrentStep != step || transitioning || recovering || !IsWaitingForGameplayAction || !string.IsNullOrEmpty(step.ActionKey))
             return false;
 
         if (action == TutorialAction.None || step.RequiredAction != action || !ContextMatches(step, context))
@@ -709,11 +719,50 @@ public sealed class TutorialSystem : MonoBehaviour
             Debug.Log($"[TutorialMenu] NotifyAction received at index {currentStepIndex}: sent={actionKey}, " +
                       $"expected={(step != null ? step.ActionKey : "<no step>")}, waiting={waitingForPlayerAction}, " +
                       $"keyMatch={keyMatches}, contextMatch={contextMatches}", this);
-        if (transitioning || recovering || !waitingForPlayerAction || step == null || string.IsNullOrEmpty(actionKey) ||
+        if (transitioning || recovering || !IsWaitingForGameplayAction || step == null || string.IsNullOrEmpty(actionKey) ||
             !keyMatches || !contextMatches)
             return false;
         CompleteCurrentStepAndAdvance();
         return true;
+    }
+
+    private bool showingMenuPriceCorrection;
+
+    internal bool IsLobbyMenuPriceSaveStep =>
+        gameObject.scene.name == "Lobby1Tutorial" && CurrentStep?.ActionKey == "Management.MenuSavePrice";
+
+    internal bool CanSaveLobbyMenuPrice(Recipe product) =>
+        IsLobbyMenuPriceSaveStep && waitingForPlayerAction && !transitioning && !recovering &&
+        !IsExiting && !LobbyPauseMenu.BlocksTutorialInput &&
+        product != null && product == TutorialUIActionAdapter.PriceEditedRecipe;
+
+    internal void OnLobbyMenuPriceSaved(Recipe product, int enteredPrice, int savedPrice)
+    {
+        if (!CanSaveLobbyMenuPrice(product) || product.EffectiveSellPrice != savedPrice) return;
+
+        TutorialStep step = CurrentStep;
+        if (enteredPrice == savedPrice || dialogueUI == null)
+        {
+            NotifyAction(step.ActionKey);
+            return;
+        }
+
+        string message = enteredPrice > savedPrice
+            ? $"Customers might walk out at that price. I’ll bring it down to ₱{savedPrice}."
+            : $"That price leaves too little profit. I’ll bring it up to ₱{savedPrice}.";
+
+        showingMenuPriceCorrection = true;
+        waitingForPlayerAction = false;
+        waitingForNext = true;
+        handIndicator?.HideHint();
+        uiFocusMask?.SetDialogueInput(true);
+        int revision = presentationRevision;
+        dialogueUI.ShowManual(step.Speaker, message, step.Portrait, () =>
+        {
+            if (CurrentStep == step && revision == presentationRevision)
+                AdvanceManualStep();
+        });
+        dialogueUI.SetFocusTarget(currentUIFocus);
     }
 
     private static bool ContextMatches(TutorialStep step, UnityEngine.Object context)
@@ -861,7 +910,8 @@ public sealed class TutorialSystem : MonoBehaviour
         BindWorldMaskProjection();
         sceneBindings.BeginUIFocus(currentUIFocus);
         uiActionAdapter?.ObserveStep(this, currentUIFocus);
-        if (!step.ExplainsAction && (!string.IsNullOrEmpty(step.UITargetKey) || step.UIFocusTarget != null) && currentUIFocus == null &&
+        bool waitsForWorldPrompt = IsLobby1Tutorial && TutorialCustomerFlowBridge.IsWorldPrompt(step.UITargetKey);
+        if ((!step.ExplainsAction || waitsForWorldPrompt) && (!string.IsNullOrEmpty(step.UITargetKey) || step.UIFocusTarget != null) && currentUIFocus == null &&
             !(uiActionAdapter != null && uiActionAdapter.CanCompleteFromState(this)))
         {
             uiFocusMask?.Hide();
@@ -874,8 +924,14 @@ public sealed class TutorialSystem : MonoBehaviour
             MarkTutorialCompleted();
             return;
         }
-        if (!FocusedFastFood && TryFrameWorldTarget(() => PresentResolvedStep(step))) return;
-        PresentResolvedStep(step);
+        PresentWithFraming(step);
+    }
+
+    private void PresentWithFraming(TutorialStep step, bool resumeWaiting = false)
+    {
+        Action present = resumeWaiting ? BeginWaitingForAction : () => PresentResolvedStep(step);
+        if (FocusedFastFood || !TryFrameWorldTarget(present, IsLobby1Tutorial))
+            present();
     }
 
     private void PresentResolvedStep(TutorialStep step)
@@ -997,7 +1053,7 @@ public sealed class TutorialSystem : MonoBehaviour
     public void BeginWaitingForAction()
     {
         TutorialStep step = CurrentStep;
-        if (transitioning || recovering || step == null || step.IsPlaceholder || step.StepType != TutorialStepType.WaitForGameplayAction ||
+        if (transitioning || recovering || IsFramingLobbyTarget || step == null || step.IsPlaceholder || step.StepType != TutorialStepType.WaitForGameplayAction ||
             (!waitingForNext && waitingForPlayerAction)) return;
         waitingForNext = false;
         waitingForPlayerAction = true;
@@ -1051,25 +1107,33 @@ public sealed class TutorialSystem : MonoBehaviour
     public void RefreshLiveActionTarget(RectTransform liveTarget)
     {
         TutorialStep step = CurrentStep;
-        if (!waitingForPlayerAction || step == null || liveTarget == null ||
+        if (!IsWaitingForGameplayAction || step == null || liveTarget == null ||
             currentUIFocus == liveTarget)
             return;
 
         currentUIFocus = liveTarget;
         sceneBindings?.BeginUIFocus(currentUIFocus);
         dialogueUI?.SetFocusTarget(currentUIFocus);
-        uiFocusMask?.Show(currentUIFocus, true);
-        if (uiActionAdapter != null && uiActionAdapter.Begin(this, currentUIFocus)) return;
 
-        if (step.HintMode == TutorialHintMode.Typing) handIndicator?.ShowTypingHint(currentUIFocus);
-        else if (step.HintMode == TutorialHintMode.Hold) handIndicator?.ShowHoldHint(currentUIFocus);
-        else handIndicator?.ShowTapHint(currentUIFocus);
+        if (!IsLobby1Tutorial || !TryFrameWorldTarget(ShowLiveTarget, center: true))
+            ShowLiveTarget();
+
+        void ShowLiveTarget()
+        {
+            if (CurrentStep != step || !IsWaitingForGameplayAction || liveTarget == null || currentUIFocus != liveTarget) return;
+            uiFocusMask?.Show(liveTarget, true);
+            if (uiActionAdapter != null && uiActionAdapter.Begin(this, liveTarget)) return;
+
+            if (step.HintMode == TutorialHintMode.Typing) handIndicator?.ShowTypingHint(liveTarget);
+            else if (step.HintMode == TutorialHintMode.Hold) handIndicator?.ShowHoldHint(liveTarget);
+            else handIndicator?.ShowTapHint(liveTarget);
+        }
     }
 
     private bool restockTargetPending;
     public void RefreshRestockPresentation()
     {
-        if (transitioning || recovering || travelling) return;
+        if (transitioning || recovering || travelling || IsFramingLobbyTarget) return;
         TutorialStep step = CurrentStep;
         if (step == null || step.Phase != TutorialPhase.PhysicalRestocking) return;
         RectTransform live = sceneBindings.ResolveUI(step.UITargetKey);
@@ -1101,10 +1165,12 @@ public sealed class TutorialSystem : MonoBehaviour
 
     private void BindWorldMaskProjection()
     {
-        string key = CurrentStep?.UITargetKey;
-        bool projected = key == "RestockTruckFocus" || key == "RestockPlacedBoxFocus" || key == "RestockSpoiledBoxFocus";
+        bool projected = UsesWorldMaskProjection;
         uiFocusMask?.SetWorldProjection(projected ? currentUIFocus : null, projected ? currentWorldFocus : null);
     }
+
+    private bool UsesWorldMaskProjection =>
+        CurrentStep?.UITargetKey is "RestockTruckFocus" or "RestockPlacedBoxFocus" or "RestockSpoiledBoxFocus";
 
     private void ShowRestockHint(TutorialStep step)
     {
@@ -1123,21 +1189,41 @@ public sealed class TutorialSystem : MonoBehaviour
 
     private bool framingWorld;
     private float offscreenSince = -1f, nextFrameAssist;
+    private const float LobbyCenterTolerance = .05f;
+    private Transform lastLobbyFramingTarget;
+    private bool IsLobby1Tutorial => gameObject.scene.name == "Lobby1Tutorial";
+    private bool IsFramingLobbyTarget => framingWorld && IsLobby1Tutorial;
 
-    private Transform WorldFramingTarget()
+    private Transform WorldFramingTarget(bool center = false)
     {
         if (SeatingCameraOwnsFraming) return null;
-        if (currentWorldFocus != null && !(currentWorldFocus is RectTransform)) return currentWorldFocus;
+        if (currentWorldFocus != null && !(currentWorldFocus is RectTransform) &&
+            (!center || currentUIFocus == null || UsesWorldMaskProjection))
+            return currentWorldFocus;
         Canvas canvas = currentUIFocus != null ? currentUIFocus.GetComponentInParent<Canvas>() : null;
         return canvas != null && canvas.renderMode == RenderMode.WorldSpace ? currentUIFocus : null;
     }
 
-    private bool TargetVisible(Transform target, float margin)
+    // A camera-facing bubble stops updating its rect when the anchor leaves the view.
+    // Frame the anchor first, then measure the live button once it is back on screen.
+    internal static bool TryGetOffscreenBubbleAnchor(RectTransform rect, Camera camera, out Vector3 anchor)
+    {
+        anchor = default;
+        if (camera == null) return false;
+        var follower = rect.GetComponentInParent<UIFollowWorldPoint>();
+        if (follower == null || !follower.IsWorldSpace || follower.target == null) return false;
+        anchor = follower.target.position + follower.worldOffset;
+        Vector3 point = camera.WorldToViewportPoint(anchor);
+        return point.z <= 0f || point.x < 0f || point.x > 1f || point.y < 0f || point.y > 1f;
+    }
+
+    private bool TargetVisible(Transform target, float margin, bool center = false)
     {
         Rect screenBounds;
         Camera camera = cameraController.Cam;
         if (target is RectTransform rect)
         {
+            if (center && TryGetOffscreenBubbleAnchor(rect, camera, out _)) return false;
             var corners = new Vector3[4]; rect.GetWorldCorners(corners);
             Vector2 min = new Vector2(float.MaxValue, float.MaxValue), max = new Vector2(float.MinValue, float.MinValue);
             foreach (Vector3 corner in corners)
@@ -1155,42 +1241,100 @@ public sealed class TutorialSystem : MonoBehaviour
             screenBounds = new Rect(point.x, point.y, 0, 0);
         }
         Rect view = camera.pixelRect;
+        if (center && (Mathf.Abs(screenBounds.center.x - view.center.x) > view.width * LobbyCenterTolerance ||
+            Mathf.Abs(screenBounds.center.y - view.center.y) > view.height * LobbyCenterTolerance))
+            return false;
         return screenBounds.xMin >= view.xMin + view.width * margin && screenBounds.xMax <= view.xMax - view.width * margin &&
             screenBounds.yMin >= view.yMin + view.height * margin && screenBounds.yMax <= view.yMax - view.height * margin;
     }
 
-    private bool TryFrameWorldTarget(Action onSettled)
+    private bool TryFrameWorldTarget(Action onSettled, bool center = false)
     {
         if (IsFastFood && FastFoodTutorialBridge.Instance?.KitchenCamera != null) return false;
-        Transform target = WorldFramingTarget();
+        Transform target = WorldFramingTarget(center);
         if (framingWorld || target == null || cameraController == null || !cameraController.isActiveAndEnabled ||
-            cameraController.Cam == null || !cameraController.Cam.isActiveAndEnabled || TargetVisible(target, .09f)) return false;
-        framingRoutine = StartCoroutine(FrameWorldTarget(target, presentationRevision, onSettled));
+            cameraController.Cam == null || !cameraController.Cam.isActiveAndEnabled) return false;
+        if (center)
+        {
+            if (travelling || target == lastLobbyFramingTarget) return false;
+            lastLobbyFramingTarget = target;
+        }
+        if (TargetVisible(target, center ? 0f : .09f, center))
+        {
+            if (center && cameraController.FollowTarget != null) cameraController.StopFollowing();
+            return false;
+        }
+        framingRoutine = StartCoroutine(FrameWorldTarget(target, presentationRevision, onSettled, center));
         return true;
     }
 
-    private System.Collections.IEnumerator FrameWorldTarget(Transform target, int revision, Action onSettled)
+    private bool SetFramingDestination(Transform target, bool center)
+    {
+        Vector3 point;
+        if (target is RectTransform rect)
+        {
+            if (!center || !TryGetOffscreenBubbleAnchor(rect, cameraController.Cam, out point))
+                point = rect.TransformPoint(rect.rect.center);
+        }
+        else point = TutorialWorldTargetGeometry.Center(target);
+        if (center)
+        {
+            // Camera-front UI may lie above the near-plane ray origin.
+            // CenterOnWorldPoint also handles intersections behind that origin.
+            cameraController.CenterOnWorldPoint(point);
+            return true;
+        }
+        Plane plane = new Plane(Vector3.up, point);
+        Ray ray = cameraController.Cam.ViewportPointToRay(new Vector3(.5f, .5f, 0));
+        if (!plane.Raycast(ray, out float distance)) return false;
+        Vector3 offset = point - ray.GetPoint(distance);
+        offset.y = 0;
+        cameraController.SetRigTargetPosition(cameraController.transform.position + offset);
+        return true;
+    }
+
+    private System.Collections.IEnumerator FrameWorldTarget(Transform target, int revision, Action onSettled, bool center = false)
     {
         framingWorld = true;
         uiFocusMask?.Hide(); targetIndicator?.Hide(); handIndicator?.HideHint();
-        Vector3 center = target is RectTransform rect ? rect.TransformPoint(rect.rect.center) : TutorialWorldTargetGeometry.Center(target);
-        Plane plane = new Plane(Vector3.up, center);
-        Ray ray = cameraController.Cam.ViewportPointToRay(new Vector3(.5f, .5f, 0));
-        if (plane.Raycast(ray, out float distance))
+        if (center) cameraController.StopFollowing(); // The previous task's follow would overwrite this pan.
+        if (SetFramingDestination(target, center))
         {
-            Vector3 offset = center - ray.GetPoint(distance); offset.y = 0;
-            cameraController.SetRigTargetPosition(cameraController.transform.position + offset);
             float deadline = Time.unscaledTime + 2f;
+            bool corrected = false;
             while (target != null && revision == presentationRevision && Time.unscaledTime < deadline)
             {
                 yield return null;
-                // Respect a new intentional camera gesture; do not recenter again immediately.
-                if (Input.GetMouseButtonDown(0) || Input.touchCount > 0) break;
-                if (TargetVisible(target, .09f) && Vector3.Distance(cameraController.transform.position, cameraController.GetRigTargetPosition()) < .1f) break;
+                if (revision != presentationRevision || cameraController == null ||
+                    cameraController.Cam == null || !cameraController.Cam.isActiveAndEnabled) break;
+                if (center && CurrentStep?.WorldTargetKey == "TutorialBooth" && !ReferenceEquals(target, currentWorldFocus))
+                {
+                    cameraController.SetRigTargetPosition(cameraController.transform.position, true);
+                    break;
+                }
+                if (target == null) break;
+                if (center && LobbyPauseMenu.BlocksTutorialInput)
+                {
+                    deadline += Time.unscaledDeltaTime;
+                    continue;
+                }
+                bool pointerInput = Input.GetMouseButtonDown(0) || Input.touchCount > 0;
+                if (center && (pointerInput || Input.GetMouseButton(1) || Input.mouseScrollDelta.y != 0f))
+                {
+                    cameraController.SetRigTargetPosition(cameraController.transform.position, true);
+                    break;
+                }
+                if (pointerInput) break;
+                if (Vector3.Distance(cameraController.transform.position, cameraController.GetRigTargetPosition()) >= .1f) continue;
+                if (TargetVisible(target, center ? 0f : .09f, center)) break;
+                if (!center) continue;
+                if (corrected || !SetFramingDestination(target, true)) break;
+                corrected = true;
             }
         }
         yield return null;
         framingWorld = false; offscreenSince = -1f; nextFrameAssist = Time.unscaledTime + 5f;
+        if (center) framingRoutine = null;
         if (revision == presentationRevision) onSettled?.Invoke();
     }
 
@@ -1211,16 +1355,20 @@ public sealed class TutorialSystem : MonoBehaviour
             RefreshExternalBridgeGuidance();
             return; // Kitchen/storage cameras own their views.
         }
-        if (gameObject.scene.name == "Lobby1Tutorial" && CurrentStep != null && !transitioning)
+        if (IsLobby1Tutorial && CurrentStep != null && !transitioning)
         {
-            UpdateTravel();
-            if (Time.unscaledTime >= nextBindingCheck)
+            ClearClosedBoothSuggestion();
+            if (!framingWorld)
             {
-                nextBindingCheck = Time.unscaledTime + .25f;
-                CheckLiveTarget();
+                UpdateTravel();
+                if (Time.unscaledTime >= nextBindingCheck)
+                {
+                    nextBindingCheck = Time.unscaledTime + .25f;
+                    CheckLiveTarget();
+                }
             }
         }
-        if (travelling || recovering || transitioning) return;
+        if (IsLobby1Tutorial || travelling || recovering || transitioning) return;
         if (framingWorld || Time.unscaledTime < nextFrameAssist || (!waitingForNext && !waitingForPlayerAction)) return;
         Transform target = WorldFramingTarget();
         if (target == null || cameraController == null || cameraController.Cam == null || TargetVisible(target, 0f))
@@ -1233,6 +1381,19 @@ public sealed class TutorialSystem : MonoBehaviour
             ShowFocus(waitingForPlayerAction);
             if (waitingForPlayerAction) ShowRestockHint(CurrentStep);
         });
+    }
+
+    private void ClearClosedBoothSuggestion()
+    {
+        if (CurrentStep?.WorldTargetKey != "TutorialBooth" || ReferenceEquals(currentWorldFocus, null)) return;
+        Transform live = GetComponent<TutorialCustomerFlowBridge>()?.ResolveWorld("TutorialBooth");
+        if (ReferenceEquals(currentWorldFocus, live)) return;
+
+        currentWorldFocus = null;
+        lastLobbyFramingTarget = null;
+        dialogueUI?.SetWorldFocusTarget(null);
+        targetIndicator?.Hide();
+        handIndicator?.HideHint();
     }
 
     private void ShowFocus(bool allowTargetInput)
@@ -1363,6 +1524,8 @@ public sealed class TutorialSystem : MonoBehaviour
             }
         }
         else { uiFocusMask?.Hide(); handIndicator?.HideHint(); }
+        if (app == null && IsLobby1Tutorial && TutorialCustomerFlowBridge.IsWorldPrompt(CurrentStep.UITargetKey))
+            return;
         SetObjective(app != null
             ? (sceneBindings.IsAppOpen(app) ? "Select the highlighted section to resume this lesson." :
                 sceneBindings.Computer?.IsOpen == true ? (sceneBindings.Computer.AppWindow != null && sceneBindings.Computer.AppWindow.gameObject.activeInHierarchy ? "Close the current window with X, then open " + TutorialSceneBindings.AppTitle(app) + "." : "Open " + TutorialSceneBindings.AppTitle(app) + " to continue.") : "Return to the Computer to continue this lesson.")
@@ -1376,6 +1539,17 @@ public sealed class TutorialSystem : MonoBehaviour
         if (HasExternalBridge) { RefreshExternalBridgeGuidance(); return; }
         var step = CurrentStep;
         if (step == null || step.IsPlaceholder || tutorialCompleted || travelling) return;
+        if (IsLobby1Tutorial && currentWorldFocus == null && currentUIFocus == null &&
+            !string.IsNullOrEmpty(step.WorldTargetKey) && (waitingForNext || waitingForPlayerAction))
+        {
+            currentWorldFocus = sceneBindings.ResolveWorld(step.WorldTargetKey);
+            if (currentWorldFocus != null)
+            {
+                BindWorldMaskProjection();
+                if (TryFrameWorldTarget(ShowLateWorldTarget, center: true)) return;
+                ShowLateWorldTarget();
+            }
+        }
         // Service popups disappear as real tasks start/finish. Their existing
         // bridge must keep observing the customer, not enter app-window recovery.
         if (waitingForNext && step.ExplainsAction) return;
@@ -1437,13 +1611,18 @@ public sealed class TutorialSystem : MonoBehaviour
             uiActionAdapter?.ObserveStep(this, live);
             SetObjective(step.Objective);
             InteractionRestrictionChanged?.Invoke(step.RestrictUnrelatedInteractions);
-            if (action) BeginWaitingForAction();
-            else PresentResolvedStep(step);
+            PresentWithFraming(step, action);
         }
         else if (live != currentUIFocus)
         {
             if (waitingForPlayerAction) RefreshLiveActionTarget(live);
             else { currentUIFocus = live; sceneBindings.BeginUIFocus(live); if (!step.ExplainsAction) ShowFocus(false); dialogueUI?.SetFocusTarget(live); }
+        }
+
+        void ShowLateWorldTarget()
+        {
+            ShowFocus(waitingForPlayerAction);
+            if (waitingForPlayerAction) ShowRestockHint(step);
         }
     }
 
@@ -1574,6 +1753,7 @@ public sealed class TutorialSystem : MonoBehaviour
         if (computerCloseRoutine != null) StopCoroutine(computerCloseRoutine);
         computerCloseRoutine = null; computerCloseGuidance = false;
         presentationRevision++;
+        showingMenuPriceCorrection = false;
         fastFoodDragFocused = false;
         externalTargetPending = focusTransitionPending = false;
         // Cancel only the task issued by this tutorial lesson, never another job.
@@ -1587,6 +1767,7 @@ public sealed class TutorialSystem : MonoBehaviour
         if (framingRoutine != null) StopCoroutine(framingRoutine);
         handoffRoutine = framingRoutine = null;
         framingWorld = false;
+        lastLobbyFramingTarget = null;
         StopTravel();
         currentUIFocus = null;
         recovering = resumeAction = transitioning = false;

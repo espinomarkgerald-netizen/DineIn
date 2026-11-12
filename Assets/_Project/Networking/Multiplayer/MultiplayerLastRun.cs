@@ -31,7 +31,7 @@ public static class MultiplayerLastRun
             room = room.Name, region = PhotonNetwork.CloudRegion?.Split('/')[0],
             networkVersion = PhotonBootstrap.ConnectionVersion, runId = run.runId,
             restaurant = run.restaurant, accountId = participant.accountId, actor = actor,
-            playerTtlSeconds = Mathf.Max(0, room.PlayerTtl / 1000),
+            playerTtlSeconds = room.PlayerTtl == 0 ? 0 : Mathf.Max(1, Mathf.CeilToInt(room.PlayerTtl / 1000f)),
             lastSeenUtc = DateTime.UtcNow.ToString("o")
         };
         PlayerPrefs.SetString(KeyPrefix + participant.accountId, JsonUtility.ToJson(pointer));

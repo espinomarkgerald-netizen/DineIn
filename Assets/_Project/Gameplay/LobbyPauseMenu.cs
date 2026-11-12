@@ -505,6 +505,20 @@ public sealed class LobbyPauseMenu : MonoBehaviour
         openRoutine = null;
     }
 
+    internal static LobbyPauseMenu HideForSessionConfirmation()
+    {
+        var menu = activeMenu;
+        if (menu == null || !menu.multiplayerPause || !menu.IsOpen) return null;
+        menu.overlay.SetActive(false);
+        return menu;
+    }
+
+    internal void RestoreAfterSessionConfirmation()
+    {
+        if (isActiveAndEnabled && multiplayerPause && paused && overlay != null)
+            overlay.SetActive(true);
+    }
+
     private void Resume()
     {
         bool ownedPause = paused;

@@ -271,9 +271,8 @@ public sealed class MultiplayerRestockBridge : MonoBehaviourPunCallbacks, IOnEve
             foreach (RestockCartLine line in cart)
                 if (line.item.requiredStorage == type) added += line.quantity;
             if (added <= 0) continue;
-            int used = RestockOrderManager.Instance.GetReservedContainers(type, Items);
-            used += InventoryManager.Instance.GetStorageContainerCount(type, Items);
-            if (used + added > Storage.GetCapacity(type)) return false;
+            var usage = RestockOrderManager.Instance.GetCapacityUsage(type, Items);
+            if (usage.Stored + usage.Reserved + added > Storage.GetCapacity(type)) return false;
         }
         bool accepted = Computer != null && Computer.ConfirmRestockOrderOnAuthority(cart);
         if (accepted) message = "Order placed. The containers are reserved for delivery.";
@@ -303,10 +302,8 @@ public sealed class MultiplayerRestockBridge : MonoBehaviourPunCallbacks, IOnEve
             if (SameShelf(entry.shelfID, shelf.id) && entry.column == request.column && entry.row == request.row)
             { message = "That shelf cell is occupied. Choose another cell."; return false; }
         }
-        int used = inventory.GetStorageContainerCount(shelf.storage, Items);
-        if (used >= Storage.GetCapacity(shelf.storage))
-        { message = "This storage room is full, including partially used stock."; return false; }
-        if (!orders.TryStoreOneContainer(item, shelf.storage, out message, out string batchID, out _)) return false;
+        if (!orders.TryStoreOneContainer(item, shelf.storage, out message, out string batchID, out _, Storage))
+            return false;
         orders.RegisterAuthoritativeContainer(new RestockStoredContainerSaveData
         {
             containerID = Guid.NewGuid().ToString("N"), stockBatchID = batchID,

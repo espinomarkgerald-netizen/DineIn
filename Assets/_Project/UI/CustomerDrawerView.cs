@@ -279,7 +279,8 @@ public sealed class CustomerDrawerView : MonoBehaviour
         {
             if(boundGroup!=s.Group){boundGroup=s.Group;shown=-1;}
             float f=LevelOneUIAccessibility.LargeText?1.2f:1;
-            type.fontSize=art.headingSize*f;members.fontSize=art.smallSize*f;status.fontSize=art.smallSize*f;table.fontSize=art.smallSize*f;patience.fontSize=art.smallSize*f;
+            type.fontSize=art.headingSize*f;members.fontSize=art.smallSize*f;status.fontSize=art.smallSize*f;patience.fontSize=art.smallSize*f;
+            FitSingleLine(table,art.smallSize*f);
             Set(type,s.Type);Set(members,s.Members+(s.Members==1?" guest":" guests"));Set(table,s.TableLabel);Set(status,s.Status);
             portrait.sprite=s.Portrait!=null?s.Portrait:art.Find("IconGuests");highlight.enabled=selected&&!detail;
             mood.sprite=art.Find(s.ReactionMood==0?"IconHappy":s.ReactionMood==1?"IconNeutral":s.ReactionMood==2?"IconAngry":"IconWaiting");

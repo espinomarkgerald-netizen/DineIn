@@ -52,6 +52,15 @@ internal static class CustomerDrawerUI
     {r.anchorMin=r.anchorMax=new Vector2(0,1);r.pivot=new Vector2(0,1);r.anchoredPosition=new Vector2(x,-y);r.sizeDelta=new Vector2(w,h);}
     internal static void Stretch(RectTransform r)
     {r.anchorMin=Vector2.zero;r.anchorMax=Vector2.one;r.offsetMin=r.offsetMax=Vector2.zero;}
+    internal static void FitSingleLine(TMP_Text text,float size)
+    {
+        if(text==null)return;
+        float minimum=Mathf.Max(8,size*.78f);
+        bool resize=!text.enableAutoSizing||!Mathf.Approximately(text.fontSizeMax,size)||!Mathf.Approximately(text.fontSizeMin,minimum);
+        if(resize){text.fontSize=size;text.fontSizeMin=minimum;text.fontSizeMax=size;text.enableAutoSizing=true;}
+        if(text.textWrappingMode!=TextWrappingModes.NoWrap)text.textWrappingMode=TextWrappingModes.NoWrap;
+        if(text.overflowMode!=TextOverflowModes.Ellipsis)text.overflowMode=TextOverflowModes.Ellipsis;
+    }
     internal static Image Image(string name,Transform parent,string sprite,bool sliced=true)
     {
         var image=Node(name,parent).gameObject.AddComponent<Image>();image.sprite=CustomerDrawerArt.Shared.Find(sprite);

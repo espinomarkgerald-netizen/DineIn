@@ -12,12 +12,13 @@ public partial class MultiplayerSessionManager : IOnEventCallback
     private readonly Dictionary<string, int> pendingRemovals = new(StringComparer.Ordinal);
     private bool intentionalLeavePending;
     private float leaveReplyUntil;
+    internal bool IsLeavingSession => leaving || intentionalLeavePending;
 
     private void TickLeaveRequest()
     {
         if (!intentionalLeavePending || Time.realtimeSinceStartup < leaveReplyUntil) return;
         intentionalLeavePending = false;
-        WarningSlideUI.Instance?.Show("Leaving was not confirmed. Try Leave Session again, or return to the menu to keep your place.");
+        WarningSlideUI.Instance?.Show("Leaving was not confirmed. Try Leave Session again.");
     }
 
     public bool CanRemove(string accountId) => IsAuthority && !string.IsNullOrEmpty(accountId)
@@ -47,18 +48,23 @@ public partial class MultiplayerSessionManager : IOnEventCallback
         {
             // UI visibility is not authorization: authenticate the actual Photon sender again.
             if (ev.Sender != run.hostActor || ev.Sender != PhotonNetwork.MasterClient?.ActorNumber || !CanRemove(account)) return;
-            MarkDeparted(account, true);
+            MarkKicked(account);
         }
         else if (ev.Code == LeaveRequestEvent && PhotonNetwork.CurrentRoom.Players.TryGetValue(ev.Sender, out var player)
             && player.UserId == account && ev.Sender != run.hostActor)
-            MarkDeparted(account, false);
+        {
+            // Use the same reserved roster state as a disconnected guest.
+            var member = run.participants.Find(p => p.actor == ev.Sender);
+            member.disconnectDeadline = Math.Max(1d, PhotonNetwork.Time);
+            PublishRun();
+        }
     }
 
-    private void MarkDeparted(string account, bool kicked)
+    private void MarkKicked(string account)
     {
         var member = run.participants.Find(p => p.accountId == account);
         if (member == null || member.departed || member.actor == run.hostActor) return;
-        member.kicked = kicked; member.departed = true; member.disconnectDeadline = 0;
+        member.kicked = true; member.departed = true; member.disconnectDeadline = 0;
         member.provisionalDay = member.provisionalHighestDay = 0;
         pendingRemovals[account] = member.actor;
         // Await the server property echo before destroying/disconnecting the participant.
@@ -76,10 +82,14 @@ public partial class MultiplayerSessionManager : IOnEventCallback
         // must not manufacture a local departure or remove the original host.
         var own = run.participants.Find(p => p.accountId == PhotonNetwork.LocalPlayer?.UserId);
         if (!IsHostConnection && own?.kicked == true) { ReturnAfterRecoveryFailure(RemovedMessage, true); return; }
-        if (intentionalLeavePending && own?.departed == true)
+        // A late host acknowledgement still commits the leave, even if the UI timed out.
+        if (!leaving && !RemovalPending && !Ended && leaveReplyUntil > 0f &&
+            own != null && own.actor == localActor && own.disconnectDeadline > 0)
         {
             intentionalLeavePending = false;
-            ReturnAfterRecoveryFailure("You left the session.", true);
+            leaveReplyUntil = 0f;
+            MultiplayerLastRun.MenuNotice = "You left the session. You can rejoin while it is active.";
+            LeaveToMenu();
             return;
         }
         if (!IsAuthority) return;
@@ -107,12 +117,11 @@ public partial class MultiplayerSessionManager : IOnEventCallback
         }
     }
 
-    public void LeaveSession()
+    internal bool TryLeaveSession()
     {
-        if (leaving || intentionalLeavePending) return;
-        if (IsHostConnection || Ended) { ForgetLastRun(); LeaveToMenu(); return; }
-        if (!IsConnected)
-        { Status = "Reconnect before leaving permanently, or return to menu to keep your place."; return; }
+        if (IsLeavingSession || RemovalPending) return false;
+        if (IsHostConnection || Ended) { ForgetLastRun(); LeaveToMenu(); return true; }
+        if (!IsConnected) return false;
         intentionalLeavePending = PhotonNetwork.RaiseEvent(LeaveRequestEvent,
             new object[] { RunId, PhotonNetwork.LocalPlayer.UserId },
             new RaiseEventOptions { Receivers = ReceiverGroup.MasterClient }, SendOptions.SendReliable);
@@ -121,5 +130,6 @@ public partial class MultiplayerSessionManager : IOnEventCallback
             leaveReplyUntil = Time.realtimeSinceStartup + 8f;
             Status = "Leaving session...";
         }
+        return intentionalLeavePending;
     }
 }

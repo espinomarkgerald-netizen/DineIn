@@ -222,6 +222,8 @@ public class GameDayManager : MonoBehaviour
     public void ApplyObservedDay(int day, bool running, bool closing, bool ended, float remaining)
     {
         if (!ObserveDayOnly) return;
+        if (running && !ServiceActive)
+            RestockFlowCoordinator.Instance?.DismissLobbyModals();
         if ((running || closing) && MultiplayerSessionManager.Instance?.IsRecovering != true) observedLiveService = true;
         shiftRunning = running;
         closingOut = closing;
@@ -532,15 +534,10 @@ public class GameDayManager : MonoBehaviour
         SetPanelVisible(resultsPanel, false);
         SetPanelVisible(dayIntroPanel, true);
 
-        bool singleRestaurantFlow = GameFlowManager.Instance != null &&
-                                    GameFlowManager.Instance.UsesSingleRestaurantFlow;
-
         if (dayIntroTitleText != null)
         {
             int day = GameFlowManager.Instance != null ? GameFlowManager.Instance.CurrentDay : 1;
-            dayIntroTitleText.text = singleRestaurantFlow && GameFlowManager.Instance.IsEndlessRestaurantMode
-                ? "Continue Service"
-                : $"Day {day}";
+            dayIntroTitleText.text = $"Day {day}";
         }
 
 
@@ -703,6 +700,7 @@ public class GameDayManager : MonoBehaviour
         EmployeeManager.Instance?.LockAllSlots();
         shiftRunning = true;
         closingOut = false;
+        RestockFlowCoordinator.Instance?.DismissLobbyModals();
         if (fastFood == null && fineDining == null) GameFlowManager.Instance?.MarkRestaurantServiceStarted();
 
         SetPanelVisible(resultsPanel, false);
@@ -919,6 +917,7 @@ public class GameDayManager : MonoBehaviour
     public void PrepareNextMultiplayerDay()
     {
         if (!MultiplayerDayBridge.IsActive) return;
+        RestockFlowCoordinator.Instance?.DismissLobbyModals();
         if (spawnRoutine != null) StopCoroutine(spawnRoutine);
         if (closingResultsRoutine != null) StopCoroutine(closingResultsRoutine);
         spawnRoutine = null; closingResultsRoutine = null;
@@ -1120,9 +1119,7 @@ public class GameDayManager : MonoBehaviour
         {
             if (GameFlowManager.Instance != null && GameFlowManager.Instance.UsesSingleRestaurantFlow)
             {
-                dayText.text = GameFlowManager.Instance.IsEndlessRestaurantMode
-                    ? "Endless Service"
-                    : $"Day {GameFlowManager.Instance.CurrentDay}";
+                dayText.text = $"Day {GameFlowManager.Instance.CurrentDay}";
             }
             else
             {
@@ -1190,6 +1187,7 @@ public class GameDayManager : MonoBehaviour
         FineDiningReservations.For(this)?.FinishDay();
         bool multiplayer = MultiplayerDayBridge.IsActive;
         if (multiplayer && multiplayerDayEnded) return;
+        RestockFlowCoordinator.Instance?.DismissLobbyModals();
         if (multiplayer) multiplayerDayEnded = true;
         GameFlowManager flow = GameFlowManager.Instance;
         bool singleRestaurantFlow = flow != null && flow.UsesSingleRestaurantFlow;

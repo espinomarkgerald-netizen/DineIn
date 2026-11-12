@@ -62,7 +62,9 @@ public partial class GameFlowManager : MonoBehaviour
     [SerializeField] private GameOverScreen gameOverScreen;
 
     public int CurrentDay => currentDay;
-    public int ProgressionDay => MultiplayerRestaurantBridge.IsActive ? Mathf.Min(currentDay, campaignDayLimit) : currentDay;
+    public int ProgressionDay => useSingleRestaurantFlow || MultiplayerRestaurantBridge.IsActive
+        ? Mathf.Min(currentDay, campaignDayLimit)
+        : currentDay;
     public GamePhase CurrentPhase => currentPhase;
     public DayHalf CurrentDayHalf => currentDayHalf;
     public bool LobbyCompleted => lobbyCompleted;
@@ -574,12 +576,14 @@ public partial class GameFlowManager : MonoBehaviour
         fastFoodServiceStarted = false;
         financeSettledDay = (data.fastFoodDayComplete && restaurantSceneName == "Lobby2") ||
             (data.fineDiningDayComplete && restaurantSceneName == "Lobby3") ? data.currentDay : -1;
-        currentDay = MultiplayerRestaurantBridge.IsActive ? Mathf.Max(1, data.currentDay) : Mathf.Clamp(data.currentDay, 1, 30);
+        campaignCompleted = data.campaignCompleted;
+        currentDay = MultiplayerRestaurantBridge.IsActive || IsEndlessRestaurantMode
+            ? Mathf.Max(1, data.currentDay)
+            : Mathf.Clamp(data.currentDay, 1, useSingleRestaurantFlow ? campaignDayLimit : 30);
         currentPhase = (GamePhase)Mathf.Clamp(data.currentPhase, 0, Enum.GetValues(typeof(GamePhase)).Length - 1);
         currentDayHalf = (DayHalf)Mathf.Clamp(data.currentDayHalf, 0, Enum.GetValues(typeof(DayHalf)).Length - 1);
         lobbyCompleted = data.lobbyCompleted;
         kitchenCompleted = data.kitchenCompleted;
-        campaignCompleted = data.campaignCompleted;
 
         if (useSingleRestaurantFlow)
         {
@@ -797,11 +801,12 @@ public partial class GameFlowManager : MonoBehaviour
     private void StartEndlessRestaurantDay()
     {
         AdvanceSoloRankingDay();
-        if (MultiplayerRestaurantBridge.IsActive) currentDay++;
+        currentDay++;
         Time.timeScale = 1f;
         PrepareRestaurantDay();
         restaurantSessionState = RestaurantSessionState.Endless;
-        if (restaurantSceneName == "Lobby2" || restaurantSceneName == "Lobby3") GameSaveManager.Instance?.RequestSave();
+        if (!MultiplayerRestaurantBridge.IsActive)
+            GameSaveManager.Instance?.RequestSave();
         LoadRestaurantScene();
     }
 
@@ -818,7 +823,9 @@ public partial class GameFlowManager : MonoBehaviour
         fastFoodServiceStarted = false;
         if (MultiplayerRestaurantBridge.IsObserver) return;
         financeSettledDay = -1;
-        currentDay = MultiplayerRestaurantBridge.IsActive ? Mathf.Max(1, currentDay) : Mathf.Clamp(currentDay, 1, campaignDayLimit);
+        currentDay = MultiplayerRestaurantBridge.IsActive || campaignCompleted
+            ? Mathf.Max(1, currentDay)
+            : Mathf.Clamp(currentDay, 1, campaignDayLimit);
         currentPhase = GamePhase.Restaurant;
         currentDayHalf = DayHalf.None;
         lobbyCompleted = false;

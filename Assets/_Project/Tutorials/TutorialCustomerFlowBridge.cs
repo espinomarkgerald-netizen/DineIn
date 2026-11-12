@@ -29,9 +29,7 @@ public sealed class TutorialCustomerFlowBridge : MonoBehaviour
     private TutorialDayContext day;
     private CustomerGroup group;
     private GameDayManager gameDay;
-    private MainCameraController cameraController;
     private int originalMaxCustomers = -1;
-    private string focusedActionKey;
     private Button observedButton;
     private string observedButtonKey;
     private bool observedButtonClicked;
@@ -119,6 +117,16 @@ public sealed class TutorialCustomerFlowBridge : MonoBehaviour
         return owner == null || (owner.tutorial.IsWaitingForGameplayAction &&
             (owner.tutorial.CurrentStep?.UITargetKey == targetKey ||
              targetKey == "OrderBubble" && owner.ResolveReopenTarget() != null));
+    }
+
+    internal static bool IsGuidedDeliveryStep =>
+        GuidedOwner?.tutorial.CurrentStep?.UITargetKey == "DeliveryPopup";
+
+    internal static bool CanPresentGuidedDelivery(CustomerGroup customer)
+    {
+        TutorialCustomerFlowBridge owner = GuidedOwner;
+        return owner != null && customer != null && owner.group == customer &&
+            owner.tutorial.CurrentStep?.UITargetKey == "DeliveryPopup";
     }
 
     private void Awake() { tutorial = GetComponent<TutorialSystem>(); day = GetComponent<TutorialDayContext>(); }
@@ -216,7 +224,6 @@ public sealed class TutorialCustomerFlowBridge : MonoBehaviour
         ObserveRequiredButton(key);
         BindRequiredUIReleaseGuard();
         RefreshLiveUIActionTarget();
-        FocusCurrentWorldAction(key);
         if (key == "Customer.TrayCleaned" && !cleanupArmed)
         {
             cleanupTray = FindTray(FoodTrayInteractable.TrayMode.None);
@@ -265,7 +272,8 @@ public sealed class TutorialCustomerFlowBridge : MonoBehaviour
         if (!tutorial.IsWaitingForGameplayAction) return;
         string key = tutorial.CurrentStep.ActionKey;
         if (key != "Practice.Player" && key != "Practice.Staff") return;
-        if (practiceRound != key)
+        bool startedRound = practiceRound != key;
+        if (startedRound)
         {
             practiceRound = key;
             practiceCompleted = 0;
@@ -282,6 +290,7 @@ public sealed class TutorialCustomerFlowBridge : MonoBehaviour
             nextStaffChatter = Time.unscaledTime + 30f;
             GetComponent<TutorialBoothAvailability>()?.OpenPracticeBooths(staffDemonstration ? 3 : 1);
         }
+        int previousCompleted = practiceCompleted;
         departedPracticeGroups.Clear();
         foreach (var entry in practiceGroups)
         {
@@ -304,6 +313,16 @@ public sealed class TutorialCustomerFlowBridge : MonoBehaviour
         foreach (CustomerGroup customer in departedPracticeGroups)
             practiceGroups.Remove(customer);
         int required = staffDemonstration ? 5 : 3;
+        if ((startedRound || practiceCompleted != previousCompleted) && staffDemonstration &&
+            tutorial.CurrentStep.Id == "practice_staff" && tutorial.gameObject.scene.name == "Lobby1Tutorial")
+        {
+            int remaining = required - practiceCompleted;
+            string objective = remaining <= 0 ? string.Empty :
+                remaining == 1 ? "Serve 1 more group with your staff" :
+                $"Serve {remaining} more groups with your staff";
+            if (tutorial.CurrentObjective != objective)
+                tutorial.SetObjective(objective);
+        }
         var boss = FindFirstObjectByType<TutorialDialogueUI>(FindObjectsInactive.Include);
         // Lobby presentation intentionally suppresses nonblocking chatter. Such
         // messages cannot be delivered, so they must not gate either real round.
@@ -428,8 +447,7 @@ public sealed class TutorialCustomerFlowBridge : MonoBehaviour
             case "Customer.Greeted": return group != null && group.hasBeenGreeted &&
                                               FindCustomerActionButton("Seat Table") != null;
             case "Customer.SeatModeStarted":
-                return group != null && BoothAssignArrowManager.Instance != null &&
-                       BoothAssignArrowManager.Instance.ActiveSuggestedBooth != null;
+                return ResolveWorld("TutorialBooth") != null;
             case "Customer.Seated": return group != null && group.assignedBooth != null && group.state >= CustomerGroup.GroupState.Seated && group.state < CustomerGroup.GroupState.Leaving;
             case "Customer.ReadyToOrder":
                 if (group == null || group.state != CustomerGroup.GroupState.ReadyToOrder) return false;
@@ -527,6 +545,10 @@ public sealed class TutorialCustomerFlowBridge : MonoBehaviour
     private TutorialSystem.TutorialStep popupStep;
     private string popupKey;
     private RectTransform popupTarget;
+
+    internal static bool IsWorldPrompt(string key) =>
+        key is "CustomerGreetButton" or "CustomerSeatButton" or "OrderBubble" or "DeliveryPopup" or
+            "BillRequestPopup" or "TrayPickupButton" or "CleanupPickupButton" or "BillPickupButton" or "PaymentPickupButton";
 
     public RectTransform ResolveUI(string key)
     {
@@ -733,7 +755,11 @@ public sealed class TutorialCustomerFlowBridge : MonoBehaviour
         for (Transform current = rect; current != null; current = current.parent)
         {
             CanvasGroup canvasGroup = current.GetComponent<CanvasGroup>();
-            if (canvasGroup != null && (canvasGroup.alpha <= .01f || !canvasGroup.interactable)) return null;
+            if (canvasGroup == null || (canvasGroup.alpha > .01f && canvasGroup.interactable)) continue;
+            // The tutorial can frame this real button before its world follower
+            // makes it visible. Other hidden or disabled controls stay excluded.
+            if (!current.TryGetComponent<UIFollowWorldPoint>(out _) || GameplayUIBlocker.IsBlocked() ||
+                !TutorialSystem.TryGetOffscreenBubbleAnchor(rect, Camera.main, out _)) return null;
         }
         return rect;
     }
@@ -764,20 +790,6 @@ public sealed class TutorialCustomerFlowBridge : MonoBehaviour
             if (tutorial != null && tutorial.CurrentPhase == TutorialSystem.TutorialPhase.NormalGameplay && !staffDemonstration)
                 service.StopAllCoroutines();
         }
-    }
-
-    private void FocusCurrentWorldAction(string actionKey)
-    {
-        TutorialSystem.TutorialStep step = tutorial.CurrentStep;
-        if (step == null || string.IsNullOrWhiteSpace(step.WorldTargetKey) ||
-            string.Equals(focusedActionKey, actionKey, StringComparison.Ordinal)) return;
-        Transform target = ResolveWorld(step.WorldTargetKey);
-        if (target == null) return;
-        if (cameraController == null)
-            cameraController = FindFirstObjectByType<MainCameraController>(FindObjectsInactive.Exclude);
-        if (cameraController == null) return;
-        cameraController.SetRigTargetPosition(target.position);
-        focusedActionKey = actionKey;
     }
 
     private RectTransform ResolveQuantityButton(bool drink)

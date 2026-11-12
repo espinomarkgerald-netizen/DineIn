@@ -19,6 +19,7 @@ public class InventoryStockBatchSaveEntry
     public int expiresDay;
     public bool wrongStorage;
     public RestockStorageType currentStorage;
+    public bool isLegacyStock;
 }
 
 [Serializable]

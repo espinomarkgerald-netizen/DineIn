@@ -12,7 +12,7 @@ using Hashtable = ExitGames.Client.Photon.Hashtable;
 public partial class MultiplayerSessionManager : MonoBehaviourPunCallbacks
 {
     public const string SceneName = "Lobby1 Multiplayer", RunKey = "restaurant.run.v2";
-    public const string ProtocolKey = "restaurant.protocol", Protocol = "shared-session-24";
+    public const string ProtocolKey = "restaurant.protocol", Protocol = "shared-session-25";
     public const string ResultRulesVersion = "casual-session-2";
     public const string InsufficientPlayersReason = "InsufficientPlayers";
     public const string ReadyKey = "restaurant.ready", LoadedKey = "restaurant.loaded";
@@ -296,8 +296,12 @@ public partial class MultiplayerSessionManager : MonoBehaviourPunCallbacks
         gameplay?.ParticipantUnavailable(player.ActorNumber);
         var p = run.participants.Find(value => value.actor == player.ActorNumber);
         if (p == null || p.departed) return;
+        bool wasMarkedAbsent = p.disconnectDeadline > 0;
         p.loadEpoch++;
         p.disconnectDeadline = Math.Max(1d, PhotonNetwork.Time); // Presence marker, not expiry.
+        // Photon retains objects for inactive actors. A confirmed leave still releases the avatar.
+        if (wasMarkedAbsent && player.IsInactive)
+            PhotonNetwork.DestroyPlayerObjects(player.ActorNumber);
         PublishRun();
         RefreshReservations();
     }
@@ -313,6 +317,8 @@ public partial class MultiplayerSessionManager : MonoBehaviourPunCallbacks
         if (leaving || RemovalPending || Ended || run == null) return;
         StopSimulation();
         if (localActor == run.hostActor) { EndLocal("HostDisconnected"); return; }
+        intentionalLeavePending = false;
+        leaveReplyUntil = 0f;
         gameplay?.ConnectionLost();
         restoringConnection = false;
         joinInFlight = false;

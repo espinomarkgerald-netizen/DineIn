@@ -164,7 +164,8 @@ public sealed class CompactTaskPanelView : MonoBehaviour
         if(frame==null)return;lastLarge=LevelOneUIAccessibility.LargeText;
         float f=lastLarge?1.2f:1,pad=art.contentPadding,w=frame.rect.width-pad*2-10;
         Place((RectTransform)scroll.transform,pad,30,frame.rect.width-pad*2,frame.rect.height-41);
-        action.fontSize=art.headingSize*f;destination.fontSize=art.bodySize*f;support.fontSize=art.smallSize*f;table.fontSize=art.smallSize*f;
+        action.fontSize=art.headingSize*f;support.fontSize=art.smallSize*f;
+        FitSingleLine(destination,art.bodySize*f);FitSingleLine(table,art.smallSize*f);
         float titleHeight=Mathf.Max(38,action.GetPreferredValues(action.text,w-51,0).y);
         Place(icon.rectTransform,2,1,40,40);Place(action.rectTransform,48,0,w-51,titleHeight);
         float y=titleHeight+8;bool hasDestination=!string.IsNullOrEmpty(destination.text),hasTable=!string.IsNullOrEmpty(table.text);

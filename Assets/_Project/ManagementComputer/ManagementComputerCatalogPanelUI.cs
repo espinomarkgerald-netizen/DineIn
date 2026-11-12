@@ -94,6 +94,8 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
 
     private RestaurantStorageConfig storageConfig;
     private RestockOrderManager orderManager;
+    private ManagementComputerWindow restockWindow;
+    private string restockFooterMessage;
     private int expectedCustomers;
     private Func<IReadOnlyList<RestockCartLine>, bool> confirmOrder;
     private bool reviewMode;
@@ -206,7 +208,10 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
     private void OnDestroy()
     {
         if (orderManager != null)
+        {
             orderManager.OrdersChanged -= HandleOrdersChanged;
+            orderManager.StoredContainersChanged -= HandleOrdersChanged;
+        }
         UnsubscribeInventory();
     }
 
@@ -249,7 +254,8 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
         RestaurantStorageConfig configuredStorage,
         RestockOrderManager configuredOrders,
         int configuredExpectedCustomers,
-        Func<IReadOnlyList<RestockCartLine>, bool> orderConfirmation)
+        Func<IReadOnlyList<RestockCartLine>, bool> orderConfirmation,
+        string footerMessage = null)
     {
         CaptureViewContext();
         SubscribeInventory();
@@ -257,6 +263,8 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
         activeCategory = MenuProductCategory.Food;
         EnsureCategoryTabs();
         storageConfig = configuredStorage;
+        restockWindow = GetComponentInParent<ManagementComputerWindow>();
+        restockFooterMessage = footerMessage;
         confirmOrder = orderConfirmation;
         expectedCustomers = Mathf.Max(1, configuredExpectedCustomers);
         reviewMode = false;
@@ -278,10 +286,16 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
         restockItems.Sort(CompareRestockProgression);
 
         if (orderManager != null)
+        {
             orderManager.OrdersChanged -= HandleOrdersChanged;
+            orderManager.StoredContainersChanged -= HandleOrdersChanged;
+        }
         orderManager = configuredOrders;
         if (orderManager != null)
+        {
             orderManager.OrdersChanged += HandleOrdersChanged;
+            orderManager.StoredContainersChanged += HandleOrdersChanged;
+        }
 
         SetText(contextText,
             $"Expected visitors today: {expectedCustomers}. Choose how many boxes to order, then review your cart.");
@@ -674,15 +688,33 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
         if (!menuEditable || selectedRecipe == null || menuPriceInput == null)
             return;
 
+        Recipe product = selectedRecipe;
+        TutorialSystem tutorial = TutorialSystem.Instance;
+        bool tutorialPriceStep = TutorialSystem.IsTutorialMode && tutorial.IsLobbyMenuPriceSaveStep;
+        if (tutorialPriceStep && !tutorial.CanSaveLobbyMenuPrice(product))
+            return;
+
         if (!int.TryParse(menuPriceInput.text, out int price) || price < 0)
         {
             SetMessage("Enter a valid whole-number price.", true);
             return;
         }
 
-        if (setMenuPrice == null || !setMenuPrice(selectedRecipe, price))
+        int enteredPrice = price;
+        if (tutorialPriceStep)
         {
-            if (selectedRecipe.EffectiveSellPrice == price)
+            MenuPriceGuidance guidance = MenuPriceValueService.GetGuidance(product);
+            price = Mathf.Clamp(price, guidance.RecommendedMinimum, guidance.RecommendedMaximum);
+        }
+
+        bool changed = setMenuPrice != null && setMenuPrice(product, price);
+        bool priceIsEffective = product.EffectiveSellPrice == price;
+        // The tutorial saves locally. A price already at the corrected value
+        // is also confirmed, even when the setter returns false for no change.
+        bool saved = tutorialPriceStep ? setMenuPrice != null && priceIsEffective : changed;
+        if (!saved)
+        {
+            if (priceIsEffective)
                 SetMessage("Price is already set to ₱" + price + ".");
             else
                 SetMessage("The price could not be saved.", true);
@@ -690,9 +722,13 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
         }
 
         pendingMenuPrice = price;
-        menuPriceDirty = selectedRecipe.EffectiveSellPrice != price;
+        menuPriceDirty = !priceIsEffective;
+        if (tutorialPriceStep && enteredPrice != price)
+            menuPriceInput.SetTextWithoutNotify(price.ToString());
         RefreshData();
-        SetMessage(menuPriceDirty ? "Price update requested. Waiting for confirmation." : "Saved " + selectedRecipe.DisplayName + " at ₱" + price + ".");
+        SetMessage(menuPriceDirty ? "Price update requested. Waiting for confirmation." : "Saved " + product.DisplayName + " at ₱" + price + ".");
+        if (tutorialPriceStep)
+            tutorial.OnLobbyMenuPriceSaved(product, enteredPrice, price);
     }
 
     private void ToggleSelectedAvailability()
@@ -734,6 +770,11 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
     private void RefreshRestockView()
     {
         var anchor = new ManagementComputerScrollAnchor(transform);
+        int dryAfter = GetUsedCapacityBeforeCart(RestockStorageType.Dry) + GetCartCount(RestockStorageType.Dry);
+        int frozenAfter = GetUsedCapacityBeforeCart(RestockStorageType.Frozen) + GetCartCount(RestockStorageType.Frozen);
+        bool dryHasSpace = storageConfig != null && dryAfter < storageConfig.DryCapacity;
+        bool frozenHasSpace = storageConfig != null && frozenAfter < storageConfig.FrozenCapacity;
+
         foreach (KeyValuePair<ItemData, ManagementComputerCatalogCardUI> entry in restockCards)
         {
             ItemData item = entry.Key;
@@ -752,12 +793,13 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
                 projection,
                 requested,
                 unlocked,
-                unlocked && GetAvailableCapacity(item.requiredStorage) > 0,
+                unlocked && (item.requiredStorage == RestockStorageType.Frozen ? frozenHasSpace : dryHasSpace),
                 ChangeCartQuantity);
         }
 
-        RebuildCartLines();
-        RefreshCartSummary();
+        RebuildCartLines(dryHasSpace, frozenHasSpace);
+        RefreshCartSummary(dryAfter, frozenAfter);
+        RefreshCapacityMessage(dryHasSpace, frozenHasSpace);
         ConfigureCartButtons();
         ApplyCategoryFilter(false);
         anchor.Restore();
@@ -843,7 +885,7 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
             : foodRestockItems.Contains(item);
     }
 
-    private void RebuildCartLines()
+    private void RebuildCartLines(bool dryHasSpace, bool frozenHasSpace)
     {
         var usedLines = new HashSet<ManagementComputerCheckoutLineUI>();
         if (checkoutLinePrefab == null || cartLineContent == null)
@@ -865,7 +907,7 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
             line.BindCart(
                 item,
                 quantity,
-                GetAvailableCapacity(item.requiredStorage) > 0,
+                item.requiredStorage == RestockStorageType.Frozen ? frozenHasSpace : dryHasSpace,
                 ChangeCartQuantity);
         }
         foreach (var old in cartLineContent.GetComponentsInChildren<ManagementComputerCheckoutLineUI>(true))
@@ -1059,20 +1101,31 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
         return string.Empty;
     }
 
-    private void RefreshCartSummary()
+    private void RefreshCartSummary(int dryAfter, int frozenAfter)
     {
         int dryCapacity = storageConfig != null ? storageConfig.DryCapacity : 0;
         int frozenCapacity = storageConfig != null ? storageConfig.FrozenCapacity : 0;
-        int dryAfter = GetUsedCapacityBeforeCart(RestockStorageType.Dry) +
-                       GetCartCount(RestockStorageType.Dry);
-        int frozenAfter = GetUsedCapacityBeforeCart(RestockStorageType.Frozen) +
-                          GetCartCount(RestockStorageType.Frozen);
-
         SetText(cartSummaryText,
             $"Boxes: {GetTotalBoxes()}\n" +
             $"Dry after order: {dryAfter} / {dryCapacity}\n" +
             $"Frozen after order: {frozenAfter} / {frozenCapacity}\n" +
             $"TOTAL: ₱{GetTotalCost()}");
+    }
+
+    private void RefreshCapacityMessage(bool dryHasSpace, bool frozenHasSpace)
+    {
+        if (restockWindow == null)
+            return;
+
+        if (dryHasSpace && frozenHasSpace)
+        {
+            restockWindow.SetMessage(restockFooterMessage);
+            return;
+        }
+
+        string storage = dryHasSpace ? "frozen" : frozenHasSpace ? "dry" : "dry or frozen";
+        restockWindow.SetMessage(
+            $"No room for more {storage} boxes. Free a shelf slot or remove a box from your cart.", true);
     }
 
     private int GetAvailableCapacity(RestockStorageType type)
@@ -1083,13 +1136,10 @@ public sealed class ManagementComputerCatalogPanelUI : MonoBehaviour
 
     private int GetUsedCapacityBeforeCart(RestockStorageType type)
     {
-        int storedEstimate = InventoryManager.Instance != null
-            ? InventoryManager.Instance.GetStorageContainerCount(type, restockItems) : 0;
-
-        int reserved = orderManager != null
-            ? orderManager.GetReservedContainers(type, restockItems)
-            : 0;
-        return storedEstimate + reserved;
+        if (orderManager == null)
+            return 0;
+        var usage = orderManager.GetCapacityUsage(type, restockItems);
+        return usage.Stored + usage.Reserved;
     }
 
     private int GetCartCount(RestockStorageType type)

@@ -90,11 +90,21 @@ public class TableNumberUI : MonoBehaviour
         MultiplayerCustomerSpawn networkCustomer, bool multiplayerGuidance,
         BoothDeliverInteractable boothDelivery, CustomerDeliverInteractable customerDelivery)
     {
+        return TutorialCustomerFlowBridge.AllowsServiceUI("DeliveryPopup") &&
+            (!TutorialCustomerFlowBridge.IsGuidedDeliveryStep ||
+                TutorialCustomerFlowBridge.CanPresentGuidedDelivery(group)) &&
+            HasEligibleDelivery(group, booth, displayedNumber, networkCustomer, multiplayerGuidance,
+                boothDelivery, customerDelivery);
+    }
+
+    private static bool HasEligibleDelivery(CustomerGroup group, Booth booth, int displayedNumber,
+        MultiplayerCustomerSpawn networkCustomer, bool multiplayerGuidance,
+        BoothDeliverInteractable boothDelivery, CustomerDeliverInteractable customerDelivery)
+    {
         if (group == null || !group.isActiveAndEnabled || group.IsTakeout || booth == null ||
             group.state != CustomerGroup.GroupState.OrderTaken || group.assignedBooth != booth ||
             !group.AllowsStaffFoodDelivery || !group.HasConfirmedOrder || group.IsPlayerReviewingOrder ||
-            booth.CurrentGroup != group || group.currentOrderNumber != displayedNumber ||
-            !TutorialCustomerFlowBridge.AllowsServiceUI("DeliveryPopup")) return false;
+            booth.CurrentGroup != group || group.currentOrderNumber != displayedNumber) return false;
         var session = MultiplayerSessionManager.Instance;
         bool network = multiplayerGuidance || (session != null && session.IsMultiplayerSession);
         if (network)
@@ -114,7 +124,14 @@ public class TableNumberUI : MonoBehaviour
     private void RefreshPresentation()
     {
         if (!tableBound || group == null || booth == null) return;
-        bool available = CanShowServe();
+        // The tutorial needs a stable target before it opens the delivery action.
+        // The click handler and the arrival callback still check input permission.
+        bool canPresent = TutorialCustomerFlowBridge.IsGuidedDeliveryStep
+            ? TutorialCustomerFlowBridge.CanPresentGuidedDelivery(group)
+            : TutorialCustomerFlowBridge.AllowsServiceUI("DeliveryPopup");
+        bool available = canPresent &&
+            HasEligibleDelivery(group, booth, displayedNumber, networkCustomer, multiplayerGuidance,
+                boothDelivery, customerDelivery);
         if (presentationInitialized && available == serveAvailable)
         {
             // Claim changes can alter input without changing the displayed caption.
@@ -139,6 +156,8 @@ public class TableNumberUI : MonoBehaviour
 
     public void OnClickMoveToTable()
     {
+        // A stale table number cannot start ordinary navigation in this lesson.
+        if (!serveAvailable && TutorialCustomerFlowBridge.IsGuidedDeliveryStep) return;
         if(!serveAvailable && CustomerDrawerView.TryInspectGroupFromUI(group))return;
         // A click on an expired Serve prompt must not fall through into ordinary navigation.
         if (serveAvailable && !CanShowServe()) { RefreshPresentation(); return; }
@@ -170,9 +189,15 @@ public class TableNumberUI : MonoBehaviour
             // order and held tray on arrival, before invoking its real delivery handler.
             var pendingFollow = GetComponentInParent<UIFollowWorldPoint>();
             if (pendingFollow == null) pendingFollow = GetComponentInChildren<UIFollowWorldPoint>(true);
+            CustomerGroup expectedGroup = group;
+            Booth expectedBooth = booth;
+            int expectedOrder = displayedNumber;
+            FoodTray expectedTray = WaiterHands.For(player)?.holdingTray;
             bool accepted = player.UI_MoveToAction(delivery.StandPoint, delivery.GetInteractRadius(), () =>
             {
-                if (this != null && CanShowServe() && delivery.CanInteract()) delivery.Interact(player);
+                if (this != null && group == expectedGroup && booth == expectedBooth && displayedNumber == expectedOrder &&
+                    expectedTray != null && WaiterHands.For(player)?.holdingTray == expectedTray &&
+                    CanShowServe() && delivery.CanInteract()) delivery.Interact(player);
                 if (pendingFollow != null) pendingFollow.SetActionPending(false);
             }, () => { if (pendingFollow != null) pendingFollow.SetActionPending(false); if (this != null) RefreshPresentation(); });
             if (accepted && pendingFollow != null) pendingFollow.SetActionPending(true);

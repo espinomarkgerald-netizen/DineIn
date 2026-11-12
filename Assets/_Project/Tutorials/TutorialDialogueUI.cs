@@ -156,6 +156,7 @@ public class TutorialDialogueUI : MonoBehaviour
     private RectTransform portraitPlacement;
     private Vector2 dialogueHome;
     private bool fastFoodPoseChosen;
+    private bool lobby1Tutorial;
     private bool StableFastFoodPlacement => avoidFocusOverlap &&
         (gameObject.scene.name == FastFoodScene.Tutorial || gameObject.scene.name == FineDiningScene.Tutorial);
     public Func<Vector2, bool> CanAdvanceAt { get; set; }
@@ -178,7 +179,8 @@ public class TutorialDialogueUI : MonoBehaviour
     private void Awake()
     {
         dialogueHome = ((RectTransform)transform).anchoredPosition;
-        polishedLobby = useTutorialPresentation || gameObject.scene.name == "Lobby1Tutorial";
+        lobby1Tutorial = gameObject.scene.name == "Lobby1Tutorial";
+        polishedLobby = useTutorialPresentation || lobby1Tutorial;
         if (bodyText != null) bodyText.OnPreRenderText += AnimateRevealedLetters;
         // The dialogue panel, nameplate, and text always stay at their authored pose.
         // Only the Big Boss portrait reacts when its sprite actually changes.
@@ -276,11 +278,20 @@ public class TutorialDialogueUI : MonoBehaviour
         nextSideCheck = 0f;
     }
 
-    private Rect ScreenRect(RectTransform rect)
+    private static Camera CanvasCamera(RectTransform rect)
     {
         Canvas owner = rect.GetComponentInParent<Canvas>()?.rootCanvas;
-        Camera camera = owner == null || owner.renderMode == RenderMode.ScreenSpaceOverlay ? null : owner.worldCamera;
+        return owner == null || owner.renderMode == RenderMode.ScreenSpaceOverlay ? null : owner.worldCamera;
+    }
+
+    private Rect ScreenRect(RectTransform rect)
+    {
         rect.GetWorldCorners(corners);
+        return ProjectCorners(CanvasCamera(rect));
+    }
+
+    private Rect ProjectCorners(Camera camera)
+    {
         Vector2 min = new Vector2(float.MaxValue, float.MaxValue), max = new Vector2(float.MinValue, float.MinValue);
         foreach (var corner in corners)
         {
@@ -290,26 +301,88 @@ public class TutorialDialogueUI : MonoBehaviour
         return Rect.MinMaxRect(min.x, min.y, max.x, max.y);
     }
 
+    private float PortraitFitScale(Rect bounds, Rect safe)
+    {
+        if (bounds.width <= 0f || bounds.height <= 0f) return 1f;
+        return Mathf.Min(1f, safe.width * portraitSafeWidth / bounds.width, safe.height * portraitSafeHeight / bounds.height);
+    }
+
+    private static Vector2 PortraitSafeShift(Rect bounds, Rect safe) =>
+        new Vector2(Mathf.Max(0f, safe.xMin - bounds.xMin) + Mathf.Min(0f, safe.xMax - bounds.xMax),
+            Mathf.Max(0f, safe.yMin - bounds.yMin) + Mathf.Min(0f, safe.yMax - bounds.yMax));
+
     private void LateUpdate()
     {
         if (portraitRoutine == null && IsVisible) ApplyPortraitPose();
         UpdatePortraitPlacement();
+        if (lobby1Tutorial && IsVisible) ApplyLobbyPortraitPadding();
         if (!IsVisible || portraitRect == null || portraitImage == null || !portraitImage.enabled) return;
         portraitImage.preserveAspect = true;
         Rect safe = Screen.safeArea;
         Rect bounds = ScreenRect(portraitRect);
         if (bounds.width <= 0 || bounds.height <= 0) return;
-        float scale = Mathf.Min(1f, safe.width * portraitSafeWidth / bounds.width, safe.height * portraitSafeHeight / bounds.height);
-        portraitRect.localScale *= scale;
+        portraitRect.localScale *= PortraitFitScale(bounds, safe);
         bounds = ScreenRect(portraitRect);
-        Vector2 shift = new Vector2(Mathf.Max(0, safe.xMin - bounds.xMin) + Mathf.Min(0, safe.xMax - bounds.xMax),
-            Mathf.Max(0, safe.yMin - bounds.yMin) + Mathf.Min(0, safe.yMax - bounds.yMax));
+        Vector2 shift = PortraitSafeShift(bounds, safe);
         if (shift.sqrMagnitude < .01f || !(portraitRect.parent is RectTransform parent)) return;
-        Canvas canvas = portraitRect.GetComponentInParent<Canvas>()?.rootCanvas;
-        Camera camera = canvas == null || canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
+        Camera camera = CanvasCamera(portraitRect);
         RectTransformUtility.ScreenPointToLocalPointInRectangle(parent, bounds.center, camera, out var from);
         RectTransformUtility.ScreenPointToLocalPointInRectangle(parent, bounds.center + shift, camera, out var to);
         portraitRect.anchoredPosition += to - from;
+    }
+
+    private Rect LobbyPortraitBounds(float poseScale)
+    {
+        // The child anchors are centered on the placement wrapper. Project its
+        // authored pose independently of any bop or safe-area shift this frame.
+        Vector3 origin = portraitPlacement.rect.center;
+        origin.z = portraitRect.localPosition.z;
+        portraitRect.GetLocalCorners(corners);
+        for (int i = 0; i < corners.Length; i++)
+        {
+            Vector3 corner = Vector3.Scale(corners[i], portraitHomeScale * poseScale);
+            corners[i] = portraitPlacement.TransformPoint(origin + portraitRect.localRotation * corner);
+        }
+        Camera camera = CanvasCamera(portraitRect);
+        Rect bounds = ProjectCorners(camera);
+        Vector2 pivot = RectTransformUtility.WorldToScreenPoint(camera, portraitPlacement.TransformPoint(origin));
+        Rect safe = Screen.safeArea;
+        float fit = PortraitFitScale(bounds, safe);
+        Vector2 min = Vector2.LerpUnclamped(pivot, bounds.min, fit);
+        Vector2 max = Vector2.LerpUnclamped(pivot, bounds.max, fit);
+        bounds = Rect.MinMaxRect(min.x, min.y, max.x, max.y);
+        bounds.position += PortraitSafeShift(bounds, safe);
+        return bounds;
+    }
+
+    private void ApplyLobbyPortraitPadding()
+    {
+        if (panelRect == null || bodyText == null) return;
+        float left = dialogueTextPadding.x;
+        float right = dialogueTextPadding.z;
+        if (portraitPlacement != null && portraitImage != null && portraitImage.enabled)
+        {
+            // Reserve the space needed by the largest pose so the typewriter
+            // text keeps the same wrapping while the portrait animates.
+            Rect portrait = LobbyPortraitBounds(Mathf.Max(1f, portraitBopPeakScale));
+            Rect panel = ScreenRect(panelRect);
+            if (portrait.yMin < panel.yMax && portrait.yMax > panel.yMin)
+            {
+                float edge = portraitRight ? portrait.xMin - focusClearance : portrait.xMax + focusClearance;
+                if (RectTransformUtility.ScreenPointToLocalPointInRectangle(panelRect,
+                    new Vector2(edge, panel.center.y), CanvasCamera(panelRect), out Vector2 local))
+                {
+                    if (portraitRight) right = Mathf.Max(right, panelRect.rect.xMax - local.x);
+                    else left = Mathf.Max(left, local.x - panelRect.rect.xMin);
+                }
+            }
+        }
+
+        RectTransform body = bodyText.rectTransform;
+        if (!Mathf.Approximately(body.offsetMin.x, left))
+            body.offsetMin = new Vector2(left, dialogueTextPadding.w);
+        if (!Mathf.Approximately(body.offsetMax.x, -right))
+            body.offsetMax = -new Vector2(right, dialogueTextPadding.y);
     }
 
     private void UpdatePortraitPlacement()
@@ -352,7 +425,8 @@ public class TutorialDialogueUI : MonoBehaviour
         nextSideCheck = Time.unscaledTime + portraitSideCheckInterval;
         // Test two authored poses, never mirror the panel or its text.
         portraitPlacement.anchoredPosition = new Vector2(-Mathf.Abs(portraitHome.x), portraitHome.y) + portraitLeftOffset;
-        Rect left = ScreenRect(portraitRect);
+        if (lobby1Tutorial) portraitPlacement.localScale = Vector3.one;
+        Rect left = lobby1Tutorial ? LobbyPortraitBounds(1f) : ScreenRect(portraitRect);
         bool right = focus.width > 0 && left.Overlaps(focus);
         if (portraitRight && focus.width > 0)
         {
@@ -363,9 +437,11 @@ public class TutorialDialogueUI : MonoBehaviour
         if (right)
         {
             portraitPlacement.anchoredPosition = new Vector2(Mathf.Abs(portraitHome.x), portraitHome.y) + portraitRightOffset;
+            if (lobby1Tutorial) portraitPlacement.localScale = new Vector3(-1f, 1f, 1f);
             // If both sides are occupied, leave the explanation readable and
             // temporarily omit only the artwork.
-            portraitImage.enabled = !ScreenRect(portraitRect).Overlaps(focus);
+            Rect rightBounds = lobby1Tutorial ? LobbyPortraitBounds(1f) : ScreenRect(portraitRect);
+            portraitImage.enabled = !rightBounds.Overlaps(focus);
         }
         else portraitImage.enabled = true;
         portraitRight = right;

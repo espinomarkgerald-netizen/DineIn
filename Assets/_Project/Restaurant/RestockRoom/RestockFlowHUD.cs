@@ -180,7 +180,11 @@ public sealed class RestockFlowHUD : MonoBehaviour
         }
     }
 
-    private void HandleActiveSceneChanged(Scene previous, Scene current) => RebuildHotbar();
+    private void HandleActiveSceneChanged(Scene previous, Scene current)
+    {
+        DismissLobbyModals();
+        RebuildHotbar();
+    }
 
     private IEnumerator SubscribeAndRefresh()
     {
@@ -238,8 +242,15 @@ public sealed class RestockFlowHUD : MonoBehaviour
             holdRoot.SetActive(false);
     }
 
+    public void DismissLobbyModals()
+    {
+        HideHold();
+        ClearStartReminder();
+    }
+
     public void SetLobbyContext()
     {
+        DismissLobbyModals();
         roomController = null;
         inRestockRoom = false;
         HideRoomMessageImmediate();
@@ -249,6 +260,7 @@ public sealed class RestockFlowHUD : MonoBehaviour
 
     public void SetRestockContext(RestockRoomController controller, RestockStorageType room)
     {
+        DismissLobbyModals();
         roomController = controller;
         inRestockRoom = true;
         activeRoom = room;
@@ -740,9 +752,7 @@ public sealed class RestockFlowHUD : MonoBehaviour
 
     private void HideStartReminder()
     {
-        startAnyway = null;
-        if (startReminderRoot != null)
-            startReminderRoot.SetActive(false);
+        ClearStartReminder();
         RestockFlowCoordinator.Instance?.ShowMessage(
             "Restock first: collect deliveries at the truck, then enter Dry Room or Freezer.");
     }
@@ -750,10 +760,15 @@ public sealed class RestockFlowHUD : MonoBehaviour
     private void ContinueStartAnyway()
     {
         Action callback = startAnyway;
+        ClearStartReminder();
+        callback?.Invoke();
+    }
+
+    private void ClearStartReminder()
+    {
         startAnyway = null;
         if (startReminderRoot != null)
             startReminderRoot.SetActive(false);
-        callback?.Invoke();
     }
 
     private void ResolveOptionalReferences()

@@ -15,6 +15,7 @@ public sealed class LoreIntro : MonoBehaviour
     private const float StartupTimeout = 10f;
 
     [SerializeField] private VideoClip clip;
+    [SerializeField, Range(-6f, 0f)] private float audioOffsetDb = -3f;
 
     private VideoPlayer player;
     private RawImage picture;
@@ -193,7 +194,8 @@ public sealed class LoreIntro : MonoBehaviour
                 PlayerPrefs.GetFloat("Settings_MusicVolume", PlayerPrefs.GetFloat("Settings_Volume", 1f)));
             float master = settings?.masterVolume ?? Mathf.Clamp01(PlayerPrefs.GetFloat("Settings_MasterVolume", 1f));
             bool muted = settings?.muteAll ?? (PlayerPrefs.GetInt("Settings_MuteAll", 0) != 0);
-            source.SetDirectAudioVolume(0, muted ? 0f : music * master);
+            float introGain = Mathf.Pow(10f, audioOffsetDb / 20f);
+            source.SetDirectAudioVolume(0, muted ? 0f : music * master * introGain);
         }
 
         source.Play();

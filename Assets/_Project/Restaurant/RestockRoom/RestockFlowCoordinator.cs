@@ -336,6 +336,12 @@ public sealed class RestockFlowCoordinator : MonoBehaviour
         startReadinessWarningsAcknowledged = true;
     }
 
+    public void DismissLobbyModals()
+    {
+        startReadinessWarningsAcknowledged = false;
+        hud?.DismissLobbyModals();
+    }
+
     public void GuideToStorage(RestockStorageType storage)
     {
         RestockStockRoomEntrance target = storage == RestockStorageType.Frozen

@@ -1039,9 +1039,9 @@ public sealed partial class ManagementComputerController : MonoBehaviour, IPoint
             config.StorageConfig,
             RestockOrderManager.EnsureInstance(),
             GetExpectedCustomers(),
-            ConfirmRestockOrder);
+            ConfirmRestockOrder,
+            FineDiningReservations.For(this)?.DemandSummary);
         panel.GetComponent<UIRevealAnimation>()?.Play();
-        appWindow.SetMessage(FineDiningReservations.For(this)?.DemandSummary ?? string.Empty);
     }
 
     private void PopulateEquipment()
@@ -1308,9 +1308,8 @@ public sealed partial class ManagementComputerController : MonoBehaviour, IPoint
                 foreach (RestockCartLine line in sanitized)
                     if (line.item.requiredStorage == type) added += line.quantity;
                 if (added <= 0) continue;
-                int used = inventory.GetStorageContainerCount(type, items) +
-                           orders.GetReservedContainers(type, items);
-                if (used + added > config.StorageConfig.GetCapacity(type)) return false;
+                var usage = orders.GetCapacityUsage(type, items);
+                if (usage.Stored + usage.Reserved + added > config.StorageConfig.GetCapacity(type)) return false;
             }
 
             bool spent = DailyFinanceBridge.Instance != null

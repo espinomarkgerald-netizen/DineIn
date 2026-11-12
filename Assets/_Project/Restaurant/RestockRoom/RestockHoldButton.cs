@@ -65,7 +65,11 @@ public sealed class RestockHoldButton : MonoBehaviour,
     public void OnPointerUp(PointerEventData eventData) => CancelHold();
     public void OnPointerExit(PointerEventData eventData) => CancelHold();
 
-    private void OnDisable() => CancelHold();
+    private void OnDisable()
+    {
+        completed = null;
+        CancelHold();
+    }
 
     private void CancelHold()
     {
